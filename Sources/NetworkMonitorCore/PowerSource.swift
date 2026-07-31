@@ -58,16 +58,17 @@ public enum PowerSource {
 /// interface counters, which cost essentially nothing and always run. Only the
 /// per-app breakdown depends on this setting.
 public enum PerAppTrackingMode: String, CaseIterable {
-    /// Only while the popover is open. The default, and the lowest-energy option.
+    /// Only while the popover is open. Lowest energy, least complete.
     ///
     /// The tradeoff is real: per-app totals then cover only the seconds the menu
     /// was open, so they are a lower bound on the day rather than a full account.
     case whenOpen
-    /// Also while the menu is closed, whenever the Mac is on power.
+    /// Also while the menu is closed, whenever the Mac is on power. **The default.**
     ///
-    /// The only setting under which per-app numbers reflect a whole day. An
-    /// "always" option was dropped: it ran `nettop` at ~1.36 cores on battery,
-    /// which is never a reasonable default for a menu bar utility.
+    /// Complete per-app figures are the point of the feature, so this ships on and
+    /// users who care more about battery turn it off. An "always" option was
+    /// dropped: it ran `nettop` at ~1.36 cores on battery, which is never a
+    /// reasonable default for a menu bar utility.
     case pluggedIn
 
     /// Label for menus.

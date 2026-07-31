@@ -143,8 +143,8 @@ func runMenuBarTitleTests() {
 func runTrackingModeTests() {
     Check.suite("PerAppTrackingMode") {
 
-        // The default. Cheapest, but per-app totals then cover only the seconds
-        // the menu was open — a lower bound on the day, not a full account.
+        // Cheapest, but per-app totals then cover only the seconds the menu was
+        // open — a lower bound on the day, not a full account.
         Check.test("whenOpen tracks only while the popover is open") {
             let mode = PerAppTrackingMode.whenOpen
             Check.expectTrue(mode.shouldTrack(popoverOpen: true, onACPower: false))
@@ -154,7 +154,7 @@ func runTrackingModeTests() {
             Check.expectFalse(mode.shouldTrack(popoverOpen: false, onACPower: false))
         }
 
-        // The opt-in that makes per-app numbers cover a whole day.
+        // The default: complete per-app figures are the point of the feature.
         Check.test("pluggedIn also tracks with the menu closed, on power only") {
             let mode = PerAppTrackingMode.pluggedIn
             Check.expectTrue(mode.shouldTrack(popoverOpen: false, onACPower: true),
@@ -163,6 +163,19 @@ func runTrackingModeTests() {
                              "on battery, opening the popover should track")
             Check.expectFalse(mode.shouldTrack(popoverOpen: false, onACPower: false),
                               "on battery and closed must NOT burn a core")
+        }
+
+        /// Ships on, so per-app numbers are comparable with always-on tools like
+        /// TripMode out of the box. Users who prefer battery turn it off.
+        Check.test("pluggedIn is the shipped default") {
+            let store = UsageStore(storeURL: URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("default-mode-\(UUID().uuidString).json"))
+            UserDefaults.standard.removeObject(forKey: "perAppTrackingMode")
+            let model = MonitorViewModel(store: store)
+            Check.expectEqual(model.trackingMode, .pluggedIn)
+            Check.expectTrue(model.trackingMode.shouldTrack(popoverOpen: false,
+                                                            onACPower: true),
+                             "must track out of the box while on power")
         }
 
         // An "always" mode was removed: it ran nettop at ~1.36 cores on battery.

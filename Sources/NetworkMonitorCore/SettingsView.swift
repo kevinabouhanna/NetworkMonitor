@@ -37,8 +37,8 @@ public struct SettingsView: View {
                 Toggle("Keep tracking when plugged into power", isOn: Binding(
                     get: { model.trackingMode == .pluggedIn },
                     set: { model.setTrackingMode($0 ? .pluggedIn : .whenOpen) }))
-                Text("Off, app usage is only counted while this menu is open. "
-                     + "On, it's counted all day too, but uses more battery.")
+                Text("On, app usage is counted all day. Off, it's only counted "
+                     + "while this menu is open, which uses less battery.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -64,17 +64,15 @@ public struct SettingsView: View {
                         .monospacedDigit()
                     Spacer()
                 }
-                Text("Totals reset automatically at midnight.")
+                Text("Totals reset automatically at midnight. Each network you "
+                     + "connect to is counted separately.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
 
-                HStack(spacing: 10) {
-                    Button("Reset This Network") { model.resetCurrentNetwork() }
-                    Button("Reset All Networks") {
-                        model.store.resetAllNetworks()
-                        model.refreshHeader()
-                    }
-                }
+                // One button, not two. Usage is bucketed per network internally,
+                // but the popover never names the network, so "this network" vs
+                // "all networks" had no visible referent and only caused doubt.
+                Button("Reset Now") { model.resetCurrentNetwork() }
             }
 
             if let errorMessage {

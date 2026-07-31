@@ -72,7 +72,7 @@ To install without adding it to login items:
 
 The popover itself is just a total and the app list. The **gear icon** in it opens
 Settings, which holds start-at-login, per-app tracking, the counting-since time,
-Reset This Network, Reset All Networks, and Quit.
+Reset Now, and Quit.
 
 ### Quitting and starting at login
 
@@ -89,16 +89,20 @@ turn off start-at-login.
 ### Per-app tracking and what the numbers mean
 
 Per-app data comes from macOS's `nettop`, which costs about **1.4 CPU cores while
-it runs** — and that cost is fixed, unaffected by how often it samples. So by
-default it only runs **while the popover is open**.
+it runs** — and that cost is fixed, unaffected by how often it samples. So when it
+runs is a real battery-versus-completeness choice.
 
-The consequence matters: a per-app total counts only the traffic seen while
-`nettop` was running, so under the default it is a **lower bound on your day**, not
-a full account. Nothing can recover traffic from before the app launched either.
+A per-app total only counts traffic seen while `nettop` was running, and nothing
+can recover traffic from before the app launched.
 
-Turn on **Keep tracking when plugged into power** in Settings if you want per-app
-numbers that cover your whole day — that keeps counting with the menu closed
-whenever your Mac is on its power adapter (not on battery).
+**Keep tracking when plugged into power** is **on by default**, so per-app numbers
+cover your whole day and are comparable with always-on tools. It keeps counting
+with the menu closed whenever your Mac is on its power adapter. Turn it off in
+Settings to save battery — per-app usage is then only counted while the menu is
+open.
+
+Note that even with it on, per-app counting pauses on battery with the menu closed.
+For a like-for-like comparison against an always-on tool, stay plugged in.
 
 **Your live speed and daily total never use `nettop`.** They come from kernel
 interface counters, cost about 3% of a core, always run, and have been measured at
@@ -119,7 +123,7 @@ interface counters, cost about 3% of a core, always run, and have been measured 
 ## Building from source
 
 ```sh
-make test     # run the test suite (99 tests)
+make test     # run the test suite (100 tests)
 make app      # build build/NetworkMonitor.app
 make run      # build and launch
 make install  # install to /Applications with launch at login
@@ -143,6 +147,22 @@ xcrun stapler staple build/NetworkMonitor.app
 
 The app can't be sandboxed (it runs `nettop`), so it isn't eligible for the Mac
 App Store.
+
+## Roadmap
+
+The next major feature is **metering the hotspot connection** — stopping apps from
+updating while you're tethered.
+
+Worth knowing up front: everything today only *observes* traffic, which needs no
+permissions. *Blocking* an app's traffic needs a Network Extension system extension,
+which requires a paid Apple Developer account, an Apple-granted entitlement, a
+Developer ID signature and user approval. That's how TripMode does it, and there's
+no unprivileged shortcut.
+
+A useful first step that needs none of that is to warn and report on hotspot usage
+rather than enforce — macOS already suppresses many background updates on networks
+it considers expensive. See
+[the spec](docs/macOS_Network_Monitor_Spec.md) §9 for the full analysis.
 
 ## Notes
 

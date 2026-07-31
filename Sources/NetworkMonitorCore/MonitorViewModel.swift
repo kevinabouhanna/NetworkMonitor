@@ -83,7 +83,7 @@ public final class MonitorViewModel: ObservableObject {
     private var saveCounter = 0
 
     /// Controls when the expensive `nettop` stream runs. See `PerAppTrackingMode`.
-    @Published public private(set) var trackingMode: PerAppTrackingMode = .whenOpen
+    @Published public private(set) var trackingMode: PerAppTrackingMode = .pluggedIn
     /// True while per-app attribution is actually being collected.
     @Published public private(set) var isTrackingPerApp = false
     private var powerToken: Any?
