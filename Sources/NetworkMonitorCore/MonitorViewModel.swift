@@ -37,8 +37,11 @@ public final class MonitorViewModel: ObservableObject {
     @Published public private(set) var systemTotal: Int64 = 0
     @Published public private(set) var totalBytesIn: Int64 = 0
     @Published public private(set) var totalBytesOut: Int64 = 0
-    @Published public private(set) var networkLabel: String = "…"
     @Published public private(set) var isExpensiveNetwork = false
+
+    /// Combined day total. The popover shows one number rather than a
+    /// per-direction split; live rates are already in the menu bar.
+    public var totalBytes: Int64 { totalBytesIn + totalBytesOut }
     @Published public private(set) var dayStart: Date = Date()
     @Published public var systemExpanded = false
 
@@ -354,7 +357,6 @@ public final class MonitorViewModel: ObservableObject {
 
     public func refreshHeader() {
         let bucket = store.currentBucket
-        networkLabel = store.currentLabel
         isExpensiveNetwork = store.currentNetwork.isExpensive
         totalBytesIn = bucket.interfaceBytesIn
         totalBytesOut = bucket.interfaceBytesOut
@@ -370,11 +372,6 @@ public final class MonitorViewModel: ObservableObject {
         rebuildRows(now: Date())
     }
 
-    public func renameCurrentNetwork(_ label: String) {
-        store.setLabel(label, for: store.currentNetwork.id)
-        refreshHeader()
-    }
-
     public func icon(for row: UsageRow) -> NSImage {
         identityResolver.icon(for: AppIdentity(key: row.id,
                                                displayName: row.displayName,
@@ -382,8 +379,8 @@ public final class MonitorViewModel: ObservableObject {
                                                isSystem: row.isSystem))
     }
 
-    /// `↓ 128 KB/s ↑ 12 KB/s`, at a constant rendered width.
-    public var menuBarTitle: NSAttributedString {
-        MenuBarTitle.attributed(down: downBytesPerSecond, up: upBytesPerSecond)
+    /// Two stacked lines, download above upload, at a constant rendered width.
+    public var menuBarImage: NSImage {
+        MenuBarTitle.image(down: downBytesPerSecond, up: upBytesPerSecond)
     }
 }

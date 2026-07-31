@@ -10,12 +10,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let model = MonitorViewModel()
     private var titleObserver: AnyCancellable?
     private var popoverMonitor: Any?
+    private var settingsWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
         setUpPopover()
+        enableLoginItemOnFirstLaunch()
         model.start()
         observeTitle()
+    }
+
+    /// "Start at login" ships on. Applied exactly once, tracked by a flag, so
+    /// switching it off in Settings sticks and is never silently re-enabled.
+    private func enableLoginItemOnFirstLaunch() {
+        let key = "hasConfiguredLoginItem"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        // The installer may already have set it up; rewriting is pointless.
+        guard !LoginItem.isEnabled else { return }
+        // Only meaningful from an installed bundle. Enabling it while running out
+        // of .build would pin the agent to a path `swift package clean` deletes.
+        guard Bundle.main.executableURL?.path.contains(".app/Contents/MacOS/") == true
+        else { return }
+        try? LoginItem.enable()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -30,13 +47,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.target = self
         button.action = #selector(statusItemClicked(_:))
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        button.imagePosition = .imageOnly
         applyTitle()
     }
 
-    /// Title construction lives in `MenuBarTitle` so its width-stability
-    /// invariant is covered by the test suite.
+    /// Title construction lives in `MenuBarTitle` so its width-stability and
+    /// menu-bar-fit invariants are covered by the test suite.
     private func applyTitle() {
-        statusItem.button?.attributedTitle = model.menuBarTitle
+        statusItem.button?.image = model.menuBarImage
     }
 
     private func observeTitle() {
@@ -57,7 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let root = MenuBarPopoverView(
             model: model,
             onReset: { [weak self] in self?.model.resetCurrentNetwork() },
-            onRename: { [weak self] in self?.renameNetwork() },
+            onSettings: { [weak self] in self?.showSettings() },
             onQuit: { NSApp.terminate(nil) })
         popover.contentViewController = NSHostingController(rootView: root)
     }
@@ -106,33 +124,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showMenu() {
         let menu = NSMenu()
 
-        let header = NSMenuItem(title: model.networkLabel, action: nil, keyEquivalent: "")
-        header.isEnabled = false
-        menu.addItem(header)
-        menu.addItem(.separator())
-
-        menu.addItem(withTitle: "Reset \(model.networkLabel)",
+        menu.addItem(withTitle: "Reset Today's Usage",
                      action: #selector(resetCurrent), keyEquivalent: "")
         menu.addItem(withTitle: "Reset All Networks",
                      action: #selector(resetAll), keyEquivalent: "")
-        menu.addItem(withTitle: "Rename This Network…",
-                     action: #selector(renameNetwork), keyEquivalent: "")
-
-        menu.addItem(.separator())
-        let networks = NSMenuItem(title: "Networks", action: nil, keyEquivalent: "")
-        networks.submenu = networksSubmenu()
-        menu.addItem(networks)
 
         menu.addItem(.separator())
         let tracking = NSMenuItem(title: "Track Per-App Usage", action: nil, keyEquivalent: "")
         tracking.submenu = trackingSubmenu()
         menu.addItem(tracking)
 
-        menu.addItem(.separator())
-        let launch = NSMenuItem(title: "Launch at Login",
-                                action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
-        launch.state = isLaunchAtLoginEnabled ? .on : .off
-        menu.addItem(launch)
+        menu.addItem(withTitle: "Settings…",
+                     action: #selector(showSettings), keyEquivalent: ",")
 
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit NetworkMonitor",
@@ -177,26 +180,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.setTrackingMode(mode)
     }
 
-    private func networksSubmenu() -> NSMenu {
-        let submenu = NSMenu()
-        let networks = model.store.allNetworks()
-        if networks.isEmpty {
-            let item = NSMenuItem(title: "None yet", action: nil, keyEquivalent: "")
-            item.isEnabled = false
-            submenu.addItem(item)
-            return submenu
-        }
-        for network in networks {
-            let total = ByteFormat.bytes(network.bucket.interfaceTotal)
-            let item = NSMenuItem(title: "\(network.label) — \(total)",
-                                  action: nil, keyEquivalent: "")
-            item.isEnabled = false
-            if network.id == model.store.currentNetwork.id { item.state = .on }
-            submenu.addItem(item)
-        }
-        return submenu
-    }
-
     // MARK: Actions
 
     @objc private func resetCurrent() { model.resetCurrentNetwork() }
@@ -206,42 +189,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.refreshHeader()
     }
 
-    @objc private func renameNetwork() {
-        let alert = NSAlert()
-        alert.messageText = "Rename Network"
-        alert.informativeText = "This name is remembered for this network only."
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Cancel")
+    // MARK: Settings window
 
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
-        field.stringValue = model.networkLabel
-        alert.accessoryView = field
+    @objc private func showSettings() {
+        if popover.isShown { closePopover() }
+
+        if settingsWindow == nil {
+            let window = NSWindow(
+                contentRect: .zero,
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false)
+            window.title = "NetworkMonitor Settings"
+            window.contentViewController = NSHostingController(
+                rootView: SettingsView(model: model))
+            window.isReleasedWhenClosed = false
+            window.center()
+            settingsWindow = window
+        }
+
+        // An LSUIElement app is not active by default, so without this the
+        // window opens behind whatever the user was using.
         NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertFirstButtonReturn {
-            model.renameCurrentNetwork(field.stringValue)
-        }
-    }
-
-    // MARK: Launch at login
-
-    /// Backed by a per-user LaunchAgent, which needs no code signature and no
-    /// Developer ID. See `LoginItem`.
-    private var isLaunchAtLoginEnabled: Bool { LoginItem.isEnabled }
-
-    @objc private func toggleLaunchAtLogin() {
-        do {
-            if isLaunchAtLoginEnabled {
-                try LoginItem.disable()
-            } else {
-                try LoginItem.enable()
-            }
-        } catch {
-            NSApp.activate(ignoringOtherApps: true)
-            let alert = NSAlert()
-            alert.messageText = "Could not change Launch at Login"
-            alert.informativeText = error.localizedDescription
-            alert.alertStyle = .warning
-            alert.runModal()
-        }
+        settingsWindow?.makeKeyAndOrderFront(nil)
     }
 }

@@ -55,24 +55,22 @@ public enum ByteFormat {
     /// widths spanning a 28 pt swing. A constant character count combined with
     /// `MenuBarTitle.font` (fully monospaced, not merely monospaced-digit) is
     /// what actually pins the width.
+    ///
+    /// Precision is traded against magnitude so the numeric field is always
+    /// exactly `menuBarNumberWidth` characters: two decimals where they fit
+    /// (`14.14`), then one (`128.5`), then none (`1023`). Scaling keeps the value
+    /// in [1, 1024), so those three cases are exhaustive.
     public static func menuBarRate(_ bytesPerSecond: Double,
                                    width: Int = menuBarNumberWidth) -> String {
+        let (value, unit) = bytesPerSecond < 1 ? (0, "B") : scale(bytesPerSecond)
+        let magnitude = abs(value)
         let number: String
-        let unit: String
-        if bytesPerSecond < 1 {
-            number = "0"
-            unit = "B"
+        if magnitude >= 1000 {
+            number = String(format: "%.0f", value)
+        } else if magnitude >= 100 {
+            number = String(format: "%.1f", value)
         } else {
-            let (value, scaledUnit) = scale(bytesPerSecond)
-            unit = scaledUnit
-            if scaledUnit == "B" {
-                number = "\(Int(value))"
-            } else if abs(value) >= 100 {
-                // 3 integer digits already fill the field; a decimal would only jitter.
-                number = String(format: "%.0f", value)
-            } else {
-                number = String(format: "%.1f", value)
-            }
+            number = String(format: "%.2f", value)
         }
         return pad(number, to: width) + " " + padTrailing("\(unit)/s", to: menuBarUnitWidth)
     }

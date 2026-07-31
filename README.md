@@ -4,15 +4,17 @@ A lightweight macOS menu bar app that shows your live network speed and which ap
 are using your data.
 
 ```
-↓  128 KB/s ↑  12.0 KB/s
+↓ 14.14 KB/s
+↑ 28.69 KB/s
 ```
 
 Click the menu bar item for a per-app breakdown of the day's usage.
 
 ## Features
 
-- **Live speed in the menu bar** — download and upload, updated twice a second, in
-  byte units (KB/s, MB/s), at a fixed width so nothing jitters.
+- **Live speed in the menu bar** — download and upload stacked on two lines,
+  updated twice a second, in byte units (KB/s, MB/s), at a fixed width so nothing
+  jitters.
 - **Per-app usage** — sorted biggest first, with app icons. Helper processes are
   folded into their parent, so Chrome's dozen helpers show as one "Google Chrome"
   row, and OS daemons collapse into a single "System" row.
@@ -43,7 +45,7 @@ cd NetworkMonitor
 ```
 
 That builds the app, installs it to `/Applications`, and sets it to start
-automatically when you log in. Look for `↓ 0 B/s ↑ 0 B/s` in your menu bar.
+automatically when you log in. Look for the green `↓`/`↑` readout in your menu bar.
 
 To install without adding it to login items:
 
@@ -64,13 +66,25 @@ To install without adding it to login items:
 
 | Item | What it does |
 |---|---|
-| Reset *(network)* | Zero this network's totals |
+| Reset Today's Usage | Zero the current network's totals |
 | Reset All Networks | Zero everything |
-| Rename This Network… | Give a network a friendly name |
-| Networks | Today's total for every network seen |
 | Track Per-App Usage | See below |
-| Launch at Login | Toggle the login item |
+| Settings… | Start at login, tracking mode |
 | Quit | Quit the app |
+
+The **gear icon** in the popover opens the same Settings window.
+
+### Quitting and starting at login
+
+These are independent, which is the point:
+
+- **Quit** (or killing the process) ends the app for the rest of the session. It
+  will *not* come back on its own.
+- **Start at login** is on by default and brings it back at your next login. Turn
+  it off in Settings and it stays off.
+
+Turning *off* start-at-login does not quit the running app, and quitting does not
+turn off start-at-login.
 
 ### Track Per-App Usage
 
@@ -80,9 +94,9 @@ all** and are always accurate, so this setting only affects the per-app list:
 
 | Mode | Behaviour |
 |---|---|
-| **While Plugged In** *(default)* | Full-day per-app totals on power; on battery, only while the popover is open |
+| **While plugged in** *(default)* | Full-day per-app totals on power; on battery, only while the popover is open |
 | **Always** | Full-day per-app totals everywhere, at ~1.4 cores continuously |
-| **Only While Open** | Lowest battery use; rows fill in about a second after you open the popover |
+| **Only while open** | Lowest battery use; rows fill in about a second after you open the popover |
 
 ## Uninstall
 
@@ -94,7 +108,7 @@ all** and are always accurate, so this setting only affects the per-app list:
 ## Building from source
 
 ```sh
-make test     # run the test suite (95 tests)
+make test     # run the test suite (98 tests)
 make app      # build build/NetworkMonitor.app
 make run      # build and launch
 make install  # install to /Applications with launch at login
@@ -128,7 +142,7 @@ App Store.
 
 ## How it works
 
-See [macOS_Network_Monitor_Spec.md](macOS_Network_Monitor_Spec.md) for the
+See [docs/macOS_Network_Monitor_Spec.md](docs/macOS_Network_Monitor_Spec.md) for the
 technical design: why it reads `sysctl` instead of `getifaddrs`, why `nettop` needs
 a pseudo-terminal, how VPN traffic is counted exactly once while AirDrop is
 excluded, and the measurements behind each decision.

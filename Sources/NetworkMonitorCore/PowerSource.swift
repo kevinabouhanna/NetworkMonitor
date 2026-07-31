@@ -66,11 +66,21 @@ public enum PerAppTrackingMode: String, CaseIterable {
     /// Per-app data only while the popover is open. Lowest energy.
     case whenOpen
 
+    /// Label for the right-click menu.
     public var title: String {
         switch self {
         case .always:    return "Always (highest CPU)"
         case .pluggedIn: return "While Plugged In (recommended)"
         case .whenOpen:  return "Only While Open (lowest CPU)"
+        }
+    }
+
+    /// Longer label for the Settings window, where there is room to explain.
+    public var settingsTitle: String {
+        switch self {
+        case .always:    return "Always — full daily totals, ~1.4 cores"
+        case .pluggedIn: return "While plugged in — full totals on power"
+        case .whenOpen:  return "Only while this menu is open — lowest CPU"
         }
     }
 

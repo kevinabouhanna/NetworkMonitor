@@ -3,16 +3,16 @@ import SwiftUI
 public struct MenuBarPopoverView: View {
     @ObservedObject var model: MonitorViewModel
     var onReset: () -> Void
-    var onRename: () -> Void
+    var onSettings: () -> Void
     var onQuit: () -> Void
 
     public init(model: MonitorViewModel,
                 onReset: @escaping () -> Void,
-                onRename: @escaping () -> Void,
+                onSettings: @escaping () -> Void,
                 onQuit: @escaping () -> Void) {
         self.model = model
         self.onReset = onReset
-        self.onRename = onRename
+        self.onSettings = onSettings
         self.onQuit = onQuit
     }
 
@@ -28,72 +28,43 @@ public struct MenuBarPopoverView: View {
             Divider()
             footer
         }
-        .frame(width: 340)
+        .frame(width: 320)
     }
 
     // MARK: Header
 
+    /// One combined total. The per-direction split lived here and in every row,
+    /// but it was never asked for and doubled the numbers on screen; live
+    /// download/upload rates are already in the menu bar.
     private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: networkSymbol)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Total")
+                    .font(.system(size: 10))
                     .foregroundStyle(.secondary)
-                Text(model.networkLabel)
-                    .font(.system(size: 12, weight: .semibold))
-                    .lineLimit(1)
-                if model.isExpensiveNetwork {
-                    // Surfaced because metered networks are the case where the
-                    // day's total actually matters.
-                    Text("METERED")
-                        .font(.system(size: 9, weight: .bold))
-                        .padding(.horizontal, 5).padding(.vertical, 2)
-                        .background(Color.orange.opacity(0.2), in: Capsule())
-                        .foregroundStyle(.orange)
-                }
-                Spacer()
-                Button(action: onRename) {
-                    Image(systemName: "pencil").font(.system(size: 10))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("Rename this network")
+                Text(ByteFormat.bytes(model.totalBytes))
+                    .font(.system(size: 17, weight: .medium, design: .rounded))
+                    .monospacedDigit()
             }
-
-            HStack(alignment: .firstTextBaseline, spacing: 14) {
-                totalColumn(symbol: "arrow.down", bytes: model.totalBytesIn,
-                            rate: model.downBytesPerSecond, tint: .blue)
-                totalColumn(symbol: "arrow.up", bytes: model.totalBytesOut,
-                            rate: model.upBytesPerSecond, tint: .green)
+            if model.isExpensiveNetwork {
+                // Surfaced because metered networks are the case where the day's
+                // total actually matters.
+                Text("METERED")
+                    .font(.system(size: 9, weight: .bold))
+                    .padding(.horizontal, 5).padding(.vertical, 2)
+                    .background(Color.orange.opacity(0.2), in: Capsule())
+                    .foregroundStyle(.orange)
             }
+            Spacer()
+            Button(action: onSettings) {
+                Image(systemName: "gearshape.fill").font(.system(size: 12))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Settings")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-    }
-
-    private func totalColumn(symbol: String, bytes: Int64, rate: Double, tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            HStack(spacing: 3) {
-                Image(systemName: symbol).font(.system(size: 9, weight: .bold)).foregroundStyle(tint)
-                Text(ByteFormat.bytes(bytes))
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-            }
-            Text(ByteFormat.rate(rate))
-                .font(.system(size: 10))
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-        }
-        .frame(minWidth: 120, alignment: .leading)
-    }
-
-    private var networkSymbol: String {
-        switch model.store.currentNetwork.kind {
-        case .wifi:     return "wifi"
-        case .ethernet: return "cable.connector"
-        case .hotspot:  return "personalhotspot"
-        case .other:    return "network"
-        case .offline:  return "wifi.slash"
-        }
     }
 
     // MARK: List
@@ -124,7 +95,7 @@ public struct MenuBarPopoverView: View {
                         .font(.system(size: 9, weight: .semibold))
                         .foregroundStyle(.secondary)
                         .frame(width: 16)
-                    Image(systemName: "gearshape.fill")
+                    Image(systemName: "gearshape.2.fill")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                     Text("System (\(model.systemRows.count))")
                         .font(.system(size: 12))
@@ -199,16 +170,10 @@ private struct AppRowView: View {
 
             Spacer(minLength: 8)
 
-            VStack(alignment: .trailing, spacing: 0) {
-                Text(ByteFormat.bytes(row.total))
-                    .font(.system(size: 11, weight: .medium)).monospacedDigit()
-                Text("↓\(ByteFormat.bytes(row.bytesIn))  ↑\(ByteFormat.bytes(row.bytesOut))")
-                    .font(.system(size: 9)).monospacedDigit()
-                    .foregroundStyle(.tertiary)
-            }
+            Text(ByteFormat.bytes(row.total))
+                .font(.system(size: 11, weight: .medium)).monospacedDigit()
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 3)
-        .help("\(row.displayName) — ↓\(ByteFormat.bytes(row.bytesIn)) ↑\(ByteFormat.bytes(row.bytesOut))")
+        .padding(.vertical, 4)
     }
 }

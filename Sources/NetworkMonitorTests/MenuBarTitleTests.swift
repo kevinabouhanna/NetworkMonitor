@@ -64,23 +64,60 @@ func runMenuBarTitleTests() {
                              "4-char units need no pad")
         }
 
-        Check.test("title has the spec's shape") {
-            let title = MenuBarTitle.string(down: 131_072, up: 12_288)
-            Check.expectTrue(title.hasPrefix("↓ "), "got ‘\(title)’")
-            Check.expectTrue(title.contains(" ↑ "), "got ‘\(title)’")
-            Check.expectTrue(title.contains("128 KB/s"), "got ‘\(title)’")
-            Check.expectTrue(title.contains("12.0 KB/s"), "got ‘\(title)’")
+        Check.test("renders as two stacked lines, download first") {
+            let title = MenuBarTitle.string(down: 14.14 * 1024, up: 28.69 * 1024)
+            let lines = title.components(separatedBy: "\n")
+            Check.expectEqual(lines.count, 2, "got ‘\(title)’")
+            Check.expectTrue(lines[0].hasPrefix("↓"), "first line must be download")
+            Check.expectTrue(lines[1].hasPrefix("↑"), "second line must be upload")
+            Check.expectTrue(lines[0].contains("14.14 KB/s"), "got ‘\(lines[0])’")
+            Check.expectTrue(lines[1].contains("28.69 KB/s"), "got ‘\(lines[1])’")
         }
 
-        Check.test("idle title reads zero rather than blank") {
-            let title = MenuBarTitle.string(down: 0, up: 0)
-            Check.expectTrue(title.contains("0 B/s"), "got ‘\(title)’")
+        /// The stacked pair has to fit the 22 pt menu bar. At 9 pt it measured
+        /// exactly 22.0 and the top line's ascenders were clipped once the
+        /// button's insets applied, so there must be real margin.
+        Check.test("two lines fit inside the menu bar height") {
+            for (down, up, _) in cases {
+                let height = MenuBarTitle.renderedHeight(down: down, up: up)
+                Check.expectTrue(height < Double(MenuBarTitle.menuBarHeight),
+                                 "two-line height \(height) must be under "
+                                 + "\(MenuBarTitle.menuBarHeight) pt")
+            }
+        }
+
+        /// The status item shows an image, not a title, because NSButton drew a
+        /// multi-line title outside its own bounds. The image must be exactly the
+        /// menu bar height and keep its colour.
+        Check.test("status item image is menu-bar sized and not a template") {
+            let image = MenuBarTitle.image(down: 14.14 * 1024, up: 28.69 * 1024)
+            Check.expectEqual(Double(image.size.height),
+                              Double(MenuBarTitle.menuBarHeight),
+                              "image must fill the bar height exactly")
+            Check.expectTrue(image.size.width > 0, "image has no width")
+            // A template image would be recoloured to the monochrome bar tint,
+            // discarding the green.
+            Check.expectFalse(image.isTemplate, "template would lose the tint")
+        }
+
+        Check.test("image width is identical for every rate") {
+            let widths = Set(cases.map {
+                (MenuBarTitle.image(down: $0.down, up: $0.up).size.width * 100).rounded()
+            })
+            Check.expectEqual(widths.count, 1,
+                              "expected one width, got \(widths.sorted().map { $0 / 100 })")
+        }
+
+        Check.test("lines are tinted, not default black") {
+            let attributed = MenuBarTitle.attributed(down: 0, up: 0)
+            let colour = attributed.attribute(.foregroundColor, at: 0,
+                                              effectiveRange: nil) as? NSColor
+            Check.expectNotNil(colour)
+            Check.expectTrue(colour == MenuBarTitle.tint, "expected the green tint")
         }
     }
 }
 
-/// `nettop` costs a fixed ~1.36 cores whenever it runs — independent of `-s` and
-/// of `-p` scoping — so *when* it runs is the only energy lever there is.
 func runTrackingModeTests() {
     Check.suite("PerAppTrackingMode") {
 

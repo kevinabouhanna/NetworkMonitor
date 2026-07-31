@@ -17,7 +17,6 @@ public enum LoginItem {
     public enum Failure: LocalizedError {
         case notInstalledInApplications(String)
         case writeFailed(String)
-        case launchctlFailed(String)
 
         public var errorDescription: String? {
             switch self {
@@ -33,8 +32,6 @@ public enum LoginItem {
                     """
             case .writeFailed(let detail):
                 return "Could not write the launch agent: \(detail)"
-            case .launchctlFailed(let detail):
-                return "launchctl rejected the launch agent: \(detail)"
             }
         }
     }
@@ -79,7 +76,17 @@ public enum LoginItem {
         ]
     }
 
-    /// Writes the launch agent and loads it into the current GUI session.
+    /// Writes the launch agent.
+    ///
+    /// Deliberately does **not** call `launchctl`. When the app has itself been
+    /// started by this agent, `launchctl bootout` on that label terminates the
+    /// caller — enabling the setting killed the app and unloaded the agent in one
+    /// step. `launchctl bootstrap` is equally unnecessary: launchd loads every
+    /// plist in `~/Library/LaunchAgents` at session start, and the app is already
+    /// running, so the only thing that matters is that the file exists.
+    ///
+    /// `Scripts/install.sh` does bootstrap, because there the app is not running
+    /// and should start immediately.
     public static func enable() throws {
         let executable = Bundle.main.executableURL?.path
             ?? CommandLine.arguments.first ?? ""
@@ -105,22 +112,15 @@ public enum LoginItem {
             throw Failure.writeFailed(error.localizedDescription)
         }
 
-        // Replace any previous registration, then load. `bootout` failing is
-        // expected and harmless when nothing was loaded.
-        _ = launchctl(["bootout", "gui/\(getuid())/\(label)"])
-        // `bootstrap` honours RunAtLoad, which would start a second copy while
-        // this one is running. The single-instance guard in main.swift makes that
-        // duplicate exit immediately, so the agent still ends up correctly loaded.
-        let result = launchctl(["bootstrap", "gui/\(getuid())", plistURL.path])
-        guard result.status == 0 else {
-            throw Failure.launchctlFailed(result.output.isEmpty
-                                          ? "exit \(result.status)" : result.output)
-        }
     }
 
-    /// Unloads and removes the launch agent.
+    /// Removes the launch agent.
+    ///
+    /// Also does not call `launchctl`, for the same reason: booting out the job
+    /// would kill the very app the user is toggling the setting in. Deleting the
+    /// plist is sufficient — launchd will not start it at the next login, and
+    /// without `KeepAlive` the currently running copy is left alone.
     public static func disable() throws {
-        _ = launchctl(["bootout", "gui/\(getuid())/\(label)"])
         do {
             if FileManager.default.fileExists(atPath: plistURL.path) {
                 try FileManager.default.removeItem(at: plistURL)
@@ -128,21 +128,5 @@ public enum LoginItem {
         } catch {
             throw Failure.writeFailed(error.localizedDescription)
         }
-    }
-
-    @discardableResult
-    private static func launchctl(_ arguments: [String]) -> (status: Int32, output: String) {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        task.arguments = arguments
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-        do { try task.run() } catch { return (-1, error.localizedDescription) }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        task.waitUntilExit()
-        let output = String(data: data, encoding: .utf8) ?? ""
-        return (task.terminationStatus,
-                output.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }

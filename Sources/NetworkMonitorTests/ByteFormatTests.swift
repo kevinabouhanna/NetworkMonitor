@@ -55,13 +55,18 @@ func runByteFormatTests() {
 
         // Three integer digits already fill the field; a decimal there would
         // widen the string and reintroduce jitter.
-        Check.test("menu bar drops the decimal at three digits") {
+        // Two decimals where they fit, then one, then none — so the numeric
+        // field stays exactly 5 characters at every magnitude.
+        Check.test("menu bar precision degrades with magnitude") {
+            Check.expectEqual(
+                ByteFormat.menuBarRate(14.14 * 1024).trimmingCharacters(in: .whitespaces),
+                "14.14 KB/s", "two decimals below 100")
             Check.expectEqual(
                 ByteFormat.menuBarRate(1024 * 128).trimmingCharacters(in: .whitespaces),
-                "128 KB/s")
+                "128.0 KB/s", "one decimal at three digits")
             Check.expectEqual(
-                ByteFormat.menuBarRate(1024 * 12).trimmingCharacters(in: .whitespaces),
-                "12.0 KB/s")
+                ByteFormat.menuBarRate(0).trimmingCharacters(in: .whitespaces),
+                "0.00 B/s", "idle")
         }
 
         // `%.1f` must not follow the user's locale — a comma decimal separator
