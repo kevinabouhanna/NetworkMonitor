@@ -54,6 +54,46 @@ jobs:
           ditto -c -k --keepParent build/NetworkMonitor.app \
                 "NetworkMonitor-${{ steps.version.outputs.value }}.zip"
 
+      # GitHub puts the zip in the repo sidebar where it reads as the obvious
+      # download, but an ad-hoc signed app is quarantined once it has been
+      # zipped and shared — macOS refuses to open it and sends the user into
+      # System Settings. Until the Developer ID lands, the zip is a build
+      # artifact and the note below says so, so nobody bounces off a warning
+      # dialog thinking the app is broken. Drop this once builds are notarized.
+      - name: Write the release notes preamble
+        run: |
+          cat > release-notes.md <<'NOTE'
+          > [!IMPORTANT]
+          > **This download is not yet signed with an Apple Developer ID**, so
+          > macOS will refuse to open it and say the developer cannot be
+          > verified. That is Gatekeeper doing its job, not a broken build.
+
+          ### Installing
+
+          Build from source — a locally built app is never quarantined, so this
+          path has no warnings at all:
+
+          ```sh
+          git clone https://github.com/kevinabouhanna/NetworkMonitor.git
+          cd NetworkMonitor
+          ./Scripts/install.sh
+          ```
+
+          Update later with `make update`.
+
+          If you would rather use the zip and know what you are doing, clear the
+          quarantine flag yourself after unzipping:
+
+          ```sh
+          xattr -dr com.apple.quarantine NetworkMonitor.app
+          ```
+
+          Signed and notarized downloads that open with a double-click are
+          planned.
+
+          ---
+          NOTE
+
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -61,4 +101,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
              "NetworkMonitor-${{ steps.version.outputs.value }}.zip" \
              --title "$GITHUB_REF_NAME" \
+             --notes-file release-notes.md \
              --generate-notes
