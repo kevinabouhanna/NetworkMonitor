@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>NetworkMonitor</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.kevinabouhanna.NetworkMonitor</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>NetworkMonitor</string>
+	<key>CFBundleDisplayName</key>
+	<string>Network Monitor</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+
+	<!-- Menu bar only: no Dock icon, no app-switcher entry. -->
+	<key>LSUIElement</key>
+	<true/>
+
+	<!-- No NSLocationUsageDescription on purpose. Network identity comes from
+	     the default gateway's MAC address, which needs no permission, so the
+	     app never prompts. SSID would require Location access and is not used. -->
+
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 Kevin Abouhanna</string>
+	<key>NSSupportsAutomaticTermination</key>
+	<false/>
+	<key>NSSupportsSuddenTermination</key>
+	<false/>
+</dict>
+</plist>

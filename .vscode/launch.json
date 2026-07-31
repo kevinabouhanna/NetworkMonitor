@@ -1,0 +1,44 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:NetworkMonitor}",
+            "name": "Debug NetworkMonitor",
+            "target": "NetworkMonitor",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug NetworkMonitor"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:NetworkMonitor}",
+            "name": "Release NetworkMonitor",
+            "target": "NetworkMonitor",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release NetworkMonitor"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:NetworkMonitor}",
+            "name": "Debug NetworkMonitorTests",
+            "target": "NetworkMonitorTests",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug NetworkMonitorTests"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:NetworkMonitor}",
+            "name": "Release NetworkMonitorTests",
+            "target": "NetworkMonitorTests",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release NetworkMonitorTests"
+        }
+    ]
+}
