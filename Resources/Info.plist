@@ -16,6 +16,9 @@
 	<string>Network Monitor</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<!-- Shown in Finder and /Applications. There is no Dock icon: LSUIElement. -->
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0.0</string>
 	<key>CFBundleVersion</key>

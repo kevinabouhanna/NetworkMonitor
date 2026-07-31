@@ -49,6 +49,8 @@ rm -rf "$APP"
 mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
 cp "$BINARY" "${APP}/Contents/MacOS/${APP_NAME}"
 cp Resources/Info.plist "${APP}/Contents/Info.plist"
+# Committed, not generated at build time — regenerate with Scripts/make-icon.swift.
+cp Resources/AppIcon.icns "${APP}/Contents/Resources/AppIcon.icns"
 printf 'APPL????' > "${APP}/Contents/PkgInfo"
 
 echo "==> Signing"

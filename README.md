@@ -127,8 +127,12 @@ make test     # run the test suite (100 tests)
 make app      # build build/NetworkMonitor.app
 make run      # build and launch
 make install  # install to /Applications with launch at login
+make icon     # redraw Resources/AppIcon.icns (committed; only after editing it)
 make clean
 ```
+
+The app icon is drawn in code, in [Scripts/make-icon.swift](Scripts/make-icon.swift) —
+the same green down arrow and light up arrow as the menu bar, on a dark squircle.
 
 Your usage history is stored at
 `~/Library/Application Support/NetworkMonitor/usage.json`.

@@ -1,4 +1,4 @@
-.PHONY: all build test app universal run install install-only uninstall clean
+.PHONY: all build test app universal run install install-only uninstall icon clean
 
 all: test app
 
@@ -31,6 +31,11 @@ install-only:
 
 uninstall:
 	@./Scripts/uninstall.sh
+
+# Redraws Resources/AppIcon.icns. The .icns is committed, so this is only
+# needed after editing the icon itself.
+icon:
+	@swift Scripts/make-icon.swift
 
 clean:
 	swift package clean
