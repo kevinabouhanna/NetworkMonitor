@@ -78,7 +78,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let root = MenuBarPopoverView(
             model: model,
             onSettings: { [weak self] in self?.showSettings() })
-        popover.contentViewController = NSHostingController(rootView: root)
+        let host = NSHostingController(rootView: root)
+        // Keeps `preferredContentSize` in step with what SwiftUI lays out.
+        //
+        // Without it the controller reports (0, 0) until after the first show, and
+        // `NSPopover` falls back to its own 320×320 default to place the window —
+        // then shrinks to the real content height keeping the *bottom* edge put, so
+        // the popover lands roughly one default-height below the menu bar. The same
+        // gap also froze the height at whatever the content measured on the first
+        // frame: opening on the empty state and having the app rows arrive a moment
+        // later left the list clipped to the empty state's height.
+        host.sizingOptions = [.preferredContentSize]
+        popover.contentViewController = host
     }
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
