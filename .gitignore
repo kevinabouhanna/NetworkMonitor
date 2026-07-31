@@ -9,6 +9,9 @@ Package.resolved
 # macOS
 .DS_Store
 
+# Internal technical docs — not published
+/docs/
+
 # Xcode, if it ever gets used here
 *.xcuserstate
 xcuserdata/
