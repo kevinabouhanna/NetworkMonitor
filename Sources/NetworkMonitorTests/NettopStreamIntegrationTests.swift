@@ -14,8 +14,17 @@ import NetworkMonitorCore
 /// and libc flushes at exit. Only a long-lived stream shows it. So the only
 /// meaningful guard is to run the real thing and require that data actually
 /// arrives.
+/// Both tests here need a machine with real network traffic, which a sandboxed
+/// CI runner does not have, so they are skipped there. See `Check.skipsLiveTests`.
 func runNettopStreamIntegrationTests() {
     Check.suite("NettopStream — live integration") {
+
+        guard !Check.skipsLiveTests else {
+            Check.skip("delivers a sample within 8 seconds", "needs live traffic")
+            Check.skip("first delivered sample holds deltas, not lifetime totals",
+                       "needs live traffic")
+            return
+        }
 
         Check.test("delivers a sample within 8 seconds") {
             let stream = NettopStream()

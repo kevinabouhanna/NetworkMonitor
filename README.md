@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/kevinabouhanna/NetworkMonitor/actions/workflows/ci.yml"><img src="https://github.com/kevinabouhanna/NetworkMonitor/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
   <img src="https://img.shields.io/badge/macOS-13%2B-1d1d1f" alt="macOS 13 or later">
   <img src="https://img.shields.io/badge/permissions-none-51FF70" alt="No permissions required">
   <img src="https://img.shields.io/badge/telemetry-none-51FF70" alt="No telemetry">

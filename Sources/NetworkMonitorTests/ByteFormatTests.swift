@@ -106,11 +106,16 @@ func runGatewayProbeTests() {
             Check.expectEqual(GatewayProbe.parseARP(output), "50:c7:bf:8a:94:93")
         }
 
-        // Integration: this machine has a reachable default gateway.
-        Check.test("resolves this machine's gateway MAC") {
-            Check.expectNotNil(GatewayProbe.defaultGatewayIP(), "no default route found")
-            if let mac = GatewayProbe.macAddress() {
-                Check.expectEqual(mac.split(separator: ":").count, 6, "malformed MAC \(mac)")
+        // Integration: this machine has a reachable default gateway. A CI runner
+        // does not necessarily, so this one is skipped there.
+        if Check.skipsLiveTests {
+            Check.skip("resolves this machine's gateway MAC", "needs a real default route")
+        } else {
+            Check.test("resolves this machine's gateway MAC") {
+                Check.expectNotNil(GatewayProbe.defaultGatewayIP(), "no default route found")
+                if let mac = GatewayProbe.macAddress() {
+                    Check.expectEqual(mac.split(separator: ":").count, 6, "malformed MAC \(mac)")
+                }
             }
         }
     }

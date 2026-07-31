@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    # macOS is required, not a preference: the app links AppKit and SwiftUI.
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Build
+        run: swift build
+
+      # Not `swift test`: neither XCTest nor swift-testing ships with Command
+      # Line Tools, so the suite is a plain executable. See Package.swift.
+      # GitHub sets CI=true, which skips the tests that need live network
+      # traffic — a sandboxed runner cannot provide it.
+      - name: Test
+        run: make test
+
+      # The bundle is where breakage actually hides: Info.plist keys, the
+      # .icns, codesigning. `swift build` alone would not catch any of it.
+      - name: Assemble the app bundle
+        run: make app
+
+      - name: Check the bundle is well formed
+        run: |
+          codesign --verify --verbose=1 build/NetworkMonitor.app
+          test -f build/NetworkMonitor.app/Contents/Info.plist
+          test -f build/NetworkMonitor.app/Contents/Resources/AppIcon.icns
+          test -x build/NetworkMonitor.app/Contents/MacOS/NetworkMonitor
