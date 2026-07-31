@@ -1,0 +1,64 @@
+name: Release
+
+# Cut a release by tagging:  git tag v1.1.0 && git push origin v1.1.0
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write        # required to create the release and upload the zip
+
+jobs:
+  release:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Not shallow: bundle.sh derives the build number from the commit
+          # count, and the default depth-1 clone would make every release
+          # build number 1 — which is exactly the value an updater uses to
+          # decide whether a new version exists.
+          fetch-depth: 0
+
+      - name: Derive the version from the tag
+        id: version
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # A tagged commit that fails its tests should not become a release.
+      - name: Test
+        run: make test
+
+      # Universal, unlike CI's native build: a release has to run on Intel too.
+      - name: Build the universal app
+        env:
+          MARKETING_VERSION: ${{ steps.version.outputs.value }}
+        run: make universal
+
+      - name: Verify the stamped version matches the tag
+        run: |
+          stamped=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" \
+                    build/NetworkMonitor.app/Contents/Info.plist)
+          if [ "$stamped" != "${{ steps.version.outputs.value }}" ]; then
+            echo "tag says ${{ steps.version.outputs.value }}, bundle says $stamped" >&2
+            exit 1
+          fi
+          echo "both say $stamped"
+          lipo -archs build/NetworkMonitor.app/Contents/MacOS/NetworkMonitor
+
+      # ditto, not zip: it preserves the bundle's symlinks and extended
+      # attributes, so the signature survives the round trip. This is also the
+      # archive format Sparkle expects when it is added.
+      - name: Package
+        run: |
+          ditto -c -k --keepParent build/NetworkMonitor.app \
+                "NetworkMonitor-${{ steps.version.outputs.value }}.zip"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+             "NetworkMonitor-${{ steps.version.outputs.value }}.zip" \
+             --title "$GITHUB_REF_NAME" \
+             --generate-notes

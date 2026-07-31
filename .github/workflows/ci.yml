@@ -17,6 +17,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # bundle.sh derives the build number from the commit count, which a
+          # depth-1 clone would report as 1.
+          fetch-depth: 0
 
       - name: Swift version
         run: swift --version
@@ -42,3 +46,34 @@ jobs:
           test -f build/NetworkMonitor.app/Contents/Info.plist
           test -f build/NetworkMonitor.app/Contents/Resources/AppIcon.icns
           test -x build/NetworkMonitor.app/Contents/MacOS/NetworkMonitor
+
+      # Everything above proves the app compiles and is packaged correctly, and
+      # none of it would notice a crash on launch — the one failure that an
+      # auto-updater would happily ship to every user, and that leaves them with
+      # no working copy to receive the fix with.
+      - name: Smoke test — the app launches and stays up
+        run: ./Scripts/smoke-test.sh
+
+  universal:
+    # Releases ship arm64 + x86_64. Runs alongside the job above rather than
+    # after it, so the slower two-architecture compile does not delay feedback.
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build both architectures
+        run: make universal
+
+      - name: Check both slices are present
+        run: |
+          archs=$(lipo -archs build/NetworkMonitor.app/Contents/MacOS/NetworkMonitor)
+          echo "built: $archs"
+          case "$archs" in
+            *arm64*) ;; *) echo "missing arm64" >&2; exit 1 ;;
+          esac
+          case "$archs" in
+            *x86_64*) ;; *) echo "missing x86_64" >&2; exit 1 ;;
+          esac

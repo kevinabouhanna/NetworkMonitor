@@ -70,6 +70,12 @@ for the `↓`/`↑` readout in your menu bar.
 
 To skip the login item, use `./Scripts/install.sh --no-login`.
 
+To update later, pull and reinstall in one step:
+
+```sh
+make update
+```
+
 ## Using it
 
 **Left-click** the menu bar item for today's total and the app list. **Right-click**

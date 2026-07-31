@@ -21,6 +21,7 @@ cd "$(dirname "$0")/.."
 APP_NAME="NetworkMonitor"
 BUILD_DIR=".build/release"
 APP="build/${APP_NAME}.app"
+PLIST_SRC="Resources/Info.plist"
 UNIVERSAL=0
 
 for arg in "$@"; do
@@ -29,6 +30,39 @@ for arg in "$@"; do
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
+
+# Version numbers are stamped in at build time rather than committed, so a
+# release is cut by tagging and nothing has to be edited by hand.
+#
+#   CFBundleShortVersionString — what a human reads. The latest git tag.
+#   CFBundleVersion            — what software compares. The commit count,
+#                                because it only ever increases. An updater
+#                                decides "is there something newer" from this
+#                                number, so a repeated value means no update is
+#                                ever offered.
+#
+# Both are overridable so a release workflow can pin them to the tag it is
+# building, and both fall back to the committed plist outside a git checkout.
+plist_value() { /usr/libexec/PlistBuddy -c "Print :$1" "$PLIST_SRC"; }
+in_git_repo() { git rev-parse --git-dir >/dev/null 2>&1; }
+
+if [ -z "${MARKETING_VERSION:-}" ]; then
+  if in_git_repo && tag=$(git describe --tags --abbrev=0 2>/dev/null); then
+    MARKETING_VERSION="${tag#v}"
+  else
+    MARKETING_VERSION="$(plist_value CFBundleShortVersionString)"
+  fi
+fi
+
+if [ -z "${BUILD_NUMBER:-}" ]; then
+  if in_git_repo; then
+    BUILD_NUMBER="$(git rev-list --count HEAD)"
+  else
+    BUILD_NUMBER="$(plist_value CFBundleVersion)"
+  fi
+fi
+
+echo "==> Version ${MARKETING_VERSION} (build ${BUILD_NUMBER})"
 
 echo "==> Building (release)"
 if [ "$UNIVERSAL" -eq 1 ]; then
@@ -48,7 +82,13 @@ echo "==> Assembling ${APP}"
 rm -rf "$APP"
 mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
 cp "$BINARY" "${APP}/Contents/MacOS/${APP_NAME}"
-cp Resources/Info.plist "${APP}/Contents/Info.plist"
+cp "$PLIST_SRC" "${APP}/Contents/Info.plist"
+# Stamped before signing: editing the plist afterwards would invalidate the
+# signature and Gatekeeper would reject the bundle.
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${MARKETING_VERSION}" \
+                        "${APP}/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${BUILD_NUMBER}" \
+                        "${APP}/Contents/Info.plist"
 # Committed, not generated at build time — regenerate with Scripts/make-icon.swift.
 cp Resources/AppIcon.icns "${APP}/Contents/Resources/AppIcon.icns"
 printf 'APPL????' > "${APP}/Contents/PkgInfo"
@@ -71,6 +111,6 @@ fi
 codesign --verify --verbose=1 "$APP" 2>&1 | sed 's/^/    /'
 
 echo
-echo "==> Done: ${APP}"
+echo "==> Done: ${APP} — ${MARKETING_VERSION} (build ${BUILD_NUMBER})"
 echo "    Run:      open ${APP}"
 echo "    Install:  cp -R ${APP} /Applications/"

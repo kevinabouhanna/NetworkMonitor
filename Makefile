@@ -1,4 +1,4 @@
-.PHONY: all build test hooks app universal run install install-only uninstall icon clean
+.PHONY: all build test hooks app universal run install install-only update uninstall icon clean
 
 all: test app
 
@@ -36,6 +36,14 @@ install:
 # Install without touching login items.
 install-only:
 	@./Scripts/install.sh --no-login
+
+# Pull, verify, reinstall. This is the update mechanism until the app can
+# update itself. Tests run first so a bad pull is caught before it replaces a
+# working install.
+update:
+	@git pull --ff-only
+	@$(MAKE) test
+	@./Scripts/install.sh
 
 uninstall:
 	@./Scripts/uninstall.sh
