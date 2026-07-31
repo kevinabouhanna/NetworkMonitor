@@ -99,12 +99,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // An LSUIElement app is not active by default, so without this the
         // popover renders unfocused and swallows the first click.
         NSApp.activate(ignoringOtherApps: true)
+        clearInitialFocus()
 
         // `.transient` dismisses on outside clicks but does not tell us, and the
         // model needs to know in order to stop rebuilding rows.
         popoverMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             guard let self, self.popover.isShown else { return }
             DispatchQueue.main.async { self.closePopover() }
+        }
+    }
+
+    /// Opens the popover with nothing focused.
+    ///
+    /// The gear is the only focusable control in there, so on becoming key the
+    /// window hands it first responder and it opens wearing a focus ring the
+    /// user never asked for. Dropping first responder is deliberately not the
+    /// same as making the button unfocusable: the key view loop still reaches
+    /// it, so Tab focuses it — ring and all — for anyone navigating by keyboard.
+    ///
+    /// Deferred a turn because SwiftUI assigns focus after the window is shown;
+    /// clearing it inline would be undone immediately.
+    private func clearInitialFocus() {
+        DispatchQueue.main.async { [weak self] in
+            guard let window = self?.popover.contentViewController?.view.window else { return }
+            window.makeFirstResponder(nil)
         }
     }
 
