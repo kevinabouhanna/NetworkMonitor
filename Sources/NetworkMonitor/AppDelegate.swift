@@ -15,6 +15,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
         setUpPopover()
+        // Installs predating SMAppService still have a LaunchAgent plist; it
+        // has to go before the first-launch check, or both would start a copy.
+        LoginItem.migrateLegacyAgentIfNeeded()
         enableLoginItemOnFirstLaunch()
         model.start()
         observeTitle()

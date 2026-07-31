@@ -55,9 +55,9 @@ To install without adding it to login items:
 ```
 
 > **No code signing required.** The app is signed ad-hoc, which is all macOS needs
-> to run it locally, and launch-at-login uses a plain LaunchAgent that needs no
-> signature at all. A Developer ID is only needed if you want to distribute the app
-> to other people.
+> to run it locally, and launch-at-login registers through `SMAppService`, which
+> accepts an ad-hoc signature. A Developer ID is only needed if you want to
+> distribute the app to other people.
 
 ## Usage
 

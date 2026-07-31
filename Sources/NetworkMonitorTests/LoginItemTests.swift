@@ -1,51 +1,42 @@
 import Foundation
+import ServiceManagement
 import NetworkMonitorCore
 
 func runLoginItemTests() {
-    Check.suite("LoginItem — launch agent definition") {
+    Check.suite("LoginItem — SMAppService registration") {
 
-        let definition = LoginItem.agentDefinition(
-            executablePath: "/Applications/NetworkMonitor.app/Contents/MacOS/NetworkMonitor",
-            label: "com.example.NetworkMonitor")
-
-        Check.test("has the label and program launchd needs") {
-            Check.expectEqual(definition["Label"] as? String, "com.example.NetworkMonitor")
-            Check.expectEqual(definition["ProgramArguments"] as? [String],
-                              ["/Applications/NetworkMonitor.app/Contents/MacOS/NetworkMonitor"])
+        /// The whole point of the mapping: `.requiresApproval` means macOS knows
+        /// about the item but the user switched it off in System Settings.
+        /// Reporting that as "enabled" would show a ticked toggle for something
+        /// that will not start.
+        Check.test("only .enabled counts as enabled") {
+            Check.expectTrue(LoginItem.isEnabled(for: .enabled))
+            Check.expectFalse(LoginItem.isEnabled(for: .requiresApproval),
+                              "the user has switched it off in System Settings")
+            Check.expectFalse(LoginItem.isEnabled(for: .notRegistered))
+            Check.expectFalse(LoginItem.isEnabled(for: .notFound))
         }
 
-        Check.test("RunAtLoad is set, or it would never start at login") {
-            Check.expectTrue(definition["RunAtLoad"] as? Bool == true)
+        Check.test("label is non-empty") {
+            Check.expectFalse(LoginItem.label.isEmpty)
         }
 
-        /// The single most important property to get wrong. With `KeepAlive`,
-        /// launchd relaunches the app the instant it exits, so choosing Quit from
-        /// the menu would appear to do nothing.
-        Check.test("KeepAlive is absent so Quit actually quits") {
-            Check.expectNil(definition["KeepAlive"],
-                            "KeepAlive would make Quit relaunch the app immediately")
+        Check.test("every failure explains itself") {
+            let failures: [LoginItem.Failure] = [
+                .notInstalledInApplications("/tmp/NetworkMonitor.app"),
+                .requiresApproval,
+                .registrationFailed("boom"),
+            ]
+            for failure in failures {
+                let message = failure.errorDescription ?? ""
+                Check.expectFalse(message.isEmpty, "\(failure) has no description")
+            }
         }
 
-        /// A menu bar app has nothing to attach to outside a GUI session; loading
-        /// it in an ssh or daemon context would just spin up a useless process.
-        Check.test("restricted to Aqua GUI sessions") {
-            Check.expectEqual(definition["LimitLoadToSessionType"] as? String, "Aqua")
-        }
-
-        Check.test("serialises to a plist launchd will accept") {
-            let data = try? PropertyListSerialization.data(fromPropertyList: definition,
-                                                           format: .xml, options: 0)
-            Check.expectNotNil(data, "definition is not plist-serialisable")
-            guard let data else { return }
-            let decoded = try? PropertyListSerialization.propertyList(
-                from: data, options: [], format: nil) as? [String: Any]
-            Check.expectNotNil(decoded ?? nil, "round-trip failed")
-            Check.expectEqual((decoded ?? [:])?["Label"] as? String,
-                              "com.example.NetworkMonitor")
-        }
-
-        Check.test("plist path is under the user's LaunchAgents directory") {
-            let path = LoginItem.plistURL.path
+        /// A user upgrading from the LaunchAgent build has that plist on disk.
+        /// It has to be found and deleted, or login would start two copies.
+        Check.test("legacy agent path is the per-user LaunchAgents plist") {
+            let path = LoginItem.legacyAgentURL.path
             Check.expectTrue(path.contains("/Library/LaunchAgents/"), "got \(path)")
             Check.expectTrue(path.hasSuffix(".plist"), "got \(path)")
             // Per-user, never system-wide: no admin rights, no signing needed.
@@ -53,25 +44,32 @@ func runLoginItemTests() {
                               "must be the per-user agent directory")
         }
 
-        Check.test("label is non-empty") {
-            Check.expectFalse(LoginItem.label.isEmpty)
+        /// Exercised against a temporary file rather than the real path, so the
+        /// suite never touches whatever the developer has installed.
+        Check.test("removing the legacy agent deletes it and reports it") {
+            let temporary = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("LoginItemTests-\(UUID().uuidString).plist")
+            Check.expectFalse(LoginItem.hasLegacyAgent(at: temporary),
+                              "nothing there yet")
+            Check.expectTrue(FileManager.default.createFile(atPath: temporary.path,
+                                                            contents: Data()))
+            Check.expectTrue(LoginItem.hasLegacyAgent(at: temporary))
+
+            let removed = (try? LoginItem.removeLegacyAgent(at: temporary)) ?? false
+            Check.expectTrue(removed, "should report that it removed one")
+            Check.expectFalse(LoginItem.hasLegacyAgent(at: temporary), "still there")
         }
 
-        /// `isEnabled` must not report true for an agent pointing at a build that
-        /// has been deleted or moved, otherwise the menu shows a checkmark for a
-        /// login item that cannot start.
-        Check.test("isEnabled is false when no agent is installed for this build") {
-            // Under `swift run` the executable lives in .build, so whatever the
-            // installed app registered must not be attributed to this binary.
-            let path = LoginItem.plistURL.path
-            let exists = FileManager.default.fileExists(atPath: path)
-            if !exists {
-                Check.expectFalse(LoginItem.isEnabled, "no plist, so not enabled")
-            } else {
-                // An agent is installed; it must at least point somewhere real.
-                Check.expectTrue(LoginItem.isEnabled || !LoginItem.isEnabled,
-                                 "isEnabled must not crash")
-            }
+        /// Migration runs on every launch, so the no-plist case must be silent
+        /// and cheap rather than an error.
+        Check.test("removing a legacy agent that is not there is not an error") {
+            let missing = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("LoginItemTests-absent-\(UUID().uuidString).plist")
+            var threw = false
+            var removed = true
+            do { removed = try LoginItem.removeLegacyAgent(at: missing) } catch { threw = true }
+            Check.expectFalse(threw, "must not throw when there is nothing to remove")
+            Check.expectFalse(removed, "should report that it removed nothing")
         }
     }
 }

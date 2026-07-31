@@ -5,7 +5,9 @@
 #
 # No Apple Developer account, no Developer ID and no notarization are required.
 # The app is signed ad-hoc, which is enough for macOS to run it locally, and the
-# login item is a plain LaunchAgent that needs no signature at all.
+# login item is registered by the app through SMAppService, which accepts an
+# ad-hoc signature (verified: registration reports .enabled and the item is
+# recorded as an app, with the bundle's own name and icon).
 #
 # Usage:
 #   ./Scripts/install.sh                # install + enable launch at login
@@ -18,8 +20,6 @@ cd "$(dirname "$0")/.."
 APP_NAME="NetworkMonitor"
 BUNDLE_ID="com.kevinabouhanna.NetworkMonitor"
 DEST="/Applications/${APP_NAME}.app"
-AGENT="${HOME}/Library/LaunchAgents/${BUNDLE_ID}.plist"
-EXECUTABLE="${DEST}/Contents/MacOS/${APP_NAME}"
 ENABLE_LOGIN=1
 
 for arg in "$@"; do
@@ -31,7 +31,10 @@ for arg in "$@"; do
 done
 
 echo "==> Stopping any running copy"
-# bootout first so launchd does not immediately restart it mid-install.
+# Older installs used a LaunchAgent; boot it out first so launchd does not
+# restart the app mid-install. The plist is left in place deliberately — the
+# app reads it on next launch to carry the user's existing "start at login"
+# choice over to SMAppService, then deletes it.
 launchctl bootout "gui/$(id -u)/${BUNDLE_ID}" 2>/dev/null || true
 pkill -f "${APP_NAME}.app/Contents/MacOS/${APP_NAME}" 2>/dev/null || true
 sleep 1
@@ -53,38 +56,21 @@ fi
 # shared will be, and Gatekeeper would then refuse to open it.
 xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
 
-if [ "$ENABLE_LOGIN" -eq 1 ]; then
-  echo "==> Enabling launch at login"
-  mkdir -p "$(dirname "$AGENT")"
-  cat > "$AGENT" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>Label</key>
-	<string>${BUNDLE_ID}</string>
-	<key>ProgramArguments</key>
-	<array>
-		<string>${EXECUTABLE}</string>
-	</array>
-	<key>RunAtLoad</key>
-	<true/>
-	<!-- GUI sessions only: there is no menu bar to attach to otherwise. -->
-	<key>LimitLoadToSessionType</key>
-	<string>Aqua</string>
-	<key>ProcessType</key>
-	<string>Interactive</string>
-	<!-- No KeepAlive on purpose: with it, Quit would relaunch immediately. -->
-</dict>
-</plist>
-PLIST
-  plutil -lint "$AGENT" >/dev/null
-  launchctl bootstrap "gui/$(id -u)" "$AGENT"
-  echo "    launch agent loaded: ${AGENT}"
-else
+# Launch at login is registered by the app itself, through SMAppService: only
+# the app can register its own bundle, and registering the bundle (rather than
+# writing a LaunchAgent that runs the bare executable) is what makes the Login
+# Items row show the app's name and icon.
+if [ "$ENABLE_LOGIN" -eq 0 ]; then
   echo "==> Skipping launch at login (--no-login)"
-  open "$DEST"
+  # The app enables it on first launch unless it has already been configured;
+  # setting the flag ahead of time is how the script opts out.
+  defaults write "$BUNDLE_ID" hasConfiguredLoginItem -bool true
+else
+  echo "==> Launch at login will be registered by the app on first launch"
 fi
+
+echo "==> Starting ${APP_NAME}"
+open "$DEST"
 
 echo
 echo "==> Done."

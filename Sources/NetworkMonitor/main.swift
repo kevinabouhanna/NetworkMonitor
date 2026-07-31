@@ -1,4 +1,5 @@
 import AppKit
+import NetworkMonitorCore
 
 // Built as a plain executable rather than via @NSApplicationMain so the whole
 // app can live in a SwiftPM package with no Xcode project. `LSUIElement` in
@@ -7,6 +8,15 @@ import AppKit
 // same way as the bundled .app.
 let application = NSApplication.shared
 application.setActivationPolicy(.accessory)
+
+// Uninstall hook, handled before everything else: deleting the app bundle
+// leaves the login item registered, and only the app itself can withdraw that
+// registration. Runs without starting the UI, and before the single-instance
+// guard so it works while a copy is already running.
+if CommandLine.arguments.contains("--unregister-login-item") {
+    LoginItem.withdraw()
+    exit(0)
+}
 
 // Single-instance guard. Two copies would each add a status item and each run
 // their own nettop, double-counting every byte. This also makes the duplicate

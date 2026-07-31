@@ -23,7 +23,13 @@ for arg in "$@"; do
   esac
 done
 
-echo "==> Removing launch agent"
+echo "==> Removing the login item"
+# Only the app can withdraw its own SMAppService registration, and it must do
+# so while the bundle still exists — hence before the delete below.
+if [ -x "${DEST}/Contents/MacOS/${APP_NAME}" ]; then
+  "${DEST}/Contents/MacOS/${APP_NAME}" --unregister-login-item 2>/dev/null || true
+fi
+# Older installs registered a LaunchAgent instead.
 launchctl bootout "gui/$(id -u)/${BUNDLE_ID}" 2>/dev/null || true
 rm -f "$AGENT"
 

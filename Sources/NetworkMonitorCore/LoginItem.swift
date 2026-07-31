@@ -1,22 +1,37 @@
 import Foundation
+import ServiceManagement
 
-/// Starts the app at login using a per-user LaunchAgent.
+/// Starts the app at login, via `SMAppService` — the API macOS 13+ expects an
+/// app to use to register itself.
 ///
-/// Deliberately not `SMAppService`. That does work under an ad-hoc signature —
-/// `register()` succeeds and reports `.enabled`, so no Developer ID is required —
-/// but its state lives in the opaque Background Task Management database, where
-/// the registration showed empty flags and `launchctl print` could not see it.
-/// There is no way to verify it will actually launch at login short of logging
-/// out.
+/// This replaced a hand-written LaunchAgent plist in `~/Library/LaunchAgents`.
+/// That worked and needed no code signature, but macOS files it as a *legacy
+/// agent*, and Login Items identifies such an item by the program launchd runs
+/// — the bare Mach-O inside the bundle, which LaunchServices draws with the
+/// generic "exec" icon rather than the app's own.
 ///
-/// A LaunchAgent is plain, inspectable and verifiable: the plist is a file you
-/// can read, `launchctl print` confirms launchd loaded it, and `launchctl
-/// kickstart` proves it can start the app. It needs no code signature at all.
+/// launchd does have a key for that, `AssociatedBundleIdentifiers`, but macOS
+/// only honours it when the agent and the app can be shown to come from the
+/// same developer: measured against this machine's Background Task Management
+/// database, every item carrying an association had a Team Identifier and none
+/// without one did. An ad-hoc signature has no team, so it was dropped
+/// silently.
+///
+/// `SMAppService.mainApp` registers the *bundle*, so the Login Items row points
+/// at `NetworkMonitor.app` and shows its name and icon with no signature at
+/// all — and it is the same call a Developer ID-signed build would make, so
+/// signing later changes nothing here.
+///
+/// The trade-off, honestly: the registration lives in the opaque Background
+/// Task Management database instead of a plist you can read, and `launchctl
+/// print` cannot see it. `status` reports it, and `sfltool dumpbtm` shows it
+/// enabled and allowed.
 public enum LoginItem {
 
     public enum Failure: LocalizedError {
         case notInstalledInApplications(String)
-        case writeFailed(String)
+        case requiresApproval
+        case registrationFailed(String)
 
         public var errorDescription: String? {
             switch self {
@@ -30,103 +45,117 @@ public enum LoginItem {
                     Move NetworkMonitor.app to /Applications (or run \
                     'make install') and try again.
                     """
-            case .writeFailed(let detail):
-                return "Could not write the launch agent: \(detail)"
+            case .requiresApproval:
+                return """
+                    macOS is holding this login item for approval. Open System \
+                    Settings > General > Login Items and switch NetworkMonitor \
+                    on there.
+                    """
+            case .registrationFailed(let detail):
+                return "Could not change the login item: \(detail)"
             }
         }
     }
 
-    /// launchd label; also the plist filename.
+    /// Also the launchd label of the agent used before the move to
+    /// `SMAppService`, and so the filename left behind on older installs.
     public static var label: String {
         Bundle.main.bundleIdentifier ?? "com.kevinabouhanna.NetworkMonitor"
     }
 
-    public static var plistURL: URL {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        return home
-            .appendingPathComponent("Library/LaunchAgents", isDirectory: true)
-            .appendingPathComponent("\(label).plist")
+    // MARK: State
+
+    /// Whether `status` means the app will be started at the next login.
+    ///
+    /// Split out from `isEnabled` so the mapping is testable without touching
+    /// the real registration. `.requiresApproval` is deliberately *not*
+    /// enabled: macOS knows about the item but the user has switched it off in
+    /// System Settings, and only they can switch it back.
+    public static func isEnabled(for status: SMAppService.Status) -> Bool {
+        status == .enabled
     }
 
-    /// True when the launch agent is installed and points at this build.
     public static var isEnabled: Bool {
-        guard let data = try? Data(contentsOf: plistURL),
-              let plist = try? PropertyListSerialization.propertyList(
-                  from: data, options: [], format: nil) as? [String: Any],
-              let arguments = plist["ProgramArguments"] as? [String],
-              let program = arguments.first
-        else { return false }
-        // A stale agent pointing at a deleted or moved copy is not "enabled".
-        return FileManager.default.isExecutableFile(atPath: program)
+        isEnabled(for: SMAppService.mainApp.status)
     }
 
-    /// The plist contents for a given executable path.
-    ///
-    /// `KeepAlive` is deliberately absent: with it, quitting from the menu would
-    /// have launchd immediately relaunch the app, so Quit would not work.
-    public static func agentDefinition(executablePath: String,
-                                       label: String) -> [String: Any] {
-        [
-            "Label": label,
-            "ProgramArguments": [executablePath],
-            "RunAtLoad": true,
-            // GUI sessions only — there is no menu bar to attach to otherwise.
-            "LimitLoadToSessionType": "Aqua",
-            "ProcessType": "Interactive",
-        ]
-    }
+    // MARK: Enable / disable
 
-    /// Writes the launch agent.
-    ///
-    /// Deliberately does **not** call `launchctl`. When the app has itself been
-    /// started by this agent, `launchctl bootout` on that label terminates the
-    /// caller — enabling the setting killed the app and unloaded the agent in one
-    /// step. `launchctl bootstrap` is equally unnecessary: launchd loads every
-    /// plist in `~/Library/LaunchAgents` at session start, and the app is already
-    /// running, so the only thing that matters is that the file exists.
-    ///
-    /// `Scripts/install.sh` does bootstrap, because there the app is not running
-    /// and should start immediately.
     public static func enable() throws {
+        try requireBundledBuild()
+        // Leaving the old agent in place would start a second copy at login.
+        // The running instance is left alone: the plist is deleted rather than
+        // booted out, because booting out the job would kill the very app the
+        // user is toggling this in.
+        try? removeLegacyAgent()
+
+        guard !isEnabled else { return }
+        do {
+            try SMAppService.mainApp.register()
+        } catch {
+            if SMAppService.mainApp.status == .requiresApproval {
+                throw Failure.requiresApproval
+            }
+            throw Failure.registrationFailed(error.localizedDescription)
+        }
+    }
+
+    public static func disable() throws {
+        try? removeLegacyAgent()
+        do {
+            try SMAppService.mainApp.unregister()
+        } catch {
+            throw Failure.registrationFailed(error.localizedDescription)
+        }
+    }
+
+    /// Running from `.build` during development would register a path that
+    /// `swift package clean` deletes.
+    private static func requireBundledBuild() throws {
         let executable = Bundle.main.executableURL?.path
             ?? CommandLine.arguments.first ?? ""
-
-        // Running from .build during development would pin the agent to a path
-        // that gets wiped by `swift package clean`.
         guard executable.contains(".app/Contents/MacOS/") else {
             throw Failure.notInstalledInApplications(
                 Bundle.main.bundlePath.isEmpty ? executable : Bundle.main.bundlePath)
         }
-
-        let directory = plistURL.deletingLastPathComponent()
-        do {
-            try FileManager.default.createDirectory(at: directory,
-                                                    withIntermediateDirectories: true)
-            let definition = agentDefinition(executablePath: executable, label: label)
-            let data = try PropertyListSerialization.data(fromPropertyList: definition,
-                                                          format: .xml, options: 0)
-            try data.write(to: plistURL, options: .atomic)
-        } catch let error as Failure {
-            throw error
-        } catch {
-            throw Failure.writeFailed(error.localizedDescription)
-        }
-
     }
 
-    /// Removes the launch agent.
+    // MARK: Migration off the old LaunchAgent
+
+    public static var legacyAgentURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/LaunchAgents", isDirectory: true)
+            .appendingPathComponent("\(label).plist")
+    }
+
+    public static func hasLegacyAgent(at url: URL? = nil) -> Bool {
+        FileManager.default.fileExists(atPath: (url ?? legacyAgentURL).path)
+    }
+
+    @discardableResult
+    public static func removeLegacyAgent(at url: URL? = nil) throws -> Bool {
+        let target = url ?? legacyAgentURL
+        guard FileManager.default.fileExists(atPath: target.path) else { return false }
+        try FileManager.default.removeItem(at: target)
+        return true
+    }
+
+    /// Best-effort teardown for the uninstaller, which is about to delete the
+    /// bundle: nothing here is worth failing an uninstall over.
+    public static func withdraw() {
+        try? removeLegacyAgent()
+        try? SMAppService.mainApp.unregister()
+    }
+
+    /// Moves an install that predates `SMAppService` across, preserving what
+    /// the user had chosen: the old agent existing *is* the record that they
+    /// wanted launch-at-login, so it becomes a registration rather than being
+    /// dropped.
     ///
-    /// Also does not call `launchctl`, for the same reason: booting out the job
-    /// would kill the very app the user is toggling the setting in. Deleting the
-    /// plist is sufficient — launchd will not start it at the next login, and
-    /// without `KeepAlive` the currently running copy is left alone.
-    public static func disable() throws {
-        do {
-            if FileManager.default.fileExists(atPath: plistURL.path) {
-                try FileManager.default.removeItem(at: plistURL)
-            }
-        } catch {
-            throw Failure.writeFailed(error.localizedDescription)
-        }
+    /// Safe to call on every launch — it does nothing once there is no plist.
+    public static func migrateLegacyAgentIfNeeded() {
+        guard hasLegacyAgent() else { return }
+        try? removeLegacyAgent()
+        try? enable()
     }
 }
