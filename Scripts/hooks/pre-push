@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+# Runs the suite before anything reaches the remote.
+#
+# This is what makes committing straight to main safe: CI still runs on the
+# push, but it reports after the fact — by then a broken commit is already
+# public. This catches it while it is still local and fixable with an amend.
+#
+# Installed by `make hooks`, which points core.hooksPath at this directory.
+# Bypass for a genuinely urgent push with:  git push --no-verify
+
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+echo "==> pre-push: running the test suite"
+
+if ! make test; then
+  echo
+  echo "✗ Tests failed — push aborted."
+  echo "  Fix them, or bypass with: git push --no-verify"
+  exit 1
+fi
+
+echo "==> pre-push: green, pushing"

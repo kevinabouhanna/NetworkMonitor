@@ -19,6 +19,8 @@ runInterfaceDeltaTrackerTests()
 runRateSmootherTests()
 runAppIdentityTests()
 runUsageStoreTests()
+runUsageRowPartitionTests()
+runRowOrderTests()
 runNetworkFingerprintTests()
 
 exit(Check.summarize())

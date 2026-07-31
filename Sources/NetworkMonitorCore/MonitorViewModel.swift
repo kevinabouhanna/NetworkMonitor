@@ -2,20 +2,6 @@ import AppKit
 import Combine
 import Foundation
 
-/// One row in the popover list.
-public struct UsageRow: Identifiable, Equatable {
-    public let id: String
-    public let displayName: String
-    public let bytesIn: Int64
-    public let bytesOut: Int64
-    public let bundlePath: String?
-    public let isSystem: Bool
-    /// Moved bytes within the last couple of seconds.
-    public let isActive: Bool
-
-    public var total: Int64 { bytesIn + bytesOut }
-}
-
 /// Drives the menu bar title and the popover.
 ///
 /// Runs two independent sampling loops on purpose:
@@ -67,12 +53,8 @@ public final class MonitorViewModel: ObservableObject {
     /// beyond accumulation.
     private var popoverIsOpen = false
 
-    /// Row order captured when the popover opens.
-    ///
-    /// Re-sorting live would make rows jump under the cursor as totals change —
-    /// a row you are reaching for slides away. Order is frozen while the popover
-    /// is visible and re-sorted on each open.
-    private var frozenOrder: [String]?
+    /// Row order captured when the popover opens. See `RowOrder`.
+    private var rowOrder = RowOrder()
 
     /// pids seen in the latest nettop sample, for pid-reuse cache eviction.
     private var lastSeenPIDs: Set<Int32> = []
@@ -281,61 +263,24 @@ public final class MonitorViewModel: ObservableObject {
         // In the two low-energy modes the popover opening is what starts nettop,
         // so per-app rows fill in about a second after it appears.
         updateNettopState()
+        // Re-sort fresh on each open, and drop the captured order on close so a
+        // reopen reflects whatever accumulated in between.
+        rowOrder.reset()
         if open {
-            frozenOrder = nil          // re-sort fresh on each open
             refreshHeader()
             rebuildRows(now: Date())
         } else {
-            frozenOrder = nil
             store.save()
         }
     }
 
     private func rebuildRows(now: Date) {
-        let bucket = store.currentBucket
-
-        var appRows: [UsageRow] = []
-        var systemOnly: [UsageRow] = []
-        var systemBytes: Int64 = 0
-
-        for (key, totals) in bucket.apps {
-            let active = (lastActivity[key].map { now.timeIntervalSince($0) < 2.0 }) ?? false
-            let row = UsageRow(id: key,
-                               displayName: totals.displayName,
-                               bytesIn: totals.bytesIn,
-                               bytesOut: totals.bytesOut,
-                               bundlePath: totals.bundlePath,
-                               isSystem: totals.isSystem,
-                               isActive: active)
-            if totals.isSystem {
-                systemOnly.append(row)
-                systemBytes += row.total
-            } else {
-                appRows.append(row)
-            }
-        }
-
-        rows = applyStableOrder(to: appRows)
-        systemRows = systemOnly.sorted { $0.total > $1.total }
-        systemTotal = systemBytes
-    }
-
-    /// Sorts by total descending, but preserves the order captured when the
-    /// popover opened so rows do not reshuffle under the pointer. Rows that
-    /// appear while open are appended in size order.
-    private func applyStableOrder(to input: [UsageRow]) -> [UsageRow] {
-        let sorted = input.sorted {
-            $0.total != $1.total ? $0.total > $1.total : $0.displayName < $1.displayName
-        }
-        guard let order = frozenOrder else {
-            frozenOrder = sorted.map(\.id)
-            return sorted
-        }
-        let rank = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($0.element, $0.offset) })
-        let known = sorted.filter { rank[$0.id] != nil }.sorted { rank[$0.id]! < rank[$1.id]! }
-        let fresh = sorted.filter { rank[$0.id] == nil }
-        if !fresh.isEmpty { frozenOrder = order + fresh.map(\.id) }
-        return known + fresh
+        let partitioned = UsageRow.partition(apps: store.currentBucket.apps,
+                                             lastActivity: lastActivity,
+                                             now: now)
+        rows = rowOrder.apply(to: partitioned.apps)
+        systemRows = partitioned.system
+        systemTotal = partitioned.systemTotal
     }
 
     // MARK: Network changes

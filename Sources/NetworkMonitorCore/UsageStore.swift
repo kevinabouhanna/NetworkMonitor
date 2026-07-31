@@ -13,6 +13,16 @@ public struct AppTotals: Codable, Equatable {
     public var lastActive: Date
 
     public var total: Int64 { bytesIn + bytesOut }
+
+    public init(displayName: String, bundlePath: String? = nil, isSystem: Bool = false,
+                bytesIn: Int64 = 0, bytesOut: Int64 = 0, lastActive: Date = .distantPast) {
+        self.displayName = displayName
+        self.bundlePath = bundlePath
+        self.isSystem = isSystem
+        self.bytesIn = bytesIn
+        self.bytesOut = bytesOut
+        self.lastActive = lastActive
+    }
 }
 
 /// Everything accumulated on one network since the current day began.
