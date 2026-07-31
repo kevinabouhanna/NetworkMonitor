@@ -33,18 +33,23 @@ public struct MenuBarPopoverView: View {
                 Text("Total")
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
-                Text(ByteFormat.bytes(model.totalBytes))
-                    .font(.system(size: 17, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-            }
-            if model.isExpensiveNetwork {
-                // Surfaced because metered networks are the case where the day's
-                // total actually matters.
-                Text("METERED")
-                    .font(.system(size: 9, weight: .bold))
-                    .padding(.horizontal, 5).padding(.vertical, 2)
-                    .background(Color.orange.opacity(0.2), in: Capsule())
-                    .foregroundStyle(.orange)
+                // The badge sits on the figure's row, not the header's: it
+                // qualifies the number, and centring it on "Total" left it
+                // floating between the two lines.
+                HStack(spacing: 8) {
+                    Text(ByteFormat.bytes(model.totalBytes))
+                        .font(.system(size: 17, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                    if model.isExpensiveNetwork {
+                        // Surfaced because metered networks are the case where
+                        // the day's total actually matters.
+                        Text("METERED")
+                            .font(.system(size: 9, weight: .bold))
+                            .padding(.horizontal, 5).padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.2), in: Capsule())
+                            .foregroundStyle(.orange)
+                    }
+                }
             }
             Spacer()
             Button(action: onSettings) {
