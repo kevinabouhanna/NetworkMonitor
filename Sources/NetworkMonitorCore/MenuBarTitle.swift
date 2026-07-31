@@ -27,8 +27,16 @@ public enum MenuBarTitle {
     /// widths, which is what the padding in `ByteFormat.menuBarRate` relies on.
     public static let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
 
-    /// Colour of both lines.
-    public static let tint = NSColor.systemGreen
+    /// Download line colour, `#51FF70`.
+    public static let downTint = NSColor(srgbRed: 0x51 / 255, green: 0xFF / 255,
+                                         blue: 0x70 / 255, alpha: 1)
+    /// Upload line colour, `#E5E6E6`.
+    ///
+    /// Fixed sRGB values as specified, so they do not adapt to appearance. Both
+    /// are light and read well on a dark menu bar; on a light menu bar the upload
+    /// line is close to the background.
+    public static let upTint = NSColor(srgbRed: 0xE5 / 255, green: 0xE6 / 255,
+                                       blue: 0xE6 / 255, alpha: 1)
 
     public static func downLine(_ bytesPerSecond: Double) -> String {
         "↓ \(ByteFormat.menuBarRate(bytesPerSecond))"
@@ -43,7 +51,22 @@ public enum MenuBarTitle {
         "\(downLine(down))\n\(upLine(up))"
     }
 
+    /// The two lines, each tinted separately.
     public static func attributed(down: Double, up: Double) -> NSAttributedString {
+        let paragraph = MenuBarTitle.paragraphStyle()
+        let result = NSMutableAttributedString()
+        result.append(NSAttributedString(
+            string: downLine(down) + "\n",
+            attributes: [.font: font, .paragraphStyle: paragraph,
+                         .foregroundColor: downTint]))
+        result.append(NSAttributedString(
+            string: upLine(up),
+            attributes: [.font: font, .paragraphStyle: paragraph,
+                         .foregroundColor: upTint]))
+        return result
+    }
+
+    private static func paragraphStyle() -> NSParagraphStyle {
         let paragraph = NSMutableParagraphStyle()
         // Left, not right. Right alignment makes CoreText discard trailing
         // whitespace when it aligns, which defeats the unit-field padding: a
@@ -55,14 +78,7 @@ public enum MenuBarTitle {
         // Clamping the line height to less than the font's ascent+descent
         // compressed the box and clipped the top line's ascenders.
         paragraph.lineSpacing = 0
-
-        return NSAttributedString(
-            string: string(down: down, up: up),
-            attributes: [
-                .font: font,
-                .paragraphStyle: paragraph,
-                .foregroundColor: tint,
-            ])
+        return paragraph
     }
 
     /// The title drawn into an image, which is what the status item displays.

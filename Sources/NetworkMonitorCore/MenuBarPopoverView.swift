@@ -2,18 +2,11 @@ import SwiftUI
 
 public struct MenuBarPopoverView: View {
     @ObservedObject var model: MonitorViewModel
-    var onReset: () -> Void
     var onSettings: () -> Void
-    var onQuit: () -> Void
 
-    public init(model: MonitorViewModel,
-                onReset: @escaping () -> Void,
-                onSettings: @escaping () -> Void,
-                onQuit: @escaping () -> Void) {
+    public init(model: MonitorViewModel, onSettings: @escaping () -> Void) {
         self.model = model
-        self.onReset = onReset
         self.onSettings = onSettings
-        self.onQuit = onQuit
     }
 
     public var body: some View {
@@ -25,8 +18,6 @@ public struct MenuBarPopoverView: View {
             } else {
                 list
             }
-            Divider()
-            footer
         }
         .frame(width: 320)
     }
@@ -128,22 +119,6 @@ public struct MenuBarPopoverView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 28)
-    }
-
-    // MARK: Footer
-
-    private var footer: some View {
-        HStack(spacing: 10) {
-            Text("Since \(model.dayStart, format: .dateTime.hour().minute())")
-                .font(.system(size: 10)).foregroundStyle(.secondary)
-            Spacer()
-            Button("Reset", action: onReset)
-                .buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(.secondary)
-            Button("Quit", action: onQuit)
-                .buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
     }
 }
 

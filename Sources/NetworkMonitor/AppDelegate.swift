@@ -74,9 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.animates = false
         let root = MenuBarPopoverView(
             model: model,
-            onReset: { [weak self] in self?.model.resetCurrentNetwork() },
-            onSettings: { [weak self] in self?.showSettings() },
-            onQuit: { NSApp.terminate(nil) })
+            onSettings: { [weak self] in self?.showSettings() })
         popover.contentViewController = NSHostingController(rootView: root)
     }
 
@@ -124,16 +122,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showMenu() {
         let menu = NSMenu()
 
-        menu.addItem(withTitle: "Reset Today's Usage",
-                     action: #selector(resetCurrent), keyEquivalent: "")
-        menu.addItem(withTitle: "Reset All Networks",
-                     action: #selector(resetAll), keyEquivalent: "")
-
-        menu.addItem(.separator())
-        let tracking = NSMenuItem(title: "Track Per-App Usage", action: nil, keyEquivalent: "")
-        tracking.submenu = trackingSubmenu()
-        menu.addItem(tracking)
-
         menu.addItem(withTitle: "Settings…",
                      action: #selector(showSettings), keyEquivalent: ",")
 
@@ -151,44 +139,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = nil
     }
 
-    /// `nettop` costs a fixed ~1.36 cores whenever it runs, so this is exposed
-    /// rather than hidden: it is a real battery-versus-completeness tradeoff.
-    /// The live speed and day total never depend on it.
-    private func trackingSubmenu() -> NSMenu {
-        let submenu = NSMenu()
-        for mode in PerAppTrackingMode.allCases {
-            let item = NSMenuItem(title: mode.title,
-                                  action: #selector(selectTrackingMode(_:)),
-                                  keyEquivalent: "")
-            item.representedObject = mode.rawValue
-            item.state = (mode == model.trackingMode) ? .on : .off
-            item.target = self
-            submenu.addItem(item)
-        }
-        submenu.addItem(.separator())
-        let status = NSMenuItem(
-            title: model.isTrackingPerApp ? "Currently tracking" : "Currently paused",
-            action: nil, keyEquivalent: "")
-        status.isEnabled = false
-        submenu.addItem(status)
-        return submenu
-    }
-
-    @objc private func selectTrackingMode(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String,
-              let mode = PerAppTrackingMode(rawValue: raw) else { return }
-        model.setTrackingMode(mode)
-    }
-
-    // MARK: Actions
-
-    @objc private func resetCurrent() { model.resetCurrentNetwork() }
-
-    @objc private func resetAll() {
-        model.store.resetAllNetworks()
-        model.refreshHeader()
-    }
-
     // MARK: Settings window
 
     @objc private func showSettings() {
@@ -202,7 +152,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 defer: false)
             window.title = "NetworkMonitor Settings"
             window.contentViewController = NSHostingController(
-                rootView: SettingsView(model: model))
+                rootView: SettingsView(model: model,
+                                       onQuit: { NSApp.terminate(nil) }))
             window.isReleasedWhenClosed = false
             window.center()
             settingsWindow = window

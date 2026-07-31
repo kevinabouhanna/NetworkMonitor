@@ -108,12 +108,34 @@ func runMenuBarTitleTests() {
                               "expected one width, got \(widths.sorted().map { $0 / 100 })")
         }
 
-        Check.test("lines are tinted, not default black") {
-            let attributed = MenuBarTitle.attributed(down: 0, up: 0)
-            let colour = attributed.attribute(.foregroundColor, at: 0,
-                                              effectiveRange: nil) as? NSColor
-            Check.expectNotNil(colour)
-            Check.expectTrue(colour == MenuBarTitle.tint, "expected the green tint")
+        /// The two lines carry different colours, so the attributed string must
+        /// have two distinct foreground runs rather than one uniform tint.
+        Check.test("download and upload lines are tinted separately") {
+            let attributed = MenuBarTitle.attributed(down: 1024, up: 1024)
+            let text = attributed.string
+            let newline = text.distance(from: text.startIndex,
+                                        to: text.firstIndex(of: "\n")!)
+
+            let downColour = attributed.attribute(.foregroundColor, at: 0,
+                                                  effectiveRange: nil) as? NSColor
+            let upColour = attributed.attribute(.foregroundColor, at: newline + 1,
+                                                effectiveRange: nil) as? NSColor
+            Check.expectTrue(downColour == MenuBarTitle.downTint, "download tint")
+            Check.expectTrue(upColour == MenuBarTitle.upTint, "upload tint")
+            Check.expectFalse(downColour == upColour, "the two lines must differ")
+        }
+
+        /// The exact values requested: #51FF70 download, #E5E6E6 upload.
+        Check.test("tints are the specified sRGB values") {
+            func hex(_ colour: NSColor) -> String {
+                let c = colour.usingColorSpace(.sRGB) ?? colour
+                return String(format: "#%02X%02X%02X",
+                              Int((c.redComponent * 255).rounded()),
+                              Int((c.greenComponent * 255).rounded()),
+                              Int((c.blueComponent * 255).rounded()))
+            }
+            Check.expectEqual(hex(MenuBarTitle.downTint), "#51FF70")
+            Check.expectEqual(hex(MenuBarTitle.upTint), "#E5E6E6")
         }
     }
 }
@@ -121,32 +143,33 @@ func runMenuBarTitleTests() {
 func runTrackingModeTests() {
     Check.suite("PerAppTrackingMode") {
 
-        Check.test("always tracks regardless of power or popover") {
-            for ac in [true, false] {
-                for open in [true, false] {
-                    Check.expectTrue(PerAppTrackingMode.always
-                        .shouldTrack(popoverOpen: open, onACPower: ac))
-                }
-            }
+        // The default. Cheapest, but per-app totals then cover only the seconds
+        // the menu was open — a lower bound on the day, not a full account.
+        Check.test("whenOpen tracks only while the popover is open") {
+            let mode = PerAppTrackingMode.whenOpen
+            Check.expectTrue(mode.shouldTrack(popoverOpen: true, onACPower: false))
+            Check.expectTrue(mode.shouldTrack(popoverOpen: true, onACPower: true))
+            Check.expectFalse(mode.shouldTrack(popoverOpen: false, onACPower: true),
+                              "closed means paused, even on power")
+            Check.expectFalse(mode.shouldTrack(popoverOpen: false, onACPower: false))
         }
 
-        // The default. Full-day per-app totals at a desk; on battery the
-        // expensive stream only runs while the user is actually looking.
-        Check.test("pluggedIn tracks on AC, and on battery only while open") {
+        // The opt-in that makes per-app numbers cover a whole day.
+        Check.test("pluggedIn also tracks with the menu closed, on power only") {
             let mode = PerAppTrackingMode.pluggedIn
             Check.expectTrue(mode.shouldTrack(popoverOpen: false, onACPower: true),
-                             "plugged in and idle should still track")
+                             "plugged in and idle should track")
             Check.expectTrue(mode.shouldTrack(popoverOpen: true, onACPower: false),
                              "on battery, opening the popover should track")
             Check.expectFalse(mode.shouldTrack(popoverOpen: false, onACPower: false),
                               "on battery and closed must NOT burn a core")
         }
 
-        Check.test("whenOpen never tracks while closed") {
-            let mode = PerAppTrackingMode.whenOpen
-            Check.expectFalse(mode.shouldTrack(popoverOpen: false, onACPower: true))
-            Check.expectFalse(mode.shouldTrack(popoverOpen: false, onACPower: false))
-            Check.expectTrue(mode.shouldTrack(popoverOpen: true, onACPower: false))
+        // An "always" mode was removed: it ran nettop at ~1.36 cores on battery.
+        Check.test("only two modes exist") {
+            Check.expectEqual(PerAppTrackingMode.allCases.count, 2)
+            Check.expectNil(PerAppTrackingMode(rawValue: "always"),
+                            "the always mode must be gone")
         }
 
         Check.test("modes round-trip through their raw values") {

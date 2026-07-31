@@ -4,8 +4,8 @@ A lightweight macOS menu bar app that shows your live network speed and which ap
 are using your data.
 
 ```
-↓ 14.14 KB/s
-↑ 28.69 KB/s
+↓ 14.14 KB/s     ← download, #51FF70
+↑ 28.69 KB/s     ← upload,   #E5E6E6
 ```
 
 Click the menu bar item for a per-app breakdown of the day's usage.
@@ -45,7 +45,8 @@ cd NetworkMonitor
 ```
 
 That builds the app, installs it to `/Applications`, and sets it to start
-automatically when you log in. Look for the green `↓`/`↑` readout in your menu bar.
+automatically when you log in. Look for the two-line `↓`/`↑` readout in your menu
+bar.
 
 To install without adding it to login items:
 
@@ -66,13 +67,12 @@ To install without adding it to login items:
 
 | Item | What it does |
 |---|---|
-| Reset Today's Usage | Zero the current network's totals |
-| Reset All Networks | Zero everything |
-| Track Per-App Usage | See below |
-| Settings… | Start at login, tracking mode |
+| Settings… | Everything below |
 | Quit | Quit the app |
 
-The **gear icon** in the popover opens the same Settings window.
+The popover itself is just a total and the app list. The **gear icon** in it opens
+Settings, which holds start-at-login, per-app tracking, the counting-since time,
+Reset This Network, Reset All Networks, and Quit.
 
 ### Quitting and starting at login
 
@@ -86,17 +86,27 @@ These are independent, which is the point:
 Turning *off* start-at-login does not quit the running app, and quitting does not
 turn off start-at-login.
 
-### Track Per-App Usage
+### Per-app tracking and what the numbers mean
 
-Per-app data comes from macOS's `nettop`, which is expensive to run — about 1.4
-CPU cores whenever it's active. Your **live speed and daily total don't use it at
-all** and are always accurate, so this setting only affects the per-app list:
+Per-app data comes from macOS's `nettop`, which costs about **1.4 CPU cores while
+it runs** — and that cost is fixed, unaffected by how often it samples. So by
+default it only runs **while the popover is open**.
 
-| Mode | Behaviour |
-|---|---|
-| **While plugged in** *(default)* | Full-day per-app totals on power; on battery, only while the popover is open |
-| **Always** | Full-day per-app totals everywhere, at ~1.4 cores continuously |
-| **Only while open** | Lowest battery use; rows fill in about a second after you open the popover |
+The consequence matters: a per-app total counts only the traffic seen while
+`nettop` was running, so under the default it is a **lower bound on your day**, not
+a full account. Nothing can recover traffic from before the app launched either.
+
+Turn on **Also track while plugged in** in Settings if you want per-app numbers
+that cover your whole day — that runs `nettop` with the menu closed whenever
+you're on power.
+
+**Your live speed and daily total never use `nettop`.** They come from kernel
+interface counters, cost about 3% of a core, always run, and have been measured at
+99.6–100.2% agreement with the kernel's own byte counters.
+
+> Comparing per-app numbers with Activity Monitor will not line up. Activity
+> Monitor reports bytes **since each process started** — often days — while this
+> app reports what it observed since midnight, while running.
 
 ## Uninstall
 
@@ -108,7 +118,7 @@ all** and are always accurate, so this setting only affects the per-app list:
 ## Building from source
 
 ```sh
-make test     # run the test suite (98 tests)
+make test     # run the test suite (99 tests)
 make app      # build build/NetworkMonitor.app
 make run      # build and launch
 make install  # install to /Applications with launch at login
@@ -135,10 +145,12 @@ App Store.
 
 ## Notes
 
-- Per-app numbers won't add up to exactly the daily total — some network traffic
-  belongs to the kernel rather than any app. The daily total is the accurate one.
-- The app has been measured at ~99.9% agreement with the kernel's own byte
-  counters.
+- Per-app numbers won't add up to exactly the daily total — some traffic is
+  wire-level overhead belonging to no app, and per-app tracking only runs part of
+  the time (see above). The daily total is the accurate one.
+- The daily total and live speed have been measured at 99.6–100.2% agreement with
+  the kernel's own byte counters, across three independent transfers including a
+  sustained 52 MB one.
 
 ## How it works
 
