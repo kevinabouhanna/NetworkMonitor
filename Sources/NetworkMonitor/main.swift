@@ -8,6 +8,20 @@ import AppKit
 let application = NSApplication.shared
 application.setActivationPolicy(.accessory)
 
+// Single-instance guard. Two copies would each add a status item and each run
+// their own nettop, double-counting every byte. This also makes the duplicate
+// launch that `launchctl bootstrap` triggers (via RunAtLoad) harmless: it exits
+// immediately and leaves the original running.
+if let identifier = Bundle.main.bundleIdentifier {
+    let others = NSRunningApplication.runningApplications(withBundleIdentifier: identifier)
+        .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
+    if !others.isEmpty {
+        // Surface the existing instance's menu bar item rather than dying silently.
+        others.first?.activate()
+        exit(0)
+    }
+}
+
 var signalSources: [DispatchSourceSignal] = []
 let delegate = AppDelegate()
 application.delegate = delegate

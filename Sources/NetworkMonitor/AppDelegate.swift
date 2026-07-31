@@ -1,7 +1,6 @@
 import AppKit
 import Combine
 import NetworkMonitorCore
-import ServiceManagement
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -225,28 +224,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: Launch at login
 
-    /// `SMAppService.mainApp` needs a signed bundle. Ad-hoc signing works for
-    /// local use; a Developer ID is required before this is reliable for others.
-    private var isLaunchAtLoginEnabled: Bool {
-        SMAppService.mainApp.status == .enabled
-    }
+    /// Backed by a per-user LaunchAgent, which needs no code signature and no
+    /// Developer ID. See `LoginItem`.
+    private var isLaunchAtLoginEnabled: Bool { LoginItem.isEnabled }
 
     @objc private func toggleLaunchAtLogin() {
         do {
             if isLaunchAtLoginEnabled {
-                try SMAppService.mainApp.unregister()
+                try LoginItem.disable()
             } else {
-                try SMAppService.mainApp.register()
+                try LoginItem.enable()
             }
         } catch {
+            NSApp.activate(ignoringOtherApps: true)
             let alert = NSAlert()
             alert.messageText = "Could not change Launch at Login"
-            alert.informativeText = """
-                \(error.localizedDescription)
-
-                This usually means the app is not signed with a Developer ID, or \
-                is not in /Applications.
-                """
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
             alert.runModal()
         }
     }

@@ -1,4 +1,4 @@
-.PHONY: all build test app universal run install clean
+.PHONY: all build test app universal run install install-only uninstall clean
 
 all: test app
 
@@ -21,12 +21,16 @@ run: app
 	@open build/NetworkMonitor.app
 	@echo "Running — look for ↓/↑ in the menu bar. Right-click the item for the menu."
 
-install: app
-	@pkill -f "NetworkMonitor.app/Contents/MacOS" 2>/dev/null || true
-	@rm -rf /Applications/NetworkMonitor.app
-	@cp -R build/NetworkMonitor.app /Applications/
-	@open /Applications/NetworkMonitor.app
-	@echo "Installed to /Applications and launched."
+# Installs to /Applications and enables launch at login. No Developer ID needed.
+install:
+	@./Scripts/install.sh
+
+# Install without touching login items.
+install-only:
+	@./Scripts/install.sh --no-login
+
+uninstall:
+	@./Scripts/uninstall.sh
 
 clean:
 	swift package clean
