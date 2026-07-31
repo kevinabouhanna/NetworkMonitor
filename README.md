@@ -5,7 +5,7 @@ are using your data.
 
 ```
 ↓ 14.14 KB/s     ← download, #51FF70
-↑ 28.69 KB/s     ← upload,   #E5E6E6
+↑ 28.69 KB/s     ← upload,   #E5E5E5
 ```
 
 Click the menu bar item for a per-app breakdown of the day's usage.
@@ -96,17 +96,18 @@ The consequence matters: a per-app total counts only the traffic seen while
 `nettop` was running, so under the default it is a **lower bound on your day**, not
 a full account. Nothing can recover traffic from before the app launched either.
 
-Turn on **Also track while plugged in** in Settings if you want per-app numbers
-that cover your whole day — that runs `nettop` with the menu closed whenever
-you're on power.
+Turn on **Keep tracking when plugged into power** in Settings if you want per-app
+numbers that cover your whole day — that keeps counting with the menu closed
+whenever your Mac is on its power adapter (not on battery).
 
 **Your live speed and daily total never use `nettop`.** They come from kernel
 interface counters, cost about 3% of a core, always run, and have been measured at
 99.6–100.2% agreement with the kernel's own byte counters.
 
-> Comparing per-app numbers with Activity Monitor will not line up. Activity
-> Monitor reports bytes **since each process started** — often days — while this
-> app reports what it observed since midnight, while running.
+> Comparing per-app numbers with Activity Monitor or TripMode will not line up.
+> Activity Monitor reports bytes **since each process started** — often days — and
+> TripMode runs an always-on network extension. This app reports what it observed
+> since midnight, while running.
 
 ## Uninstall
 

@@ -125,7 +125,7 @@ func runMenuBarTitleTests() {
             Check.expectFalse(downColour == upColour, "the two lines must differ")
         }
 
-        /// The exact values requested: #51FF70 download, #E5E6E6 upload.
+        /// The exact values requested: #51FF70 download, #E5E5E5 upload.
         Check.test("tints are the specified sRGB values") {
             func hex(_ colour: NSColor) -> String {
                 let c = colour.usingColorSpace(.sRGB) ?? colour
@@ -135,7 +135,7 @@ func runMenuBarTitleTests() {
                               Int((c.blueComponent * 255).rounded()))
             }
             Check.expectEqual(hex(MenuBarTitle.downTint), "#51FF70")
-            Check.expectEqual(hex(MenuBarTitle.upTint), "#E5E6E6")
+            Check.expectEqual(hex(MenuBarTitle.upTint), "#E5E5E5")
         }
     }
 }

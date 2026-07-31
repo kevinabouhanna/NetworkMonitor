@@ -30,13 +30,13 @@ public enum MenuBarTitle {
     /// Download line colour, `#51FF70`.
     public static let downTint = NSColor(srgbRed: 0x51 / 255, green: 0xFF / 255,
                                          blue: 0x70 / 255, alpha: 1)
-    /// Upload line colour, `#E5E6E6`.
+    /// Upload line colour, `#E5E5E5`.
     ///
     /// Fixed sRGB values as specified, so they do not adapt to appearance. Both
     /// are light and read well on a dark menu bar; on a light menu bar the upload
     /// line is close to the background.
-    public static let upTint = NSColor(srgbRed: 0xE5 / 255, green: 0xE6 / 255,
-                                       blue: 0xE6 / 255, alpha: 1)
+    public static let upTint = NSColor(srgbRed: 0xE5 / 255, green: 0xE5 / 255,
+                                       blue: 0xE5 / 255, alpha: 1)
 
     public static func downLine(_ bytesPerSecond: Double) -> String {
         "↓ \(ByteFormat.menuBarRate(bytesPerSecond))"

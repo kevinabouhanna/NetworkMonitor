@@ -32,15 +32,13 @@ public struct SettingsView: View {
             Divider()
 
             section("Per-app usage") {
-                Toggle("Also track while plugged in", isOn: Binding(
+                // "Plugged in" on its own is ambiguous in a network app — it
+                // reads as an Ethernet cable. This is about the power adapter.
+                Toggle("Keep tracking when plugged into power", isOn: Binding(
                     get: { model.trackingMode == .pluggedIn },
                     set: { model.setTrackingMode($0 ? .pluggedIn : .whenOpen) }))
-                Text("Per-app data comes from macOS's nettop, which costs about "
-                     + "1.4 CPU cores while running, so it only runs while this "
-                     + "menu is open. Turn this on to also track with the menu "
-                     + "closed while on power, which is the only way per-app "
-                     + "numbers reflect your whole day. Your live speed and daily "
-                     + "total never use nettop and are always accurate.")
+                Text("Off, app usage is only counted while this menu is open. "
+                     + "On, it's counted all day too, but uses more battery.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -90,7 +88,7 @@ public struct SettingsView: View {
 
             HStack {
                 Spacer()
-                Button("Quit NetworkMonitor", action: onQuit)
+                Button("Quit", action: onQuit)
             }
         }
         .padding(20)

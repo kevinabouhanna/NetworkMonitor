@@ -126,7 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                      action: #selector(showSettings), keyEquivalent: ",")
 
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit NetworkMonitor",
+        menu.addItem(withTitle: "Quit",
                      action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         for item in menu.items where item.action != nil { item.target = self }
@@ -155,13 +155,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 rootView: SettingsView(model: model,
                                        onQuit: { NSApp.terminate(nil) }))
             window.isReleasedWhenClosed = false
-            window.center()
             settingsWindow = window
         }
+
+        // Re-position on every open: the window may have been moved, or opened on
+        // a different screen since last time.
+        if let window = settingsWindow { position(window) }
 
         // An LSUIElement app is not active by default, so without this the
         // window opens behind whatever the user was using.
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Centres the settings window, keeping its title bar clear of the menu bar.
+    ///
+    /// With "Automatically hide and show the menu bar" enabled, the menu bar draws
+    /// *over* whatever is beneath it rather than shrinking the usable area, so a
+    /// window whose title bar sits in the top ~22 pt has its close button covered
+    /// whenever the menu bar appears. The top edge is therefore clamped to exactly
+    /// one menu bar height below the top of the screen.
+    private func position(_ window: NSWindow) {
+        // SwiftUI sizing is not final until the content has laid out; positioning
+        // before that would centre a stale frame.
+        if let content = window.contentViewController?.view {
+            content.layoutSubtreeIfNeeded()
+            window.setContentSize(content.fittingSize)
+        }
+
+        guard let screen = window.screen ?? NSScreen.main else { return }
+        // `safeAreaInsets.top` covers notched displays, where the menu bar is
+        // taller than the classic status bar thickness.
+        let menuBarHeight = max(NSStatusBar.system.thickness, screen.safeAreaInsets.top)
+
+        var frame = window.frame
+        frame.origin.x = screen.frame.midX - frame.width / 2
+
+        let highestAllowedTop = screen.frame.maxY - menuBarHeight
+        let centredTop = screen.frame.midY + frame.height / 2
+        frame.origin.y = min(centredTop, highestAllowedTop) - frame.height
+        // Never push the window off the bottom of the screen to satisfy the clamp.
+        frame.origin.y = max(frame.origin.y, screen.visibleFrame.minY)
+
+        window.setFrame(frame, display: false)
     }
 }
