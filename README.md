@@ -17,14 +17,13 @@
 
 ---
 
-Your download and upload speed, always visible, in two tidy lines:
+Your download and upload speed, always visible in the menu bar. Click it for
+today's total and a per-app breakdown of who used it.
 
-```
-↓ 14.14 KB/s
-↑ 28.69 KB/s
-```
-
-Click it for today's total and a per-app breakdown of who used it.
+<p align="center">
+  <img src="Resources/README/screenshot.png" width="423"
+       alt="NetworkMonitor in the macOS menu bar showing 14.70 KB/s down and 23.90 KB/s up, with its popover open below: a 138.9 MB total for the day, then a list of apps sorted by usage — Google Chrome 29.6 MB, Code 3.0 MB, WhatsApp 2.7 MB, and smaller system processes.">
+</p>
 
 ## Features
 
