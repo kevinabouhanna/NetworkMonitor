@@ -22,6 +22,7 @@ runAppIdentityTests()
 runUsageStoreTests()
 runUsageRowPartitionTests()
 runRowOrderTests()
+runPopoverMetricsTests()
 runNetworkFingerprintTests()
 
 exit(Check.summarize())

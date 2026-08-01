@@ -11,6 +11,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var titleObserver: AnyCancellable?
     private var popoverMonitor: Any?
     private var settingsWindow: NSWindow?
+    /// Invisible stand-in for the status item that the popover anchors to.
+    /// See `anchorView(under:)`.
+    private var anchorWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
@@ -109,7 +112,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         guard let button = statusItem.button else { return }
         model.setPopoverOpen(true)
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        if let anchor = anchorView(under: button) {
+            popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
+        } else {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        }
         // An LSUIElement app is not active by default, so without this the
         // popover renders unfocused and swallows the first click.
         NSApp.activate(ignoringOtherApps: true)
@@ -140,6 +147,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// An invisible window parked exactly where the status item is, for the
+    /// popover to anchor to instead of the item itself.
+    ///
+    /// `NSPopover` re-anchors against its positioning view every time the
+    /// content size changes. Anchoring to the status item is fine while the menu
+    /// bar is on screen — but with "Automatically hide and show the menu bar"
+    /// enabled (confirmed as the trigger here: `_HIHideMenuBar = 1`), the menu
+    /// bar is gone by the time the user expands a row. The hidden item resolves
+    /// to an off-screen rect and the popover jumps to the far left of the
+    /// display. Measured, anchored to the status item: placed at x=657, and
+    /// x=0 after expanding. Anchored to this window: x=644 both before and after.
+    ///
+    /// A fixed content height used to hide this by never resizing at all, which
+    /// is why removing it looked like the cause. It was not — it only removed
+    /// the thing suppressing the re-anchor.
+    ///
+    /// The item's position is read at click time, which is the one moment it is
+    /// guaranteed to be on screen: the user just clicked it. The stand-in then
+    /// stays put for as long as the popover is open, so every later re-anchor
+    /// resolves to the same rect.
+    private func anchorView(under button: NSStatusBarButton) -> NSView? {
+        guard let itemWindow = button.window else { return nil }
+        let rect = itemWindow.convertToScreen(button.convert(button.bounds, to: nil))
+        // A menu bar that is already hidden gives a rect off every screen; with
+        // nothing trustworthy to anchor to, let AppKit place it as before.
+        guard NSScreen.screens.contains(where: { $0.frame.intersects(rect) }) else { return nil }
+
+        let window = anchorWindow ?? {
+            let w = NSWindow(contentRect: rect, styleMask: [.borderless],
+                             backing: .buffered, defer: false)
+            w.isOpaque = false
+            w.backgroundColor = .clear
+            w.hasShadow = false
+            w.ignoresMouseEvents = true
+            // Above normal windows so the popover's arrow is not clipped, and
+            // excluded from window lists so it cannot be cycled to.
+            w.level = .statusBar
+            w.collectionBehavior = [.canJoinAllSpaces, .ignoresCycle, .stationary]
+            anchorWindow = w
+            return w
+        }()
+
+        window.setFrame(rect, display: false)
+        window.contentView = NSView(frame: NSRect(origin: .zero, size: rect.size))
+        window.orderFrontRegardless()
+        return window.contentView
+    }
+
     private func closePopover() {
         popover.performClose(nil)
         model.setPopoverOpen(false)
@@ -147,6 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSEvent.removeMonitor(monitor)
             popoverMonitor = nil
         }
+        anchorWindow?.orderOut(nil)
     }
 
     // MARK: Right-click menu
