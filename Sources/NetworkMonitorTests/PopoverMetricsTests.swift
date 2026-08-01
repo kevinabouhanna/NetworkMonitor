@@ -108,14 +108,52 @@ func runPopoverMetricsTests() {
         }
 
         /// A row is two lines tall now, so the icon has to be big enough not to
-        /// float in the middle of it — and the two icon sizes are chosen so the
-        /// text stack, not the icon, is what sets `rowHeight` at either level.
+        /// float in the middle of it.
         Check.test("neither icon is taller than the row it sits in") {
             for size in [PopoverMetrics.iconSize, PopoverMetrics.childIconSize] {
                 Check.expectTrue(size + PopoverMetrics.rowVerticalPadding * 2
                                     <= PopoverMetrics.rowHeight,
                                  "an icon of \(size) must fit inside \(PopoverMetrics.rowHeight)")
             }
+        }
+
+        /// The name and the bar are one unit describing one app, and reading as
+        /// that unit depends on them staying within the icon they sit beside.
+        /// Computed from the real font line heights, so shrinking the type or
+        /// tightening `detailSpacing` cannot quietly break it.
+        Check.test("the name and bar never run taller than their own icon") {
+            for indented in [false, true] {
+                let stack = PopoverMetrics.detailStackHeight(indented: indented)
+                let icon = PopoverMetrics.iconSize(indented: indented)
+                Check.expectTrue(stack <= icon,
+                                 "\(indented ? "child" : "app") stack \(stack) vs icon \(icon)")
+            }
+        }
+
+        // Both levels have to fit the stated content height, or a row is clipped
+        // rather than merely mismeasured.
+        Check.test("both levels fit the row's content height") {
+            for indented in [false, true] {
+                Check.expectTrue(
+                    PopoverMetrics.iconSize(indented: indented) <= PopoverMetrics.rowContentHeight,
+                    "icon at \(indented ? "child" : "app") level")
+                Check.expectTrue(
+                    PopoverMetrics.detailStackHeight(indented: indented)
+                        <= PopoverMetrics.rowContentHeight,
+                    "stack at \(indented ? "child" : "app") level")
+            }
+            Check.expectEqual(PopoverMetrics.rowContentHeight
+                                + PopoverMetrics.rowVerticalPadding * 2,
+                              PopoverMetrics.rowHeight,
+                              "the row is its content plus its insets")
+        }
+
+        // A child is subordinate to the app above it, and the type carries that
+        // as much as the indent does.
+        Check.test("child type and icon stay smaller than an app's") {
+            Check.expectTrue(PopoverMetrics.childIconSize < PopoverMetrics.iconSize)
+            Check.expectTrue(PopoverMetrics.childNameFontSize < PopoverMetrics.nameFontSize)
+            Check.expectTrue(PopoverMetrics.childTotalFontSize < PopoverMetrics.totalFontSize)
         }
 
         /// The bar plus the figure after it plus every inset has to fit the

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 public struct MenuBarPopoverView: View {
@@ -230,10 +231,62 @@ public enum PopoverMetrics {
 
     /// Icon beside a top-level row, and beside an indented one.
     ///
-    /// Bigger than the 16 pt of the single-line rows this replaced: a row is now
-    /// two lines tall, and a 16 pt icon floated in the middle of it.
-    public static let iconSize: CGFloat = 28
-    public static let childIconSize: CGFloat = 20
+    /// Each is sized to contain the name-over-bar stack that sits next to it, so
+    /// the text never runs taller than the icon it belongs to — see
+    /// `detailStackHeight(indented:)` and the test that pins the relationship.
+    public static let iconSize: CGFloat = 32
+    public static let childIconSize: CGFloat = 28
+
+    /// Height every row's content occupies, whatever its level.
+    ///
+    /// Stated rather than derived from the tallest thing in the row. Without it
+    /// the row height would follow the icon, so the smaller child icon would make
+    /// child rows shorter than app rows and `rowHeight` could no longer be a
+    /// single number.
+    public static let rowContentHeight: CGFloat = 32
+
+    /// Gap between an app's name and its bar.
+    ///
+    /// Tight on purpose: the two lines are one unit describing one app, and the
+    /// pair has to fit inside the icon's height.
+    public static let detailSpacing: CGFloat = 2
+
+    /// Type sizes for the name and the byte figure, at each level.
+    public static let nameFontSize: CGFloat = 12
+    public static let totalFontSize: CGFloat = 11
+    public static let childNameFontSize: CGFloat = 11
+    public static let childTotalFontSize: CGFloat = 10
+
+    /// Width of a bar at 100%.
+    ///
+    /// One value for every row, indented or not, so a child's bar is directly
+    /// comparable with its parent's — and small enough that the byte figure
+    /// following it still fits on the most indented row.
+    public static let maxBarWidth: CGFloat = 150
+    /// A row with a real but tiny share still gets a visible mark, rather than
+    /// rounding away to nothing and reading as zero.
+    public static let minBarWidth: CGFloat = 3
+    public static let barHeight: CGFloat = 5
+
+    /// Height of the name-over-bar stack, from the fonts it is actually drawn in.
+    ///
+    /// Derived rather than guessed, so shrinking the child type or tightening the
+    /// spacing cannot silently push the text past its icon.
+    public static func detailStackHeight(indented: Bool) -> CGFloat {
+        let name = lineHeight(indented ? childNameFontSize : nameFontSize)
+        let figure = lineHeight(indented ? childTotalFontSize : totalFontSize)
+        return name + detailSpacing + max(figure, barHeight)
+    }
+
+    /// The icon a row of this level sits beside.
+    public static func iconSize(indented: Bool) -> CGFloat {
+        indented ? childIconSize : iconSize
+    }
+
+    static func lineHeight(_ size: CGFloat) -> CGFloat {
+        let font = NSFont.systemFont(ofSize: size)
+        return font.ascender - font.descender + font.leading
+    }
     /// Indent applied to a child row.
     public static let childIndent: CGFloat = 18
     /// Leading inset shared by every row.
@@ -328,17 +381,6 @@ private struct AppRowView: View {
     /// so a chevron fading in never nudges the row's contents.
     private static let chevronWidth: CGFloat = 10
 
-    /// Width of a bar at 100%.
-    ///
-    /// One value for every row, indented or not, so a child's bar is directly
-    /// comparable with its parent's — and small enough that the byte figure
-    /// following it still fits on the most indented row.
-    static let maxBarWidth: CGFloat = 150
-    /// A row with a real but tiny share still gets a visible mark, rather than
-    /// rounding away to nothing and reading as zero.
-    static let minBarWidth: CGFloat = 3
-    static let barHeight: CGFloat = 5
-
     var body: some View {
         if let onToggle {
             Button(action: onToggle) { content }
@@ -354,14 +396,15 @@ private struct AppRowView: View {
             if indented { Spacer().frame(width: PopoverMetrics.childIndent) }
             Image(nsImage: icon)
                 .resizable()
-                .frame(width: indented ? PopoverMetrics.childIconSize : PopoverMetrics.iconSize,
-                       height: indented ? PopoverMetrics.childIconSize : PopoverMetrics.iconSize)
+                .frame(width: PopoverMetrics.iconSize(indented: indented),
+                       height: PopoverMetrics.iconSize(indented: indented))
 
             // Name over bar, vertically centred against the icon.
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: PopoverMetrics.detailSpacing) {
                 HStack(spacing: 6) {
                     Text(row.displayName)
-                        .font(.system(size: 12))
+                        .font(.system(size: indented ? PopoverMetrics.childNameFontSize
+                                                     : PopoverMetrics.nameFontSize))
                         // Dimmer than a top-level app: a child is a part of the
                         // row above it, not a peer of the rows around it.
                         .foregroundStyle(indented || isMuted
@@ -379,13 +422,20 @@ private struct AppRowView: View {
                 HStack(spacing: 8) {
                     bar
                     Text(ByteFormat.bytes(row.total))
-                        .font(.system(size: 11, weight: .medium)).monospacedDigit()
+                        .font(.system(size: indented ? PopoverMetrics.childTotalFontSize
+                                                     : PopoverMetrics.totalFontSize,
+                                      weight: .medium))
+                        .monospacedDigit()
                         .foregroundStyle(isMuted ? AnyShapeStyle(.secondary)
                                                  : AnyShapeStyle(.primary))
                     Spacer(minLength: 0)
                 }
             }
-            .frame(width: PopoverMetrics.detailWidth, alignment: .leading)
+            // Held to the stack's own height and centred, so the name and the bar
+            // stay vertically centred on the icon beside them.
+            .frame(width: PopoverMetrics.detailWidth,
+                   height: PopoverMetrics.detailStackHeight(indented: indented),
+                   alignment: .leading)
 
             Spacer(minLength: 0)
 
@@ -400,6 +450,7 @@ private struct AppRowView: View {
                 .opacity(chevronOpacity)
                 .frame(width: Self.chevronWidth)
         }
+        .frame(height: PopoverMetrics.rowContentHeight)
         .padding(.horizontal, PopoverMetrics.rowHorizontalPadding)
         .padding(.vertical, PopoverMetrics.rowVerticalPadding)
         // Drawn as a background rather than inside the HStack so it spans the
@@ -420,14 +471,14 @@ private struct AppRowView: View {
     private var bar: some View {
         Capsule()
             .fill(Color.accentColor.opacity(isMuted ? 0.5 : 1))
-            .frame(width: barWidth, height: Self.barHeight)
+            .frame(width: barWidth, height: PopoverMetrics.barHeight)
             .animation(.easeOut(duration: 0.45), value: barWidth)
     }
 
     private var barWidth: CGFloat {
-        guard fraction.isFinite else { return Self.minBarWidth }
+        guard fraction.isFinite else { return PopoverMetrics.minBarWidth }
         let share = min(max(fraction, 0), 1)
-        return max(Self.minBarWidth, Self.maxBarWidth * share)
+        return max(PopoverMetrics.minBarWidth, PopoverMetrics.maxBarWidth * share)
     }
 
     /// Absent on rows with no breakdown, dim at rest, solid on hover or when open.
