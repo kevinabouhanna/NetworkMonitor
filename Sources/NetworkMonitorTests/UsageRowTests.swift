@@ -89,6 +89,140 @@ func runUsageRowPartitionTests() {
         }
     }
 
+    Check.suite("UsageRow — nesting adopted processes") {
+
+        let code = ParentApp(key: "/Applications/Visual Studio Code.app",
+                             displayName: "Visual Studio Code",
+                             bundlePath: "/Applications/Visual Studio Code.app")
+
+        func child(_ name: String, _ bytes: Int64, of parent: ParentApp) -> AppTotals {
+            AppTotals(displayName: name, bundlePath: nil, isSystem: false,
+                      parent: parent, bytesIn: bytes, bytesOut: 0)
+        }
+
+        Check.test("an adopted process nests instead of joining the System group") {
+            let result = UsageRow.partition(
+                apps: [code.key: totals("Visual Studio Code", 20, 0),
+                       "vscode\u{1}claude": child("claude", 900, of: code)],
+                lastActivity: [:], now: Date())
+
+            Check.expectTrue(result.system.isEmpty, "a child must never be filed as a daemon")
+            Check.expectEqual(result.apps.count, 1)
+            Check.expectEqual(result.apps.first?.children.map(\.displayName), ["claude"])
+        }
+
+        /// The rows on screen have to add up to the headline, so a parent shows
+        /// its own bytes plus everything it launched.
+        Check.test("the parent total combines its own bytes with its children's") {
+            let result = UsageRow.partition(
+                apps: [code.key: totals("Visual Studio Code", 20, 5),
+                       "vscode\u{1}claude": child("claude", 900, of: code),
+                       "vscode\u{1}node": child("node", 75, of: code)],
+                lastActivity: [:], now: Date())
+
+            guard let parent = result.apps.first else {
+                return Check.expectNotNil(result.apps.first, "no parent row built")
+            }
+            Check.expectEqual(parent.ownTotal, 25)
+            Check.expectEqual(parent.total, 1000)
+            Check.expectEqual(parent.children.map(\.displayName), ["claude", "node"])
+        }
+
+        /// A terminal whose only traffic is the dev server it started has no row
+        /// of its own; without synthesising one the child has nowhere to nest.
+        Check.test("a parent with no traffic of its own still gets a row") {
+            let result = UsageRow.partition(
+                apps: ["vscode\u{1}claude": child("claude", 900, of: code)],
+                lastActivity: [:], now: Date())
+
+            Check.expectEqual(result.apps.map(\.displayName), ["Visual Studio Code"])
+            Check.expectEqual(result.apps.first?.ownTotal, 0)
+            Check.expectEqual(result.apps.first?.total, 900)
+            Check.expectEqual(result.apps.first?.bundlePath,
+                              "/Applications/Visual Studio Code.app")
+        }
+
+        /// Sorting compares combined totals, so an app that is small on its own
+        /// but launched something large must not sink to the bottom.
+        Check.test("parents sort by their combined total") {
+            let result = UsageRow.partition(
+                apps: [code.key: totals("Visual Studio Code", 1, 0),
+                       "vscode\u{1}claude": child("claude", 900, of: code),
+                       "Chrome": totals("Chrome", 500, 0)],
+                lastActivity: [:], now: Date())
+
+            Check.expectEqual(result.apps.map(\.displayName), ["Visual Studio Code", "Chrome"])
+        }
+
+        Check.test("an app with no children reports none") {
+            let result = UsageRow.partition(apps: ["Chrome": totals("Chrome", 500, 0)],
+                                            lastActivity: [:], now: Date())
+            Check.expectFalse(result.apps.first?.hasChildren ?? true)
+        }
+
+        // The dot answers "is this app on the network"; a process it launched
+        // counts, and the child is hidden behind a closed chevron by default.
+        Check.test("a busy child lights the parent's active dot") {
+            let now = Date()
+            let result = UsageRow.partition(
+                apps: [code.key: totals("Visual Studio Code", 20, 0),
+                       "vscode\u{1}claude": child("claude", 900, of: code)],
+                lastActivity: ["vscode\u{1}claude": now], now: now)
+
+            Check.expectTrue(result.apps.first?.isActive ?? false)
+        }
+
+        /// The breakdown is a summary, not a process list. A build tool that
+        /// launches a dozen helpers must not turn one row into a wall of them.
+        Check.test("a long tail of children is rolled up into one Other row") {
+            var apps: [String: AppTotals] = [:]
+            for i in 1...10 { apps["vscode\u{1}p\(i)"] = child("p\(i)", Int64(i) * 100, of: code) }
+            let result = UsageRow.partition(apps: apps, lastActivity: [:], now: Date())
+
+            guard let parent = result.apps.first else {
+                return Check.expectNotNil(result.apps.first, "no parent row built")
+            }
+            Check.expectEqual(parent.children.count, UsageRow.maxChildrenShown)
+            Check.expectEqual(parent.children.map(\.displayName),
+                              ["p10", "p9", "p8", "Other (7)"])
+        }
+
+        /// Rolling up must summarise, never discard — the children still have to
+        /// add up to the parent, or the list stops reconciling with the headline.
+        Check.test("the rolled-up total is preserved exactly") {
+            var apps: [String: AppTotals] = [:]
+            for i in 1...10 { apps["vscode\u{1}p\(i)"] = child("p\(i)", Int64(i) * 100, of: code) }
+            let result = UsageRow.partition(apps: apps, lastActivity: [:], now: Date())
+
+            // 100 + 200 + … + 1000
+            Check.expectEqual(result.apps.first?.total, 5500)
+            Check.expectEqual(result.apps.first?.children.last?.total, 5500 - 1000 - 900 - 800)
+        }
+
+        Check.test("a short list is left alone rather than rolled up") {
+            var apps: [String: AppTotals] = [:]
+            for i in 1...UsageRow.maxChildrenShown {
+                apps["vscode\u{1}p\(i)"] = child("p\(i)", Int64(i) * 100, of: code)
+            }
+            let result = UsageRow.partition(apps: apps, lastActivity: [:], now: Date())
+            Check.expectEqual(result.apps.first?.children.count, UsageRow.maxChildrenShown)
+            Check.expectFalse(
+                result.apps.first?.children.contains { $0.displayName.hasPrefix("Other") } ?? true,
+                "nothing to roll up at exactly the cap")
+        }
+
+        Check.test("children are sorted biggest first") {
+            let result = UsageRow.partition(
+                apps: ["vscode\u{1}small": child("small", 5, of: code),
+                       "vscode\u{1}big": child("big", 900, of: code),
+                       "vscode\u{1}mid": child("mid", 50, of: code)],
+                lastActivity: [:], now: Date())
+
+            Check.expectEqual(result.apps.first?.children.map(\.displayName),
+                              ["big", "mid", "small"])
+        }
+    }
+
     Check.suite("UsageRow — the active-now dot") {
 
         let now = Date()

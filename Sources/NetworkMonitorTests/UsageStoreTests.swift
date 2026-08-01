@@ -68,6 +68,79 @@ func runAppIdentityTests() {
         Check.test("resolves launchd, a root-owned process, unprivileged") {
             Check.expectEqual(AppIdentityResolver.executablePath(pid: 1), "/sbin/launchd")
         }
+
+        Check.test("reads the parent pid of this process unprivileged") {
+            Check.expectNotNil(AppIdentityResolver.parentPID(of: getpid()))
+        }
+
+        Check.test("kernel_task has no parent to read") {
+            Check.expectNil(AppIdentityResolver.parentPID(of: 0))
+        }
+    }
+
+    Check.suite("AppIdentityResolver — adopting un-bundled children") {
+
+        // The shape measured on a real machine, with a bundle name that is not
+        // installed anywhere: naming falls back to the directory name, so the
+        // expectations do not depend on which apps this machine happens to have.
+        // (The real VS Code resolves to "Code" — its CFBundleName.)
+        let editorChain = [
+            "/Applications/Test Editor.app/Contents/Frameworks/"
+                + "Code Helper (Plugin).app/Contents/MacOS/Code Helper (Plugin)",
+            "/Applications/Test Editor.app/Contents/MacOS/Electron",
+        ]
+
+        Check.test("the nearest ancestor app adopts the process") {
+            let parent = AppIdentityResolver.adoptiveParent(ancestorPaths: editorChain)
+            Check.expectEqual(parent?.bundlePath, "/Applications/Test Editor.app")
+            Check.expectEqual(parent?.displayName, "Test Editor")
+        }
+
+        // The helper is inside the outer bundle, so folding by outermost .app
+        // must give the parent the same key the app itself would resolve to —
+        // otherwise the child nests under a second, duplicate VS Code row.
+        Check.test("the parent key matches the app's own identity key") {
+            let parent = AppIdentityResolver.adoptiveParent(ancestorPaths: editorChain)
+            let direct = AppIdentityResolver.identity(
+                forExecutablePath: "/Applications/Test Editor.app/Contents/MacOS/Electron",
+                fallbackName: "Electron")
+            Check.expectEqual(parent?.key, direct.key)
+        }
+
+        Check.test("a daemon under launchd is adopted by nobody") {
+            Check.expectNil(AppIdentityResolver.adoptiveParent(ancestorPaths: ["/sbin/launchd"]))
+            Check.expectNil(AppIdentityResolver.adoptiveParent(ancestorPaths: []))
+        }
+
+        Check.test("an adopted process leaves the System group") {
+            let daemonish = AppIdentityResolver.identity(
+                forExecutablePath: "/Users/x/.vscode/extensions/anthropic.claude-code/"
+                    + "resources/native-binary/claude",
+                fallbackName: "claude")
+            Check.expectTrue(daemonish.isSystem, "un-adopted, it is filed as a daemon")
+
+            let parent = AppIdentityResolver.adoptiveParent(ancestorPaths: editorChain)!
+            let adopted = AppIdentityResolver.adopted(daemonish, by: parent)
+            Check.expectFalse(adopted.isSystem)
+            Check.expectEqual(adopted.displayName, "claude")
+            // The parent is named from its bundle exactly as a top-level row is.
+            Check.expectEqual(adopted.parent?.displayName, "Test Editor")
+        }
+
+        /// The same binary launched by two apps is two rows. Sharing one key
+        /// would merge their bytes and leave the row under whichever parent
+        /// happened to be recorded last.
+        Check.test("the same binary under two parents gets two keys") {
+            let node = AppIdentityResolver.identity(forExecutablePath: "/usr/local/bin/node",
+                                                    fallbackName: "node")
+            let underCode = AppIdentityResolver.adopted(node, by: AppIdentityResolver
+                .adoptiveParent(ancestorPaths: editorChain)!)
+            let underTerminal = AppIdentityResolver.adopted(node, by: AppIdentityResolver
+                .adoptiveParent(ancestorPaths: ["/Applications/iTerm.app/Contents/MacOS/iTerm2"])!)
+
+            Check.expectTrue(underCode.key != underTerminal.key)
+            Check.expectEqual(underCode.displayName, underTerminal.displayName)
+        }
     }
 }
 
@@ -569,6 +642,88 @@ func runUsageStoreTests() {
                               "an upgrade must not discard the day")
             Check.expectEqual(store.countingSince, dayStart,
                               "old totals are the day's, so they count from midnight")
+        }
+
+        // Same contract for the upgrade that added nesting: an app row written
+        // before `parent` existed must still decode, and must stay top-level
+        // rather than being lost or nested under nothing.
+        Check.test("an app row from before nesting still loads") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let dayStart = Calendar.current.startOfDay(for: Date())
+            let stamp = ISO8601DateFormatter().string(from: dayStart)
+            let legacy = """
+            {"dayStart":"\(stamp)","labels":{},"buckets":{"home":{\
+            "interfaceBytesIn":8192,"interfaceBytesOut":2048,"apps":{\
+            "/Applications/Chrome.app":{"displayName":"Chrome",\
+            "bundlePath":"/Applications/Chrome.app","isSystem":false,\
+            "bytesIn":600,"bytesOut":400,"lastActive":"\(stamp)"}},\
+            "kind":"wifi","defaultLabel":"home","lastSeen":"\(stamp)"}}}
+            """
+            try? legacy.write(to: url, atomically: true, encoding: .utf8)
+
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            let chrome = store.currentBucket.apps["/Applications/Chrome.app"]
+            Check.expectEqual(chrome?.total, 1000, "an upgrade must not discard app rows")
+            Check.expectNil(chrome?.parent)
+
+            let rows = UsageRow.partition(apps: store.currentBucket.apps,
+                                          lastActivity: [:], now: Date())
+            Check.expectEqual(rows.apps.map(\.displayName), ["Chrome"])
+            Check.expectFalse(rows.apps.first?.hasChildren ?? true)
+        }
+
+        /// The upgrade artefact seen in practice: the same `claude` process
+        /// listed twice, 21.77 MB frozen in the System group under its old
+        /// executable-path key and 95.54 MB accumulating under Code. The old
+        /// bytes were really used, so they move rather than being dropped.
+        Check.test("a pre-nesting row is folded into the app that now owns it") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+
+            let childPath = "/Users/k/.vscode/extensions/anthropic.claude-code/claude"
+            let legacy = AppIdentity(key: childPath, displayName: "claude",
+                                     bundlePath: nil, isSystem: true)
+            // What the old version recorded.
+            store.recordApps([(legacy, 900, 100)])
+            Check.expectEqual(store.currentBucket.apps[childPath]?.total, 1000)
+
+            // What this version records for the very same process.
+            let parent = ParentApp(key: "/Applications/Code.app", displayName: "Code",
+                                   bundlePath: "/Applications/Code.app")
+            let adopted = AppIdentityResolver.adopted(legacy, by: parent)
+            store.recordApps([(adopted, 50, 0)])
+
+            Check.expectNil(store.currentBucket.apps[childPath],
+                            "the frozen System row must not survive")
+            Check.expectEqual(store.currentBucket.apps[adopted.key]?.total, 1050,
+                              "its bytes move across rather than being discarded")
+            Check.expectEqual(store.currentBucket.apps.count, 1)
+        }
+
+        /// Only a system row is absorbed. A real app is not the same process just
+        /// because its key is the tail of a composite one.
+        Check.test("a real app's row is never absorbed by a child") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+
+            let app = AppIdentity(key: "/Applications/Real.app", displayName: "Real",
+                                  bundlePath: "/Applications/Real.app", isSystem: false)
+            store.recordApps([(app, 500, 0)])
+
+            let parent = ParentApp(key: "/Applications/Code.app", displayName: "Code",
+                                   bundlePath: "/Applications/Code.app")
+            let impostor = AppIdentityResolver.adopted(app, by: parent)
+            store.recordApps([(impostor, 10, 0)])
+
+            Check.expectEqual(store.currentBucket.apps["/Applications/Real.app"]?.total, 500,
+                              "the app keeps its own row and its bytes")
+            Check.expectEqual(store.currentBucket.apps[impostor.key]?.total, 10)
         }
 
         // A corrupt store must not prevent launch.

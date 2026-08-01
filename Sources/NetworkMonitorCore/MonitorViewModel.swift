@@ -38,6 +38,10 @@ public final class MonitorViewModel: ObservableObject {
     /// the counter also restarts when the machine joins a different network.
     @Published public private(set) var countingSince: Date = Date()
     @Published public var systemExpanded = false
+    /// Ids of app rows whose child breakdown is open. Empty on every popover
+    /// open: the breakdown is an answer to "what is inside this app", which is a
+    /// question the user asks, not one the list should pre-empt.
+    @Published public var expandedApps: Set<String> = []
 
     public let store: UsageStore
 
@@ -315,6 +319,7 @@ public final class MonitorViewModel: ObservableObject {
         // Re-sort fresh on each open, and drop the captured order on close so a
         // reopen reflects whatever accumulated in between.
         rowOrder.reset()
+        expandedApps.removeAll()
         if open {
             refreshHeader()
             rebuildRows(now: Date())
@@ -344,6 +349,7 @@ public final class MonitorViewModel: ObservableObject {
             // hold a row order captured for rows that no longer exist.
             lastActivity.removeAll()
             rowOrder.reset()
+            expandedApps.removeAll()
         }
         // Interface counters are per-interface lifetime values; a link change
         // must re-baseline or the gap would land as one huge delta.
@@ -372,8 +378,18 @@ public final class MonitorViewModel: ObservableObject {
         store.resetCurrentNetwork()
         lastActivity.removeAll()
         rowOrder.reset()
+        expandedApps.removeAll()
         refreshHeader()
         rebuildRows(now: Date())
+    }
+
+    /// Opens or closes one app's child breakdown.
+    public func toggleExpanded(_ id: String) {
+        if expandedApps.contains(id) {
+            expandedApps.remove(id)
+        } else {
+            expandedApps.insert(id)
+        }
     }
 
     public func icon(for row: UsageRow) -> NSImage {

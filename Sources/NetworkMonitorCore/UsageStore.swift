@@ -7,6 +7,10 @@ public struct AppTotals: Codable, Equatable {
     public var displayName: String
     public var bundlePath: String?
     public var isSystem: Bool
+    /// Set when this process was launched by an app it does not live inside, so
+    /// the row nests under that app. Optional, so a store written before nesting
+    /// still decodes — synthesised decoding uses `decodeIfPresent` for optionals.
+    public var parent: ParentApp?
     public var bytesIn: Int64
     public var bytesOut: Int64
     /// Drives the "active now" dot and the ordering of idle rows.
@@ -15,10 +19,12 @@ public struct AppTotals: Codable, Equatable {
     public var total: Int64 { bytesIn + bytesOut }
 
     public init(displayName: String, bundlePath: String? = nil, isSystem: Bool = false,
+                parent: ParentApp? = nil,
                 bytesIn: Int64 = 0, bytesOut: Int64 = 0, lastActive: Date = .distantPast) {
         self.displayName = displayName
         self.bundlePath = bundlePath
         self.isSystem = isSystem
+        self.parent = parent
         self.bytesIn = bytesIn
         self.bytesOut = bytesOut
         self.lastActive = lastActive
@@ -191,10 +197,12 @@ public final class UsageStore {
             bucket.localBytesIn += localBytesIn
             bucket.localBytesOut += localBytesOut
             for entry in entries where entry.bytesIn > 0 || entry.bytesOut > 0 {
+                Self.absorbPreAdoptionRow(for: entry.identity, in: &bucket)
                 var totals = bucket.apps[entry.identity.key] ?? AppTotals(
                     displayName: entry.identity.displayName,
                     bundlePath: entry.identity.bundlePath,
                     isSystem: entry.identity.isSystem,
+                    parent: entry.identity.parent,
                     bytesIn: 0, bytesOut: 0, lastActive: now)
                 totals.bytesIn += entry.bytesIn
                 totals.bytesOut += entry.bytesOut
@@ -202,9 +210,42 @@ public final class UsageStore {
                 // Refresh naming in case the bundle resolved after first sighting.
                 totals.displayName = entry.identity.displayName
                 totals.bundlePath = entry.identity.bundlePath
+                totals.parent = entry.identity.parent
                 bucket.apps[entry.identity.key] = totals
             }
         }
+    }
+
+    /// Folds a row left behind by a version that could not adopt this process
+    /// into the row that now owns it.
+    ///
+    /// Before nesting, an un-bundled process was keyed by its executable path and
+    /// filed as a system daemon. That row is still in the store after an upgrade,
+    /// and it never grows again because new bytes go to the adopted key — so the
+    /// same process shows up twice, once frozen under System and once live under
+    /// its parent. Its bytes were really used, so they are moved rather than
+    /// discarded, and the migration happens the first time the process transmits.
+    ///
+    /// Only a system row is absorbed: a real app that happens to share the tail
+    /// of a composite key is not the same thing.
+    private static func absorbPreAdoptionRow(for identity: AppIdentity,
+                                            in bucket: inout NetworkBucket) {
+        guard identity.parent != nil,
+              let legacyKey = AppIdentityResolver.keyBeforeAdoption(identity.key),
+              let legacy = bucket.apps[legacyKey],
+              legacy.isSystem
+        else { return }
+
+        bucket.apps.removeValue(forKey: legacyKey)
+        var totals = bucket.apps[identity.key] ?? AppTotals(
+            displayName: identity.displayName,
+            bundlePath: identity.bundlePath,
+            isSystem: false,
+            parent: identity.parent)
+        totals.bytesIn += legacy.bytesIn
+        totals.bytesOut += legacy.bytesOut
+        totals.lastActive = max(totals.lastActive, legacy.lastActive)
+        bucket.apps[identity.key] = totals
     }
 
     private func withCurrentBucket(now: Date, _ body: (inout NetworkBucket) -> Void) {
