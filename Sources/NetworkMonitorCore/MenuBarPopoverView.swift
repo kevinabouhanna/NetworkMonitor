@@ -119,6 +119,20 @@ public struct MenuBarPopoverView: View {
         .scrollIndicators(listScrolls ? .automatic : .never)
     }
 
+    /// What every bar is measured against: everything the rows account for.
+    ///
+    /// The sum of the top-level rows rather than the header figure, so the bars
+    /// tile the width exactly. The two differ by the traffic the kernel counted
+    /// but could not attribute to any process, and a set of bars that visibly
+    /// fails to fill the row reads as a bug rather than as that distinction.
+    private var barTotal: Int64 {
+        max(model.rows.reduce(0) { $0 + $1.total } + model.systemTotal, 1)
+    }
+
+    private func fraction(of bytes: Int64) -> Double {
+        Double(bytes) / Double(barTotal)
+    }
+
     /// One app, plus its breakdown when opened.
     ///
     /// Most apps have no children and are an ordinary row: the disclosure
@@ -129,6 +143,7 @@ public struct MenuBarPopoverView: View {
         let isExpanded = model.expandedApps.contains(row.id)
         AppRowView(row: row,
                    icon: model.icon(for: row),
+                   fraction: fraction(of: row.total),
                    isExpanded: isExpanded,
                    onToggle: row.hasChildren
                        ? { withAnimation(.easeInOut(duration: 0.15)) {
@@ -137,7 +152,8 @@ public struct MenuBarPopoverView: View {
                        : nil)
         if isExpanded {
             ForEach(row.children) { child in
-                AppRowView(row: child, icon: model.icon(for: child), indented: true)
+                AppRowView(row: child, icon: model.icon(for: child),
+                           fraction: fraction(of: child.total), indented: true)
             }
         }
     }
@@ -145,38 +161,35 @@ public struct MenuBarPopoverView: View {
     /// Daemons are collapsed by default. mDNSResponder alone was measured at
     /// 263 MB against a top real app of 6 MB — left inline it would bury
     /// everything the user cares about.
+    ///
+    /// Rendered through `AppRowView` like any other row, so the group carries a
+    /// bar for its share of the total and puts its chevron on the right where
+    /// the app rows put theirs. It used to be the one row shaped differently,
+    /// which made it read as a different kind of control than it is.
     private var systemSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) { model.systemExpanded.toggle() }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: model.systemExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 16)
-                    Image(systemName: "gearshape.2.fill")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                    Text("System (\(model.systemRows.count))")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(ByteFormat.bytes(model.systemTotal))
-                        .font(.system(size: 11)).monospacedDigit()
-                        .foregroundStyle(.secondary)
-                    // Matches the app rows' reserved chevron slot, so every
-                    // total in the list shares one right edge.
-                    Spacer().frame(width: 10)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 5)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
+        // Own bytes stay zero and the daemons hang off it as children, so
+        // `total` is the group's total without stating it twice.
+        let summary = UsageRow(id: "\u{1}system",
+                               displayName: "System (\(model.systemRows.count))",
+                               bytesIn: 0, bytesOut: 0,
+                               bundlePath: nil, isSystem: true,
+                               isActive: model.systemRows.contains(where: \.isActive),
+                               children: model.systemRows)
+        return VStack(alignment: .leading, spacing: 0) {
+            AppRowView(row: summary,
+                       icon: model.icon(for: summary),
+                       fraction: fraction(of: model.systemTotal),
+                       isMuted: true,
+                       isExpanded: model.systemExpanded,
+                       onToggle: {
+                           withAnimation(.easeInOut(duration: 0.15)) {
+                               model.systemExpanded.toggle()
+                           }
+                       })
             if model.systemExpanded {
                 ForEach(model.systemRows) { row in
-                    AppRowView(row: row, icon: model.icon(for: row), indented: true)
+                    AppRowView(row: row, icon: model.icon(for: row),
+                               fraction: fraction(of: row.total), indented: true)
                 }
             }
         }
@@ -205,13 +218,34 @@ public struct MenuBarPopoverView: View {
 /// `AppRowView`'s insets is a change here too, and the tests say so.
 public enum PopoverMetrics {
 
-    /// An app row, a child row and a system daemon row: a 16 pt icon between
-    /// 4 pt insets.
-    public static let rowHeight: CGFloat = 24
-    /// The "System (n)" summary, which uses 5 pt insets rather than 4.
-    public static let systemSummaryHeight: CGFloat = 25
+    /// Every row in the list, whatever its level.
+    ///
+    /// One height for all of them: an app, an adopted child and a system daemon
+    /// are the same shape, differing only in indent and icon size, and the two
+    /// icon sizes were chosen so the name-over-bar stack is what sets the
+    /// height in both cases. That keeps the arithmetic below to one term.
+    public static let rowHeight: CGFloat = 42
     /// 4 pt above the first row and below the last.
     public static let listVerticalPadding: CGFloat = 8
+
+    /// Icon beside a top-level row, and beside an indented one.
+    ///
+    /// Bigger than the 16 pt of the single-line rows this replaced: a row is now
+    /// two lines tall, and a 16 pt icon floated in the middle of it.
+    public static let iconSize: CGFloat = 28
+    public static let childIconSize: CGFloat = 20
+    /// Indent applied to a child row.
+    public static let childIndent: CGFloat = 18
+    /// Leading inset shared by every row.
+    public static let rowHorizontalPadding: CGFloat = 12
+    /// Vertical inset above and below a row's content.
+    public static let rowVerticalPadding: CGFloat = 5
+    /// Gap between the icon and the name-over-bar stack.
+    public static let iconSpacing: CGFloat = 10
+
+    /// Width of the name-over-bar stack, fixed so the bars all start at the same
+    /// x and a long app name truncates instead of shoving the row about.
+    public static let detailWidth: CGFloat = 220
 
     /// Tallest the list may grow before it scrolls instead.
     ///
@@ -220,7 +254,10 @@ public enum PopoverMetrics {
     /// placed against a menu bar item that has since shifted — capping means a
     /// list long enough to reach it, which is where a day's traffic ends up,
     /// stops resizing altogether.
-    public static let maxListHeight: CGFloat = 320
+    ///
+    /// Raised with the taller rows so it still holds a comparable number of
+    /// them: 320 fitted thirteen single-line rows but only seven of these.
+    public static let maxListHeight: CGFloat = 420
 
     /// Kept between the content and the frame that holds it, so a list that fits
     /// is never *exactly* the height of its own content.
@@ -239,13 +276,12 @@ public enum PopoverMetrics {
                                      expandedChildRows: Int,
                                      systemRowCount: Int,
                                      systemExpanded: Bool) -> CGFloat {
-        var height = listVerticalPadding
-        height += rowHeight * CGFloat(appRows + expandedChildRows)
+        var rows = appRows + expandedChildRows
         if systemRowCount > 0 {
-            height += systemSummaryHeight
-            if systemExpanded { height += rowHeight * CGFloat(systemRowCount) }
+            rows += 1                                            // the summary
+            if systemExpanded { rows += systemRowCount }
         }
-        return height
+        return listVerticalPadding + rowHeight * CGFloat(rows)
     }
 
     /// Height to give the list's frame: its content plus slack, up to the cap.
@@ -277,19 +313,31 @@ public enum PopoverMetrics {
 private struct AppRowView: View {
     let row: UsageRow
     let icon: NSImage
+    /// This row's share of everything the list accounts for, 0...1.
+    let fraction: Double
     var indented = false
+    /// The System group, which is a heading over other rows rather than an app.
+    var isMuted = false
     var isExpanded = false
     /// Non-nil only when the row has a breakdown to show.
     var onToggle: (() -> Void)?
 
     @State private var isHovering = false
 
-    /// Width held for the disclosure chevron on *every* row, expandable or not.
-    ///
-    /// Reserved rather than laid out on demand so the byte totals stay in one
-    /// column: sizing this slot to its contents would shift the numbers left on
-    /// the rows without children, and shift them again as the chevron faded in.
+    /// Width held for the disclosure chevron on *every* row, expandable or not,
+    /// so a chevron fading in never nudges the row's contents.
     private static let chevronWidth: CGFloat = 10
+
+    /// Width of a bar at 100%.
+    ///
+    /// One value for every row, indented or not, so a child's bar is directly
+    /// comparable with its parent's — and small enough that the byte figure
+    /// following it still fits on the most indented row.
+    static let maxBarWidth: CGFloat = 150
+    /// A row with a real but tiny share still gets a visible mark, rather than
+    /// rounding away to nothing and reading as zero.
+    static let minBarWidth: CGFloat = 3
+    static let barHeight: CGFloat = 5
 
     var body: some View {
         if let onToggle {
@@ -302,28 +350,44 @@ private struct AppRowView: View {
     }
 
     private var content: some View {
-        HStack(spacing: 8) {
-            if indented { Spacer().frame(width: 16) }
+        HStack(spacing: PopoverMetrics.iconSpacing) {
+            if indented { Spacer().frame(width: PopoverMetrics.childIndent) }
             Image(nsImage: icon)
-                .resizable().frame(width: 16, height: 16)
+                .resizable()
+                .frame(width: indented ? PopoverMetrics.childIconSize : PopoverMetrics.iconSize,
+                       height: indented ? PopoverMetrics.childIconSize : PopoverMetrics.iconSize)
 
-            Text(row.displayName)
-                .font(.system(size: 12))
-                // Dimmer than a top-level app: a child is a part of the row
-                // above it, not a peer of the rows around it.
-                .foregroundStyle(indented ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
-                .lineLimit(1).truncationMode(.tail)
+            // Name over bar, vertically centred against the icon.
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(row.displayName)
+                        .font(.system(size: 12))
+                        // Dimmer than a top-level app: a child is a part of the
+                        // row above it, not a peer of the rows around it.
+                        .foregroundStyle(indented || isMuted
+                                         ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+                        .lineLimit(1).truncationMode(.tail)
 
-            // Live indicator: this app moved bytes within the last 2 seconds.
-            Circle()
-                .fill(Color.accentColor)
-                .frame(width: 5, height: 5)
-                .opacity(row.isActive ? 1 : 0)
+                    // Live indicator: moved bytes within the last 2 seconds.
+                    Circle()
+                        .fill(Color.accentColor)
+                        .frame(width: 5, height: 5)
+                        .opacity(row.isActive ? 1 : 0)
+                    Spacer(minLength: 0)
+                }
 
-            Spacer(minLength: 8)
+                HStack(spacing: 8) {
+                    bar
+                    Text(ByteFormat.bytes(row.total))
+                        .font(.system(size: 11, weight: .medium)).monospacedDigit()
+                        .foregroundStyle(isMuted ? AnyShapeStyle(.secondary)
+                                                 : AnyShapeStyle(.primary))
+                    Spacer(minLength: 0)
+                }
+            }
+            .frame(width: PopoverMetrics.detailWidth, alignment: .leading)
 
-            Text(ByteFormat.bytes(row.total))
-                .font(.system(size: 11, weight: .medium)).monospacedDigit()
+            Spacer(minLength: 0)
 
             // Faint at rest, full strength when pointed at or open. Only rows
             // with something behind them get one, so the chevron doubles as the
@@ -336,14 +400,34 @@ private struct AppRowView: View {
                 .opacity(chevronOpacity)
                 .frame(width: Self.chevronWidth)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
+        .padding(.horizontal, PopoverMetrics.rowHorizontalPadding)
+        .padding(.vertical, PopoverMetrics.rowVerticalPadding)
         // Drawn as a background rather than inside the HStack so it spans the
         // row's vertical padding too, making one continuous line down a run of
-        // children instead of a dashed stack of 16 pt segments.
+        // children instead of a dashed stack of segments.
         .background(alignment: .leading) { rail }
         // The whole row is the hit target, not just the chevron.
         .contentShape(Rectangle())
+    }
+
+    /// This row's share of the total, drawn to scale.
+    ///
+    /// Animated on width so a figure ticking up slides the bar out rather than
+    /// snapping it. The rows are rebuilt from scratch on every sample, so the
+    /// animation is attached to the value and not to the transaction that
+    /// produced it — `withAnimation` at the call site would not survive a row
+    /// being replaced.
+    private var bar: some View {
+        Capsule()
+            .fill(Color.accentColor.opacity(isMuted ? 0.5 : 1))
+            .frame(width: barWidth, height: Self.barHeight)
+            .animation(.easeOut(duration: 0.45), value: barWidth)
+    }
+
+    private var barWidth: CGFloat {
+        guard fraction.isFinite else { return Self.minBarWidth }
+        let share = min(max(fraction, 0), 1)
+        return max(Self.minBarWidth, Self.maxBarWidth * share)
     }
 
     /// Absent on rows with no breakdown, dim at rest, solid on hover or when open.
@@ -365,7 +449,8 @@ private struct AppRowView: View {
                 .frame(width: 1)
                 // Centred under the parent's icon, so the line appears to
                 // descend from the app it belongs to.
-                .padding(.leading, 20)
+                .padding(.leading, PopoverMetrics.rowHorizontalPadding
+                         + PopoverMetrics.iconSize / 2)
         }
     }
 }

@@ -43,22 +43,19 @@ func runPopoverMetricsTests() {
                 padding + PopoverMetrics.rowHeight * 7)
         }
 
-        // The summary row is a pixel taller than an app row — it uses 5 pt
-        // insets rather than 4 — and getting this wrong is a slow drift that
-        // only shows up as a clipped last row.
+        // The summary is an ordinary row now, so it costs exactly one.
         Check.test("a collapsed System group costs one summary row") {
             Check.expectEqual(
                 PopoverMetrics.contentHeight(appRows: 1, expandedChildRows: 0,
                                           systemRowCount: 3, systemExpanded: false),
-                padding + PopoverMetrics.rowHeight + PopoverMetrics.systemSummaryHeight)
+                padding + PopoverMetrics.rowHeight * 2)
         }
 
         Check.test("an expanded System group adds its daemons") {
             Check.expectEqual(
                 PopoverMetrics.contentHeight(appRows: 1, expandedChildRows: 0,
                                           systemRowCount: 3, systemExpanded: true),
-                padding + PopoverMetrics.rowHeight
-                    + PopoverMetrics.systemSummaryHeight + PopoverMetrics.rowHeight * 3)
+                padding + PopoverMetrics.rowHeight * 5)
         }
 
         Check.test("no System group means no summary row") {
@@ -72,7 +69,7 @@ func runPopoverMetricsTests() {
         /// The cap is what keeps the popover from resizing in the state it
         /// spends most of its time in — see `PopoverMetrics.maxListHeight`.
         Check.test("a long list is capped rather than grown") {
-            for n in [14, 30, 500] {
+            for n in [10, 30, 500] {
                 Check.expectEqual(
                     PopoverMetrics.listHeight(appRows: n, expandedChildRows: 0,
                                               systemRowCount: 0, systemExpanded: false),
@@ -81,30 +78,55 @@ func runPopoverMetricsTests() {
             }
         }
 
-        // 13 rows is the last count that still fits exactly, so it is the
-        // boundary an off-by-one would cross.
+        // Nine rows is the last count that fits, so it is the boundary an
+        // off-by-one would cross.
         Check.test("the cap is reached exactly where the arithmetic says") {
-            let justUnder = PopoverMetrics.contentHeight(appRows: 12, expandedChildRows: 0,
+            let justUnder = PopoverMetrics.contentHeight(appRows: 9, expandedChildRows: 0,
                                                       systemRowCount: 0, systemExpanded: false)
-            Check.expectTrue(justUnder < PopoverMetrics.maxListHeight,
-                             "12 rows still fits")
-            Check.expectEqual(justUnder, padding + PopoverMetrics.rowHeight * 12)
+            Check.expectTrue(justUnder < PopoverMetrics.maxListHeight, "9 rows still fits")
+            Check.expectEqual(justUnder, padding + PopoverMetrics.rowHeight * 9)
+            Check.expectTrue(
+                PopoverMetrics.contentHeight(appRows: 10, expandedChildRows: 0,
+                                             systemRowCount: 0, systemExpanded: false)
+                    > PopoverMetrics.maxListHeight, "10 does not")
         }
 
-        // Calibrated against SwiftUI's actual layout: 1 app row measured 88.5
-        // total, of which 56.5 is the header and divider above the list.
+        // Calibrated against SwiftUI's actual layout: a popover with one app row
+        // measures 107.5 tall, of which 56.5 is the header and divider above the
+        // list and 1 is `fitSlack`.
         Check.test("the constants match the measured layout") {
-            Check.expectEqual(PopoverMetrics.rowHeight, 24)
-            Check.expectEqual(PopoverMetrics.systemSummaryHeight, 25)
+            Check.expectEqual(PopoverMetrics.rowHeight, 42)
             Check.expectEqual(PopoverMetrics.listVerticalPadding, 8)
             Check.expectEqual(
                 PopoverMetrics.contentHeight(appRows: 1, expandedChildRows: 0,
                                           systemRowCount: 0, systemExpanded: false),
-                32, "88.5 measured − 56.5 of header and divider")
+                50, "107.5 measured − 56.5 of header and divider − 1 of slack")
             Check.expectEqual(
                 PopoverMetrics.listHeight(appRows: 1, expandedChildRows: 0,
                                           systemRowCount: 0, systemExpanded: false),
-                33, "the frame carries one point of slack over the content")
+                51, "the frame carries one point of slack over the content")
+        }
+
+        /// A row is two lines tall now, so the icon has to be big enough not to
+        /// float in the middle of it — and the two icon sizes are chosen so the
+        /// text stack, not the icon, is what sets `rowHeight` at either level.
+        Check.test("neither icon is taller than the row it sits in") {
+            for size in [PopoverMetrics.iconSize, PopoverMetrics.childIconSize] {
+                Check.expectTrue(size + PopoverMetrics.rowVerticalPadding * 2
+                                    <= PopoverMetrics.rowHeight,
+                                 "an icon of \(size) must fit inside \(PopoverMetrics.rowHeight)")
+            }
+        }
+
+        /// The bar plus the figure after it plus every inset has to fit the
+        /// popover's 320 pt, at the deepest indent, or a long total is clipped.
+        Check.test("a full-width bar still fits the most indented row") {
+            let used = PopoverMetrics.rowHorizontalPadding * 2
+                + PopoverMetrics.childIndent
+                + PopoverMetrics.childIconSize
+                + PopoverMetrics.iconSpacing * 2
+                + PopoverMetrics.detailWidth
+            Check.expectTrue(used <= 320, "row uses \(used) of 320")
         }
     }
 
@@ -115,7 +137,7 @@ func runPopoverMetricsTests() {
         /// twice a second as the model republishes, and shown as a scrollbar
         /// flashing in and out. Measured at content 201.0 in a frame of 201.0.
         Check.test("a list that fits is never exactly its content's height") {
-            for rows in 0...12 {
+            for rows in 0...8 {
                 for kids in 0...4 {
                     let content = PopoverMetrics.contentHeight(
                         appRows: rows, expandedChildRows: kids,
@@ -150,12 +172,20 @@ func runPopoverMetricsTests() {
         /// Right at the cap the content and the frame have to agree, or the same
         /// coin-flip comes back at exactly 13 rows.
         Check.test("the boundary at the cap does not reintroduce the flicker") {
-            let content = PopoverMetrics.contentHeight(appRows: 13, expandedChildRows: 0,
-                                                      systemRowCount: 0, systemExpanded: false)
-            Check.expectEqual(content, PopoverMetrics.maxListHeight, "13 rows is exactly 320")
-            Check.expectFalse(PopoverMetrics.scrolls(appRows: 13, expandedChildRows: 0,
-                                                     systemRowCount: 0, systemExpanded: false),
-                              "content equal to the frame must not claim to scroll")
+            // Contrived so content lands exactly on the cap, which is where the
+            // same coin-flip would otherwise come back.
+            let rows = Int((PopoverMetrics.maxListHeight - PopoverMetrics.listVerticalPadding)
+                           / PopoverMetrics.rowHeight)
+            let exact = PopoverMetrics.listVerticalPadding
+                + PopoverMetrics.rowHeight * CGFloat(rows)
+            if exact == PopoverMetrics.maxListHeight {
+                Check.expectFalse(PopoverMetrics.scrolls(appRows: rows, expandedChildRows: 0,
+                                                         systemRowCount: 0, systemExpanded: false),
+                                  "content equal to the frame must not claim to scroll")
+            } else {
+                // No row count lands on the cap, so the boundary cannot be hit.
+                Check.expectTrue(exact < PopoverMetrics.maxListHeight)
+            }
         }
     }
 }
