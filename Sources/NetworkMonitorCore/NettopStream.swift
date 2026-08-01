@@ -9,7 +9,10 @@ import Foundation
 /// and discard a priming sample on every single poll.
 public final class NettopStream {
 
-    /// - `-P` collapse to one row per process
+    /// - `-n` numeric addresses. Two reasons: the classifier in `RemoteEndpoint`
+    ///   needs an address rather than `ncmrsa-al-in-f5.1e100.net`, and without it
+    ///   nettop performs reverse-DNS lookups — a network monitor generating its own
+    ///   traffic to describe traffic.
     /// - `-x` raw byte counts, no "MiB" suffixes to re-parse
     /// - `-d` delta mode (required; see `NettopParser`)
     /// - `-L 0` CSV logging mode, unlimited samples
@@ -18,9 +21,14 @@ public final class NettopStream {
     /// - `-t external` all non-loopback interfaces: keeps VPN tunnel traffic,
     ///   drops localhost chatter from dev servers
     /// - `-J …` only the columns we read
+    ///
+    /// **`-P` is deliberately absent.** It collapses output to one row per process,
+    /// which discards the per-socket rows — and those rows carry the remote address
+    /// that separates internet traffic from LAN traffic (`RemoteEndpoint`). Without
+    /// them, mirroring to an Apple TV over the router reads as internet usage.
     static func arguments(sampleInterval: Int) -> [String] {
         [
-            "-P", "-x", "-d", "-L", "0", "-s", "\(max(sampleInterval, 1))",
+            "-n", "-x", "-d", "-L", "0", "-s", "\(max(sampleInterval, 1))",
             "-t", "external",
             "-J", "time,bytes_in,bytes_out",
         ]

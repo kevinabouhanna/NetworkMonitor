@@ -220,6 +220,100 @@ func runUsageStoreTests() {
         }
     }
 
+    Check.suite("UsageStore — internet versus local") {
+
+        // The headline comes from kernel interface counters, which cannot tell a
+        // mirrored screen from a download. Subtracting what nettop proved was local
+        // is what makes the number mean "internet".
+        Check.test("local bytes are subtracted from the headline") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            // 4 GB of mirroring plus 100 MB of real browsing, as the kernel sees it.
+            store.recordInterface(bytesIn: 4_100_000_000, bytesOut: 50_000_000)
+            store.recordApps([(identity("Safari"), 100_000_000, 5_000_000)],
+                             localBytesIn: 4_000_000_000, localBytesOut: 45_000_000)
+
+            Check.expectEqual(store.currentBucket.interfaceTotal, 4_150_000_000,
+                              "the raw kernel figure must stay intact underneath")
+            Check.expectEqual(store.currentBucket.internetBytesIn, 100_000_000)
+            Check.expectEqual(store.currentBucket.internetBytesOut, 5_000_000)
+        }
+
+        // Two different sources, so the subtraction can overshoot. It must never
+        // produce a negative usage figure.
+        Check.test("over-subtraction floors at zero") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            store.recordInterface(bytesIn: 1000, bytesOut: 1000)
+            store.recordApps([], localBytesIn: 99_999, localBytesOut: 99_999)
+            Check.expectEqual(store.currentBucket.internetTotal, 0)
+        }
+
+        // The real failure this guards, measured live before it was fixed:
+        // mDNSResponder's multicast socket is multi-homed, so nettop bills its
+        // bytes to every interface type it matches and the reported local figure
+        // exceeds what crossed the wire. Subtracting it blindly left a headline
+        // *smaller than the rows beneath it*.
+        Check.test("the headline never falls below the rows it contains") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            store.recordInterface(bytesIn: 1_702_000, bytesOut: 0)
+            store.recordApps([(identity("Chrome"), 1_174_000, 0)],
+                             localBytesIn: 1_335_000, localBytesOut: 0)
+
+            let bucket = store.currentBucket
+            Check.expectTrue(bucket.internetBytesIn >= bucket.attributedBytesIn,
+                             "headline \(bucket.internetBytesIn) < rows \(bucket.attributedBytesIn)")
+            Check.expectEqual(bucket.internetBytesIn, 1_174_000)
+        }
+
+        // And the other end of the clamp: rows can over-report too (headers,
+        // multi-homed sockets), but the headline can never exceed what the kernel
+        // actually counted.
+        Check.test("the headline never exceeds the kernel's own count") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            store.recordInterface(bytesIn: 1000, bytesOut: 0)
+            store.recordApps([(identity("Chrome"), 9_000_000, 0)])
+            Check.expectEqual(store.currentBucket.internetBytesIn, 1000)
+        }
+
+        // A mirroring session must not leave an app row behind either.
+        Check.test("a purely local app never becomes a row") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            store.recordApps([], localBytesIn: 4_000_000, localBytesOut: 1_000_000)
+            Check.expectTrue(store.currentBucket.apps.isEmpty)
+            Check.expectEqual(store.currentBucket.localBytesIn, 4_000_000)
+        }
+
+        Check.test("local totals reset and persist like everything else") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            store.recordApps([], localBytesIn: 5000, localBytesOut: 500)
+            store.save()
+
+            let reopened = UsageStore(storeURL: url)
+            reopened.setCurrentNetwork(network("home"))
+            Check.expectEqual(reopened.currentBucket.localBytesIn, 5000)
+            reopened.resetCurrentNetwork()
+            Check.expectEqual(reopened.currentBucket.localBytesIn, 0)
+            Check.expectEqual(reopened.currentBucket.localBytesOut, 0)
+        }
+    }
+
     Check.suite("UsageStore — reset on connection change") {
 
         // The headline requirement of this behaviour: open a hotspot somewhere

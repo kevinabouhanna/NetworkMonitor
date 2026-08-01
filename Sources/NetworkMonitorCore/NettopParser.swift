@@ -7,14 +7,37 @@ public struct NettopRow: Equatable {
     /// `p_comm` limit, e.g. "Google Chrome H". Only a display fallback; real
     /// identity comes from `proc_pidpath`.
     public let processName: String
+    /// Everything the process moved, local and internet together.
     public let bytesIn: Int64
     public let bytesOut: Int64
+    /// The part of the above that never left the LAN, summed from the process's
+    /// connection rows. Kept out of every displayed figure. See `RemoteEndpoint`.
+    public let localBytesIn: Int64
+    public let localBytesOut: Int64
+    /// The subset of the local bytes trustworthy enough to subtract from the
+    /// kernel's interface total: unicast LAN peers only, never multicast.
+    public let subtractableLocalIn: Int64
+    public let subtractableLocalOut: Int64
 
-    public init(pid: Int32, processName: String, bytesIn: Int64, bytesOut: Int64) {
+    /// What the app reports: bytes that actually crossed the internet.
+    ///
+    /// Clamped at zero because the two figures come from different rows of the
+    /// same sample, and a process whose connections churn mid-sample can report
+    /// slightly more local bytes than its parent row totals.
+    public var internetBytesIn: Int64 { max(bytesIn - localBytesIn, 0) }
+    public var internetBytesOut: Int64 { max(bytesOut - localBytesOut, 0) }
+
+    public init(pid: Int32, processName: String, bytesIn: Int64, bytesOut: Int64,
+                localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
+                subtractableLocalIn: Int64 = 0, subtractableLocalOut: Int64 = 0) {
         self.pid = pid
         self.processName = processName
         self.bytesIn = bytesIn
         self.bytesOut = bytesOut
+        self.localBytesIn = localBytesIn
+        self.localBytesOut = localBytesOut
+        self.subtractableLocalIn = subtractableLocalIn
+        self.subtractableLocalOut = subtractableLocalOut
     }
 }
 
@@ -60,9 +83,60 @@ public struct NettopParser {
                 if let sample = closeSample() { samples.append(sample) }
                 continue
             }
+            // A connection row belongs to the process row above it — nettop emits
+            // each process followed by its own sockets — so it is folded into the
+            // row already pending rather than becoming a row of its own.
+            if let connection = Self.parseConnection(line) {
+                foldConnection(connection)
+                continue
+            }
             if let row = Self.parseRow(line) { pending.append(row) }
         }
         return samples
+    }
+
+    /// Adds a connection's bytes to its parent process, if they stayed local.
+    private mutating func foldConnection(_ connection: Connection) {
+        guard let index = pending.indices.last else { return }
+        guard connection.scope.isLocal else { return }
+        let parent = pending[index]
+        let subtractable = connection.scope.isSubtractable
+        pending[index] = NettopRow(
+            pid: parent.pid,
+            processName: parent.processName,
+            bytesIn: parent.bytesIn,
+            bytesOut: parent.bytesOut,
+            localBytesIn: parent.localBytesIn + connection.bytesIn,
+            localBytesOut: parent.localBytesOut + connection.bytesOut,
+            subtractableLocalIn: parent.subtractableLocalIn
+                + (subtractable ? connection.bytesIn : 0),
+            subtractableLocalOut: parent.subtractableLocalOut
+                + (subtractable ? connection.bytesOut : 0))
+    }
+
+    struct Connection {
+        let scope: TrafficScope
+        let bytesIn: Int64
+        let bytesOut: Int64
+    }
+
+    /// Parses a per-socket row such as
+    /// `02:21:32,tcp4 192.168.1.107:60282<->192.168.1.1:445,263,287,`
+    ///
+    /// These exist only because the stream does not pass `-P`. They carry the one
+    /// thing the process rows cannot: where the bytes were going.
+    static func parseConnection(_ line: String) -> Connection? {
+        guard line.contains("<->") else { return nil }
+        var fields = line.components(separatedBy: ",")
+        if fields.last?.isEmpty == true { fields.removeLast() }
+        guard fields.count >= 4 else { return nil }
+
+        let bytesOut = Int64(fields.removeLast().trimmingCharacters(in: .whitespaces)) ?? 0
+        let bytesIn = Int64(fields.removeLast().trimmingCharacters(in: .whitespaces)) ?? 0
+        let label = fields.dropFirst().joined(separator: ",")
+            .trimmingCharacters(in: .whitespaces)
+        return Connection(scope: RemoteEndpoint.scope(connectionLabel: label),
+                          bytesIn: bytesIn, bytesOut: bytesOut)
     }
 
     /// Emits whatever is buffered, for use when the stream ends.

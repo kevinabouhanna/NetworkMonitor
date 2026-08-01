@@ -56,7 +56,8 @@ func runNettopParserTests() {
         }
 
         // A whole sample of mixed rows must yield one entry per process and none
-        // per socket, which is the invariant that makes dropping `-P` safe.
+        // per socket, with each socket's bytes folded into its parent's local
+        // total. This is the invariant the whole internet/LAN split rests on.
         Check.test("a mixed sample yields process rows only") {
             var parser = NettopParser()
             let sample = """
@@ -78,6 +79,45 @@ func runNettopParserTests() {
             Check.expectEqual(samples.first?.count, 1, "only the process row counts")
             Check.expectEqual(samples.first?.first?.pid, 501)
             Check.expectEqual(samples.first?.first?.bytesIn, 10)
+            // mDNS is multicast, so every byte of it is local and none is internet.
+            Check.expectEqual(samples.first?.first?.localBytesIn, 10)
+            Check.expectEqual(samples.first?.first?.internetBytesIn, 0)
+            Check.expectEqual(samples.first?.first?.subtractableLocalIn, 0,
+                              "multicast is excluded from rows but never subtracted")
+        }
+
+        // The mirroring scenario end to end: one process, one LAN socket and one
+        // internet socket, and only the internet half may reach a row.
+        Check.test("a process split between LAN and internet reports only internet") {
+            var parser = NettopParser()
+            let sample = """
+            time,,bytes_in,bytes_out,
+            02:21:32,replayd.700,1,1,
+            time,,bytes_in,bytes_out,
+            02:21:33,replayd.700,5000,300,
+            02:21:33,tcp4 192.168.1.107:51000<->192.168.1.42:7000,4000,200,
+            02:21:33,tcp4 192.168.1.107:51001<->17.253.144.10:443,1000,100,
+            time,,bytes_in,bytes_out,
+            """
+            let samples = parser.consume(sample + "\n")
+            guard let row = samples.first?.first else {
+                Check.expectNotNil(samples.first?.first, "no row parsed"); return
+            }
+            Check.expectEqual(row.bytesIn, 5000, "the parent row is the whole truth")
+            Check.expectEqual(row.localBytesIn, 4000, "the Apple TV stream is local")
+            Check.expectEqual(row.subtractableLocalIn, 4000,
+                              "a unicast LAN peer is safe to take off the headline")
+            Check.expectEqual(row.internetBytesIn, 1000, "only the routable socket counts")
+            Check.expectEqual(row.internetBytesOut, 100)
+        }
+
+        // Sockets churn mid-sample, so children can momentarily exceed the parent.
+        // That must clamp, never report a negative usage figure.
+        Check.test("local bytes exceeding the parent clamp to zero") {
+            let row = NettopRow(pid: 1, processName: "x", bytesIn: 100, bytesOut: 100,
+                                localBytesIn: 500, localBytesOut: 500)
+            Check.expectEqual(row.internetBytesIn, 0)
+            Check.expectEqual(row.internetBytesOut, 0)
         }
 
         Check.test("rejects malformed rows") {

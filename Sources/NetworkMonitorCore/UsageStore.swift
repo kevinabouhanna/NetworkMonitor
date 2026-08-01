@@ -34,6 +34,13 @@ public struct NetworkBucket: Codable, Equatable {
     /// Per-app attribution from nettop. Sums close to, but not exactly, the
     /// interface totals — see `UsageStore` notes.
     public var apps: [String: AppTotals] = [:]
+    /// LAN bytes seen by `nettop`, kept out of every figure the app displays.
+    ///
+    /// Tracked rather than discarded because the headline comes from the kernel's
+    /// interface counters, which cannot tell a mirrored screen from a download —
+    /// subtracting this is the only way to make that number mean "internet".
+    public var localBytesIn: Int64 = 0
+    public var localBytesOut: Int64 = 0
     public var kind: NetworkFingerprint.Kind = .other
     public var defaultLabel: String = "Network"
     public var lastSeen: Date = .distantPast
@@ -45,10 +52,38 @@ public struct NetworkBucket: Codable, Equatable {
 
     public var interfaceTotal: Int64 { interfaceBytesIn + interfaceBytesOut }
 
+    /// Internet bytes the app rows already account for.
+    public var attributedBytesIn: Int64 { apps.values.reduce(0) { $0 + $1.bytesIn } }
+    public var attributedBytesOut: Int64 { apps.values.reduce(0) { $0 + $1.bytesOut } }
+
+    /// The figure the app shows: everything the kernel counted, minus what
+    /// `nettop` could prove stayed on the LAN — bounded at both ends.
+    ///
+    /// The subtraction alone is not safe. `mDNSResponder`'s multicast socket is
+    /// multi-homed, so nettop bills its full byte count to *every* interface type
+    /// it matches, and multicast is exactly the traffic being subtracted here.
+    /// Measured live: over 90 s the kernel saw 1,702 KB, nettop reported 1,335 KB
+    /// of local, and the plain subtraction left 367 KB of "internet" — while the
+    /// app rows for that same window totalled 1,174 KB. A headline smaller than the
+    /// rows beneath it is not an estimate, it is a contradiction.
+    ///
+    /// So the result is clamped into the only range that can be true: never below
+    /// what the rows already prove went to the internet, never above what the
+    /// kernel actually counted.
+    public var internetBytesIn: Int64 {
+        min(interfaceBytesIn, max(interfaceBytesIn - localBytesIn, attributedBytesIn))
+    }
+    public var internetBytesOut: Int64 {
+        min(interfaceBytesOut, max(interfaceBytesOut - localBytesOut, attributedBytesOut))
+    }
+    public var internetTotal: Int64 { internetBytesIn + internetBytesOut }
+
     /// Zeroes the totals and restarts the counting window at `date`.
     mutating func clear(at date: Date) {
         interfaceBytesIn = 0
         interfaceBytesOut = 0
+        localBytesIn = 0
+        localBytesOut = 0
         apps = [:]
         countingSince = date
     }
@@ -66,6 +101,8 @@ extension NetworkBucket {
             interfaceBytesIn: try container.decodeIfPresent(Int64.self, forKey: .interfaceBytesIn) ?? 0,
             interfaceBytesOut: try container.decodeIfPresent(Int64.self, forKey: .interfaceBytesOut) ?? 0,
             apps: try container.decodeIfPresent([String: AppTotals].self, forKey: .apps) ?? [:],
+            localBytesIn: try container.decodeIfPresent(Int64.self, forKey: .localBytesIn) ?? 0,
+            localBytesOut: try container.decodeIfPresent(Int64.self, forKey: .localBytesOut) ?? 0,
             kind: try container.decodeIfPresent(NetworkFingerprint.Kind.self, forKey: .kind) ?? .other,
             defaultLabel: try container.decodeIfPresent(String.self, forKey: .defaultLabel) ?? "Network",
             lastSeen: try container.decodeIfPresent(Date.self, forKey: .lastSeen) ?? .distantPast,
@@ -142,10 +179,17 @@ public final class UsageStore {
     }
 
     /// Adds one nettop sample's per-process deltas to the active bucket.
+    ///
+    /// `bytesIn`/`bytesOut` are the app's *internet* bytes — LAN traffic is passed
+    /// separately in `localBytesIn`/`localBytesOut` and never reaches an app row,
+    /// because "how much internet did this app use" is the question being answered.
     public func recordApps(_ entries: [(identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)],
+                           localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
                            now: Date = Date()) {
         rolloverIfNeeded(now: now)
         withCurrentBucket(now: now) { bucket in
+            bucket.localBytesIn += localBytesIn
+            bucket.localBytesOut += localBytesOut
             for entry in entries where entry.bytesIn > 0 || entry.bytesOut > 0 {
                 var totals = bucket.apps[entry.identity.key] ?? AppTotals(
                     displayName: entry.identity.displayName,
@@ -251,6 +295,8 @@ public final class UsageStore {
         withCurrentBucket(now: now) { bucket in
             bucket.interfaceBytesIn += orphan.interfaceBytesIn
             bucket.interfaceBytesOut += orphan.interfaceBytesOut
+            bucket.localBytesIn += orphan.localBytesIn
+            bucket.localBytesOut += orphan.localBytesOut
             for (key, totals) in orphan.apps {
                 if var existing = bucket.apps[key] {
                     existing.bytesIn += totals.bytesIn

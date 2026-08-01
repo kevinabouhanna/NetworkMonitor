@@ -37,6 +37,9 @@ today's total and a per-app breakdown of who used it.
   totals start from zero, so what you see is what *this* connection has used. Open
   your hotspot somewhere new and you know exactly what each app spent on it. A
   dropout and a reconnect to the same network picks up where it left off.
+- **Internet only, not LAN** — mirroring to an Apple TV, Time Machine to a NAS or a
+  Plex stream from your own server all cross Wi-Fi, but none of them cost you
+  internet data, so none of them are counted against you.
 - **Hotspot aware** — metered connections are flagged with a `METERED` badge, so
   you know when the bytes are costing you.
 - **Resets at midnight** too, for a connection you never leave, and survives

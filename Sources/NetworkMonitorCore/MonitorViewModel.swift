@@ -9,11 +9,11 @@ import Foundation
 /// - **Interface counters, every 0.5 s.** Feeds the live menu bar rate and the
 ///   authoritative day total. One `sysctl` call, negligible cost, and fast
 ///   enough to feel real-time.
-/// - **nettop, every 1 s.** Feeds per-app attribution. 1 s is nettop's floor.
-///   Runs continuously, for the whole life of the app: on a pipe it costs 0.70% of
-///   a core, so there is nothing left to switch off. It used to be gated on power
-///   and popover visibility because the pseudo-terminal transport cost ~1.36
-///   cores — see `NettopStream.spawn()` — and that gating is what made per-app
+/// - **nettop, every 1–3 s** depending on `PowerProfile`. Feeds per-app
+///   attribution, and the LAN/internet split that keeps a mirrored screen out of
+///   the totals. Runs continuously, for the whole life of the app: 0.55% of a core
+///   once its stdin stopped spinning (`NettopStream.spawn()`), so there is nothing
+///   left worth switching off. The gating that used to exist is what made per-app
 ///   totals disagree with the header.
 ///
 /// Accumulation continues whether or not the popover is open; only the list
@@ -231,11 +231,13 @@ public final class MonitorViewModel: ObservableObject {
             // the figures are current the instant the popover appears.
             let bucket = self.store.currentBucket
             if self.popoverIsOpen {
-                if self.totalBytesIn != bucket.interfaceBytesIn {
-                    self.totalBytesIn = bucket.interfaceBytesIn
+                // Internet, not interface: the kernel counted the mirrored screen
+                // too, and `internetBytes*` takes it back out.
+                if self.totalBytesIn != bucket.internetBytesIn {
+                    self.totalBytesIn = bucket.internetBytesIn
                 }
-                if self.totalBytesOut != bucket.interfaceBytesOut {
-                    self.totalBytesOut = bucket.interfaceBytesOut
+                if self.totalBytesOut != bucket.internetBytesOut {
+                    self.totalBytesOut = bucket.internetBytesOut
                 }
             }
 
@@ -260,19 +262,32 @@ public final class MonitorViewModel: ObservableObject {
             var pids = Set<Int32>()
             var merged: [String: (identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)] = [:]
 
+            // LAN bytes are summed across the whole sample and handed to the store
+            // separately: they never become an app row, but the headline has to
+            // know about them to subtract them from the kernel's total.
+            var localIn: Int64 = 0, localOut: Int64 = 0
+
             for row in sample {
                 pids.insert(row.pid)
-                guard row.bytesIn > 0 || row.bytesOut > 0 else { continue }
+                // Only the unicast part is subtracted from the kernel's total;
+                // multicast is excluded from the rows but left in the headline,
+                // because its reported size cannot be trusted.
+                localIn += row.subtractableLocalIn
+                localOut += row.subtractableLocalOut
+                // Only internet bytes reach a row. An app that did nothing but talk
+                // to a NAS or mirror a screen should not appear at all.
+                let bytesIn = row.internetBytesIn, bytesOut = row.internetBytesOut
+                guard bytesIn > 0 || bytesOut > 0 else { continue }
                 let identity = self.identityResolver.identity(pid: row.pid,
                                                               fallbackName: row.processName)
                 // Several helper pids collapse onto one identity; merge before
                 // recording so the store sees one entry per app.
                 if var existing = merged[identity.key] {
-                    existing.bytesIn += row.bytesIn
-                    existing.bytesOut += row.bytesOut
+                    existing.bytesIn += bytesIn
+                    existing.bytesOut += bytesOut
                     merged[identity.key] = existing
                 } else {
-                    merged[identity.key] = (identity, row.bytesIn, row.bytesOut)
+                    merged[identity.key] = (identity, bytesIn, bytesOut)
                 }
                 self.lastActivity[identity.key] = now
             }
@@ -280,7 +295,9 @@ public final class MonitorViewModel: ObservableObject {
 
             self.lastSeenPIDs = pids
             self.identityResolver.retainOnly(pids: pids)
-            self.store.recordApps(entries, now: now)
+            self.store.recordApps(entries,
+                                  localBytesIn: localIn, localBytesOut: localOut,
+                                  now: now)
 
             if self.popoverIsOpen { self.rebuildRows(now: now) }
         }
@@ -343,8 +360,8 @@ public final class MonitorViewModel: ObservableObject {
     public func refreshHeader() {
         let bucket = store.currentBucket
         isExpensiveNetwork = store.currentNetwork.isExpensive
-        totalBytesIn = bucket.interfaceBytesIn
-        totalBytesOut = bucket.interfaceBytesOut
+        totalBytesIn = bucket.internetBytesIn
+        totalBytesOut = bucket.internetBytesOut
         dayStart = store.dayStart
         countingSince = store.countingSince
     }
