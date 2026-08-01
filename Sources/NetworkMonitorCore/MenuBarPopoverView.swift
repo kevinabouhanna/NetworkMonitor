@@ -308,9 +308,11 @@ public enum PopoverMetrics {
     /// list long enough to reach it, which is where a day's traffic ends up,
     /// stops resizing altogether.
     ///
-    /// Raised with the taller rows so it still holds a comparable number of
-    /// them: 320 fitted thirteen single-line rows but only seven of these.
-    public static let maxListHeight: CGFloat = 420
+    /// Sized so the popover stands 428.5 pt overall — the list plus 56.5 of
+    /// header and divider. That holds eight rows whole and part of a ninth,
+    /// which is deliberate: a row cut off at the bottom edge is what says there
+    /// is more below without spending a whole row saying it.
+    public static let maxListHeight: CGFloat = 372
 
     /// Kept between the content and the frame that holds it, so a list that fits
     /// is never *exactly* the height of its own content.

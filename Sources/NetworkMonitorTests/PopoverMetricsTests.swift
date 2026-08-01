@@ -78,17 +78,24 @@ func runPopoverMetricsTests() {
             }
         }
 
-        // Nine rows is the last count that fits, so it is the boundary an
-        // off-by-one would cross.
+        /// The boundary an off-by-one would cross, derived from the cap rather
+        /// than written out, so moving the cap does not silently make this pass
+        /// for the wrong reason.
         Check.test("the cap is reached exactly where the arithmetic says") {
-            let justUnder = PopoverMetrics.contentHeight(appRows: 9, expandedChildRows: 0,
-                                                      systemRowCount: 0, systemExpanded: false)
-            Check.expectTrue(justUnder < PopoverMetrics.maxListHeight, "9 rows still fits")
-            Check.expectEqual(justUnder, padding + PopoverMetrics.rowHeight * 9)
-            Check.expectTrue(
-                PopoverMetrics.contentHeight(appRows: 10, expandedChildRows: 0,
-                                             systemRowCount: 0, systemExpanded: false)
-                    > PopoverMetrics.maxListHeight, "10 does not")
+            let fits = Int((PopoverMetrics.maxListHeight - padding) / PopoverMetrics.rowHeight)
+            Check.expectTrue(fits >= 1, "the cap has to hold at least one row")
+
+            let under = PopoverMetrics.contentHeight(appRows: fits, expandedChildRows: 0,
+                                                     systemRowCount: 0, systemExpanded: false)
+            Check.expectTrue(under <= PopoverMetrics.maxListHeight,
+                             "\(fits) rows fits in \(PopoverMetrics.maxListHeight)")
+            Check.expectEqual(under, padding + PopoverMetrics.rowHeight * CGFloat(fits))
+
+            let over = PopoverMetrics.contentHeight(appRows: fits + 1, expandedChildRows: 0,
+                                                    systemRowCount: 0, systemExpanded: false)
+            Check.expectTrue(over > PopoverMetrics.maxListHeight, "\(fits + 1) does not")
+            Check.expectTrue(PopoverMetrics.scrolls(appRows: fits + 1, expandedChildRows: 0,
+                                                    systemRowCount: 0, systemExpanded: false))
         }
 
         // Calibrated against SwiftUI's actual layout: a popover with one app row
@@ -175,7 +182,7 @@ func runPopoverMetricsTests() {
         /// twice a second as the model republishes, and shown as a scrollbar
         /// flashing in and out. Measured at content 201.0 in a frame of 201.0.
         Check.test("a list that fits is never exactly its content's height") {
-            for rows in 0...8 {
+            for rows in 0...7 {
                 for kids in 0...4 {
                     let content = PopoverMetrics.contentHeight(
                         appRows: rows, expandedChildRows: kids,
