@@ -9,7 +9,7 @@ print(String(repeating: "─", count: 62))
 
 runByteFormatTests()
 runMenuBarTitleTests()
-runTrackingModeTests()
+runPowerProfileTests()
 runLoginItemTests()
 runGatewayProbeTests()
 runNettopParserTests()

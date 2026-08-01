@@ -9,6 +9,18 @@ public struct MenuBarPopoverView: View {
         self.onSettings = onSettings
     }
 
+    /// Height of the area below the header, held constant on purpose.
+    ///
+    /// `NSPopover` re-positions itself against the status item every time its
+    /// content size changes, and expanding the System group animates that size a
+    /// dozen times in 150 ms — a dozen chances to be re-anchored against a menu
+    /// bar item that has just shifted (a crowded or notched menu bar moves items
+    /// whenever another app adds one). A constant height means the popover is
+    /// placed once, when it opens: rows arriving, the System group expanding and
+    /// a network switch zeroing the list all scroll inside instead of resizing
+    /// the window.
+    static let contentHeight: CGFloat = 320
+
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -42,7 +54,7 @@ public struct MenuBarPopoverView: View {
                         .monospacedDigit()
                     if model.isExpensiveNetwork {
                         // Surfaced because metered networks are the case where
-                        // the day's total actually matters.
+                        // this connection's total actually matters.
                         Text("METERED")
                             .font(.system(size: 9, weight: .bold))
                             .padding(.horizontal, 5).padding(.vertical, 2)
@@ -75,7 +87,7 @@ public struct MenuBarPopoverView: View {
             }
             .padding(.vertical, 4)
         }
-        .frame(maxHeight: 320)
+        .frame(height: Self.contentHeight)
     }
 
     /// Daemons are collapsed by default. mDNSResponder alone was measured at
@@ -115,15 +127,18 @@ public struct MenuBarPopoverView: View {
         }
     }
 
+    /// Occupies the same height as the list, so the popover is not resized when
+    /// the first rows arrive — the case that used to leave the list clipped to the
+    /// empty state's height.
     private var emptyState: some View {
         VStack(spacing: 4) {
             Text("No network activity yet")
                 .font(.system(size: 12)).foregroundStyle(.secondary)
-            Text("Totals reset at midnight")
+            Text("Counting since you joined this network")
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
+        .frame(height: Self.contentHeight)
     }
 }
 

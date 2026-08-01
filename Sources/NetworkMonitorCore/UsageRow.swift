@@ -27,7 +27,11 @@ public struct UsageRow: Identifiable, Equatable {
 
 extension UsageRow {
 
-    /// A row counts as active if it moved bytes within this window.
+    /// Default window in which an app must have moved bytes to count as active.
+    ///
+    /// Matches `PowerProfile.performance`. On battery the caller passes a longer
+    /// one, because the dot must not blink off between samples that are further
+    /// apart — see `PowerProfile.activityWindow`.
     public static let activityWindow: TimeInterval = 2.0
 
     /// Biggest first; ties broken by name so the order never depends on
@@ -43,7 +47,8 @@ extension UsageRow {
     public static func partition(
         apps: [String: AppTotals],
         lastActivity: [String: Date],
-        now: Date
+        now: Date,
+        activityWindow: TimeInterval = UsageRow.activityWindow
     ) -> (apps: [UsageRow], system: [UsageRow], systemTotal: Int64) {
 
         var appRows: [UsageRow] = []

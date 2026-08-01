@@ -3,11 +3,8 @@ import IOKit.ps
 
 /// Whether the Mac is on wall power.
 ///
-/// Needed because `nettop` costs a fixed ~1.36 cores *just by running* —
-/// measured at 9.02 s wall / 12.26 s CPU, almost all system time, and unchanged
-/// by `-s` (1 s, 5 s and 10 s intervals all cost the same) or by scoping to a
-/// single process with `-p`. There is no flag that makes it cheap, so the only
-/// lever is how long it runs. On battery that matters; plugged in it does not.
+/// Drives `PowerProfile`, which trades time resolution — never accuracy — for
+/// battery. It is not used to switch anything off: per-app tracking always runs.
 public enum PowerSource {
 
     public static var isOnACPower: Bool {
@@ -52,38 +49,75 @@ public enum PowerSource {
     }
 }
 
-/// When per-app attribution (the expensive `nettop` stream) should run.
+/// How often to sample, chosen from the power source. There is no setting.
 ///
-/// The live menu bar rate and the authoritative day total come from `sysctl`
-/// interface counters, which cost essentially nothing and always run. Only the
-/// per-app breakdown depends on this setting.
-public enum PerAppTrackingMode: String, CaseIterable {
-    /// Only while the popover is open. Lowest energy, least complete.
-    ///
-    /// The tradeoff is real: per-app totals then cover only the seconds the menu
-    /// was open, so they are a lower bound on the day rather than a full account.
-    case whenOpen
-    /// Also while the menu is closed, whenever the Mac is on power. **The default.**
-    ///
-    /// Complete per-app figures are the point of the feature, so this ships on and
-    /// users who care more about battery turn it off. An "always" option was
-    /// dropped: it ran `nettop` at ~1.36 cores on battery, which is never a
-    /// reasonable default for a menu bar utility.
-    case pluggedIn
+/// This replaced `PerAppTrackingMode`, which asked the user to choose between
+/// complete numbers and battery life. That was the wrong question twice over: the
+/// cost it was rationing turned out to be a bug (`NettopStream.spawn()`), and
+/// switching attribution *off* is not the only way to spend less — sampling less
+/// often costs a fraction as much and, critically, **costs no accuracy at all**.
+///
+/// Nothing here can lose a byte:
+///
+/// - `nettop -d` reports a *delta per sample*, so a 3 s interval accounts for the
+///   same traffic as a 1 s one, in thirds as many messages. Only the age of the
+///   figures changes.
+/// - The interface counters are lifetime totals read by difference, so their
+///   sampling rate has no bearing on the total whatsoever — it only sets how
+///   smooth the live rate looks.
+///
+/// Measured per configuration, with the stdin spin fixed:
+///
+/// | | `nettop` | interface sampler | flushes/s |
+/// |---|---|---|---|
+/// | `performance` | `-s 1` — 0.45% of a core | 0.5 s — 0.11% | ~2.5 |
+/// | `balanced` | `-s 3` — 0.20% | 1.0 s — 0.05% | ~0.8 |
+///
+/// At these magnitudes wakeups matter more than the percentages, which is what
+/// `balanced` mainly reduces.
+public enum PowerProfile: String, CaseIterable {
+    /// On wall power: the freshest possible numbers.
+    case performance
+    /// On battery: the same numbers, sampled less often.
+    case balanced
 
-    /// Label for menus.
-    public var title: String {
-        switch self {
-        case .whenOpen:  return "Only While This Menu Is Open"
-        case .pluggedIn: return "Also While Plugged In"
+    public static func forPowerSource(onACPower: Bool) -> PowerProfile {
+        onACPower ? .performance : .balanced
+    }
+
+    /// How often to read the kernel interface counters, which drive the menu bar
+    /// rate and the authoritative total.
+    ///
+    /// Relaxed further while the display sleeps: totals must keep accumulating, but
+    /// nobody is reading a menu bar they cannot see.
+    public func interfaceInterval(displayAsleep: Bool) -> TimeInterval {
+        switch (self, displayAsleep) {
+        case (.performance, false): return 0.5
+        case (.performance, true):  return 2.0
+        case (.balanced, false):    return 1.0
+        case (.balanced, true):     return 3.0
         }
     }
 
-    /// Should `nettop` be running right now?
-    public func shouldTrack(popoverOpen: Bool, onACPower: Bool) -> Bool {
+    /// `nettop -s`, in whole seconds — its minimum and its only unit.
+    ///
+    /// Deliberately *not* varied with display sleep or popover visibility, unlike
+    /// the interface interval. Changing it means restarting `nettop`, whose first
+    /// sample is a cumulative baseline that has to be discarded, so every change
+    /// drops a sample's worth of attribution. Power transitions happen a few times
+    /// a day; screen sleeps and menu opens happen constantly.
+    public var nettopSampleInterval: Int {
         switch self {
-        case .whenOpen:  return popoverOpen
-        case .pluggedIn: return onACPower || popoverOpen
+        case .performance: return 1
+        case .balanced:    return 3
         }
+    }
+
+    /// How recently an app must have moved bytes to count as active.
+    ///
+    /// Twice the sample interval, so the dot cannot blink off between samples on an
+    /// app that never stopped transferring.
+    public var activityWindow: TimeInterval {
+        TimeInterval(nettopSampleInterval) * 2
     }
 }

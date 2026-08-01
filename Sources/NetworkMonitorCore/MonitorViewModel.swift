@@ -10,6 +10,11 @@ import Foundation
 ///   authoritative day total. One `sysctl` call, negligible cost, and fast
 ///   enough to feel real-time.
 /// - **nettop, every 1 s.** Feeds per-app attribution. 1 s is nettop's floor.
+///   Runs continuously, for the whole life of the app: on a pipe it costs 0.70% of
+///   a core, so there is nothing left to switch off. It used to be gated on power
+///   and popover visibility because the pseudo-terminal transport cost ~1.36
+///   cores — see `NettopStream.spawn()` — and that gating is what made per-app
+///   totals disagree with the header.
 ///
 /// Accumulation continues whether or not the popover is open; only the list
 /// *rendering* is gated on visibility.
@@ -29,12 +34,15 @@ public final class MonitorViewModel: ObservableObject {
     /// per-direction split; live rates are already in the menu bar.
     public var totalBytes: Int64 { totalBytesIn + totalBytesOut }
     @Published public private(set) var dayStart: Date = Date()
+    /// Start of the window `totalBytes` covers. Not the same as `dayStart` since
+    /// the counter also restarts when the machine joins a different network.
+    @Published public private(set) var countingSince: Date = Date()
     @Published public var systemExpanded = false
 
     public let store: UsageStore
 
     private let identityResolver = AppIdentityResolver()
-    private let nettop = NettopStream()
+    private let nettop: NettopStream
     private let pathWatcher = NetworkIdentityWatcher()
 
     private var deltaTracker = InterfaceDeltaTracker()
@@ -45,9 +53,10 @@ public final class MonitorViewModel: ObservableObject {
     private var lastSampleTime = MonotonicClock.now()
     private let sampleQueue = DispatchQueue(label: "com.networkmonitor.sampler")
 
-    /// Interval for the interface sampler. Relaxed while the display sleeps —
-    /// nobody is reading the menu bar, but totals must keep accumulating.
+    /// Interval for the interface sampler, from the profile and display state.
     private var sampleInterval: TimeInterval = 0.5
+    /// True between `screensDidSleep` and `screensDidWake`.
+    private var displayAsleep = false
 
     /// Popover visibility. Gates list rebuilds so a closed popover costs nothing
     /// beyond accumulation.
@@ -64,41 +73,19 @@ public final class MonitorViewModel: ObservableObject {
 
     private var saveCounter = 0
 
-    /// Controls when the expensive `nettop` stream runs. See `PerAppTrackingMode`.
-    @Published public private(set) var trackingMode: PerAppTrackingMode = .pluggedIn
-    /// True while per-app attribution is actually being collected.
-    @Published public private(set) var isTrackingPerApp = false
+    /// Sampling rates, chosen from the power source. Published so the popover can
+    /// say which one is in force; there is nothing for the user to set.
+    @Published public private(set) var profile: PowerProfile = .performance
     private var powerToken: Any?
-    private static let trackingModeKey = "perAppTrackingMode"
 
     public init(store: UsageStore = UsageStore()) {
         self.store = store
         self.dayStart = store.dayStart
-        if let raw = UserDefaults.standard.string(forKey: Self.trackingModeKey),
-           let mode = PerAppTrackingMode(rawValue: raw) {
-            trackingMode = mode
-        }
-    }
-
-    public func setTrackingMode(_ mode: PerAppTrackingMode) {
-        trackingMode = mode
-        UserDefaults.standard.set(mode.rawValue, forKey: Self.trackingModeKey)
-        updateNettopState()
-    }
-
-    /// Starts or stops `nettop` to match the current mode, popover visibility and
-    /// power source. Cheap to call repeatedly — `NettopStream.start()` is
-    /// idempotent and `stop()` on a stopped stream is a no-op.
-    private func updateNettopState() {
-        let shouldTrack = trackingMode.shouldTrack(popoverOpen: popoverIsOpen,
-                                                  onACPower: PowerSource.isOnACPower)
-        guard shouldTrack != isTrackingPerApp else { return }
-        isTrackingPerApp = shouldTrack
-        if shouldTrack {
-            nettop.start()
-        } else {
-            nettop.stop()
-        }
+        self.countingSince = store.countingSince
+        let profile = PowerProfile.forPowerSource(onACPower: PowerSource.isOnACPower)
+        self.profile = profile
+        self.sampleInterval = profile.interfaceInterval(displayAsleep: false)
+        self.nettop = NettopStream(sampleInterval: profile.nettopSampleInterval)
     }
 
     // MARK: Lifecycle
@@ -115,14 +102,25 @@ public final class MonitorViewModel: ObservableObject {
         nettop.onSample = { [weak self] sample in
             self?.handleNettopSample(sample)
         }
-        // Started only if the tracking mode calls for it right now.
-        updateNettopState()
+        nettop.start()
         powerToken = PowerSource.observe { [weak self] in
-            self?.updateNettopState()
+            self?.applyProfile()
         }
 
         startSampleTimer()
         observeSystemNotifications()
+    }
+
+    /// Re-reads the power source and applies the resulting sampling rates.
+    ///
+    /// Called on power transitions and on display sleep/wake. Idempotent: the
+    /// timer is only rebuilt when its interval actually changes, and `nettop` is
+    /// only restarted when its interval does.
+    private func applyProfile() {
+        let next = PowerProfile.forPowerSource(onACPower: PowerSource.isOnACPower)
+        profile = next
+        setSampleInterval(next.interfaceInterval(displayAsleep: displayAsleep))
+        nettop.setSampleInterval(next.nettopSampleInterval)
     }
 
     public func stop() {
@@ -170,13 +168,17 @@ public final class MonitorViewModel: ObservableObject {
             self?.store.save()
         }
 
+        // The display sleeping relaxes the interface sampler but never `nettop`:
+        // see `PowerProfile.nettopSampleInterval` for why only the free one moves.
         center.addObserver(forName: NSWorkspace.screensDidSleepNotification,
                            object: nil, queue: .main) { [weak self] _ in
-            self?.setSampleInterval(2.0)
+            self?.displayAsleep = true
+            self?.applyProfile()
         }
         center.addObserver(forName: NSWorkspace.screensDidWakeNotification,
                            object: nil, queue: .main) { [weak self] _ in
-            self?.setSampleInterval(0.5)
+            self?.displayAsleep = false
+            self?.applyProfile()
         }
     }
 
@@ -258,11 +260,12 @@ public final class MonitorViewModel: ObservableObject {
     // MARK: Row building
 
     /// Called when the popover opens, and once per nettop sample while open.
+    ///
+    /// Visibility no longer starts or stops anything — tracking is continuous, so
+    /// the rows are already complete when the popover appears rather than filling
+    /// in a second later.
     public func setPopoverOpen(_ open: Bool) {
         popoverIsOpen = open
-        // In the two low-energy modes the popover opening is what starts nettop,
-        // so per-app rows fill in about a second after it appears.
-        updateNettopState()
         // Re-sort fresh on each open, and drop the captured order on close so a
         // reopen reflects whatever accumulated in between.
         rowOrder.reset()
@@ -277,7 +280,8 @@ public final class MonitorViewModel: ObservableObject {
     private func rebuildRows(now: Date) {
         let partitioned = UsageRow.partition(apps: store.currentBucket.apps,
                                              lastActivity: lastActivity,
-                                             now: now)
+                                             now: now,
+                                             activityWindow: profile.activityWindow)
         rows = rowOrder.apply(to: partitioned.apps)
         systemRows = partitioned.system
         systemTotal = partitioned.systemTotal
@@ -286,8 +290,15 @@ public final class MonitorViewModel: ObservableObject {
     // MARK: Network changes
 
     private func handleNetworkChange(_ fingerprint: NetworkFingerprint) {
-        // Switching buckets, not wiping: rejoining a network restores its total.
-        store.setCurrentNetwork(fingerprint)
+        // Joining a different network restarts its counter; an offline blip and
+        // a rejoin resume the same one. The store decides which happened.
+        if store.setCurrentNetwork(fingerprint) {
+            // These describe the network just left. Kept, the popover would open
+            // showing "active now" dots for apps whose bytes have been wiped, and
+            // hold a row order captured for rows that no longer exist.
+            lastActivity.removeAll()
+            rowOrder.reset()
+        }
         // Interface counters are per-interface lifetime values; a link change
         // must re-baseline or the gap would land as one huge delta.
         sampleQueue.async { [weak self] in
@@ -306,6 +317,7 @@ public final class MonitorViewModel: ObservableObject {
         totalBytesIn = bucket.interfaceBytesIn
         totalBytesOut = bucket.interfaceBytesOut
         dayStart = store.dayStart
+        countingSince = store.countingSince
     }
 
     // MARK: Actions
@@ -313,6 +325,7 @@ public final class MonitorViewModel: ObservableObject {
     public func resetCurrentNetwork() {
         store.resetCurrentNetwork()
         lastActivity.removeAll()
+        rowOrder.reset()
         refreshHeader()
         rebuildRows(now: Date())
     }

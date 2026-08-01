@@ -25,7 +25,7 @@ public struct AppTotals: Codable, Equatable {
     }
 }
 
-/// Everything accumulated on one network since the current day began.
+/// Everything accumulated on one network since its counter last started.
 public struct NetworkBucket: Codable, Equatable {
     /// Authoritative usage, from kernel interface counters. This is the number
     /// a data cap should be measured against.
@@ -37,8 +37,40 @@ public struct NetworkBucket: Codable, Equatable {
     public var kind: NetworkFingerprint.Kind = .other
     public var defaultLabel: String = "Network"
     public var lastSeen: Date = .distantPast
+    /// When these totals started accumulating: the day's midnight, a manual
+    /// reset, or the moment this network was joined from a different one.
+    /// Shown as "Counting since", so the figure is never read over the wrong
+    /// window.
+    public var countingSince: Date = .distantPast
 
     public var interfaceTotal: Int64 { interfaceBytesIn + interfaceBytesOut }
+
+    /// Zeroes the totals and restarts the counting window at `date`.
+    mutating func clear(at date: Date) {
+        interfaceBytesIn = 0
+        interfaceBytesOut = 0
+        apps = [:]
+        countingSince = date
+    }
+}
+
+extension NetworkBucket {
+    /// Hand-written so a store saved by an earlier version — which has no
+    /// `countingSince` — still loads. Synthesised decoding treats a missing key
+    /// as an error regardless of the property's default value, and the fallback
+    /// for an undecodable store is to start clean, which would throw away the
+    /// day's totals on upgrade.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            interfaceBytesIn: try container.decodeIfPresent(Int64.self, forKey: .interfaceBytesIn) ?? 0,
+            interfaceBytesOut: try container.decodeIfPresent(Int64.self, forKey: .interfaceBytesOut) ?? 0,
+            apps: try container.decodeIfPresent([String: AppTotals].self, forKey: .apps) ?? [:],
+            kind: try container.decodeIfPresent(NetworkFingerprint.Kind.self, forKey: .kind) ?? .other,
+            defaultLabel: try container.decodeIfPresent(String.self, forKey: .defaultLabel) ?? "Network",
+            lastSeen: try container.decodeIfPresent(Date.self, forKey: .lastSeen) ?? .distantPast,
+            countingSince: try container.decodeIfPresent(Date.self, forKey: .countingSince) ?? .distantPast)
+    }
 }
 
 struct PersistedState: Codable {
@@ -48,20 +80,30 @@ struct PersistedState: Codable {
     var labels: [String: String]
     /// Fingerprint id → bucket.
     var buckets: [String: NetworkBucket]
+    /// Last network actually joined, ignoring offline gaps. Persisted so a
+    /// relaunch on the same network resumes its counter instead of reading as a
+    /// switch and wiping it. Optional, so an older store still decodes.
+    var lastNetworkID: String?
 
     static func empty(now: Date = Date(), calendar: Calendar = .current) -> PersistedState {
-        PersistedState(dayStart: calendar.startOfDay(for: now), labels: [:], buckets: [:])
+        PersistedState(dayStart: calendar.startOfDay(for: now), labels: [:], buckets: [:],
+                       lastNetworkID: nil)
     }
 }
 
 // MARK: - Store
 
-/// Accumulates usage into per-network buckets and rolls over at local midnight.
+/// Accumulates usage into per-network buckets, restarts the counter when the
+/// machine joins a different network, and rolls over at local midnight.
 ///
-/// Bucketing per network, rather than wiping totals on any network change, is
-/// what makes "drop off my Wi-Fi and rejoin it" preserve the day's total while
-/// "switch to a different Wi-Fi" shows a different total. Switching back
-/// restores the original bucket instead of restarting it from zero.
+/// The counter answers "what has *this connection* cost me", because that is the
+/// question when you open a hotspot somewhere new. So joining a different
+/// network zeroes its bucket, even one with usage history and even mid-day.
+///
+/// Bucketing per network is still what keeps a connectivity blip from being read
+/// as a switch: an offline gap does not change which network was last joined, so
+/// "drop off my Wi-Fi and rejoin it" resumes the same counter, and each network's
+/// figure stays its own rather than one global total that every change disturbs.
 ///
 /// Two totals are tracked deliberately. `interfaceBytes*` come from kernel
 /// interface counters and are authoritative. The per-app numbers come from
@@ -126,7 +168,8 @@ public final class UsageStore {
         // classified yet would otherwise be dropped on the floor.
         var bucket = state.buckets[currentNetwork.id] ?? NetworkBucket(
             kind: currentNetwork.kind,
-            defaultLabel: currentNetwork.defaultLabel)
+            defaultLabel: currentNetwork.defaultLabel,
+            countingSince: now)
         bucket.kind = currentNetwork.kind
         bucket.defaultLabel = currentNetwork.defaultLabel
         bucket.lastSeen = now
@@ -137,17 +180,57 @@ public final class UsageStore {
 
     // MARK: Network switching
 
-    public func setCurrentNetwork(_ fingerprint: NetworkFingerprint, now: Date = Date()) {
+    /// Points accumulation at `fingerprint`, restarting its counter if this is a
+    /// different network from the last one joined.
+    ///
+    /// Returns true when the counter was restarted, so the caller can drop the
+    /// per-app state that belongs to the network just left.
+    @discardableResult
+    public func setCurrentNetwork(_ fingerprint: NetworkFingerprint, now: Date = Date()) -> Bool {
         rolloverIfNeeded(now: now)
         let previous = currentNetwork
+        let switched = isSwitch(to: fingerprint)
         currentNetwork = fingerprint
-        // Materialise the bucket so a freshly joined network shows 0 B rather
-        // than nothing at all.
-        withCurrentBucket(now: now) { _ in }
+
+        if switched {
+            // Wipes interface totals and every app row: a new connection starts
+            // from zero whether or not this network has been seen before.
+            clearCurrentBucket(now: now)
+        } else {
+            // Materialise the bucket so a freshly joined network shows 0 B rather
+            // than nothing at all.
+            withCurrentBucket(now: now) { _ in }
+        }
+        if fingerprint.id != NetworkFingerprint.offline.id {
+            state.lastNetworkID = fingerprint.id
+        }
+        // After the clear, never before: those bytes travelled over the network
+        // just joined, so a switch must not discard them.
         if previous.id == NetworkFingerprint.offline.id, fingerprint.id != previous.id {
             absorbOfflineBucket(now: now)
         }
         save()
+        return switched
+    }
+
+    /// Whether joining `fingerprint` is a move to a different network.
+    ///
+    /// Offline is never a switch in either direction. It is a gap, not a place:
+    /// the path monitor reports it for a Wi-Fi drop, a sleep, a VPN reconnect,
+    /// and treating those as a new connection would zero the counter several
+    /// times an hour on a flaky link — the failure mode that made wiping on any
+    /// `NWPathMonitor` change unusable in the first place.
+    private func isSwitch(to fingerprint: NetworkFingerprint) -> Bool {
+        guard fingerprint.id != NetworkFingerprint.offline.id,
+              let last = state.lastNetworkID
+        else { return false }
+        return last != fingerprint.id
+    }
+
+    private func clearCurrentBucket(now: Date) {
+        withCurrentBucket(now: now) { bucket in
+            bucket.clear(at: now)
+        }
     }
 
     /// Folds the placeholder "offline" bucket into the network just identified.
@@ -202,11 +285,7 @@ public final class UsageStore {
         guard today != state.dayStart else { return false }
         state.dayStart = today
         for key in state.buckets.keys {
-            var bucket = state.buckets[key]!
-            bucket.interfaceBytesIn = 0
-            bucket.interfaceBytesOut = 0
-            bucket.apps = [:]
-            state.buckets[key] = bucket
+            state.buckets[key]!.clear(at: today)
         }
         dirty = true
         save()
@@ -215,23 +294,13 @@ public final class UsageStore {
 
     /// Manual "Reset Now" — clears only the network in front of the user.
     public func resetCurrentNetwork(now: Date = Date()) {
-        var bucket = state.buckets[currentNetwork.id] ?? NetworkBucket()
-        bucket.interfaceBytesIn = 0
-        bucket.interfaceBytesOut = 0
-        bucket.apps = [:]
-        bucket.lastSeen = now
-        state.buckets[currentNetwork.id] = bucket
-        dirty = true
+        clearCurrentBucket(now: now)
         save()
     }
 
     public func resetAllNetworks(now: Date = Date()) {
         for key in state.buckets.keys {
-            var bucket = state.buckets[key]!
-            bucket.interfaceBytesIn = 0
-            bucket.interfaceBytesOut = 0
-            bucket.apps = [:]
-            state.buckets[key] = bucket
+            state.buckets[key]!.clear(at: now)
         }
         dirty = true
         save()
@@ -241,9 +310,14 @@ public final class UsageStore {
 
     public var dayStart: Date { state.dayStart }
 
+    /// Start of the window the current figures cover — a network switch, a manual
+    /// reset or midnight, whichever came last.
+    public var countingSince: Date { currentBucket.countingSince }
+
     public var currentBucket: NetworkBucket {
         state.buckets[currentNetwork.id] ?? NetworkBucket(
-            kind: currentNetwork.kind, defaultLabel: currentNetwork.defaultLabel)
+            kind: currentNetwork.kind, defaultLabel: currentNetwork.defaultLabel,
+            countingSince: state.dayStart)
     }
 
     public func label(for id: String) -> String {
@@ -297,12 +371,13 @@ public final class UsageStore {
         if decoded.dayStart != today {
             decoded.dayStart = today
             for key in decoded.buckets.keys {
-                var bucket = decoded.buckets[key]!
-                bucket.interfaceBytesIn = 0
-                bucket.interfaceBytesOut = 0
-                bucket.apps = [:]
-                decoded.buckets[key] = bucket
+                decoded.buckets[key]!.clear(at: today)
             }
+        }
+        // A store written before per-connection counters has no window start.
+        // Its totals are the day's, so that is what they are counting from.
+        for key in decoded.buckets.keys where decoded.buckets[key]!.countingSince == .distantPast {
+            decoded.buckets[key]!.countingSince = decoded.dayStart
         }
         return decoded
     }

@@ -33,12 +33,14 @@ today's total and a per-app breakdown of who used it.
 - **See which apps are using your data** — sorted biggest first, with icons.
   Chrome's dozen helper processes show as one *Google Chrome* row; OS daemons
   collapse into a single *System* row.
-- **A total per network** — every Wi-Fi network, Ethernet connection and hotspot
-  gets its own running total. Leave a network and come back, and its total is
-  still there.
+- **A total per connection** — join a different Wi-Fi network or hotspot and the
+  totals start from zero, so what you see is what *this* connection has used. Open
+  your hotspot somewhere new and you know exactly what each app spent on it. A
+  dropout and a reconnect to the same network picks up where it left off.
 - **Hotspot aware** — metered connections are flagged with a `METERED` badge, so
   you know when the bytes are costing you.
-- **Resets daily** at local midnight, and survives restarts and reboots.
+- **Resets at midnight** too, for a connection you never leave, and survives
+  restarts and reboots.
 - **Stays out of the way** — no Dock icon, no app switcher entry, no window to
   manage. Just the menu bar.
 
@@ -78,11 +80,11 @@ make update
 
 ## Using it
 
-**Left-click** the menu bar item for today's total and the app list. **Right-click**
-it for Settings and Quit.
+**Left-click** the menu bar item for this connection's total and the app list.
+**Right-click** it for Settings and Quit.
 
-The **gear icon** in the popover opens Settings, which holds start-at-login,
-per-app tracking, the counting-since time, Reset Now and Quit.
+The **gear icon** in the popover opens Settings, which holds start-at-login, the
+counting-since time, Reset Now and Quit.
 
 Quitting and start-at-login are deliberately independent: quitting ends the app for
 the rest of the session without turning the setting off, and turning the setting off
@@ -90,28 +92,33 @@ doesn't quit the running app.
 
 ## What the numbers mean
 
-**Your speed and daily total are always accurate.** They come straight from the
-kernel's own byte counters, cost about 3% of a CPU core, and run all the time.
-They've been measured at 99.6–100.2% agreement with the kernel across three
-independent transfers.
+**Your speed and connection total are always accurate.** They come straight from the
+kernel's own byte counters, cost about a tenth of one percent of a CPU core, and run
+all the time. They've been measured at 99.6–100.2% agreement with the kernel across
+three independent transfers.
 
-**Per-app numbers are a different trade-off**, and it's worth knowing why. macOS
-only exposes per-app traffic through a tool that costs roughly 1.4 CPU cores while
-it runs — no setting makes it cheaper. So NetworkMonitor chooses when to pay that
-cost:
+**Per-app numbers now run all the time too**, on every network and on battery, with
+no setting to forget. That used to cost about 1.4 CPU cores, which is why earlier
+versions switched per-app tracking off unless you were plugged in. The cost turned
+out to be a bug, not a price: the tool macOS provides polls its input for
+keystrokes, it was being given an input that is always "ready", and so it spun on
+an empty loop forever. Given an input that waits properly, the same data costs
+**0.55% of a core** — 256× less — and arrives just as fast.
 
-- **Keep tracking when plugged into power** is **on by default**, so per-app
-  numbers cover your whole day whenever you're on the adapter.
-- Turn it off in Settings to save battery, and per-app usage is counted only while
-  the popover is open.
+It also adapts on its own, with nothing to configure: **plugged in**, it samples
+every second for the freshest possible numbers; **on battery**, every three seconds.
+Your totals are identical either way — the tool reports the bytes moved *between*
+samples, so sampling less often changes how fresh the figures are, not how complete.
+Settings tells you which mode is in force.
 
-Either way, per-app totals count what was observed while the app was running, so
-they won't quite add up to the daily total — some traffic is wire-level overhead
-belonging to no app. **The daily total is the one to trust.**
+So there is nothing left worth switching off, and nothing to trade. Per-app rows
+still won't quite add up to the connection total: some traffic is wire-level
+overhead belonging to no app, and the final second before you quit is never
+completed. **The big total is the one to trust.**
 
 > Numbers here won't match Activity Monitor or TripMode, and shouldn't. Activity
 > Monitor counts bytes since each process *started* — often days ago. This app
-> reports what it saw since midnight.
+> reports what it saw on the connection you are on, since you joined it.
 
 ## Uninstall
 

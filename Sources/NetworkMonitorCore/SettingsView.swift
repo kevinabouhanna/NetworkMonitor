@@ -31,43 +31,36 @@ public struct SettingsView: View {
 
             Divider()
 
-            section("Per-app usage") {
-                // "Plugged in" on its own is ambiguous in a network app — it
-                // reads as an Ethernet cable. This is about the power adapter.
-                Toggle("Keep tracking when plugged into power", isOn: Binding(
-                    get: { model.trackingMode == .pluggedIn },
-                    set: { model.setTrackingMode($0 ? .pluggedIn : .whenOpen) }))
-                Text("On, app usage is counted all day. Off, it's only counted "
-                     + "while this menu is open, which uses less battery.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(model.isTrackingPerApp ? Color.green : Color.secondary)
-                        .frame(width: 6, height: 6)
-                    Text(model.isTrackingPerApp ? "Tracking now" : "Paused")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Divider()
-
             section("Usage data") {
                 HStack(spacing: 6) {
                     Text("Counting since")
                         .font(.system(size: 12))
-                    Text(model.dayStart, format: .dateTime.hour().minute())
+                    Text(model.countingSince, format: .dateTime.hour().minute())
                         .font(.system(size: 12, weight: .medium))
                         .monospacedDigit()
                     Spacer()
                 }
-                Text("Totals reset automatically at midnight. Each network you "
-                     + "connect to is counted separately.")
+                Text("Totals count what this connection has used, per app, all the "
+                     + "time. They start over when you join a different network, "
+                     + "and at midnight.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+
+                // Stated, not offered. There is nothing to choose here — the point
+                // is that the app handles it — but a reader who notices the app
+                // list updating every 3 s instead of every 1 s deserves to know
+                // that is deliberate and costs them no accuracy.
+                HStack(spacing: 5) {
+                    Image(systemName: model.profile == .performance
+                          ? "bolt.fill" : "battery.75")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                    Text(model.profile == .performance
+                         ? "Plugged in — sampling every second"
+                         : "On battery — sampling every 3 seconds, same totals")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
 
                 // One button, not two. Usage is bucketed per network internally,
                 // but the popover never names the network, so "this network" vs

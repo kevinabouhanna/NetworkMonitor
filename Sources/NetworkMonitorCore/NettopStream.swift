@@ -13,15 +13,18 @@ public final class NettopStream {
     /// - `-x` raw byte counts, no "MiB" suffixes to re-parse
     /// - `-d` delta mode (required; see `NettopParser`)
     /// - `-L 0` CSV logging mode, unlimited samples
-    /// - `-s 1` one sample per second
+    /// - `-s N` one sample every N seconds, set by `PowerProfile`. Each sample is a
+    ///   delta, so a longer interval changes the figures' age, not their total.
     /// - `-t external` all non-loopback interfaces: keeps VPN tunnel traffic,
     ///   drops localhost chatter from dev servers
     /// - `-J …` only the columns we read
-    static let arguments = [
-        "-P", "-x", "-d", "-L", "0", "-s", "1",
-        "-t", "external",
-        "-J", "time,bytes_in,bytes_out",
-    ]
+    static func arguments(sampleInterval: Int) -> [String] {
+        [
+            "-P", "-x", "-d", "-L", "0", "-s", "\(max(sampleInterval, 1))",
+            "-t", "external",
+            "-J", "time,bytes_in,bytes_out",
+        ]
+    }
 
     private let executable = "/usr/bin/nettop"
     private let queue = DispatchQueue(label: "com.networkmonitor.nettop")
@@ -34,18 +37,70 @@ public final class NettopStream {
 
     /// Master side of the pseudo-terminal nettop writes into.
     private var masterFD: Int32 = -1
+    /// Write end of nettop's stdin pipe. Held open, never written to: that is what
+    /// keeps nettop's poll on stdin blocking instead of spinning. See `spawn()`.
+    private var stdinWriteFD: Int32 = -1
     private var readSource: DispatchSourceRead?
+
+    /// Seconds between samples, from `PowerProfile`.
+    private var sampleInterval = 1
 
     /// Called on an internal queue with each completed sample.
     public var onSample: (([NettopRow]) -> Void)?
     /// Called when the subprocess cannot be kept alive.
     public var onFailure: ((String) -> Void)?
 
-    public init() {}
+    public init(sampleInterval: Int = 1) {
+        self.sampleInterval = max(sampleInterval, 1)
+    }
 
-    /// Idempotent: calling `start()` on an already-running stream does nothing,
-    /// so the tracking-mode logic can call it freely without ever ending up with
-    /// two nettop processes double-counting every sample.
+    /// Changes the sample interval, restarting `nettop` only if it really changed.
+    ///
+    /// A restart discards the new process's priming sample, so it loses the traffic
+    /// in the gap — which is why the caller should only do this on a power
+    /// transition, not on every screen sleep. See `PowerProfile`.
+    public func setSampleInterval(_ seconds: Int) {
+        let wanted = max(seconds, 1)
+        queue.async { [weak self] in
+            guard let self, self.sampleInterval != wanted else { return }
+            self.sampleInterval = wanted
+            guard self.process != nil, !self.stopping else { return }
+            self.terminateChild()
+            self.teardown()
+            self.restartDelay = 1
+            self.spawn()
+        }
+    }
+
+    /// Ends the current child for good, and detaches it on the way out.
+    ///
+    /// Both halves matter, and each one was a live bug:
+    ///
+    /// - **Detaching `terminationHandler` first.** An expected death must not be
+    ///   routed to `handleTermination`. Left armed, the outgoing child's handler
+    ///   fired *after* its replacement had spawned, tore down the replacement's
+    ///   descriptors and spawned a third — two nettops billing the same bytes into
+    ///   one store, and an orphan that outlived `stop()`.
+    /// - **Escalating to `SIGKILL`.** nettop has been observed to survive a plain
+    ///   terminate in logging mode. An orphan used to be merely untidy; now that
+    ///   `teardown()` closes its stdin, an orphan hits EOF on stdin and spins at
+    ///   ~140% of a core for as long as the machine is up (see `spawn()`). Killing
+    ///   before the descriptors close keeps that window shut.
+    private func terminateChild() {
+        guard let task = process else { return }
+        process = nil
+        task.terminationHandler = nil
+        guard task.isRunning else { return }
+        task.terminate()
+        // Brief, bounded, and only on a path that is already tearing down.
+        let deadline = Date().addingTimeInterval(0.3)
+        while task.isRunning, Date() < deadline { usleep(20_000) }
+        if task.isRunning { kill(task.processIdentifier, SIGKILL) }
+    }
+
+    /// Idempotent: calling `start()` on an already-running stream does nothing, so
+    /// callers can call it freely without ever ending up with two nettop processes
+    /// double-counting every sample.
     public func start() {
         queue.async { [weak self] in
             guard let self else { return }
@@ -63,26 +118,43 @@ public final class NettopStream {
     public func stop() {
         queue.sync {
             stopping = true
+            // Kill before closing descriptors, so an ignored terminate cannot leave
+            // an orphan spinning on a closed stdin. See `terminateChild()`.
+            terminateChild()
             teardown()
-            // nettop ignores a plain terminate while in logging mode often
-            // enough that leaving it would orphan the child on quit.
-            process?.terminate()
-            process = nil
         }
     }
 
-    /// Launches nettop attached to a pseudo-terminal.
+    /// Launches nettop attached to a pseudo-terminal, with a stdin that blocks.
     ///
-    /// A plain `Pipe()` does not work. nettop block-buffers stdout whenever it is
-    /// not a terminal, so a long-lived `-L 0` stream delivers **nothing** for many
-    /// seconds at a time — measured at zero output over 9 s through a pipe, versus
-    /// one flush per second through a PTY. Short `-L 2` invocations appear to work
-    /// only because libc flushes at process exit, which is why this bug hides
-    /// during shell testing.
+    /// **stdout must be a PTY.** nettop block-buffers stdout whenever it is not a
+    /// terminal, so a long-lived `-L 0` stream delivers **nothing** for many
+    /// seconds at a time — measured at one 16 KB block every ~30 s through a pipe,
+    /// versus one flush per second through a PTY. Short `-L 2` invocations appear
+    /// to work only because libc flushes at process exit, which is why this hides
+    /// during shell testing. `-L` still forces CSV logging mode "even if standard
+    /// output is a terminal", so the output stays parseable.
     ///
-    /// Handing nettop a PTY makes it line-buffer while `-L` still forces CSV
-    /// logging mode ("even if standard output is a terminal"), so we keep the
-    /// parseable output and get it promptly.
+    /// **stdin must block.** This is what used to make nettop cost ~1.36 cores
+    /// continuously — the number that justified switching per-app tracking off on
+    /// battery, and so switching it off exactly where per-app cost matters. It was
+    /// never the PTY. nettop polls stdin for keystrokes, and `/dev/null` is
+    /// *always* ready to read, so the poll returns instantly forever and the
+    /// process spins in system time. Handing it the read end of a pipe nobody
+    /// writes to makes that poll block. Measured over 20 s per configuration:
+    ///
+    /// | stdout | stdin | cost | delivery |
+    /// |---|---|---|---|
+    /// | pipe | `/dev/null` | 142.70% of a core | ~4 s |
+    /// | pipe | blocking pipe | 0.40% | ~5 s |
+    /// | PTY | `/dev/null` | 140.90% | 1 s |
+    /// | **PTY** | **blocking pipe** | **0.55%** | **1 s** |
+    ///
+    /// A 256× saving with no loss of cadence, which is why per-app tracking now
+    /// simply always runs and `PerAppTrackingMode` is gone. Note that an `.app`
+    /// launched by Finder or launchd already has `/dev/null` on stdin, so
+    /// inheriting rather than redirecting would reproduce the spin — the pipe has
+    /// to be explicit.
     private func spawn() {
         guard !stopping else { return }
         guard FileManager.default.isExecutableFile(atPath: executable) else {
@@ -109,17 +181,27 @@ public final class NettopStream {
             _ = tcsetattr(slave, TCSANOW, &settings)
         }
 
+        // The blocking stdin. The parent holds the write end open and never writes
+        // to it, so nettop's poll on stdin never becomes ready.
+        var stdinFDs: [Int32] = [-1, -1]
+        guard pipe(&stdinFDs) == 0 else {
+            close(master); close(slave)
+            onFailure?("pipe failed: \(String(cString: strerror(errno)))")
+            scheduleRestart()
+            return
+        }
+
         let task = Process()
         task.executableURL = URL(fileURLWithPath: executable)
-        task.arguments = Self.arguments
+        task.arguments = Self.arguments(sampleInterval: sampleInterval)
         let slaveHandle = FileHandle(fileDescriptor: slave, closeOnDealloc: false)
         task.standardOutput = slaveHandle
         task.standardError = slaveHandle
-        // No stdin: nettop must not wait on interactive keystrokes.
-        task.standardInput = FileHandle.nullDevice
+        task.standardInput = FileHandle(fileDescriptor: stdinFDs[0], closeOnDealloc: false)
 
         parser.resetForRestart()
         masterFD = master
+        stdinWriteFD = stdinFDs[1]
 
         let source = DispatchSource.makeReadSource(fileDescriptor: master, queue: queue)
         source.setEventHandler { [weak self] in self?.readAvailable() }
@@ -137,27 +219,28 @@ public final class NettopStream {
             // The parent must drop its copy of the slave, otherwise the PTY
             // never reports EOF when nettop exits and a dead child looks alive.
             close(slave)
+            // The child has its own dup of the stdin read end.
+            close(stdinFDs[0])
         } catch {
             close(slave)
+            close(stdinFDs[0])
             teardown()
             onFailure?("could not launch nettop: \(error.localizedDescription)")
             scheduleRestart()
         }
     }
 
-    /// Reads with `read(2)` rather than `FileHandle.availableData`.
-    ///
-    /// When the child exits, the master side of a PTY reports `EIO` instead of a
-    /// clean EOF, and `availableData` raises an Objective-C exception on that —
-    /// which cannot be caught in Swift and would terminate the app.
+    /// Reads with `read(2)` rather than `FileHandle.availableData`, which raises an
+    /// Objective-C exception on a read error — uncatchable from Swift, so a
+    /// disappearing child would take the app down with it.
     private func readAvailable() {
         guard masterFD >= 0 else { return }
         var buffer = [UInt8](repeating: 0, count: 65_536)
         let count = read(masterFD, &buffer, buffer.count)
 
         if count > 0 {
-            // The PTY is raw, but strip any stray CR defensively so a carriage
-            // return can never end up inside a parsed field.
+            // A pipe carries exactly what nettop wrote, but stripping CR stays as
+            // cheap insurance against one ending up inside a parsed field.
             let bytes = buffer[0..<count].filter { $0 != 0x0D }
             guard let text = String(bytes: bytes, encoding: .utf8) else { return }
             for sample in parser.consume(text) {
@@ -167,7 +250,8 @@ public final class NettopStream {
             return
         }
 
-        // 0 = EOF, -1 with EIO = child gone. EAGAIN is a spurious wakeup.
+        // 0 = EOF, which is how a pipe reports the child exiting. EAGAIN/EINTR are
+        // spurious wakeups.
         if count < 0 && (errno == EAGAIN || errno == EINTR) { return }
         handleTermination()
     }
@@ -182,6 +266,12 @@ public final class NettopStream {
         readSource?.cancel()   // cancel handler closes masterFD
         readSource = nil
         masterFD = -1
+        // Closing this signals EOF on the dead child's stdin, and stops the
+        // descriptor leaking across the restart cycle.
+        if stdinWriteFD >= 0 {
+            close(stdinWriteFD)
+            stdinWriteFD = -1
+        }
     }
 
     /// Exponential backoff so a persistently failing `nettop` can't spin.

@@ -2,6 +2,73 @@ import AppKit
 import Foundation
 import NetworkMonitorCore
 
+func runPowerProfileTests() {
+    Check.suite("PowerProfile") {
+
+        Check.test("the power source alone picks the profile") {
+            Check.expectEqual(PowerProfile.forPowerSource(onACPower: true), .performance)
+            Check.expectEqual(PowerProfile.forPowerSource(onACPower: false), .balanced)
+        }
+
+        // The whole point of the profile: on battery it samples less often, never
+        // less completely. Both figures stay exact because interface counters are
+        // read by difference and nettop reports a delta per sample.
+        Check.test("balanced samples less often than performance") {
+            let ac = PowerProfile.performance, battery = PowerProfile.balanced
+            Check.expectTrue(battery.interfaceInterval(displayAsleep: false)
+                             > ac.interfaceInterval(displayAsleep: false),
+                             "battery must read the counters less often")
+            Check.expectTrue(battery.nettopSampleInterval > ac.nettopSampleInterval,
+                             "battery must sample nettop less often")
+        }
+
+        // Relaxed again with the screen off, in both profiles: totals keep
+        // accumulating, but nobody is reading a menu bar they cannot see.
+        Check.test("a sleeping display relaxes the sampler further") {
+            for profile in PowerProfile.allCases {
+                Check.expectTrue(profile.interfaceInterval(displayAsleep: true)
+                                 > profile.interfaceInterval(displayAsleep: false),
+                                 "\(profile.rawValue) should relax when the screen sleeps")
+            }
+        }
+
+        // nettop's interval is a whole number of seconds, its own minimum, and a
+        // restart-costing change — so it must never be varied by screen state.
+        Check.test("nettop intervals are whole seconds of at least one") {
+            for profile in PowerProfile.allCases {
+                Check.expectTrue(profile.nettopSampleInterval >= 1,
+                                 "\(profile.rawValue) asked for a sub-second nettop")
+            }
+        }
+
+        // Otherwise the "active now" dot blinks off between samples on an app that
+        // never stopped transferring.
+        Check.test("the activity window covers the gap between samples") {
+            for profile in PowerProfile.allCases {
+                Check.expectTrue(profile.activityWindow
+                                 >= TimeInterval(profile.nettopSampleInterval) * 2,
+                                 "\(profile.rawValue) would blink the active dot")
+            }
+        }
+
+        // No stored preference, no migration, nothing to get out of step: the
+        // profile is derived, and this is what keeps it that way.
+        Check.test("the profile is derived, never persisted") {
+            let key = "powerProfile"
+            UserDefaults.standard.removeObject(forKey: key)
+            let url = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("profile-\(UUID().uuidString).json")
+            defer { try? FileManager.default.removeItem(at: url) }
+            let model = MonitorViewModel(store: UsageStore(storeURL: url))
+            Check.expectEqual(model.profile,
+                              PowerProfile.forPowerSource(onACPower: PowerSource.isOnACPower),
+                              "the model must adopt the live power source")
+            Check.expectNil(UserDefaults.standard.object(forKey: key),
+                            "the profile must not be written to defaults")
+        }
+    }
+}
+
 func runMenuBarTitleTests() {
     // Every case the status item will realistically display, spanning all units.
     let cases: [(down: Double, up: Double, label: String)] = [
@@ -140,63 +207,3 @@ func runMenuBarTitleTests() {
     }
 }
 
-func runTrackingModeTests() {
-    Check.suite("PerAppTrackingMode") {
-
-        // Cheapest, but per-app totals then cover only the seconds the menu was
-        // open — a lower bound on the day, not a full account.
-        Check.test("whenOpen tracks only while the popover is open") {
-            let mode = PerAppTrackingMode.whenOpen
-            Check.expectTrue(mode.shouldTrack(popoverOpen: true, onACPower: false))
-            Check.expectTrue(mode.shouldTrack(popoverOpen: true, onACPower: true))
-            Check.expectFalse(mode.shouldTrack(popoverOpen: false, onACPower: true),
-                              "closed means paused, even on power")
-            Check.expectFalse(mode.shouldTrack(popoverOpen: false, onACPower: false))
-        }
-
-        // The default: complete per-app figures are the point of the feature.
-        Check.test("pluggedIn also tracks with the menu closed, on power only") {
-            let mode = PerAppTrackingMode.pluggedIn
-            Check.expectTrue(mode.shouldTrack(popoverOpen: false, onACPower: true),
-                             "plugged in and idle should track")
-            Check.expectTrue(mode.shouldTrack(popoverOpen: true, onACPower: false),
-                             "on battery, opening the popover should track")
-            Check.expectFalse(mode.shouldTrack(popoverOpen: false, onACPower: false),
-                              "on battery and closed must NOT burn a core")
-        }
-
-        /// Ships on, so per-app numbers are comparable with always-on tools like
-        /// TripMode out of the box. Users who prefer battery turn it off.
-        Check.test("pluggedIn is the shipped default") {
-            let store = UsageStore(storeURL: URL(fileURLWithPath: NSTemporaryDirectory())
-                .appendingPathComponent("default-mode-\(UUID().uuidString).json"))
-            UserDefaults.standard.removeObject(forKey: "perAppTrackingMode")
-            let model = MonitorViewModel(store: store)
-            Check.expectEqual(model.trackingMode, .pluggedIn)
-            Check.expectTrue(model.trackingMode.shouldTrack(popoverOpen: false,
-                                                            onACPower: true),
-                             "must track out of the box while on power")
-        }
-
-        // An "always" mode was removed: it ran nettop at ~1.36 cores on battery.
-        Check.test("only two modes exist") {
-            Check.expectEqual(PerAppTrackingMode.allCases.count, 2)
-            Check.expectNil(PerAppTrackingMode(rawValue: "always"),
-                            "the always mode must be gone")
-        }
-
-        Check.test("modes round-trip through their raw values") {
-            for mode in PerAppTrackingMode.allCases {
-                Check.expectEqual(PerAppTrackingMode(rawValue: mode.rawValue), mode)
-                Check.expectFalse(mode.title.isEmpty)
-            }
-        }
-
-        // A desktop Mac reports no battery; treating that as AC keeps full
-        // tracking rather than silently degrading.
-        Check.test("power source query returns without error") {
-            _ = PowerSource.isOnACPower
-            Check.expectTrue(true)
-        }
-    }
-}

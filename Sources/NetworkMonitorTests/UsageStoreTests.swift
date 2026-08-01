@@ -188,8 +188,8 @@ func runUsageStoreTests() {
                               "reconnecting to the same network must not reset it")
         }
 
-        // Switching to a different network shows that network's own total, and
-        // switching back restores the original rather than restarting at zero.
+        // Each network counts on its own, and the one in front of the user always
+        // counts from the moment the connection was made.
         Check.test("switching networks keeps separate totals") {
             let url = temporaryURL()
             defer { try? FileManager.default.removeItem(at: url) }
@@ -200,11 +200,8 @@ func runUsageStoreTests() {
             store.setCurrentNetwork(network("hotspot", expensive: true))
             Check.expectEqual(store.currentBucket.interfaceBytesIn, 0, "new network starts fresh")
             store.recordInterface(bytesIn: 200, bytesOut: 50)
-            Check.expectEqual(store.currentBucket.interfaceBytesIn, 200)
-
-            store.setCurrentNetwork(network("home"))
-            Check.expectEqual(store.currentBucket.interfaceBytesIn, 5000,
-                              "returning restores the original bucket")
+            Check.expectEqual(store.currentBucket.interfaceBytesIn, 200,
+                              "the other network's bytes must not leak in")
         }
 
         // Hotspot usage must be independently readable — the basis for the
@@ -220,6 +217,129 @@ func runUsageStoreTests() {
             let hotspot = store.allNetworks().first { $0.id == "hotspot" }
             Check.expectEqual(hotspot?.bucket.interfaceTotal, 4_500_000)
             Check.expectEqual(hotspot?.bucket.kind, .hotspot)
+        }
+    }
+
+    Check.suite("UsageStore — reset on connection change") {
+
+        // The headline requirement of this behaviour: open a hotspot somewhere
+        // new and the per-app figures describe *that* session, not the day.
+        Check.test("joining a different network zeroes every app") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            store.recordInterface(bytesIn: 5000, bytesOut: 1000)
+            store.recordApps([(identity("Chrome"), 4000, 800), (identity("Slack"), 900, 90)])
+
+            Check.expectTrue(store.setCurrentNetwork(network("hotspot", expensive: true)),
+                             "a different network must report a reset")
+            Check.expectEqual(store.currentBucket.interfaceTotal, 0)
+            Check.expectTrue(store.currentBucket.apps.isEmpty, "app rows must be cleared")
+        }
+
+        // A network with usage history is no exception — mid-day, and without
+        // waiting for midnight.
+        Check.test("returning to a known network restarts it from zero") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            store.recordInterface(bytesIn: 5000, bytesOut: 1000)
+            store.recordApps([(identity("Chrome"), 4000, 800)])
+
+            store.setCurrentNetwork(network("hotspot", expensive: true))
+            store.recordInterface(bytesIn: 200, bytesOut: 50)
+            store.setCurrentNetwork(network("home"))
+
+            Check.expectEqual(store.currentBucket.interfaceTotal, 0,
+                              "the earlier session on this network must not come back")
+            Check.expectTrue(store.currentBucket.apps.isEmpty)
+        }
+
+        // An offline gap is a blip, not a place. Were it treated as a switch, a
+        // flaky link would zero the counter repeatedly.
+        Check.test("an offline gap on the way back is not a switch") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            store.recordApps([(identity("Chrome"), 4000, 800)])
+
+            Check.expectFalse(store.setCurrentNetwork(.offline), "going offline is not a switch")
+            Check.expectFalse(store.setCurrentNetwork(network("home")),
+                              "coming back to the same network is not a switch")
+            Check.expectEqual(store.currentBucket.apps["Chrome"]?.total, 4800)
+        }
+
+        // The 2 s debounce means the first bytes of a new connection are recorded
+        // before it is identified. The reset must not take those with it.
+        Check.test("traffic recorded before the new network is known survives the reset") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            store.recordInterface(bytesIn: 9000, bytesOut: 900)
+
+            store.setCurrentNetwork(.offline)                  // link drops
+            store.recordInterface(bytesIn: 300, bytesOut: 30)  // now on the hotspot
+            store.recordApps([(identity("Chrome"), 250, 25)])
+            store.setCurrentNetwork(network("hotspot", expensive: true))
+
+            Check.expectEqual(store.currentBucket.interfaceTotal, 330,
+                              "pre-identification bytes belong to the network just joined")
+            Check.expectEqual(store.currentBucket.apps["Chrome"]?.total, 275)
+        }
+
+        // Quitting is not switching networks. Restoring the day's totals on the
+        // same network is the whole point of persisting them.
+        Check.test("relaunching on the same network resumes its counter") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            store.recordInterface(bytesIn: 8192, bytesOut: 2048)
+            store.save()
+
+            let reopened = UsageStore(storeURL: url)
+            Check.expectFalse(reopened.setCurrentNetwork(network("home")))
+            Check.expectEqual(reopened.currentBucket.interfaceTotal, 10_240)
+        }
+
+        // Closing the lid at the office and opening it at home is a switch, even
+        // though the app never saw the transition.
+        Check.test("relaunching on a different network resets") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("office"))
+            store.recordInterface(bytesIn: 8192, bytesOut: 2048)
+            store.save()
+
+            let reopened = UsageStore(storeURL: url)
+            Check.expectTrue(reopened.setCurrentNetwork(network("home")))
+            Check.expectEqual(reopened.currentBucket.interfaceTotal, 0)
+        }
+
+        // "Counting since" is read next to the total, so it has to track the same
+        // window the total covers.
+        Check.test("counting-since follows the connection, not the day") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let calendar = utcCalendar()
+            let store = UsageStore(storeURL: url, calendar: calendar)
+            let today = calendar.startOfDay(for: Date())
+            let joined = today.addingTimeInterval(11 * 3600)
+
+            store.setCurrentNetwork(network("home"), now: today.addingTimeInterval(3600))
+            store.setCurrentNetwork(network("hotspot", expensive: true), now: joined)
+            Check.expectEqual(store.countingSince, joined)
+
+            store.setCurrentNetwork(.offline, now: joined.addingTimeInterval(60))
+            store.setCurrentNetwork(network("hotspot", expensive: true),
+                                    now: joined.addingTimeInterval(120))
+            Check.expectEqual(store.countingSince, joined,
+                              "a blip must not restart the window")
         }
     }
 
@@ -331,6 +451,30 @@ func runUsageStoreTests() {
             store.setLabel("Renamed", for: "home")
             store.setLabel("   ", for: "home")
             Check.expectEqual(store.currentLabel, "home")
+        }
+
+        // Upgrading must not cost the user the day's totals. A store written
+        // before per-connection counters has no `countingSince` and no
+        // `lastNetworkID`, and synthesised decoding would reject it outright —
+        // which the corrupt-store path would then turn into a wipe.
+        Check.test("a store from before per-connection counters still loads") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let dayStart = Calendar.current.startOfDay(for: Date())
+            let stamp = ISO8601DateFormatter().string(from: dayStart)
+            let legacy = """
+            {"dayStart":"\(stamp)","labels":{},"buckets":{"home":{\
+            "interfaceBytesIn":8192,"interfaceBytesOut":2048,"apps":{},\
+            "kind":"wifi","defaultLabel":"home","lastSeen":"\(stamp)"}}}
+            """
+            try? legacy.write(to: url, atomically: true, encoding: .utf8)
+
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home"))
+            Check.expectEqual(store.currentBucket.interfaceTotal, 10_240,
+                              "an upgrade must not discard the day")
+            Check.expectEqual(store.countingSince, dayStart,
+                              "old totals are the day's, so they count from midnight")
         }
 
         // A corrupt store must not prevent launch.
