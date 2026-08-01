@@ -37,8 +37,12 @@ func runTrafficScopeTests() {
         }
 
         // 73.6% of all connection bytes measured on this machine. Local beyond
-        // doubt, but multi-homed: nettop reported 0.841 MB against the kernel's
-        // 0.506 MB, so the quantity must never be subtracted.
+        // doubt, but the *quantity* is fiction: these sockets are multi-homed and
+        // nettop bills their full byte count under every interface type they
+        // match. Over 90 s it claimed 1,360 KB of multicast while the kernel's own
+        // packet counters recorded 72 multicast packets on en0 — 108 KB even at
+        // full MTU, so the claim exceeds the physical maximum by at least 12.6x.
+        // Subtracting it once produced a headline smaller than its own rows.
         Check.test("multicast is local but never subtractable") {
             for label in [
                 "udp4 *:5353<->*:*",
