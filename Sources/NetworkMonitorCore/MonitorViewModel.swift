@@ -73,6 +73,9 @@ public final class MonitorViewModel: ObservableObject {
 
     private var saveCounter = 0
 
+    /// Last menu bar title actually published, used to suppress no-op updates.
+    private var renderedTitle = ""
+
     /// Sampling rates, chosen from the power source. Published so the popover can
     /// say which one is in force; there is nothing for the user to set.
     @Published public private(set) var profile: PowerProfile = .performance
@@ -202,13 +205,39 @@ public final class MonitorViewModel: ObservableObject {
 
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.downBytesPerSecond = down
-            self.upBytesPerSecond = up
+
+            // Publish only what actually changed. `@Published` fires on
+            // *assignment*, not on difference, and every fire invalidates the
+            // SwiftUI popover — which its hosting controller then re-lays out even
+            // while closed, because `sizingOptions` keeps it measured. Sampling an
+            // idle app found that layout to be its single largest cost: the
+            // rendering itself is only 0.146 ms, but the invalidation it rode in on
+            // was not.
+            //
+            // The rendered title is the honest key. Two different rates that format
+            // to the same two lines produce a byte-identical image, and on an idle
+            // machine every tick formats to "0 B/s".
+            let rendered = MenuBarTitle.string(down: down, up: up)
+            if rendered != self.renderedTitle {
+                self.renderedTitle = rendered
+                self.downBytesPerSecond = down
+                self.upBytesPerSecond = up
+            }
+
             self.store.recordInterface(bytesIn: delta.bytesIn, bytesOut: delta.bytesOut)
 
+            // Accumulation never stops; only the *publishing* of it waits for
+            // someone to be looking. `setPopoverOpen` calls `refreshHeader()`, so
+            // the figures are current the instant the popover appears.
             let bucket = self.store.currentBucket
-            self.totalBytesIn = bucket.interfaceBytesIn
-            self.totalBytesOut = bucket.interfaceBytesOut
+            if self.popoverIsOpen {
+                if self.totalBytesIn != bucket.interfaceBytesIn {
+                    self.totalBytesIn = bucket.interfaceBytesIn
+                }
+                if self.totalBytesOut != bucket.interfaceBytesOut {
+                    self.totalBytesOut = bucket.interfaceBytesOut
+                }
+            }
 
             // Persist roughly every 15 s of ticks rather than on every sample.
             self.saveCounter += 1

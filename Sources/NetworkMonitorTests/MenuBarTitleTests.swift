@@ -83,6 +83,45 @@ func runMenuBarTitleTests() {
         (0, 1_073_741_824, "upload only"),
     ]
 
+    // `MonitorViewModel` publishes a new rate only when these strings change, so
+    // what counts as "the same title" is a correctness contract, not cosmetics:
+    // too loose and the menu bar freezes, too tight and an idle machine re-lays out
+    // the popover twice a second for nothing.
+    Check.suite("MenuBarTitle — the redraw key") {
+
+        // The idle case, and the reason the optimisation is worth anything: a Mac
+        // doing nothing renders the identical title on every single tick.
+        Check.test("an idle machine renders one unchanging title") {
+            let a = MenuBarTitle.string(down: 0, up: 0)
+            let b = MenuBarTitle.string(down: 0, up: 0)
+            Check.expectEqual(a, b)
+            // Sub-1 B/s is sampler noise and formats to "0 B/s", so a trickle of
+            // stray bytes must not start repainting the menu bar either.
+            Check.expectEqual(MenuBarTitle.string(down: 0.4, up: 0.9), a,
+                              "sub-1 B/s noise must not count as a change")
+        }
+
+        // Rates that round to the same displayed figure are the same title: the
+        // image is a pure function of these two lines.
+        Check.test("rates that display identically share a title") {
+            Check.expectEqual(MenuBarTitle.string(down: 1_048_576, up: 0),
+                              MenuBarTitle.string(down: 1_048_580, up: 0),
+                              "1.0 MB/s either way")
+        }
+
+        // And the converse, or the menu bar would stop updating.
+        Check.test("a visible change is a different title") {
+            let quiet = MenuBarTitle.string(down: 0, up: 0)
+            for rate in [1.0, 1500.0, 2_500_000.0] {
+                Check.expectFalse(MenuBarTitle.string(down: rate, up: 0) == quiet,
+                                  "\(rate) B/s should differ from idle")
+            }
+            Check.expectFalse(MenuBarTitle.string(down: 1500, up: 0)
+                              == MenuBarTitle.string(down: 1500, up: 2500),
+                              "the upload line must count too")
+        }
+    }
+
     Check.suite("MenuBarTitle — width stability") {
 
         // The invariant that actually matters. An earlier version padded only
