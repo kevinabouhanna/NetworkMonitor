@@ -4,16 +4,18 @@ import SwiftUI
 ///
 /// Everything that is not "what is using my network right now" lives here, so the
 /// popover stays a single glanceable list.
+///
+/// Quit is deliberately not here. It is a menu bar app, and the menu bar is where
+/// a Mac user looks to quit one — it stays on the status item's right-click menu
+/// rather than being duplicated inside a preferences pane.
 public struct SettingsView: View {
     @ObservedObject var model: MonitorViewModel
-    var onQuit: () -> Void
 
     @State private var launchAtLogin: Bool
     @State private var errorMessage: String?
 
-    public init(model: MonitorViewModel, onQuit: @escaping () -> Void) {
+    public init(model: MonitorViewModel) {
         self.model = model
-        self.onQuit = onQuit
         _launchAtLogin = State(initialValue: LoginItem.isEnabled)
     }
 
@@ -73,13 +75,6 @@ public struct SettingsView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Divider()
-
-            HStack {
-                Spacer()
-                Button("Quit", action: onQuit)
             }
         }
         .padding(20)

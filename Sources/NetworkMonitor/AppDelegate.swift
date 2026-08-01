@@ -184,8 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 defer: false)
             window.title = "NetworkMonitor Settings"
             window.contentViewController = NSHostingController(
-                rootView: SettingsView(model: model,
-                                       onQuit: { NSApp.terminate(nil) }))
+                rootView: SettingsView(model: model))
             window.isReleasedWhenClosed = false
             settingsWindow = window
         }
