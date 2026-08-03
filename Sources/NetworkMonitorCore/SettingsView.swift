@@ -10,12 +10,24 @@ import SwiftUI
 /// rather than being duplicated inside a preferences pane.
 public struct SettingsView: View {
     @ObservedObject var model: MonitorViewModel
+    /// Observed separately from `model`: the controller publishes its own state,
+    /// and reaching it through a `let` on the view model would neither give a
+    /// writable binding for the toggle nor redraw when the verdict changes.
+    @ObservedObject var metering: MeteringController
 
     @State private var launchAtLogin: Bool
     @State private var errorMessage: String?
+    @State private var appsExpanded = false
+    /// Loaded when the pane appears, never from `body`.
+    ///
+    /// `toggleItems()` reaches `discover()`, which walks `/Applications` reading
+    /// Info.plists to find Sparkle frameworks. Recomputing that on every layout
+    /// pass would make a checkbox feel slow for no reason.
+    @State private var coveredItems: [MeteringController.ToggleItem] = []
 
     public init(model: MonitorViewModel) {
         self.model = model
+        self.metering = model.metering
         _launchAtLogin = State(initialValue: LoginItem.isEnabled)
     }
 
@@ -29,6 +41,58 @@ public struct SettingsView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Divider()
+
+            section("Hotspot") {
+                Toggle("Stop apps updating on hotspots",
+                       isOn: $metering.isEnabled)
+
+                // The verdict, always shown: the commonest confusion with a
+                // feature like this is not knowing whether it decided the
+                // connection counts, and the answer is one line long.
+                footnote(metering.verdict.isMetered
+                         ? "antenna.radiowaves.left.and.right" : "wifi",
+                         metering.verdict.explanation,
+                         // Green when it has decided the connection costs money:
+                         // this line is the answer to "is it doing anything right
+                         // now", and colour makes that readable at a glance.
+                         tint: metering.verdict.isMetered ? .green : .secondary,
+                         alignment: .center)
+
+                if metering.isEnabled {
+                    // Collapsed by default. "Which apps?" is a question the user
+                    // asks occasionally; it is not worth eight permanent lines of
+                    // a pane this size, and the previous version spent them.
+                    DisclosureGroup(isExpanded: $appsExpanded) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            ForEach(coveredItems) { appToggle($0) }
+                            if coveredItems.isEmpty {
+                                Text("Nothing on this Mac to pause.")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.top, 5)
+                    } label: {
+                        Text(coverageSummary).font(.system(size: 12))
+                    }
+
+                    if !metering.helperInstalled {
+                        footnote("exclamationmark.triangle",
+                                 "macOS, Claude, Slack, Canva: make helper-no-daemon",
+                                 tint: .orange)
+                    } else if !metering.failed.isEmpty {
+                        // Never silently: a tier that refused every call must not
+                        // keep its apps listed as paused.
+                        footnote("exclamationmark.triangle",
+                                 "Couldn't pause " + metering.failed.joined(separator: ", "),
+                                 tint: .orange)
+                    }
+
+                }
+
             }
 
             Divider()
@@ -79,6 +143,69 @@ public struct SettingsView: View {
         }
         .padding(20)
         .frame(width: 400)
+        // Refreshed on each open rather than held: apps get installed, and
+        // `isDeferred` depends on what is running right now.
+        .onAppear {
+            // Re-assert first, so the list below describes what is actually in
+            // force rather than what is merely installed.
+            metering.refresh()
+            coveredItems = metering.toggleItems()
+        }
+    }
+
+    /// "Apps paused (7)" when everything is on, "(6 of 7)" once one is switched off.
+    private var coverageSummary: String {
+        let total = coveredItems.count
+        let on = coveredItems.filter { metering.isSuppressionEnabled(for: $0.id) }.count
+        return on == total ? "Apps paused (\(total))" : "Apps paused (\(on) of \(total))"
+    }
+
+    /// One row of the accordion.
+    ///
+    /// On by default and on for every app the moment the parent switch goes on —
+    /// the opt-out set starts empty, so there is no state to seed and nothing to
+    /// migrate for anyone upgrading.
+    private func appToggle(_ item: MeteringController.ToggleItem) -> some View {
+        Toggle(isOn: Binding(
+            get: { metering.isSuppressionEnabled(for: item.id) },
+            set: { metering.setSuppressionEnabled($0, for: item.id) })) {
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 5) {
+                    Text(item.label).font(.system(size: 12))
+                    if item.isDeferred {
+                        Text("quit it to apply")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                // Only for a row standing in for a whole tier, where the label
+                // alone would not say what is covered.
+                if item.isGroup {
+                    Text(item.detail)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    /// `alignment` defaults to the first text baseline, which is what keeps the
+    /// icon level with line one of a footnote that wraps. Single-line rows pass
+    /// `.center`, where baseline alignment reads as the icon sitting slightly high.
+    private func footnote(_ icon: String, _ text: String,
+                          tint: Color = .secondary,
+                          alignment: VerticalAlignment = .firstTextBaseline) -> some View {
+        HStack(alignment: alignment, spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 10))
+                .foregroundStyle(tint)
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer()
+        }
     }
 
     private func section<Content: View>(_ title: String,

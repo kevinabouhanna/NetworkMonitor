@@ -18,6 +18,21 @@ if CommandLine.arguments.contains("--unregister-login-item") {
     exit(0)
 }
 
+// The other uninstall hook, and the more important one. Every metering change is
+// made to something this app does not own — another app's update preference, a
+// LaunchAgent — and the only record of how to put them back is
+// `suppression.json`, which is about to be deleted along with the bundle.
+// Restoring has to happen while both still exist, so `uninstall.sh` calls this
+// first and waits for it.
+//
+// Deliberately independent of the running instance: it reads the journal from
+// disk and reverts from there, so it works whether or not the app is running and
+// whether or not the setting was ever switched on.
+if CommandLine.arguments.contains("--revert-metering") {
+    MeteringController(store: UsageStore()).revertAll()
+    exit(0)
+}
+
 // Single-instance guard. Two copies would each add a status item and each run
 // their own nettop, double-counting every byte. This also makes the duplicate
 // launch that `launchctl bootstrap` triggers (via RunAtLoad) harmless: it exits

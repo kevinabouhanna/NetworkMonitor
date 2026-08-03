@@ -1,4 +1,4 @@
-.PHONY: all build test hooks app universal run install install-only update uninstall icon clean
+.PHONY: all build test hooks app universal run install install-only update helper helper-no-daemon uninstall icon clean
 
 all: test app
 
@@ -44,6 +44,20 @@ update:
 	@git pull --ff-only
 	@$(MAKE) test
 	@./Scripts/install.sh
+
+# The root helper for hotspot metering: macOS and App Store updates, plus the
+# apps that only honour managed policy (Claude, Slack, Canva). Asks for a
+# password; everything else in this Makefile does not.
+#
+# `helper` installs the hourly self-heal daemon too, which undoes everything if
+# the app is ever dragged to the Trash — at the cost of a second row in Login
+# Items. `helper-no-daemon` keeps NetworkMonitor the only row there and makes
+# `make uninstall` the sole cleanup path.
+helper:
+	@./Scripts/install-helper.sh
+
+helper-no-daemon:
+	@./Scripts/install-helper.sh --no-daemon
 
 uninstall:
 	@./Scripts/uninstall.sh

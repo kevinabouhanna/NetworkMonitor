@@ -115,8 +115,54 @@ public final class NettopStream {
             self.stopping = false
             self.restarting = false
             guard self.process == nil else { return }
+            Self.reapOrphans()
             self.spawn()
         }
+    }
+
+    /// Kills any nettop left behind by a previous run of this app.
+    ///
+    /// `stop()` and the signal handlers in `main.swift` tear the child down on
+    /// every ordinary exit, but nothing can run after `SIGKILL` — a force quit,
+    /// a crash, or `kill -9`. What survives is not harmless: an orphaned nettop
+    /// holds a pseudo-terminal whose reader is gone and spins at **over a full
+    /// core, indefinitely**. One was found on the development machine at 115.8%
+    /// having run for four hours, which is what prompted this.
+    ///
+    /// Reaping at launch rather than only at uninstall means the worst case is
+    /// bounded by how long until the app is next started, instead of until
+    /// somebody notices their fans.
+    ///
+    /// Only processes whose parent is `launchd` are killed: a live nettop still
+    /// owned by a running instance has a real parent, and the single-instance
+    /// guard means that instance is not us.
+    static func reapOrphans() {
+        let prefix = "nettop -n -x -d"
+        guard let output = runCapturing("/bin/ps", ["-axo", "pid=,ppid=,command="])
+        else { return }
+        for line in output.split(separator: "\n") {
+            let fields = line.split(separator: " ", omittingEmptySubsequences: true)
+            guard fields.count >= 3,
+                  let pid = Int32(fields[0]), let ppid = Int32(fields[1]),
+                  ppid == 1,
+                  line.contains(prefix)
+            else { continue }
+            kill(pid, SIGKILL)
+        }
+    }
+
+    private static func runCapturing(_ path: String, _ arguments: [String]) -> String? {
+        guard FileManager.default.isExecutableFile(atPath: path) else { return nil }
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: path)
+        task.arguments = arguments
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        do { try task.run() } catch { return nil }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+        return String(data: data, encoding: .utf8)
     }
 
     public var isRunning: Bool {

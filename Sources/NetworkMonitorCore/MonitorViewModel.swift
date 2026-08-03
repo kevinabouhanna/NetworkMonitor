@@ -20,9 +20,28 @@ import Foundation
 /// *rendering* is gated on visibility.
 public final class MonitorViewModel: ObservableObject {
 
+    /// Live rates for the menu bar, and the signal that they changed.
+    ///
+    /// Deliberately **not** `@Published`, and that is the whole point.
+    /// `MenuBarPopoverView` observes this object and never draws a rate, but
+    /// `@ObservedObject` invalidates on *any* `objectWillChange` — so publishing
+    /// these re-measured the popover's view tree twice a second, while it was
+    /// closed, for two numbers it does not display. `sizingOptions` keeps the
+    /// hosting controller measured from launch, so being closed is no defence.
+    ///
+    /// The rendered-title guard below already spared an idle machine, because
+    /// every tick formats to "0 B/s". It did nothing on an active connection —
+    /// which is every connection this app is interesting on.
+    ///
+    /// Sending the subject *after* both assignments also settles a subtlety the
+    /// `@Published` version had: those fire in `willSet`, so a synchronous
+    /// subscriber read the previous rate and only saw the right one by way of a
+    /// `RunLoop.main` hop it then could not remove.
+    public private(set) var downBytesPerSecond: Double = 0
+    public private(set) var upBytesPerSecond: Double = 0
+    public let menuBarRateDidChange = PassthroughSubject<Void, Never>()
+
     // Published state
-    @Published public private(set) var downBytesPerSecond: Double = 0
-    @Published public private(set) var upBytesPerSecond: Double = 0
     @Published public private(set) var rows: [UsageRow] = []
     @Published public private(set) var systemRows: [UsageRow] = []
     @Published public private(set) var systemTotal: Int64 = 0
@@ -44,6 +63,9 @@ public final class MonitorViewModel: ObservableObject {
     @Published public var expandedApps: Set<String> = []
 
     public let store: UsageStore
+    /// Hotspot metering. Owned here because it has to react to exactly the same
+    /// network changes the totals do, and this is where those arrive.
+    public let metering: MeteringController
 
     private let identityResolver = AppIdentityResolver()
     private let nettop: NettopStream
@@ -85,8 +107,10 @@ public final class MonitorViewModel: ObservableObject {
     @Published public private(set) var profile: PowerProfile = .performance
     private var powerToken: Any?
 
-    public init(store: UsageStore = UsageStore()) {
+    public init(store: UsageStore = UsageStore(),
+                metering: MeteringController? = nil) {
         self.store = store
+        self.metering = metering ?? MeteringController(store: store)
         self.dayStart = store.dayStart
         self.countingSince = store.countingSince
         let profile = PowerProfile.forPowerSource(onACPower: PowerSource.isOnACPower)
@@ -105,6 +129,11 @@ public final class MonitorViewModel: ObservableObject {
         // Adopt whatever the watcher already knows so the first tick has a bucket.
         store.setCurrentNetwork(pathWatcher.fingerprint)
         refreshHeader()
+
+        // After the store has a current network, so the first evaluation judges
+        // the connection actually in use rather than `.offline`. `start()`
+        // replays any journal left by the previous run before deciding.
+        metering.start()
 
         nettop.onSample = { [weak self] sample in
             self?.handleNettopSample(sample)
@@ -136,6 +165,11 @@ public final class MonitorViewModel: ObservableObject {
         powerToken = nil
         nettop.stop()
         pathWatcher.stop()
+        // Suppression is deliberately *not* lifted on quit. Quitting the app is
+        // not the same as saying "resume updating" — the user may be quitting to
+        // save battery mid-hotspot — and the journal is what makes leaving it in
+        // place safe: the next launch replays it, and `uninstall.sh` reverts it.
+        metering.stop()
         store.save()
     }
 
@@ -210,22 +244,21 @@ public final class MonitorViewModel: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
 
-            // Publish only what actually changed. `@Published` fires on
-            // *assignment*, not on difference, and every fire invalidates the
-            // SwiftUI popover — which its hosting controller then re-lays out even
-            // while closed, because `sizingOptions` keeps it measured. Sampling an
-            // idle app found that layout to be its single largest cost: the
-            // rendering itself is only 0.146 ms, but the invalidation it rode in on
-            // was not.
+            // Notify only when the title actually changes. What this now saves is
+            // the menu bar redraw itself — rendering the `NSImage` and handing the
+            // new one to the status item, which costs an IPC round trip to
+            // WindowServer per change. The popover no longer enters into it: see
+            // `downBytesPerSecond` for why those are not `@Published`.
             //
             // The rendered title is the honest key. Two different rates that format
-            // to the same two lines produce a byte-identical image, and on an idle
-            // machine every tick formats to "0 B/s".
+            // to the same two lines produce a byte-identical image, so comparing
+            // strings rather than Doubles is what makes the guard bite at all.
             let rendered = MenuBarTitle.string(down: down, up: up)
             if rendered != self.renderedTitle {
                 self.renderedTitle = rendered
                 self.downBytesPerSecond = down
                 self.upBytesPerSecond = up
+                self.menuBarRateDidChange.send()
             }
 
             self.store.recordInterface(bytesIn: delta.bytesIn, bytesOut: delta.bytesOut)
@@ -360,12 +393,18 @@ public final class MonitorViewModel: ObservableObject {
             self?.lastSampleTime = MonotonicClock.now()
         }
         refreshHeader()
+        // After the store has adopted the new fingerprint, so the verdict is
+        // computed against the network just joined.
+        metering.networkDidChange()
         if popoverIsOpen { rebuildRows(now: Date()) }
     }
 
     public func refreshHeader() {
         let bucket = store.currentBucket
-        isExpensiveNetwork = store.currentNetwork.isExpensive
+        // The badge follows the metering verdict, not `isExpensive` alone, so a
+        // USB tether or an unrecognised phone reads as metered in the popover
+        // for the same reason it does to the suppressors.
+        isExpensiveNetwork = metering.verdict.isMetered
         totalBytesIn = bucket.internetBytesIn
         totalBytesOut = bucket.internetBytesOut
         dayStart = store.dayStart

@@ -127,10 +127,15 @@ struct PersistedState: Codable {
     /// relaunch on the same network resumes its counter instead of reading as a
     /// switch and wiping it. Optional, so an older store still decodes.
     var lastNetworkID: String?
+    /// Fingerprint id → the user's own metered decision, overriding the
+    /// heuristic in whichever direction they chose. Held here rather than on the
+    /// bucket so that resetting a network's totals does not also discard what
+    /// the user said about it. Optional, so an older store still decodes.
+    var meteredOverrides: [String: Bool]?
 
     static func empty(now: Date = Date(), calendar: Calendar = .current) -> PersistedState {
         PersistedState(dayStart: calendar.startOfDay(for: now), labels: [:], buckets: [:],
-                       lastNetworkID: nil)
+                       lastNetworkID: nil, meteredOverrides: [:])
     }
 }
 
@@ -421,6 +426,31 @@ public final class UsageStore {
         } else {
             state.labels[id] = trimmed
         }
+        dirty = true
+        save()
+    }
+
+    // MARK: Metered override
+
+    /// The user's own decision about a network, if they have made one.
+    ///
+    /// `nil` is not "unmetered" — it means the heuristic decides. The three-state
+    /// answer is what lets someone mark a capped home line as metered *and* mark
+    /// a misdetected office network as not.
+    public func meteredOverride(for id: String) -> Bool? {
+        state.meteredOverrides?[id]
+    }
+
+    public var currentMeteredOverride: Bool? { meteredOverride(for: currentNetwork.id) }
+
+    public func setMeteredOverride(_ value: Bool?, for id: String) {
+        var overrides = state.meteredOverrides ?? [:]
+        if let value {
+            overrides[id] = value
+        } else {
+            overrides.removeValue(forKey: id)
+        }
+        state.meteredOverrides = overrides
         dirty = true
         save()
     }

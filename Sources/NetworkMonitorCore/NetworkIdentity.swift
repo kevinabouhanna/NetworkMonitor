@@ -35,19 +35,43 @@ public struct NetworkFingerprint: Equatable {
     public let isExpensive: Bool
     /// From `NWPath.isConstrained` — macOS Low Data Mode.
     public let isConstrained: Bool
+    /// Default gateway's IPv4 address, which `MeteredHeuristic` reads as a
+    /// tethering signal. Already resolved on the way to the gateway MAC, so it
+    /// costs nothing extra to keep.
+    public let gatewayIP: String?
+    /// Localised name of the interface carrying the default route — `"Wi-Fi"`,
+    /// `"iPhone USB"`. The last automatic tethering signal.
+    public let interfaceDisplayName: String?
+
+    /// Everything `MeteredHeuristic` needs except the user's own decision, which
+    /// lives in the store and is deliberately **not** part of the fingerprint:
+    /// were it here, toggling the override would change the fingerprint, which
+    /// §4.2 reads as joining a different network and answers by wiping the
+    /// bucket. Marking a network metered must not delete its history.
+    public var signals: MeteredHeuristic.Signals {
+        MeteredHeuristic.Signals(userOverride: nil,
+                                 isExpensive: isExpensive,
+                                 isConstrained: isConstrained,
+                                 gatewayIP: gatewayIP,
+                                 interfaceDisplayName: interfaceDisplayName)
+    }
 
     public init(id: String,
                 kind: Kind,
                 gatewayMAC: String?,
                 defaultLabel: String,
                 isExpensive: Bool,
-                isConstrained: Bool) {
+                isConstrained: Bool,
+                gatewayIP: String? = nil,
+                interfaceDisplayName: String? = nil) {
         self.id = id
         self.kind = kind
         self.gatewayMAC = gatewayMAC
         self.defaultLabel = defaultLabel
         self.isExpensive = isExpensive
         self.isConstrained = isConstrained
+        self.gatewayIP = gatewayIP
+        self.interfaceDisplayName = interfaceDisplayName
     }
 
     public static let offline = NetworkFingerprint(
@@ -58,7 +82,9 @@ public struct NetworkFingerprint: Equatable {
                      gatewayMAC: String?,
                      interfaceName: String?,
                      isExpensive: Bool,
-                     isConstrained: Bool) -> NetworkFingerprint {
+                     isConstrained: Bool,
+                     gatewayIP: String? = nil,
+                     interfaceDisplayName: String? = nil) -> NetworkFingerprint {
         // Keying on the gateway MAC alone (not MAC + medium) means moving the
         // same router from Wi-Fi to Ethernet keeps one bucket, which is what a
         // data cap cares about.
@@ -93,7 +119,9 @@ public struct NetworkFingerprint: Equatable {
                                   gatewayMAC: gatewayMAC,
                                   defaultLabel: label,
                                   isExpensive: isExpensive,
-                                  isConstrained: isConstrained)
+                                  isConstrained: isConstrained,
+                                  gatewayIP: gatewayIP,
+                                  interfaceDisplayName: interfaceDisplayName)
     }
 }
 
@@ -145,9 +173,34 @@ public final class NetworkIdentityWatcher {
     static func fingerprint(for path: NWPath) -> NetworkFingerprint {
         guard path.status == .satisfied else { return .offline }
 
+        // The interface carrying the default route, ignoring tunnels: a VPN's
+        // utun is not the network you are *on*.
+        let interfaceName = path.availableInterfaces.first {
+            $0.type == .wifi || $0.type == .wiredEthernet || $0.type == .cellular
+        }?.name
+
+        // Resolved once and threaded through: `GatewayProbe.macAddress()` needs
+        // the gateway IP anyway, and the heuristic reads it as a tethering
+        // signal, so asking `route` twice would buy nothing.
+        let gatewayIP = GatewayProbe.defaultGatewayIP()
+        let gatewayMAC = gatewayIP.flatMap(GatewayProbe.macAddress(forGateway:))
+        let displayName = interfaceName.flatMap(InterfaceNaming.displayName(forBSDName:))
+
+        let signals = MeteredHeuristic.Signals(userOverride: nil,
+                                               isExpensive: path.isExpensive,
+                                               isConstrained: path.isConstrained,
+                                               gatewayIP: gatewayIP,
+                                               interfaceDisplayName: displayName)
+
+        // `kind` follows the heuristic rather than `isExpensive` alone. The old
+        // ordering tested `isExpensive` first and fell through to `.ethernet`
+        // for anything unflagged, which classified iPhone USB tethering — an
+        // Ethernet-type interface — as a wired network, badge and all.
+        //
+        // The override is not consulted here: `kind` is part of the identity and
+        // has to stay stable while the user changes their mind about it.
         let kind: NetworkFingerprint.Kind
-        if path.isExpensive {
-            // Personal Hotspot and cellular both surface as expensive.
+        if MeteredHeuristic.verdict(for: signals).isMetered {
             kind = .hotspot
         } else if path.usesInterfaceType(.wiredEthernet) {
             kind = .ethernet
@@ -157,17 +210,13 @@ public final class NetworkIdentityWatcher {
             kind = .other
         }
 
-        // The interface carrying the default route, ignoring tunnels: a VPN's
-        // utun is not the network you are *on*.
-        let interfaceName = path.availableInterfaces.first {
-            $0.type == .wifi || $0.type == .wiredEthernet || $0.type == .cellular
-        }?.name
-
         return .make(kind: kind,
-                     gatewayMAC: GatewayProbe.macAddress(),
+                     gatewayMAC: gatewayMAC,
                      interfaceName: interfaceName,
                      isExpensive: path.isExpensive,
-                     isConstrained: path.isConstrained)
+                     isConstrained: path.isConstrained,
+                     gatewayIP: gatewayIP,
+                     interfaceDisplayName: displayName)
     }
 }
 
@@ -180,7 +229,15 @@ public enum GatewayProbe {
 
     public static func macAddress() -> String? {
         guard let gateway = defaultGatewayIP() else { return nil }
+        return macAddress(forGateway: gateway)
+    }
 
+    /// As `macAddress()`, for a gateway IP the caller has already resolved.
+    ///
+    /// `fingerprint(for:)` needs the IP in its own right — it is one of the
+    /// tethering signals — so this exists to keep it from shelling out to
+    /// `route` a second time for an answer it is already holding.
+    public static func macAddress(forGateway gateway: String) -> String? {
         // The ARP entry can be missing for a moment right after association,
         // even though the gateway is reachable. Retry briefly rather than
         // fingerprinting the network as unknown.

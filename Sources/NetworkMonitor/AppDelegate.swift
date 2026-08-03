@@ -64,11 +64,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func observeTitle() {
-        // Republish on either rate changing; the model already throttles to the
-        // 0.5 s sampler so this cannot outpace the display.
-        titleObserver = model.$downBytesPerSecond
-            .combineLatest(model.$upBytesPerSecond)
-            .receive(on: RunLoop.main)
+        // One signal for the pair, raised only when the rendered title changes and
+        // already on the main queue when it arrives. That removes the
+        // `combineLatest` that re-paired two publishers which never moved
+        // independently, and the `receive(on:)` hop that was load-bearing only
+        // because `@Published` fires in `willSet`. See
+        // `MonitorViewModel.downBytesPerSecond`.
+        titleObserver = model.menuBarRateDidChange
             .sink { [weak self] _ in self?.applyTitle() }
     }
 
@@ -92,6 +94,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // frame: opening on the empty state and having the app rows arrive a moment
         // later left the list clipped to the empty state's height.
         host.sizingOptions = [.preferredContentSize]
+        // Assigning the controller is itself what measures it, and that is worth
+        // knowing rather than assuming: the setter loads the view, so with
+        // `sizingOptions` set first, `preferredContentSize` is already populated on
+        // the line after this one. Probed directly on a six-row stand-in —
+        // `isViewLoaded` true and (284, 160) reported before any layout was
+        // requested, unchanged by a following `layoutSubtreeIfNeeded()`.
+        //
+        // The ordering therefore matters and the absence of a forced layout does
+        // not. It also means the first show does not depend on anything having
+        // invalidated this view tree beforehand — which it no longer does, now that
+        // the rates are not `@Published` (see `MonitorViewModel.downBytesPerSecond`).
         popover.contentViewController = host
     }
 

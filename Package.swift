@@ -20,12 +20,28 @@ let package = Package(
             dependencies: ["NetworkMonitorCore"],
             path: "Sources/NetworkMonitor"
         ),
+        // The privileged half of hotspot metering: the only part that runs as
+        // root, and deliberately the smallest thing in the package. It links
+        // nothing from NetworkMonitorCore — a root binary should not carry a
+        // menu bar app's dependencies — and its whole vocabulary is four verbs.
+        // Pure Foundation, no dependencies, so both the root helper and the
+        // test suite can use it. /etc/hosts is machine-wide infrastructure and
+        // the code that edits it needs tests more than it needs to be inline.
+        .target(
+            name: "HostsFile",
+            path: "Sources/HostsFile"
+        ),
+        .executableTarget(
+            name: "NetworkMonitorHelper",
+            dependencies: ["HostsFile"],
+            path: "Sources/NetworkMonitorHelper"
+        ),
         // An executable, not a .testTarget: neither XCTest nor swift-testing is
         // available with Command Line Tools alone (both ship inside Xcode), so
         // `swift test` cannot run here. Run with `swift run NetworkMonitorTests`.
         .executableTarget(
             name: "NetworkMonitorTests",
-            dependencies: ["NetworkMonitorCore"],
+            dependencies: ["NetworkMonitorCore", "HostsFile"],
             path: "Sources/NetworkMonitorTests"
         ),
     ]
