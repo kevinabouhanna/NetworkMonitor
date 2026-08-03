@@ -69,7 +69,7 @@ public final class PreferenceSuppressor: UpdateSuppressor {
         // user-level file overrides the system one. Verified by reading the
         // asar: a plain `defaults write` is all it takes, so Figma needs no
         // endpoint blocking and no privileges.
-        if FileManager.default.fileExists(atPath: "/Applications/Figma.app") {
+        if ApplicationSearch.isInstalled(bundleIdentifier: "com.figma.Desktop") {
             found.append(Target(displayName: "Figma",
                                 domain: "com.figma.Desktop",
                                 key: "DisableUpdater",
@@ -83,7 +83,9 @@ public final class PreferenceSuppressor: UpdateSuppressor {
         // which was the original approach and is recorded as rejected in §9:
         // touching launchd churns the Login Items list, and this feature has no
         // business putting anything there.
-        if FileManager.default.fileExists(atPath: "/Applications/Google Chrome.app") {
+        // Detected by the browser's own identifier; suppressed through Keystone's,
+        // which is a separate component with no bundle of its own.
+        if ApplicationSearch.isInstalled(bundleIdentifier: "com.google.Chrome") {
             found.append(Target(displayName: "Google Chrome",
                                 domain: "com.google.Keystone.Agent",
                                 key: "checkInterval",

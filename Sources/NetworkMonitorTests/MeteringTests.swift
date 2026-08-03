@@ -261,6 +261,18 @@ func runPreferenceSuppressorTests() {
         let domain = "com.kevinabouhanna.NetworkMonitor.tests"
         let key = "SUEnableAutomaticChecks"
 
+        // Detection has to find an app wherever it is installed, not only in
+        // /Applications — the Sparkle scan already covers ~/Applications, and the
+        // named checks used to disagree with it.
+        Check.test("an installed app is found by identifier, wherever it lives") {
+            Check.expectTrue(
+                ApplicationSearch.isInstalled(bundleIdentifier: "com.apple.finder"),
+                "Finder is installed on every Mac")
+            Check.expectFalse(
+                ApplicationSearch.isInstalled(
+                    bundleIdentifier: "com.example.not.installed.anywhere"))
+        }
+
         Check.test("a value round-trips through CFPreferences") {
             suppressor.write(.bool(false), domain: domain, key: key)
             Check.expectEqual(suppressor.read(domain: domain, key: key), .bool(false))

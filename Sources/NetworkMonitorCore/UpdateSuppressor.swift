@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// One updater this app can reach, as shown in the coverage list.
@@ -118,6 +119,25 @@ public enum ApplicationSearch {
 
     public static func bundleIdentifier(at bundleURL: URL) -> String? {
         Bundle(url: bundleURL)?.bundleIdentifier
+    }
+
+    /// Whether an application is installed, found by bundle identifier rather
+    /// than by guessing where it lives.
+    ///
+    /// The named targets used to test a literal `/Applications/<Name>.app`, which
+    /// made them blind to `~/Applications` — a directory `bundles()` immediately
+    /// above already searches. So on a Mac where Chrome or Figma lived in the
+    /// home folder, the Sparkle scan found that machine's apps and the named
+    /// checks quietly did not. LaunchServices knows every install location, and
+    /// asking it costs one lookup instead of a directory walk.
+    ///
+    /// The answer is checked against the filesystem because LaunchServices will
+    /// keep naming an application that has since been deleted.
+    public static func isInstalled(bundleIdentifier: String) -> Bool {
+        guard let url = NSWorkspace.shared
+            .urlForApplication(withBundleIdentifier: bundleIdentifier)
+        else { return false }
+        return FileManager.default.fileExists(atPath: url.path)
     }
 
     public static func displayName(at bundleURL: URL) -> String {
