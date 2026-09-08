@@ -67,10 +67,11 @@ public struct NettopParser {
 
     /// Feeds raw stdout text and returns any samples completed by it.
     ///
-    /// A sample is emitted when the *next* sample's header arrives, which is the
-    /// only unambiguous boundary in the stream. That costs up to one second of
-    /// latency on the app list; the menu bar rate comes from interface counters
-    /// and is unaffected.
+    /// A header closes the sample before it — the only boundary the stream itself
+    /// marks. On its own that is a whole sample interval of latency, because the
+    /// rows for the second just gone sit here until the *next* second's header
+    /// arrives; `NettopStream` closes them early instead and this path is the
+    /// fallback. See `closeOnQuiet` for why the early close is safe.
     public mutating func consume(_ text: String) -> [[NettopRow]] {
         buffer += text
         var samples: [[NettopRow]] = []
@@ -141,6 +142,28 @@ public struct NettopParser {
 
     /// Emits whatever is buffered, for use when the stream ends.
     public mutating func flush() -> [NettopRow]? { closeSample() }
+
+    /// Closes the pending sample early, once the stream has fallen quiet.
+    ///
+    /// Safe because a sample is written as one burst: measured against nettop on
+    /// macOS 26, every row of a sample lands within the same millisecond and the
+    /// next sample is a full second behind it. So silence *is* the boundary, and
+    /// waiting for the next header only serves to publish figures a second after
+    /// they were true.
+    ///
+    /// Refuses while a line is half-delivered. Closing there would strand the
+    /// connection rows that follow — `foldConnection` attaches them to the
+    /// process row above, and with nothing pending they would be dropped, which
+    /// silently counts a LAN transfer as internet traffic. The caller falls back
+    /// to the header boundary in that case, which costs latency and nothing else.
+    public mutating func closeOnQuiet() -> [NettopRow]? {
+        guard !hasPartialLine else { return nil }
+        return closeSample()
+    }
+
+    /// True when the last chunk ended mid-line, so more of this sample is still
+    /// in flight.
+    public var hasPartialLine: Bool { !buffer.isEmpty }
 
     private mutating func closeSample() -> [NettopRow]? {
         defer { pending = [] }

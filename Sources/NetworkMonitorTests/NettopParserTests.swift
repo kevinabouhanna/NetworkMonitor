@@ -200,4 +200,58 @@ func runNettopParserTests() {
             Check.expectEqual(samples.first?.map(\.pid) ?? [], [1532, 1578, 63144])
         }
     }
+
+    /// The stream never marks the end of a sample, only the start of the next
+    /// one, so waiting for a header published every app figure a whole sample
+    /// interval after it was true. `NettopStream` closes on silence instead.
+    Check.suite("NettopParser — closing a sample on silence") {
+
+        Check.test("a complete sample closes without waiting for the next header") {
+            var parser = NettopParser()
+            _ = parser.consume("time,,bytes_in,bytes_out,\n02:21:31,proc.1,999,999,\n")
+            Check.expectTrue(parser.closeOnQuiet() == nil, "the priming sample is dropped")
+
+            _ = parser.consume("time,,bytes_in,bytes_out,\n02:21:32,proc.1,42,42,\n")
+            Check.expectEqual(parser.closeOnQuiet()?.first?.bytesIn, 42)
+        }
+
+        // Closing mid-line would strand the connection rows that follow, and
+        // `foldConnection` attaches those to the process row above — with nothing
+        // pending they are dropped, and LAN bytes get counted as internet.
+        Check.test("refuses while a line is half-delivered") {
+            var parser = NettopParser()
+            _ = parser.consume("time,,a,b,\n02:21:31,proc.1,9,9,\ntime,,a,b,\n")
+            _ = parser.consume("02:21:32,proc.1,50,50,\n02:21:32,tcp4 10.0.0.2:1<->10.0.0")
+
+            Check.expectTrue(parser.hasPartialLine)
+            Check.expectTrue(parser.closeOnQuiet() == nil)
+
+            // The rest arrives; the LAN row is folded into its parent, and only
+            // then may the sample close.
+            _ = parser.consume(".3:445,20,20,\n")
+            let sample = parser.closeOnQuiet()
+            Check.expectEqual(sample?.count, 1)
+            Check.expectEqual(sample?.first?.internetBytesIn, 30)
+        }
+
+        // Whichever boundary comes first wins; the other must find nothing left.
+        Check.test("a sample closed on silence is not published twice") {
+            var parser = NettopParser()
+            _ = parser.consume("time,,a,b,\n02:21:31,proc.1,9,9,\n")
+            _ = parser.closeOnQuiet()
+            _ = parser.consume("time,,a,b,\n02:21:32,proc.1,42,42,\n")
+            Check.expectEqual(parser.closeOnQuiet()?.first?.bytesIn, 42)
+
+            // The next header arrives with the sample already gone.
+            Check.expectTrue(parser.consume("time,,a,b,\n").isEmpty)
+            Check.expectTrue(parser.closeOnQuiet() == nil)
+        }
+
+        Check.test("silence with nothing pending yields nothing") {
+            var parser = NettopParser()
+            Check.expectTrue(parser.closeOnQuiet() == nil)
+            _ = parser.consume("time,,a,b,\n")
+            Check.expectTrue(parser.closeOnQuiet() == nil)
+        }
+    }
 }

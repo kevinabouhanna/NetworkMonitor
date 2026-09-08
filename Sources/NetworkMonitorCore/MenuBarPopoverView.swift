@@ -38,6 +38,17 @@ public struct MenuBarPopoverView: View {
                                systemExpanded: model.systemExpanded)
     }
 
+    /// What the reorder animation watches: the order itself, nothing else.
+    ///
+    /// The list is rebuilt from scratch on every sample, so there is no
+    /// transaction for `withAnimation` to attach to — the animation has to hang
+    /// off a value, exactly as each bar's width does. Comparing ids and not rows
+    /// is what keeps it honest: a row whose figure merely ticked up redraws in
+    /// place, and only an app actually overtaking another makes the list move.
+    private var rowOrderKey: [String] {
+        model.rows.map(\.id)
+    }
+
     private var expandedChildRows: Int {
         model.rows
             .filter { model.expandedApps.contains($0.id) }
@@ -112,6 +123,11 @@ public struct MenuBarPopoverView: View {
                 if !model.systemRows.isEmpty { systemSection }
             }
             .padding(.vertical, PopoverMetrics.listVerticalPadding / 2)
+            // Applied here rather than to the ScrollView so it animates the rows
+            // sliding past each other and never the frame below, which sets the
+            // popover's size — animating that would re-anchor the window on every
+            // overtake. See `PopoverMetrics.maxListHeight`.
+            .animation(.easeInOut(duration: 0.3), value: rowOrderKey)
         }
         .frame(height: listHeight)
         // Stated, not inferred. Left to AppKit, a list that exactly fits its

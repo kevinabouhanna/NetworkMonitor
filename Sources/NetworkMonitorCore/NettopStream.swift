@@ -53,6 +53,24 @@ public final class NettopStream {
     /// Seconds between samples, from `PowerProfile`.
     private var sampleInterval = 1
 
+    /// Silence after the last byte of a sample before that sample is published.
+    ///
+    /// The stream marks the *start* of each sample with a header and never marks
+    /// the end, so the obvious boundary — the next header — arrives one whole
+    /// sample interval late. Every app figure in the popover was therefore a
+    /// second older than the data already sitting in this process, which is what
+    /// made a downloading app look like it was not moving.
+    ///
+    /// A quiet window closes the sample on the evidence instead. Measured against
+    /// nettop on macOS 26 at `-s 1`, a sample's ~30 writes all land inside the
+    /// same millisecond and the next sample follows 1.000 s later: the gap this
+    /// has to distinguish is three orders of magnitude wide, so 120 ms sits
+    /// nowhere near either edge while still being imperceptible.
+    private static let quietWindow: DispatchTimeInterval = .milliseconds(120)
+    /// The pending early close, rescheduled by every read and cancelled on
+    /// teardown so a dead child's sample cannot surface after its replacement's.
+    private var quietFlush: DispatchWorkItem?
+
     /// Called on an internal queue with each completed sample.
     public var onSample: (([NettopRow]) -> Void)?
     /// Called when the subprocess cannot be kept alive.
@@ -298,9 +316,12 @@ public final class NettopStream {
             let bytes = buffer[0..<count].filter { $0 != 0x0D }
             guard let text = String(bytes: bytes, encoding: .utf8) else { return }
             for sample in parser.consume(text) {
-                restartDelay = 1   // a real sample proves the stream is healthy
-                onSample?(sample)
+                deliver(sample)
             }
+            // Whatever is still pending is a sample nettop has finished writing;
+            // publish it as soon as the stream falls quiet rather than holding it
+            // for the next header. See `quietWindow`.
+            scheduleQuietFlush()
             return
         }
 
@@ -310,6 +331,27 @@ public final class NettopStream {
         handleTermination()
     }
 
+    private func deliver(_ sample: [NettopRow]) {
+        restartDelay = 1   // a real sample proves the stream is healthy
+        onSample?(sample)
+    }
+
+    /// Arms the early close, replacing any close already armed.
+    ///
+    /// Rescheduling rather than letting the first one stand is what makes the
+    /// window mean "quiet since the last byte" instead of "quiet since the first
+    /// byte", so a sample split across reads is still closed whole.
+    private func scheduleQuietFlush() {
+        quietFlush?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.stopping else { return }
+            self.quietFlush = nil
+            if let sample = self.parser.closeOnQuiet() { self.deliver(sample) }
+        }
+        quietFlush = work
+        queue.asyncAfter(deadline: .now() + Self.quietWindow, execute: work)
+    }
+
     private func handleTermination() {
         guard !stopping else { return }
         teardown()
@@ -317,6 +359,8 @@ public final class NettopStream {
     }
 
     private func teardown() {
+        quietFlush?.cancel()
+        quietFlush = nil
         readSource?.cancel()   // cancel handler closes masterFD
         readSource = nil
         masterFD = -1

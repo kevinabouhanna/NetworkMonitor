@@ -274,93 +274,53 @@ func runUsageRowPartitionTests() {
     }
 }
 
-func runRowOrderTests() {
-    Check.suite("RowOrder — frozen while the popover is open") {
+/// The list is re-sorted from scratch on every sample, so an app that overtakes
+/// another moves past it while the popover is open. It used to be frozen at the
+/// order captured when the popover opened, which left an app downloading hard
+/// sitting below apps a hundredth its size for as long as you watched it.
+func runLiveOrderTests() {
+    Check.suite("Ordering — live, on every rebuild") {
 
-        Check.test("the first pass sorts biggest first") {
-            var order = RowOrder()
-            let result = order.apply(to: [row("b", 50), row("a", 900), row("c", 100)])
-            Check.expectEqual(result.map(\.id), ["a", "c", "b"])
+        Check.test("a row overtaking another moves past it") {
+            let before = UsageRow.partition(
+                apps: ["a": totals("a", 900, 0), "b": totals("b", 50, 0)],
+                lastActivity: [:], now: Date())
+            Check.expectEqual(before.apps.map(\.id), ["a", "b"])
+
+            // "b" balloons past "a" between one sample and the next.
+            let after = UsageRow.partition(
+                apps: ["a": totals("a", 900, 0), "b": totals("b", 5_000, 0)],
+                lastActivity: [:], now: Date())
+            Check.expectEqual(after.apps.map(\.id), ["b", "a"])
         }
 
-        /// The whole point. Without this, a row you are reaching for slides away
-        /// as another app overtakes it mid-click.
-        Check.test("a row overtaking another does not move") {
-            var order = RowOrder()
-            _ = order.apply(to: [row("a", 900), row("c", 100), row("b", 50)])
-
-            // "b" balloons past both others; the displayed order must not change.
-            let after = order.apply(to: [row("a", 900), row("c", 100), row("b", 5000)])
-            Check.expectEqual(after.map(\.id), ["a", "c", "b"])
+        Check.test("a row appearing is slotted in by size, not appended") {
+            let after = UsageRow.partition(
+                apps: ["a": totals("a", 900, 0), "b": totals("b", 100, 0),
+                       "new": totals("new", 99_999, 0)],
+                lastActivity: [:], now: Date())
+            Check.expectEqual(after.apps.map(\.id), ["new", "a", "b"])
         }
 
-        Check.test("a row appearing later is appended, not slotted in") {
-            var order = RowOrder()
-            _ = order.apply(to: [row("a", 900), row("b", 100)])
-
-            // Big enough to sort first, but it must not push the others down.
-            let after = order.apply(to: [row("a", 900), row("b", 100), row("new", 99_999)])
-            Check.expectEqual(after.map(\.id), ["a", "b", "new"])
+        Check.test("system rows re-sort live too") {
+            let after = UsageRow.partition(
+                apps: ["mDNSResponder": totals("mDNSResponder", 10, 0, system: true),
+                       "nsurlsessiond": totals("nsurlsessiond", 900, 0, system: true)],
+                lastActivity: [:], now: Date())
+            Check.expectEqual(after.system.map(\.id), ["nsurlsessiond", "mDNSResponder"])
         }
 
-        Check.test("several new rows are appended in size order") {
-            var order = RowOrder()
-            _ = order.apply(to: [row("a", 900)])
-            let after = order.apply(to: [row("a", 900), row("small", 10), row("large", 500)])
-            Check.expectEqual(after.map(\.id), ["a", "large", "small"])
-        }
-
-        /// Once appended, a new row has been drawn on screen — so from the next
-        /// rebuild on it is subject to the same freeze as everything else.
-        Check.test("an appended row keeps its slot afterwards") {
-            var order = RowOrder()
-            _ = order.apply(to: [row("a", 900), row("b", 100)])
-            _ = order.apply(to: [row("a", 900), row("b", 100), row("new", 10)])
-
-            let after = order.apply(to: [row("a", 900), row("b", 100), row("new", 99_999)])
-            Check.expectEqual(after.map(\.id), ["a", "b", "new"])
-        }
-
-        Check.test("a row disappearing leaves the survivors in order") {
-            var order = RowOrder()
-            _ = order.apply(to: [row("a", 900), row("b", 500), row("c", 100)])
-            let after = order.apply(to: [row("a", 900), row("c", 100)])
-            Check.expectEqual(after.map(\.id), ["a", "c"])
-        }
-
-        /// Closing and reopening the popover is when a re-sort is expected and
-        /// wanted — nothing is under the pointer at that moment.
-        Check.test("reset re-sorts by size again") {
-            var order = RowOrder()
-            _ = order.apply(to: [row("a", 900), row("b", 50)])
-            order.reset()
-
-            let after = order.apply(to: [row("a", 900), row("b", 5000)])
-            Check.expectEqual(after.map(\.id), ["b", "a"])
-        }
-
-        Check.test("repeated passes with unchanged input are stable") {
-            var order = RowOrder()
-            let rows = [row("a", 900), row("b", 500), row("c", 100)]
-            let first = order.apply(to: rows)
+        /// Totals only ever grow, so a crossing happens once and the row settles.
+        /// Repeated rebuilds on unchanged figures must not shuffle anything, or
+        /// the animation would twitch every sample.
+        Check.test("repeated rebuilds with unchanged input are stable") {
+            let apps = ["a": totals("a", 900, 0), "b": totals("b", 500, 0),
+                        "c": totals("c", 100, 0)]
+            let first = UsageRow.partition(apps: apps, lastActivity: [:], now: Date())
             for _ in 0..<10 {
-                Check.expectEqual(order.apply(to: rows).map(\.id), first.map(\.id))
+                let again = UsageRow.partition(apps: apps, lastActivity: [:], now: Date())
+                Check.expectEqual(again.apps.map(\.id), first.apps.map(\.id))
             }
-        }
-
-        Check.test("an empty list is handled") {
-            var order = RowOrder()
-            Check.expectTrue(order.apply(to: []).isEmpty)
-            Check.expectEqual(order.apply(to: [row("a", 1)]).map(\.id), ["a"])
-        }
-
-        // A fresh RowOrder must not inherit anything from another instance.
-        Check.test("two orders are independent") {
-            var first = RowOrder()
-            var second = RowOrder()
-            _ = first.apply(to: [row("a", 10), row("b", 900)])
-            let result = second.apply(to: [row("a", 10), row("b", 900)])
-            Check.expectEqual(result.map(\.id), ["b", "a"])
         }
     }
 }

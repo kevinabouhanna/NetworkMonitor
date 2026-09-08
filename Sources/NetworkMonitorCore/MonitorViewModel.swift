@@ -88,9 +88,6 @@ public final class MonitorViewModel: ObservableObject {
     /// beyond accumulation.
     private var popoverIsOpen = false
 
-    /// Row order captured when the popover opens. See `RowOrder`.
-    private var rowOrder = RowOrder()
-
     /// pids seen in the latest nettop sample, for pid-reuse cache eviction.
     private var lastSeenPIDs: Set<Int32> = []
 
@@ -349,9 +346,6 @@ public final class MonitorViewModel: ObservableObject {
     /// in a second later.
     public func setPopoverOpen(_ open: Bool) {
         popoverIsOpen = open
-        // Re-sort fresh on each open, and drop the captured order on close so a
-        // reopen reflects whatever accumulated in between.
-        rowOrder.reset()
         expandedApps.removeAll()
         if open {
             refreshHeader()
@@ -366,7 +360,7 @@ public final class MonitorViewModel: ObservableObject {
                                              lastActivity: lastActivity,
                                              now: now,
                                              activityWindow: profile.activityWindow)
-        rows = rowOrder.apply(to: partitioned.apps)
+        rows = partitioned.apps
         systemRows = partitioned.system
         systemTotal = partitioned.systemTotal
     }
@@ -377,11 +371,9 @@ public final class MonitorViewModel: ObservableObject {
         // Joining a different network restarts its counter; an offline blip and
         // a rejoin resume the same one. The store decides which happened.
         if store.setCurrentNetwork(fingerprint) {
-            // These describe the network just left. Kept, the popover would open
-            // showing "active now" dots for apps whose bytes have been wiped, and
-            // hold a row order captured for rows that no longer exist.
+            // Describes the network just left. Kept, the popover would open
+            // showing "active now" dots for apps whose bytes have been wiped.
             lastActivity.removeAll()
-            rowOrder.reset()
             expandedApps.removeAll()
         }
         // Interface counters are per-interface lifetime values; a link change
@@ -416,7 +408,6 @@ public final class MonitorViewModel: ObservableObject {
     public func resetCurrentNetwork() {
         store.resetCurrentNetwork()
         lastActivity.removeAll()
-        rowOrder.reset()
         expandedApps.removeAll()
         refreshHeader()
         rebuildRows(now: Date())

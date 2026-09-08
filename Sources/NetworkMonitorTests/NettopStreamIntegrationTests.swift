@@ -30,7 +30,48 @@ func runNettopStreamIntegrationTests() {
             Check.skip("the stream does not burn a core", "needs a live subprocess")
             Check.skip("changing the sample interval leaves exactly one nettop",
                        "needs a live subprocess")
+            Check.skip("a sample is published without waiting for the next header",
+                       "needs live traffic")
             return
+        }
+
+        /// Pins the latency of the app list, which is what the popover's
+        /// ordering and bars are drawn from.
+        ///
+        /// nettop emits a header before each sample and nothing after the last
+        /// row, so closing a sample on the following header — the only marker in
+        /// the stream — held every figure for a further whole interval: the
+        /// priming block lands at ~0.03 s, the first real one at ~1.03 s, and its
+        /// closing header only at ~2.03 s. Closing on silence instead publishes
+        /// it at ~1.15 s. The bound below sits between those two, so a return to
+        /// header-framing fails here rather than being noticed as sluggishness.
+        Check.test("a sample is published without waiting for the next header") {
+            let stream = NettopStream()
+            let ready = DispatchSemaphore(value: 0)
+            let lock = NSLock()
+            var elapsed: TimeInterval?
+
+            let start = Date()
+            stream.onSample = { _ in
+                lock.lock()
+                if elapsed == nil {
+                    elapsed = Date().timeIntervalSince(start)
+                    lock.unlock()
+                    ready.signal()
+                } else {
+                    lock.unlock()
+                }
+            }
+            stream.start()
+            _ = ready.wait(timeout: .now() + 8)
+            stream.stop()
+
+            lock.lock(); let first = elapsed; lock.unlock()
+            Check.expectNotNil(first, "no sample arrived")
+            guard let first else { return }
+            Check.expectTrue(first < 1.7,
+                             "first sample took \(String(format: "%.2f", first)) s — "
+                             + "that is the next header's arrival, not the sample's end")
         }
 
         Check.test("delivers a sample within 8 seconds") {
