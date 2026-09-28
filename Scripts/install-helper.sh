@@ -116,7 +116,7 @@ rollback_helper() {
 # ------------------------------------------------------------------ install
 
 echo "==> Building the helper (release)"
-swift build -c release --product NetworkMonitorHelper >/dev/null
+./Scripts/swiftpm.sh build -c release --product NetworkMonitorHelper >/dev/null
 BUILT=".build/release/NetworkMonitorHelper"
 [ -x "$BUILT" ] || { echo "helper did not build" >&2; exit 1; }
 

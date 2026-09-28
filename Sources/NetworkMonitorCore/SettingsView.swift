@@ -15,27 +15,20 @@ public struct SettingsView: View {
     /// writable binding for the toggle nor redraw when the verdict changes.
     @ObservedObject var metering: MeteringController
 
-    @State private var launchAtLogin: Bool
-    @State private var errorMessage: String?
-    @State private var appsExpanded = false
-    /// Loaded when the pane appears, never from `body`.
-    ///
-    /// `toggleItems()` reaches `discover()`, which walks `/Applications` reading
-    /// Info.plists to find Sparkle frameworks. Recomputing that on every layout
-    /// pass would make a checkbox feel slow for no reason.
-    @State private var coveredItems: [MeteringController.ToggleItem] = []
+    /// What the pane owns itself. See `SettingsPaneState` for why this is not a
+    /// handful of `@State` properties.
+    @StateObject private var pane = SettingsPaneState()
 
     public init(model: MonitorViewModel) {
         self.model = model
         self.metering = model.metering
-        _launchAtLogin = State(initialValue: LoginItem.isEnabled)
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             section("General") {
-                Toggle("Start at login", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { enabled in apply(enabled) }
+                Toggle("Start at login", isOn: $pane.launchAtLogin)
+                    .onChange(of: pane.launchAtLogin) { enabled in apply(enabled) }
                 Text("Opens NetworkMonitor automatically when you log in. Quitting "
                      + "still quits it — it will not reopen until your next login.")
                     .font(.system(size: 11))
@@ -65,10 +58,10 @@ public struct SettingsView: View {
                     // Collapsed by default. "Which apps?" is a question the user
                     // asks occasionally; it is not worth eight permanent lines of
                     // a pane this size, and the previous version spent them.
-                    DisclosureGroup(isExpanded: $appsExpanded) {
+                    DisclosureGroup(isExpanded: $pane.appsExpanded) {
                         VStack(alignment: .leading, spacing: 3) {
-                            ForEach(coveredItems) { appToggle($0) }
-                            if coveredItems.isEmpty {
+                            ForEach(pane.coveredItems) { appToggle($0) }
+                            if pane.coveredItems.isEmpty {
                                 Text("Nothing on this Mac to pause.")
                                     .font(.system(size: 11))
                                     .foregroundStyle(.secondary)
@@ -134,7 +127,7 @@ public struct SettingsView: View {
                 Button("Reset Now") { model.resetCurrentNetwork() }
             }
 
-            if let errorMessage {
+            if let errorMessage = pane.errorMessage {
                 Text(errorMessage)
                     .font(.system(size: 11))
                     .foregroundStyle(.red)
@@ -149,14 +142,14 @@ public struct SettingsView: View {
             // Re-assert first, so the list below describes what is actually in
             // force rather than what is merely installed.
             metering.refresh()
-            coveredItems = metering.toggleItems()
+            pane.coveredItems = metering.toggleItems()
         }
     }
 
     /// "Apps paused (7)" when everything is on, "(6 of 7)" once one is switched off.
     private var coverageSummary: String {
-        let total = coveredItems.count
-        let on = coveredItems.filter { metering.isSuppressionEnabled(for: $0.id) }.count
+        let total = pane.coveredItems.count
+        let on = pane.coveredItems.filter { metering.isSuppressionEnabled(for: $0.id) }.count
         return on == total ? "Apps paused (\(total))" : "Apps paused (\(on) of \(total))"
     }
 
@@ -222,11 +215,31 @@ public struct SettingsView: View {
     private func apply(_ enabled: Bool) {
         do {
             if enabled { try LoginItem.enable() } else { try LoginItem.disable() }
-            errorMessage = nil
+            pane.errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            pane.errorMessage = error.localizedDescription
             // Snap the toggle back so it never claims a state that did not stick.
-            launchAtLogin = LoginItem.isEnabled
+            pane.launchAtLogin = LoginItem.isEnabled
         }
     }
+}
+
+/// The Settings pane's own state, held in an `ObservableObject` rather than in
+/// `@State` properties.
+///
+/// From the macOS 27 SDK on, `@State` is a macro, and its implementation ships
+/// only with Xcode. With Command Line Tools alone — the only toolchain this
+/// project assumes — every `@State` fails to compile with "plugin for module
+/// 'SwiftUIMacros' not found". `@Published` is a Combine property wrapper, not a
+/// macro, so it builds with either toolchain.
+private final class SettingsPaneState: ObservableObject {
+    @Published var launchAtLogin = LoginItem.isEnabled
+    @Published var errorMessage: String?
+    @Published var appsExpanded = false
+    /// Loaded when the pane appears, never from `body`.
+    ///
+    /// `toggleItems()` reaches `discover()`, which walks `/Applications` reading
+    /// Info.plists to find Sparkle frameworks. Recomputing that on every layout
+    /// pass would make a checkbox feel slow for no reason.
+    @Published var coveredItems: [MeteringController.ToggleItem] = []
 }

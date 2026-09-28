@@ -66,10 +66,20 @@ echo "==> Version ${MARKETING_VERSION} (build ${BUILD_NUMBER})"
 
 echo "==> Building (release)"
 if [ "$UNIVERSAL" -eq 1 ]; then
-  swift build -c release --arch arm64 --arch x86_64
-  BUILD_DIR=".build/apple/Products/Release"
+  # One build per architecture, then lipo. `--arch arm64 --arch x86_64` would
+  # do it in one step, but only through Xcode's build system, which Command
+  # Line Tools do not have. This way works under both.
+  for arch in arm64 x86_64; do
+    ./Scripts/swiftpm.sh build -c release --product "$APP_NAME" \
+                         --triple "${arch}-apple-macosx13.0"
+  done
+  BUILD_DIR=".build/universal"
+  mkdir -p "$BUILD_DIR"
+  lipo -create -output "${BUILD_DIR}/${APP_NAME}" \
+       ".build/arm64-apple-macosx/release/${APP_NAME}" \
+       ".build/x86_64-apple-macosx/release/${APP_NAME}"
 else
-  swift build -c release
+  ./Scripts/swiftpm.sh build -c release
 fi
 
 BINARY="${BUILD_DIR}/${APP_NAME}"

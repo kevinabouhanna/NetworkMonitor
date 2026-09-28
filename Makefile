@@ -3,12 +3,12 @@
 all: test app
 
 build:
-	swift build
+	./Scripts/swiftpm.sh build
 
 # Not `swift test`: neither XCTest nor swift-testing ships with Command Line
 # Tools, so the suite is a plain executable. See Sources/NetworkMonitorTests.
 test:
-	@swift run NetworkMonitorTests
+	@./Scripts/swiftpm.sh run NetworkMonitorTests
 
 # Points git at Scripts/hooks, so pre-push runs the suite before anything
 # reaches the remote. Run once per clone. Hooks are version-controlled this way

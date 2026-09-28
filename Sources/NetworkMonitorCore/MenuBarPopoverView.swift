@@ -393,7 +393,9 @@ private struct AppRowView: View {
     /// Non-nil only when the row has a breakdown to show.
     var onToggle: (() -> Void)?
 
-    @State private var isHovering = false
+    /// Not `@State`, which needs Xcode from the macOS 27 SDK on — see
+    /// `SettingsPaneState`.
+    @StateObject private var hover = HoverState()
 
     /// Width held for the disclosure chevron on *every* row, expandable or not,
     /// so a chevron fading in never nudges the row's contents.
@@ -403,7 +405,7 @@ private struct AppRowView: View {
         if let onToggle {
             Button(action: onToggle) { content }
                 .buttonStyle(.plain)
-                .onHover { isHovering = $0 }
+                .onHover { hover.isHovering = $0 }
         } else {
             content
         }
@@ -502,7 +504,7 @@ private struct AppRowView: View {
     /// Absent on rows with no breakdown, dim at rest, solid on hover or when open.
     private var chevronOpacity: Double {
         guard onToggle != nil else { return 0 }
-        return (isHovering || isExpanded) ? 1 : 0.35
+        return (hover.isHovering || isExpanded) ? 1 : 0.35
     }
 
     /// Vertical line tying a child to the app it belongs to.
@@ -522,4 +524,10 @@ private struct AppRowView: View {
                          + PopoverMetrics.iconSize / 2)
         }
     }
+}
+
+/// Whether the pointer is over one row. A class so that `AppRowView` can own it
+/// with `@StateObject`; see its `hover` property.
+private final class HoverState: ObservableObject {
+    @Published var isHovering = false
 }
