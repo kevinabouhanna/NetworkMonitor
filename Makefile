@@ -1,4 +1,4 @@
-.PHONY: all build test hooks app universal run install install-only update helper helper-no-daemon uninstall icon clean
+.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon uninstall icon dmg-background clean
 
 all: test app
 
@@ -23,6 +23,11 @@ app:
 
 universal:
 	@./Scripts/bundle.sh --universal
+
+# The download: build/NetworkMonitor.dmg, universal, with a drag-to-Applications
+# window. Upload it to a release under this exact name; see Scripts/make-dmg.sh.
+dmg: universal
+	@./Scripts/make-dmg.sh
 
 run: app
 	@pkill -f "NetworkMonitor.app/Contents/MacOS" 2>/dev/null || true
@@ -66,6 +71,10 @@ uninstall:
 # needed after editing the icon itself.
 icon:
 	@swift Scripts/make-icon.swift
+
+# Redraws Resources/DMG/background.tiff, which is committed like the icon.
+dmg-background:
+	@swift Scripts/make-dmg-background.swift
 
 clean:
 	swift package clean
