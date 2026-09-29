@@ -69,15 +69,21 @@ if [ "$UNIVERSAL" -eq 1 ]; then
   # One build per architecture, then lipo. `--arch arm64 --arch x86_64` would
   # do it in one step, but only through Xcode's build system, which Command
   # Line Tools do not have. This way works under both.
+  #
+  # Each architecture gets its own scratch directory. SwiftPM keeps one build
+  # description per directory and does not always notice that the triple has
+  # changed since the last build, which fails as "No target named
+  # 'NetworkMonitor-arm64-apple-macosx13.0-release.exe' in build description".
+  slices=()
   for arch in arm64 x86_64; do
-    ./Scripts/swiftpm.sh build -c release --product "$APP_NAME" \
-                         --triple "${arch}-apple-macosx13.0"
+    flags=(-c release --product "$APP_NAME" --triple "${arch}-apple-macosx13.0"
+           --scratch-path ".build/${arch}")
+    ./Scripts/swiftpm.sh build "${flags[@]}"
+    slices+=("$(./Scripts/swiftpm.sh build "${flags[@]}" --show-bin-path 2>/dev/null)/${APP_NAME}")
   done
   BUILD_DIR=".build/universal"
   mkdir -p "$BUILD_DIR"
-  lipo -create -output "${BUILD_DIR}/${APP_NAME}" \
-       ".build/arm64-apple-macosx/release/${APP_NAME}" \
-       ".build/x86_64-apple-macosx/release/${APP_NAME}"
+  lipo -create -output "${BUILD_DIR}/${APP_NAME}" "${slices[@]}"
 else
   ./Scripts/swiftpm.sh build -c release
 fi
