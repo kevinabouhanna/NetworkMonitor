@@ -43,7 +43,7 @@
   --max: 1024px;
 }
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 64px; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 64px; }
 body {
   margin: 0;
   background: var(--bg);
@@ -324,7 +324,6 @@ footer a { color: var(--text-2); }
 .js .hero-shot.reveal { transform: translateY(48px) scale(.97); }
 .js .hero-shot.reveal.in { transform: none; }
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
   .js .reveal, .js .hero-shot.reveal { opacity: 1; transform: none; transition: none; }
 }
 </style>
@@ -688,13 +687,66 @@ cd NetworkMonitor
     video.controls = true;
   }
 
+  // In-page links glide to their section, with Reduce Motion on too. CSS
+  // `scroll-behavior` can't do that: it is all or nothing, and this page used
+  // to switch it off under Reduce Motion, so a click there was a hard jump.
+  // With Reduce Motion on, the page skips most of the distance and glides only
+  // the last stretch, so a click still reads as movement without sweeping the
+  // whole page past.
+  const NAV_OFFSET = 64; // the sticky nav plus breathing room, as scroll-padding-top
+  const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  let glide = 0;
+
+  function glideTo(targetY) {
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const to = Math.max(0, Math.min(targetY, max));
+    let from = scrollY;
+    const tail = innerHeight * 0.6;
+    if (reduce && Math.abs(to - from) > tail) {
+      from = to - Math.sign(to - from) * tail;
+      scrollTo(0, from);
+    }
+    const distance = to - from;
+    const duration = reduce ? 450 : Math.min(1100, 600 + Math.abs(distance) * 0.04);
+    const start = performance.now();
+    const id = ++glide;
+    const step = now => {
+      if (id !== glide) return;
+      const t = Math.min(1, (now - start) / duration);
+      scrollTo(0, from + distance * ease(t));
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    // Browsers pause animation frames for a page nobody can see, which would
+    // leave the glide stranded part-way; land it on time regardless.
+    setTimeout(() => { if (id === glide) scrollTo(0, to); }, duration + 150);
+  }
+  // The reader takes over the moment they scroll themselves.
+  for (const type of ['wheel', 'touchstart', 'keydown']) {
+    addEventListener(type, () => { glide++; }, { passive: true });
+  }
+
+  document.querySelectorAll('a[href^="#"]').forEach(link => {
+    link.addEventListener('click', event => {
+      const hash = link.getAttribute('href');
+      const target = hash === '#top' ? document.body : document.querySelector(hash);
+      if (!target) return;
+      event.preventDefault();
+      glideTo(hash === '#top' ? 0 : target.getBoundingClientRect().top + scrollY - NAV_OFFSET);
+      history.pushState(null, '', hash);
+    });
+  });
+
   // A download starts without leaving the page, so bring the one-time
   // first-launch steps into view unless the click came from beside them.
   const steps = document.getElementById('first-launch');
   document.querySelectorAll('[data-download]').forEach(link => {
     link.addEventListener('click', () => {
       if (link.closest('.way')) return;
-      setTimeout(() => steps.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' }), 150);
+      setTimeout(() => {
+        const box = steps.getBoundingClientRect();
+        glideTo(box.top + scrollY - (innerHeight - box.height) / 2);
+      }, 150);
     });
   });
 
