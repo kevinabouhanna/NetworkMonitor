@@ -268,13 +268,29 @@ p code, li code { background: #1d1d1f; border: 1px solid var(--hair); border-rad
 /* Install */
 .install { text-align: center; }
 .install .app-icon { width: 128px; height: 128px; margin: 0 auto 28px; }
-.terminal {
-  margin: 56px auto 0; width: min(640px, 100%); text-align: left;
-  background: #0f0f10; border: 1px solid var(--hair); border-radius: 18px; overflow: hidden;
+.ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 64px; text-align: left; align-items: start; }
+.way { background: var(--tile); border-radius: 28px; padding: 40px 36px 36px; min-width: 0; }
+.way .kicker { font-size: 14px; color: var(--green); font-weight: 600; margin: 0 0 10px; letter-spacing: 0; }
+.way h3 { font-size: 28px; line-height: 1.14; font-weight: 700; letter-spacing: -.005em; margin: 0 0 12px; }
+.way > p { color: var(--text-2); font-size: 16px; margin: 0; }
+.way > p strong, .way .aside b { color: var(--text); font-weight: 600; }
+.way .get { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 24px; }
+.way .get .meta { font-size: 13px; color: var(--text-3); }
+.dmg-shot { margin: 26px -14px 0; }
+.dmg-shot img { width: 100%; }
+.steps { list-style: none; counter-reset: step; margin: 22px 0 0; padding: 0; display: grid; gap: 14px; scroll-margin-top: 120px; }
+.steps li { counter-increment: step; position: relative; padding-left: 38px; color: var(--text-2); font-size: 15px; line-height: 1.5; }
+.steps li::before {
+  content: counter(step); position: absolute; left: 0; top: -1px;
+  width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center;
+  background: #1d1d1f; border: 1px solid var(--hair); color: var(--green); font-size: 13px; font-weight: 600;
 }
+.steps b { color: var(--text); font-weight: 600; }
+.way .aside { margin: 22px 0 0; padding-top: 18px; border-top: 1px solid var(--hair); font-size: 13px; line-height: 1.5; color: var(--text-3); }
+.terminal { margin: 24px 0 0; background: #0b0b0c; border: 1px solid var(--hair); border-radius: 16px; overflow: hidden; }
 .terminal-bar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px; border-bottom: 1px solid var(--hair);
+  padding: 9px 14px; border-bottom: 1px solid var(--hair);
   font-size: 12px; color: var(--text-3); letter-spacing: 0;
 }
 .copy-btn {
@@ -283,16 +299,16 @@ p code, li code { background: #1d1d1f; border: 1px solid var(--hair); border-rad
   padding: 3px 11px; cursor: pointer;
 }
 .copy-btn:hover { color: var(--text); }
-.terminal pre { margin: 0; padding: 20px 22px 22px; overflow-x: auto; font-family: var(--mono); font-size: 14px; line-height: 1.75; letter-spacing: 0; color: var(--light); }
+.terminal pre { margin: 0; padding: 18px 18px 20px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.8; letter-spacing: 0; color: var(--light); }
 .terminal pre .p { color: var(--green); user-select: none; -webkit-user-select: none; }
-.install .copy { max-width: 600px; margin: 22px auto 0; }
-.extras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin: 56px auto 0; width: min(860px, 100%); text-align: left; }
-.extras div { background: var(--tile); border-radius: 20px; padding: 22px 22px 24px; min-width: 0; }
-.extras h3 { font-size: 15px; font-weight: 600; margin: 0 0 8px; color: var(--text); }
-.extras code { display: block; font-size: 13px; color: var(--green); white-space: pre-wrap; word-break: keep-all; overflow-wrap: normal; }
-.extras p { margin: 8px 0 0; font-size: 13px; color: var(--text-3); }
-@media (max-width: 734px) { .extras { grid-template-columns: minmax(0, 1fr); } }
-.gatekeeper { max-width: 620px; margin: 40px auto 0; color: var(--text-3); font-size: 14px; }
+.cmds { margin: 22px 0 0; padding-top: 6px; border-top: 1px solid var(--hair); }
+.cmds div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--hair); }
+.cmds dt { font-size: 14px; color: var(--text-2); }
+.cmds dd { margin: 0; text-align: right; min-width: 0; }
+.cmds code { font-size: 12.5px; color: var(--green); white-space: nowrap; }
+.helper-note { max-width: 680px; margin: 40px auto 0; color: var(--text-3); font-size: 14px; }
+@media (max-width: 900px) { .ways { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 480px) { .way { padding: 32px 22px 28px; } .cmds div { flex-direction: column; gap: 4px; } .cmds dd { text-align: left; } }
 
 /* Footer */
 footer { border-top: 1px solid var(--hair); padding: 34px 0 48px; color: var(--text-3); font-size: 12px; line-height: 1.5; letter-spacing: -.01em; }
@@ -323,7 +339,8 @@ footer a { color: var(--text-2); }
       <a href="#features">Features</a>
       <a href="#hotspots">Hotspots</a>
       <a href="#privacy">Privacy</a>
-      <a class="pill" href="#install">Install</a>
+      <a href="#install">Install</a>
+      <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download</a>
     </div>
   </div>
 </nav>
@@ -337,10 +354,10 @@ footer a { color: var(--text-2); }
       <h1 class="h1 reveal d1">Every byte. <span class="grad">Accounted&nbsp;for.</span></h1>
       <p class="lead reveal d2">Live network speed in your menu bar, and a straight answer to a question macOS never answers: <strong>which app used my data?</strong></p>
       <div class="ctas reveal d3">
-        <a class="btn" href="#install">Install — it’s free</a>
+        <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download for Mac</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
-      <p class="hero-meta reveal d3"><span>macOS 13 or later</span><span>Open source, MIT</span><span>No telemetry</span></p>
+      <p class="hero-meta reveal d3"><span>Version 1.1.0</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
     </div>
     <figure class="hero-shot reveal" style="margin-bottom:0">
       <img src="assets/hero.png" width="1060" height="990"
@@ -572,28 +589,57 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <img class="app-icon reveal" src="assets/icon-256.png" width="128" height="128" alt="NetworkMonitor app icon: a green down arrow and a light up arrow on a dark rounded square.">
       <h2 class="h2 reveal d1">Get NetworkMonitor.</h2>
-      <p class="lead reveal d2" style="max-width:640px;margin-inline:auto">Free and open source. You’ll need <strong>macOS 13 or later</strong> and Apple’s Command Line Tools (<code style="font-size:.8em">xcode-select --install</code>). Not Xcode, and not a developer account.</p>
+      <p class="lead reveal d2" style="max-width:640px;margin-inline:auto">Free and open source, for <strong>macOS 13 or later</strong> on Apple silicon and Intel. Two ways to install it.</p>
 
-      <div class="terminal reveal">
-        <div class="terminal-bar"><span>Terminal</span><button class="copy-btn" type="button" data-copy="git clone https://github.com/kevinabouhanna/NetworkMonitor.git
+      <div class="ways">
+        <article class="way reveal">
+          <p class="kicker">Option 1</p>
+          <h3>Download the app.</h3>
+          <p>The usual Mac way: open the disk image and drag NetworkMonitor into <strong>Applications</strong>.</p>
+          <div class="get">
+            <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download NetworkMonitor.dmg</a>
+            <span class="meta">Version 1.1.0 · 1.6 MB · Universal</span>
+          </div>
+          <figure class="dmg-shot" style="margin-bottom:0">
+            <img src="assets/dmg-window.png" width="1424" height="1104" loading="lazy"
+                 alt="The NetworkMonitor disk image open in Finder: the title Install NetworkMonitor, the line Drag it into your Applications folder, and the app icon with a green arrow pointing to the Applications folder.">
+          </figure>
+          <ol class="steps" id="first-launch">
+            <li>Open <b>NetworkMonitor.dmg</b> and drag the app into <b>Applications</b>.</li>
+            <li>Open NetworkMonitor from Applications. The first time, macOS says it can’t verify the app, because it isn’t signed with an Apple Developer ID yet. Click <b>Done</b>.</li>
+            <li>Open <b>System Settings › Privacy &amp; Security</b>, scroll down to Security, and click <b>Open Anyway</b> next to NetworkMonitor. Confirm with your password.</li>
+            <li>Look for <span class="green">↓</span><span style="color:var(--light)">↑</span> in your menu bar. You only do this once.</li>
+          </ol>
+          <p class="aside">On macOS 13 or 14 there’s a shortcut for steps 2 and 3: Control-click the app in Applications, choose <b>Open</b>, then <b>Open</b> again.<br><br><b>Updating:</b> download the new version and drag it over the old one. <b>Removing:</b> drag it to the Trash, but not while it’s pausing updates on a hotspot, or those apps stay paused.</p>
+        </article>
+
+        <article class="way reveal d1">
+          <p class="kicker">Option 2</p>
+          <h3>Build it with Terminal.</h3>
+          <p>Compile it from source in one go. An app you build yourself is never quarantined, so <strong>there’s nothing to approve</strong>. You’ll need Apple’s Command Line Tools (<code style="font-size:.85em">xcode-select --install</code>), not Xcode and not a developer account.</p>
+          <div class="terminal">
+            <div class="terminal-bar"><span>Terminal</span><button class="copy-btn" type="button" data-copy="git clone https://github.com/kevinabouhanna/NetworkMonitor.git
 cd NetworkMonitor
 ./Scripts/install.sh">Copy</button></div>
-<pre><span class="p">$ </span>git clone https://github.com/kevinabouhanna/NetworkMonitor.git
+<pre><span class="p">$ </span>git clone \
+    https://github.com/kevinabouhanna/NetworkMonitor.git
 <span class="p">$ </span>cd NetworkMonitor
 <span class="p">$ </span>./Scripts/install.sh</pre>
+          </div>
+          <p style="margin-top:18px">That builds the app, installs it in <strong>/Applications</strong> and starts it at login.</p>
+          <dl class="cmds">
+            <div><dt>Update</dt><dd><code>make update</code></dd></div>
+            <div><dt>Skip the login item</dt><dd><code>./Scripts/install.sh --no-login</code></dd></div>
+            <div><dt>Optional hotspot helper</dt><dd><code>make helper</code></dd></div>
+            <div><dt>Uninstall, restoring every setting</dt><dd><code>./Scripts/uninstall.sh</code></dd></div>
+          </dl>
+        </article>
       </div>
-      <p class="copy reveal">That builds the app, installs it in <strong>/Applications</strong> and starts it at login. Look for <span class="green">↓</span><span style="color:var(--light)">↑</span> in your menu bar.</p>
 
-      <div class="extras">
-        <div class="reveal"><h3>Update</h3><code>make update</code><p>Pulls and reinstalls in one step.</p></div>
-        <div class="reveal d1"><h3>No login item</h3><code>./Scripts/install.sh --no-login</code><p>Installs without starting at login.</p></div>
-        <div class="reveal d2"><h3>Uninstall</h3><code>./Scripts/uninstall.sh</code><p>Add <code style="display:inline;color:var(--text-2)">--purge</code> to delete usage history too.</p></div>
-      </div>
-
-      <p class="gatekeeper reveal">There’s a prebuilt zip on the <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases</a> page, but it isn’t signed with an Apple Developer ID yet, so macOS will refuse to open it. Building from source avoids that, and gets you everything on this page.</p>
+      <p class="helper-note reveal">Either way, the optional hotspot helper, which also pauses macOS, App Store, Claude, Slack and Canva updates, installs from Terminal: clone the repository and run <code>make helper</code>.</p>
       <div class="ctas reveal">
-        <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
-        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor#readme">Read the full README</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.1.0">What’s in version 1.1.0</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
     </div>
   </section>
@@ -641,6 +687,16 @@ cd NetworkMonitor
   } else {
     video.controls = true;
   }
+
+  // A download starts without leaving the page, so bring the one-time
+  // first-launch steps into view unless the click came from beside them.
+  const steps = document.getElementById('first-launch');
+  document.querySelectorAll('[data-download]').forEach(link => {
+    link.addEventListener('click', () => {
+      if (link.closest('.way')) return;
+      setTimeout(() => steps.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' }), 150);
+    });
+  });
 
   // Copy install commands.
   document.querySelectorAll('[data-copy]').forEach(btn => {
