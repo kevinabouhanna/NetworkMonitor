@@ -43,6 +43,10 @@ today's total and a per-app breakdown of who used it.
   internet data, so none of them are counted against you.
 - **Hotspot aware** — metered connections are flagged with a `METERED` badge, and
   one setting stops your apps updating while you're on one. See below.
+- **Speed test on demand** — one click runs a fresh test with macOS's built-in
+  `networkQuality`: download, then upload, then ping, jitter and ping under load.
+  In Mbps or MB/s, and if another app was competing for the line, the result
+  names it. See below.
 - **Resets at midnight** too, for a connection you never leave, and survives
   restarts and reboots.
 - **Stays out of the way** — no Dock icon, no app switcher entry, no window to
@@ -57,8 +61,9 @@ way to phone home.
 - **No permission prompts.** It never asks for Location, and doesn't need it. The
   only thing that ever asks for your password is the optional hotspot-metering
   helper, and only when you install it.
-- **No network access.** The app makes no outbound connections of any kind. There
-  is no analytics, no telemetry, no update check, no account.
+- **No network access of its own.** The only traffic NetworkMonitor ever causes is
+  a speed test you start yourself, run by macOS's built-in `networkQuality` against
+  Apple's servers. There is no analytics, no telemetry, no update check, no account.
 - **Your data stays on your Mac**, in a single local file you can delete at any
   time.
 - **Open source, MIT licensed** — read every line before you run it.
@@ -90,7 +95,7 @@ make update
 
 
 **Left-click** the menu bar item for this connection's total and the app list.
-**Right-click** it for Settings and Quit.
+**Right-click** it to test your internet speed, for Settings, and for Quit.
 
 The **gear icon** in the popover opens Settings, which holds start-at-login, the
 counting-since time, Reset Now and Quit.
@@ -98,6 +103,38 @@ counting-since time, Reset Now and Quit.
 Quitting and start-at-login are deliberately independent: quitting ends the app for
 the rest of the session without turning the setting off, and turning the setting off
 doesn't quit the running app.
+
+## Speed test
+
+<p align="center">
+  <img src="Resources/README/speed-test.png" width="346"
+       alt="The popover after a speed test: 18.4 Mbps down and 35.3 Mbps up over Wi-Fi, ping 66.6 ms, jitter 8.0 ms, ping while downloading 106 ms and while uploading 93.5 ms, and a note naming the background downloads that competed during the test.">
+</p>
+
+Click the **gauge** in the popover, or choose **Test Internet Speed** from the
+right-click menu. NetworkMonitor runs `networkQuality`, the speed test Apple ships
+with every Mac, against Apple's nearest servers:
+
+- **Download, then upload**, one after the other as other speed tests do, with the
+  dial following whichever half is running.
+- **Ping and jitter** on a quiet line, and **ping while downloading and while
+  uploading**: the figure that explains a call lagging while something else is
+  busy. Hover over any figure for what it means.
+- **Fresh every time.** Each run is a new measurement; nothing is cached or reused.
+- **Names what slowed it down.** NetworkMonitor already knows which apps are using
+  the connection, so if one was competing during the test, the result says so.
+- **Mbps or MB/s**, chosen in Settings. Mbps matches how your plan is sold; MB/s
+  matches the rest of the app.
+- **In the menu bar too.** While it runs, the readout shows the test in cyan, then
+  holds the result for a few seconds before the live rates return.
+
+**Back to Apps** leaves the test running and brings the list back; the gauge shows
+the live reading, and clicking it returns to the test. **Stop** is what stops it.
+
+A test uses data — typically 50–500 MB, more on a very fast line — so on a metered
+connection it asks first and shows what the last test there cost. Its traffic shows
+in the list as *Network Monitor › Speed test* and counts toward the total, because
+those bytes really crossed the connection.
 
 ## Stop apps updating on hotspots
 
