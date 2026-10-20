@@ -66,6 +66,10 @@ public final class MonitorViewModel: ObservableObject {
     /// Hotspot metering. Owned here because it has to react to exactly the same
     /// network changes the totals do, and this is where those arrive.
     public let metering: MeteringController
+    /// The on-demand speed test. Owned here for the same reason as `metering`:
+    /// it has to hear about network changes, and it borrows the nettop samples to
+    /// notice other apps competing with it.
+    public let speedTest: SpeedTestController
 
     private let identityResolver = AppIdentityResolver()
     private let nettop: NettopStream
@@ -105,9 +109,11 @@ public final class MonitorViewModel: ObservableObject {
     private var powerToken: Any?
 
     public init(store: UsageStore = UsageStore(),
-                metering: MeteringController? = nil) {
+                metering: MeteringController? = nil,
+                speedTest: SpeedTestController = SpeedTestController()) {
         self.store = store
         self.metering = metering ?? MeteringController(store: store)
+        self.speedTest = speedTest
         self.dayStart = store.dayStart
         self.countingSince = store.countingSince
         let profile = PowerProfile.forPowerSource(onACPower: PowerSource.isOnACPower)
@@ -131,6 +137,12 @@ public final class MonitorViewModel: ObservableObject {
         // the connection actually in use rather than `.offline`. `start()`
         // replays any journal left by the previous run before deciding.
         metering.start()
+
+        // Asked at the moment of each run, so a hotspot joined after launch is
+        // caught. The menu bar hook routes through the same signal the live rate
+        // uses, so `AppDelegate` has one thing to observe.
+        speedTest.isMetered = { [weak self] in self?.metering.verdict.isMetered ?? false }
+        speedTest.menuBarDidChange = { [weak self] in self?.menuBarRateDidChange.send() }
 
         nettop.onSample = { [weak self] sample in
             self?.handleNettopSample(sample)
@@ -161,6 +173,7 @@ public final class MonitorViewModel: ObservableObject {
         sampleTimer = nil
         powerToken = nil
         nettop.stop()
+        speedTest.stop()
         pathWatcher.stop()
         // Suppression is deliberately *not* lifted on quit. Quitting the app is
         // not the same as saying "resume updating" — the user may be quitting to
@@ -327,6 +340,12 @@ public final class MonitorViewModel: ObservableObject {
             }
             entries = Array(merged.values)
 
+            if self.speedTest.phase.isRunning {
+                self.speedTest.recordBackground(entries.map {
+                    ($0.identity.displayName, $0.identity.key, $0.bytesIn + $0.bytesOut)
+                })
+            }
+
             self.lastSeenPIDs = pids
             self.identityResolver.retainOnly(pids: pids)
             self.store.recordApps(entries,
@@ -375,6 +394,7 @@ public final class MonitorViewModel: ObservableObject {
             // showing "active now" dots for apps whose bytes have been wiped.
             lastActivity.removeAll()
             expandedApps.removeAll()
+            speedTest.networkDidChange()
         }
         // Interface counters are per-interface lifetime values; a link change
         // must re-baseline or the gap would land as one huge delta.
@@ -430,7 +450,15 @@ public final class MonitorViewModel: ObservableObject {
     }
 
     /// Two stacked lines, download above upload, at a constant rendered width.
+    ///
+    /// A running speed test takes the title over, when the user has asked for
+    /// that, and keeps it for a few seconds after with the result. Same width,
+    /// different tint; see `MenuBarTitle.speedTestImage`.
     public var menuBarImage: NSImage {
-        MenuBarTitle.image(down: downBytesPerSecond, up: upBytesPerSecond)
+        if let reading = speedTest.menuBarReading {
+            return MenuBarTitle.speedTestImage(downBits: reading.down, upBits: reading.up,
+                                               unit: speedTest.unit)
+        }
+        return MenuBarTitle.image(down: downBytesPerSecond, up: upBytesPerSecond)
     }
 }

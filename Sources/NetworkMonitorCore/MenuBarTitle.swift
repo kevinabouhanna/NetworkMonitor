@@ -46,6 +46,14 @@ public enum MenuBarTitle {
         "↑ \(ByteFormat.menuBarRate(bytesPerSecond))"
     }
 
+    /// Tints while a speed test has the menu bar, so its figures — a capacity
+    /// rather than what is moving, and in bits by default — are never mistaken
+    /// for the live rates. Same family as the download green, shifted to cyan.
+    public static let testDownTint = NSColor(srgbRed: 0x64 / 255, green: 0xD2 / 255,
+                                             blue: 0xFF / 255, alpha: 1)
+    public static let testUpTint = NSColor(srgbRed: 0xB4 / 255, green: 0xE9 / 255,
+                                           blue: 0xFF / 255, alpha: 1)
+
     /// The two lines joined, download first.
     public static func string(down: Double, up: Double) -> String {
         "\(downLine(down))\n\(upLine(up))"
@@ -53,16 +61,29 @@ public enum MenuBarTitle {
 
     /// The two lines, each tinted separately.
     public static func attributed(down: Double, up: Double) -> NSAttributedString {
+        attributed(downLine(down), downTint, upLine(up), upTint)
+    }
+
+    /// A speed test's two lines, in the chosen unit, at the live title's exact
+    /// width.
+    public static func speedTestAttributed(downBits: Double, upBits: Double,
+                                           unit: SpeedUnit = .bits) -> NSAttributedString {
+        attributed("↓ \(ByteFormat.menuBarSpeed(downBits, unit: unit))", testDownTint,
+                   "↑ \(ByteFormat.menuBarSpeed(upBits, unit: unit))", testUpTint)
+    }
+
+    private static func attributed(_ top: String, _ topTint: NSColor,
+                                   _ bottom: String, _ bottomTint: NSColor) -> NSAttributedString {
         let paragraph = MenuBarTitle.paragraphStyle()
         let result = NSMutableAttributedString()
         result.append(NSAttributedString(
-            string: downLine(down) + "\n",
+            string: top + "\n",
             attributes: [.font: font, .paragraphStyle: paragraph,
-                         .foregroundColor: downTint]))
+                         .foregroundColor: topTint]))
         result.append(NSAttributedString(
-            string: upLine(up),
+            string: bottom,
             attributes: [.font: font, .paragraphStyle: paragraph,
-                         .foregroundColor: upTint]))
+                         .foregroundColor: bottomTint]))
         return result
     }
 
@@ -92,7 +113,16 @@ public enum MenuBarTitle {
     /// `isTemplate = false` is what preserves the green; a template image would
     /// be recoloured to the monochrome menu bar tint.
     public static func image(down: Double, up: Double) -> NSImage {
-        let text = attributed(down: down, up: up)
+        image(attributed(down: down, up: up))
+    }
+
+    /// The speed test's title, drawn exactly as the live one is.
+    public static func speedTestImage(downBits: Double, upBits: Double,
+                                      unit: SpeedUnit) -> NSImage {
+        image(speedTestAttributed(downBits: downBits, upBits: upBits, unit: unit))
+    }
+
+    private static func image(_ text: NSAttributedString) -> NSImage {
         let textSize = text.size()
         let size = NSSize(width: ceil(textSize.width), height: menuBarHeight)
 

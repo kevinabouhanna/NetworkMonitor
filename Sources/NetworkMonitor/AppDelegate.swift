@@ -223,6 +223,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showMenu() {
         let menu = NSMenu()
 
+        if SpeedTestRunner.isAvailable {
+            let running = model.speedTest.phase.isRunning
+            menu.addItem(withTitle: running ? "Stop Speed Test" : "Test Internet Speed",
+                         action: #selector(toggleSpeedTest), keyEquivalent: "")
+            // The last result on this connection, as a line to read rather than
+            // an item to choose. Gone after a network change; see
+            // `SpeedTestController.lastResult`.
+            if let result = model.speedTest.lastResult, !running {
+                let time = result.finishedAt.formatted(date: .omitted, time: .shortened)
+                let unit = model.speedTest.unit
+                let summary = "↓ \(ByteFormat.speed(result.downloadBitsPerSecond, unit: unit))   "
+                    + "↑ \(ByteFormat.speed(result.uploadBitsPerSecond, unit: unit))   at \(time)"
+                let item = NSMenuItem(title: summary, action: nil, keyEquivalent: "")
+                item.isEnabled = false
+                menu.addItem(item)
+            }
+            menu.addItem(.separator())
+        }
+
         menu.addItem(withTitle: "Settings…",
                      action: #selector(showSettings), keyEquivalent: ",")
 
@@ -238,6 +257,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.performClick(nil)
         // Detach immediately so the next left-click opens the popover, not the menu.
         statusItem.menu = nil
+    }
+
+    /// From the right-click menu. The popover stays shut unless the test needs
+    /// an answer first — a metered connection asks before spending the data, and
+    /// that question lives in the popover.
+    @objc private func toggleSpeedTest() {
+        let speedTest = model.speedTest
+        if speedTest.phase.isRunning {
+            speedTest.dismiss()
+            return
+        }
+        speedTest.run()
+        if case .confirming = speedTest.phase, !popover.isShown {
+            togglePopover()
+        }
     }
 
     // MARK: Settings window

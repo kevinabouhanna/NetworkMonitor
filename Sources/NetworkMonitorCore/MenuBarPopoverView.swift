@@ -3,11 +3,20 @@ import SwiftUI
 
 public struct MenuBarPopoverView: View {
     @ObservedObject var model: MonitorViewModel
+    /// Observed for its phase only, which changes a few times per test. The
+    /// five-a-second readings live on `speedTest.live`, which only the gauges
+    /// watch. See `SpeedTestController`.
+    @ObservedObject var speedTest: SpeedTestController
     var onSettings: () -> Void
 
     public init(model: MonitorViewModel, onSettings: @escaping () -> Void) {
         self.model = model
+        self.speedTest = model.speedTest
         self.onSettings = onSettings
+    }
+
+    private var showsCard: Bool {
+        speedTest.phase != .idle && speedTest.isPresented
     }
 
     /// Height the list wants for the rows currently on screen, capped.
@@ -59,7 +68,9 @@ public struct MenuBarPopoverView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
-            if model.rows.isEmpty && model.systemRows.isEmpty {
+            if showsCard {
+                SpeedTestCard(speedTest: speedTest)
+            } else if model.rows.isEmpty && model.systemRows.isEmpty {
                 emptyState
             } else {
                 list
@@ -98,6 +109,9 @@ public struct MenuBarPopoverView: View {
                 }
             }
             Spacer()
+            if SpeedTestRunner.isAvailable {
+                SpeedTestButton(speedTest: speedTest)
+            }
             Button(action: onSettings) {
                 Image(systemName: "gearshape.fill").font(.system(size: 12))
             }
@@ -340,6 +354,9 @@ public enum PopoverMetrics {
     /// scrollbar strobed in and out. One point of slack settles it, and is not
     /// visible.
     public static let fitSlack: CGFloat = 1
+
+    /// The speed test card, which stands in for the list while it is shown.
+    public static let speedCardHeight: CGFloat = 344
 
     /// Height the rows actually occupy, uncapped. Calibrated against SwiftUI's
     /// layout — see `runPopoverMetricsTests`.

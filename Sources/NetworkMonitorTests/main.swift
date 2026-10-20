@@ -32,5 +32,6 @@ runMeteringControllerTests()
 runHostsFileTests()
 runJSONConfigEditTests()
 runSuppressedValueTests()
+runSpeedTestTests()
 
 exit(Check.summarize())

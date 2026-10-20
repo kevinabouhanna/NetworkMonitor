@@ -14,6 +14,7 @@ public struct SettingsView: View {
     /// and reaching it through a `let` on the view model would neither give a
     /// writable binding for the toggle nor redraw when the verdict changes.
     @ObservedObject var metering: MeteringController
+    @ObservedObject var speedTest: SpeedTestController
 
     /// What the pane owns itself. See `SettingsPaneState` for why this is not a
     /// handful of `@State` properties.
@@ -22,6 +23,7 @@ public struct SettingsView: View {
     public init(model: MonitorViewModel) {
         self.model = model
         self.metering = model.metering
+        self.speedTest = model.speedTest
     }
 
     public var body: some View {
@@ -86,6 +88,37 @@ public struct SettingsView: View {
 
                 }
 
+            }
+
+            if SpeedTestRunner.isAvailable {
+                Divider()
+
+                section("Speed test") {
+                    // Label and control laid out by hand. A labelled segmented
+                    // Picker given a fixed frame centres itself inside it, which
+                    // left the row indented from everything else in the pane.
+                    HStack(spacing: 8) {
+                        Text("Show speeds in").font(.system(size: 12))
+                        Picker("Show speeds in", selection: $speedTest.unit) {
+                            ForEach(SpeedUnit.allCases) { unit in
+                                Text(unit.label).tag(unit)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        Spacer()
+                    }
+
+                    Toggle("Show the test in the menu bar", isOn: $speedTest.showsInMenuBar)
+
+                    Text("Runs macOS's built-in networkQuality, only when you start it: "
+                         + "download first, then upload. Every run measures afresh, so it "
+                         + "uses data each time — typically 50–500 MB, more on a very fast line.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             Divider()

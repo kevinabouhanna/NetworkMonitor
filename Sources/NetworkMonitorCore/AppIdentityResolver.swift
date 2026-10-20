@@ -276,10 +276,18 @@ public final class AppIdentityResolver {
         // No bundle: an OS daemon such as /usr/sbin/mDNSResponder. Keyed by
         // path so each daemon stays distinct inside the System group.
         return AppIdentity(key: path,
-                           displayName: components.last ?? fallbackName,
+                           displayName: friendlyNames[path] ?? components.last ?? fallbackName,
                            bundlePath: nil,
                            isSystem: true)
     }
+
+    /// Tools whose binary name says nothing to someone reading the list. Only
+    /// the label changes; the key stays the path, so stored totals still match.
+    static let friendlyNames = [
+        // What the popover's speed test runs, and what `networkQuality` in
+        // Terminal is: either way, the bytes are a speed test's.
+        "/usr/bin/networkQuality": "Speed test",
+    ]
 
     private static func displayName(forBundle bundlePath: String, _ directoryName: String) -> String {
         if let bundle = Bundle(path: bundlePath),
