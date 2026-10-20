@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NetworkMonitor — Live network speed and per-app data usage for your Mac</title>
-<meta name="description" content="A free, open-source macOS menu bar app. Live download and upload speed, which apps used your connection, and automatic updates paused on mobile hotspots. No permissions, no telemetry, no Dock icon.">
+<meta name="description" content="A free, open-source macOS menu bar app. Live download and upload speed, which apps used your connection, automatic updates paused on mobile hotspots, and a speed test on demand. No permissions, no telemetry, no Dock icon.">
 <link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/">
 <meta name="theme-color" content="#000000">
 <meta name="color-scheme" content="dark">
@@ -227,6 +227,7 @@ section { position: relative; }
   -webkit-mask-image: linear-gradient(180deg, #000 82%, transparent 100%);
   mask-image: linear-gradient(180deg, #000 82%, transparent 100%);
 }
+.speed-shot img { width: min(346px, 100%); margin-inline: auto; }
 .facts { display: grid; gap: 34px; }
 .facts h3 { font-size: 21px; line-height: 1.24; font-weight: 600; margin: 0 0 8px; }
 .facts p { margin: 0; color: var(--text-2); font-size: 16px; }
@@ -356,7 +357,7 @@ footer a { color: var(--text-2); }
         <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download for Mac</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
-      <p class="hero-meta reveal d3"><span>Version 1.1.0</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
+      <p class="hero-meta reveal d3"><span>Version 1.2.0</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
     </div>
     <figure class="hero-shot reveal" style="margin-bottom:0">
       <img src="assets/hero.png" width="1060" height="990"
@@ -552,8 +553,45 @@ footer a { color: var(--text-2); }
     </div>
   </section>
 
+  <!-- Speed test -->
+  <section id="speed-test" class="pad">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow reveal">Speed test</p>
+        <h2 class="h2 reveal d1">One click.<br><span class="grad">A fresh measurement.</span></h2>
+        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">Click the gauge in the popover and NetworkMonitor runs the speed test Apple ships with every Mac, against Apple’s nearest servers. <strong>Download first, then upload</strong>, the way speed tests always have. Every run measures afresh. Nothing is cached.</p>
+      </div>
+
+      <div class="hotspot-grid">
+        <figure class="speed-shot reveal" style="margin:0">
+          <img src="assets/speed-test.png" width="692" height="898" loading="lazy"
+               alt="The popover after a speed test: a dial reading 18.4 Mbps down, upload 35.3 Mbps, Wi-Fi, used 98.6 MB at 12:20 PM; ping 66.6 ms, jitter 8.0 ms, ping while downloading 106 ms and while uploading 93.5 ms; and an orange note that nsurlsessiond, Google Chrome and 9 more used 107.9 MB during the test, so figures may read low.">
+          <figcaption class="caption" style="text-align:center">A real test on the Mac this page was built on, with macOS’s background downloads competing for the line, and named.</figcaption>
+        </figure>
+        <div class="facts">
+          <div class="reveal">
+            <h3>The figures every speed test shows.</h3>
+            <p>Download and upload, in Mbps or MB/s, your choice. Ping and jitter on a quiet line, plus ping while downloading and while uploading: the figure that explains why a call lags whenever something else is busy.</p>
+          </div>
+          <div class="reveal">
+            <h3>Tells you what slowed it down.</h3>
+            <p>NetworkMonitor already knows which apps are using your connection. If one was competing during the test, the result names it instead of leaving you to guess.</p>
+          </div>
+          <div class="reveal">
+            <h3>Careful on a hotspot.</h3>
+            <p>A test uses real data, typically 50–500 MB. On a metered connection it asks first, and shows what the last test there cost.</p>
+          </div>
+          <div class="reveal">
+            <h3>Watch it from the menu bar.</h3>
+            <p>While it runs, the readout shows the test in cyan, then holds the result for a few seconds. Go back to your apps mid-test and it carries on.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Numbers -->
-  <section class="pad center">
+  <section class="pad divider center">
     <div class="wrap">
       <p class="eyebrow reveal">Measured, not estimated</p>
       <h2 class="h2 reveal d1">Light enough to forget.<br>Accurate enough to trust.</h2>
@@ -576,7 +614,7 @@ footer a { color: var(--text-2); }
       <p class="lead reveal d2" style="max-width:640px;margin-inline:auto">NetworkMonitor counts how much, never what. <strong>And it has no way to phone home.</strong></p>
       <div class="privacy-grid">
         <div class="reveal"><h3>No permission prompts.</h3><p>It never asks for Location and doesn’t need it. The only thing that ever asks for your password is the optional hotspot helper, when you install it.</p></div>
-        <div class="reveal d1"><h3>No network access.</h3><p>The app makes no outbound connections of any kind. No analytics, no telemetry, no update check, no account.</p></div>
+        <div class="reveal d1"><h3>No network access of its own.</h3><p>The only traffic NetworkMonitor ever causes is a speed test you start yourself, run by macOS’s built-in networkQuality against Apple’s servers. No analytics, no telemetry, no update check, no account.</p></div>
         <div class="reveal d2"><h3>Stays on your Mac.</h3><p>Your usage lives in a single local file that you can delete at any time.</p></div>
         <div class="reveal d3"><h3>Open source.</h3><p>MIT licensed. <a href="https://github.com/kevinabouhanna/NetworkMonitor">Read every line</a> before you run it.</p></div>
       </div>
@@ -597,7 +635,7 @@ footer a { color: var(--text-2); }
           <p>The usual Mac way: open the disk image and drag NetworkMonitor into <strong>Applications</strong>.</p>
           <div class="get">
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download NetworkMonitor.dmg</a>
-            <span class="meta">Version 1.1.0 · 1.6 MB · Universal</span>
+            <span class="meta">Version 1.2.0 · 1.9 MB · Universal</span>
           </div>
           <figure class="dmg-shot" style="margin-bottom:0">
             <img src="assets/dmg-window.png" width="1424" height="1104" loading="lazy"
@@ -637,7 +675,7 @@ cd NetworkMonitor
 
       <p class="helper-note reveal">Either way, the optional hotspot helper, which also pauses macOS, App Store, Claude, Slack and Canva updates, installs from Terminal: clone the repository and run <code>make helper</code>.</p>
       <div class="ctas reveal">
-        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.1.0">What’s in version 1.1.0</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.2.0">What’s in version 1.2.0</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
     </div>
