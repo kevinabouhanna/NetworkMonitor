@@ -147,15 +147,9 @@ section { position: relative; }
 /* Problem: statement + evidence */
 .statement { max-width: 880px; }
 .statement .h2 { max-width: 16ch; }
-.evidence {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 6vw, 80px);
-  align-items: center; margin-top: clamp(64px, 9vw, 110px);
-}
-.evidence figure { margin: 0; }
-.evidence img { width: min(386px, 100%); margin-inline: auto; }
+.evidence { max-width: 660px; margin: clamp(64px, 9vw, 110px) auto 0; text-align: center; }
 .evidence .stat { font-size: clamp(64px, 10vw, 120px); line-height: 1; font-weight: 700; letter-spacing: -.02em; }
 .evidence .stat small { font-size: .4em; font-weight: 600; letter-spacing: 0; }
-@media (max-width: 734px) { .evidence { grid-template-columns: minmax(0, 1fr); } }
 
 .issues {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px;
@@ -370,11 +364,7 @@ footer a { color: var(--text-2); }
       </div>
 
       <div class="evidence">
-        <figure class="reveal">
-          <img src="assets/popover-updater.png" width="772" height="948" loading="lazy"
-               alt="NetworkMonitor's popover with a 696.6 MB total. GoogleUpdater is third in the list at 135.0 MB, behind Slack at 162.4 MB and iTerm2 at 149.0 MB.">
-        </figure>
-        <div class="reveal d1">
+        <div class="reveal">
           <div class="stat"><span class="green">135</span><small> MB</small></div>
           <p class="lead" style="margin-top:18px">Caught while this page was being made. <strong>GoogleUpdater went from 13.9&nbsp;MB to 135&nbsp;MB in about two minutes</strong>, in the background, on its own.</p>
           <p class="copy" style="margin-top:16px">On home Wi‑Fi that was harmless. On a hotspot it would have been 135&nbsp;MB of your plan, gone before you knew it had started.</p>
