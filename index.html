@@ -130,11 +130,11 @@ section { position: relative; }
 .hero .lead { max-width: 640px; margin-inline: auto; }
 .hero-meta { margin-top: 22px; color: var(--text-3); font-size: 14px; }
 .hero-meta span + span::before { content: "·"; margin: 0 10px; color: var(--text-3); }
-/* The TryMacApps badge is dark ink on transparent, so invert it for the black page */
-.featured { margin-top: 30px; display: flex; justify-content: center; }
-.featured a { display: inline-block; border-radius: 12px; }
-.featured img { width: 200px; filter: invert(1); opacity: .85; transition: opacity .2s; }
-.featured a:hover img { opacity: 1; }
+/* Directory badges, pasted as supplied. TryMacApps' is dark ink on transparent, so invert it for the black page */
+.featured { margin-top: 30px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px 28px; }
+.featured a { display: inline-block; border-radius: 14px; opacity: .85; transition: opacity .2s; }
+.featured a:hover { opacity: 1; }
+.featured img[src*="trymacapps"] { filter: invert(1); }
 .hero-shot { margin: clamp(48px, 7vw, 80px) auto 0; width: min(780px, 100%); position: relative; }
 .hero-shot img {
   width: 100%;
@@ -351,6 +351,7 @@ footer a { color: var(--text-2); }
             height="67"
           />
         </a>
+        <a href="https://usefulshelf.co/?utm_source=kevinabouhanna.github.io&amp;utm_medium=referral&amp;utm_campaign=badge&amp;utm_content=lime" target="_blank" rel="nofollow noopener"><img src="https://usefulshelf.co/badge/usefulshelf.svg?theme=lime" alt="Featured on UsefulShelf" width="248" height="66"></a>
       </div>
     </div>
     <figure class="hero-shot reveal" style="margin-bottom:0">
