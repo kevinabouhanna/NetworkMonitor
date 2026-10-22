@@ -171,10 +171,17 @@ public final class UsageStore {
     /// Fingerprint of the network currently being accumulated into.
     public private(set) var currentNetwork: NetworkFingerprint = .offline
 
-    public init(storeURL: URL? = nil, calendar: Calendar = .current) {
+    /// Where every byte recorded here is also kept for good, by hour. Fed from
+    /// this class rather than beside it so the two can never disagree about
+    /// which network a byte travelled over, or when a connection changed.
+    public let history: UsageHistory?
+
+    public init(storeURL: URL? = nil, calendar: Calendar = .current,
+                history: UsageHistory? = nil) {
         self.calendar = calendar
         self.storeURL = storeURL ?? Self.defaultStoreURL()
         self.state = Self.load(from: self.storeURL, calendar: calendar)
+        self.history = history
     }
 
     // MARK: Accumulation
@@ -187,6 +194,7 @@ public final class UsageStore {
             bucket.interfaceBytesIn += bytesIn
             bucket.interfaceBytesOut += bytesOut
         }
+        history?.recordInterface(bytesIn: bytesIn, bytesOut: bytesOut, now: now)
     }
 
     /// Adds one nettop sample's per-process deltas to the active bucket.
@@ -219,6 +227,8 @@ public final class UsageStore {
                 bucket.apps[entry.identity.key] = totals
             }
         }
+        history?.recordApps(entries, localBytesIn: localBytesIn, localBytesOut: localBytesOut,
+                            now: now)
     }
 
     /// Folds a row left behind by a version that could not adopt this process
@@ -294,6 +304,10 @@ public final class UsageStore {
         if fingerprint.id != NetworkFingerprint.offline.id {
             state.lastNetworkID = fingerprint.id
         }
+        // The default name: one the user gives it later should rename every
+        // visit, so it is looked up when history is shown, not stored here.
+        history?.join(fingerprint, label: fingerprint.defaultLabel,
+                      switched: switched, now: now)
         // After the clear, never before: those bytes travelled over the network
         // just joined, so a switch must not discard them.
         if previous.id == NetworkFingerprint.offline.id, fingerprint.id != previous.id {
@@ -413,8 +427,14 @@ public final class UsageStore {
     }
 
     public func label(for id: String) -> String {
-        if let custom = state.labels[id], !custom.isEmpty { return custom }
+        if let custom = customLabel(for: id) { return custom }
         return state.buckets[id]?.defaultLabel ?? "Network"
+    }
+
+    /// The name the user gave a network, if they gave it one.
+    public func customLabel(for id: String) -> String? {
+        guard let custom = state.labels[id], !custom.isEmpty else { return nil }
+        return custom
     }
 
     public var currentLabel: String { label(for: currentNetwork.id) }
@@ -500,7 +520,11 @@ public final class UsageStore {
     }
 
     /// Writes via a temporary file so a crash mid-write can't corrupt the store.
+    ///
+    /// History is written on the same occasions, so the two files never drift
+    /// further apart than one save.
     public func save() {
+        history?.flush()
         guard dirty else { return }
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601

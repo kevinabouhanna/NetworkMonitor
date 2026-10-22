@@ -38,6 +38,10 @@ today's total and a per-app breakdown of who used it.
   totals start from zero, so what you see is what *this* connection has used. Open
   your hotspot somewhere new and you know exactly what each app spent on it. A
   dropout and a reconnect to the same network picks up where it left off.
+- **Usage history** — every hour, per app and per network, kept for as long as you
+  choose. Look back by day, week, month or year, see each visit to a network as a
+  session, narrow it all to one app or one hotspot, and export it as CSV. See
+  below.
 - **Internet only, not LAN** — mirroring to an Apple TV, Time Machine to a NAS or a
   Plex stream from your own server all cross Wi-Fi, but none of them cost you
   internet data, so none of them are counted against you.
@@ -65,8 +69,8 @@ way to phone home.
 - **No network access of its own.** The only traffic NetworkMonitor ever causes is
   a speed test you start yourself, run by macOS's built-in `networkQuality` against
   Apple's servers. There is no analytics, no telemetry, no update check, no account.
-- **Your data stays on your Mac**, in a single local file you can delete at any
-  time.
+- **Your data stays on your Mac**, in local files you can delete at any time —
+  Usage History has a button for it.
 - **Open source, MIT licensed** — read every line before you run it.
 
 ## Install
@@ -93,10 +97,11 @@ replacing the old copy. Your settings and usage history stay.
 
 
 **Left-click** the menu bar item for this connection's total and the app list.
-**Right-click** it to test your internet speed, for Settings, to uninstall, and
-for Quit.
+**Right-click** it to test your internet speed, for Usage History, for Settings,
+to uninstall, and for Quit.
 
-The **gear icon** in the popover opens Settings, which holds start-at-login, the
+The **chart icon** in the popover opens Usage History. The **gear icon** opens
+Settings, which holds start-at-login, the
 counting-since time, Reset Now and Quit.
 
 Quitting and start-at-login are deliberately independent: quitting ends the app for
@@ -134,6 +139,31 @@ A test uses data — typically 50–500 MB, more on a very fast line — so on a
 connection it asks first and shows what the last test there cost. Its traffic shows
 in the list as *Network Monitor › Speed test* and counts toward the total, because
 those bytes really crossed the connection.
+
+## Usage history
+
+The popover's total starts over whenever you join a different network, and at
+midnight. Usage History is where those totals go: click the **chart icon** in the
+popover, or choose **Usage History…** from the right-click menu.
+
+- **Day, Week, Month or Year**, with ‹ and › to step back through them. Days are
+  split into hours, weeks and months into days, a year into months. Click a bar
+  to open it.
+- **Stacked by network type** — Wi-Fi, hotspot, Ethernet — with each type's total
+  beside the chart, and hover over a bar for its figures.
+- **Apps, Networks and Sessions.** Apps are grouped exactly as in the popover. A
+  session is one visit to a network: from joining it until you leave for another,
+  or until the Mac has been silent for half an hour, as it is after a sleep.
+- **Click any row to see only its usage** — one app, one network or one session —
+  and the chart and totals follow. **Metered only** does the same for every
+  hotspot and other metered connection at once. Right-click a network to give it
+  a name.
+- **Kept for a month, three months, a year or forever** (the default), and
+  **Export CSV…** saves what's on screen hour by hour, per app, in bytes.
+
+History counts the same internet-only figure as the popover, so a mirrored screen
+is no more part of it than of the total. It starts from the moment you install a
+version that has it; nothing from before can be recovered.
 
 ## Stop apps updating on hotspots
 

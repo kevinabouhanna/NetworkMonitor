@@ -12,12 +12,15 @@ public struct MenuBarPopoverView: View {
     /// change, so watching it does not re-measure the popover on every sample.
     @ObservedObject var metering: MeteringController
     var onSettings: () -> Void
+    var onHistory: () -> Void
 
-    public init(model: MonitorViewModel, onSettings: @escaping () -> Void) {
+    public init(model: MonitorViewModel, onSettings: @escaping () -> Void,
+                onHistory: @escaping () -> Void) {
         self.model = model
         self.speedTest = model.speedTest
         self.metering = model.metering
         self.onSettings = onSettings
+        self.onHistory = onHistory
     }
 
     /// One line under the total, while metered, when an update came through
@@ -145,6 +148,14 @@ public struct MenuBarPopoverView: View {
             if SpeedTestRunner.isAvailable {
                 SpeedTestButton(speedTest: speedTest)
             }
+            // The way back to the totals this header starts over at midnight
+            // and on every network change.
+            Button(action: onHistory) {
+                Image(systemName: "chart.bar.xaxis").font(.system(size: 12))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Usage History")
             Button(action: onSettings) {
                 Image(systemName: "gearshape.fill").font(.system(size: 12))
             }

@@ -14,6 +14,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// the popover had. See `restoreFocusWhenMenuBarHides()`.
     private var menuBarMonitors: [Any] = []
     private var settingsWindow: NSWindow?
+    private var historyWindow: NSWindow?
+    private lazy var historyModel = HistoryViewModel(monitor: model)
     /// Invisible stand-in for the status item that the popover anchors to.
     /// See `anchorView(under:)`.
     private var anchorWindow: NSWindow?
@@ -102,7 +104,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         popover.delegate = self
         let root = MenuBarPopoverView(
             model: model,
-            onSettings: { [weak self] in self?.showSettings() })
+            onSettings: { [weak self] in self?.showSettings() },
+            onHistory: { [weak self] in self?.showHistory() })
         let host = NSHostingController(rootView: root)
         // Keeps `preferredContentSize` in step with what SwiftUI lays out.
         //
@@ -376,6 +379,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             menu.addItem(.separator())
         }
 
+        menu.addItem(withTitle: "Usage History…",
+                     action: #selector(showHistory), keyEquivalent: "y")
         menu.addItem(withTitle: "Settings…",
                      action: #selector(showSettings), keyEquivalent: ",")
 
@@ -464,39 +469,86 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             settingsWindow = window
         }
 
-        // An ordinary app for as long as Settings is open — in the Dock and the
-        // app switcher, with a menu bar of its own — and an accessory app again
-        // once it closes; see `windowWillClose`.
-        //
-        // As an accessory app it had none of those, and with an auto-hidden menu
-        // bar that lost the window outright. Revealing the bar activates an app
-        // that owns one, and that app's windows came forward over Settings, with
-        // no Dock icon or ⌘-Tab entry left to bring it back. Measured on macOS 27
-        // with a stand-in window: covered by the terminal on the first reveal as
-        // an accessory app, frontmost and key through the same reveal as a
-        // regular one.
+        if let window = settingsWindow { present(window) }
+    }
+
+    @objc private func showHistory() {
+        if popover.isShown { closePopover() }
+
+        if historyWindow == nil {
+            let window = NSWindow(
+                contentRect: .zero,
+                styleMask: [.titled, .closable, .miniaturizable],
+                backing: .buffered,
+                defer: false)
+            window.title = "Usage History"
+            window.contentViewController = NSHostingController(
+                rootView: HistoryView(model: historyModel))
+            window.isReleasedWhenClosed = false
+            window.delegate = self
+            historyWindow = window
+        }
+        // Not re-centred if it is already up: it may have been moved, and the
+        // request is only to bring it forward.
+        let wasVisible = historyWindow?.isVisible == true
+        if !wasVisible { historyModel.windowDidOpen() }
+        guard let window = historyWindow else { return }
+        present(window, reposition: !wasVisible)
+        // Opens with nothing focused, for the reason the popover does: the
+        // window would otherwise hand first responder to the Day/Week picker,
+        // which then wears a focus ring nobody asked for. Tab still reaches it.
+        // Deferred, since SwiftUI assigns focus after the window is shown.
+        if !wasVisible {
+            DispatchQueue.main.async { window.makeFirstResponder(nil) }
+        }
+    }
+
+    /// Brings one of the app's windows forward.
+    ///
+    /// An ordinary app for as long as one is open — in the Dock and the app
+    /// switcher, with a menu bar of its own — and an accessory app again once
+    /// the last one closes; see `windowWillClose`.
+    ///
+    /// As an accessory app it had none of those, and with an auto-hidden menu
+    /// bar that lost the window outright. Revealing the bar activates an app
+    /// that owns one, and that app's windows came forward over Settings, with
+    /// no Dock icon or ⌘-Tab entry left to bring it back. Measured on macOS 27
+    /// with a stand-in window: covered by the terminal on the first reveal as
+    /// an accessory app, frontmost and key through the same reveal as a
+    /// regular one.
+    private func present(_ window: NSWindow, reposition: Bool = true) {
         NSApp.mainMenu = mainMenu
         NSApp.setActivationPolicy(.regular)
 
         // Re-position on every open: the window may have been moved, or opened on
         // a different screen since last time.
-        if let window = settingsWindow { position(window) }
+        if reposition { position(window) }
 
         // An LSUIElement app is not active by default, so without this the
         // window opens behind whatever the user was using.
         NSApp.activate(ignoringOtherApps: true)
-        settingsWindow?.makeKeyAndOrderFront(nil)
+        window.makeKeyAndOrderFront(nil)
     }
 
-    /// Back to a menu bar app when Settings closes. macOS hands focus back to
-    /// whichever app had it before, unprompted — measured, also on macOS 27.
+    /// Back to a menu bar app when the last window closes. macOS hands focus
+    /// back to whichever app had it before, unprompted — measured, also on
+    /// macOS 27.
     func windowWillClose(_ notification: Notification) {
-        guard notification.object as? NSWindow === settingsWindow else { return }
+        guard let closing = notification.object as? NSWindow,
+              closing === settingsWindow || closing === historyWindow
+        else { return }
+        if closing === historyWindow { historyModel.windowDidClose() }
+        let anotherOpen = [settingsWindow, historyWindow].contains {
+            guard let window = $0 else { return false }
+            return window !== closing && window.isVisible
+        }
+        guard !anotherOpen else { return }
         NSApp.setActivationPolicy(.accessory)
         NSApp.mainMenu = nil
     }
 
-    /// The menu bar NetworkMonitor shows while Settings is open, and only then.
+    /// The menu bar NetworkMonitor shows while one of its windows is open, and
+    /// only then.
     ///
     /// A regular app owns the menu bar, so it needs one; this is also what gives
     /// the window ⌘W, which did nothing without a menu to carry it (checked with
@@ -527,6 +579,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         let windowMenu = NSMenu(title: "Window")
         windowMenu.addItem(withTitle: "Close",
                            action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windowMenu.addItem(withTitle: "Minimize",
+                           action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowMenu.addItem(.separator())
+        windowMenu.addItem(withTitle: "Usage History",
+                           action: #selector(showHistory), keyEquivalent: "y").target = self
 
         let menuBar = NSMenu()
         for submenu in [appMenu, windowMenu] {
@@ -537,7 +594,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         return menuBar
     }()
 
-    /// Centres the settings window, keeping its title bar clear of the menu bar.
+    /// Centres a window, keeping its title bar clear of the menu bar.
     ///
     /// With "Automatically hide and show the menu bar" enabled, the menu bar draws
     /// *over* whatever is beneath it rather than shrinking the usable area, so a

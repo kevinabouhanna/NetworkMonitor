@@ -169,7 +169,7 @@ public struct SettingsView: View {
                 }
                 Text("Totals count what this connection has used, per app, all the "
                      + "time. They start over when you join a different network, "
-                     + "and at midnight.")
+                     + "and at midnight. Usage History keeps every hour of it.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
 

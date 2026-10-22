@@ -112,7 +112,7 @@ public final class MonitorViewModel: ObservableObject {
     @Published public private(set) var profile: PowerProfile = .performance
     private var powerToken: Any?
 
-    public init(store: UsageStore = UsageStore(),
+    public init(store: UsageStore = UsageStore(history: UsageHistory()),
                 metering: MeteringController? = nil,
                 speedTest: SpeedTestController = SpeedTestController()) {
         self.store = store
@@ -129,6 +129,14 @@ public final class MonitorViewModel: ObservableObject {
     // MARK: Lifecycle
 
     public func start() {
+        // Before the first network is adopted, so the first session written
+        // already carries a verdict, and the retention is in force before the
+        // first write prunes anything.
+        store.history?.isMetered = { [weak self] in self?.metering.verdict.isMetered ?? false }
+        store.history?.retention = UserDefaults.standard
+            .string(forKey: HistoryViewModel.retentionKey)
+            .flatMap(HistoryRetention.init(rawValue:)) ?? .forever
+
         pathWatcher.onChange = { [weak self] fingerprint in
             self?.handleNetworkChange(fingerprint)
         }
