@@ -136,6 +136,17 @@ section { position: relative; }
 .featured a:hover { opacity: 1; }
 .featured img[src*="trymacapps"] { filter: invert(1); }
 .hero-shot { margin: clamp(48px, 7vw, 80px) auto 0; width: min(780px, 100%); position: relative; }
+.hero-shot.hero-video { width: min(960px, 100%); }
+.hero-video video { display: block; width: 100%; height: auto; border-radius: 18px; border: 1px solid var(--hair); background: #000; }
+.sound {
+  position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 7px;
+  font: 500 13px/1 var(--font); color: var(--text); cursor: pointer;
+  background: rgba(22, 22, 23, .72); border: 1px solid var(--hair); border-radius: 980px; padding: 8px 12px;
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+.sound:hover { background: rgba(44, 44, 46, .85); }
+.sound:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.sound svg { width: 15px; height: 15px; }
 .hero-shot img {
   width: 100%;
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%), linear-gradient(180deg, #000 88%, transparent 100%);
@@ -348,9 +359,14 @@ footer a { color: var(--text-2); }
         <a href="https://usefulshelf.co/?utm_source=kevinabouhanna.github.io&amp;utm_medium=referral&amp;utm_campaign=badge&amp;utm_content=lime" target="_blank" rel="nofollow noopener"><img src="https://usefulshelf.co/badge/usefulshelf.svg?theme=lime" alt="Featured on UsefulShelf" width="248" height="66"></a>
       </div>
     </div>
-    <figure class="hero-shot reveal" style="margin-bottom:0">
-      <img src="assets/hero.png" width="1060" height="1000"
-           alt="The macOS menu bar showing NetworkMonitor reading 1.28 MB/s down and 11.81 KB/s up, with its popover open: a 735.7 MB total, then Google Chrome 405.1 MB, iTerm2 263.1 MB, Slack 1.6 MB, Claude Usage 1.2 MB, privatecloudcomputed 899.1 KB, AddressBookSourceSync 267.3 KB, Raycast 103.2 KB, Weather 57.5 KB and more. The header holds buttons for the speed test, Usage History and Settings.">
+    <figure class="hero-shot hero-video reveal" style="margin-bottom:0">
+      <video id="hero-video" src="assets/brag.mp4" poster="assets/brag-poster.jpg" width="1920" height="1080"
+             muted loop playsinline preload="auto" data-autoplay
+             aria-label="A 22-second launch video of NetworkMonitor, every frame of the app a real capture. It asks Which app used my data? over the real menu bar readout, then shows the popover listing apps biggest first with iTerm2's commands beneath it, GoogleUpdater's 135 MB caught in the background, Settings with Stop apps updating on hotspots switched on, and ends on Free and open source for macOS."></video>
+      <button class="sound" type="button" aria-pressed="false" hidden data-sound>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 2.5 4.6 5.3H2v5.4h2.6L8 13.5z"/><path data-wave fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M10.6 5.6a3.4 3.4 0 0 1 0 4.8M12.5 3.8a6 6 0 0 1 0 8.4" opacity=".35"/></svg>
+        <span>Sound on</span>
+      </button>
     </figure>
   </section>
 
@@ -454,7 +470,7 @@ footer a { color: var(--text-2); }
       <p class="lead reveal d2" style="max-width:660px;margin-inline:auto">Click the readout for this connection’s total and the apps behind it. <strong>The numbers move while you watch.</strong></p>
       <div class="video-frame reveal">
         <span class="rec"><i></i>Screen recording · 10 s</span>
-        <video id="live" src="assets/live.mp4" poster="assets/live-poster.jpg" width="1040" height="990"
+        <video id="live" src="assets/live.mp4" poster="assets/live-poster.jpg" width="1040" height="990" data-autoplay
                muted loop playsinline preload="metadata"
                aria-label="Ten-second screen recording of NetworkMonitor's popover during a download. The menu bar reads about 2.3 MB/s down, and the total climbs from 863.0 MB to 886.5 MB as iTerm2's figure grows."></video>
       </div>
@@ -677,17 +693,30 @@ footer a { color: var(--text-2); }
     els.forEach(el => io.observe(el));
   }
 
-  // Play the recording only while it's on screen; never autoplay for reduced motion.
-  const video = document.getElementById('live');
-  if (reduce) {
-    video.controls = true;
-  } else if ('IntersectionObserver' in window) {
+  // Videos play only while they're on screen, and never on their own with Reduce
+  // Motion on: then they wait with their controls showing.
+  const autoplay = !reduce && 'IntersectionObserver' in window;
+  document.querySelectorAll('video[data-autoplay]').forEach(video => {
+    if (!autoplay) { video.controls = true; return; }
     new IntersectionObserver(([e]) => {
       if (e.isIntersecting) video.play().catch(err => { if (err.name === 'NotAllowedError') video.controls = true; });
       else video.pause();
     }, { threshold: 0.35 }).observe(video);
-  } else {
-    video.controls = true;
+  });
+
+  // The launch video has a soundtrack. It starts muted, as browsers require, and this
+  // turns it on; with controls showing, the player's own volume does the job instead.
+  const sound = document.querySelector('[data-sound]');
+  const hero = document.getElementById('hero-video');
+  if (sound && hero && autoplay) {
+    sound.hidden = false;
+    sound.addEventListener('click', () => {
+      hero.muted = !hero.muted;
+      if (!hero.muted && hero.paused) hero.play().catch(() => {});
+      sound.setAttribute('aria-pressed', String(!hero.muted));
+      sound.querySelector('span').textContent = hero.muted ? 'Sound on' : 'Sound off';
+      sound.querySelector('[data-wave]').setAttribute('opacity', hero.muted ? '.35' : '1');
+    });
   }
 
   // In-page links glide to their section, with Reduce Motion on too. CSS
