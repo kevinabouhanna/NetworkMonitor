@@ -3,7 +3,7 @@ import Combine
 import NetworkMonitorCore
 import SwiftUI
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowDelegate {
 
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
@@ -411,8 +411,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             window.contentViewController = NSHostingController(
                 rootView: SettingsView(model: model))
             window.isReleasedWhenClosed = false
+            window.delegate = self
             settingsWindow = window
         }
+
+        // An ordinary app for as long as Settings is open — in the Dock and the
+        // app switcher, with a menu bar of its own — and an accessory app again
+        // once it closes; see `windowWillClose`.
+        //
+        // As an accessory app it had none of those, and with an auto-hidden menu
+        // bar that lost the window outright. Revealing the bar activates an app
+        // that owns one, and that app's windows came forward over Settings, with
+        // no Dock icon or ⌘-Tab entry left to bring it back. Measured on macOS 27
+        // with a stand-in window: covered by the terminal on the first reveal as
+        // an accessory app, frontmost and key through the same reveal as a
+        // regular one.
+        NSApp.mainMenu = mainMenu
+        NSApp.setActivationPolicy(.regular)
 
         // Re-position on every open: the window may have been moved, or opened on
         // a different screen since last time.
@@ -424,11 +439,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         settingsWindow?.makeKeyAndOrderFront(nil)
     }
 
+    /// Back to a menu bar app when Settings closes. macOS hands focus back to
+    /// whichever app had it before, unprompted — measured, also on macOS 27.
+    func windowWillClose(_ notification: Notification) {
+        guard notification.object as? NSWindow === settingsWindow else { return }
+        NSApp.setActivationPolicy(.accessory)
+        NSApp.mainMenu = nil
+    }
+
+    /// The menu bar NetworkMonitor shows while Settings is open, and only then.
+    ///
+    /// A regular app owns the menu bar, so it needs one; this is also what gives
+    /// the window ⌘W, which did nothing without a menu to carry it (checked with
+    /// a stand-in window: open after ⌘W without the menu, closed with it). Kept
+    /// out of the popover's way: ⌘Q there quitting the app would be a new
+    /// behaviour nobody asked for.
+    private lazy var mainMenu: NSMenu = {
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "About NetworkMonitor",
+                        action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
+                        keyEquivalent: "")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Settings…",
+                        action: #selector(showSettings), keyEquivalent: ",").target = self
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Hide NetworkMonitor",
+                        action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "Hide Others",
+                        action: #selector(NSApplication.hideOtherApplications(_:)),
+                        keyEquivalent: "h").keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(withTitle: "Show All",
+                        action: #selector(NSApplication.unhideAllApplications(_:)),
+                        keyEquivalent: "")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Quit NetworkMonitor",
+                        action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+
+        let windowMenu = NSMenu(title: "Window")
+        windowMenu.addItem(withTitle: "Close",
+                           action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+
+        let menuBar = NSMenu()
+        for submenu in [appMenu, windowMenu] {
+            let item = NSMenuItem()
+            item.submenu = submenu
+            menuBar.addItem(item)
+        }
+        return menuBar
+    }()
+
     /// Centres the settings window, keeping its title bar clear of the menu bar.
     ///
     /// With "Automatically hide and show the menu bar" enabled, the menu bar draws
     /// *over* whatever is beneath it rather than shrinking the usable area, so a
-    /// window whose title bar sits in the top ~22 pt has its close button covered
+    /// window whose title bar sits in the top 30 pt has its close button covered
     /// whenever the menu bar appears. The top edge is therefore clamped to exactly
     /// one menu bar height below the top of the screen.
     private func position(_ window: NSWindow) {
@@ -440,14 +504,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         guard let screen = window.screen ?? NSScreen.main else { return }
-        // `safeAreaInsets.top` covers notched displays, where the menu bar is
-        // taller than the classic status bar thickness.
-        let menuBarHeight = max(NSStatusBar.system.thickness, screen.safeAreaInsets.top)
 
         var frame = window.frame
         frame.origin.x = screen.frame.midX - frame.width / 2
 
-        let highestAllowedTop = screen.frame.maxY - menuBarHeight
+        // 30 pt on macOS 27, not the status item's 22 pt that this used to take,
+        // which left the top 8 pt of the title bar under a revealed menu bar.
+        let highestAllowedTop = screen.frame.maxY - menuBarHeight(on: screen)
         let centredTop = screen.frame.midY + frame.height / 2
         frame.origin.y = min(centredTop, highestAllowedTop) - frame.height
         // Never push the window off the bottom of the screen to satisfy the clamp.
