@@ -6,7 +6,7 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write        # required to create the release and upload the zip
+  contents: write        # required to create the release and upload the disk image
 
 jobs:
   release:
@@ -30,10 +30,13 @@ jobs:
         run: make test
 
       # Universal, unlike CI's native build: a release has to run on Intel too.
-      - name: Build the universal app
+      # `make dmg` builds the universal app — with its privileged helper inside,
+      # also universal — and packages it as the drag-to-Applications disk image
+      # the website's Download buttons point at.
+      - name: Build the universal app and its disk image
         env:
           MARKETING_VERSION: ${{ steps.version.outputs.value }}
-        run: make universal
+        run: make dmg
 
       - name: Verify the stamped version matches the tag
         run: |
@@ -46,50 +49,44 @@ jobs:
           echo "both say $stamped"
           lipo -archs build/NetworkMonitor.app/Contents/MacOS/NetworkMonitor
 
-      # ditto, not zip: it preserves the bundle's symlinks and extended
-      # attributes, so the signature survives the round trip. This is also the
-      # archive format Sparkle expects when it is added.
-      - name: Package
+      # The app installs its own helper from Settings, so a bundle without one —
+      # or with a one-architecture one — would leave Intel or Apple silicon users
+      # with a hotspot feature that silently covers less.
+      - name: Verify the helper is inside, for both architectures
         run: |
-          ditto -c -k --keepParent build/NetworkMonitor.app \
-                "NetworkMonitor-${{ steps.version.outputs.value }}.zip"
+          helper=build/NetworkMonitor.app/Contents/Library/LaunchServices/com.kevinabouhanna.NetworkMonitor.helper
+          archs=$(lipo -archs "$helper")
+          echo "helper: $archs"
+          case "$archs" in *arm64*x86_64*|*x86_64*arm64*) ;; *) exit 1 ;; esac
+          test -x build/NetworkMonitor.app/Contents/Resources/helper-setup.sh
+          codesign --verify --deep --strict build/NetworkMonitor.app
 
-      # GitHub puts the zip in the repo sidebar where it reads as the obvious
-      # download, but an ad-hoc signed app is quarantined once it has been
-      # zipped and shared — macOS refuses to open it and sends the user into
-      # System Settings. Until the Developer ID lands, the zip is a build
-      # artifact and the note below says so, so nobody bounces off a warning
-      # dialog thinking the app is broken. Drop this once builds are notarized.
+      # Plain steps, no Terminal. The one rough edge left is Gatekeeper's
+      # first-open warning, which only a Developer ID signature and notarization
+      # remove; until then the notes walk through "Open Anyway" so nobody takes
+      # the warning for a broken build.
       - name: Write the release notes preamble
         run: |
           cat > release-notes.md <<'NOTE'
-          > [!IMPORTANT]
-          > **This download is not yet signed with an Apple Developer ID**, so
-          > macOS will refuse to open it and say the developer cannot be
-          > verified. That is Gatekeeper doing its job, not a broken build.
-
           ### Installing
 
-          Build from source — a locally built app is never quarantined, so this
-          path has no warnings at all:
+          1. Download **NetworkMonitor.dmg** below, open it, and drag NetworkMonitor
+             into **Applications**.
+          2. Open it from Applications. The first time, macOS says it can't check it
+             for malicious software — close that message.
+          3. Open **System Settings › Privacy & Security**, scroll down to Security,
+             and click **Open Anyway** next to NetworkMonitor. Confirm with your
+             password.
 
-          ```sh
-          git clone https://github.com/kevinabouhanna/NetworkMonitor.git
-          cd NetworkMonitor
-          ./Scripts/install.sh
-          ```
+          That last step is needed once, because NetworkMonitor isn't signed with an
+          Apple Developer ID yet.
 
-          Update later with `make update`.
+          ### Updating
 
-          If you would rather use the zip and know what you are doing, clear the
-          quarantine flag yourself after unzipping:
-
-          ```sh
-          xattr -dr com.apple.quarantine NetworkMonitor.app
-          ```
-
-          Signed and notarized downloads that open with a double-click are
-          planned.
+          Download the disk image and drag NetworkMonitor into Applications again,
+          choosing **Replace**. Your settings and usage history stay. If you use
+          *Stop apps updating on hotspots* and this version needs a newer helper,
+          it asks for your password once, the first time it opens.
 
           ---
           NOTE
@@ -99,7 +96,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-             "NetworkMonitor-${{ steps.version.outputs.value }}.zip" \
+             build/NetworkMonitor.dmg \
              --title "$GITHUB_REF_NAME" \
              --notes-file release-notes.md \
              --generate-notes
