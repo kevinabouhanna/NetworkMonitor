@@ -172,6 +172,9 @@ public struct SettingsView: View {
                      + "and at midnight. Usage History keeps every hour of it.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+                    // Like every other paragraph here: without it the window is
+                    // sized to this text's one-line height, and it ends in "…".
+                    .fixedSize(horizontal: false, vertical: true)
 
                 // Stated, not offered. There is nothing to choose here — the point
                 // is that the app handles it — but a reader who notices the app
