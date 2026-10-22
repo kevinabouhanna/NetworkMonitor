@@ -22,8 +22,8 @@ Your download and upload speed, always visible in the menu bar. Click it for
 today's total and a per-app breakdown of who used it.
 
 <p align="center">
-  <img src="Resources/README/screenshot.png" width="423"
-       alt="NetworkMonitor in the macOS menu bar showing 14.70 KB/s down and 23.90 KB/s up, with its popover open below: a 138.9 MB total for the day, then a list of apps sorted by usage — Google Chrome 29.6 MB, Code 3.0 MB, WhatsApp 2.7 MB, and smaller system processes.">
+  <img src="Resources/README/demo.gif" width="404"
+       alt="Eleven seconds of the real app during a download. The menu bar reads about 1.2 MB/s down; a click opens the popover, whose total climbs from 719.8 MB as Google Chrome (405.1 MB) and iTerm2 lead the list; then iTerm2 expands to show the processes it started — node, curl climbing past 65 MB, the Claude CLI and git.">
 </p>
 
 ## Features
@@ -112,7 +112,7 @@ doesn't quit the running app.
 
 <p align="center">
   <img src="Resources/README/speed-test.png" width="346"
-       alt="The popover after a speed test: 18.4 Mbps down and 35.3 Mbps up over Wi-Fi, ping 66.6 ms, jitter 8.0 ms, ping while downloading 106 ms and while uploading 93.5 ms, and a note naming the background downloads that competed during the test.">
+       alt="The popover after a speed test: 8.39 Mbps down and 19.1 Mbps up over Wi-Fi, using 55.0 MB; ping 43.5 ms, jitter 2.2 ms, ping while downloading 44.9 ms and while uploading 44.4 ms.">
 </p>
 
 Click the **gauge** in the popover, or choose **Test Internet Speed** from the
