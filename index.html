@@ -355,8 +355,8 @@ footer a { color: var(--text-2); }
       </div>
     </div>
     <figure class="hero-shot reveal" style="margin-bottom:0">
-      <img src="assets/hero.png" width="1060" height="990"
-           alt="The macOS menu bar showing NetworkMonitor reading 2.42 MB/s down and 108.4 KB/s up, with its popover open: a 563.0 MB total, then Slack 162.4 MB, iTerm2 138.5 MB, Camoufox 71.3 MB, Google Chrome 51.8 MB, WhatsApp 27.6 MB, GoogleUpdater 18.7 MB, Code 5.0 MB and more.">
+      <img src="assets/hero.png" width="1060" height="1000"
+           alt="The macOS menu bar showing NetworkMonitor reading 1.28 MB/s down and 11.81 KB/s up, with its popover open: a 735.7 MB total, then Google Chrome 405.1 MB, iTerm2 263.1 MB, Slack 1.6 MB, Claude Usage 1.2 MB, privatecloudcomputed 899.1 KB, AddressBookSourceSync 267.3 KB, Raycast 103.2 KB, Weather 57.5 KB and more. The header holds buttons for the speed test, Usage History and Settings.">
     </figure>
   </section>
 
@@ -476,14 +476,14 @@ footer a { color: var(--text-2); }
           <h3 class="h4">Credit where it’s due.</h3>
           <p class="copy">Helpers fold into the app that owns them, so Chrome’s dozen helper processes are one <strong>Google Chrome</strong> row. Commands started from a terminal break out beneath it, each with its own figure.</p>
           <img src="assets/popover-subprocesses.png" width="772" height="948" loading="lazy"
-               alt="The popover with iTerm2 expanded to show its sub-processes: 2.1.280 at 127.8 MB, 2.1.278 at 20.7 MB, git-remote-http at 355.8 KB and Other (4) at 237.3 KB.">
+               alt="The popover with iTerm2 expanded to show its sub-processes: node at 144.4 MB, 2.1.308 at 35.5 MB, git-remote-http at 3.8 MB and Other (3) at 7.0 MB.">
         </div>
         <div class="tile shot span-3 reveal d1">
           <p class="kicker">System</p>
           <h3 class="h4">macOS noise, folded away.</h3>
           <p class="copy">Dozens of system daemons collapse into a single <strong>System</strong> row at the bottom of the list. Open it when you’re curious; ignore it when you’re not.</p>
           <img src="assets/popover-system.png" width="772" height="948" loading="lazy"
-               alt="The bottom of the popover's list: Software Update, Raycast, VoiceInk, Weather, IMTransferAgent, identityservicesd, Remote for Mac and Control Center, then a single System (35) row at 11.8 MB.">
+               alt="The bottom of the popover's list: privatecloudcomputed, AddressBookSourceSync, Raycast, Weather, Screen Time, Siri, Remote for Mac and Control Center, then a single System (36) row at 10.4 MB.">
         </div>
         <div class="tile span-2 reveal">
           <p class="kicker">Sorted live</p>
@@ -515,9 +515,9 @@ footer a { color: var(--text-2); }
 
       <div class="hotspot-grid">
         <figure class="settings-shot reveal" style="margin:0">
-          <img src="assets/settings-hotspot.png" width="1024" height="1195" loading="lazy"
-               alt="NetworkMonitor Settings. Start at login is on. Under Hotspot, Stop apps updating on hotspots is on, with the note This connection isn't metered, and Apps paused (14) is expanded: Affinity, AppCleaner, ChatGPT, Claude Usage, Figma, Google Chrome, iTerm, macOS and in-app updaters, Microsoft AutoUpdate, OpenDisk, Remote for Mac, Visual Studio Code, VLC and VoiceInk.">
-          <figcaption class="caption" style="text-align:center">Settings on the Mac this page was built on: 14 apps covered, each with its own switch.</figcaption>
+          <img src="assets/settings-hotspot.png" width="1024" height="1262" loading="lazy"
+               alt="NetworkMonitor Settings. Start at login is on. Under Hotspot, Stop apps updating on hotspots is on, with the note that it also puts the hotspot in Low Data Mode so iCloud and other background downloads wait, then This connection isn't metered. Apps paused (12) is expanded: AppCleaner, Claude Usage, Figma, Google Chrome, iTerm, macOS and in-app updaters, Microsoft AutoUpdate, OpenDisk, Remote for Mac, Visual Studio Code, VLC and VoiceInk. Not covered (5) is collapsed below.">
+          <figcaption class="caption" style="text-align:center">Settings on the Mac this page was built on: 12 apps covered, each with its own switch.</figcaption>
         </figure>
         <div class="facts">
           <div class="reveal">
@@ -563,9 +563,9 @@ footer a { color: var(--text-2); }
 
       <div class="hotspot-grid">
         <figure class="speed-shot reveal" style="margin:0">
-          <img src="assets/speed-test.png" width="692" height="898" loading="lazy"
-               alt="The popover after a speed test: a dial reading 18.4 Mbps down, upload 35.3 Mbps, Wi-Fi, used 98.6 MB at 12:20 PM; ping 66.6 ms, jitter 8.0 ms, ping while downloading 106 ms and while uploading 93.5 ms; and an orange note that nsurlsessiond, Google Chrome and 9 more used 107.9 MB during the test, so figures may read low.">
-          <figcaption class="caption" style="text-align:center">A real test on the Mac this page was built on, with macOS’s background downloads competing for the line, and named.</figcaption>
+          <img src="assets/speed-test.png" width="692" height="854" loading="lazy"
+               alt="The popover after a speed test: a dial reading 8.39 Mbps down, upload 19.1 Mbps, Wi-Fi, used 55.0 MB at 1:04 AM; ping 43.5 ms, jitter 2.2 ms, ping while downloading 44.9 ms and while uploading 44.4 ms.">
+          <figcaption class="caption" style="text-align:center">A real test on the Mac this page was built on, with nothing else competing for the line.</figcaption>
         </figure>
         <div class="facts">
           <div class="reveal">
@@ -614,7 +614,7 @@ footer a { color: var(--text-2); }
       <div class="privacy-grid">
         <div class="reveal"><h3>No permission prompts.</h3><p>It never asks for Location and doesn’t need it. The only thing that ever asks for your password is the hotspot helper, once, when you switch hotspot metering on.</p></div>
         <div class="reveal d1"><h3>No network access of its own.</h3><p>The only traffic NetworkMonitor ever causes is a speed test you start yourself, run by macOS’s built-in networkQuality against Apple’s servers. No analytics, no telemetry, no update check, no account.</p></div>
-        <div class="reveal d2"><h3>Stays on your Mac.</h3><p>Your usage lives in a single local file that you can delete at any time.</p></div>
+        <div class="reveal d2"><h3>Stays on your Mac.</h3><p>Your usage lives in local files on your Mac that you can delete at any time.</p></div>
         <div class="reveal d3"><h3>Open source.</h3><p>MIT licensed. <a href="https://github.com/kevinabouhanna/NetworkMonitor">Read every line</a> before you run it.</p></div>
       </div>
     </div>
