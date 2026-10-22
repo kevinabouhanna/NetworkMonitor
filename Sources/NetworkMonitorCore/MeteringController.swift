@@ -47,6 +47,20 @@ public final class MeteringController: ObservableObject {
     /// them" until the user says otherwise.
     @Published public private(set) var excluded: Set<String> = []
 
+    /// Low Data Mode as it stands right now. See `LowDataModeSuppressor.State`.
+    @Published public private(set) var lowDataMode: LowDataModeSuppressor.State = .off
+    /// Whether the helper can do Low Data Mode at all, so Settings can say
+    /// "reinstall the helper" instead of showing a switch that does nothing.
+    @Published public private(set) var lowDataModeAvailability:
+        LowDataModeSuppressor.Availability = .helperMissing
+    /// True when macOS itself reports the connection as constrained while we
+    /// hold it — `NWPath`, not just `ifconfig`, agrees. The difference matters:
+    /// the flag being up is our claim; this is the system acting on it.
+    @Published public private(set) var lowDataModeConfirmed = false
+    /// Updates that arrived anyway on the current, or last, metered connection,
+    /// big enough to be updates rather than checks. See `UpdateWatch`.
+    @Published public private(set) var updatesGotThrough: [UpdateWatch.Sighting] = []
+
     public static let enabledKey = "meteringEnabled"
     public static let excludedKey = "meteringExcludedItems"
 
@@ -54,6 +68,8 @@ public final class MeteringController: ObservableObject {
     private let journal: SuppressionJournal
     private let suppressors: [UpdateSuppressor]
     private let defaults: UserDefaults
+    private let ownership: InterfaceFlagOwnership
+    private let updateWatch: UpdateWatch
 
     private var observers: [NSObjectProtocol] = []
 
@@ -61,14 +77,24 @@ public final class MeteringController: ObservableObject {
                 journal: SuppressionJournal = SuppressionJournal(),
                 suppressors: [UpdateSuppressor] = [PreferenceSuppressor(),
                                                    ConfigFileSuppressor(),
-                                                   PrivilegedSuppressor()],
-                defaults: UserDefaults = .standard) {
+                                                   PrivilegedSuppressor(),
+                                                   LowDataModeSuppressor()],
+                defaults: UserDefaults = .standard,
+                ownership: InterfaceFlagOwnership = .shared,
+                updateWatch: UpdateWatch? = nil) {
         self.store = store
         self.journal = journal
         self.suppressors = suppressors
         self.defaults = defaults
+        self.ownership = ownership
+        self.updateWatch = updateWatch ?? UpdateWatch(defaults: defaults)
         self.isEnabled = defaults.bool(forKey: Self.enabledKey)
         self.excluded = Set(defaults.stringArray(forKey: Self.excludedKey) ?? [])
+        self.updatesGotThrough = self.updateWatch.reportable
+    }
+
+    private var lowData: LowDataModeSuppressor? {
+        suppressors.lazy.compactMap { $0 as? LowDataModeSuppressor }.first
     }
 
     // MARK: Lifecycle
@@ -80,11 +106,21 @@ public final class MeteringController: ObservableObject {
         evaluate()
     }
 
+    /// Called on quit.
+    ///
+    /// Everything else stays suppressed — see `MonitorViewModel.stop` — but Low
+    /// Data Mode is let go of. It is the one change whose effect is machine-wide
+    /// rather than per-app, it is re-applied in a single call at the next launch,
+    /// and once nothing is watching the network nothing would lift it when the
+    /// Mac moves on to home Wi-Fi with the same interface: iCloud would stay
+    /// paused there until a restart.
     public func stop() {
         for observer in observers {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
         }
         observers.removeAll()
+        lowData?.revert(journal: journal)
+        publishLowDataMode()
     }
 
     /// Lifts every suppression and empties the journal.
@@ -125,16 +161,28 @@ public final class MeteringController: ObservableObject {
         // flickering "This connection isn't metered" during a two-second dropout.
         guard store.currentNetwork.id != NetworkFingerprint.offline.id else { return }
 
-        var signals = store.currentNetwork.signals
+        // Our own Low Data Mode flags are not evidence. See
+        // `InterfaceFlagOwnership` for the loop this prevents.
+        var signals = ownership.masking(store.currentNetwork.signals,
+                                        on: store.currentNetwork.interfaceName)
         signals.userOverride = store.currentMeteredOverride
         verdict = MeteredHeuristic.verdict(for: signals)
 
         let shouldSuppress = isEnabled && verdict.isMetered
         if shouldSuppress {
             applyAll()
-        } else if isSuppressing || !journal.isEmpty {
-            revertAll()
+        } else {
+            // A release the helper has not confirmed leaves nothing in the
+            // journal, so an empty journal is not enough to stop trying.
+            if isSuppressing || !journal.isEmpty
+                || suppressors.contains(where: { $0.holdsUnreleasedState }) {
+                revertAll()
+            }
+            // Here rather than in `revertAll`, which also runs when one app is
+            // switched off mid-hotspot — and that must not end the report.
+            updateWatch.end()
         }
+        publishLowDataMode()
     }
 
     /// Called by `MonitorViewModel` on every identified network change.
@@ -149,7 +197,54 @@ public final class MeteringController: ObservableObject {
     /// started listing macOS and Claude as paused. Opening Settings now re-asserts,
     /// which is both when the user would look and the only moment this costs
     /// anything: `applyAll` rescans `/Applications`, so it must not be on a timer.
-    public func refresh() { evaluate() }
+    ///
+    /// It is also when Low Data Mode's availability is asked again, which is how
+    /// a helper reinstalled to gain the new verbs is noticed without a relaunch.
+    public func refresh() {
+        refreshHelperState()
+        lowData?.refreshAvailability()
+        evaluate()
+    }
+
+    // MARK: The helper
+
+    /// Whether the helper is installed and new enough. Refreshed by `refresh()`
+    /// and after every install attempt.
+    @Published public private(set) var helperState: HelperInstaller.State = .missing
+
+    /// The app build that last offered to install or update the helper on its
+    /// own, without being asked.
+    public static let helperOfferedKey = "helperOfferedForBuild"
+
+    /// Installs or updates the helper when the feature needs it, behind one
+    /// administrator prompt.
+    ///
+    /// `userAsked` is true when the user has just switched the feature on or
+    /// pressed Allow: ask now. False is the check at launch, for the first run
+    /// of a new version whose helper is newer than the installed one: ask once
+    /// per build and never again if the answer was no — Settings keeps offering
+    /// it, and the parts that need no helper carry on regardless.
+    @discardableResult
+    public func ensureHelper(userAsked: Bool) -> HelperInstaller.Outcome? {
+        refreshHelperState()
+        guard isEnabled, helperState != .current, HelperInstaller.canInstall else { return nil }
+        if !userAsked {
+            let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+            guard defaults.string(forKey: Self.helperOfferedKey) != build else { return nil }
+            defaults.set(build, forKey: Self.helperOfferedKey)
+        }
+        let outcome = HelperInstaller.install()
+        // Re-asserted with the new helper in place: the privileged tier and Low
+        // Data Mode both start working on the spot rather than at the next
+        // network change.
+        refresh()
+        return outcome
+    }
+
+    private func refreshHelperState() {
+        let state = HelperInstaller.state()
+        if state != helperState { helperState = state }
+    }
 
     /// Switches one app in or out of the feature.
     ///
@@ -191,6 +286,11 @@ public final class MeteringController: ObservableObject {
         suppressed = journalNames()
         deferred = result.deferred
         failed = result.failed
+
+        // Idempotent per network: only the first pass on a connection starts a
+        // report and snapshots what the caches already hold.
+        updateWatch.begin(networkID: store.currentNetwork.id)
+        publishSightings()
     }
 
     /// Names for what is currently held down.
@@ -219,6 +319,8 @@ public final class MeteringController: ObservableObject {
                              ?? URL(fileURLWithPath: path).lastPathComponent)
             case .systemPreference:
                 names.insert("macOS and in-app updaters")
+            case .lowDataMode:
+                names.insert("Low Data Mode")
             }
         }
         return names.sorted()
@@ -281,7 +383,10 @@ public final class MeteringController: ObservableObject {
     /// so call it when a view appears, never from inside `body`.
     public func toggleItems() -> [ToggleItem] {
         var rows: [ToggleItem] = []
-        for (name, items) in coverage() where !items.isEmpty {
+        for (name, all) in coverage() {
+            // Low Data Mode is not an app; the feature's own switch covers it.
+            let items = all.filter { $0.id != LowDataModeSuppressor.itemID }
+            guard !items.isEmpty else { continue }
             let ids = Set(items.map(\.id))
             if ids.count == 1 && items.count > 1 {
                 rows.append(ToggleItem(
@@ -322,5 +427,129 @@ public final class MeteringController: ObservableObject {
     /// Applications covered only via the helper, for the settings pane.
     public var privilegedCoverage: [String] {
         PrivilegedSuppressor.coveredApplications.map(\.app)
+    }
+
+    // MARK: What is not covered
+
+    /// Installed apps that update themselves by a route nothing here reaches.
+    ///
+    /// Without the helper this includes the apps only the helper covers —
+    /// Claude and Slack — which is the honest answer: on this Mac, right now,
+    /// they are not covered.
+    ///
+    /// **Not cheap**, for the same reason as `toggleItems()`: call it when a
+    /// view appears.
+    public func uncoveredUpdaters() -> [UpdaterScan.Finding] {
+        UpdaterScan.uncovered(UpdaterScan.findings(), by: coverage().flatMap(\.items))
+    }
+
+    /// One nettop row's bytes, for a process named like an updater. Called by
+    /// `MonitorViewModel` per sample; ignored unless a metered connection is
+    /// being watched.
+    public func noteUpdaterTraffic(processName: String, appName: String?, bytes: Int64) {
+        guard isSuppressing else { return }
+        if updateWatch.recordTraffic(processName: processName, appName: appName,
+                                     bytes: bytes) {
+            publishSightings()
+        }
+    }
+
+    /// Once per nettop sample. Looks at the updater caches when due; see
+    /// `UpdateWatch.scanInterval`.
+    public func tick(now: Date = Date()) {
+        guard isSuppressing else { return }
+        if updateWatch.tick(now: now) { publishSightings() }
+    }
+
+    /// Everything above, as plain text for `--metering-report`. Reads only: no
+    /// evaluation, no suppressor applied or reverted, and the one helper call it
+    /// can make is `status`.
+    public func diagnosticReport() -> String {
+        var lines: [String] = []
+        func section(_ title: String) { lines.append(""); lines.append(title) }
+
+        lines.append("Hotspot metering: \(isEnabled ? "on" : "off")")
+
+        section("Low Data Mode")
+        if let lowData {
+            switch lowData.refreshAvailability() {
+            case .available:      lines.append("  helper: ready")
+            case .helperMissing:  lines.append("  helper: not installed (Settings › Allow…)")
+            case .helperOutdated: lines.append("  helper: too old for Low Data Mode (Settings › Allow…)")
+            }
+            if let hold = ownership.hold {
+                lines.append("  held on \(hold.interface): " + [
+                    hold.setConstrained ? "constrained" : nil,
+                    hold.setExpensive ? "expensive" : nil,
+                ].compactMap { $0 }.joined(separator: ", "))
+            } else {
+                lines.append("  holding nothing")
+            }
+        }
+        if let primary = InterfaceProbe.primaryInterface() {
+            let flags = InterfaceProbe.flags(on: primary)
+            lines.append("  \(primary) now: constrained \(flags?.constrained == true ? "yes" : "no"), "
+                         + "expensive \(flags?.expensive == true ? "yes" : "no")")
+        }
+
+        section("Covered")
+        for row in toggleItems() {
+            lines.append("  \(row.label) — \(row.detail)")
+        }
+
+        section("Not covered")
+        let uncovered = uncoveredUpdaters()
+        if uncovered.isEmpty { lines.append("  nothing found") }
+        for finding in uncovered {
+            lines.append("  \(finding.displayName) — \(finding.mechanism.rawValue)")
+        }
+
+        // What `UpdateWatch` would see: every payload staged right now, on any
+        // network. Evidence that the staging places are the right ones, and a
+        // list of updates already downloaded and waiting to install.
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let staged = UpdateCaches.payloads(in: caches)
+        if !staged.isEmpty {
+            section("Downloaded updates waiting to install")
+            let dates = DateFormatter()
+            dates.dateStyle = .medium
+            dates.timeStyle = .short
+            for payload in staged.sorted(by: { $0.modified > $1.modified }) {
+                let name = UpdateWatch.resolveInstalledOwner(payload.owner)
+                let bytes = ByteFormat.bytes(UpdateCaches.size(of: payload.path))
+                lines.append("  \(name) — \(bytes), \(dates.string(from: payload.modified))")
+            }
+        }
+
+        if !updatesGotThrough.isEmpty {
+            section("Got through on the last metered connection")
+            for sighting in updatesGotThrough {
+                lines.append("  \(sighting.name) — \(ByteFormat.bytes(sighting.bytes))")
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    // MARK: Publishing
+
+    /// Assigned only on change: Settings and the popover both observe this
+    /// object, and `evaluate()` runs on every path update.
+    private func publishSightings() {
+        let next = updateWatch.reportable
+        if next != updatesGotThrough { updatesGotThrough = next }
+    }
+
+    private func publishLowDataMode() {
+        guard let lowData else { return }
+        let availability = lowData.availability
+        if availability != lowDataModeAvailability { lowDataModeAvailability = availability }
+        if lowData.state != lowDataMode { lowDataMode = lowData.state }
+
+        var confirmed = false
+        if case .on(let interface) = lowData.state {
+            confirmed = store.currentNetwork.interfaceName == interface
+                && store.currentNetwork.isConstrained
+        }
+        if confirmed != lowDataModeConfirmed { lowDataModeConfirmed = confirmed }
     }
 }

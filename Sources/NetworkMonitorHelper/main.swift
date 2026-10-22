@@ -1,5 +1,6 @@
 import Foundation
 import HostsFile
+import LowDataMode
 
 // NetworkMonitor privileged helper.
 //
@@ -32,7 +33,12 @@ import HostsFile
 // verb means shipping a new root binary, which is the level of ceremony a
 // change like that deserves.
 //
-// Verbs: status | suppress | restore | self-heal | uninstall
+// `constrain` keeps that rule. It puts the connection in Low Data Mode, and
+// which interface that means is decided here, from the system's own routing
+// order — the caller can ask for Low Data Mode but cannot say where. The only
+// flags it can raise are `constrained` and `expensive`.
+//
+// Verbs: status | suppress | restore | constrain | unconstrain | self-heal | uninstall
 
 // MARK: - Constants
 
@@ -285,26 +291,33 @@ func restoreManagedPreferences(_ state: SystemState) {
 /// Failing loudly instead means the app reports the tier as failed and the user
 /// keeps a file that still holds the answer.
 func loadState() throws -> SystemState? {
+    try loadTrusted(SystemState.self, at: statePath)
+}
+
+/// Reads one of this helper's state files, refusing one that anybody but root
+/// could have written. Shared by both state files, so the Low Data Mode record
+/// gets exactly the provenance check the update-suppression one does.
+func loadTrusted<T: Decodable>(_ type: T.Type, at path: String) throws -> T? {
     let manager = FileManager.default
-    guard let data = manager.contents(atPath: statePath) else { return nil }
+    guard let data = manager.contents(atPath: path) else { return nil }
 
     // Everything below turns this file's contents into root-privileged writes and
     // deletes, so its provenance is checked rather than assumed. The only thing
     // that makes that safe today is `/Library/Application Support` not being
     // group-writable — true on a stock macOS, and not something to rely on
     // silently when third-party installers are known to loosen directories.
-    let attributes = try manager.attributesOfItem(atPath: statePath)
+    let attributes = try manager.attributesOfItem(atPath: path)
     let owner = (attributes[.ownerAccountID] as? NSNumber)?.intValue
     let permissions = (attributes[.posixPermissions] as? NSNumber)?.int16Value ?? 0
     guard owner == 0, permissions & 0o022 == 0 else {
-        throw HelperError.untrustedState(path: statePath)
+        throw HelperError.untrustedState(path: path)
     }
     let decoder = JSONDecoder()
     decoder.dateDecodingStrategy = .iso8601
     do {
-        return try decoder.decode(SystemState.self, from: data)
+        return try decoder.decode(T.self, from: data)
     } catch {
-        throw HelperError.unreadableState(path: statePath, underlying: error)
+        throw HelperError.unreadableState(path: path, underlying: error)
     }
 }
 
@@ -312,6 +325,10 @@ enum HelperError: LocalizedError {
     case unreadableState(path: String, underlying: Error)
     case untrustedState(path: String)
     case busy(path: String)
+    case noInterface
+    case unreadableInterface(String)
+    case flagsRefused(String)
+    case couldNotRelease(String)
 
     var errorDescription: String? {
         switch self {
@@ -336,22 +353,44 @@ enum HelperError: LocalizedError {
                 permanent. Move it aside only if you are certain nothing is \
                 currently suppressed.
                 """
+        case .noInterface:
+            return """
+                no Wi-Fi, Ethernet or USB-tethered interface is carrying traffic, \
+                so there is nothing to put in Low Data Mode.
+                """
+        case .unreadableInterface(let interface):
+            return "could not read the flags on \(interface); nothing was changed."
+        case .flagsRefused(let interface):
+            return """
+                \(interface) did not keep the constrained and expensive flags \
+                after they were set. Anything raised on the way was lowered again.
+                """
+        case .couldNotRelease(let interface):
+            return """
+                could not lower the flags this helper raised on \(interface). \
+                The record of them is kept so the next attempt still knows they \
+                are ours; a restart clears them in any case.
+                """
         }
     }
 }
 
 func saveState(_ state: SystemState) throws {
+    try saveTrusted(state, to: statePath)
+}
+
+func saveTrusted<T: Encodable>(_ value: T, to path: String) throws {
     try FileManager.default.createDirectory(atPath: stateDirectory,
                                             withIntermediateDirectories: true,
                                             attributes: [.posixPermissions: 0o755])
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     encoder.dateEncodingStrategy = .iso8601
-    let data = try encoder.encode(state)
+    let data = try encoder.encode(value)
     // Write-ahead, atomically, for the same reason the app's journal is: a
     // change made without a durable record of how to undo it is the failure
     // this whole design is built to avoid.
-    try data.write(to: URL(fileURLWithPath: statePath), options: .atomic)
+    try data.write(to: URL(fileURLWithPath: path), options: .atomic)
 }
 
 func clearState() {
@@ -427,6 +466,152 @@ func flushDNS() {
     run("/usr/bin/killall", ["-HUP", "mDNSResponder"])
 }
 
+// MARK: - Low Data Mode
+
+/// Which interface flags this helper raised, and on which interface.
+///
+/// A file of its own rather than a field in `system-suppression.json`, because
+/// its lifecycle is different: the app lets go of Low Data Mode on every network
+/// change and on quit, while the update settings stay down for as long as the
+/// connection is metered. Sharing one record would make releasing either one a
+/// partial edit of the other's undo information.
+let lowDataStatePath = "\(stateDirectory)/low-data-mode.json"
+let ifconfigPath = "/sbin/ifconfig"
+let systemConfigurationPreferencesPath =
+    "/Library/Preferences/SystemConfiguration/preferences.plist"
+
+/// The only two flags this helper touches. A closed set, so nothing in a state
+/// file or on a command line can become an arbitrary `ifconfig` argument.
+enum InterfaceFlag: String {
+    case constrained, expensive
+}
+
+func interfaceFlags(_ interface: String) -> LowDataMode.Flags? {
+    guard LowDataMode.isPhysicalInterface(interface),
+          let output = capture(ifconfigPath, ["-v", interface])
+    else { return nil }
+    return LowDataMode.flags(fromIfconfig: output)
+}
+
+/// Chosen here rather than passed in, so the verbs keep taking no arguments:
+/// the caller can ask for Low Data Mode, never say where.
+func primaryInterface() -> String? {
+    capture("/usr/sbin/scutil", ["--nwi"]).flatMap(LowDataMode.primaryInterface(fromNWI:))
+}
+
+@discardableResult
+func setFlag(_ flag: InterfaceFlag, raised: Bool, on interface: String) -> Bool {
+    guard LowDataMode.isPhysicalInterface(interface) else { return false }
+    return run(ifconfigPath, [interface, raised ? flag.rawValue : "-\(flag.rawValue)"]) == 0
+}
+
+/// Whether the user has put this wired interface in Low Data Mode in System
+/// Settings, in the location set currently in force.
+///
+/// Checked before lowering `constrained`, for one case: a USB tether unplugged
+/// and plugged back in while held. The interface comes back as a new device,
+/// `configd` raises the flag from the user's own setting, and the hold — which
+/// still says the flag is ours — would otherwise take it down. Wi-Fi keeps its
+/// equivalent per network in a file only `wifid` writes, so this protects wired
+/// links only; for Wi-Fi the flag is released and the user's setting re-applies
+/// on the next join.
+func userConfiguredLowDataMode(_ interface: String) -> Bool {
+    guard let data = FileManager.default.contents(atPath: systemConfigurationPreferencesPath),
+          let plist = try? PropertyListSerialization.propertyList(from: data, format: nil)
+            as? [String: Any]
+    else { return false }
+    return LowDataMode.isConfigured(interface: interface, inPreferences: plist)
+}
+
+/// Lowers only what `hold` raised, and only where it is still up.
+///
+/// False when a flag that is ours could not be lowered. The caller must then
+/// keep the state file: it is the only record that the flag is ours. An
+/// interface that has gone away counts as released — its flags went with it.
+func release(_ hold: LowDataMode.Hold) -> Bool {
+    guard let current = interfaceFlags(hold.interface) else { return true }
+    var released = true
+    if hold.setConstrained, current.constrained,
+       !userConfiguredLowDataMode(hold.interface) {
+        released = setFlag(.constrained, raised: false, on: hold.interface) && released
+    }
+    if hold.setExpensive, current.expensive {
+        released = setFlag(.expensive, raised: false, on: hold.interface) && released
+    }
+    return released
+}
+
+func clearLowDataState() {
+    try? FileManager.default.removeItem(atPath: lowDataStatePath)
+}
+
+/// Puts the interface carrying traffic in Low Data Mode, or re-asserts it.
+///
+/// Called again while already holding, this is the re-assert: macOS lowers the
+/// flags when a hotspot drops and rejoins, and a flag found down is raised again
+/// and recorded as ours. A flag found up and not already recorded is somebody
+/// else's — macOS's, on a recognised iPhone hotspot, or the user's own Low Data
+/// Mode — and stays out of the record so that `unconstrain` never lowers it.
+func constrain() throws {
+    guard let interface = primaryInterface() else { throw HelperError.noInterface }
+
+    var hold = try loadTrusted(LowDataMode.Hold.self, at: lowDataStatePath)
+    // The default route has moved — Wi-Fi to a USB tether, say. A flag left on
+    // the old link would quietly constrain it the next time it carries traffic.
+    if let previous = hold, previous.interface != interface {
+        guard release(previous) else { throw HelperError.couldNotRelease(previous.interface) }
+        clearLowDataState()
+        hold = nil
+    }
+
+    guard let current = interfaceFlags(interface) else {
+        throw HelperError.unreadableInterface(interface)
+    }
+    var next = hold ?? LowDataMode.Hold(interface: interface,
+                                        setConstrained: false, setExpensive: false)
+    if !current.constrained { next.setConstrained = true }
+    if !current.expensive { next.setExpensive = true }
+
+    guard next.setConstrained || next.setExpensive else {
+        // Both up already, neither by us. Nothing to hold and nothing to undo.
+        clearLowDataState()
+        print(LowDataMode.Report.nothing.line)
+        return
+    }
+
+    // Recorded before either flag moves, so a crash in between leaves a record
+    // whose release is a no-op rather than a raised flag nobody knows about.
+    try saveTrusted(next, to: lowDataStatePath)
+
+    var raised = true
+    if !current.constrained {
+        raised = setFlag(.constrained, raised: true, on: interface) && raised
+    }
+    if !current.expensive {
+        raised = setFlag(.expensive, raised: true, on: interface) && raised
+    }
+
+    // Verified, not assumed: `ifconfig` exiting 0 says the request was accepted,
+    // and the flags being up afterwards is what was actually asked for.
+    guard raised, interfaceFlags(interface) == .both else {
+        if release(next) { clearLowDataState() }
+        throw HelperError.flagsRefused(interface)
+    }
+    print(LowDataMode.Report.holding(next).line)
+}
+
+/// Lowers whatever `constrain` raised. Idempotent: with nothing held it reports
+/// so and succeeds.
+func unconstrain() throws {
+    guard let hold = try loadTrusted(LowDataMode.Hold.self, at: lowDataStatePath) else {
+        print(LowDataMode.Report.nothing.line)
+        return
+    }
+    guard release(hold) else { throw HelperError.couldNotRelease(hold.interface) }
+    clearLowDataState()
+    print(LowDataMode.Report.nothing.line)
+}
+
 // MARK: - Verbs
 
 func suppress() throws {
@@ -497,6 +682,13 @@ func status() {
     // Read-only path: this verb reports and never writes, so falling back to an
     // empty string here cannot destroy anything the way it could in `suppress`.
     let hostsBlocked = HostsFile.containsBlock((try? currentHosts()) ?? "")
+    let lowDataReport: String
+    do {
+        let hold = try loadTrusted(LowDataMode.Hold.self, at: lowDataStatePath)
+        lowDataReport = (hold.map(LowDataMode.Report.holding) ?? .nothing).line
+    } catch {
+        lowDataReport = "unreadable"
+    }
     let payload: [String: Any] = [
         "suppressed": state != nil,
         // Surfaced so the app can tell "nothing suppressed" apart from "the
@@ -513,6 +705,14 @@ func status() {
             $0[$1] = readSoftwareUpdate($1) ?? "absent"
         },
         "appPresent": FileManager.default.fileExists(atPath: appBundlePath),
+        // What this binary understands. The app reads it to tell a helper built
+        // before Low Data Mode existed — whose sudoers rule cannot grant the new
+        // verbs either — from one that is merely idle, and to say "reinstall the
+        // helper" rather than reporting a failure it cannot explain.
+        "verbs": verbs,
+        "version": HelperProtocol.version,
+        "lowDataMode": lowDataReport,
+        "primaryInterface": primaryInterface() ?? "",
     ]
     if let data = try? JSONSerialization.data(withJSONObject: payload,
                                               options: [.prettyPrinted, .sortedKeys]),
@@ -524,6 +724,9 @@ func status() {
 /// Undoes everything and removes the helper, the sudoers rule and the daemon.
 func uninstallSelf() throws {
     try restore()
+    // Both must succeed before anything is deleted, for the reason `restore`
+    // must: the state file and this binary are what can still undo it.
+    try unconstrain()
     for path in [sudoersPath, daemonPlistPath] {
         try? FileManager.default.removeItem(atPath: path)
     }
@@ -559,6 +762,23 @@ func run(_ path: String, _ arguments: [String]) -> Int32 {
     do { try task.run() } catch { return -1 }
     task.waitUntilExit()
     return task.terminationStatus
+}
+
+/// As `run`, keeping stdout. Nil unless the tool exited 0, so a failed read is
+/// never parsed as if it were an answer.
+func capture(_ path: String, _ arguments: [String]) -> String? {
+    guard FileManager.default.isExecutableFile(atPath: path) else { return nil }
+    let task = Process()
+    task.executableURL = URL(fileURLWithPath: path)
+    task.arguments = arguments
+    let pipe = Pipe()
+    task.standardOutput = pipe
+    task.standardError = FileHandle.nullDevice
+    do { try task.run() } catch { return nil }
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    task.waitUntilExit()
+    guard task.terminationStatus == 0 else { return nil }
+    return String(data: data, encoding: .utf8)
 }
 
 func fail(_ message: String) -> Never {
@@ -600,6 +820,8 @@ func acquireLock() throws -> Int32 {
 // a confusing permission error three calls deep.
 guard getuid() == 0 else { fail("must run as root") }
 
+let verbs = ["status", "suppress", "restore", "constrain", "unconstrain",
+             "self-heal", "uninstall"]
 let verb = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "status"
 
 do {
@@ -609,12 +831,14 @@ do {
     defer { close(lock) }
 
     switch verb {
-    case "status":    status()
-    case "suppress":  try suppress()
-    case "restore":   try restore()
-    case "self-heal": try selfHeal()
-    case "uninstall": try uninstallSelf()
-    default:          fail("unknown verb '\(verb)' — expected status|suppress|restore|self-heal|uninstall")
+    case "status":      status()
+    case "suppress":    try suppress()
+    case "restore":     try restore()
+    case "constrain":   try constrain()
+    case "unconstrain": try unconstrain()
+    case "self-heal":   try selfHeal()
+    case "uninstall":   try uninstallSelf()
+    default:            fail("unknown verb '\(verb)' — expected \(verbs.joined(separator: "|"))")
     }
 } catch {
     fail("\(verb) failed: \(error.localizedDescription)")

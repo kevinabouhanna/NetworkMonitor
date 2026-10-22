@@ -13,6 +13,7 @@ let package = Package(
         // thin shell so `swift test` never has to link an NSApplication main().
         .target(
             name: "NetworkMonitorCore",
+            dependencies: ["LowDataMode"],
             path: "Sources/NetworkMonitorCore"
         ),
         .executableTarget(
@@ -23,7 +24,7 @@ let package = Package(
         // The privileged half of hotspot metering: the only part that runs as
         // root, and deliberately the smallest thing in the package. It links
         // nothing from NetworkMonitorCore — a root binary should not carry a
-        // menu bar app's dependencies — and its whole vocabulary is four verbs.
+        // menu bar app's dependencies — and its whole vocabulary is seven verbs.
         // Pure Foundation, no dependencies, so both the root helper and the
         // test suite can use it. /etc/hosts is machine-wide infrastructure and
         // the code that edits it needs tests more than it needs to be inline.
@@ -31,9 +32,17 @@ let package = Package(
             name: "HostsFile",
             path: "Sources/HostsFile"
         ),
+        // Reading interface flags and the helper's one-line report. Shared by
+        // the root helper, which sets the flags, and the app, which checks them,
+        // so the two cannot disagree about what either one means. Pure
+        // Foundation for the same reason as HostsFile.
+        .target(
+            name: "LowDataMode",
+            path: "Sources/LowDataMode"
+        ),
         .executableTarget(
             name: "NetworkMonitorHelper",
-            dependencies: ["HostsFile"],
+            dependencies: ["HostsFile", "LowDataMode"],
             path: "Sources/NetworkMonitorHelper"
         ),
         // An executable, not a .testTarget: neither XCTest nor swift-testing is
@@ -41,7 +50,7 @@ let package = Package(
         // `swift test` cannot run here. Run with `swift run NetworkMonitorTests`.
         .executableTarget(
             name: "NetworkMonitorTests",
-            dependencies: ["NetworkMonitorCore", "HostsFile"],
+            dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode"],
             path: "Sources/NetworkMonitorTests"
         ),
     ]

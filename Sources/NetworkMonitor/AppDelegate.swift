@@ -27,6 +27,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         enableLoginItemOnFirstLaunch()
         model.start()
         observeTitle()
+        offerHelperUpdateIfNeeded()
+    }
+
+    /// The first launch of a new version whose helper is newer than the one
+    /// installed asks, once, to update it — the same administrator dialog as
+    /// switching the feature on. Only while the feature is on, never twice for
+    /// the same build, and a few seconds in so the menu bar item is there to
+    /// say whose dialog it is. Declined, Settings keeps an Allow button.
+    private func offerHelperUpdateIfNeeded() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            self?.model.metering.ensureHelper(userAsked: false)
+        }
     }
 
     /// "Start at login" ships on. Applied exactly once, tracked by a flag, so
@@ -368,6 +380,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                      action: #selector(showSettings), keyEquivalent: ",")
 
         menu.addItem(.separator())
+        menu.addItem(withTitle: "Uninstall NetworkMonitor…",
+                     action: #selector(uninstall), keyEquivalent: "")
         menu.addItem(withTitle: "Quit",
                      action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
@@ -393,6 +407,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         speedTest.run()
         if case .confirming = speedTest.phase, !popover.isShown {
             togglePopover()
+        }
+    }
+
+    // MARK: Uninstall
+
+    /// The whole of `Scripts/uninstall.sh`, from the menu. Dragging the app to
+    /// the Trash cannot put back the settings that needed no password — their
+    /// record is the app's own journal, gone with it — so this is the clean way
+    /// out, and it should not take Terminal to find it.
+    @objc private func uninstall() {
+        if popover.isShown { closePopover() }
+        NSApp.activate(ignoringOtherApps: true)
+
+        let confirm = NSAlert()
+        confirm.alertStyle = .warning
+        confirm.messageText = "Uninstall NetworkMonitor?"
+        confirm.informativeText = "Every setting it changed is put back, its helper is "
+            + "removed, your usage history is deleted, and the app is moved to the Trash."
+        confirm.addButton(withTitle: "Uninstall")
+        confirm.addButton(withTitle: "Cancel")
+        guard confirm.runModal() == .alertFirstButtonReturn else { return }
+
+        switch model.uninstall() {
+        case .done:
+            NSApp.terminate(nil)
+        case .cancelled:
+            // Nothing has changed: the helper step comes first for this reason.
+            return
+        case .failed(let message):
+            let failure = NSAlert()
+            failure.alertStyle = .critical
+            failure.messageText = "NetworkMonitor couldn't finish uninstalling"
+            failure.informativeText = message + "\n\nNothing was removed, so every "
+                + "setting it changed can still be put back. Try again later."
+            failure.runModal()
         }
     }
 

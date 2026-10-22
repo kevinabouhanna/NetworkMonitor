@@ -42,6 +42,10 @@ public struct NetworkFingerprint: Equatable {
     /// Localised name of the interface carrying the default route — `"Wi-Fi"`,
     /// `"iPhone USB"`. The last automatic tethering signal.
     public let interfaceDisplayName: String?
+    /// BSD name of that interface — `en0`, `en5`. What Low Data Mode is held on,
+    /// and so what tells the app's own flags apart from the network's: see
+    /// `InterfaceFlagOwnership`.
+    public let interfaceName: String?
 
     /// Everything `MeteredHeuristic` needs except the user's own decision, which
     /// lives in the store and is deliberately **not** part of the fingerprint:
@@ -63,7 +67,8 @@ public struct NetworkFingerprint: Equatable {
                 isExpensive: Bool,
                 isConstrained: Bool,
                 gatewayIP: String? = nil,
-                interfaceDisplayName: String? = nil) {
+                interfaceDisplayName: String? = nil,
+                interfaceName: String? = nil) {
         self.id = id
         self.kind = kind
         self.gatewayMAC = gatewayMAC
@@ -72,6 +77,7 @@ public struct NetworkFingerprint: Equatable {
         self.isConstrained = isConstrained
         self.gatewayIP = gatewayIP
         self.interfaceDisplayName = interfaceDisplayName
+        self.interfaceName = interfaceName
     }
 
     public static let offline = NetworkFingerprint(
@@ -121,7 +127,8 @@ public struct NetworkFingerprint: Equatable {
                                   isExpensive: isExpensive,
                                   isConstrained: isConstrained,
                                   gatewayIP: gatewayIP,
-                                  interfaceDisplayName: interfaceDisplayName)
+                                  interfaceDisplayName: interfaceDisplayName,
+                                  interfaceName: interfaceName)
     }
 }
 
@@ -136,7 +143,12 @@ public final class NetworkIdentityWatcher {
     /// Fires only when the fingerprint actually changes, on the main queue.
     public var onChange: ((NetworkFingerprint) -> Void)?
 
-    public init() {}
+    /// The interface flags this app raised itself, kept out of `kind`.
+    private let ownership: InterfaceFlagOwnership
+
+    public init(ownership: InterfaceFlagOwnership = .shared) {
+        self.ownership = ownership
+    }
 
     public func start() {
         monitor.pathUpdateHandler = { [weak self] path in
@@ -159,7 +171,7 @@ public final class NetworkIdentityWatcher {
         debounce?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            let next = Self.fingerprint(for: path)
+            let next = Self.fingerprint(for: path, ownership: self.ownership)
             guard next != self.current else { return }
             self.current = next
             DispatchQueue.main.async { self.onChange?(next) }
@@ -170,7 +182,8 @@ public final class NetworkIdentityWatcher {
         queue.asyncAfter(deadline: .now() + 2, execute: work)
     }
 
-    static func fingerprint(for path: NWPath) -> NetworkFingerprint {
+    static func fingerprint(for path: NWPath,
+                            ownership: InterfaceFlagOwnership) -> NetworkFingerprint {
         guard path.status == .satisfied else { return .offline }
 
         // The interface carrying the default route, ignoring tunnels: a VPN's
@@ -186,11 +199,18 @@ public final class NetworkIdentityWatcher {
         let gatewayMAC = gatewayIP.flatMap(GatewayProbe.macAddress(forGateway:))
         let displayName = interfaceName.flatMap(InterfaceNaming.displayName(forBSDName:))
 
-        let signals = MeteredHeuristic.Signals(userOverride: nil,
-                                               isExpensive: path.isExpensive,
-                                               isConstrained: path.isConstrained,
-                                               gatewayIP: gatewayIP,
-                                               interfaceDisplayName: displayName)
+        // Masked, for the same reason the override is left out below: putting a
+        // hotel network the user marked metered into Low Data Mode must not turn
+        // it into a "Personal Hotspot". The fingerprint itself keeps the raw
+        // flags, so a flag macOS lowers behind our back is still a change the
+        // controller hears about and can re-assert.
+        let signals = ownership.masking(
+            MeteredHeuristic.Signals(userOverride: nil,
+                                     isExpensive: path.isExpensive,
+                                     isConstrained: path.isConstrained,
+                                     gatewayIP: gatewayIP,
+                                     interfaceDisplayName: displayName),
+            on: interfaceName)
 
         // `kind` follows the heuristic rather than `isExpensive` alone. The old
         // ordering tested `isExpensive` first and fell through to `.ethernet`

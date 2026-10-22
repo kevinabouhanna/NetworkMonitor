@@ -100,6 +100,10 @@ public final class MonitorViewModel: ObservableObject {
 
     private var saveCounter = 0
 
+    /// Set by `uninstall()`, so quitting does not write the usage file back into
+    /// the folder that was just deleted.
+    private var uninstalled = false
+
     /// Last menu bar title actually published, used to suppress no-op updates.
     private var renderedTitle = ""
 
@@ -179,8 +183,12 @@ public final class MonitorViewModel: ObservableObject {
         // not the same as saying "resume updating" — the user may be quitting to
         // save battery mid-hotspot — and the journal is what makes leaving it in
         // place safe: the next launch replays it, and `uninstall.sh` reverts it.
+        // Low Data Mode is the exception, released inside `metering.stop()`;
+        // see there for why.
         metering.stop()
-        store.save()
+        // After an uninstall the folder this writes into has just been deleted,
+        // and saving would put it back.
+        if !uninstalled { store.save() }
     }
 
     private func startSampleTimer() {
@@ -292,7 +300,7 @@ public final class MonitorViewModel: ObservableObject {
             self.saveCounter += 1
             if self.saveCounter >= Int(15 / max(self.sampleInterval, 0.1)) {
                 self.saveCounter = 0
-                self.store.save()
+                if !self.uninstalled { self.store.save() }
             }
         }
     }
@@ -337,8 +345,19 @@ public final class MonitorViewModel: ObservableObject {
                     merged[identity.key] = (identity, bytesIn, bytesOut)
                 }
                 self.lastActivity[identity.key] = now
+
+                // By the raw process name, not the app it folds into:
+                // `GoogleUpdater` is an updater whether or not its row groups
+                // under Chrome, and the name is the only list-free signal there is.
+                if self.metering.isSuppressing,
+                   UpdaterScan.looksLikeUpdater(row.processName) {
+                    self.metering.noteUpdaterTraffic(processName: row.processName,
+                                                     appName: identity.displayName,
+                                                     bytes: bytesIn + bytesOut)
+                }
             }
             entries = Array(merged.values)
+            self.metering.tick(now: now)
 
             if self.speedTest.phase.isRunning {
                 self.speedTest.recordBackground(entries.map {
@@ -431,6 +450,41 @@ public final class MonitorViewModel: ObservableObject {
         expandedApps.removeAll()
         refreshHeader()
         rebuildRows(now: Date())
+    }
+
+    /// Removes NetworkMonitor completely, from the app itself.
+    ///
+    /// What `Scripts/uninstall.sh` does, for people who never open Terminal —
+    /// which, for an app installed from a disk image, is everyone. In order:
+    ///
+    /// 1. **The helper**, first, because it is the one step that asks for a
+    ///    password and so the one that can be cancelled. Cancelled, nothing has
+    ///    changed yet. Done, the helper has put back the system update settings,
+    ///    the managed policies, `/etc/hosts` and Low Data Mode, and removed itself.
+    /// 2. **Every other setting metering changed** — Sparkle preferences, VS
+    ///    Code's settings file — from the journal, while the journal still exists.
+    /// 3. **The login item, the app's data and settings, and the app**, which
+    ///    goes to the Trash rather than being deleted outright, so it can be
+    ///    dragged back.
+    ///
+    /// The caller quits afterwards.
+    public func uninstall() -> HelperInstaller.Outcome {
+        let helper = HelperInstaller.uninstall()
+        guard helper == .done else { return helper }
+
+        metering.revertAll()
+        LoginItem.withdraw()
+
+        uninstalled = true
+        let support = FileManager.default.urls(for: .applicationSupportDirectory,
+                                               in: .userDomainMask)[0]
+            .appendingPathComponent("NetworkMonitor", isDirectory: true)
+        try? FileManager.default.removeItem(at: support)
+        if let identifier = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: identifier)
+        }
+        NSWorkspace.shared.recycle([Bundle.main.bundleURL])
+        return .done
     }
 
     /// Opens or closes one app's child breakdown.

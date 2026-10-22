@@ -33,6 +33,8 @@ public final class PreferenceSuppressor: UpdateSuppressor {
         public var key: String
         public var suppressedValue: SuppressedValue
         public var mechanism: String
+        /// The apps this target stops updating. See `CoveredItem.bundleIdentifiers`.
+        public var bundleIdentifiers: [String] = []
 
         /// Matches `SuppressionRecord.Target.preference`, so the opt-out and the
         /// journal entry are keyed identically.
@@ -62,7 +64,8 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                                 domain: identifier,
                                 key: sparkleKey,
                                 suppressedValue: .bool(false),
-                                mechanism: "Sparkle"))
+                                mechanism: "Sparkle",
+                                bundleIdentifiers: [identifier]))
         }
 
         // Figma reads its own plist before consulting anything else, and the
@@ -74,7 +77,8 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                                 domain: "com.figma.Desktop",
                                 key: "DisableUpdater",
                                 suppressedValue: .bool(true),
-                                mechanism: "Figma"))
+                                mechanism: "Figma",
+                                bundleIdentifiers: ["com.figma.Desktop"]))
         }
 
         // Google Chrome. `checkInterval` is Keystone's own documented
@@ -90,7 +94,8 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                                 domain: "com.google.Keystone.Agent",
                                 key: "checkInterval",
                                 suppressedValue: .int(0),
-                                mechanism: "Keystone"))
+                                mechanism: "Keystone",
+                                bundleIdentifiers: ["com.google.Chrome"]))
         }
 
         if FileManager.default.fileExists(atPath: mauPath) {
@@ -98,7 +103,8 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                                 domain: mauDomain,
                                 key: "HowToCheck",
                                 suppressedValue: .string("Manual"),
-                                mechanism: "Microsoft AutoUpdate"))
+                                mechanism: "Microsoft AutoUpdate",
+                                bundleIdentifiers: mauRegisteredApps()))
         }
 
         return found.sorted { $0.displayName < $1.displayName }
@@ -109,8 +115,26 @@ public final class PreferenceSuppressor: UpdateSuppressor {
             CoveredItem(id: $0.id,
                         displayName: $0.displayName,
                         mechanism: $0.mechanism,
-                        isDeferred: isRunning(domain: $0.domain))
+                        isDeferred: isRunning(domain: $0.domain),
+                        bundleIdentifiers: $0.bundleIdentifiers)
         }
+    }
+
+    /// The apps Microsoft AutoUpdate updates, read from MAU's own record of them.
+    ///
+    /// `AppVersions` maps each registered bundle's path to its version — Word,
+    /// Teams, Edge, OneDrive and Defender on the development machine. Read
+    /// rather than assumed from a `com.microsoft.` prefix, because VS Code
+    /// carries that prefix and MAU has nothing to do with it.
+    private func mauRegisteredApps() -> [String] {
+        guard let versions = CFPreferencesCopyAppValue("AppVersions" as CFString,
+                                                       mauDomain as CFString)
+                as? [String: Any]
+        else { return [] }
+        return versions.keys
+            .filter { $0.hasSuffix(".app") }
+            .compactMap { Bundle(path: $0)?.bundleIdentifier }
+            .sorted()
     }
 
     // MARK: Apply and revert

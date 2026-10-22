@@ -41,8 +41,27 @@ public struct SettingsView: View {
             Divider()
 
             section("Hotspot") {
+                // One switch for the whole feature, Low Data Mode included: it
+                // serves the same purpose, and a second switch would only ask
+                // the user to make the same decision twice.
                 Toggle("Stop apps updating on hotspots",
                        isOn: $metering.isEnabled)
+                    .onChange(of: metering.isEnabled) { enabled in
+                        // Switching it on is the moment to ask for the helper —
+                        // the one thing here that needs a password. Deferred a
+                        // turn so the switch has finished drawing before the
+                        // administrator dialog takes over.
+                        guard enabled else { return }
+                        DispatchQueue.main.async { askForHelper() }
+                    }
+
+                // Said once, plainly, because Low Data Mode does a little more
+                // than the switch's name: iCloud Photos waits too.
+                Text("Also puts the hotspot in Low Data Mode, so iCloud and other "
+                     + "background downloads wait until you're off it.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 // The verdict, always shown: the commonest confusion with a
                 // feature like this is not knowing whether it decided the
@@ -74,18 +93,34 @@ public struct SettingsView: View {
                         Text(coverageSummary).font(.system(size: 12))
                     }
 
-                    if !metering.helperInstalled {
-                        footnote("exclamationmark.triangle",
-                                 "macOS, Claude, Slack, Canva: make helper-no-daemon",
-                                 tint: .orange)
-                    } else if !metering.failed.isEmpty {
-                        // Never silently: a tier that refused every call must not
-                        // keep its apps listed as paused.
-                        footnote("exclamationmark.triangle",
-                                 "Couldn't pause " + metering.failed.joined(separator: ", "),
-                                 tint: .orange)
+                    // The other half of the honesty the list above owes: what
+                    // it does not reach on this Mac, found by how each app
+                    // updates rather than by a list of names.
+                    if !pane.uncovered.isEmpty {
+                        DisclosureGroup(isExpanded: $pane.uncoveredExpanded) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                ForEach(pane.uncovered) { uncoveredRow($0) }
+                                Text("These update themselves in a way NetworkMonitor "
+                                     + "can't switch off. Low Data Mode slows the ones "
+                                     + "that respect it; quitting them while you're on "
+                                     + "a hotspot is the only sure way.")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.top, 2)
+                            }
+                            .padding(.top, 5)
+                        } label: {
+                            Text("Not covered (\(pane.uncovered.count))")
+                                .font(.system(size: 12))
+                        }
                     }
 
+                    lowDataModeStatus
+
+                    if !metering.updatesGotThrough.isEmpty { gotThrough }
+
+                    helperNotice
                 }
 
             }
@@ -176,7 +211,157 @@ public struct SettingsView: View {
             // force rather than what is merely installed.
             metering.refresh()
             pane.coveredItems = metering.toggleItems()
+            pane.uncovered = metering.uncoveredUpdaters()
         }
+    }
+
+    // MARK: Low Data Mode
+
+    /// A status line, not a control: Low Data Mode is part of the one switch
+    /// above. Shown only while metered, where there is something to report.
+    @ViewBuilder
+    private var lowDataModeStatus: some View {
+        switch metering.lowDataMode {
+        case .on:
+            // "macOS confirms it" is macOS's own network path agreeing, not just
+            // the flag reading back — the difference between claiming it and it
+            // being so.
+            footnote("checkmark.circle",
+                     metering.lowDataModeConfirmed
+                        ? "Low Data Mode is on — macOS confirms it"
+                        : "Low Data Mode is on",
+                     tint: .green, alignment: .center)
+        case .alreadyOn:
+            footnote("checkmark.circle", "This connection was already in Low Data Mode",
+                     alignment: .center)
+        case .failed(let reason):
+            footnote("exclamationmark.triangle", reason, tint: .orange)
+        case .off:
+            EmptyView()
+        }
+    }
+
+    // MARK: The helper
+
+    /// What the helper still needs, with the one button that does it.
+    ///
+    /// This replaces "run `make helper` in Terminal". The button shows macOS's
+    /// administrator dialog; nothing else about installing it is the user's job.
+    @ViewBuilder
+    private var helperNotice: some View {
+        if metering.helperState != .current {
+            if HelperInstaller.canInstall {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Image(systemName: "lock.shield")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.orange)
+                    Text(metering.helperState == .outdated
+                         ? "macOS updates, Claude, Slack, Canva and Low Data Mode need "
+                           + "a quick update to NetworkMonitor's helper."
+                         : "macOS updates, Claude, Slack, Canva and Low Data Mode need "
+                           + "your permission once.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    Button("Allow…") { askForHelper() }
+                        .controlSize(.small)
+                }
+            } else {
+                // The helper's self-heal looks for the app in /Applications and
+                // would remove itself within the hour for a copy anywhere else.
+                footnote("folder",
+                         "Move NetworkMonitor to your Applications folder to pause "
+                         + "macOS updates and use Low Data Mode too.",
+                         tint: .orange)
+            }
+            if let message = pane.helperMessage {
+                footnote("exclamationmark.triangle", message, tint: .orange)
+            }
+        } else if !metering.failed.isEmpty {
+            // Never silently: a tier that refused every call must not keep its
+            // apps listed as paused.
+            footnote("exclamationmark.triangle",
+                     "Couldn't pause " + metering.failed.joined(separator: ", "),
+                     tint: .orange)
+        }
+    }
+
+    private func askForHelper() {
+        guard let outcome = metering.ensureHelper(userAsked: true) else { return }
+        switch outcome {
+        case .done:
+            pane.helperMessage = nil
+            // The helper adds rows: macOS, Claude, Slack, Canva.
+            pane.coveredItems = metering.toggleItems()
+            pane.uncovered = metering.uncoveredUpdaters()
+        case .cancelled:
+            pane.helperMessage = nil
+        case .failed(let message):
+            pane.helperMessage = message
+        }
+    }
+
+    // MARK: What got through
+
+    /// Updates that downloaded on a metered connection anyway, with what they
+    /// cost. The report this feature owes for the updates it could not prevent.
+    private var gotThrough: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(metering.isSuppressing
+                 ? "Got through on this connection"
+                 : "Got through on your last metered connection")
+                .font(.system(size: 12))
+            ForEach(metering.updatesGotThrough) { sighting in
+                HStack(spacing: 5) {
+                    Image(systemName: sighting.source == .download
+                          ? "arrow.down.circle" : "arrow.triangle.2.circlepath")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.orange)
+                    Text(Self.label(for: sighting))
+                        .font(.system(size: 11))
+                        .lineLimit(1)
+                    Spacer()
+                    Text(ByteFormat.bytes(sighting.bytes))
+                        .font(.system(size: 11))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    static func label(for sighting: UpdateWatch.Sighting) -> String {
+        switch sighting.source {
+        case .download:
+            return "\(sighting.name) downloaded an update"
+        case .traffic:
+            return sighting.app.map { "\(sighting.name) (\($0))" } ?? sighting.name
+        }
+    }
+
+    // MARK: Not covered
+
+    private func uncoveredRow(_ finding: UpdaterScan.Finding) -> some View {
+        HStack(spacing: 5) {
+            Text(finding.displayName).font(.system(size: 12))
+            Text(uncoveredDetail(finding))
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+    }
+
+    /// How it updates, or — for an app only the helper reaches — what would
+    /// cover it, which is the more useful thing to know.
+    private func uncoveredDetail(_ finding: UpdaterScan.Finding) -> String {
+        let helperWouldCover = PrivilegedSuppressor.coveredApplications.contains {
+            ($0.bundleID != nil && $0.bundleID == finding.bundleIdentifier)
+                || $0.app == finding.displayName
+        }
+        if helperWouldCover && !metering.helperInstalled { return "needs your permission" }
+        if finding.mechanism == .sparkle { return "Sparkle, sandboxed" }
+        return finding.mechanism.rawValue
     }
 
     /// "Apps paused (7)" when everything is on, "(6 of 7)" once one is switched off.
@@ -275,4 +460,11 @@ private final class SettingsPaneState: ObservableObject {
     /// Info.plists to find Sparkle frameworks. Recomputing that on every layout
     /// pass would make a checkbox feel slow for no reason.
     @Published var coveredItems: [MeteringController.ToggleItem] = []
+    /// Loaded alongside `coveredItems`, and for the same reason never from
+    /// `body`: it walks the same bundles.
+    @Published var uncovered: [UpdaterScan.Finding] = []
+    @Published var uncoveredExpanded = false
+    /// Why the last helper install failed, if it did. Cleared by a success or a
+    /// deliberate cancel, which is an answer rather than a failure.
+    @Published var helperMessage: String?
 }

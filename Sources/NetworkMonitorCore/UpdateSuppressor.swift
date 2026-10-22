@@ -18,15 +18,24 @@ public struct CoveredItem: Equatable, Identifiable {
     /// True when the change is queued rather than made, because writing another
     /// app's preferences while it is running is unreliable in both directions.
     public var isDeferred: Bool
+    /// Bundle identifiers of the applications this item stops updating.
+    ///
+    /// Usually one, and the same as the preference domain. Not always: Chrome is
+    /// stopped through Keystone's domain, and Microsoft AutoUpdate stops every
+    /// app registered with it. `UpdaterScan` reads this to tell an app that is
+    /// covered from one that only looks like it might be.
+    public var bundleIdentifiers: [String]
 
     public init(id: String,
                 displayName: String,
                 mechanism: String,
-                isDeferred: Bool = false) {
+                isDeferred: Bool = false,
+                bundleIdentifiers: [String] = []) {
         self.id = id
         self.displayName = displayName
         self.mechanism = mechanism
         self.isDeferred = isDeferred
+        self.bundleIdentifiers = bundleIdentifiers
     }
 }
 
@@ -80,6 +89,16 @@ public protocol UpdateSuppressor: AnyObject {
 
     /// Undo every change of this suppressor's kind in the journal.
     func revert(journal: SuppressionJournal)
+
+    /// True while something this suppressor did is still in force with no
+    /// journal record left to say so — Low Data Mode, whose release the helper
+    /// has not yet confirmed. The controller keeps calling `revert` until it is
+    /// false, rather than stopping once the journal is empty.
+    var holdsUnreleasedState: Bool { get }
+}
+
+extension UpdateSuppressor {
+    public var holdsUnreleasedState: Bool { false }
 }
 
 /// Where to look for installed applications.

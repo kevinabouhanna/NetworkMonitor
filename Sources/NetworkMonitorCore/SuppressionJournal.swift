@@ -57,6 +57,11 @@ public struct SuppressionRecord: Codable, Equatable {
         case systemPreference(domain: String, key: String)
         /// A single key inserted into an application's own JSON config file.
         case configFile(path: String, key: String)
+        /// Low Data Mode, held through the privileged helper. Like
+        /// `systemPreference`, this only says the helper is holding something:
+        /// which interface, which flags and how to undo them live root-side, in
+        /// the helper's own record, so that they survive this app being deleted.
+        case lowDataMode
     }
 
     public var target: Target

@@ -7,12 +7,33 @@ public struct MenuBarPopoverView: View {
     /// five-a-second readings live on `speedTest.live`, which only the gauges
     /// watch. See `SpeedTestController`.
     @ObservedObject var speedTest: SpeedTestController
+    /// Observed for the updates that got through. It publishes rarely — on a
+    /// network change, a setting, or a new sighting — and assigns only on
+    /// change, so watching it does not re-measure the popover on every sample.
+    @ObservedObject var metering: MeteringController
     var onSettings: () -> Void
 
     public init(model: MonitorViewModel, onSettings: @escaping () -> Void) {
         self.model = model
         self.speedTest = model.speedTest
+        self.metering = model.metering
         self.onSettings = onSettings
+    }
+
+    /// One line under the total, while metered, when an update came through
+    /// anyway: the popover is where someone on a hotspot actually looks, and
+    /// Settings is not.
+    private var gotThroughSummary: String? {
+        let sightings = metering.updatesGotThrough
+        guard metering.isSuppressing, let first = sightings.first else { return nil }
+        let total = sightings.reduce(0) { $0 + $1.bytes }
+        if sightings.count == 1 {
+            let what = first.source == .download
+                ? "\(first.name) downloaded an update"
+                : "\(first.name) is updating"
+            return "\(what) · \(ByteFormat.bytes(total))"
+        }
+        return "\(sightings.count) updates got through · \(ByteFormat.bytes(total))"
     }
 
     private var showsCard: Bool {
@@ -106,6 +127,18 @@ public struct MenuBarPopoverView: View {
                             .background(Color.orange.opacity(0.2), in: Capsule())
                             .foregroundStyle(.orange)
                     }
+                }
+                if let summary = gotThroughSummary {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.down.circle.fill")
+                        Text(summary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .font(.system(size: 10))
+                    .foregroundStyle(.orange)
+                    .help("Downloaded over this connection anyway. Settings › Hotspot "
+                          + "lists what NetworkMonitor can't stop.")
                 }
             }
             Spacer()

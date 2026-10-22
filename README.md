@@ -42,7 +42,8 @@ today's total and a per-app breakdown of who used it.
   Plex stream from your own server all cross Wi-Fi, but none of them cost you
   internet data, so none of them are counted against you.
 - **Hotspot aware** — metered connections are flagged with a `METERED` badge, and
-  one setting stops your apps updating while you're on one. See below.
+  one setting stops your apps updating while you're on one, puts the connection in
+  Low Data Mode, and tells you which apps it can't stop. See below.
 - **Speed test on demand** — one click runs a fresh test with macOS's built-in
   `networkQuality`: download, then upload, then ping, jitter and ping under load.
   In Mbps or MB/s, and if another app was competing for the line, the result
@@ -59,8 +60,8 @@ NetworkMonitor watches your traffic *volume*, never its contents — and it has 
 way to phone home.
 
 - **No permission prompts.** It never asks for Location, and doesn't need it. The
-  only thing that ever asks for your password is the optional hotspot-metering
-  helper, and only when you install it.
+  only thing that ever asks for your password is the hotspot helper, once, when
+  you switch hotspot metering on.
 - **No network access of its own.** The only traffic NetworkMonitor ever causes is
   a speed test you start yourself, run by macOS's built-in `networkQuality` against
   Apple's servers. There is no analytics, no telemetry, no update check, no account.
@@ -71,31 +72,29 @@ way to phone home.
 ## Install
 
 
-You'll need macOS 13 or later and Apple's Command Line Tools (`xcode-select
---install`). Xcode itself and an Apple Developer account are *not* required.
+For macOS 13 or later, on Apple silicon and Intel.
 
-```sh
-git clone https://github.com/kevinabouhanna/NetworkMonitor.git
-cd NetworkMonitor
-./Scripts/install.sh
-```
+1. **[Download NetworkMonitor.dmg](https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg)**,
+   open it, and drag NetworkMonitor into **Applications**.
+2. Open NetworkMonitor from Applications. The first time, macOS says it can't
+   check it for malicious software and won't open it.
+3. Open **System Settings › Privacy & Security**, scroll down to Security, and
+   click **Open Anyway** next to NetworkMonitor. Confirm with your password.
 
-That builds the app, installs it to `/Applications`, and starts it at login. Look
-for the `↓`/`↑` readout in your menu bar.
+That last step is there because NetworkMonitor isn't signed with a paid Apple
+Developer ID yet, so macOS can't vouch for who made it. It's needed once; after
+that it opens like any other app. It starts at login from then on — look for the
+`↓`/`↑` readout in your menu bar.
 
-To skip the login item, use `./Scripts/install.sh --no-login`.
-
-To update later, pull and reinstall in one step:
-
-```sh
-make update
-```
+**To update**, download the new disk image and drag it into Applications again,
+replacing the old copy. Your settings and usage history stay.
 
 ## Using it
 
 
 **Left-click** the menu bar item for this connection's total and the app list.
-**Right-click** it to test your internet speed, for Settings, and for Quit.
+**Right-click** it to test your internet speed, for Settings, to uninstall, and
+for Quit.
 
 The **gear icon** in the popover opens Settings, which holds start-at-login, the
 counting-since time, Reset Now and Quit.
@@ -153,29 +152,24 @@ Covered with no special permissions: **VLC, AppCleaner, ChatGPT, Affinity,
 VoiceInk** and any other app using Sparkle; **Microsoft AutoUpdate**; **Figma**;
 **Visual Studio Code**; and **Google Chrome**.
 
-Run `make helper` once, and it also covers **macOS system updates, the App Store,
-Claude, Slack and Canva**. That step asks for your administrator password,
-because those live in root-owned files. Claude and Slack in particular honour
-*only* managed policy — an ordinary `defaults write` is read by neither — which
-is why they cannot be covered without it. The helper it installs can do exactly
-three things — suppress, restore, report — and the settings it touches are
-compiled into it, so it cannot be asked to change anything else. Remove it any
-time with `make uninstall`.
+When you switch it on, macOS asks for your password once, so NetworkMonitor can
+install a small helper. With it, the switch also covers **macOS system updates,
+the App Store, Claude, Slack and Canva**, and puts the hotspot in Low Data Mode
+(below). Those live in files only an administrator can change, which is why it
+asks. Claude and Slack in particular honour *only* managed policy, so they can't
+be covered any other way. The helper can do exactly five things — suppress,
+restore, turn Low Data Mode on and off, report — and the settings it touches are
+built into it, so it can't be asked to change anything else. Cancel the password
+dialog and everything else still works; Settings shows an **Allow…** button for
+when you change your mind. When a new version of NetworkMonitor needs a newer
+helper, it asks once more, the first time it opens.
 
-`make helper` also installs a small job that runs hourly, so that if you delete
-NetworkMonitor by dragging it to the Trash, **the helper's own** changes — the
-system update settings, the managed policies, its `/etc/hosts` entries — are put
-back and the helper removes itself. It does not undo the settings listed above
-that need no password; its state is root-side and it never reads the app's
-journal. The cost is one extra row in System Settings › General › Login Items &
-Extensions, because macOS lists every background job separately and can only
-group one under its app when the app has a Developer ID team — an ad-hoc
-signature has none.
-
-`make helper-no-daemon` skips that job. Coverage while running is identical and
-NetworkMonitor stays the only row in Login Items; in exchange nothing is undone
-automatically, so `make uninstall` is the way to remove it. The settings pane
-tells you which arrangement you have.
+The helper also runs a small hourly check, so that if you delete NetworkMonitor
+by dragging it to the Trash, **the helper's own** changes — the system update
+settings, the managed policies, Low Data Mode — are put back and the helper
+removes itself. It shows up as one extra row in System Settings › General ›
+Login Items & Extensions; macOS lists every background job separately, and can
+only group it under the app when the app is signed with a Developer ID.
 
 Three things worth knowing:
 
@@ -186,12 +180,54 @@ Three things worth knowing:
   a security patch from a feature release, and pretending otherwise would be
   worse than saying so. Turn the setting off, or leave the hotspot, and
   everything resumes.
-- **`make uninstall` puts every setting back exactly as it found it** — it reverts
-  first, then deletes. Dragging the app to the Trash does not: the settings that
-  need no password stay switched off, because the record of what to restore is the
-  app's own journal and nothing is left running to read it. Reinstalling the app
-  *does* restore them, since that journal survives and is replayed at launch. So
-  if you have already trashed it, put it back and run `make uninstall` properly.
+- **Uninstall from the app, not by dragging it to the Trash.** Right-click the
+  menu bar item and choose **Uninstall NetworkMonitor…**: it puts every setting
+  back exactly as it found it, then removes itself. Dragging it to the Trash puts
+  back the helper's changes but not the ones that needed no password, because the
+  record of those is the app's own and nothing is left running to read it. If
+  you've already trashed it, drag it back, open it, and uninstall from the menu.
+
+### Low Data Mode, for the apps no setting reaches
+
+The list above can only cover apps with an update setting NetworkMonitor knows
+how to turn off, and your Mac has apps mine doesn't. So with the helper
+installed, the same switch also puts the hotspot in **Low Data Mode** — the
+flag macOS sets itself on an iPhone hotspot it recognises — and everything that
+listens for it holds back: iCloud and Photos sync, background downloads macOS
+schedules, and any app that respects Low Data Mode, whether NetworkMonitor has
+heard of it or not. It's part of the one switch rather than a second one, since
+it's there for the same reason; Settings says under the switch that iCloud waits
+too.
+
+- **It's a flag on the connection, not a setting saved anywhere.** Nothing is
+  written to disk, your own Low Data Mode choices in System Settings are left
+  alone, and a restart clears it whatever happens.
+- **It only takes down what it put up.** If macOS or you had already turned it on
+  for a connection, it stays on when you leave.
+- **It's switched off when you leave the hotspot, and when you quit.** Unlike the
+  update settings, it affects the whole Mac, so it doesn't stay behind on home
+  Wi-Fi with nothing watching.
+- **Settings shows whether it worked.** It reads the connection back afterwards,
+  and says *macOS confirms it* once macOS itself reports the connection as
+  constrained. If macOS keeps switching it back off, Settings says that too
+  rather than fighting it.
+- **Most Electron apps ignore it.** Chromium's networking doesn't listen for Low
+  Data Mode, so it won't stop Slack-style apps on its own. That's what the next
+  part is for.
+
+### What isn't covered, and what got through anyway
+
+Settings lists the apps on *your* Mac that update themselves in a way
+NetworkMonitor can't switch off, under **Not covered**. They're found by how they
+update — an Electron updater, a Sparkle app that's sandboxed, an updater program
+of their own — not by a list of names, so the list reflects what you actually
+have installed.
+
+While you're on a metered connection, NetworkMonitor also notices updates that
+download anyway: an update file appearing where Electron and Sparkle apps stage
+their downloads, or a program named like an updater using the connection. The
+popover shows one line under the total when that happens, and Settings lists
+each one with its size, still there after you've left the hotspot.
 
 ## What the numbers mean
 
@@ -227,17 +263,27 @@ completed. **The big total is the one to trust.**
 ## Uninstall
 
 
-```sh
-./Scripts/uninstall.sh            # remove the app and login item
-./Scripts/uninstall.sh --purge    # also delete usage history
-```
+Right-click the menu bar item and choose **Uninstall NetworkMonitor…**.
 
-If you set up hotspot metering, `uninstall.sh` restores every setting it changed
-*before* it deletes anything, and removes the helper too. **Dragging the app to the
-Trash is not equivalent** — the settings that need no password stay switched off,
-because the journal recording how to undo them needs the app to read it. Put the
-bundle back and run the uninstaller, or reinstall: the journal is replayed at
-launch either way.
+It puts back every setting hotspot metering changed *before* it removes anything,
+removes the helper (macOS asks for your password if the helper is installed),
+removes the login item and your usage history, and moves the app to the Trash.
+
+**Dragging the app to the Trash is not equivalent** — the settings that need no
+password stay switched off, because the record of how to undo them needs the app
+to read it. If you've already done that, drag it back, open it, and uninstall
+from the menu.
+
+## Building from source
+
+For contributors. Using the app never needs any of this.
+
+You'll need Apple's Command Line Tools (`xcode-select --install`); Xcode and a
+developer account are not required. `make test` runs the suite, `make app`
+builds `build/NetworkMonitor.app` with its helper inside, `make dmg` builds the
+universal disk image, and `make metering-report` prints what hotspot metering
+reaches on the machine it runs on. A release is cut by pushing a `v*` tag; the
+workflow builds, tests and publishes the disk image.
 
 ## License
 

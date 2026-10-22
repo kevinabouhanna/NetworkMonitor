@@ -33,6 +33,14 @@ if CommandLine.arguments.contains("--revert-metering") {
     exit(0)
 }
 
+// Read-only: what hotspot metering can and cannot reach on this Mac, and the
+// state of Low Data Mode, printed for a terminal. Changes nothing, so it is safe
+// beside a running copy. `make metering-report` runs it.
+if CommandLine.arguments.contains("--metering-report") {
+    print(MeteringController(store: UsageStore()).diagnosticReport())
+    exit(0)
+}
+
 // Single-instance guard. Two copies would each add a status item and each run
 // their own nettop, double-counting every byte. This also makes the duplicate
 // launch that `launchctl bootstrap` triggers (via RunAtLoad) harmless: it exits

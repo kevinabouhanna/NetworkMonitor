@@ -1,4 +1,4 @@
-.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon uninstall icon dmg-background clean
+.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon dmg-background clean
 
 all: test app
 
@@ -63,6 +63,13 @@ helper:
 
 helper-no-daemon:
 	@./Scripts/install-helper.sh --no-daemon
+
+# What hotspot metering reaches on this Mac, what it does not, any update
+# downloads waiting to install, and the state of Low Data Mode. Read-only: it
+# changes nothing and is safe while the app runs. Runs the freshly built bundle,
+# whose identifier is the installed app's, so it reads the same settings.
+metering-report: app
+	@build/NetworkMonitor.app/Contents/MacOS/NetworkMonitor --metering-report
 
 uninstall:
 	@./Scripts/uninstall.sh

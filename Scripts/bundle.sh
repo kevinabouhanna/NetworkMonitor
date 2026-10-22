@@ -19,6 +19,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 APP_NAME="NetworkMonitor"
+HELPER_PRODUCT="NetworkMonitorHelper"
+HELPER_NAME="com.kevinabouhanna.NetworkMonitor.helper"
 BUILD_DIR=".build/release"
 APP="build/${APP_NAME}.app"
 PLIST_SRC="Resources/Info.plist"
@@ -74,25 +76,33 @@ if [ "$UNIVERSAL" -eq 1 ]; then
   # description per directory and does not always notice that the triple has
   # changed since the last build, which fails as "No target named
   # 'NetworkMonitor-arm64-apple-macosx13.0-release.exe' in build description".
-  slices=()
-  for arch in arm64 x86_64; do
-    flags=(-c release --product "$APP_NAME" --triple "${arch}-apple-macosx13.0"
-           --scratch-path ".build/${arch}")
-    ./Scripts/swiftpm.sh build "${flags[@]}"
-    slices+=("$(./Scripts/swiftpm.sh build "${flags[@]}" --show-bin-path 2>/dev/null)/${APP_NAME}")
-  done
   BUILD_DIR=".build/universal"
   mkdir -p "$BUILD_DIR"
-  lipo -create -output "${BUILD_DIR}/${APP_NAME}" "${slices[@]}"
+  # The app and the privileged helper it carries, each made universal: the
+  # helper is installed from inside the bundle, on whatever Mac runs it.
+  for product in "$APP_NAME" "$HELPER_PRODUCT"; do
+    slices=()
+    for arch in arm64 x86_64; do
+      flags=(-c release --product "$product" --triple "${arch}-apple-macosx13.0"
+             --scratch-path ".build/${arch}")
+      ./Scripts/swiftpm.sh build "${flags[@]}"
+      slices+=("$(./Scripts/swiftpm.sh build "${flags[@]}" --show-bin-path 2>/dev/null)/${product}")
+    done
+    lipo -create -output "${BUILD_DIR}/${product}" "${slices[@]}"
+  done
 else
-  ./Scripts/swiftpm.sh build -c release
+  ./Scripts/swiftpm.sh build -c release --product "$APP_NAME"
+  ./Scripts/swiftpm.sh build -c release --product "$HELPER_PRODUCT"
 fi
 
 BINARY="${BUILD_DIR}/${APP_NAME}"
-if [ ! -f "$BINARY" ]; then
-  echo "error: expected binary at ${BINARY}" >&2
-  exit 1
-fi
+HELPER_BINARY="${BUILD_DIR}/${HELPER_PRODUCT}"
+for built in "$BINARY" "$HELPER_BINARY"; do
+  if [ ! -f "$built" ]; then
+    echo "error: expected binary at ${built}" >&2
+    exit 1
+  fi
+done
 
 echo "==> Assembling ${APP}"
 rm -rf "$APP"
@@ -109,18 +119,34 @@ cp "$PLIST_SRC" "${APP}/Contents/Info.plist"
 cp Resources/AppIcon.icns "${APP}/Contents/Resources/AppIcon.icns"
 printf 'APPL????' > "${APP}/Contents/PkgInfo"
 
+# The privileged helper and the script that installs it, carried inside the app
+# so that Settings can install, update and remove them with one administrator
+# prompt — no Terminal. Contents/Library/LaunchServices is where macOS expects a
+# bundled helper tool to live.
+mkdir -p "${APP}/Contents/Library/LaunchServices"
+cp "$HELPER_BINARY" "${APP}/Contents/Library/LaunchServices/${HELPER_NAME}"
+cp Scripts/helper-setup.sh "${APP}/Contents/Resources/helper-setup.sh"
+chmod 755 "${APP}/Contents/Resources/helper-setup.sh"
+
 echo "==> Signing"
+# Inside out, without `--deep`: the nested helper first, under its own
+# identifier, then the app, whose signature seals it. `--deep` re-signed the
+# helper with an identifier guessed from its file name — the name minus what
+# looked like an extension, `.helper` — which is the app's own.
+HELPER_PATH="${APP}/Contents/Library/LaunchServices/${HELPER_NAME}"
 if [ -n "${SIGN_IDENTITY:-}" ]; then
   # --options runtime enables the hardened runtime, required for notarization.
   # Spawning /usr/bin/nettop is allowed under the hardened runtime without an
   # exception; it is a separate signed process, not injected code.
-  codesign --force --deep --options runtime --timestamp \
-           --sign "$SIGN_IDENTITY" "$APP"
+  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" \
+           --identifier "$HELPER_NAME" "$HELPER_PATH"
+  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP"
   echo "    signed with Developer ID — ready for: xcrun notarytool submit"
 else
-  # Ad-hoc signature. Enough to run locally; Gatekeeper will ask for a
-  # right-click > Open the first time.
-  codesign --force --deep --sign - "$APP"
+  # Ad-hoc signature. Enough to run locally; a downloaded copy needs "Open
+  # Anyway" in System Settings › Privacy & Security the first time.
+  codesign --force --sign - --identifier "$HELPER_NAME" "$HELPER_PATH"
+  codesign --force --sign - "$APP"
   echo "    ad-hoc signed (local use). Set SIGN_IDENTITY for distribution."
 fi
 

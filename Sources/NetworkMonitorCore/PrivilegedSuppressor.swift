@@ -45,18 +45,24 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
 
     /// Mirrors the helper's compiled-in list, for display only. The helper does
     /// not take this as input — it cannot be told to block anything else.
-    public static let coveredApplications = [
-        (app: "macOS software updates", mechanism: "System setting"),
-        (app: "App Store updates", mechanism: "System setting"),
-        (app: "Claude", mechanism: "Managed policy"),
-        (app: "Slack", mechanism: "Managed policy"),
-        (app: "Canva", mechanism: "Update endpoint"),
+    ///
+    /// `bundleID` is what `UpdaterScan` matches installed apps against. Canva's
+    /// is left nil — it is not installed on the development machine to read it
+    /// from, and a guessed identifier would make the scan claim coverage on a
+    /// guess — so Canva is matched by its name instead.
+    public static let coveredApplications: [(app: String, mechanism: String, bundleID: String?)] = [
+        (app: "macOS software updates", mechanism: "System setting", bundleID: nil),
+        (app: "App Store updates", mechanism: "System setting", bundleID: nil),
+        (app: "Claude", mechanism: "Managed policy",
+         bundleID: "com.anthropic.claudefordesktop"),
+        (app: "Slack", mechanism: "Managed policy", bundleID: "com.tinyspeck.slackmacgap"),
+        (app: "Canva", mechanism: "Update endpoint", bundleID: nil),
         // Figma is covered twice over: its own `DisableUpdater` preference is the
         // primary lever, but that write is deferred while Figma is running — which
         // it usually is — so the helper also blocks its update endpoint. Listed
         // here because that second mechanism edits /etc/hosts, and this list is
         // what the settings pane reports.
-        (app: "Figma", mechanism: "Update endpoint"),
+        (app: "Figma", mechanism: "Update endpoint", bundleID: "com.figma.Desktop"),
     ]
 
     public init() {}
@@ -86,7 +92,8 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
         return Self.coveredApplications.map {
             CoveredItem(id: Self.tierID,
                         displayName: $0.app,
-                        mechanism: $0.mechanism)
+                        mechanism: $0.mechanism,
+                        bundleIdentifiers: $0.bundleID.map { [$0] } ?? [])
         }
     }
 
@@ -156,9 +163,15 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
     }
 
     private func runHelperCapturing(_ verb: String) -> String? {
+        Self.invoke(verb)
+    }
+
+    /// The one way into the helper, shared with `LowDataModeSuppressor` so both
+    /// tiers reach root by exactly the same `sudo -n` route.
+    static func invoke(_ verb: String) -> String? {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = ["-n", Self.helperPath, verb]
+        task.arguments = ["-n", helperPath, verb]
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = FileHandle.nullDevice

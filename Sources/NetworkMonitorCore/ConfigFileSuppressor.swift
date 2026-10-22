@@ -27,6 +27,8 @@ public final class ConfigFileSuppressor: UpdateSuppressor {
         public var key: String
         /// The value as a JSON literal, including quotes for strings.
         public var suppressedLiteral: String
+        /// The app the file belongs to. See `CoveredItem.bundleIdentifiers`.
+        public var bundleIdentifier: String? = nil
 
         /// Matches `SuppressionRecord.Target.configFile`.
         public var id: String { "\(path)/\(key)" }
@@ -49,7 +51,8 @@ public final class ConfigFileSuppressor: UpdateSuppressor {
             found.append(Target(displayName: "Visual Studio Code",
                                 path: vscode.path,
                                 key: "update.mode",
-                                suppressedLiteral: "\"none\""))
+                                suppressedLiteral: "\"none\"",
+                                bundleIdentifier: "com.microsoft.VSCode"))
         }
 
         // Claude Desktop keeps its applied config under a UUID named by a
@@ -68,7 +71,8 @@ public final class ConfigFileSuppressor: UpdateSuppressor {
                 found.append(Target(displayName: "Claude",
                                     path: config.path,
                                     key: "disableAutoUpdates",
-                                    suppressedLiteral: "true"))
+                                    suppressedLiteral: "true",
+                                    bundleIdentifier: "com.anthropic.claudefordesktop"))
             }
         }
 
@@ -84,7 +88,8 @@ public final class ConfigFileSuppressor: UpdateSuppressor {
                         // files whether or not the app is running, because an
                         // editor re-reads its settings file rather than caching
                         // it the way `cfprefsd` does.
-                        isDeferred: false)
+                        isDeferred: false,
+                        bundleIdentifiers: $0.bundleIdentifier.map { [$0] } ?? [])
         }
     }
 
