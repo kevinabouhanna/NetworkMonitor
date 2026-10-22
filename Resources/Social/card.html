@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NetworkMonitor social card</title>
+<!--
+  The link-sharing card, in two sizes from one layout:
+    card.html?w=1200&h=630  →  social-card.png            (the website's og:image / twitter:image)
+    card.html?w=1280&h=640  →  github-social-preview.png  (repository Settings → Social preview)
+  Render each by opening it in Chromium at exactly that viewport, device scale 1, once
+  fonts have loaded, and screenshotting the page; it uses the system font, so render on a Mac.
+  capture.png is a real capture of the menu bar and popover (2x); icon.png is
+  Resources/AppIcon.icns at 1024 px. Retake capture.png whenever the popover changes.
+-->
+<style>
+  /* The site's identity (kevinabouhanna.github.io/NetworkMonitor): black, one green,
+     the green-to-white gradient, the system font, the app icon, and the real app. */
+  :root {
+    --green: #51ff70; --light: #e5e5e5;
+    --text: #f5f5f7; --text-2: #a1a1a6; --text-3: #6e6e73;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: var(--w); height: var(--h); background: #000; overflow: hidden; }
+  body { font-family: var(--font); color: var(--text); -webkit-font-smoothing: antialiased; position: relative; }
+
+  /* A faint green light behind the product, so it doesn't sit on a flat void. */
+  .glow { position: absolute; right: -120px; top: -40px; width: 760px; height: 700px;
+    background: radial-gradient(closest-side, rgba(81, 255, 112, .13), rgba(81, 255, 112, .04) 55%, transparent 75%); }
+
+  .copy { position: absolute; left: var(--pad); top: 50%; transform: translateY(-50%); width: 560px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand img { width: 78px; height: 78px; margin: -8px; } /* the icon carries 10% transparent padding */
+  .brand span { font-size: 30px; font-weight: 600; letter-spacing: -.01em; }
+  h1 { margin-top: 38px; font-size: 78px; line-height: 1.02; font-weight: 700; letter-spacing: -.025em; }
+  h1 .line { display: block; }
+  .grad { background: linear-gradient(100deg, var(--green) 10%, #c6ffd1 60%, var(--light) 95%);
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { margin-top: 26px; font-size: 26px; line-height: 1.32; color: var(--text-2); width: 500px; }
+  .meta { margin-top: 30px; display: flex; gap: 12px; align-items: center; font-size: 19px; color: var(--text-3); font-weight: 500; }
+  .meta i { width: 4px; height: 4px; border-radius: 50%; background: var(--text-3); display: block; }
+
+  /* The real app: the menu bar readout and the popover, captured on a Mac. */
+  .shot { position: absolute; right: var(--shot-right); top: var(--shot-top); width: 636px; height: 600px; overflow: hidden;
+    -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 100%),
+                        linear-gradient(90deg, transparent 0, #000 16%, #000 92%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(180deg, #000 70%, transparent 100%),
+                linear-gradient(90deg, transparent 0, #000 16%, #000 92%, transparent 100%);
+    mask-composite: intersect; }
+  .shot img { width: 636px; height: auto; display: block; }
+  /* Other apps' menu bar items, left of the microphone, stay out of a card about this one. */
+  .shot .hide { position: absolute; left: 0; top: 0; width: 262px; height: 36px; background: #000; }
+  /* The readout, marked as the video and the site do. */
+  .shot .mark { position: absolute; left: 315px; top: 2px; width: 88px; height: 32px; border-radius: 9px;
+    border: 1.5px solid rgba(81, 255, 112, .55); box-shadow: 0 0 18px rgba(81, 255, 112, .25); }
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="copy">
+    <div class="brand"><img src="icon.png" alt=""><span>NetworkMonitor</span></div>
+    <h1><span class="line">Every byte.</span><span class="line grad">Accounted for.</span></h1>
+    <p class="sub">Live network speed in your Mac's menu bar, and which app used your data.</p>
+    <p class="meta"><span>Free</span><i></i><span>Open source</span><i></i><span>macOS 13 or later</span></p>
+  </div>
+  <div class="shot">
+    <img src="capture.png" alt="">
+    <div class="hide"></div>
+    <div class="mark"></div>
+  </div>
+  <script>
+    // ?w=1200&h=630 (Open Graph) or ?w=1280&h=640 (GitHub's social preview).
+    const q = new URLSearchParams(location.search);
+    const w = +(q.get('w') || 1200), h = +(q.get('h') || 630);
+    const s = document.documentElement.style;
+    s.setProperty('--w', w + 'px'); s.setProperty('--h', h + 'px');
+    s.setProperty('--pad', (w >= 1280 ? 84 : 72) + 'px');
+    s.setProperty('--shot-right', (w >= 1280 ? 6 : -14) + 'px');
+    s.setProperty('--shot-top', '26px');
+  </script>
+</body>
+</html>
