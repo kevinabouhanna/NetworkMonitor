@@ -33,5 +33,6 @@ runHostsFileTests()
 runJSONConfigEditTests()
 runSuppressedValueTests()
 runSpeedTestTests()
+runMenuBarStripTests()
 
 exit(Check.summarize())

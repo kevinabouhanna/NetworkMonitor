@@ -3,13 +3,16 @@ import Combine
 import NetworkMonitorCore
 import SwiftUI
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
     private let model = MonitorViewModel()
     private var titleObserver: AnyCancellable?
     private var popoverMonitor: Any?
+    /// Pointer watchers that exist only while a revealed menu bar holds focus
+    /// the popover had. See `restoreFocusWhenMenuBarHides()`.
+    private var menuBarMonitors: [Any] = []
     private var settingsWindow: NSWindow?
     /// Invisible stand-in for the status item that the popover anchors to.
     /// See `anchorView(under:)`.
@@ -78,8 +81,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setUpPopover() {
         popover = NSPopover()
-        popover.behavior = .transient
+        // Semi-transient, not transient, so that losing focus alone never closes
+        // it: `appDidResignActive` makes that call instead, because an auto-hidden
+        // menu bar takes focus just by appearing. Esc still closes it, and the
+        // outside-click monitor in `togglePopover` handles clicks elsewhere.
+        popover.behavior = .semitransient
         popover.animates = false
+        popover.delegate = self
         let root = MenuBarPopoverView(
             model: model,
             onSettings: { [weak self] in self?.showSettings() })
@@ -106,6 +114,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // invalidated this view tree beforehand — which it no longer does, now that
         // the rates are not `@Published` (see `MonitorViewModel.downBytesPerSecond`).
         popover.contentViewController = host
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appDidResignActive),
+            name: NSApplication.didResignActiveNotification, object: nil)
     }
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
@@ -135,12 +147,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         clearInitialFocus()
 
-        // `.transient` dismisses on outside clicks but does not tell us, and the
-        // model needs to know in order to stop rebuilding rows.
+        // Clicks in other apps, the menu bar included. A click on the status item
+        // itself is left to `statusItemClicked`, which toggles: with an auto-hidden
+        // menu bar that click reaches this monitor too, and closing here as well
+        // had the same click reopen the popover a moment later.
         popoverMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            guard let self, self.popover.isShown else { return }
+            guard let self, self.popover.isShown, !self.pointerIsOnStatusItem else { return }
             DispatchQueue.main.async { self.closePopover() }
         }
+    }
+
+    private var pointerIsOnStatusItem: Bool {
+        guard let frame = statusItem.button?.window?.frame else { return false }
+        // `NSMouseInRect`, not `contains`: the top row of the item reports
+        // y == maxY, which `contains` excludes.
+        return NSMouseInRect(NSEvent.mouseLocation, frame, false)
     }
 
     /// Opens the popover with nothing focused.
@@ -210,17 +231,118 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func closePopover() {
         popover.performClose(nil)
+    }
+
+    /// Every way the popover closes ends here — the status item, an outside
+    /// click, Esc, a switch to another app — so none of them can skip the
+    /// bookkeeping. Esc and ⌘-Tab used to: `.transient` closed it on its own,
+    /// leaving the model rebuilding rows for a list nobody could see until the
+    /// next time the popover opened.
+    ///
+    /// Sent synchronously from within `performClose`, so this is done before any
+    /// click that follows could reopen the popover.
+    func popoverWillClose(_ notification: Notification) {
         model.setPopoverOpen(false)
         if let monitor = popoverMonitor {
             NSEvent.removeMonitor(monitor)
             popoverMonitor = nil
         }
+        stopWatchingMenuBar()
         anchorWindow?.orderOut(nil)
+    }
+
+    // MARK: Auto-hidden menu bar
+
+    /// Decides whether losing focus closes the popover — which `.transient`
+    /// decided by always closing it, and with "Automatically hide and show the
+    /// menu bar" on that was wrong.
+    ///
+    /// An accessory app has no menu bar of its own, so when the pointer reveals
+    /// the hidden one, macOS activates an app that has one: whichever was
+    /// frontmost before the popover opened. Moving down to read the popover and
+    /// back up to the menu bar closed it with no click at all. Measured with a
+    /// stand-in app and synthesised pointer moves on macOS 27: each reveal posted
+    /// `didActivateApplication` for the terminal, then `didResignActive`, then the
+    /// transient close (`_NSPopoverProcessResignKey`).
+    ///
+    /// So losing focus with the pointer up in the menu bar is the bar appearing,
+    /// and the popover rides it out. Losing it anywhere else — ⌘-Tab, Spotlight,
+    /// a notification — is a real switch and closes it as before. Clicks, menu
+    /// bar clicks included, still close it through the outside-click monitor.
+    @objc private func appDidResignActive() {
+        guard popover.isShown else { return }
+        if pointerIsInMenuBar {
+            restoreFocusWhenMenuBarHides()
+        } else {
+            closePopover()
+        }
+    }
+
+    /// Hands focus back to the popover once the pointer leaves the menu bar.
+    ///
+    /// Without it the popover stays up but inactive after every reveal, and its
+    /// next click only activates the app — the swallowed click `togglePopover`
+    /// activates to avoid. Unless the user has switched to another app in the
+    /// meantime: then the popover closes, rather than taking focus back from it.
+    private func restoreFocusWhenMenuBarHides() {
+        guard menuBarMonitors.isEmpty else { return }
+        // The app the reveal activated, already frontmost by the time
+        // `didResignActive` arrives. If it reads as this app, nothing is known,
+        // and focus comes back regardless.
+        let ownPID = ProcessInfo.processInfo.processIdentifier
+        let revealedFor = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        let pointerMoved = { [weak self] in
+            guard let self, !self.pointerIsInMenuBar else { return }
+            self.stopWatchingMenuBar()
+            guard self.popover.isShown else { return }
+            let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
+            let switchedAway = revealedFor.map { $0 != ownPID && frontmost != $0 } ?? false
+            if switchedAway {
+                self.closePopover()
+            } else {
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
+        // Both are needed. Leaving over another app's window reaches only the
+        // global monitor, and leaving straight down into the popover only the
+        // local one; each happened in testing.
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: { _ in pointerMoved() }) {
+            menuBarMonitors.append(global)
+        }
+        if let local = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved, handler: { event in
+            pointerMoved()
+            return event
+        }) {
+            menuBarMonitors.append(local)
+        }
+    }
+
+    private func stopWatchingMenuBar() {
+        menuBarMonitors.forEach(NSEvent.removeMonitor)
+        menuBarMonitors.removeAll()
+    }
+
+    /// Whether the pointer is up in the menu bar, whether or not it is showing.
+    private var pointerIsInMenuBar: Bool {
+        MenuBarStrip.contains(NSEvent.mouseLocation,
+                              screens: NSScreen.screens.map { ($0.frame, menuBarHeight(on: $0)) })
+    }
+
+    /// See `MenuBarStrip.height` for why it takes all three readings.
+    private func menuBarHeight(on screen: NSScreen) -> CGFloat {
+        MenuBarStrip.height(statusItemThickness: NSStatusBar.system.thickness,
+                            statusItemWindowHeight: statusItem.button?.window?.frame.height,
+                            safeAreaTop: screen.safeAreaInsets.top)
     }
 
     // MARK: Right-click menu
 
     private func showMenu() {
+        // The outside-click monitor leaves status item clicks alone, so this one
+        // would otherwise open the menu over the popover. `toggleSpeedTest` also
+        // decides whether to open the popover by whether it is shut.
+        if popover.isShown { closePopover() }
+
         let menu = NSMenu()
 
         if SpeedTestRunner.isAvailable {
