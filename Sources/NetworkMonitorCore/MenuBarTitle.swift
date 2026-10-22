@@ -38,30 +38,32 @@ public enum MenuBarTitle {
     public static let upTint = NSColor(srgbRed: 0xE5 / 255, green: 0xE5 / 255,
                                        blue: 0xE5 / 255, alpha: 1)
 
-    public static func downLine(_ bytesPerSecond: Double) -> String {
-        "↓ \(ByteFormat.menuBarRate(bytesPerSecond))"
+    public static func downLine(_ bytesPerSecond: Double, unit: SpeedUnit = .bytes) -> String {
+        "↓ \(ByteFormat.menuBarRate(bytesPerSecond, unit: unit))"
     }
 
-    public static func upLine(_ bytesPerSecond: Double) -> String {
-        "↑ \(ByteFormat.menuBarRate(bytesPerSecond))"
+    public static func upLine(_ bytesPerSecond: Double, unit: SpeedUnit = .bytes) -> String {
+        "↑ \(ByteFormat.menuBarRate(bytesPerSecond, unit: unit))"
     }
 
     /// Tints while a speed test has the menu bar, so its figures — a capacity
-    /// rather than what is moving, and in bits by default — are never mistaken
-    /// for the live rates. Same family as the download green, shifted to cyan.
+    /// rather than what is moving, in the same unit as the live rates — are
+    /// never mistaken for them. Same family as the download green, shifted to cyan.
     public static let testDownTint = NSColor(srgbRed: 0x64 / 255, green: 0xD2 / 255,
                                              blue: 0xFF / 255, alpha: 1)
     public static let testUpTint = NSColor(srgbRed: 0xB4 / 255, green: 0xE9 / 255,
                                            blue: 0xFF / 255, alpha: 1)
 
-    /// The two lines joined, download first.
-    public static func string(down: Double, up: Double) -> String {
-        "\(downLine(down))\n\(upLine(up))"
+    /// The two lines joined, download first. Rates are always passed in bytes
+    /// per second; `unit` is only how they are written.
+    public static func string(down: Double, up: Double, unit: SpeedUnit = .bytes) -> String {
+        "\(downLine(down, unit: unit))\n\(upLine(up, unit: unit))"
     }
 
     /// The two lines, each tinted separately.
-    public static func attributed(down: Double, up: Double) -> NSAttributedString {
-        attributed(downLine(down), downTint, upLine(up), upTint)
+    public static func attributed(down: Double, up: Double,
+                                  unit: SpeedUnit = .bytes) -> NSAttributedString {
+        attributed(downLine(down, unit: unit), downTint, upLine(up, unit: unit), upTint)
     }
 
     /// A speed test's two lines, in the chosen unit, at the live title's exact
@@ -112,8 +114,8 @@ public enum MenuBarTitle {
     ///
     /// `isTemplate = false` is what preserves the green; a template image would
     /// be recoloured to the monochrome menu bar tint.
-    public static func image(down: Double, up: Double) -> NSImage {
-        image(attributed(down: down, up: up))
+    public static func image(down: Double, up: Double, unit: SpeedUnit = .bytes) -> NSImage {
+        image(attributed(down: down, up: up, unit: unit))
     }
 
     /// The speed test's title, drawn exactly as the live one is.
@@ -140,8 +142,8 @@ public enum MenuBarTitle {
     }
 
     /// Rendered width in points, for the width-stability test.
-    public static func renderedWidth(down: Double, up: Double) -> Double {
-        Double(attributed(down: down, up: up).size().width)
+    public static func renderedWidth(down: Double, up: Double, unit: SpeedUnit = .bytes) -> Double {
+        Double(attributed(down: down, up: up, unit: unit).size().width)
     }
 
     /// Rendered height in points, for the menu-bar-fit test.

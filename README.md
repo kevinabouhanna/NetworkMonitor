@@ -30,7 +30,8 @@ today's total and a per-app breakdown of who used it.
 
 
 - **Live speed in the menu bar** — download and upload on two lines, updated twice
-  a second, at a fixed width so nothing jitters as the numbers change.
+  a second, in MB/s or Mbps, at a fixed width so nothing jitters as the numbers
+  change.
 - **See which apps are using your data** — sorted biggest first, with icons.
   Chrome's dozen helper processes show as one *Google Chrome* row; OS daemons
   collapse into a single *System* row.
@@ -101,8 +102,9 @@ replacing the old copy. Your settings and usage history stay.
 to uninstall, and for Quit.
 
 The **chart icon** in the popover opens Usage History. The **gear icon** opens
-Settings, which holds start-at-login, the
-counting-since time, Reset Now and Quit.
+Settings, which holds start-at-login, whether speeds show in MB/s or Mbps,
+hotspot metering, the speed test's menu bar option, the counting-since time and
+Reset Now.
 
 Quitting and start-at-login are deliberately independent: quitting ends the app for
 the rest of the session without turning the setting off, and turning the setting off
@@ -127,8 +129,8 @@ with every Mac, against Apple's nearest servers:
 - **Fresh every time.** Each run is a new measurement; nothing is cached or reused.
 - **Names what slowed it down.** NetworkMonitor already knows which apps are using
   the connection, so if one was competing during the test, the result says so.
-- **Mbps or MB/s**, chosen in Settings. Mbps matches how your plan is sold; MB/s
-  matches the rest of the app.
+- **Mbps or MB/s**, one choice in Settings that the menu bar's live speed
+  follows too. Mbps matches how your plan is sold; MB/s matches the data totals.
 - **In the menu bar too.** While it runs, the readout shows the test in cyan, then
   holds the result for a few seconds before the live rates return.
 

@@ -122,6 +122,40 @@ func runMenuBarTitleTests() {
         }
     }
 
+    // The same live title, written in bits when Settings says so.
+    Check.suite("MenuBarTitle — speeds in bits") {
+
+        // The readout must not twitch when someone changes the unit, nor as
+        // traffic crosses a boundary while in bits.
+        Check.test("every rate renders at the bytes title's width in bits too") {
+            let reference = (MenuBarTitle.renderedWidth(down: 0, up: 0) * 100).rounded()
+            for c in cases {
+                let width = (MenuBarTitle.renderedWidth(down: c.down, up: c.up, unit: .bits) * 100).rounded()
+                Check.expectEqual(width, reference, c.label)
+            }
+        }
+
+        // Eight bits to the byte, then the decimal steps lines are sold in.
+        Check.test("bytes per second are written as bits on the line-speed scale") {
+            Check.expectEqual(MenuBarTitle.string(down: 1_250_000, up: 125_000, unit: .bits),
+                              "↓ 10.00 Mb/s\n↑  1.00 Mb/s")
+            Check.expectEqual(MenuBarTitle.string(down: 2_000, up: 0, unit: .bits),
+                              "↓ 16.00 Kb/s\n↑  0.00 b/s ")
+        }
+
+        Check.test("sub-1 B/s noise is zero in bits as well") {
+            Check.expectEqual(MenuBarTitle.string(down: 0.4, up: 0.9, unit: .bits),
+                              MenuBarTitle.string(down: 0, up: 0, unit: .bits))
+        }
+
+        // The view model skips a redraw when this key is unchanged, so changing
+        // the unit with the rates standing still must still count as a change.
+        Check.test("the unit is part of the redraw key") {
+            Check.expectFalse(MenuBarTitle.string(down: 1_048_576, up: 0, unit: .bits)
+                              == MenuBarTitle.string(down: 1_048_576, up: 0, unit: .bytes))
+        }
+    }
+
     Check.suite("MenuBarTitle — width stability") {
 
         // The invariant that actually matters. An earlier version padded only

@@ -41,7 +41,10 @@ public final class SpeedTestController: ObservableObject {
     /// it back.
     @Published public private(set) var isPresented = false
 
-    /// Bits or bytes for every figure the test shows. See `SpeedUnit`.
+    /// Bits or bytes for every speed the app shows: the test's figures and the
+    /// menu bar's live rates. Held here because the test is where the choice was
+    /// first offered and its views already observe this object; the menu bar
+    /// reads it through `MonitorViewModel`. See `SpeedUnit`.
     @Published public var unit: SpeedUnit {
         didSet {
             defaults.set(unit.rawValue, forKey: Keys.unit)
@@ -80,6 +83,9 @@ public final class SpeedTestController: ObservableObject {
     private var competing: [String: Int64] = [:]
 
     private enum Keys {
+        /// Named for the speed test, which it governed alone until 1.5. Kept,
+        /// so a unit someone chose then stays theirs now that it covers the
+        /// menu bar too.
         static let unit = "speedTestUnit"
         static let menuBar = "speedTestInMenuBar"
     }
@@ -88,7 +94,10 @@ public final class SpeedTestController: ObservableObject {
                 defaults: UserDefaults = .standard) {
         self.runner = runner
         self.defaults = defaults
-        self.unit = SpeedUnit(rawValue: defaults.string(forKey: Keys.unit) ?? "") ?? .bits
+        // Bytes unless chosen otherwise, so upgrading never changes the menu bar.
+        // The key is written only when someone picks a unit, so anyone who chose
+        // one for the speed test keeps it.
+        self.unit = SpeedUnit(rawValue: defaults.string(forKey: Keys.unit) ?? "") ?? .bytes
         self.showsInMenuBar = defaults.object(forKey: Keys.menuBar) as? Bool ?? true
     }
 

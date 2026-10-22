@@ -279,7 +279,9 @@ public final class MonitorViewModel: ObservableObject {
             // The rendered title is the honest key. Two different rates that format
             // to the same two lines produce a byte-identical image, so comparing
             // strings rather than Doubles is what makes the guard bite at all.
-            let rendered = MenuBarTitle.string(down: down, up: up)
+            // The unit is part of the key: switching it in Settings must redraw
+            // even when the rates themselves have not moved.
+            let rendered = MenuBarTitle.string(down: down, up: up, unit: self.speedTest.unit)
             if rendered != self.renderedTitle {
                 self.renderedTitle = rendered
                 self.downBytesPerSecond = down
@@ -511,7 +513,8 @@ public final class MonitorViewModel: ObservableObject {
                                                isSystem: row.isSystem))
     }
 
-    /// Two stacked lines, download above upload, at a constant rendered width.
+    /// Two stacked lines, download above upload, at a constant rendered width,
+    /// in the speed unit chosen in Settings.
     ///
     /// A running speed test takes the title over, when the user has asked for
     /// that, and keeps it for a few seconds after with the result. Same width,
@@ -521,6 +524,7 @@ public final class MonitorViewModel: ObservableObject {
             return MenuBarTitle.speedTestImage(downBits: reading.down, upBits: reading.up,
                                                unit: speedTest.unit)
         }
-        return MenuBarTitle.image(down: downBytesPerSecond, up: upBytesPerSecond)
+        return MenuBarTitle.image(down: downBytesPerSecond, up: upBytesPerSecond,
+                                  unit: speedTest.unit)
     }
 }

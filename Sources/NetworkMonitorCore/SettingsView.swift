@@ -36,6 +36,31 @@ public struct SettingsView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                // One choice for every speed, so the menu bar and the speed test
+                // never show the same line in two different units.
+                //
+                // Label and control laid out by hand. A labelled segmented
+                // Picker given a fixed frame centres itself inside it, which
+                // left the row indented from everything else in the pane.
+                HStack(spacing: 8) {
+                    Text("Show speeds in").font(.system(size: 12))
+                    Picker("Show speeds in", selection: $speedTest.unit) {
+                        ForEach(SpeedUnit.allCases) { unit in
+                            Text(unit.label).tag(unit)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                    Spacer()
+                }
+                .padding(.top, 4)
+                Text("In the menu bar and the speed test. Data you've used is always "
+                     + "counted in MB and GB, the way data plans are sold.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Divider()
@@ -129,22 +154,7 @@ public struct SettingsView: View {
                 Divider()
 
                 section("Speed test") {
-                    // Label and control laid out by hand. A labelled segmented
-                    // Picker given a fixed frame centres itself inside it, which
-                    // left the row indented from everything else in the pane.
-                    HStack(spacing: 8) {
-                        Text("Show speeds in").font(.system(size: 12))
-                        Picker("Show speeds in", selection: $speedTest.unit) {
-                            ForEach(SpeedUnit.allCases) { unit in
-                                Text(unit.label).tag(unit)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .fixedSize()
-                        Spacer()
-                    }
-
+                    // Its unit is the one under General, shared with the menu bar.
                     Toggle("Show the test in the menu bar", isOn: $speedTest.showsInMenuBar)
 
                     Text("Runs macOS's built-in networkQuality, only when you start it: "

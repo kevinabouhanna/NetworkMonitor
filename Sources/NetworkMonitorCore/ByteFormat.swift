@@ -2,12 +2,16 @@ import Foundation
 
 /// Single source of truth for every byte value the app displays.
 ///
-/// The unit the speed test speaks in, chosen in Settings.
+/// The unit every *speed* is shown in, chosen once in Settings: the menu bar's
+/// live rates and the speed test alike, so the two never disagree.
 ///
-/// Bits by default, because that is the unit a connection is sold in — a
-/// "100 Mbps" plan should be checkable against the result without arithmetic.
-/// Bytes for anyone who would rather the test matched every other figure in
-/// the app, the menu bar's live rates included.
+/// Bytes by default, the unit the rest of the app and macOS count in. Bits for
+/// anyone who would rather check against how their connection is sold: a
+/// "100 Mbps" plan without arithmetic.
+///
+/// Amounts of data — the popover's totals, Usage History — are always bytes.
+/// Data plans and caps are sold in gigabytes, so "3.2 Gb used" would only be
+/// something to convert back before comparing it with the carrier's figure.
 public enum SpeedUnit: String, CaseIterable, Identifiable {
     case bits
     case bytes
@@ -24,7 +28,7 @@ public enum SpeedUnit: String, CaseIterable, Identifiable {
 }
 
 /// Binary (1024-based) steps with the familiar `KB`/`MB`/`GB` labels, per spec.
-/// Byte-based everywhere except, by default, the speed test; see `SpeedUnit`.
+/// Byte-based everywhere except speeds shown in bits; see `SpeedUnit`.
 public enum ByteFormat {
 
     private static let units = ["B", "KB", "MB", "GB", "TB", "PB"]
@@ -96,7 +100,20 @@ public enum ByteFormat {
         return pad(number, to: width) + " " + padTrailing("\(unit)/s", to: menuBarUnitWidth)
     }
 
-    // MARK: Bits, for the speed test
+    /// A live rate for the menu bar in the chosen unit, at the same constant
+    /// width either way.
+    ///
+    /// Sub-1 B/s is sampler noise in bits as much as in bytes, so it reads as
+    /// zero in both — otherwise a stray byte would show as "8.00 b/s" and
+    /// repaint the menu bar for nothing.
+    public static func menuBarRate(_ bytesPerSecond: Double, unit: SpeedUnit) -> String {
+        switch unit {
+        case .bytes: return menuBarRate(bytesPerSecond)
+        case .bits:  return menuBarBitRate(bytesPerSecond < 1 ? 0 : bytesPerSecond * 8)
+        }
+    }
+
+    // MARK: Bits
 
     private static let bitUnits = ["bps", "Kbps", "Mbps", "Gbps", "Tbps"]
 
