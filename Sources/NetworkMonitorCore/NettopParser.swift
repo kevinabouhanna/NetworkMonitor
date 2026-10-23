@@ -42,7 +42,8 @@ public struct NettopRow: Equatable {
 }
 
 /// Parses the CSV stream produced by
-/// `nettop -P -x -d -L 0 -s 1 -J time,bytes_in,bytes_out`.
+/// `nettop -n -x -d -L 0 -s <N> -t external -J time,bytes_in,bytes_out`
+/// (see `NettopStream`).
 ///
 /// Two findings drove this design, both verified against `nettop` on macOS 26:
 ///

@@ -2,9 +2,9 @@
 #
 # Runs the suite before anything reaches the remote.
 #
-# This is what makes committing straight to main safe: CI still runs on the
-# push, but it reports after the fact — by then a broken commit is already
-# public. This catches it while it is still local and fixable with an amend.
+# CI runs on every pull request, but it reports after the fact: by then a
+# broken commit is already public. This catches it while it is still local and
+# fixable with an amend. Nothing is pushed to main directly; see CLAUDE.md.
 #
 # Installed by `make hooks`, which points core.hooksPath at this directory.
 # Bypass for a genuinely urgent push with:  git push --no-verify

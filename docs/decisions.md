@@ -1,0 +1,104 @@
+# Decisions
+
+Why NetworkMonitor works the way it does. Read this before changing something that looks
+odd: most odd-looking things were the second or third attempt.
+
+## Principles
+
+- **Under-reporting is the one error it can't afford.** Anything ambiguous counts as
+  internet traffic. A total that's slightly high is an annoyance; one that hides real usage
+  defeats the app.
+- **No permission prompts.** Networks are identified without Location. The only password
+  ever asked for is optional, for Hotspot mode's helper.
+- **No network access of its own.** The only traffic it causes is a speed test you start.
+- **Nothing to configure where the app can decide.** Sampling rates follow the power source;
+  Hotspot mode is one switch with no list to maintain. A switch that needs configuring to
+  work has failed.
+- **Never lose a byte to save power.** Sample less often, never count less.
+- **Say what it decided.** Settings states the sampling mode, why a connection counts as a
+  hotspot, what was paused, what wasn't, and what got through anyway.
+- **Real numbers.** Measurements are measured, screenshots are real captures, and limits
+  are stated rather than hidden.
+
+## Decision log
+
+Newest last. Links go to the commit or pull request.
+
+| Date | Decision | Why |
+|---|---|---|
+| 2026-07-31 | Kernel counters via `sysctl(NET_RT_IFLIST2)` ([8f5823a](https://github.com/kevinabouhanna/NetworkMonitor/commit/8f5823a)) | `getifaddrs()` counters are 32-bit and had already wrapped: 1.23 GB shown for a true 5.52 GB |
+| 2026-07-31 | `nettop` in delta mode, on a pseudo-terminal ([8f5823a](https://github.com/kevinabouhanna/NetworkMonitor/commit/8f5823a)) | Cumulative totals fall when sockets close; through a pipe it block-buffers and delivers nothing for ~30 s |
+| 2026-07-31 | Networks identified by the gateway's hardware address ([8f5823a](https://github.com/kevinabouhanna/NetworkMonitor/commit/8f5823a)) | The Wi-Fi name needs Location permission; the gateway address separates routers sharing a name and survives roaming |
+| 2026-07-31 | Apps identified by the outermost `.app` in a process's path ([8f5823a](https://github.com/kevinabouhanna/NetworkMonitor/commit/8f5823a)) | Collapses helper processes into their app; process names are truncated to 15 characters |
+| 2026-07-31 | The test suite is a plain executable ([8f5823a](https://github.com/kevinabouhanna/NetworkMonitor/commit/8f5823a)) | XCTest and swift-testing ship only with Xcode |
+| 2026-07-31 | The readout is two lines drawn into an image at 8.5 pt, at a fixed width ([792641a](https://github.com/kevinabouhanna/NetworkMonitor/commit/792641a)) | `NSButton` clipped multi-line titles at every size; nothing beside it should move |
+| 2026-07-31 | Start at login through `SMAppService.mainApp`, after briefly using a LaunchAgent ([c2e08e1](https://github.com/kevinabouhanna/NetworkMonitor/commit/c2e08e1)) | The LaunchAgent showed as a generic "exec" tile; `SMAppService` was proven to work with an ad-hoc signature |
+| 2026-07-31 | One instance only; no `KeepAlive` ([390c646](https://github.com/kevinabouhanna/NetworkMonitor/commit/390c646)) | Two copies double-count every byte; `KeepAlive` would make Quit a no-op |
+| 2026-07-31 | Versions stamped from git; releases built from tags; a smoke test in CI ([859c607](https://github.com/kevinabouhanna/NetworkMonitor/commit/859c607)) | A hardcoded build number would block every future update; a crash on launch is the worst bug an updater can ship |
+| 2026-08-01 | **`nettop`'s stdin is a pipe nobody writes to**, and per-app tracking always runs ([4c4eb9c](https://github.com/kevinabouhanna/NetworkMonitor/commit/4c4eb9c)) | With `/dev/null` it spun at ~140% of a core; with a pipe, 0.55%. The battery modes existed only because of that cost, and switched attribution off on hotspots, where it matters most |
+| 2026-08-01 | **A total per connection**: joining a different network starts over; offline is a gap, not a switch ([4c4eb9c](https://github.com/kevinabouhanna/NetworkMonitor/commit/4c4eb9c)) | The question is what *this* connection cost; a flaky link mustn't wipe the count |
+| 2026-08-01 | Sampling rates follow the power source, with no setting ([4c4eb9c](https://github.com/kevinabouhanna/NetworkMonitor/commit/4c4eb9c)) | Deltas lose no bytes, only freshness |
+| 2026-08-01 | The readout is published only when its text changes ([54506ce](https://github.com/kevinabouhanna/NetworkMonitor/commit/54506ce)) | Every publish re-laid out the hidden popover twice a second |
+| 2026-08-01 | **Internet only**: classify each connection's remote address, subtract LAN unicast, clamp ([4e64478](https://github.com/kevinabouhanna/NetworkMonitor/commit/4e64478)) | AirPlay, Time Machine and SMB counted as internet; `-n` avoids the monitor making DNS traffic |
+| 2026-08-01 | Multicast is never subtracted ([30a8d3c](https://github.com/kevinabouhanna/NetworkMonitor/commit/30a8d3c)) | `nettop`'s multicast figure exceeded what the interface could physically carry by 12.6× or more |
+| 2026-08-01 | Processes outside an app are adopted by the app that launched them ([a4c5a4b](https://github.com/kevinabouhanna/NetworkMonitor/commit/a4c5a4b)) | Tools started from editors and terminals were the top consumer, hidden under System |
+| 2026-08-01 | The popover's height is computed from its rows; it's anchored to an invisible window ([09f627e](https://github.com/kevinabouhanna/NetworkMonitor/commit/09f627e)) | Measured heights start at zero; with an auto-hidden menu bar the popover jumped to the screen's left edge |
+| 2026-08-04 | **Hotspot mode**: six ranked signals; per-app settings, a config-file edit, and a root helper for the rest ([be754a8](https://github.com/kevinabouhanna/NetworkMonitor/commit/be754a8)) | Each app exposes a different mechanism; blocking update hosts would break VS Code Remote-SSH and take Claude offline |
+| 2026-08-04 | Every change is journalled before it's made ([be754a8](https://github.com/kevinabouhanna/NetworkMonitor/commit/be754a8)) | The failure to prevent is a Mac that silently stopped updating months ago |
+| 2026-08-04 | The helper is a sudoers-gated root binary with fixed verbs, not an XPC daemon ([be754a8](https://github.com/kevinabouhanna/NetworkMonitor/commit/be754a8)) | XPC client checks need a Developer ID team; a tiny argument-free vocabulary limits what root can be asked |
+| 2026-09-08 | The app list re-sorts live ([f740eb7](https://github.com/kevinabouhanna/NetworkMonitor/commit/f740eb7)) | Freezing the order hid a large download under tiny apps; samples now close after 120 ms of quiet |
+| 2026-09-29 | Builds with Command Line Tools 27: no `@State`, native build system, per-architecture builds joined with `lipo` ([4eb8f8c](https://github.com/kevinabouhanna/NetworkMonitor/commit/4eb8f8c)) | `@State` is an Xcode-only macro; `swiftbuild` fails; `--arch` twice needs Xcode |
+| 2026-09-29 | A drag-to-Applications disk image with a versionless name ([d91ca04](https://github.com/kevinabouhanna/NetworkMonitor/commit/d91ca04)) | A stable "latest download" link for the website |
+| 2026-10-20 | **Speed test** with macOS's `networkQuality`, sequential, plus a ping-only pass; no RPM ([6993190](https://github.com/kevinabouhanna/NetworkMonitor/commit/6993190)) | Nothing to install or maintain; sequential like other tests; one batch of idle pings is too noisy |
+| 2026-10-22 | Popover semi-transient; Settings makes the app regular while open ([7d44ecd](https://github.com/kevinabouhanna/NetworkMonitor/commit/7d44ecd), [76bfdb5](https://github.com/kevinabouhanna/NetworkMonitor/commit/76bfdb5)) | Revealing an auto-hidden menu bar activated another app, closed the popover and buried Settings (#6) |
+| 2026-10-22 | **Low Data Mode through interface flags** ([e2415b9](https://github.com/kevinabouhanna/NetworkMonitor/commit/e2415b9)) | One mechanism for Wi-Fi and tethers, nothing on disk, cleared by a restart |
+| 2026-10-22 | "Not covered" found by updater shape; "got through" watched ([e2415b9](https://github.com/kevinabouhanna/NetworkMonitor/commit/e2415b9)) | A list of names can't reach every Mac; the gaps should be visible |
+| 2026-10-22 | No Terminal: the helper is installed from the app through the administrator dialog ([e2415b9](https://github.com/kevinabouhanna/NetworkMonitor/commit/e2415b9)) | The dialog needs no Developer ID, and users shouldn't need Terminal |
+| 2026-10-22 | The release workflow publishes the disk image ([fbcd80c](https://github.com/kevinabouhanna/NetworkMonitor/commit/fbcd80c)) | Older release notes sent people to clone, build and clear quarantine by hand |
+| 2026-10-23 | **Usage History** in SQLite, hourly per app per visit, never reset by Reset Now or midnight ([ddd2423](https://github.com/kevinabouhanna/NetworkMonitor/commit/ddd2423), #3) | Yesterday's usage was lost by design; about 5 MB a year, a year's query in ~30 ms |
+| 2026-10-23 | One "Show speeds in" choice for the menu bar and the speed test; bytes by default ([ebde6c7](https://github.com/kevinabouhanna/NetworkMonitor/commit/ebde6c7), #4) | Two places disagreed; upgrading mustn't change the menu bar |
+| 2026-10-23 | The speed test as a Card or a Compact strip; the menu bar always shows a running test ([e6cef5e](https://github.com/kevinabouhanna/NetworkMonitor/commit/e6cef5e)) | The popover's tallest size never changes; the old switch changed nothing visible |
+| 2026-10-23 | Every change goes issue → pull request → release (#9) | A written workflow every contributor follows |
+| 2026-10-23 | **Settings as toolbar panes**, following Apple's guidelines; Usage History moves in (#11) | One long, cramped column; features hidden behind unlabelled icons |
+| 2026-10-23 | **Battery**: nothing drawn while nobody can see the menu bar; a Low Power Mode profile (#22, #1) | What remained after the `nettop` fix was drawing the readout: 1.19% of a core on battery, now 0.47% with the screen off and 0.53% in Low Power Mode |
+
+## Approaches turned down
+
+| Approach | Why not |
+|---|---|
+| `getifaddrs()` counters | 32-bit, wrap every 4 GiB |
+| `nettop` cumulative mode | totals fall when sockets close, under-counting browsers |
+| A pipe for `nettop`'s output | block-buffered: data arrives in ~30-second bursts |
+| `/dev/null` or an inherited stdin for `nettop` | it spins at ~140% of a core |
+| `FileHandle.availableData` on the PTY | raises an Objective-C exception Swift can't catch |
+| `nettop -P` | one row per process, losing the remote address needed for the LAN split |
+| Switching per-app tracking off on battery | the cost was a bug; it switched attribution off on hotspots |
+| Subtracting multicast from the total | made the total smaller than its own rows |
+| The Wi-Fi name (SSID) as identity | needs Location permission |
+| The access point's address (BSSID) as identity | changes on every roam |
+| Resetting on every path change | path changes fire several times per event; would wipe hotspot totals |
+| A rolling 24-hour reset | drifts to arbitrary hours; midnight matches how carriers count |
+| A digits-only monospaced font in the menu bar | width wandered between 97 and 126 points |
+| A two-line `NSButton` title | clipped the top line at every size |
+| A template image for the readout | recoloured to monochrome, losing the green |
+| A LaunchAgent for start at login | generic "exec" tile in Login Items without a Team ID |
+| Freezing the app list's order while open | big downloads sat under tiny apps |
+| A variable-height popover | re-anchored many times per animation and jumped |
+| A Network Extension content filter for Hotspot mode | blocking traffic is the wrong tool for stopping updates, and it needs a Developer ID |
+| Unloading updaters' LaunchAgents | puts the app in the business of managing background items; churns Login Items |
+| Blocking update hosts for every Electron app | breaks VS Code Remote-SSH and the Claude app |
+| Pausing (`SIGSTOP`) an update already downloading | the download belongs to a system daemon; servers time out; a stopped process gets stranded |
+| Writing settings while the app is running | the app writes its own settings back on quit |
+| A built-in list of updater names | rots, and describes one machine |
+| A per-app list or allowlist for Hotspot mode | a switch that needs configuring has failed |
+| Telling security updates from feature updates | not reliably possible |
+| `launchctl disable` | persists across reboots and outlives the app |
+| System Settings' stored Low Data Mode setting | reaches wired connections only |
+| Ookla's CLI, M-Lab NDT, our own speed test engine | licence; publishing users' IPs; worse than the one on every Mac |
+| `networkQuality` in parallel mode | upload and download compete and both read low |
+| A time limit (`-M`) on the speed test | a capped run drops figures that hadn't converged |
+| Showing RPM / responsiveness | Apple's own unit, blending latency inside saturated connections with what other apps feel |
+| JSON for Usage History | wrong shape for range queries and sums |
+| Importing usage from before History existed | it has no hours; spreading it out would invent data |
+| Four pop-up menus to filter History | the lists themselves are the filters |
+| `@testable import` | compiled in debug but broke release builds |

@@ -9,8 +9,9 @@ Package.resolved
 # macOS
 .DS_Store
 
-# Internal technical docs — not published
-/docs/
+# Private working notes stay local. Everything else in docs/ is published.
+/docs/macOS_Network_Monitor_Spec.md
+/docs/DISTRIBUTION.md
 
 # Xcode, if it ever gets used here
 *.xcuserstate
