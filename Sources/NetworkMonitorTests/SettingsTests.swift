@@ -29,5 +29,28 @@ func runSettingsTests() {
             Check.expectEqual(SettingsPane.last(in: defaults), .general,
                               "an unknown pane falls back to General")
         }
+
+        // Building the window selects the first pane by itself. Taken for a
+        // choice, it overwrote the last pane, so after every relaunch Settings
+        // opened on General (#14). About, because Hotspot refreshes the real
+        // metering state when it appears.
+        Check.test("a new Settings window reopens on the last pane, not General") {
+            let defaults = UserDefaults(suiteName: "settings-window-\(UUID().uuidString)")!
+            SettingsPane.about.remember(in: defaults)
+            let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("settings-window-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
+            let metering = MeteringController(store: store,
+                                              journal: SuppressionJournal(url: dir.appendingPathComponent("journal.json")),
+                                              suppressors: [], defaults: defaults)
+            let model = MonitorViewModel(store: store, metering: metering)
+            let settings = SettingsWindowController(model: model, history: HistoryViewModel(monitor: model),
+                                                    onUninstall: {}, defaults: defaults)
+            Check.expectEqual(SettingsPane.last(in: defaults), .about,
+                              "building the window must not overwrite the last pane")
+            settings.select(nil)
+            Check.expectEqual(settings.window.title, "About")
+        }
     }
 }
