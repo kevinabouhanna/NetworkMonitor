@@ -454,6 +454,36 @@ private func runSpeedTestRunnerTests() {
             }
         }
 
+        // A run the app was force-quit in the middle of can't delete its own
+        // folder, so the next launch does (#29). Only old ones: another process
+        // may be mid-run in the same temporary directory.
+        Check.test("folders left by unfinished runs are cleared, live ones are not") {
+            let fm = FileManager.default
+            let base = fm.temporaryDirectory.appendingPathComponent("leftovers-\(UUID().uuidString)")
+            defer { try? fm.removeItem(at: base) }
+            func folder(_ name: String, age: TimeInterval) -> URL {
+                let url = base.appendingPathComponent(name)
+                try? fm.createDirectory(at: url, withIntermediateDirectories: true)
+                try? fm.setAttributes([.modificationDate: Date().addingTimeInterval(-age)],
+                                      ofItemAtPath: url.path)
+                return url
+            }
+            let stale = folder("NetworkMonitor-speedtest-stale", age: 3600)
+            let live = folder("NetworkMonitor-speedtest-live", age: 30)
+            let unrelated = folder("SomethingElse-stale", age: 3600)
+            let file = base.appendingPathComponent("NetworkMonitor-speedtest-file")
+            fm.createFile(atPath: file.path, contents: Data())
+            try? fm.setAttributes([.modificationDate: Date().addingTimeInterval(-3600)],
+                                  ofItemAtPath: file.path)
+
+            SpeedTestRunner.removeLeftoverFolders(in: base)
+
+            Check.expectFalse(fm.fileExists(atPath: stale.path), "an hour-old run folder must go")
+            Check.expectTrue(fm.fileExists(atPath: live.path), "a run in progress must stay")
+            Check.expectTrue(fm.fileExists(atPath: unrelated.path), "other folders are not ours")
+            Check.expectTrue(fm.fileExists(atPath: file.path), "only folders are removed")
+        }
+
         Check.test("a failed run reports the tool's own message") {
             let flag = script.deletingLastPathComponent().appendingPathComponent("FAKE_NQ_FAIL")
             FileManager.default.createFile(atPath: flag.path, contents: Data())

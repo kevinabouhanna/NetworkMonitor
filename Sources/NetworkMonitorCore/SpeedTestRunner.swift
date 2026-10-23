@@ -83,6 +83,32 @@ public final class SpeedTestRunner {
         FileManager.default.isExecutableFile(atPath: "/usr/bin/networkQuality")
     }
 
+    /// How every run's working folder in the temporary directory is named.
+    static let folderPrefix = "NetworkMonitor-speedtest-"
+
+    /// Removes run folders left behind by a run that never finished, such as
+    /// one the app was force-quit in the middle of (#29). Every run that ends
+    /// deletes its own; this is for the ones that couldn't.
+    ///
+    /// Only folders untouched for `age` go. A run lasts at most 100 s (the 90 s
+    /// limit plus the ping pass), and another process may be mid-run in the same
+    /// temporary directory: a development build, or the test suite.
+    public static func removeLeftoverFolders(
+        in directory: URL = FileManager.default.temporaryDirectory,
+        olderThan age: TimeInterval = 600, now: Date = Date()
+    ) {
+        let keys: [URLResourceKey] = [.isDirectoryKey, .contentModificationDateKey]
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: keys) else { return }
+        for url in entries where url.lastPathComponent.hasPrefix(folderPrefix) {
+            guard let values = try? url.resourceValues(forKeys: Set(keys)),
+                  values.isDirectory == true,
+                  let modified = values.contentModificationDate,
+                  now.timeIntervalSince(modified) > age else { continue }
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
     public var isRunning: Bool {
         queue.sync { process != nil }
     }
@@ -120,7 +146,7 @@ public final class SpeedTestRunner {
         }
 
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("NetworkMonitor-speedtest-\(UUID().uuidString)")
+            .appendingPathComponent(Self.folderPrefix + UUID().uuidString)
         do {
             try FileManager.default.createDirectory(at: directory,
                                                     withIntermediateDirectories: true)

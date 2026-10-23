@@ -69,5 +69,3 @@ can't run `nettop`.
 **Speed test**
 
 - A run uses 50–500 MB, more on a very fast line.
-- If the app is force-quit mid-test, its temporary folder stays in `$TMPDIR` until macOS
-  clears it.

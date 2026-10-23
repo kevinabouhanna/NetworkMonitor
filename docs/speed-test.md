@@ -102,7 +102,9 @@ between runs a minute apart.
 **Fresh by construction.** Each run is a new process in its own folder,
 `$TMPDIR/NetworkMonitor-speedtest-<UUID>/`, which is deleted as soon as the result is
 read, on success, failure, timeout or cancel. A result can only come from the run
-that just finished. Cancelling sends `SIGTERM`, then `SIGKILL` after 0.3 s.
+that just finished. Cancelling sends `SIGTERM`, then `SIGKILL` after 0.3 s. A folder left
+by a run the app was force-quit in the middle of is removed at the next launch, once
+it's over 10 minutes old, so a run in another process is never touched.
 
 **State** (`SpeedTestController.swift`) goes idle → confirming (metered only) →
 running → finished or failed. The live readings are a separate observable object from

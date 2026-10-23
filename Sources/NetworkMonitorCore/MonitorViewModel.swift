@@ -163,6 +163,8 @@ public final class MonitorViewModel: ObservableObject {
         // caught. The menu bar hook routes through the same signal the live rate
         // uses, so `AppDelegate` has one thing to observe.
         speedTest.isMetered = { [weak self] in self?.metering.verdict.isMetered ?? false }
+        // Off the main thread: it lists the temporary directory.
+        DispatchQueue.global(qos: .utility).async { SpeedTestRunner.removeLeftoverFolders() }
         speedTest.menuBarDidChange = { [weak self] in self?.menuBarRateDidChange.send() }
 
         nettop.onSample = { [weak self] sample in
