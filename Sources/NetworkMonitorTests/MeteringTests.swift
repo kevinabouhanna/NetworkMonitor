@@ -460,7 +460,7 @@ func runMeteringControllerTests() {
                                               isExpensive: true,
                                               isConstrained: false)
         let home = NetworkFingerprint.make(kind: .wifi,
-                                           gatewayMAC: "50:c7:bf:8a:94:93",
+                                           gatewayMAC: "00:00:5e:00:53:2a",
                                            interfaceName: "en0",
                                            isExpensive: false,
                                            isConstrained: false,

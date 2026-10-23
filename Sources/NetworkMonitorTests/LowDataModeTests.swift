@@ -585,7 +585,7 @@ func runLowDataModeMeteringTests() {
                   gatewayIP: "172.20.10.1", interfaceDisplayName: "Wi-Fi")
         }
         func home(constrained: Bool, expensive: Bool) -> NetworkFingerprint {
-            .make(kind: .wifi, gatewayMAC: "50:c7:bf:8a:94:93", interfaceName: "en0",
+            .make(kind: .wifi, gatewayMAC: "00:00:5e:00:53:2a", interfaceName: "en0",
                   isExpensive: expensive, isConstrained: constrained,
                   gatewayIP: "192.168.1.1", interfaceDisplayName: "Wi-Fi")
         }
