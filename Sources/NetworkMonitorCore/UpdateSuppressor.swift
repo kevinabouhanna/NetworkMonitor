@@ -12,9 +12,13 @@ public struct CoveredItem: Equatable, Identifiable {
     public var id: String
     /// What the user calls it — `"VLC"`, `"Google Chrome"`.
     public var displayName: String
-    /// How it is reached — `"Sparkle"`, `"LaunchAgent"`. Shown so the list reads
-    /// as an explanation rather than a claim.
+    /// How it is reached — `"Sparkle"`, `"Keystone"`. For the diagnostic report;
+    /// Settings shows `effect` instead.
     public var mechanism: String
+    /// What pausing it does, in plain words: "Turns off its automatic update
+    /// check". Shown under the app's name, so the list reads as an explanation
+    /// rather than a claim.
+    public var effect: String
     /// True when the change is queued rather than made, because writing another
     /// app's preferences while it is running is unreliable in both directions.
     public var isDeferred: Bool
@@ -29,11 +33,13 @@ public struct CoveredItem: Equatable, Identifiable {
     public init(id: String,
                 displayName: String,
                 mechanism: String,
+                effect: String,
                 isDeferred: Bool = false,
                 bundleIdentifiers: [String] = []) {
         self.id = id
         self.displayName = displayName
         self.mechanism = mechanism
+        self.effect = effect
         self.isDeferred = isDeferred
         self.bundleIdentifiers = bundleIdentifiers
     }

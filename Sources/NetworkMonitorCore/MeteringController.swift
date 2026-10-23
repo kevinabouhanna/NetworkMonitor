@@ -359,16 +359,30 @@ public final class MeteringController: ObservableObject {
 
     /// One row per independently switchable unit, for the settings list.
     public struct ToggleItem: Identifiable, Equatable {
+        /// One app a whole-tier row stands for.
+        public struct Member: Equatable, Identifiable {
+            public var id: String { name }
+            public var name: String
+            public var effect: String
+        }
+
         public var id: String
         /// What the row is called.
         public var label: String
-        /// Secondary line — the mechanism, or the apps a whole-tier row covers.
-        public var detail: String
+        /// What pausing it does, in plain words, shown under the label. Empty
+        /// for a whole-tier row, whose members each say their own.
+        public var effect: String
+        /// How it is reached, for the diagnostic report.
+        public var mechanism: String
         /// The write is queued until the app quits.
         public var isDeferred: Bool
+        /// The apps a row that stands for a whole tier covers. Empty for a row
+        /// that is one app.
+        public var members: [Member] = []
+
         /// True when this row stands for a whole tier that can only be switched
-        /// together, so the UI knows to show `detail` and name what it covers.
-        public var isGroup: Bool
+        /// together, so the UI lists what it covers.
+        public var isGroup: Bool { !members.isEmpty }
     }
 
     /// Collapses `coverage()` into rows the user can actually toggle.
@@ -392,16 +406,19 @@ public final class MeteringController: ObservableObject {
                 rows.append(ToggleItem(
                     id: items[0].id,
                     label: name,
-                    detail: items.map(\.displayName).joined(separator: ", "),
+                    effect: "",
+                    mechanism: "",
                     isDeferred: false,
-                    isGroup: true))
+                    members: items.map {
+                        ToggleItem.Member(name: $0.displayName, effect: $0.effect)
+                    }))
             } else {
                 rows.append(contentsOf: items.map {
                     ToggleItem(id: $0.id,
                                label: $0.displayName,
-                               detail: $0.mechanism,
-                               isDeferred: $0.isDeferred,
-                               isGroup: false)
+                               effect: $0.effect,
+                               mechanism: $0.mechanism,
+                               isDeferred: $0.isDeferred)
                 })
             }
         }
@@ -494,7 +511,9 @@ public final class MeteringController: ObservableObject {
 
         section("Covered")
         for row in toggleItems() {
-            lines.append("  \(row.label) — \(row.detail)")
+            let detail = row.isGroup
+                ? row.members.map(\.name).joined(separator: ", ") : row.mechanism
+            lines.append("  \(row.label) — \(detail)")
         }
 
         section("Not covered")

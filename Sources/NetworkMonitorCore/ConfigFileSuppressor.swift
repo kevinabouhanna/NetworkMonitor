@@ -84,6 +84,7 @@ public final class ConfigFileSuppressor: UpdateSuppressor {
             CoveredItem(id: $0.id,
                         displayName: $0.displayName,
                         mechanism: "App setting",
+                        effect: "Turns off automatic updates in its settings",
                         // Reported but never acted on: `apply()` writes these
                         // files whether or not the app is running, because an
                         // editor re-reads its settings file rather than caching

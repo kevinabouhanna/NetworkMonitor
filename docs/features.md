@@ -92,7 +92,7 @@ the pane you used last.
 | **General** | Start at login · Show speeds in MB/s or Mbps · Popover totals: Counting since, Sampling, Reset Now |
 | **Speed Test** | Run a test right there · Show the test in the popover as a Card or Compact |
 | **History** | [Usage History](usage-history.md) |
-| **Hotspot** | Stop apps updating on hotspots · what it decided about the connection you're on · Apps paused, each with its own switch · Not covered · Low Data Mode · what got through |
+| **Hotspot** | Stop apps updating on hotspots · what it decided about the connection you're on · Paused on a hotspot, each app with how and its own switch · Can't be paused, each with why · Low Data Mode · what got through |
 | **About** | Version · website, release notes and source · Uninstall… |
 
 While Settings is open, NetworkMonitor has a Dock icon and a menu, so ⌘W, ⌘, and ⌘Y work

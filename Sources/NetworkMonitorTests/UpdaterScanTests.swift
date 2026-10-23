@@ -156,14 +156,28 @@ func runUpdaterScanTests() {
                             finding("Canva", "com.canva.whatever")]
             let covered = [
                 CoveredItem(id: "privileged/all", displayName: "Slack",
-                            mechanism: "Managed policy",
+                            mechanism: "Managed policy", effect: "",
                             bundleIdentifiers: ["com.tinyspeck.slackmacgap"]),
                 // The helper's Canva entry carries no identifier.
                 CoveredItem(id: "privileged/all", displayName: "Canva",
-                            mechanism: "Update endpoint"),
+                            mechanism: "Update endpoint", effect: ""),
             ]
             Check.expectEqual(UpdaterScan.uncovered(findings, by: covered).map(\.displayName),
                               ["Granola"])
+        }
+
+        // Settings shows these to people who have never heard of an updater
+        // framework, so none of them may name one.
+        Check.test("every reason an app can't be paused is in plain words") {
+            let mechanisms: [UpdaterScan.Mechanism] =
+                [.squirrel, .electronUpdater, .sparkle, .ownUpdater]
+            for mechanism in mechanisms {
+                let reason = mechanism.whyNotPaused
+                Check.expectFalse(reason.isEmpty, mechanism.rawValue)
+                for jargon in ["Squirrel", "electron", "Electron", "Sparkle", "sandbox"] {
+                    Check.expectFalse(reason.contains(jargon), "\(mechanism.rawValue): \(reason)")
+                }
+            }
         }
 
         Check.test("updater process names are recognised without a list") {
