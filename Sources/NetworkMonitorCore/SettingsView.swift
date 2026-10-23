@@ -1,76 +1,233 @@
+import AppKit
 import SwiftUI
 
-/// App settings, opened from the gear icon in the popover.
-///
-/// Everything that is not "what is using my network right now" lives here, so the
-/// popover stays a single glanceable list.
-///
-/// Quit is deliberately not here. It is a menu bar app, and the menu bar is where
-/// a Mac user looks to quit one — it stays on the status item's right-click menu
-/// rather than being duplicated inside a preferences pane.
-public struct SettingsView: View {
+// Settings' panes, each a grouped form in the shape of System Settings: labels on
+// the left, controls on the right, sections with a line of explanation beneath.
+// `SettingsWindowController` puts them behind a toolbar; History is `HistoryView`.
+//
+// Quit is deliberately not here. It is a menu bar app, and the menu bar is where
+// a Mac user looks to quit one — it stays on the status item's right-click menu.
+
+/// Width every form pane shares, so switching between them only changes height.
+enum SettingsMetrics {
+    static let paneWidth: CGFloat = 540
+}
+
+// MARK: - General
+
+struct GeneralSettingsPane: View {
     @ObservedObject var model: MonitorViewModel
-    /// Observed separately from `model`: the controller publishes its own state,
-    /// and reaching it through a `let` on the view model would neither give a
-    /// writable binding for the toggle nor redraw when the verdict changes.
-    @ObservedObject var metering: MeteringController
     @ObservedObject var speedTest: SpeedTestController
+    @ObservedObject var state: SettingsPaneState
 
-    /// What the pane owns itself. See `SettingsPaneState` for why this is not a
-    /// handful of `@State` properties.
-    @StateObject private var pane = SettingsPaneState()
-
-    public init(model: MonitorViewModel) {
+    init(model: MonitorViewModel, state: SettingsPaneState) {
         self.model = model
-        self.metering = model.metering
         self.speedTest = model.speedTest
+        self.state = state
     }
 
-    public var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            section("General") {
-                Toggle("Start at login", isOn: $pane.launchAtLogin)
-                    .onChange(of: pane.launchAtLogin) { enabled in apply(enabled) }
-                Text("Opens NetworkMonitor automatically when you log in. Quitting "
-                     + "still quits it — it will not reopen until your next login.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                // One choice for every speed, so the menu bar and the speed test
-                // never show the same line in two different units.
-                //
-                // Label and control laid out by hand. A labelled segmented
-                // Picker given a fixed frame centres itself inside it, which
-                // left the row indented from everything else in the pane.
-                HStack(spacing: 8) {
-                    Text("Show speeds in").font(.system(size: 12))
-                    Picker("Show speeds in", selection: $speedTest.unit) {
-                        ForEach(SpeedUnit.allCases) { unit in
-                            Text(unit.label).tag(unit)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
-                    Spacer()
-                }
-                .padding(.top, 4)
-                Text("In the menu bar and the speed test. Data you've used is always "
-                     + "counted in MB and GB, the way data plans are sold.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Start at login", isOn: $state.launchAtLogin)
+                    .toggleStyle(.switch)
+                    .onChange(of: state.launchAtLogin) { enabled in apply(enabled) }
+            } footer: {
+                SettingsFootnote("Opens NetworkMonitor automatically when you log in. Quitting "
+                                 + "still quits it — it won't reopen until your next login.")
             }
 
-            Divider()
+            // One choice for every speed, so the menu bar and the speed test never
+            // show the same line in two different units.
+            Section {
+                Picker("Show speeds in", selection: $speedTest.unit) {
+                    ForEach(SpeedUnit.allCases) { unit in
+                        Text(unit.label).tag(unit)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+            } footer: {
+                SettingsFootnote("In the menu bar and the speed test. Data you've used is "
+                                 + "always counted in MB and GB, the way data plans are sold.")
+            }
 
-            section("Hotspot") {
+            Section {
+                LabeledContent("Counting since") {
+                    Text(model.countingSince, format: .dateTime.hour().minute())
+                        .monospacedDigit()
+                }
+                // Stated, not offered. There is nothing to choose here — the
+                // point is that the app handles it — but a reader who notices the
+                // list updating every 3 s instead of every 1 s deserves to know
+                // that is deliberate and costs them no accuracy.
+                LabeledContent("Sampling") {
+                    Label(model.profile == .performance
+                          ? "Every second, plugged in"
+                          : "Every 3 seconds on battery, same totals",
+                          systemImage: model.profile == .performance ? "bolt.fill" : "battery.75")
+                }
+                // One button, not two. Usage is bucketed per network internally,
+                // but the popover never names the network, so "this network" vs
+                // "all networks" had no visible referent and only caused doubt.
+                LabeledContent("Start the totals over") {
+                    Button("Reset Now") { model.resetCurrentNetwork() }
+                }
+            } header: {
+                Text("Popover totals")
+            } footer: {
+                SettingsFootnote("What this connection has used, per app, all the time. The "
+                                 + "totals start over when you join a different network, and at "
+                                 + "midnight. History keeps every hour of it.")
+            }
+
+            if let error = state.errorMessage {
+                Section {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .settingsForm()
+    }
+
+    private func apply(_ enabled: Bool) {
+        do {
+            if enabled { try LoginItem.enable() } else { try LoginItem.disable() }
+            state.errorMessage = nil
+        } catch {
+            state.errorMessage = error.localizedDescription
+            // Snap the switch back so it never claims a state that did not stick.
+            state.launchAtLogin = LoginItem.isEnabled
+        }
+    }
+}
+
+// MARK: - Speed Test
+
+/// The speed test, runnable from Settings as well as from the popover's gauge,
+/// with its one setting beside it.
+struct SpeedTestSettingsPane: View {
+    @ObservedObject var speedTest: SpeedTestController
+
+    var body: some View {
+        Form {
+            Section {
+                if SpeedTestRunner.isAvailable {
+                    SpeedTestPanel(speedTest: speedTest)
+                } else {
+                    Label("This Mac has no networkQuality, which the test runs on.",
+                          systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.secondary)
+                }
+            } footer: {
+                SettingsFootnote("Runs macOS's built-in networkQuality, only when you start it: "
+                                 + "download first, then upload. Every run measures afresh, so it "
+                                 + "uses data each time — typically 50–500 MB, more on a very "
+                                 + "fast line. Speeds use the unit chosen in General.")
+            }
+
+            Section {
+                Picker("Show the test in the popover as", selection: $speedTest.style) {
+                    ForEach(SpeedTestStyle.allCases) { style in
+                        Text(style.label).tag(style)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+            } footer: {
+                SettingsFootnote(speedTest.style == .card
+                                 ? "A card with a dial and every figure, in place of your apps."
+                                 : "Two lines above your apps, which stay in view.")
+            }
+        }
+        .settingsForm()
+    }
+}
+
+/// The test inside Settings: a button to start it, then the same dial and figures
+/// the popover's card shows.
+private struct SpeedTestPanel: View {
+    @ObservedObject var speedTest: SpeedTestController
+
+    var body: some View {
+        VStack(spacing: 10) {
+            switch speedTest.phase {
+            case .idle:
+                HStack(spacing: 12) {
+                    Image(systemName: "gauge.with.dots.needle.67percent")
+                        .font(.system(size: 26))
+                        .foregroundStyle(SpeedTestPalette.download)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Test your internet speed").font(.system(size: 13, weight: .semibold))
+                        Text("Download, upload, ping and jitter, measured now.")
+                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Test Now") { speedTest.run() }
+                        .keyboardShortcut(.defaultAction)
+                }
+                .padding(.vertical, 4)
+            case .confirming(let estimate):
+                HStack(spacing: 10) {
+                    Image(systemName: "antenna.radiowaves.left.and.right").foregroundStyle(.orange)
+                    Text(SpeedTestPalette.meteredNote(estimate))
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    Button("Cancel") { speedTest.dismiss() }
+                    Button("Run Anyway") { speedTest.confirm() }.keyboardShortcut(.defaultAction)
+                }
+            case .running(let startedAt):
+                CardBody(live: speedTest.live, result: nil, startedAt: startedAt, unit: speedTest.unit)
+                    .frame(width: 320)
+                HStack { Spacer(); Button("Stop") { speedTest.dismiss() } }
+            case .finished(let result):
+                CardBody(live: speedTest.live, result: result, startedAt: nil, unit: speedTest.unit)
+                    .frame(width: 320)
+                HStack {
+                    Spacer()
+                    Button("Done") { speedTest.dismiss() }
+                    Button("Test Again") { speedTest.run() }.keyboardShortcut(.defaultAction)
+                }
+            case .failed(let message):
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Speed test didn't finish").font(.system(size: 12, weight: .semibold))
+                        Text(message).font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                HStack {
+                    Spacer()
+                    Button("Done") { speedTest.dismiss() }
+                    Button("Try Again") { speedTest.run() }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Hotspot
+
+struct HotspotSettingsPane: View {
+    /// Observed directly: the controller publishes its own state, and reaching it
+    /// through a `let` on the view model would neither give a writable binding
+    /// for the switch nor redraw when the verdict changes.
+    @ObservedObject var metering: MeteringController
+    @ObservedObject var state: SettingsPaneState
+
+    var body: some View {
+        Form {
+            Section {
                 // One switch for the whole feature, Low Data Mode included: it
-                // serves the same purpose, and a second switch would only ask
-                // the user to make the same decision twice.
-                Toggle("Stop apps updating on hotspots",
-                       isOn: $metering.isEnabled)
+                // serves the same purpose, and a second switch would only ask the
+                // user to make the same decision twice.
+                Toggle("Stop apps updating on hotspots", isOn: $metering.isEnabled)
+                    .toggleStyle(.switch)
                     .onChange(of: metering.isEnabled) { enabled in
                         // Switching it on is the moment to ask for the helper —
                         // the one thing here that needs a password. Deferred a
@@ -79,171 +236,81 @@ public struct SettingsView: View {
                         guard enabled else { return }
                         DispatchQueue.main.async { askForHelper() }
                     }
-
-                // Said once, plainly, because Low Data Mode does a little more
-                // than the switch's name: iCloud Photos waits too.
-                Text("Also puts the hotspot in Low Data Mode, so iCloud and other "
-                     + "background downloads wait until you're off it.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
                 // The verdict, always shown: the commonest confusion with a
                 // feature like this is not knowing whether it decided the
-                // connection counts, and the answer is one line long.
-                footnote(metering.verdict.isMetered
-                         ? "antenna.radiowaves.left.and.right" : "wifi",
-                         metering.verdict.explanation,
-                         // Green when it has decided the connection costs money:
-                         // this line is the answer to "is it doing anything right
-                         // now", and colour makes that readable at a glance.
-                         tint: metering.verdict.isMetered ? .green : .secondary,
-                         alignment: .center)
+                // connection counts, and the answer is one line long. Green when
+                // it has decided the connection costs money.
+                LabeledContent("Right now") {
+                    Label(metering.verdict.explanation,
+                          systemImage: metering.verdict.isMetered
+                              ? "antenna.radiowaves.left.and.right" : "wifi")
+                        .foregroundStyle(metering.verdict.isMetered
+                                         ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
+                }
+            } footer: {
+                // Said once, plainly, because Low Data Mode does a little more
+                // than the switch's name: iCloud Photos waits too.
+                SettingsFootnote("Also puts the hotspot in Low Data Mode, so iCloud and other "
+                                 + "background downloads wait until you're off it.")
+            }
 
-                if metering.isEnabled {
-                    // Collapsed by default. "Which apps?" is a question the user
-                    // asks occasionally; it is not worth eight permanent lines of
-                    // a pane this size, and the previous version spent them.
-                    DisclosureGroup(isExpanded: $pane.appsExpanded) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            ForEach(pane.coveredItems) { appToggle($0) }
-                            if pane.coveredItems.isEmpty {
-                                Text("Nothing on this Mac to pause.")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
+            if metering.isEnabled {
+                Section {
+                    // Collapsed by default. "Which apps?" is a question asked
+                    // occasionally; it is not worth a dozen permanent rows.
+                    DisclosureGroup(isExpanded: $state.appsExpanded) {
+                        ForEach(state.coveredItems) { appToggle($0) }
+                        if state.coveredItems.isEmpty {
+                            Text("Nothing on this Mac to pause.").foregroundStyle(.secondary)
                         }
-                        .padding(.top, 5)
                     } label: {
-                        Text(coverageSummary).font(.system(size: 12))
+                        Text(coverageSummary)
                     }
+                }
 
-                    // The other half of the honesty the list above owes: what
-                    // it does not reach on this Mac, found by how each app
-                    // updates rather than by a list of names.
-                    if !pane.uncovered.isEmpty {
-                        DisclosureGroup(isExpanded: $pane.uncoveredExpanded) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                ForEach(pane.uncovered) { uncoveredRow($0) }
-                                Text("These update themselves in a way NetworkMonitor "
-                                     + "can't switch off. Low Data Mode slows the ones "
-                                     + "that respect it; quitting them while you're on "
-                                     + "a hotspot is the only sure way.")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .padding(.top, 2)
-                            }
-                            .padding(.top, 5)
+                // The other half of the honesty the list above owes: what it does
+                // not reach on this Mac, found by how each app updates rather than
+                // by a list of names.
+                if !state.uncovered.isEmpty {
+                    Section {
+                        DisclosureGroup(isExpanded: $state.uncoveredExpanded) {
+                            ForEach(state.uncovered) { uncoveredRow($0) }
                         } label: {
-                            Text("Not covered (\(pane.uncovered.count))")
-                                .font(.system(size: 12))
+                            Text("Not covered (\(state.uncovered.count))")
                         }
+                    } footer: {
+                        SettingsFootnote("These update themselves in a way NetworkMonitor can't "
+                                         + "switch off. Low Data Mode slows the ones that respect "
+                                         + "it; quitting them while you're on a hotspot is the only "
+                                         + "sure way.")
                     }
-
-                    lowDataModeStatus
-
-                    if !metering.updatesGotThrough.isEmpty { gotThrough }
-
-                    helperNotice
                 }
 
-            }
-
-            if SpeedTestRunner.isAvailable {
-                Divider()
-
-                section("Speed test") {
-                    // Its unit is the one under General, shared with the menu bar.
-                    // Laid out by hand for the reason the unit picker is.
-                    HStack(spacing: 8) {
-                        Text("Show the test as").font(.system(size: 12))
-                        Picker("Show the test as", selection: $speedTest.style) {
-                            ForEach(SpeedTestStyle.allCases) { style in
-                                Text(style.label).tag(style)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .fixedSize()
-                        Spacer()
+                if hasStatus {
+                    Section {
+                        lowDataModeStatus
+                        if !metering.updatesGotThrough.isEmpty { gotThrough }
+                        helperNotice
                     }
-                    Text(speedTest.style == .card
-                         ? "A card with a dial and every figure, in place of your apps."
-                         : "Two lines above your apps, which stay in view.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text("Runs macOS's built-in networkQuality, only when you start it: "
-                         + "download first, then upload. Every run measures afresh, so it "
-                         + "uses data each time — typically 50–500 MB, more on a very fast line.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-
-            Divider()
-
-            section("Usage data") {
-                HStack(spacing: 6) {
-                    Text("Counting since")
-                        .font(.system(size: 12))
-                    Text(model.countingSince, format: .dateTime.hour().minute())
-                        .font(.system(size: 12, weight: .medium))
-                        .monospacedDigit()
-                    Spacer()
-                }
-                Text("Totals count what this connection has used, per app, all the "
-                     + "time. They start over when you join a different network, "
-                     + "and at midnight. Usage History keeps every hour of it.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    // Like every other paragraph here: without it the window is
-                    // sized to this text's one-line height, and it ends in "…".
-                    .fixedSize(horizontal: false, vertical: true)
-
-                // Stated, not offered. There is nothing to choose here — the point
-                // is that the app handles it — but a reader who notices the app
-                // list updating every 3 s instead of every 1 s deserves to know
-                // that is deliberate and costs them no accuracy.
-                HStack(spacing: 5) {
-                    Image(systemName: model.profile == .performance
-                          ? "bolt.fill" : "battery.75")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                    Text(model.profile == .performance
-                         ? "Plugged in — sampling every second"
-                         : "On battery — sampling every 3 seconds, same totals")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-
-                // One button, not two. Usage is bucketed per network internally,
-                // but the popover never names the network, so "this network" vs
-                // "all networks" had no visible referent and only caused doubt.
-                Button("Reset Now") { model.resetCurrentNetwork() }
-            }
-
-            if let errorMessage = pane.errorMessage {
-                Text(errorMessage)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(20)
-        .frame(width: 400)
-        // Refreshed on each open rather than held: apps get installed, and
+        .settingsForm()
+        // Refreshed on each appearance rather than held: apps get installed, and
         // `isDeferred` depends on what is running right now.
         .onAppear {
-            // Re-assert first, so the list below describes what is actually in
-            // force rather than what is merely installed.
+            // Re-assert first, so the list describes what is actually in force
+            // rather than what is merely installed.
             metering.refresh()
-            pane.coveredItems = metering.toggleItems()
-            pane.uncovered = metering.uncoveredUpdaters()
+            state.coveredItems = metering.toggleItems()
+            state.uncovered = metering.uncoveredUpdaters()
         }
+    }
+
+    private var hasStatus: Bool {
+        if case .off = metering.lowDataMode {} else { return true }
+        return !metering.updatesGotThrough.isEmpty || metering.helperState != .current
+            || !metering.failed.isEmpty
     }
 
     // MARK: Low Data Mode
@@ -257,16 +324,15 @@ public struct SettingsView: View {
             // "macOS confirms it" is macOS's own network path agreeing, not just
             // the flag reading back — the difference between claiming it and it
             // being so.
-            footnote("checkmark.circle",
-                     metering.lowDataModeConfirmed
-                        ? "Low Data Mode is on — macOS confirms it"
-                        : "Low Data Mode is on",
-                     tint: .green, alignment: .center)
+            Label(metering.lowDataModeConfirmed
+                  ? "Low Data Mode is on — macOS confirms it" : "Low Data Mode is on",
+                  systemImage: "checkmark.circle")
+                .foregroundStyle(.green)
         case .alreadyOn:
-            footnote("checkmark.circle", "This connection was already in Low Data Mode",
-                     alignment: .center)
+            Label("This connection was already in Low Data Mode", systemImage: "checkmark.circle")
+                .foregroundStyle(.secondary)
         case .failed(let reason):
-            footnote("exclamationmark.triangle", reason, tint: .orange)
+            Label(reason, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
         case .off:
             EmptyView()
         }
@@ -282,39 +348,32 @@ public struct SettingsView: View {
     private var helperNotice: some View {
         if metering.helperState != .current {
             if HelperInstaller.canInstall {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Image(systemName: "lock.shield")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.orange)
-                    Text(metering.helperState == .outdated
-                         ? "macOS updates, Claude, Slack, Canva and Low Data Mode need "
-                           + "a quick update to NetworkMonitor's helper."
-                         : "macOS updates, Claude, Slack, Canva and Low Data Mode need "
-                           + "your permission once.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer()
+                LabeledContent {
                     Button("Allow…") { askForHelper() }
-                        .controlSize(.small)
+                } label: {
+                    Label(metering.helperState == .outdated
+                          ? "macOS updates, Claude, Slack, Canva and Low Data Mode need a quick "
+                            + "update to NetworkMonitor's helper."
+                          : "macOS updates, Claude, Slack, Canva and Low Data Mode need your "
+                            + "permission once.",
+                          systemImage: "lock.shield")
                 }
             } else {
                 // The helper's self-heal looks for the app in /Applications and
                 // would remove itself within the hour for a copy anywhere else.
-                footnote("folder",
-                         "Move NetworkMonitor to your Applications folder to pause "
-                         + "macOS updates and use Low Data Mode too.",
-                         tint: .orange)
+                Label("Move NetworkMonitor to your Applications folder to pause macOS updates "
+                      + "and use Low Data Mode too.", systemImage: "folder")
+                    .foregroundStyle(.orange)
             }
-            if let message = pane.helperMessage {
-                footnote("exclamationmark.triangle", message, tint: .orange)
+            if let message = state.helperMessage {
+                Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
             }
         } else if !metering.failed.isEmpty {
             // Never silently: a tier that refused every call must not keep its
             // apps listed as paused.
-            footnote("exclamationmark.triangle",
-                     "Couldn't pause " + metering.failed.joined(separator: ", "),
-                     tint: .orange)
+            Label("Couldn't pause " + metering.failed.joined(separator: ", "),
+                  systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
         }
     }
 
@@ -322,14 +381,14 @@ public struct SettingsView: View {
         guard let outcome = metering.ensureHelper(userAsked: true) else { return }
         switch outcome {
         case .done:
-            pane.helperMessage = nil
+            state.helperMessage = nil
             // The helper adds rows: macOS, Claude, Slack, Canva.
-            pane.coveredItems = metering.toggleItems()
-            pane.uncovered = metering.uncoveredUpdaters()
+            state.coveredItems = metering.toggleItems()
+            state.uncovered = metering.uncoveredUpdaters()
         case .cancelled:
-            pane.helperMessage = nil
+            state.helperMessage = nil
         case .failed(let message):
-            pane.helperMessage = message
+            state.helperMessage = message
         }
     }
 
@@ -337,27 +396,19 @@ public struct SettingsView: View {
 
     /// Updates that downloaded on a metered connection anyway, with what they
     /// cost. The report this feature owes for the updates it could not prevent.
+    @ViewBuilder
     private var gotThrough: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(metering.isSuppressing
-                 ? "Got through on this connection"
-                 : "Got through on your last metered connection")
-                .font(.system(size: 12))
-            ForEach(metering.updatesGotThrough) { sighting in
-                HStack(spacing: 5) {
-                    Image(systemName: sighting.source == .download
+        Text(metering.isSuppressing
+             ? "Got through on this connection"
+             : "Got through on your last metered connection")
+            .font(.system(size: 12, weight: .medium))
+        ForEach(metering.updatesGotThrough) { sighting in
+            LabeledContent {
+                Text(ByteFormat.bytes(sighting.bytes)).monospacedDigit()
+            } label: {
+                Label(Self.label(for: sighting),
+                      systemImage: sighting.source == .download
                           ? "arrow.down.circle" : "arrow.triangle.2.circlepath")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.orange)
-                    Text(Self.label(for: sighting))
-                        .font(.system(size: 11))
-                        .lineLimit(1)
-                    Spacer()
-                    Text(ByteFormat.bytes(sighting.bytes))
-                        .font(.system(size: 11))
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                }
             }
         }
     }
@@ -374,12 +425,8 @@ public struct SettingsView: View {
     // MARK: Not covered
 
     private func uncoveredRow(_ finding: UpdaterScan.Finding) -> some View {
-        HStack(spacing: 5) {
-            Text(finding.displayName).font(.system(size: 12))
-            Text(uncoveredDetail(finding))
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-            Spacer()
+        LabeledContent(finding.displayName) {
+            Text(uncoveredDetail(finding)).foregroundStyle(.secondary)
         }
     }
 
@@ -397,12 +444,12 @@ public struct SettingsView: View {
 
     /// "Apps paused (7)" when everything is on, "(6 of 7)" once one is switched off.
     private var coverageSummary: String {
-        let total = pane.coveredItems.count
-        let on = pane.coveredItems.filter { metering.isSuppressionEnabled(for: $0.id) }.count
+        let total = state.coveredItems.count
+        let on = state.coveredItems.filter { metering.isSuppressionEnabled(for: $0.id) }.count
         return on == total ? "Apps paused (\(total))" : "Apps paused (\(on) of \(total))"
     }
 
-    /// One row of the accordion.
+    /// One row of the list.
     ///
     /// On by default and on for every app the moment the parent switch goes on —
     /// the opt-out set starts empty, so there is no state to seed and nothing to
@@ -413,10 +460,10 @@ public struct SettingsView: View {
             set: { metering.setSuppressionEnabled($0, for: item.id) })) {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
-                    Text(item.label).font(.system(size: 12))
+                    Text(item.label)
                     if item.isDeferred {
                         Text("quit it to apply")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -424,64 +471,121 @@ public struct SettingsView: View {
                 // alone would not say what is covered.
                 if item.isGroup {
                     Text(item.detail)
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
+        .toggleStyle(.switch)
+        .controlSize(.small)
     }
+}
 
-    /// `alignment` defaults to the first text baseline, which is what keeps the
-    /// icon level with line one of a footnote that wraps. Single-line rows pass
-    /// `.center`, where baseline alignment reads as the icon sitting slightly high.
-    private func footnote(_ icon: String, _ text: String,
-                          tint: Color = .secondary,
-                          alignment: VerticalAlignment = .firstTextBaseline) -> some View {
-        HStack(alignment: alignment, spacing: 5) {
-            Image(systemName: icon)
-                .font(.system(size: 10))
-                .foregroundStyle(tint)
-            Text(text)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer()
+// MARK: - About
+
+/// Who made it, which version this is, where to read more, and the way out —
+/// uninstalling, which lived only on the right-click menu before.
+struct AboutSettingsPane: View {
+    let onUninstall: () -> Void
+
+    private var version: String {
+        let info = Bundle.main.infoDictionary
+        guard let short = info?["CFBundleShortVersionString"] as? String else {
+            return "Development build"
         }
+        let build = info?["CFBundleVersion"] as? String
+        return "Version \(short)" + (build.map { " (\($0))" } ?? "")
     }
 
-    private func section<Content: View>(_ title: String,
-                                        @ViewBuilder _ content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-            content()
+    var body: some View {
+        Form {
+            Section {
+                VStack(spacing: 6) {
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable()
+                        .frame(width: 88, height: 88)
+                    Text("NetworkMonitor").font(.system(size: 20, weight: .semibold))
+                    Text(version).font(.system(size: 12)).foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                    Text("Live network speed in your menu bar, and which app used your data.")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 2)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            }
+
+            Section {
+                link("Website", "kevinabouhanna.github.io",
+                     "https://kevinabouhanna.github.io/NetworkMonitor/")
+                link("What's new", "Release notes",
+                     "https://github.com/kevinabouhanna/NetworkMonitor/releases/latest")
+                link("Source code", "On GitHub",
+                     "https://github.com/kevinabouhanna/NetworkMonitor")
+            } footer: {
+                SettingsFootnote("Free and open source, under the MIT licence.")
+            }
+
+            Section {
+                LabeledContent("Remove NetworkMonitor") {
+                    Button("Uninstall…", role: .destructive) { onUninstall() }
+                }
+            } footer: {
+                SettingsFootnote("Puts back every setting it changed, removes its helper and your "
+                                 + "usage history, and moves the app to the Trash.")
+            }
         }
+        .settingsForm()
     }
 
-    private func apply(_ enabled: Bool) {
-        do {
-            if enabled { try LoginItem.enable() } else { try LoginItem.disable() }
-            pane.errorMessage = nil
-        } catch {
-            pane.errorMessage = error.localizedDescription
-            // Snap the toggle back so it never claims a state that did not stick.
-            pane.launchAtLogin = LoginItem.isEnabled
+    private func link(_ title: String, _ text: String, _ address: String) -> some View {
+        LabeledContent(title) {
+            Link(destination: URL(string: address)!) {
+                Label(text, systemImage: "arrow.up.right.square").labelStyle(.titleAndIcon)
+            }
         }
     }
 }
 
-/// The Settings pane's own state, held in an `ObservableObject` rather than in
-/// `@State` properties.
+// MARK: - Shared
+
+/// The line of explanation under a section, as System Settings sets it.
+struct SettingsFootnote: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+extension View {
+    /// The grouped form every pane uses, at the shared width, as tall as its
+    /// content so the window can size itself to the pane.
+    func settingsForm() -> some View {
+        formStyle(.grouped)
+            .scrollDisabled(true)
+            .frame(width: SettingsMetrics.paneWidth)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// What the panes own themselves, held in an `ObservableObject` rather than in
+/// `@State` properties, and shared by General and Hotspot so it survives
+/// switching between panes.
 ///
 /// From the macOS 27 SDK on, `@State` is a macro, and its implementation ships
 /// only with Xcode. With Command Line Tools alone — the only toolchain this
 /// project assumes — every `@State` fails to compile with "plugin for module
 /// 'SwiftUIMacros' not found". `@Published` is a Combine property wrapper, not a
 /// macro, so it builds with either toolchain.
-private final class SettingsPaneState: ObservableObject {
+final class SettingsPaneState: ObservableObject {
     @Published var launchAtLogin = LoginItem.isEnabled
     @Published var errorMessage: String?
     @Published var appsExpanded = false
@@ -489,7 +593,7 @@ private final class SettingsPaneState: ObservableObject {
     ///
     /// `toggleItems()` reaches `discover()`, which walks `/Applications` reading
     /// Info.plists to find Sparkle frameworks. Recomputing that on every layout
-    /// pass would make a checkbox feel slow for no reason.
+    /// pass would make a switch feel slow for no reason.
     @Published var coveredItems: [MeteringController.ToggleItem] = []
     /// Loaded alongside `coveredItems`, and for the same reason never from
     /// `body`: it walks the same bundles.

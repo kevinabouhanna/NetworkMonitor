@@ -381,7 +381,7 @@ private struct StripBody<Trailing: View>: View {
 
 /// Dial, caption, tiles and note — fed by the live readings while running and
 /// by the result once there is one. The only view that watches `live`.
-private struct CardBody: View {
+struct CardBody: View {
     @ObservedObject var live: SpeedTestController.Live
     let result: SpeedTestResult?
     let startedAt: Date?
