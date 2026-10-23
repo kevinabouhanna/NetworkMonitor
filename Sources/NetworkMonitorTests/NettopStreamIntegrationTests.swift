@@ -252,3 +252,50 @@ func runNettopStreamIntegrationTests() {
         }
     }
 }
+
+/// What happens when `nettop` can't be started at all. No live traffic needed,
+/// so these run on CI too.
+func runNettopFailureTests() {
+    Check.suite("NettopStream — when nettop can't start") {
+
+        // A missing binary used to be reported once and then given up on, so the
+        // app list stopped for the rest of the run (#27).
+        Check.test("a missing nettop is reported, and retried") {
+            let stream = NettopStream(executable: "/nonexistent/nettop")
+            let lock = NSLock()
+            var failures: [String] = []
+            let second = DispatchSemaphore(value: 0)
+            stream.onFailure = { message in
+                lock.lock(); failures.append(message); let count = failures.count; lock.unlock()
+                if count == 2 { second.signal() }
+            }
+            stream.start()
+            let retried = second.wait(timeout: .now() + 3) == .success
+            stream.stop()
+            Check.expectTrue(retried, "a failed launch must be tried again")
+            lock.lock(); let first = failures.first; lock.unlock()
+            Check.expectTrue(first?.contains("/nonexistent/nettop") ?? false,
+                             "the report names what was missing")
+        }
+
+        // The popover reads this to say per-app figures are paused.
+        Check.test("the view model publishes why per-app figures stopped") {
+            let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("nettop-failure-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let defaults = UserDefaults(suiteName: "nettop-failure-\(UUID().uuidString)")!
+            let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
+            let metering = MeteringController(
+                store: store,
+                journal: SuppressionJournal(url: dir.appendingPathComponent("journal.json")),
+                suppressors: [], defaults: defaults)
+            let model = MonitorViewModel(store: store, metering: metering,
+                                         nettop: NettopStream(executable: "/nonexistent/nettop"))
+            Check.expectNil(model.perAppFailure, "nothing to report before it starts")
+            model.start()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+            model.stop()
+            Check.expectNotNil(model.perAppFailure, "a launch that failed must be published")
+        }
+    }
+}

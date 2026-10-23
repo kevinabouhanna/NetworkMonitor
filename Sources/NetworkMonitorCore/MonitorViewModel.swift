@@ -116,6 +116,11 @@ public final class MonitorViewModel: ObservableObject {
     /// Last menu bar title actually published, used to suppress no-op updates.
     private var renderedTitle = ""
 
+    /// Why per-app figures have stopped, when `nettop` can't be started; nil while
+    /// it runs. The total never depends on it, so the popover says the list is
+    /// paused rather than letting it go quiet (#27). Cleared by the next sample.
+    @Published public private(set) var perAppFailure: String?
+
     /// Sampling rates, chosen from the power source and Low Power Mode. Published so
     /// Settings can say which one is in force; there is nothing for the user to set.
     @Published public private(set) var profile: PowerProfile = .performance
@@ -123,7 +128,8 @@ public final class MonitorViewModel: ObservableObject {
 
     public init(store: UsageStore = UsageStore(history: UsageHistory()),
                 metering: MeteringController? = nil,
-                speedTest: SpeedTestController = SpeedTestController()) {
+                speedTest: SpeedTestController = SpeedTestController(),
+                nettop: NettopStream? = nil) {
         self.store = store
         self.metering = metering ?? MeteringController(store: store)
         self.speedTest = speedTest
@@ -132,7 +138,7 @@ public final class MonitorViewModel: ObservableObject {
         let profile = PowerProfile.current()
         self.profile = profile
         self.sampleInterval = profile.interfaceInterval(unattended: false)
-        self.nettop = NettopStream(sampleInterval: profile.nettopSampleInterval)
+        self.nettop = nettop ?? NettopStream(sampleInterval: profile.nettopSampleInterval)
     }
 
     // MARK: Lifecycle
@@ -167,6 +173,12 @@ public final class MonitorViewModel: ObservableObject {
 
         nettop.onSample = { [weak self] sample in
             self?.handleNettopSample(sample)
+        }
+        nettop.onFailure = { [weak self] message in
+            DispatchQueue.main.async {
+                guard let self, self.perAppFailure != message else { return }
+                self.perAppFailure = message
+            }
         }
         nettop.start()
         powerToken = PowerSource.observe { [weak self] in
@@ -377,6 +389,7 @@ public final class MonitorViewModel: ObservableObject {
         // NSWorkspace and its caches are not thread-safe.
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
+            if self.perAppFailure != nil { self.perAppFailure = nil }
             let now = Date()
             var entries: [(identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)] = []
             var pids = Set<Int32>()

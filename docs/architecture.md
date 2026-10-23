@@ -116,7 +116,8 @@ nettop -n -x -d -L 0 -s <1|3|10> -t external -J time,bytes_in,bytes_out
 - **A sample is closed after 120 ms of quiet** rather than when the next header arrives,
   which would add a whole interval of latency (the first sample after launch took 2.05 s
   instead of 1.24 s).
-- **Restarts back off** from 1 to 30 seconds if it dies. Changing the interval means
+- **Restarts back off** from 1 to 30 seconds if it dies or can't be launched, and the
+  popover says per-app figures are paused until a sample arrives again. Changing the interval means
   restarting it, so it only changes with the power source or Low Power Mode, never with
   screen sleep or the popover.
 - **Never orphaned.** Replacing it detaches its termination handler, sends `SIGTERM` and

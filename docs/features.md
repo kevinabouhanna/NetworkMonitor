@@ -33,6 +33,8 @@ shows it in cyan.
   curious.
 - **Got through**: on a hotspot with [Hotspot mode](hotspot-mode.md) on, one line under the
   total says if an update downloaded anyway.
+- **Per-app figures paused**: if macOS's `nettop` can't be started, a grey line says so
+  while NetworkMonitor keeps retrying. The total keeps counting regardless.
 - **Header buttons**: the gauge runs a [speed test](speed-test.md), the chart opens
   [Usage History](usage-history.md), and the gear opens Settings.
 

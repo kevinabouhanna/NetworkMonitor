@@ -163,6 +163,18 @@ public struct MenuBarPopoverView: View {
                     .help("Downloaded over this connection anyway. Settings › Hotspot "
                           + "lists what NetworkMonitor can't stop.")
                 }
+                if let failure = model.perAppFailure {
+                    // Grey, not orange: the total above is still right. Only the
+                    // list has stopped, and saying so beats a list gone quiet.
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle")
+                        Text("Per-app figures paused")
+                    }
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .help("macOS's nettop couldn't start (\(failure)). The total is still "
+                          + "counted, and NetworkMonitor keeps trying.")
+                }
             }
             Spacer()
             if SpeedTestRunner.isAvailable {
