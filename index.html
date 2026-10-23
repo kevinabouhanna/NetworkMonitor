@@ -240,13 +240,10 @@ section { position: relative; }
   display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(32px, 6vw, 72px);
   align-items: start; margin-top: 80px;
 }
-.settings-shot img {
-  width: min(512px, 100%); margin-inline: auto;
-  -webkit-mask-image: linear-gradient(180deg, #000 82%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 82%, transparent 100%);
-}
 .speed-shot img { width: min(346px, 100%); margin-inline: auto; }
 .facts { display: grid; gap: 34px; }
+.facts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 44px clamp(32px, 6vw, 72px); margin-top: 80px; }
+.see-pane { margin: 56px 0 0; text-align: center; }
 .facts h3 { font-size: 21px; line-height: 1.24; font-weight: 600; margin: 0 0 8px; }
 .facts p { margin: 0; color: var(--text-2); font-size: 16px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
@@ -264,7 +261,34 @@ p code, li code { background: #1d1d1f; border: 1px solid var(--hair); border-rad
   color: var(--text-3); font-size: 13px; line-height: 1.5; letter-spacing: -.01em;
 }
 .fine b { color: var(--text-2); font-weight: 600; display: block; margin-bottom: 4px; }
-@media (max-width: 834px) { .hotspot-grid, .fine { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 834px) { .hotspot-grid, .fine, .facts.two { grid-template-columns: minmax(0, 1fr); } }
+
+/* Settings: the app's own window, pane by pane. Every pane is a capture of the
+   app. The toolbar, the Hotspot lists and About's links are buttons and links
+   laid over it, placed in the window's points; --s turns points into pixels. */
+.prefs-stage { position: relative; margin: 72px auto 0; width: min(640px, 100%); }
+.prefs-stage::before {
+  content: ""; position: absolute; left: 50%; top: 2%; width: min(150%, 100vw); height: 75%; transform: translateX(-50%); pointer-events: none;
+  background: radial-gradient(closest-side, rgba(81, 255, 112, .10), rgba(81, 255, 112, .03) 55%, transparent 75%);
+}
+.prefs-window { position: relative; margin-inline: auto; --s: 1; filter: drop-shadow(0 28px 48px rgba(0, 0, 0, .55)); }
+.prefs-shot { width: min(540px, 100%); margin-inline: auto; }
+.prefs-shot:not([data-shot="general"]), .prefs-tab, .prefs-row, .prefs-link { display: none; }
+.js .prefs-window { overflow: hidden; border-radius: calc(18px * var(--s)); transition: width .45s var(--ease), height .45s var(--ease); }
+.js .prefs-window.resizing { background: #1e1e1e; }
+.js .prefs-shot { display: block; position: absolute; top: 0; left: 50%; transform: translateX(-50%); max-width: none; opacity: 0; transition: opacity .3s ease; pointer-events: none; }
+.js .prefs-shot.on { opacity: 1; }
+.js .prefs-tab, .js .prefs-row, .js .prefs-link {
+  display: block; position: absolute; z-index: 1; margin: 0; padding: 0; border: 0; background: transparent; cursor: pointer;
+  left: calc(50% + var(--x) * var(--s) * 1px); top: calc(var(--y) * var(--s) * 1px);
+  width: calc(var(--w) * var(--s) * 1px); height: calc(var(--h) * var(--s) * 1px);
+  border-radius: calc(10px * var(--s)); color: transparent; font-size: 0;
+}
+.js .prefs-row[hidden], .js .prefs-link[hidden] { display: none; }
+.prefs-tab:not([aria-selected="true"]):hover, .prefs-link:hover { background: rgba(255, 255, 255, .07); }
+.prefs-tab:focus-visible, .prefs-row:focus-visible, .prefs-link:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.prefs-caption { min-height: 2.9em; margin-top: 28px; }
+@media (prefers-reduced-motion: reduce) { .js .prefs-window, .js .prefs-shot { transition: none; } }
 
 /* Numbers */
 .numbers { display: grid; grid-template-columns: minmax(0, 1.45fr) repeat(3, minmax(0, 1fr)); gap: 24px; margin-top: 72px; }
@@ -335,6 +359,7 @@ footer a { color: var(--text-2); }
       <a href="#problem">The problem</a>
       <a href="#features">Features</a>
       <a href="#hotspots">Hotspots</a>
+      <a href="#settings">Settings</a>
       <a href="#privacy">Privacy</a>
       <a href="#install">Install</a>
       <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download</a>
@@ -527,36 +552,31 @@ footer a { color: var(--text-2); }
         <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">One setting. When you join a mobile hotspot, NetworkMonitor switches off your apps’ automatic updates, and switches them back on when you leave. <strong>Apps keep working.</strong> Chrome still browses, Slack still messages, VS Code still edits. They just don’t download new versions of themselves while you’re paying by the gigabyte.</p>
       </div>
 
-      <div class="hotspot-grid">
-        <figure class="settings-shot reveal" style="margin:0">
-          <img src="assets/settings-hotspot.png" width="1000" height="1291" loading="lazy"
-               alt="NetworkMonitor Settings, on its Hotspot pane, with General, Speed Test, History, Hotspot and About in the toolbar. Stop apps updating on hotspots is switched on; Right now reads This connection isn't metered; a note says it also puts the hotspot in Low Data Mode so iCloud and other background downloads wait. Apps paused (12) is open, each with its own switch: AppCleaner, Claude Usage, Figma, Google Chrome, iTerm, macOS and in-app updaters, Microsoft AutoUpdate, OpenDisk, Remote for Mac, Visual Studio Code, VLC and VoiceInk. Not covered (5) is collapsed below.">
-          <figcaption class="caption" style="text-align:center">Settings on the Mac this page was built on: 12 apps covered, each with its own switch.</figcaption>
-        </figure>
-        <div class="facts">
-          <div class="reveal">
-            <h3>Knows a hotspot when it joins one.</h3>
-            <p>iPhone Personal Hotspot and Android tethering, over Wi‑Fi or USB, from your phone or someone else’s. Any network you’ve put in Low Data Mode counts too. Settings always tells you what it decided about the connection you’re on.</p>
-          </div>
-          <div class="reveal">
-            <h3>Covered with no special permissions.</h3>
-            <div class="chips">
-              <span class="chip">Google Chrome</span><span class="chip">Visual Studio Code</span><span class="chip">Figma</span><span class="chip">Microsoft AutoUpdate</span><span class="chip">VLC</span><span class="chip">AppCleaner</span><span class="chip">ChatGPT</span><span class="chip">Affinity</span><span class="chip">VoiceInk</span><span class="chip dim">any app using Sparkle</span>
-            </div>
-          </div>
-          <div class="reveal">
-            <h3>And with your password, once.</h3>
-            <div class="chips">
-              <span class="chip">macOS system updates</span><span class="chip">App Store</span><span class="chip">Claude</span><span class="chip">Slack</span><span class="chip">Canva</span><span class="chip">Low Data Mode</span>
-            </div>
-            <p style="margin-top:14px">Switch it on and macOS asks for your password once, so NetworkMonitor can install a small helper. The helper can do exactly five things: pause, restore, turn Low Data Mode on and off, and report. The settings it touches are built into it, so it can’t be asked to change anything else.</p>
-          </div>
-          <div class="reveal">
-            <h3>Reaches apps it’s never heard of.</h3>
-            <p>The same switch puts the hotspot in Low Data Mode, so iCloud, Photos and every app that respects it hold back, whatever you have installed. Settings lists the apps that update themselves in ways nothing can switch off, and the popover tells you if an update downloaded over your hotspot anyway.</p>
+      <div class="facts two">
+        <div class="reveal">
+          <h3>Knows a hotspot when it joins one.</h3>
+          <p>iPhone Personal Hotspot and Android tethering, over Wi‑Fi or USB, from your phone or someone else’s. Any network you’ve put in Low Data Mode counts too. Settings always tells you what it decided about the connection you’re on.</p>
+        </div>
+        <div class="reveal">
+          <h3>Covered with no special permissions.</h3>
+          <div class="chips">
+            <span class="chip">Google Chrome</span><span class="chip">Visual Studio Code</span><span class="chip">Figma</span><span class="chip">Microsoft AutoUpdate</span><span class="chip">VLC</span><span class="chip">AppCleaner</span><span class="chip">ChatGPT</span><span class="chip">Affinity</span><span class="chip">VoiceInk</span><span class="chip dim">any app using Sparkle</span>
           </div>
         </div>
+        <div class="reveal">
+          <h3>And with your password, once.</h3>
+          <div class="chips">
+            <span class="chip">macOS system updates</span><span class="chip">App Store</span><span class="chip">Claude</span><span class="chip">Slack</span><span class="chip">Canva</span><span class="chip">Low Data Mode</span>
+          </div>
+          <p style="margin-top:14px">Switch it on and macOS asks for your password once, so NetworkMonitor can install a small helper. The helper can do exactly five things: pause, restore, turn Low Data Mode on and off, and report. The settings it touches are built into it, so it can’t be asked to change anything else.</p>
+        </div>
+        <div class="reveal">
+          <h3>Reaches apps it’s never heard of.</h3>
+          <p>The same switch puts the hotspot in Low Data Mode, so iCloud, Photos and every app that respects it hold back, whatever you have installed. Settings lists the apps that update themselves in ways nothing can switch off, and the popover tells you if an update downloaded over your hotspot anyway.</p>
+        </div>
       </div>
+
+      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="hotspot">See the Hotspot pane</a></p>
 
       <div class="fine reveal">
         <p style="margin:0"><b>Not a firewall.</b>It changes each app’s own “check for updates automatically” setting. A manual Check for Updates… still works: it stops unattended downloads, not you.</p>
@@ -600,6 +620,56 @@ footer a { color: var(--text-2); }
           </div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- Settings -->
+  <section id="settings" class="pad raised center">
+    <div class="wrap">
+      <p class="eyebrow reveal">Settings</p>
+      <h2 class="h2 reveal d1">One window.<br><span class="grad">Every feature.</span></h2>
+      <p class="lead reveal d2" style="max-width:700px;margin-inline:auto">General, Speed Test, History, Hotspot and About, each in a pane of its own. <strong>Click through them.</strong> Every pane is the real app, captured on the Mac this page was built on.</p>
+
+      <div class="prefs-stage reveal" data-prefs>
+        <div class="prefs-window">
+          <div role="tablist" aria-label="Settings panes">
+            <button class="prefs-tab" role="tab" type="button" aria-selected="true" aria-controls="prefs-panel" data-pane="general" style="--x:-148;--y:32;--w:55;--h:48"
+                    data-caption="Start at login, speeds in MB/s or Mbps, and the popover’s totals.">General</button>
+            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="speed-test" style="--x:-92;--y:32;--w:71;--h:48"
+                    data-caption="Run a speed test from here, and choose how the popover shows one.">Speed Test</button>
+            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="history" style="--x:-20;--y:32;--w:55;--h:48"
+                    data-caption="What every app used, hour by hour, day by day. It stays on your Mac.">History</button>
+            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="hotspot" style="--x:36;--y:32;--w:55;--h:48"
+                    data-caption="Every app it pauses, each with its own switch. Click a list to open it.">Hotspot</button>
+            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="about" style="--x:92;--y:32;--w:55;--h:48"
+                    data-caption="The version, where to read more, and Uninstall…, which puts back everything it changed.">About</button>
+          </div>
+          <div id="prefs-panel" role="tabpanel" aria-label="General">
+            <img class="prefs-shot on" data-shot="general" data-w="540" data-h="519" src="assets/settings/general.png" width="1080" height="1038"
+                 alt="NetworkMonitor Settings, on its General pane. Start at login is on. Show speeds in offers Mbps or MB/s, with MB/s chosen. Under Popover totals: Counting since 12:00 AM, Sampling every second, plugged in, and Start the totals over, with a Reset Now button.">
+            <img class="prefs-shot" data-shot="speed-test" data-w="540" data-h="334" src="assets/settings/speed-test.png" width="1080" height="668" loading="lazy" aria-hidden="true"
+                 alt="The Speed Test pane: Test your internet speed, with a Test Now button. A note says it runs macOS's built-in networkQuality only when you start it, download first, then upload, typically using 50 to 500 MB. Show the test in the popover as Card or Compact, with Card chosen.">
+            <img class="prefs-shot" data-shot="history" data-w="640" data-h="820" src="assets/settings/history.png" width="1280" height="1640" loading="lazy" aria-hidden="true"
+                 alt="The History pane, on Today: 1.2 GB in all, none of it on metered connections. A bar chart by the hour, all over Wi‑Fi, peaks at about 520 MB at 1 AM. Below it, Apps, biggest first: iTerm2 568.9 MB, Google Chrome 197.9 MB, WhatsApp 194.4 MB, Network Monitor 83.3 MB, Slack 5.2 MB, Claude Usage 4.3 MB and AddressBookSourceSync 1.4 MB. Networks and Sessions are the other two lists. Keep history for Forever, with Clear History… and Export CSV… buttons.">
+            <img class="prefs-shot" data-shot="hotspot" data-w="540" data-h="406" src="assets/settings/hotspot.png" width="1080" height="812" loading="lazy" aria-hidden="true"
+                 alt="The Hotspot pane. Stop apps updating on hotspots is on. Right now reads This connection isn't metered. A note says it also puts the hotspot in Low Data Mode, so iCloud and other background downloads wait. Apps paused (12) and Not covered (5) are both closed.">
+            <img class="prefs-shot" data-shot="hotspot-apps" data-w="540" data-h="730" src="assets/settings/hotspot-apps.png" width="1080" height="1460" loading="lazy" aria-hidden="true"
+                 alt="The Hotspot pane with Apps paused (12) open, each app with its own switch, all on: AppCleaner, Claude Usage, Figma, Google Chrome, iTerm, macOS and in-app updaters, Microsoft AutoUpdate, OpenDisk, Remote for Mac, Visual Studio Code, VLC and VoiceInk. Claude Usage, iTerm, Remote for Mac and VoiceInk read quit it to apply. Not covered (5) is closed.">
+            <img class="prefs-shot" data-shot="hotspot-uncovered" data-w="540" data-h="518" src="assets/settings/hotspot-uncovered.png" width="1080" height="1036" loading="lazy" aria-hidden="true"
+                 alt="The Hotspot pane with Not covered (5) open: Granola and Synergy update through electron-updater, and OmniDiskSweeper, Opera and Raycast through their own updaters. A note says quitting them while on a hotspot is the only sure way. Apps paused (12) is closed.">
+            <img class="prefs-shot" data-shot="hotspot-both" data-w="540" data-h="842" src="assets/settings/hotspot-both.png" width="1080" height="1684" loading="lazy" aria-hidden="true"
+                 alt="The Hotspot pane with both lists open. Apps paused (12): AppCleaner, Claude Usage, Figma, Google Chrome, iTerm, macOS and in-app updaters, Microsoft AutoUpdate, OpenDisk, Remote for Mac, Visual Studio Code, VLC and VoiceInk, each switched on. Not covered (5): Granola, OmniDiskSweeper, Opera, Raycast and Synergy.">
+            <img class="prefs-shot" data-shot="about" data-w="540" data-h="578" src="assets/settings/about.png" width="1080" height="1156" loading="lazy" aria-hidden="true"
+                 alt="The About pane: the NetworkMonitor icon, Version 1.6.1 (49), and Live network speed in your menu bar, and which app used your data. Links to the website, the release notes and the source code on GitHub. Free and open source, under the MIT licence. Remove NetworkMonitor, with an Uninstall… button.">
+            <button class="prefs-row" type="button" aria-expanded="false" data-row="apps" style="--x:-250;--y:250;--w:500;--h:44" hidden>Apps paused</button>
+            <button class="prefs-row" type="button" aria-expanded="false" data-row="uncovered" style="--x:-250;--y:304;--w:500;--h:44" hidden>Not covered</button>
+            <a class="prefs-link" href="#top" style="--x:60;--y:319;--w:182;--h:30" hidden>Website</a>
+            <a class="prefs-link" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest" style="--x:130;--y:356;--w:112;--h:30" hidden>Release notes</a>
+            <a class="prefs-link" href="https://github.com/kevinabouhanna/NetworkMonitor" style="--x:150;--y:393;--w:92;--h:30" hidden>Source code on GitHub</a>
+          </div>
+        </div>
+      </div>
+      <p class="caption prefs-caption" aria-live="polite" data-prefs-caption>Start at login, speeds in MB/s or Mbps, and the popover’s totals.</p>
     </div>
   </section>
 
@@ -725,6 +795,96 @@ footer a { color: var(--text-2); }
       sound.querySelector('span').textContent = hero.muted ? 'Sound on' : 'Sound off';
       sound.querySelector('[data-wave]').setAttribute('opacity', hero.muted ? '.35' : '1');
     });
+  }
+
+  // Settings: the toolbar switches panes as the app's does. The window takes
+  // each pane's size and keeps its top edge, and in Hotspot each list opens on
+  // its own, so every combination is a capture of its own.
+  const prefs = document.querySelector('[data-prefs]');
+  if (prefs) {
+    const win = prefs.querySelector('.prefs-window');
+    const panel = prefs.querySelector('[role="tabpanel"]');
+    const tabs = [...prefs.querySelectorAll('[role="tab"]')];
+    const shots = new Map([...prefs.querySelectorAll('.prefs-shot')].map(img => [img.dataset.shot, img]));
+    const apps = prefs.querySelector('[data-row="apps"]');
+    const uncovered = prefs.querySelector('[data-row="uncovered"]');
+    const links = prefs.querySelectorAll('.prefs-link');
+    const caption = document.querySelector('[data-prefs-caption]');
+    const state = { pane: 'general', apps: false, uncovered: false };
+    let settle = 0;
+
+    const shotName = () => state.pane !== 'hotspot' ? state.pane
+      : state.apps && state.uncovered ? 'hotspot-both'
+      : state.apps ? 'hotspot-apps' : state.uncovered ? 'hotspot-uncovered' : 'hotspot';
+
+    function render(animate) {
+      const shot = shots.get(shotName());
+      const w = +shot.dataset.w, h = +shot.dataset.h;
+      // Points to pixels: the real size where it fits, smaller on a phone.
+      const s = Math.min(1, prefs.clientWidth / w);
+      if (animate && !reduce) {
+        win.classList.add('resizing');
+        clearTimeout(settle);
+        settle = setTimeout(() => win.classList.remove('resizing'), 500);
+      } else {
+        win.style.transition = 'none';
+      }
+      win.style.setProperty('--s', s);
+      win.style.width = w * s + 'px';
+      win.style.height = h * s + 'px';
+      shot.style.width = w * s + 'px';
+      if (!animate || reduce) { win.offsetWidth; win.style.transition = ''; }
+      for (const img of shots.values()) {
+        img.classList.toggle('on', img === shot);
+        img.setAttribute('aria-hidden', String(img !== shot));
+      }
+      const tab = tabs.find(t => t.dataset.pane === state.pane);
+      for (const t of tabs) {
+        t.setAttribute('aria-selected', String(t === tab));
+        t.tabIndex = t === tab ? 0 : -1;
+      }
+      panel.setAttribute('aria-label', tab.textContent);
+      caption.textContent = tab.dataset.caption;
+      apps.hidden = uncovered.hidden = state.pane !== 'hotspot';
+      apps.setAttribute('aria-expanded', String(state.apps));
+      apps.style.setProperty('--h', state.apps ? 34 : 44);
+      uncovered.setAttribute('aria-expanded', String(state.uncovered));
+      uncovered.style.setProperty('--y', state.apps ? 628 : 304);
+      uncovered.style.setProperty('--h', state.uncovered ? 34 : 44);
+      links.forEach(link => { link.hidden = state.pane !== 'about'; });
+    }
+
+    const choose = (pane, focus) => {
+      if (pane === state.pane) return;
+      state.pane = pane;
+      render(true);
+      if (focus) tabs.find(t => t.dataset.pane === pane).focus();
+    };
+    tabs.forEach(tab => tab.addEventListener('click', () => choose(tab.dataset.pane)));
+    // Arrow keys move along the toolbar, as in any set of tabs.
+    prefs.querySelector('[role="tablist"]').addEventListener('keydown', event => {
+      const i = tabs.findIndex(t => t.dataset.pane === state.pane);
+      const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[event.key];
+      if (next === undefined) return;
+      event.preventDefault();
+      choose(tabs[(next + tabs.length) % tabs.length].dataset.pane, true);
+    });
+    apps.addEventListener('click', () => { state.apps = !state.apps; render(true); });
+    uncovered.addEventListener('click', () => { state.uncovered = !state.uncovered; render(true); });
+    // "See the Hotspot pane" opens it on the way down.
+    document.querySelectorAll('[data-pane-link]').forEach(link => {
+      link.addEventListener('click', () => { state.pane = link.dataset.paneLink; render(false); });
+    });
+
+    render(false);
+    // Only a change of width re-fits it: the window's own resizing changes the
+    // height, and answering that would cut the animation short.
+    let width = prefs.clientWidth;
+    if ('ResizeObserver' in window) new ResizeObserver(() => {
+      if (prefs.clientWidth === width) return;
+      width = prefs.clientWidth;
+      render(false);
+    }).observe(prefs);
   }
 
   // In-page links glide to their section, with Reduce Motion on too. CSS
