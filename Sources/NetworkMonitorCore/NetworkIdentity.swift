@@ -281,7 +281,7 @@ public enum GatewayProbe {
         return nil
     }
 
-    /// Parses `? (192.168.1.1) at 50:c7:bf:8a:94:93 on en0 ifscope [ethernet]`
+    /// Parses `? (192.168.1.1) at 0:0:5e:0:53:2a on en0 ifscope [ethernet]`
     public static func arpLookup(_ ip: String) -> String? {
         guard let output = run("/usr/sbin/arp", ["-n", ip]) else { return nil }
         return parseARP(output)
@@ -300,8 +300,8 @@ public enum GatewayProbe {
         return nil
     }
 
-    /// macOS prints MACs without leading zeros (`50:c7:bf:8a:94:93` but also
-    /// `0:1b:63:...`). Normalising keeps a network's key stable regardless.
+    /// macOS prints MACs without leading zeros (`0:0:5e:0:53:2a` for
+    /// `00:00:5e:00:53:2a`). Normalising keeps a network's key stable regardless.
     public static func normalizeMAC(_ mac: String) -> String {
         mac.split(separator: ":")
             .map { $0.count == 1 ? "0\($0)" : String($0) }

@@ -6,7 +6,7 @@ import SystemConfiguration
 ///
 /// `NWPath.isExpensive` is the signal macOS provides, and it works — the
 /// persisted store on the development machine holds a bucket
-/// `gw:9a:50:2e:c2:af:64` recorded as `kind = hotspot`, a locally administered
+/// `gw:00:00:5e:00:53:64` recorded as `kind = hotspot`, a locally administered
 /// MAC of the kind iOS randomises for Personal Hotspot. But it only fires when
 /// macOS *recognises* the link, and the feature has to behave identically for
 /// USB tethering and for a stranger's Android phone. So `isExpensive` is one

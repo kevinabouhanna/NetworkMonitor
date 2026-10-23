@@ -744,10 +744,10 @@ func runNetworkFingerprintTests() {
         // Gateway MAC, not BSSID: roaming between access points on one network
         // changes the BSSID constantly but leaves the gateway alone.
         Check.test("roaming between access points keeps one identity") {
-            let first = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "50:c7:bf:8a:94:93",
+            let first = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "00:00:5e:00:53:2a",
                                                 interfaceName: "en0",
                                                 isExpensive: false, isConstrained: false)
-            let second = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "50:c7:bf:8a:94:93",
+            let second = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "00:00:5e:00:53:2a",
                                                  interfaceName: "en0",
                                                  isExpensive: false, isConstrained: false)
             Check.expectEqual(first.id, second.id)
@@ -756,7 +756,7 @@ func runNetworkFingerprintTests() {
         // Two routers sharing an SSID name are genuinely different networks —
         // the case SSID-based identity gets wrong.
         Check.test("different routers are different networks") {
-            let home = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "50:c7:bf:8a:94:93",
+            let home = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "00:00:5e:00:53:2a",
                                                interfaceName: "en0",
                                                isExpensive: false, isConstrained: false)
             let cafe = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "aa:bb:cc:dd:ee:ff",
@@ -767,10 +767,10 @@ func runNetworkFingerprintTests() {
 
         // Wi-Fi and Ethernet to the same router share a data cap, so one bucket.
         Check.test("the same router over a different medium shares a bucket") {
-            let wifi = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "50:c7:bf:8a:94:93",
+            let wifi = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "00:00:5e:00:53:2a",
                                                interfaceName: "en0",
                                                isExpensive: false, isConstrained: false)
-            let wired = NetworkFingerprint.make(kind: .ethernet, gatewayMAC: "50:c7:bf:8a:94:93",
+            let wired = NetworkFingerprint.make(kind: .ethernet, gatewayMAC: "00:00:5e:00:53:2a",
                                                 interfaceName: "en5",
                                                 isExpensive: false, isConstrained: false)
             Check.expectEqual(wifi.id, wired.id)
@@ -793,10 +793,10 @@ func runNetworkFingerprintTests() {
         }
 
         Check.test("labels include a MAC suffix to disambiguate") {
-            let first = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "50:c7:bf:8a:94:93",
+            let first = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "00:00:5e:00:53:2a",
                                                 interfaceName: "en0",
                                                 isExpensive: false, isConstrained: false)
-            let second = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "50:c7:bf:8a:94:01",
+            let second = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "00:00:5e:00:53:01",
                                                  interfaceName: "en0",
                                                  isExpensive: false, isConstrained: false)
             Check.expectFalse(first.defaultLabel == second.defaultLabel)

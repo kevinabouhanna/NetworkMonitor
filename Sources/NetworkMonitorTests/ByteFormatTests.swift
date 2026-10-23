@@ -101,10 +101,11 @@ func runByteFormatTests() {
 func runGatewayProbeTests() {
     Check.suite("GatewayProbe") {
 
-        // Verbatim `arp -n` output from the development machine.
+        // `arp -n` output as macOS prints it, with an address from the range
+        // reserved for documentation (RFC 7042) rather than a real router's.
         Check.test("parses arp output") {
-            let output = "? (192.168.1.1) at 50:c7:bf:8a:94:93 on en0 ifscope [ethernet]"
-            Check.expectEqual(GatewayProbe.parseARP(output), "50:c7:bf:8a:94:93")
+            let output = "? (192.168.1.1) at 0:0:5e:0:53:2a on en0 ifscope [ethernet]"
+            Check.expectEqual(GatewayProbe.parseARP(output), "00:00:5e:00:53:2a")
         }
 
         // macOS prints MACs without leading zeros; normalising keeps a
@@ -122,8 +123,8 @@ func runGatewayProbeTests() {
         }
 
         Check.test("uppercase is normalised") {
-            let output = "? (192.168.1.1) at 50:C7:BF:8A:94:93 on en0 ifscope [ethernet]"
-            Check.expectEqual(GatewayProbe.parseARP(output), "50:c7:bf:8a:94:93")
+            let output = "? (192.168.1.1) at 0:0:5E:0:53:2A on en0 ifscope [ethernet]"
+            Check.expectEqual(GatewayProbe.parseARP(output), "00:00:5e:00:53:2a")
         }
 
         // Integration: this machine has a reachable default gateway. A CI runner
