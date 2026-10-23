@@ -277,9 +277,8 @@ each one with its size, still there after you've left the hotspot.
 
 
 **Your speed and connection total are always accurate.** They come straight from the
-kernel's own byte counters, cost about a tenth of one percent of a CPU core, and run
-all the time. They've been measured at 99.6–100.2% agreement with the kernel across
-three independent transfers.
+kernel's own byte counters, and run all the time. They've been measured at
+99.6–100.2% agreement with the kernel across three independent transfers.
 
 **Per-app numbers now run all the time too**, on every network and on battery, with
 no setting to forget. That used to cost about 1.4 CPU cores, which is why earlier
@@ -290,10 +289,17 @@ an empty loop forever. Given an input that waits properly, the same data costs
 **0.55% of a core** — 256× less — and arrives just as fast.
 
 It also adapts on its own, with nothing to configure: **plugged in**, it samples
-every second for the freshest possible numbers; **on battery**, every three seconds.
-Your totals are identical either way — the tool reports the bytes moved *between*
-samples, so sampling less often changes how fresh the figures are, not how complete.
-Settings tells you which mode is in force.
+every second for the freshest possible numbers; **on battery**, every three seconds;
+in **Low Power Mode**, every ten. And while nobody can see the menu bar (the display
+is asleep, the screen is locked, or another user is logged in), it stops drawing its
+readout and reads the counters only every few seconds. Your totals are identical
+either way: both sources report the bytes moved *between* samples, so sampling less
+often changes how fresh the figures are, not how complete. Settings tells you which
+mode is in force.
+
+Measured on an M1 MacBook Air, the whole app, per-app tracking included, uses
+**1.2% of one CPU core on battery**, 0.5% in Low Power Mode, and 0.5% on battery
+with the screen off.
 
 So there is nothing left worth switching off, and nothing to trade. Per-app rows
 still won't quite add up to the connection total: some traffic is wire-level

@@ -6,14 +6,15 @@ import Foundation
 ///
 /// Runs two independent sampling loops on purpose:
 ///
-/// - **Interface counters, every 0.5 s.** Feeds the live menu bar rate and the
-///   authoritative day total. One `sysctl` call, negligible cost, and fast
+/// - **Interface counters, every 0.5–2 s** depending on `PowerProfile`, and
+///   every 5–15 s while nobody can see the menu bar. Feeds the live menu bar rate
+///   and the authoritative day total. One `sysctl` call, negligible cost, and fast
 ///   enough to feel real-time.
-/// - **nettop, every 1–3 s** depending on `PowerProfile`. Feeds per-app
+/// - **nettop, every 1–10 s** depending on `PowerProfile`. Feeds per-app
 ///   attribution, and the LAN/internet split that keeps a mirrored screen out of
-///   the totals. Runs continuously, for the whole life of the app: 0.55% of a core
-///   once its stdin stopped spinning (`NettopStream.spawn()`), so there is nothing
-///   left worth switching off. The gating that used to exist is what made per-app
+///   the totals. Runs continuously, for the whole life of the app: a fraction of a
+///   core once its stdin stopped spinning (`NettopStream.spawn()`; measured per
+///   profile in `PowerProfile`), so there is nothing left worth switching off. The gating that used to exist is what made per-app
 ///   totals disagree with the header.
 ///
 /// Accumulation continues whether or not the popover is open; only the list
@@ -83,10 +84,18 @@ public final class MonitorViewModel: ObservableObject {
     private var lastSampleTime = MonotonicClock.now()
     private let sampleQueue = DispatchQueue(label: "com.networkmonitor.sampler")
 
-    /// Interval for the interface sampler, from the profile and display state.
+    /// Interval for the interface sampler, from the profile and whether anyone can
+    /// see the menu bar.
     private var sampleInterval: TimeInterval = 0.5
-    /// True between `screensDidSleep` and `screensDidWake`.
+
+    /// The reasons nobody can see the menu bar, each set and cleared by its own
+    /// pair of notifications.
     private var displayAsleep = false
+    private var screenLocked = false
+    private var sessionInactive = false
+    /// Nobody can see the menu bar, so the readout is not drawn and the counters
+    /// are read only as often as the totals need. See `setAttention(_:)`.
+    private var unattended: Bool { displayAsleep || screenLocked || sessionInactive }
 
     /// Popover visibility. Gates list rebuilds so a closed popover costs nothing
     /// beyond accumulation.
@@ -107,8 +116,8 @@ public final class MonitorViewModel: ObservableObject {
     /// Last menu bar title actually published, used to suppress no-op updates.
     private var renderedTitle = ""
 
-    /// Sampling rates, chosen from the power source. Published so the popover can
-    /// say which one is in force; there is nothing for the user to set.
+    /// Sampling rates, chosen from the power source and Low Power Mode. Published so
+    /// Settings can say which one is in force; there is nothing for the user to set.
     @Published public private(set) var profile: PowerProfile = .performance
     private var powerToken: Any?
 
@@ -120,9 +129,9 @@ public final class MonitorViewModel: ObservableObject {
         self.speedTest = speedTest
         self.dayStart = store.dayStart
         self.countingSince = store.countingSince
-        let profile = PowerProfile.forPowerSource(onACPower: PowerSource.isOnACPower)
+        let profile = PowerProfile.current()
         self.profile = profile
-        self.sampleInterval = profile.interfaceInterval(displayAsleep: false)
+        self.sampleInterval = profile.interfaceInterval(unattended: false)
         self.nettop = NettopStream(sampleInterval: profile.nettopSampleInterval)
     }
 
@@ -168,16 +177,34 @@ public final class MonitorViewModel: ObservableObject {
         observeSystemNotifications()
     }
 
-    /// Re-reads the power source and applies the resulting sampling rates.
+    /// Re-reads the power source and Low Power Mode and applies the resulting
+    /// sampling rates.
     ///
-    /// Called on power transitions and on display sleep/wake. Idempotent: the
-    /// timer is only rebuilt when its interval actually changes, and `nettop` is
-    /// only restarted when its interval does.
+    /// Called on power transitions, when Low Power Mode changes, and when the menu
+    /// bar stops or starts being seen. Idempotent: the timer is only rebuilt when
+    /// its interval actually changes, and `nettop` is only restarted when its
+    /// interval does.
     private func applyProfile() {
-        let next = PowerProfile.forPowerSource(onACPower: PowerSource.isOnACPower)
-        profile = next
-        setSampleInterval(next.interfaceInterval(displayAsleep: displayAsleep))
+        let next = PowerProfile.current()
+        if profile != next { profile = next }
+        setSampleInterval(next.interfaceInterval(unattended: unattended))
         nettop.setSampleInterval(next.nettopSampleInterval)
+    }
+
+    /// Applies a change to whether anyone can see the menu bar.
+    ///
+    /// Going unattended relaxes the sampler, and `sampleInterfaces()` stops
+    /// drawing the readout. Coming back catches the readout up at once: it still
+    /// shows whatever it drew last, which may be hours old.
+    private func setAttention(_ change: (MonitorViewModel) -> Void) {
+        let wasUnattended = unattended
+        change(self)
+        guard unattended != wasUnattended else { return }
+        applyProfile()
+        if !unattended {
+            renderedTitle = ""
+            sampleQueue.async { [weak self] in self?.sampleInterfaces() }
+        }
     }
 
     public func stop() {
@@ -235,16 +262,41 @@ public final class MonitorViewModel: ObservableObject {
             self?.store.save()
         }
 
-        // The display sleeping relaxes the interface sampler but never `nettop`:
-        // see `PowerProfile.nettopSampleInterval` for why only the free one moves.
+        // Nobody seeing the menu bar relaxes the interface sampler but never
+        // `nettop`: see `PowerProfile.nettopSampleInterval` for why only the free
+        // one moves.
         center.addObserver(forName: NSWorkspace.screensDidSleepNotification,
                            object: nil, queue: .main) { [weak self] _ in
-            self?.displayAsleep = true
-            self?.applyProfile()
+            self?.setAttention { $0.displayAsleep = true }
         }
         center.addObserver(forName: NSWorkspace.screensDidWakeNotification,
                            object: nil, queue: .main) { [weak self] _ in
-            self?.displayAsleep = false
+            self?.setAttention { $0.displayAsleep = false }
+        }
+        // A locked screen can stay lit, with no menu bar on it.
+        let distributed = DistributedNotificationCenter.default()
+        distributed.addObserver(forName: Notification.Name("com.apple.screenIsLocked"),
+                                object: nil, queue: .main) { [weak self] _ in
+            self?.setAttention { $0.screenLocked = true }
+        }
+        distributed.addObserver(forName: Notification.Name("com.apple.screenIsUnlocked"),
+                                object: nil, queue: .main) { [weak self] _ in
+            self?.setAttention { $0.screenLocked = false }
+        }
+        // Fast user switching: another user's session is in front.
+        center.addObserver(forName: NSWorkspace.sessionDidResignActiveNotification,
+                           object: nil, queue: .main) { [weak self] _ in
+            self?.setAttention { $0.sessionInactive = true }
+        }
+        center.addObserver(forName: NSWorkspace.sessionDidBecomeActiveNotification,
+                           object: nil, queue: .main) { [weak self] _ in
+            self?.setAttention { $0.sessionInactive = false }
+        }
+
+        // Low Power Mode picks the `saver` profile, plugged in or not. Posted on
+        // whichever thread noticed, hence the main queue.
+        NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange,
+                                               object: nil, queue: .main) { [weak self] _ in
             self?.applyProfile()
         }
     }
@@ -281,8 +333,11 @@ public final class MonitorViewModel: ObservableObject {
             // strings rather than Doubles is what makes the guard bite at all.
             // The unit is part of the key: switching it in Settings must redraw
             // even when the rates themselves have not moved.
+            //
+            // Nothing is drawn while nobody can see the menu bar: that drawing is
+            // most of what the app costs. `setAttention` redraws on the way back.
             let rendered = MenuBarTitle.string(down: down, up: up, unit: self.speedTest.unit)
-            if rendered != self.renderedTitle {
+            if !self.unattended, rendered != self.renderedTitle {
                 self.renderedTitle = rendered
                 self.downBytesPerSecond = down
                 self.upBytesPerSecond = up

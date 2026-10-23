@@ -62,10 +62,14 @@ struct GeneralSettingsPane: View {
                 // list updating every 3 s instead of every 1 s deserves to know
                 // that is deliberate and costs them no accuracy.
                 LabeledContent("Sampling") {
-                    Label(model.profile == .performance
-                          ? "Every second, plugged in"
-                          : "Every 3 seconds on battery, same totals",
-                          systemImage: model.profile == .performance ? "bolt.fill" : "battery.75")
+                    switch model.profile {
+                    case .performance:
+                        Label("Every second, plugged in", systemImage: "bolt.fill")
+                    case .balanced:
+                        Label("Every 3 seconds on battery, same totals", systemImage: "battery.75")
+                    case .saver:
+                        Label("Every 10 seconds in Low Power Mode, same totals", systemImage: "leaf.fill")
+                    }
                 }
                 // One button, not two. Usage is bucketed per network internally,
                 // but the popover never names the network, so "this network" vs
