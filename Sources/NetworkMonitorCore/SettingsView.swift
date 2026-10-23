@@ -264,7 +264,7 @@ struct HotspotSettingsPane: View {
                             Text("Nothing on this Mac to pause.").foregroundStyle(.secondary)
                         }
                     } label: {
-                        Text(coverageSummary)
+                        Text(coverageSummary).togglesDisclosure($state.appsExpanded)
                     }
                 }
 
@@ -277,6 +277,7 @@ struct HotspotSettingsPane: View {
                             ForEach(state.uncovered) { uncoveredRow($0) }
                         } label: {
                             Text("Not covered (\(state.uncovered.count))")
+                                .togglesDisclosure($state.uncoveredExpanded)
                         }
                     } footer: {
                         SettingsFootnote("These update themselves in a way NetworkMonitor can't "
@@ -573,6 +574,14 @@ extension View {
             .scrollDisabled(true)
             .frame(width: SettingsMetrics.paneWidth)
             .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Lets a disclosure group's label open and close it from anywhere on the
+    /// row, as System Settings does. On its own, only the chevron responds.
+    func togglesDisclosure(_ isExpanded: Binding<Bool>) -> some View {
+        frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { withAnimation { isExpanded.wrappedValue.toggle() } }
     }
 }
 
