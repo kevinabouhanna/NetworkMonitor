@@ -84,20 +84,25 @@ public enum ByteFormat {
     /// Precision is traded against magnitude so the numeric field is always
     /// exactly `menuBarNumberWidth` characters: two decimals where they fit
     /// (`14.14`), then one (`128.5`), then none (`1023`). Scaling keeps the value
-    /// in [1, 1024), so those three cases are exhaustive.
+    /// in [1, 1024), so those three cases are exhaustive. See `fittedNumber`.
     public static func menuBarRate(_ bytesPerSecond: Double,
                                    width: Int = menuBarNumberWidth) -> String {
         let (value, unit) = bytesPerSecond < 1 ? (0, "B") : scale(bytesPerSecond)
-        let magnitude = abs(value)
-        let number: String
-        if magnitude >= 1000 {
-            number = String(format: "%.0f", value)
-        } else if magnitude >= 100 {
-            number = String(format: "%.1f", value)
-        } else {
-            number = String(format: "%.2f", value)
+        return pad(fittedNumber(value, width: width), to: width) + " "
+            + padTrailing("\(unit)/s", to: menuBarUnitWidth)
+    }
+
+    /// `value` with as many decimals, two at most, as fit in `width` characters.
+    ///
+    /// Judged on the formatted string, never on the value: picking the precision
+    /// from the value first let 99.996 round up to "100.00" and 999.96 to
+    /// "1000.0", one character too wide (#26).
+    static func fittedNumber(_ value: Double, width: Int = menuBarNumberWidth) -> String {
+        for decimals in [2, 1] {
+            let number = String(format: "%.\(decimals)f", value)
+            if number.count <= width { return number }
         }
-        return pad(number, to: width) + " " + padTrailing("\(unit)/s", to: menuBarUnitWidth)
+        return String(format: "%.0f", value)
     }
 
     /// A live rate for the menu bar in the chosen unit, at the same constant
@@ -187,15 +192,8 @@ public enum ByteFormat {
     public static func menuBarBitRate(_ bitsPerSecond: Double) -> String {
         let (value, unit) = scaleBits(bitsPerSecond)
         let label = ["b/s", "Kb/s", "Mb/s", "Gb/s", "Tb/s"][unit]
-        let number: String
-        if value >= 1000 {
-            number = String(format: "%.0f", value)
-        } else if value >= 100 {
-            number = String(format: "%.1f", value)
-        } else {
-            number = String(format: "%.2f", value)
-        }
-        return pad(number, to: menuBarNumberWidth) + " " + padTrailing(label, to: menuBarUnitWidth)
+        return pad(fittedNumber(value), to: menuBarNumberWidth) + " "
+            + padTrailing(label, to: menuBarUnitWidth)
     }
 
     private static func pad(_ string: String, to width: Int) -> String {
