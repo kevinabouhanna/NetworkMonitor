@@ -455,7 +455,7 @@ func runMeteringControllerTests() {
         }
 
         let hotspot = NetworkFingerprint.make(kind: .hotspot,
-                                              gatewayMAC: "9a:50:2e:c2:af:64",
+                                              gatewayMAC: "00:00:5e:00:53:64",
                                               interfaceName: "en0",
                                               isExpensive: true,
                                               isConstrained: false)

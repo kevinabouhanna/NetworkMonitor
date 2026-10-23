@@ -580,7 +580,7 @@ func runLowDataModeMeteringTests() {
         // An iPhone hotspot macOS did not recognise: identified by its subnet,
         // with neither flag up until we raise them.
         func hotspot(constrained: Bool = false, expensive: Bool = false) -> NetworkFingerprint {
-            .make(kind: .hotspot, gatewayMAC: "9a:50:2e:c2:af:64", interfaceName: "en0",
+            .make(kind: .hotspot, gatewayMAC: "00:00:5e:00:53:64", interfaceName: "en0",
                   isExpensive: expensive, isConstrained: constrained,
                   gatewayIP: "172.20.10.1", interfaceDisplayName: "Wi-Fi")
         }
