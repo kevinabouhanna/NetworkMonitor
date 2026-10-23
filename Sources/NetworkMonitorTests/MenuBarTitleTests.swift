@@ -5,31 +5,48 @@ import NetworkMonitorCore
 func runPowerProfileTests() {
     Check.suite("PowerProfile") {
 
-        Check.test("the power source alone picks the profile") {
+        Check.test("the power source and Low Power Mode pick the profile") {
             Check.expectEqual(PowerProfile.forPowerSource(onACPower: true), .performance)
             Check.expectEqual(PowerProfile.forPowerSource(onACPower: false), .balanced)
+            Check.expectEqual(PowerProfile.forPowerSource(onACPower: false, lowPowerMode: true), .saver)
+            Check.expectEqual(PowerProfile.forPowerSource(onACPower: true, lowPowerMode: true), .saver,
+                              "Low Power Mode asks for less even when plugged in")
         }
 
-        // The whole point of the profile: on battery it samples less often, never
-        // less completely. Both figures stay exact because interface counters are
-        // read by difference and nettop reports a delta per sample.
-        Check.test("balanced samples less often than performance") {
-            let ac = PowerProfile.performance, battery = PowerProfile.balanced
-            Check.expectTrue(battery.interfaceInterval(displayAsleep: false)
-                             > ac.interfaceInterval(displayAsleep: false),
-                             "battery must read the counters less often")
-            Check.expectTrue(battery.nettopSampleInterval > ac.nettopSampleInterval,
-                             "battery must sample nettop less often")
-        }
-
-        // Relaxed again with the screen off, in both profiles: totals keep
-        // accumulating, but nobody is reading a menu bar they cannot see.
-        Check.test("a sleeping display relaxes the sampler further") {
-            for profile in PowerProfile.allCases {
-                Check.expectTrue(profile.interfaceInterval(displayAsleep: true)
-                                 > profile.interfaceInterval(displayAsleep: false),
-                                 "\(profile.rawValue) should relax when the screen sleeps")
+        // The whole point of the profiles: each samples less often than the last,
+        // never less completely. The figures stay exact because interface counters
+        // are read by difference and nettop reports a delta per sample.
+        Check.test("each profile samples less often than the one before") {
+            let order: [PowerProfile] = [.performance, .balanced, .saver]
+            for (faster, slower) in zip(order, order.dropFirst()) {
+                Check.expectTrue(slower.interfaceInterval(unattended: false)
+                                 > faster.interfaceInterval(unattended: false),
+                                 "\(slower.rawValue) must read the counters less often than \(faster.rawValue)")
+                Check.expectTrue(slower.nettopSampleInterval > faster.nettopSampleInterval,
+                                 "\(slower.rawValue) must sample nettop less often than \(faster.rawValue)")
             }
+        }
+
+        // Relaxed again while nobody can see the menu bar, in every profile: totals
+        // keep accumulating, but nobody is reading a readout they cannot see.
+        Check.test("nobody watching relaxes the sampler further") {
+            for profile in PowerProfile.allCases {
+                Check.expectTrue(profile.interfaceInterval(unattended: true)
+                                 > profile.interfaceInterval(unattended: false),
+                                 "\(profile.rawValue) should relax while nobody watches")
+            }
+        }
+
+        // For measuring a profile without unplugging. Only a launch argument can
+        // do it, so an override never outlives the run that asked for it.
+        Check.test("a launch argument can force a profile") {
+            Check.expectEqual(PowerProfile.current(arguments: [PowerProfile.argumentKey: "saver"]), .saver)
+            Check.expectEqual(PowerProfile.current(arguments: [PowerProfile.argumentKey: "balanced"]), .balanced)
+            let live = PowerProfile.forPowerSource(onACPower: PowerSource.isOnACPower,
+                                                   lowPowerMode: ProcessInfo.processInfo.isLowPowerModeEnabled)
+            Check.expectEqual(PowerProfile.current(arguments: [PowerProfile.argumentKey: "turbo"]), live,
+                              "an unknown name falls back to the live profile")
+            Check.expectEqual(PowerProfile.current(arguments: [:]), live)
         }
 
         // nettop's interval is a whole number of seconds, its own minimum, and a
@@ -60,11 +77,16 @@ func runPowerProfileTests() {
                 .appendingPathComponent("profile-\(UUID().uuidString).json")
             defer { try? FileManager.default.removeItem(at: url) }
             let model = MonitorViewModel(store: UsageStore(storeURL: url))
-            Check.expectEqual(model.profile,
-                              PowerProfile.forPowerSource(onACPower: PowerSource.isOnACPower),
+            let live = PowerProfile.forPowerSource(onACPower: PowerSource.isOnACPower,
+                                                   lowPowerMode: ProcessInfo.processInfo.isLowPowerModeEnabled)
+            Check.expectEqual(model.profile, live,
                               "the model must adopt the live power source")
             Check.expectNil(UserDefaults.standard.object(forKey: key),
                             "the profile must not be written to defaults")
+            // And a stored value, however it got there, is not an override.
+            UserDefaults.standard.set("saver", forKey: key)
+            defer { UserDefaults.standard.removeObject(forKey: key) }
+            Check.expectEqual(PowerProfile.current(), live, "only a launch argument can force a profile")
         }
     }
 }

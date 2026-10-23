@@ -57,6 +57,11 @@ release of its own:
   `ObservableObject` instead; see `SettingsPaneState`.
 - **The real speed test uses 70–200 MB per run.** Test against the stand-in
   script in `SpeedTestTests` rather than running it again and again.
+- **Measure a power profile without unplugging:**
+  `open -n build/NetworkMonitor.app --args -powerProfile balanced` (or
+  `performance`, `saver`). Only launch arguments are read, so nothing persists.
+  Time CPU with `ps -o time=` on the app and its `nettop` child, in the
+  foreground: `top -l` hangs when run in the background.
 - **A development build shares settings and data with the installed app.** Quit
   the installed copy before running one, put back any setting you change, and
   relaunch the installed copy afterwards.

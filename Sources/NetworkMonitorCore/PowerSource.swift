@@ -49,7 +49,8 @@ public enum PowerSource {
     }
 }
 
-/// How often to sample, chosen from the power source. There is no setting.
+/// How often to sample, chosen from the power source and Low Power Mode. There is
+/// no setting.
 ///
 /// This replaced `PerAppTrackingMode`, which asked the user to choose between
 /// complete numbers and battery life. That was the wrong question twice over: the
@@ -66,50 +67,83 @@ public enum PowerSource {
 ///   sampling rate has no bearing on the total whatsoever — it only sets how
 ///   smooth the live rate looks.
 ///
-/// Measured per configuration, with the stdin spin fixed:
+/// What is left to spend is mostly the menu bar readout: drawing it, and the
+/// WindowServer round trip that shows it. So the readout is not drawn at all while
+/// nobody can see it (`interfaceInterval(unattended:)`).
 ///
-/// | | `nettop` | interface sampler | flushes/s |
-/// |---|---|---|---|
-/// | `performance` | `-s 1` — 0.45% of a core | 0.5 s — 0.11% | ~2.5 |
-/// | `balanced` | `-s 3` — 0.20% | 1.0 s — 0.05% | ~0.8 |
+/// Measured for 1.7.0 with `-powerProfile`, two minutes each on an M1 MacBook
+/// Air with its own everyday background traffic, as shares of one core:
 ///
-/// At these magnitudes wakeups matter more than the percentages, which is what
-/// `balanced` mainly reduces.
+/// | | `nettop` | interface sampler | app | `nettop` | together |
+/// |---|---|---|---|---|---|
+/// | `performance` | `-s 1` | 0.5 s | 1.58% | 1.10% | 2.68% |
+/// | `balanced` | `-s 3` | 1 s | 0.83% | 0.36% | 1.19% |
+/// | `saver` | `-s 10` | 2 s | 0.43% | 0.10% | 0.53% |
+/// | `balanced`, nobody watching | `-s 3` | 10 s | 0.17% | 0.30% | 0.47% |
 public enum PowerProfile: String, CaseIterable {
     /// On wall power: the freshest possible numbers.
     case performance
     /// On battery: the same numbers, sampled less often.
     case balanced
+    /// In Low Power Mode, plugged in or not. Whoever turned it on has asked the
+    /// Mac to save energy, so the figures refresh every few seconds instead; the
+    /// totals are the same.
+    case saver
 
-    public static func forPowerSource(onACPower: Bool) -> PowerProfile {
-        onACPower ? .performance : .balanced
+    /// The launch argument that forces a profile, for measuring one without
+    /// unplugging: `open NetworkMonitor.app --args -powerProfile saver`.
+    public static let argumentKey = "powerProfile"
+
+    public static func forPowerSource(onACPower: Bool, lowPowerMode: Bool = false) -> PowerProfile {
+        if lowPowerMode { return .saver }
+        return onACPower ? .performance : .balanced
+    }
+
+    /// The profile in force: the one a `-powerProfile` launch argument names, or
+    /// else the one the power source and Low Power Mode call for.
+    ///
+    /// Only the launch arguments are read, never the stored defaults, so no
+    /// override can outlive the run that asked for it.
+    public static func current(
+        arguments: [String: Any] = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+    ) -> PowerProfile {
+        if let name = arguments[argumentKey] as? String, let forced = PowerProfile(rawValue: name) {
+            return forced
+        }
+        return forPowerSource(onACPower: PowerSource.isOnACPower,
+                              lowPowerMode: ProcessInfo.processInfo.isLowPowerModeEnabled)
     }
 
     /// How often to read the kernel interface counters, which drive the menu bar
     /// rate and the authoritative total.
     ///
-    /// Relaxed further while the display sleeps: totals must keep accumulating, but
-    /// nobody is reading a menu bar they cannot see.
-    public func interfaceInterval(displayAsleep: Bool) -> TimeInterval {
-        switch (self, displayAsleep) {
+    /// `unattended` means nobody can see the menu bar: the display is asleep, the
+    /// screen is locked, or another user's session is in front. The readout is not
+    /// drawn then, so the counters are only read to keep the totals and History
+    /// moving, and every few seconds does that exactly as well as every second.
+    public func interfaceInterval(unattended: Bool) -> TimeInterval {
+        switch (self, unattended) {
         case (.performance, false): return 0.5
-        case (.performance, true):  return 2.0
         case (.balanced, false):    return 1.0
-        case (.balanced, true):     return 3.0
+        case (.saver, false):       return 2.0
+        case (.performance, true):  return 5.0
+        case (.balanced, true):     return 10.0
+        case (.saver, true):        return 15.0
         }
     }
 
     /// `nettop -s`, in whole seconds — its minimum and its only unit.
     ///
-    /// Deliberately *not* varied with display sleep or popover visibility, unlike
-    /// the interface interval. Changing it means restarting `nettop`, whose first
-    /// sample is a cumulative baseline that has to be discarded, so every change
-    /// drops a sample's worth of attribution. Power transitions happen a few times
-    /// a day; screen sleeps and menu opens happen constantly.
+    /// Deliberately *not* varied while unattended or with popover visibility,
+    /// unlike the interface interval. Changing it means restarting `nettop`, whose
+    /// first sample is a cumulative baseline that has to be discarded, so every
+    /// change drops a sample's worth of attribution. Power transitions and Low Power
+    /// Mode change a few times a day; screens sleep and menus open constantly.
     public var nettopSampleInterval: Int {
         switch self {
         case .performance: return 1
         case .balanced:    return 3
+        case .saver:       return 10
         }
     }
 
