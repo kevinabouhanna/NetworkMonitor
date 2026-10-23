@@ -51,8 +51,6 @@ can't run `nettop`.
 - With a VPN, an app's traffic and the VPN's own encrypted connection can both appear as
   rows, so rows may add up to more than the total. The total itself is capped at the
   kernel's count, so it stays right.
-- If `/usr/bin/nettop` were missing, per-app rows would stop without a message. The total
-  and live speed don't depend on it.
 
 **Hotspot mode**
 

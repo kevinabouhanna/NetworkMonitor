@@ -34,7 +34,7 @@ public final class NettopStream {
         ]
     }
 
-    private let executable = "/usr/bin/nettop"
+    private let executable: String
     private let queue = DispatchQueue(label: "com.networkmonitor.nettop")
 
     private var process: Process?
@@ -76,7 +76,8 @@ public final class NettopStream {
     /// Called when the subprocess cannot be kept alive.
     public var onFailure: ((String) -> Void)?
 
-    public init(sampleInterval: Int = 1) {
+    public init(sampleInterval: Int = 1, executable: String = "/usr/bin/nettop") {
+        self.executable = executable
         self.sampleInterval = max(sampleInterval, 1)
     }
 
@@ -229,8 +230,11 @@ public final class NettopStream {
     /// to be explicit.
     private func spawn() {
         guard !stopping else { return }
+        // Retried like every other failure to launch, not given up on: a stream
+        // that never comes back would stop the app list for the rest of the run.
         guard FileManager.default.isExecutableFile(atPath: executable) else {
             onFailure?("nettop not found at \(executable)")
+            scheduleRestart()
             return
         }
 
