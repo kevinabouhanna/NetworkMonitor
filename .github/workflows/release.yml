@@ -78,15 +78,17 @@ jobs:
              and click **Open Anyway** next to NetworkMonitor. Confirm with your
              password.
 
-          That last step is needed once, because NetworkMonitor isn't signed with an
+          That last step is needed because NetworkMonitor isn't signed with an
           Apple Developer ID yet.
 
           ### Updating
 
           Download the disk image and drag NetworkMonitor into Applications again,
-          choosing **Replace**. Your settings and usage history stay. If you use
-          *Stop apps updating on hotspots* and this version needs a newer helper,
-          it asks for your password once, the first time it opens.
+          choosing **Replace**. Your settings and usage history stay. macOS checks
+          each new version afresh, so open it and approve it with **Open Anyway**
+          once more, as in step 3. If you use *Stop apps updating on hotspots* and
+          this version needs a newer helper, it asks for your password once, the
+          first time it opens.
 
           ---
           NOTE
