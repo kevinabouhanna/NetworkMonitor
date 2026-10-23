@@ -69,6 +69,26 @@ func runByteFormatTests() {
                 "0.00 B/s", "idle")
         }
 
+        // Precision is chosen from the value before it is rounded, so a value
+        // just under a threshold used to round up past it: 99.996 printed as
+        // "100.00" and 999.96 as "1000.0", six characters in a five-character
+        // field, and the status item widened for that tick (#26).
+        Check.test("menu bar rate keeps its width where rounding crosses a threshold") {
+            let expected = ByteFormat.menuBarNumberWidth + 1 + ByteFormat.menuBarUnitWidth
+            for value in [9.996, 99.996, 999.96, 1023.97] as [Double] {
+                for scale in [1, 1024, 1_048_576] as [Double] {
+                    let bytes = ByteFormat.menuBarRate(value * scale)
+                    Check.expectEqual(bytes.count, expected, "‘\(bytes)’ for \(value * scale) B/s")
+                }
+            }
+            for bits in [99.996e6, 999.96e6, 99.996e3, 999.96] as [Double] {
+                let rendered = ByteFormat.menuBarBitRate(bits)
+                Check.expectEqual(rendered.count, expected, "‘\(rendered)’ for \(bits) b/s")
+            }
+            Check.expectEqual(ByteFormat.menuBarRate(99.996 * 1024).trimmingCharacters(in: .whitespaces),
+                              "100.0 KB/s", "one decimal once it rounds to three digits")
+        }
+
         // `%.1f` must not follow the user's locale — a comma decimal separator
         // would look broken next to a byte unit.
         Check.test("decimal separator is always a dot") {
