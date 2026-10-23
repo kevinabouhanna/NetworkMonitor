@@ -7,6 +7,25 @@ Slack still messages, VS Code still edits. They just don't download new versions
 themselves while you're paying by the gigabyte. There's nothing to configure and no list
 to maintain. It's off until you turn it on.
 
+## When you turn it on
+
+Installing NetworkMonitor doesn't look at your other apps or change anything. Hotspot mode
+is off, and only the traffic counting runs. When you switch it on:
+
+1. **macOS asks for your password, once,** to install a small helper. It's optional; see
+   [what it pauses](#what-it-pauses) for what it adds.
+2. **NetworkMonitor looks inside the apps** in `/Applications` and `~/Applications` to see
+   how each one updates. It reads their files on your Mac; there's no list downloaded from
+   anywhere.
+3. **Settings › Hotspot shows two lists:**
+   - **Paused on a hotspot:** every app it can pause, each with a line saying how, and a
+     switch to leave it alone.
+   - **Can't be paused:** every app it can't, each with the reason.
+4. **Nothing changes until you join a hotspot.** Then everything on the first list is
+   paused, and it's all put back when you leave.
+
+The lists are made again each time you open the pane, so an app you install later shows up.
+
 ## What counts as a hotspot
 
 The first of these that applies decides. Every check is unprivileged, and **Settings ›
@@ -57,9 +76,13 @@ Cancel the password prompt and everything else still works. Settings shows an **
 button for when you change your mind. If a new version of NetworkMonitor needs a newer
 helper, it asks once more, the first time it opens.
 
-Each app has its own switch under **Apps paused**, if you want to leave one alone. An app
-that's running when its setting needs changing is marked *quit it to apply*, and the change
-is made as soon as it quits, because apps write their settings back when they quit.
+Each app has its own switch under **Paused on a hotspot**, if you want to leave one alone,
+and a line saying how it's paused, such as *Turns off its automatic update check* or
+*Blocks its update server*. What the helper pauses shares one switch, **Through
+NetworkMonitor's helper**, because the helper does it all at once; it lists only what's on
+your Mac. An app that's running when its setting needs changing is marked *quit it to
+apply*, and the change is made as soon as it quits, because apps write their settings back
+when they quit.
 
 ## Low Data Mode, for the apps no setting reaches
 
@@ -85,11 +108,19 @@ of it or not.
 
 ## What isn't covered, and what got through anyway
 
-**Not covered** in Settings lists the apps on *your* Mac that update themselves in a way
-NetworkMonitor can't switch off. They're found by how they update (an Electron updater, a
-sandboxed Sparkle app, an updater program of their own), not by a list of names, so the
-list matches what you actually have installed. Low Data Mode slows the ones that respect
-it; quitting them while you're on a hotspot is the only sure way.
+**Can't be paused** in Settings lists the apps on *your* Mac that update themselves in a
+way NetworkMonitor can't switch off, each with the reason:
+
+| The reason it gives | What's behind it |
+|---|---|
+| *Updates from inside the app, with no setting NetworkMonitor can turn off* | an Electron app's updater (Squirrel or electron-updater), which runs inside the app itself |
+| *Has its own updater, with no setting NetworkMonitor can turn off* | a separate updater program in the app, such as Opera's or Raycast's |
+| *macOS keeps its update setting where NetworkMonitor can't change it* | a sandboxed Sparkle app, whose settings live in its container |
+| *Paused once you allow the helper below* | an app the helper covers, such as Slack, before the helper is installed |
+
+They're found by how they update, not by a list of names, so the list matches what you
+actually have installed. Low Data Mode slows the ones that respect it; quitting them while
+you're on a hotspot is the only sure way.
 
 While you're on a metered connection, NetworkMonitor also notices **updates that download
 anyway**: a file over 1 MB appearing where Electron and Sparkle apps stage their downloads,

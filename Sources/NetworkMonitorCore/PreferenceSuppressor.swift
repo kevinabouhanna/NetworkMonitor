@@ -33,6 +33,8 @@ public final class PreferenceSuppressor: UpdateSuppressor {
         public var key: String
         public var suppressedValue: SuppressedValue
         public var mechanism: String
+        /// What pausing it does, in plain words. See `CoveredItem.effect`.
+        public var effect: String
         /// The apps this target stops updating. See `CoveredItem.bundleIdentifiers`.
         public var bundleIdentifiers: [String] = []
 
@@ -65,6 +67,7 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                                 key: sparkleKey,
                                 suppressedValue: .bool(false),
                                 mechanism: "Sparkle",
+                                effect: "Turns off its automatic update check",
                                 bundleIdentifiers: [identifier]))
         }
 
@@ -78,6 +81,7 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                                 key: "DisableUpdater",
                                 suppressedValue: .bool(true),
                                 mechanism: "Figma",
+                                effect: "Turns off its updater",
                                 bundleIdentifiers: ["com.figma.Desktop"]))
         }
 
@@ -95,6 +99,7 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                                 key: "checkInterval",
                                 suppressedValue: .int(0),
                                 mechanism: "Keystone",
+                                effect: "Tells Google's updater not to check",
                                 bundleIdentifiers: ["com.google.Chrome"]))
         }
 
@@ -104,6 +109,7 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                                 key: "HowToCheck",
                                 suppressedValue: .string("Manual"),
                                 mechanism: "Microsoft AutoUpdate",
+                                effect: "Sets Microsoft's apps to update only when you ask",
                                 bundleIdentifiers: mauRegisteredApps()))
         }
 
@@ -115,6 +121,7 @@ public final class PreferenceSuppressor: UpdateSuppressor {
             CoveredItem(id: $0.id,
                         displayName: $0.displayName,
                         mechanism: $0.mechanism,
+                        effect: $0.effect,
                         isDeferred: isRunning(domain: $0.domain),
                         bundleIdentifiers: $0.bundleIdentifiers)
         }

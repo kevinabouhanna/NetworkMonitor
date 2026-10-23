@@ -61,6 +61,7 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-23 | Every change goes issue → pull request → release (#9) | A written workflow every contributor follows |
 | 2026-10-23 | **Settings as toolbar panes**, following Apple's guidelines; Usage History moves in (#11) | One long, cramped column; features hidden behind unlabelled icons |
 | 2026-10-23 | **Battery**: nothing drawn while nobody can see the menu bar; a Low Power Mode profile (#22, #1) | What remained after the `nettop` fix was drawing the readout: 1.19% of a core on battery, now 0.47% with the screen off and 0.53% in Low Power Mode |
+| 2026-10-23 | Hotspot lists say how each app is paused, or why it can't be, in plain words (#40) | "Apps paused" read as happening already, and "electron-updater" or "Sparkle, sandboxed" explained nothing to someone new |
 
 ## Approaches turned down
 

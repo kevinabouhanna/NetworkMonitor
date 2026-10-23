@@ -14,7 +14,7 @@ import Foundation
 /// and C need no privileges at all — it simply does not cover the largest item.
 public final class PrivilegedSuppressor: UpdateSuppressor {
 
-    public let name = "macOS and in-app updaters"
+    public let name = "Through NetworkMonitor's helper"
 
     public static let helperPath =
         "/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper"
@@ -43,27 +43,69 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
         FileManager.default.fileExists(atPath: daemonPath)
     }
 
+    /// One thing the helper pauses, for display only.
+    public struct CoveredApplication: Equatable {
+        public var app: String
+        public var mechanism: String
+        /// What pausing it does, in plain words. See `CoveredItem.effect`.
+        public var effect: String
+        /// What `UpdaterScan` matches installed apps against, and how Settings
+        /// tells whether the app is here at all.
+        public var bundleID: String?
+        /// Part of macOS rather than an app, so always present.
+        public var isSystem = false
+    }
+
     /// Mirrors the helper's compiled-in list, for display only. The helper does
     /// not take this as input — it cannot be told to block anything else.
     ///
-    /// `bundleID` is what `UpdaterScan` matches installed apps against. Canva's
-    /// is left nil — it is not installed on the development machine to read it
-    /// from, and a guessed identifier would make the scan claim coverage on a
-    /// guess — so Canva is matched by its name instead.
-    public static let coveredApplications: [(app: String, mechanism: String, bundleID: String?)] = [
-        (app: "macOS software updates", mechanism: "System setting", bundleID: nil),
-        (app: "App Store updates", mechanism: "System setting", bundleID: nil),
-        (app: "Claude", mechanism: "Managed policy",
-         bundleID: "com.anthropic.claudefordesktop"),
-        (app: "Slack", mechanism: "Managed policy", bundleID: "com.tinyspeck.slackmacgap"),
-        (app: "Canva", mechanism: "Update endpoint", bundleID: nil),
+    /// Canva's `bundleID` is left nil — it is not installed on the development
+    /// machine to read it from, and a guessed identifier would make the scan
+    /// claim coverage on a guess — so Canva is matched by its name instead.
+    public static let coveredApplications: [CoveredApplication] = [
+        CoveredApplication(app: "macOS updates", mechanism: "System setting",
+                           effect: "Turns off automatic downloads and installs",
+                           isSystem: true),
+        CoveredApplication(app: "App Store apps", mechanism: "System setting",
+                           effect: "Turns off automatic updates", isSystem: true),
+        CoveredApplication(app: "Claude", mechanism: "Managed policy",
+                           effect: "Turns off updates with the setting IT departments use",
+                           bundleID: "com.anthropic.claudefordesktop"),
+        CoveredApplication(app: "Slack", mechanism: "Managed policy",
+                           effect: "Turns off updates with the setting IT departments use",
+                           bundleID: "com.tinyspeck.slackmacgap"),
+        CoveredApplication(app: "Canva", mechanism: "Update endpoint",
+                           effect: "Blocks its update server"),
         // Figma is covered twice over: its own `DisableUpdater` preference is the
         // primary lever, but that write is deferred while Figma is running — which
         // it usually is — so the helper also blocks its update endpoint. Listed
         // here because that second mechanism edits /etc/hosts, and this list is
         // what the settings pane reports.
-        (app: "Figma", mechanism: "Update endpoint", bundleID: "com.figma.Desktop"),
+        CoveredApplication(app: "Figma", mechanism: "Update endpoint",
+                           effect: "Blocks its update server",
+                           bundleID: "com.figma.Desktop"),
     ]
+
+    /// The entries that apply to this Mac: macOS itself, and the apps that are
+    /// installed. The helper pauses all of them regardless; this only keeps
+    /// Settings from listing Slack as paused on a Mac without Slack.
+    public static func presentApplications(
+        isInstalled: (CoveredApplication) -> Bool = PrivilegedSuppressor.isPresent
+    ) -> [CoveredApplication] {
+        coveredApplications.filter { $0.isSystem || isInstalled($0) }
+    }
+
+    /// By bundle identifier when there is one, otherwise by name in the two
+    /// places apps are installed.
+    public static func isPresent(_ entry: CoveredApplication) -> Bool {
+        if let identifier = entry.bundleID {
+            return ApplicationSearch.isInstalled(bundleIdentifier: identifier)
+        }
+        return ApplicationSearch.directories.contains {
+            FileManager.default.fileExists(
+                atPath: $0.appendingPathComponent("\(entry.app).app").path)
+        }
+    }
 
     public init() {}
 
@@ -89,10 +131,11 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
 
     public func discover() -> [CoveredItem] {
         guard Self.isInstalled else { return [] }
-        return Self.coveredApplications.map {
+        return Self.presentApplications().map {
             CoveredItem(id: Self.tierID,
                         displayName: $0.app,
                         mechanism: $0.mechanism,
+                        effect: $0.effect,
                         bundleIdentifiers: $0.bundleID.map { [$0] } ?? [])
         }
     }

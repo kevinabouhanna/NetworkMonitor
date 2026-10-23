@@ -30,6 +30,20 @@ public enum UpdaterScan {
         case electronUpdater = "electron-updater"
         case sparkle = "Sparkle"
         case ownUpdater = "its own updater"
+
+        /// Why an app that updates this way can't be paused, in plain words,
+        /// for Settings. The raw value stays the technical name, for the
+        /// diagnostic report.
+        public var whyNotPaused: String {
+            switch self {
+            case .squirrel, .electronUpdater:
+                return "Updates from inside the app, with no setting NetworkMonitor can turn off"
+            case .sparkle:
+                return "macOS keeps its update setting where NetworkMonitor can't change it"
+            case .ownUpdater:
+                return "Has its own updater, with no setting NetworkMonitor can turn off"
+            }
+        }
     }
 
     public struct Finding: Equatable, Identifiable {

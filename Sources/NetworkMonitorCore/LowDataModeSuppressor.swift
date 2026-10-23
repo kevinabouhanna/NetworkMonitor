@@ -152,7 +152,8 @@ public final class LowDataModeSuppressor: UpdateSuppressor {
         guard availability == .available else { return [] }
         return [CoveredItem(id: Self.itemID,
                             displayName: name,
-                            mechanism: "System setting")]
+                            mechanism: "System setting",
+                            effect: "Holds back iCloud and other background downloads")]
     }
 
     @discardableResult

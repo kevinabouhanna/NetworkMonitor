@@ -270,24 +270,29 @@ struct HotspotSettingsPane: View {
                     } label: {
                         Text(coverageSummary).togglesDisclosure($state.appsExpanded)
                     }
+                } footer: {
+                    // Where the list comes from and when it acts, said under it
+                    // because both are the first things someone new asks.
+                    SettingsFootnote("Found by looking inside the apps on this Mac. They're "
+                                     + "paused only while you're on a hotspot, and put back "
+                                     + "when you leave.")
                 }
 
                 // The other half of the honesty the list above owes: what it does
                 // not reach on this Mac, found by how each app updates rather than
-                // by a list of names.
+                // by a list of names, each with the reason.
                 if !state.uncovered.isEmpty {
                     Section {
                         DisclosureGroup(isExpanded: $state.uncoveredExpanded) {
                             ForEach(state.uncovered) { uncoveredRow($0) }
                         } label: {
-                            Text("Not covered (\(state.uncovered.count))")
+                            Text("Can't be paused (\(state.uncovered.count))")
                                 .togglesDisclosure($state.uncoveredExpanded)
                         }
                     } footer: {
-                        SettingsFootnote("These update themselves in a way NetworkMonitor can't "
-                                         + "switch off. Low Data Mode slows the ones that respect "
-                                         + "it; quitting them while you're on a hotspot is the only "
-                                         + "sure way.")
+                        SettingsFootnote("Quit these while you're on a hotspot to be sure they "
+                                         + "don't update. Low Data Mode slows the ones that "
+                                         + "respect it.")
                     }
                 }
 
@@ -387,7 +392,7 @@ struct HotspotSettingsPane: View {
         switch outcome {
         case .done:
             state.helperMessage = nil
-            // The helper adds rows: macOS, Claude, Slack, Canva.
+            // The helper adds a row: macOS, the App Store, and the apps it reaches.
             state.coveredItems = metering.toggleItems()
             state.uncovered = metering.uncoveredUpdaters()
         case .cancelled:
@@ -427,31 +432,39 @@ struct HotspotSettingsPane: View {
         }
     }
 
-    // MARK: Not covered
+    // MARK: Can't be paused
 
     private func uncoveredRow(_ finding: UpdaterScan.Finding) -> some View {
-        LabeledContent(finding.displayName) {
-            Text(uncoveredDetail(finding)).foregroundStyle(.secondary)
+        // Full width, or each row centres itself on its own text's width.
+        VStack(alignment: .leading, spacing: 1) {
+            Text(finding.displayName)
+            SettingsRowDetail(uncoveredReason(finding))
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 2)
     }
 
-    /// How it updates, or — for an app only the helper reaches — what would
-    /// cover it, which is the more useful thing to know.
-    private func uncoveredDetail(_ finding: UpdaterScan.Finding) -> String {
+    /// Why it can't be paused, or — for an app only the helper reaches — what
+    /// would pause it, which is the more useful thing to know.
+    private func uncoveredReason(_ finding: UpdaterScan.Finding) -> String {
         let helperWouldCover = PrivilegedSuppressor.coveredApplications.contains {
             ($0.bundleID != nil && $0.bundleID == finding.bundleIdentifier)
                 || $0.app == finding.displayName
         }
-        if helperWouldCover && !metering.helperInstalled { return "needs your permission" }
-        if finding.mechanism == .sparkle { return "Sparkle, sandboxed" }
-        return finding.mechanism.rawValue
+        if helperWouldCover && !metering.helperInstalled {
+            return "Paused once you allow the helper below"
+        }
+        return finding.mechanism.whyNotPaused
     }
 
-    /// "Apps paused (7)" when everything is on, "(6 of 7)" once one is switched off.
+    /// "Paused on a hotspot (7)" when everything is on, "(6 of 7)" once one is
+    /// switched off. Named for when, because "Apps paused" read as happening
+    /// already, on home Wi-Fi too.
     private var coverageSummary: String {
         let total = state.coveredItems.count
         let on = state.coveredItems.filter { metering.isSuppressionEnabled(for: $0.id) }.count
-        return on == total ? "Apps paused (\(total))" : "Apps paused (\(on) of \(total))"
+        return on == total ? "Paused on a hotspot (\(total))"
+                           : "Paused on a hotspot (\(on) of \(total))"
     }
 
     /// One row of the list.
@@ -472,13 +485,21 @@ struct HotspotSettingsPane: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                // Only for a row standing in for a whole tier, where the label
-                // alone would not say what is covered.
                 if item.isGroup {
-                    Text(item.detail)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // A row standing in for a whole tier: each app it covers,
+                    // with what pausing it does, since one switch moves them all.
+                    Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 2) {
+                        ForEach(item.members) { member in
+                            GridRow {
+                                Text(member.name)
+                                    .font(.system(size: 11))
+                                SettingsRowDetail(member.effect)
+                            }
+                        }
+                    }
+                    .padding(.top, 2)
+                } else {
+                    SettingsRowDetail(item.effect)
                 }
             }
         }
@@ -555,6 +576,20 @@ struct AboutSettingsPane: View {
 }
 
 // MARK: - Shared
+
+/// The plain-words line under a row's name: how an app is paused, or why it
+/// can't be.
+struct SettingsRowDetail: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
 
 /// The line of explanation under a section, as System Settings sets it.
 struct SettingsFootnote: View {

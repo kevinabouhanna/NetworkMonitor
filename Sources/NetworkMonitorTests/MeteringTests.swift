@@ -400,7 +400,8 @@ final class FakeSuppressor: UpdateSuppressor {
     var lastExcluded: Set<String> = []
 
     func discover() -> [CoveredItem] {
-        [CoveredItem(id: "fake/thing", displayName: "Thing", mechanism: "Fake")]
+        [CoveredItem(id: "fake/thing", displayName: "Thing", mechanism: "Fake",
+                     effect: "Turns off its fake updater")]
     }
 
     func apply(journal: SuppressionJournal, excluding: Set<String>) -> SuppressionResult {
@@ -417,6 +418,24 @@ final class FakeSuppressor: UpdateSuppressor {
         revertCount += 1
         calls.append("revert")
     }
+}
+
+/// Two apps behind one id, the shape of the helper's tier: one switch for both.
+final class FakeTierSuppressor: UpdateSuppressor {
+    let name = "Fake tier"
+
+    func discover() -> [CoveredItem] {
+        [CoveredItem(id: "tier/all", displayName: "macOS updates", mechanism: "System setting",
+                     effect: "Turns off automatic downloads and installs"),
+         CoveredItem(id: "tier/all", displayName: "Slack", mechanism: "Managed policy",
+                     effect: "Turns off updates with the setting IT departments use")]
+    }
+
+    func apply(journal: SuppressionJournal, excluding: Set<String>) -> SuppressionResult {
+        SuppressionResult()
+    }
+
+    func revert(journal: SuppressionJournal) {}
 }
 
 func runMeteringControllerTests() {
@@ -466,6 +485,51 @@ func runMeteringControllerTests() {
                                            isConstrained: false,
                                            gatewayIP: "192.168.1.1",
                                            interfaceDisplayName: "Wi-Fi")
+
+        Check.test("each row in the list says what pausing it does") {
+            let (controller, _, urls) = makeController(enabled: true, fingerprint: hotspot)
+            defer { urls.forEach { try? FileManager.default.removeItem(at: $0) } }
+            let rows = controller.toggleItems()
+            Check.expectEqual(rows.map(\.label), ["Thing"])
+            Check.expectEqual(rows.first?.effect, "Turns off its fake updater")
+            Check.expectFalse(rows.first?.isGroup ?? true)
+        }
+
+        Check.test("a tier that switches as one is one row, listing each app it pauses") {
+            let journalURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("journal-\(UUID().uuidString).json")
+            let storeURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("usage-\(UUID().uuidString).json")
+            defer { [journalURL, storeURL].forEach { try? FileManager.default.removeItem(at: $0) } }
+            let controller = MeteringController(
+                store: UsageStore(storeURL: storeURL),
+                journal: SuppressionJournal(url: journalURL),
+                suppressors: [FakeTierSuppressor()],
+                defaults: UserDefaults(suiteName: "netmon.tests.\(UUID().uuidString)")!)
+
+            let rows = controller.toggleItems()
+            Check.expectEqual(rows.count, 1)
+            Check.expectEqual(rows.first?.label, "Fake tier")
+            Check.expectTrue(rows.first?.isGroup ?? false)
+            Check.expectEqual(rows.first?.members.map(\.name) ?? [], ["macOS updates", "Slack"])
+            Check.expectEqual(rows.first?.members.map(\.effect) ?? [],
+                              ["Turns off automatic downloads and installs",
+                               "Turns off updates with the setting IT departments use"])
+        }
+
+        // The helper pauses everything it knows; Settings should only name
+        // what is on this Mac, or it reads as Slack being paused on a Mac
+        // without Slack.
+        Check.test("the helper's row lists macOS, and only the apps that are here") {
+            let none = PrivilegedSuppressor.presentApplications { _ in false }
+            Check.expectEqual(none.map(\.app), ["macOS updates", "App Store apps"])
+
+            let all = PrivilegedSuppressor.presentApplications { _ in true }
+            Check.expectEqual(all.count, PrivilegedSuppressor.coveredApplications.count)
+            for entry in all {
+                Check.expectFalse(entry.effect.isEmpty, entry.app)
+            }
+        }
 
         Check.test("a metered network with the setting on suppresses") {
             let (controller, fake, urls) = makeController(enabled: true, fingerprint: hotspot)
