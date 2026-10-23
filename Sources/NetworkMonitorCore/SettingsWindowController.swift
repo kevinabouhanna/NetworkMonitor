@@ -91,9 +91,11 @@ public final class SettingsWindowController: NSObject {
             item.image = NSImage(systemSymbolName: pane.symbol, accessibilityDescription: pane.title)
             tabs.addTabViewItem(item)
         }
-        tabs.onSelect = { [weak self] pane in self?.didSelect(pane) }
-
         window.contentViewController = tabs
+        // Only once the tabs are in the window: loading them selects the first
+        // pane by itself, and that is not a choice to remember. Heard earlier, it
+        // overwrote the last pane, so Settings opened on General after a relaunch.
+        tabs.onSelect = { [weak self] pane in self?.didSelect(pane) }
         window.toolbarStyle = .preference
         window.isReleasedWhenClosed = false
         window.toolbar?.allowsUserCustomization = false
