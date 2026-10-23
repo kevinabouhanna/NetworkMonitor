@@ -101,10 +101,16 @@ replacing the old copy. Your settings and usage history stay.
 **Right-click** it to test your internet speed, for Usage History, for Settings,
 to uninstall, and for Quit.
 
-The **chart icon** in the popover opens Usage History. The **gear icon** opens
-Settings, which holds start-at-login, whether speeds show in MB/s or Mbps,
-hotspot metering, the speed test's menu bar option, the counting-since time and
-Reset Now.
+The **gear icon** opens Settings, where everything else lives, one pane each:
+
+- **General**: start at login, whether speeds show in MB/s or Mbps, and the
+  popover's totals (counting since, Reset Now).
+- **Speed Test**: run a test right there, and choose how the popover shows one.
+- **History**: Usage History. The popover's **chart icon** opens it directly.
+- **Hotspot**: stopping apps updating on hotspots, and what that covers.
+- **About**: the version, links, and Uninstall.
+
+Settings reopens on the pane you last used. ⌘, opens it while it is in front.
 
 Quitting and start-at-login are deliberately independent: quitting ends the app for
 the rest of the session without turning the setting off, and turning the setting off
@@ -117,8 +123,8 @@ doesn't quit the running app.
        alt="The popover after a speed test: 8.39 Mbps down and 19.1 Mbps up over Wi-Fi, using 55.0 MB; ping 43.5 ms, jitter 2.2 ms, ping while downloading 44.9 ms and while uploading 44.4 ms.">
 </p>
 
-Click the **gauge** in the popover, or choose **Test Internet Speed** from the
-right-click menu. NetworkMonitor runs `networkQuality`, the speed test Apple ships
+Click the **gauge** in the popover, choose **Test Internet Speed** from the
+right-click menu, or open **Settings › Speed Test**. NetworkMonitor runs `networkQuality`, the speed test Apple ships
 with every Mac, against Apple's nearest servers:
 
 - **Download, then upload**, one after the other as other speed tests do, with the
@@ -151,7 +157,8 @@ those bytes really crossed the connection.
 
 The popover's total starts over whenever you join a different network, and at
 midnight. Usage History is where those totals go: click the **chart icon** in the
-popover, or choose **Usage History…** from the right-click menu.
+popover, choose **Usage History…** from the right-click menu, or open
+**Settings › History**.
 
 - **Day, Week, Month or Year**, with ‹ and › to step back through them. Days are
   split into hours, weeks and months into days, a year into months. Click a bar
@@ -300,7 +307,8 @@ completed. **The big total is the one to trust.**
 ## Uninstall
 
 
-Right-click the menu bar item and choose **Uninstall NetworkMonitor…**.
+Right-click the menu bar item and choose **Uninstall NetworkMonitor…**, or open
+**Settings › About** and click **Uninstall…**.
 
 It puts back every setting hotspot metering changed *before* it removes anything,
 removes the helper (macOS asks for your password if the helper is installed),

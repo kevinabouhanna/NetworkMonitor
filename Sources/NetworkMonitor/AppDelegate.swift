@@ -13,9 +13,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Pointer watchers that exist only while a revealed menu bar holds focus
     /// the popover had. See `restoreFocusWhenMenuBarHides()`.
     private var menuBarMonitors: [Any] = []
-    private var settingsWindow: NSWindow?
-    private var historyWindow: NSWindow?
-    private lazy var historyModel = HistoryViewModel(monitor: model)
+    /// Settings: toolbar panes for General, Speed Test, History, Hotspot and
+    /// About. Created on first use.
+    private lazy var settings: SettingsWindowController = {
+        let controller = SettingsWindowController(
+            model: model, history: HistoryViewModel(monitor: model),
+            onUninstall: { [weak self] in self?.uninstall() })
+        controller.window.delegate = self
+        return controller
+    }()
     /// Invisible stand-in for the status item that the popover anchors to.
     /// See `anchorView(under:)`.
     private var anchorWindow: NSWindow?
@@ -452,54 +458,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
     // MARK: Settings window
 
+    /// Settings, on the pane last viewed — the HIG's "restore the most
+    /// recently viewed pane".
     @objc private func showSettings() {
-        if popover.isShown { closePopover() }
-
-        if settingsWindow == nil {
-            let window = NSWindow(
-                contentRect: .zero,
-                styleMask: [.titled, .closable],
-                backing: .buffered,
-                defer: false)
-            window.title = "NetworkMonitor Settings"
-            window.contentViewController = NSHostingController(
-                rootView: SettingsView(model: model))
-            window.isReleasedWhenClosed = false
-            window.delegate = self
-            settingsWindow = window
-        }
-
-        if let window = settingsWindow { present(window) }
+        show(pane: nil)
     }
 
+    /// Settings, on History: from the popover's chart button, Usage History… in
+    /// the right-click menu, and ⌘Y while a window is open.
     @objc private func showHistory() {
-        if popover.isShown { closePopover() }
+        show(pane: .history)
+    }
 
-        if historyWindow == nil {
-            let window = NSWindow(
-                contentRect: .zero,
-                styleMask: [.titled, .closable, .miniaturizable],
-                backing: .buffered,
-                defer: false)
-            window.title = "Usage History"
-            window.contentViewController = NSHostingController(
-                rootView: HistoryView(model: historyModel))
-            window.isReleasedWhenClosed = false
-            window.delegate = self
-            historyWindow = window
-        }
+    private func show(pane: SettingsPane?) {
+        if popover.isShown { closePopover() }
+        let wasVisible = settings.isVisible
+        settings.select(pane)
+        // Sized to the pane before it is placed, so it is centred at its real size.
+        settings.fitSelectedPane()
         // Not re-centred if it is already up: it may have been moved, and the
-        // request is only to bring it forward.
-        let wasVisible = historyWindow?.isVisible == true
-        if !wasVisible { historyModel.windowDidOpen() }
-        guard let window = historyWindow else { return }
-        present(window, reposition: !wasVisible)
-        // Opens with nothing focused, for the reason the popover does: the
-        // window would otherwise hand first responder to the Day/Week picker,
-        // which then wears a focus ring nobody asked for. Tab still reaches it.
-        // Deferred, since SwiftUI assigns focus after the window is shown.
+        // request is only to bring it forward or change pane.
+        present(settings.window, reposition: !wasVisible)
+        settings.windowDidShow()
+        // Opens with nothing focused, for the reason the popover does: the window
+        // would otherwise hand first responder to its first control, which then
+        // wears a focus ring nobody asked for. Tab still reaches it. Deferred,
+        // since SwiftUI assigns focus after the window is shown.
         if !wasVisible {
-            DispatchQueue.main.async { window.makeFirstResponder(nil) }
+            DispatchQueue.main.async { [weak self] in self?.settings.window.makeFirstResponder(nil) }
         }
     }
 
@@ -534,15 +520,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// back to whichever app had it before, unprompted — measured, also on
     /// macOS 27.
     func windowWillClose(_ notification: Notification) {
-        guard let closing = notification.object as? NSWindow,
-              closing === settingsWindow || closing === historyWindow
-        else { return }
-        if closing === historyWindow { historyModel.windowDidClose() }
-        let anotherOpen = [settingsWindow, historyWindow].contains {
-            guard let window = $0 else { return false }
-            return window !== closing && window.isVisible
-        }
-        guard !anotherOpen else { return }
+        guard notification.object as? NSWindow === settings.window else { return }
+        settings.windowWillClose()
         NSApp.setActivationPolicy(.accessory)
         NSApp.mainMenu = nil
     }
@@ -602,13 +581,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// whenever the menu bar appears. The top edge is therefore clamped to exactly
     /// one menu bar height below the top of the screen.
     private func position(_ window: NSWindow) {
-        // SwiftUI sizing is not final until the content has laid out; positioning
-        // before that would centre a stale frame.
-        if let content = window.contentViewController?.view {
-            content.layoutSubtreeIfNeeded()
-            window.setContentSize(content.fittingSize)
-        }
-
+        // Sizing is the settings controller's job (`fitSelectedPane`), done before
+        // this runs, so the frame centred here is already the pane's.
         guard let screen = window.screen ?? NSScreen.main else { return }
 
         var frame = window.frame
