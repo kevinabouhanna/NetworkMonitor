@@ -78,6 +78,29 @@ func runPopoverMetricsTests() {
             }
         }
 
+        /// The compact speed test shares the popover with the list, which gives
+        /// up the strip's height, so the tallest popover is the same either way.
+        Check.test("with the compact speed test shown, a long list makes room for it") {
+            let cap = PopoverMetrics.maxListHeight - PopoverMetrics.speedStripHeight - 1
+            Check.expectEqual(PopoverMetrics.listHeight(appRows: 500, expandedChildRows: 0,
+                                                        systemRowCount: 0, systemExpanded: false,
+                                                        cap: cap) + PopoverMetrics.speedStripHeight + 1,
+                              PopoverMetrics.maxListHeight)
+            // A short list is not shrunk: the cap only binds when there is more.
+            Check.expectEqual(PopoverMetrics.listHeight(appRows: 2, expandedChildRows: 0,
+                                                        systemRowCount: 0, systemExpanded: false,
+                                                        cap: cap),
+                              PopoverMetrics.listHeight(appRows: 2, expandedChildRows: 0,
+                                                        systemRowCount: 0, systemExpanded: false))
+            let fits = Int((cap - padding) / PopoverMetrics.rowHeight)
+            Check.expectTrue(PopoverMetrics.scrolls(appRows: fits + 1, expandedChildRows: 0,
+                                                    systemRowCount: 0, systemExpanded: false,
+                                                    cap: cap))
+            Check.expectFalse(PopoverMetrics.scrolls(appRows: fits, expandedChildRows: 0,
+                                                     systemRowCount: 0, systemExpanded: false,
+                                                     cap: cap))
+        }
+
         /// The boundary an off-by-one would cross, derived from the cap rather
         /// than written out, so moving the cap does not silently make this pass
         /// for the wrong reason.

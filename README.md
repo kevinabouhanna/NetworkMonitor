@@ -132,10 +132,15 @@ with every Mac, against Apple's nearest servers:
 - **Mbps or MB/s**, one choice in Settings that the menu bar's live speed
   follows too. Mbps matches how your plan is sold; MB/s matches the data totals.
 - **In the menu bar too.** While it runs, the readout shows the test in cyan, then
-  holds the result for a few seconds before the live rates return.
+  holds the result for a few seconds before the live rates return. Start it from
+  the right-click menu and that's where you watch it.
+- **Card or compact**, chosen in Settings. The card takes the app list's place with
+  a dial and every figure; compact shows the test as two lines above your apps,
+  with ping and jitter beneath them, and keeps the list in view.
 
-**Back to Apps** leaves the test running and brings the list back; the gauge shows
-the live reading, and clicking it returns to the test. **Stop** is what stops it.
+On the card, **Back to Apps** leaves the test running and brings the list back; the
+gauge shows the live reading, and clicking it returns to the test. **Stop** is what
+stops it.
 
 A test uses data — typically 50–500 MB, more on a very fast line — so on a metered
 connection it asks first and shows what the last test there cost. Its traffic shows

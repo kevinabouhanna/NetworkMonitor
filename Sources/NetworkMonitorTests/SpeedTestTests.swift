@@ -589,20 +589,33 @@ private func runSpeedTestControllerTests() {
             Check.expectEqual(speedTest.phase, .failed("The network changed during the test"))
         }
 
+        // Always, whichever style the popover uses: a run started from the
+        // right-click menu has no popover to be watched in.
         Check.test("the menu bar shows the run, holds the result, then lets go") {
-            let speedTest = controller()
-            speedTest.showsInMenuBar = true
-            speedTest.run()
-            Check.expectTrue(speedTest.isShowingInMenuBar, "not shown while running")
-            _ = waitFor { speedTest.lastResult != nil }
-            Check.expectEqual(speedTest.menuBarReading?.down ?? 0, 12e6, accuracy: 1)
-            speedTest.dismiss()
-            Check.expectFalse(speedTest.isShowingInMenuBar, "still shown after dismissal")
+            for style in SpeedTestStyle.allCases {
+                let speedTest = controller()
+                speedTest.style = style
+                speedTest.run()
+                Check.expectTrue(speedTest.isShowingInMenuBar, "\(style): not shown while running")
+                _ = waitFor { speedTest.lastResult != nil }
+                Check.expectEqual(speedTest.menuBarReading?.down ?? 0, 12e6, accuracy: 1)
+                speedTest.dismiss()
+                Check.expectFalse(speedTest.isShowingInMenuBar, "\(style): still shown after dismissal")
+            }
+        }
 
-            speedTest.showsInMenuBar = false
-            speedTest.run()
-            Check.expectFalse(speedTest.isShowingInMenuBar, "shown with the setting off")
-            speedTest.dismiss()
+        Check.test("the card is the default style, and a choice of compact is kept") {
+            let suite = UserDefaults(suiteName: "speedstyle-\(UUID().uuidString)")!
+            suite.set(false, forKey: "speedTestInMenuBar")
+            let first = SpeedTestController(runner: SpeedTestRunner(executable: script.path),
+                                            defaults: suite)
+            Check.expectEqual(first.style, .card)
+            Check.expectNil(suite.object(forKey: "speedTestInMenuBar"),
+                            "the retired menu bar switch should be cleared on launch")
+            first.style = .compact
+            let second = SpeedTestController(runner: SpeedTestRunner(executable: script.path),
+                                             defaults: suite)
+            Check.expectEqual(second.style, .compact)
         }
 
         try? FileManager.default.removeItem(at: script.deletingLastPathComponent())

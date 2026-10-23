@@ -40,7 +40,19 @@ public struct MenuBarPopoverView: View {
     }
 
     private var showsCard: Bool {
-        speedTest.phase != .idle && speedTest.isPresented
+        speedTest.phase != .idle && speedTest.isPresented && speedTest.style == .card
+    }
+
+    /// The compact style: the test above the list rather than instead of it.
+    private var showsStrip: Bool {
+        speedTest.phase != .idle && speedTest.isPresented && speedTest.style == .compact
+    }
+
+    /// The list gives up the strip's height while it is shown, so the popover's
+    /// tallest size is the same with a test on screen as without.
+    private var listCap: CGFloat {
+        showsStrip ? PopoverMetrics.maxListHeight - PopoverMetrics.speedStripHeight - 1
+                   : PopoverMetrics.maxListHeight
     }
 
     /// Height the list wants for the rows currently on screen, capped.
@@ -60,7 +72,8 @@ public struct MenuBarPopoverView: View {
         PopoverMetrics.listHeight(appRows: model.rows.count,
                                   expandedChildRows: expandedChildRows,
                                   systemRowCount: model.systemRows.count,
-                                  systemExpanded: model.systemExpanded)
+                                  systemExpanded: model.systemExpanded,
+                                  cap: listCap)
     }
 
     /// True only when there are genuinely more rows than fit.
@@ -68,7 +81,8 @@ public struct MenuBarPopoverView: View {
         PopoverMetrics.scrolls(appRows: model.rows.count,
                                expandedChildRows: expandedChildRows,
                                systemRowCount: model.systemRows.count,
-                               systemExpanded: model.systemExpanded)
+                               systemExpanded: model.systemExpanded,
+                               cap: listCap)
     }
 
     /// What the reorder animation watches: the order itself, nothing else.
@@ -94,10 +108,16 @@ public struct MenuBarPopoverView: View {
             Divider()
             if showsCard {
                 SpeedTestCard(speedTest: speedTest)
-            } else if model.rows.isEmpty && model.systemRows.isEmpty {
-                emptyState
             } else {
-                list
+                if showsStrip {
+                    SpeedTestStrip(speedTest: speedTest)
+                    Divider()
+                }
+                if model.rows.isEmpty && model.systemRows.isEmpty {
+                    emptyState
+                } else {
+                    list
+                }
             }
         }
         .frame(width: 320)
@@ -402,6 +422,9 @@ public enum PopoverMetrics {
     /// The speed test card, which stands in for the list while it is shown.
     public static let speedCardHeight: CGFloat = 344
 
+    /// The compact speed test, which sits above the list, in every phase.
+    public static let speedStripHeight: CGFloat = 76
+
     /// Height the rows actually occupy, uncapped. Calibrated against SwiftUI's
     /// layout — see `runPopoverMetricsTests`.
     public static func contentHeight(appRows: Int,
@@ -417,14 +440,17 @@ public enum PopoverMetrics {
     }
 
     /// Height to give the list's frame: its content plus slack, up to the cap.
+    /// `cap` is `maxListHeight` unless something else shares the popover with
+    /// the list, as the compact speed test does.
     public static func listHeight(appRows: Int,
                                  expandedChildRows: Int,
                                  systemRowCount: Int,
-                                 systemExpanded: Bool) -> CGFloat {
+                                 systemExpanded: Bool,
+                                 cap: CGFloat = maxListHeight) -> CGFloat {
         let content = contentHeight(appRows: appRows, expandedChildRows: expandedChildRows,
                                     systemRowCount: systemRowCount,
                                     systemExpanded: systemExpanded)
-        return min(content + fitSlack, maxListHeight)
+        return min(content + fitSlack, cap)
     }
 
     /// Whether the list genuinely has more rows than fit.
@@ -434,11 +460,13 @@ public enum PopoverMetrics {
     public static func scrolls(appRows: Int,
                                expandedChildRows: Int,
                                systemRowCount: Int,
-                               systemExpanded: Bool) -> Bool {
+                               systemExpanded: Bool,
+                               cap: CGFloat = maxListHeight) -> Bool {
         contentHeight(appRows: appRows, expandedChildRows: expandedChildRows,
                       systemRowCount: systemRowCount, systemExpanded: systemExpanded)
             > listHeight(appRows: appRows, expandedChildRows: expandedChildRows,
-                         systemRowCount: systemRowCount, systemExpanded: systemExpanded)
+                         systemRowCount: systemRowCount, systemExpanded: systemExpanded,
+                         cap: cap)
     }
 }
 

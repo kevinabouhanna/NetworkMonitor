@@ -200,6 +200,185 @@ struct SpeedTestCard: View {
     }
 }
 
+// MARK: - Compact
+
+/// The compact style: the test as two lines above the app list, which stays in
+/// view.
+///
+/// Download and upload are thin gauges on the dial's log scale with their
+/// figures beside them, over one line that says what is happening: the stage
+/// while it runs, ping and jitter once done. A fixed height, the same in every
+/// phase, so the popover never resizes as the test moves along; see
+/// `PopoverMetrics.speedStripHeight`.
+struct SpeedTestStrip: View {
+    @ObservedObject var speedTest: SpeedTestController
+
+    var body: some View {
+        Group {
+            switch speedTest.phase {
+            case .idle:
+                EmptyView()
+            case .confirming(let estimate):
+                confirming(estimate)
+            case .running(let startedAt):
+                StripBody(live: speedTest.live, result: nil, startedAt: startedAt,
+                          unit: speedTest.unit) {
+                    // No "Back to Apps" here: the apps never left.
+                    iconButton("stop.circle.fill", "Stop the test") { speedTest.dismiss() }
+                }
+            case .finished(let result):
+                StripBody(live: speedTest.live, result: result, startedAt: nil,
+                          unit: speedTest.unit) {
+                    iconButton("arrow.clockwise", "Test again") { speedTest.run() }
+                    iconButton("xmark", "Close") { speedTest.hide() }
+                }
+            case .failed(let message):
+                failed(message)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .frame(height: PopoverMetrics.speedStripHeight)
+    }
+
+    private func confirming(_ estimate: Int64?) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(SpeedTestPalette.meteredNote(estimate),
+                  systemImage: "antenna.radiowaves.left.and.right")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                Button("Cancel") { speedTest.dismiss() }.controlSize(.small)
+                Button("Run Anyway") { speedTest.confirm() }
+                    .controlSize(.small)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func failed(_ message: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Speed test didn't finish").font(.system(size: 12, weight: .semibold))
+                    Text(message).font(.system(size: 10.5)).foregroundStyle(.secondary).lineLimit(1)
+                }
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            }
+            HStack {
+                Spacer()
+                Button("Close") { speedTest.dismiss() }.controlSize(.small)
+                Button("Try Again") { speedTest.run() }.controlSize(.small)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func iconButton(_ symbol: String, _ label: String,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 12, weight: .semibold))
+                .frame(width: 18, height: 16)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .help(label)
+        .accessibilityLabel(label)
+    }
+}
+
+/// The compact lines and their caption. The only part of the strip that watches
+/// `live`, for the reason `CardBody` is the only part of the card that does.
+private struct StripBody<Trailing: View>: View {
+    @ObservedObject var live: SpeedTestController.Live
+    let result: SpeedTestResult?
+    let startedAt: Date?
+    let unit: SpeedUnit
+    @ViewBuilder let trailing: () -> Trailing
+
+    var body: some View {
+        let progress = live.progress
+        let down = result?.downloadBitsPerSecond ?? progress.downloadBitsPerSecond
+        let up = result?.uploadBitsPerSecond ?? progress.uploadBitsPerSecond
+        let scale = SpeedTestPalette.scaleMbps(for: down, up)
+
+        VStack(alignment: .leading, spacing: 6) {
+            lane("arrow.down", "Download", down, SpeedTestPalette.download, scale)
+            lane("arrow.up", "Upload", up, SpeedTestPalette.upload, scale)
+            HStack(spacing: 6) {
+                caption(progress)
+                    .font(.system(size: 10))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if let result, result.wasContended {
+                    // The card's note, as a mark with the sentence behind it:
+                    // there is room for a symbol here, not a paragraph.
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.orange)
+                        .help(SpeedTestPalette.contentionNote(result))
+                        .accessibilityLabel(SpeedTestPalette.contentionNote(result))
+                }
+                Spacer(minLength: 4)
+                trailing()
+            }
+        }
+    }
+
+    /// One direction: its arrow, a gauge on the dial's log scale, its figure.
+    private func lane(_ symbol: String, _ name: String, _ bits: Double, _ tint: Color,
+                      _ scale: Double) -> some View {
+        let fraction = SpeedTestPalette.fraction(bits, scaleMbps: scale)
+        let parts = SpeedTestPalette.parts(bits, unit)
+        return HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(tint)
+                .frame(width: 10)
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.secondary.opacity(0.15))
+                    Capsule().fill(tint)
+                        .frame(width: bits > 0 ? max(4, geometry.size.width * fraction) : 0)
+                        .animation(.easeOut(duration: 0.35), value: fraction)
+                }
+            }
+            .frame(height: 5)
+            (Text(parts.number).font(.system(size: 12, weight: .semibold))
+                + Text(" \(parts.unit)").font(.system(size: 10)).foregroundColor(.secondary))
+                .monospacedDigit()
+                .frame(width: 92, alignment: .trailing)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(name) \(parts.number) \(parts.unit)")
+    }
+
+    private func caption(_ progress: SpeedTestProgress) -> Text {
+        if let result {
+            var parts = ["Ping " + SpeedTestPalette.milliseconds(result.ping),
+                         "Jitter " + SpeedTestPalette.milliseconds(result.jitter)]
+            parts.append(result.finishedAt.formatted(date: .omitted, time: .shortened))
+            return Text(parts.joined(separator: " · "))
+        }
+        guard let startedAt else { return Text("") }
+        let stage: String
+        switch progress.stage {
+        case .starting:  stage = "Measuring ping"
+        case .download:  stage = "Testing download"
+        case .upload:    stage = "Testing upload"
+        case .finishing: stage = "Measuring ping"
+        }
+        return Text("\(stage) · ") + Text(startedAt, style: .timer)
+            + Text(" · \(ByteFormat.bytes(progress.bytesTransferred))")
+    }
+}
+
 /// Dial, caption, tiles and note — fed by the live readings while running and
 /// by the result once there is one. The only view that watches `live`.
 private struct CardBody: View {

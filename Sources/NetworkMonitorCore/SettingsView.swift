@@ -155,7 +155,25 @@ public struct SettingsView: View {
 
                 section("Speed test") {
                     // Its unit is the one under General, shared with the menu bar.
-                    Toggle("Show the test in the menu bar", isOn: $speedTest.showsInMenuBar)
+                    // Laid out by hand for the reason the unit picker is.
+                    HStack(spacing: 8) {
+                        Text("Show the test as").font(.system(size: 12))
+                        Picker("Show the test as", selection: $speedTest.style) {
+                            ForEach(SpeedTestStyle.allCases) { style in
+                                Text(style.label).tag(style)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        Spacer()
+                    }
+                    Text(speedTest.style == .card
+                         ? "A card with a dial and every figure, in place of your apps."
+                         : "Two lines above your apps, which stay in view.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text("Runs macOS's built-in networkQuality, only when you start it: "
                          + "download first, then upload. Every run measures afresh, so it "

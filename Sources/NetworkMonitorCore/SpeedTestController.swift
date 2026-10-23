@@ -1,6 +1,23 @@
 import Combine
 import Foundation
 
+/// How the popover shows a test, chosen in Settings.
+public enum SpeedTestStyle: String, CaseIterable, Identifiable {
+    /// Takes the app list's place: a dial and the full breakdown.
+    case card
+    /// Two lines above the app list, which stays in view.
+    case compact
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .card:    return "Card"
+        case .compact: return "Compact"
+        }
+    }
+}
+
 /// The speed test as the UI sees it: what phase it is in, and what to draw.
 ///
 /// Split across two observable objects on purpose, for the reason
@@ -51,12 +68,10 @@ public final class SpeedTestController: ObservableObject {
             menuBarDidChange?()
         }
     }
-    /// Whether the menu bar title shows the test while it runs.
-    @Published public var showsInMenuBar: Bool {
-        didSet {
-            defaults.set(showsInMenuBar, forKey: Keys.menuBar)
-            menuBarDidChange?()
-        }
+    /// Card or compact. Only how the popover draws a test: the run, its result
+    /// and the menu bar are the same either way.
+    @Published public var style: SpeedTestStyle {
+        didSet { defaults.set(style.rawValue, forKey: Keys.style) }
     }
 
     /// The most recent result on the current connection, for the right-click
@@ -87,7 +102,10 @@ public final class SpeedTestController: ObservableObject {
         /// so a unit someone chose then stays theirs now that it covers the
         /// menu bar too.
         static let unit = "speedTestUnit"
-        static let menuBar = "speedTestInMenuBar"
+        static let style = "speedTestStyle"
+        /// The 1.2–1.5 switch for showing a test in the menu bar, which it now
+        /// always does. Removed on launch so it does not linger.
+        static let retiredMenuBar = "speedTestInMenuBar"
     }
 
     public init(runner: SpeedTestRunner = SpeedTestRunner(),
@@ -98,7 +116,8 @@ public final class SpeedTestController: ObservableObject {
         // The key is written only when someone picks a unit, so anyone who chose
         // one for the speed test keeps it.
         self.unit = SpeedUnit(rawValue: defaults.string(forKey: Keys.unit) ?? "") ?? .bytes
-        self.showsInMenuBar = defaults.object(forKey: Keys.menuBar) as? Bool ?? true
+        self.style = SpeedTestStyle(rawValue: defaults.string(forKey: Keys.style) ?? "") ?? .card
+        defaults.removeObject(forKey: Keys.retiredMenuBar)
     }
 
     // MARK: Actions
@@ -192,8 +211,12 @@ public final class SpeedTestController: ObservableObject {
     // MARK: Menu bar
 
     /// What the menu bar should draw instead of the live rates, if anything.
+    ///
+    /// Always, since 1.5.1: a test started from the right-click menu leaves the
+    /// popover shut, and the menu bar is then the only place it can be watched.
+    /// The switch that turned this off changed nothing anyone could see — during
+    /// a test the live rates are mostly the test anyway — so it went.
     public var menuBarReading: (down: Double, up: Double)? {
-        guard showsInMenuBar else { return nil }
         switch phase {
         case .running:
             return (live.progress.downloadBitsPerSecond, live.progress.uploadBitsPerSecond)
@@ -226,7 +249,7 @@ public final class SpeedTestController: ObservableObject {
         switch event {
         case .progress(let progress):
             live.progress = progress
-            if showsInMenuBar { menuBarDidChange?() }
+            menuBarDidChange?()
 
         case .finished(.success(var result)):
             result.competingTraffic = competing
