@@ -47,8 +47,10 @@ With it, the switch also covers:
   6 to 14 GB, and live in settings only an administrator can change.
 - **Claude and Slack** through managed policy, which is the only kind of setting they
   fully honour.
-- **Canva and Figma's desktop updaters**, which have no setting: while you're on the
-  hotspot, their update servers are pointed nowhere in `/etc/hosts`.
+- **Canva**, which has no update setting of any kind, and **Figma** while it's open, since
+  its own setting can only be changed once it quits: while you're on the hotspot, their
+  update servers are pointed nowhere in `/etc/hosts`. Each of those two hosts was checked
+  to carry update downloads and nothing else.
 - **Low Data Mode** for the hotspot (below).
 
 Cancel the password prompt and everything else still works. Settings shows an **Allow…**
@@ -97,9 +99,12 @@ you've left the hotspot.
 
 ## Three things worth knowing
 
-- **It's not a firewall.** It changes how apps check for updates. A manual **Check for
-  Updates…** still works, which is the point: it stops unattended downloads, not you. It
-  never interrupts an update already downloading.
+- **It's not a firewall.** For almost every app it changes the app's own setting for
+  checking automatically, so a manual **Check for Updates…** still works, which is the
+  point: it stops unattended downloads, not you. Canva and Figma are the exception: with
+  the helper, their update servers can't be reached while you're on the hotspot, so a
+  manual check in those two waits until you leave. Nothing ever interrupts an update
+  already downloading.
 - **"Stops updating" includes security updates.** There's no reliable way to tell a
   security patch from a feature release, and pretending otherwise would be worse than
   saying so. Turn the switch off, or leave the hotspot, and everything resumes.
