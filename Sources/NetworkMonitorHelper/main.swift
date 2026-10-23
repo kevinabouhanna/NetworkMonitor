@@ -734,6 +734,14 @@ func uninstallSelf() throws {
     // it down after the process exits.
     run("/bin/launchctl", ["bootout", "system/\(daemonLabel)"])
     try? FileManager.default.removeItem(atPath: helperPath)
+    // `restore` and `unconstrain` have already deleted the state files, so
+    // what is left is the lock this process holds, and the folder. The
+    // drag-to-Trash path ends here, with no `helper-setup.sh` to tidy up after
+    // it (#28). Unlinking a held lock is safe: the lock lives on the open file
+    // until this process exits, and with the sudoers rule and binary gone no
+    // other verb can start. `rmdir` only removes the folder if it is empty.
+    try? FileManager.default.removeItem(atPath: lockPath)
+    rmdir(stateDirectory)
     print("uninstalled")
 }
 
