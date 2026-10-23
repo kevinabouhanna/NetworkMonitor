@@ -24,11 +24,27 @@ Nothing changes without all three, in this order.
      - the download line's version and DMG size, in 1024-based MB
      - the "What's in version" link
      - any copy the change affects
+     - the About pane in the Settings section (`assets/settings/about.png`),
+       which shows the version, so it changes with every release
      - screenshots of anything that looks different, retaken from the real app,
        never mocked up
 
-A change to the website alone still gets an issue, but it ships when `gh-pages`
-is pushed and has no release of its own.
+## The website
+
+The site is the `gh-pages` branch, checked out as a worktree at
+`../NetworkMonitor-site`. A change to it follows the same workflow, with no
+release of its own:
+
+- Branch from `gh-pages` and open the pull request against `gh-pages`. A
+  release's site update goes the same way.
+- `Closes #N` closes issues only for pull requests into `main`. Close the issue
+  by hand once the PR is merged.
+- Don't pass `--delete-branch` to `gh pr merge` while the branch is checked out
+  in the worktree: `gh` removes the worktree with it. Merge, switch the worktree
+  back to `gh-pages`, then delete the branch.
+- The Settings section shows each pane as a real capture in `assets/settings/`.
+  Each `<img>` carries the window's size in points (`data-w`, `data-h`), and
+  the buttons over it are placed in the same points.
 
 ## Building and testing
 
