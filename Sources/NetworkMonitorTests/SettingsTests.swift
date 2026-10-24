@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import NetworkMonitorCore
+import SwiftUI
 
 func runSettingsTests() {
     Check.suite("Settings — panes") {
@@ -51,6 +52,43 @@ func runSettingsTests() {
                               "building the window must not overwrite the last pane")
             settings.select(nil)
             Check.expectEqual(settings.window.title, "About")
+        }
+    }
+
+    Check.suite("Settings — window size") {
+        // A screen below a 30 pt menu bar, and a window whose top sits under it.
+        let usable = NSRect(x: 0, y: 0, width: 1440, height: 870)
+        let current = NSRect(x: 450, y: 370, width: 540, height: 500)
+
+        Check.test("a pane that fits keeps the top edge where it is") {
+            let frame = SettingsWindowController.frame(for: NSSize(width: 540, height: 300),
+                                                       current: current, usable: usable)
+            Check.expectEqual(frame, NSRect(x: 450, y: 570, width: 540, height: 300))
+        }
+
+        Check.test("a pane that would run off the bottom moves up instead") {
+            let lower = NSRect(x: 450, y: 100, width: 540, height: 500)
+            let frame = SettingsWindowController.frame(for: NSSize(width: 540, height: 800),
+                                                       current: lower, usable: usable)
+            Check.expectEqual(frame.minY, 0)
+            Check.expectEqual(frame.height, 800)
+        }
+
+        // #46: with both Hotspot lists open, the window ran off the screen.
+        Check.test("a pane taller than the screen is capped at the screen, and scrolls") {
+            let frame = SettingsWindowController.frame(for: NSSize(width: 540, height: 1600),
+                                                       current: current, usable: usable)
+            Check.expectEqual(frame, NSRect(x: 450, y: 0, width: 540, height: 870))
+        }
+
+        // The window grows with the pane up to the cap, so the scroll view has
+        // to pass the pane's full height on, and keep the pane's width whatever
+        // the pane measures.
+        Check.test("a pane in its scroll view reports its full height, at the pane's width") {
+            let host = SettingsWindowController.paneHost(Color.clear.frame(width: 300, height: 1200),
+                                                         width: 540)
+            _ = host.view
+            Check.expectEqual(host.preferredContentSize, NSSize(width: 540, height: 1200))
         }
     }
 }

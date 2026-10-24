@@ -611,7 +611,9 @@ extension View {
     func settingsForm() -> some View {
         formStyle(.grouped)
             .scrollDisabled(true)
-            .frame(width: SettingsMetrics.paneWidth)
+            // Up to the pane's width, not exactly it: a scroll bar shown always
+            // takes its width from here when the pane scrolls.
+            .frame(maxWidth: SettingsMetrics.paneWidth)
             .fixedSize(horizontal: false, vertical: true)
     }
 

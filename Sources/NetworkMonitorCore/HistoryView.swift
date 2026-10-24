@@ -31,7 +31,8 @@ public struct HistoryView: View {
             footer
         }
         .padding(20)
-        .frame(width: HistoryMetrics.windowWidth)
+        // Up to, as Settings' forms are: see `SettingsWindowController.paneHost`.
+        .frame(maxWidth: HistoryMetrics.windowWidth)
     }
 
     // MARK: Navigation

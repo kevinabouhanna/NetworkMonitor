@@ -25,6 +25,11 @@ public enum SettingsPane: String, CaseIterable {
         }
     }
 
+    /// The window's width on this pane, whether or not the pane scrolls.
+    var width: CGFloat {
+        self == .history ? HistoryMetrics.windowWidth : SettingsMetrics.paneWidth
+    }
+
     static let lastKey = "settingsPane"
 
     /// The pane Settings last showed, which it reopens on: the HIG's "restore the
@@ -43,7 +48,8 @@ public enum SettingsPane: String, CaseIterable {
 /// a Mac app's settings.
 ///
 /// - a toolbar that never changes and always shows which pane is open;
-/// - the window titled after the pane, and sized to it;
+/// - the window titled after the pane, and sized to it, up to the height of the
+///   screen, past which the pane scrolls;
 /// - minimise and zoom dimmed, because Command-comma brings it straight back
 ///   and the window is always the size of what it shows;
 /// - the last pane remembered.
@@ -63,6 +69,15 @@ public final class SettingsWindowController: NSObject {
     private let defaults: UserDefaults
     private var sizeObservation: NSKeyValueObservation?
     private var historyOnScreen = false
+    /// Caps the content at the screen's height; see `keepOnScreen()`.
+    private var heightCap: NSLayoutConstraint!
+    private var screenObservers: [NSObjectProtocol] = []
+
+    /// How high the window's top may go on a screen. `AppDelegate` sets it to
+    /// just under the menu bar, which it knows the real height of: an
+    /// auto-hidden menu bar leaves `visibleFrame` running to the top of the
+    /// screen, and covers the title bar there whenever it's revealed.
+    public var highestTop: (NSScreen) -> CGFloat = { $0.visibleFrame.maxY }
 
     public init(model: MonitorViewModel, history: HistoryViewModel,
                 onUninstall: @escaping () -> Void, defaults: UserDefaults = .standard) {
@@ -78,11 +93,11 @@ public final class SettingsWindowController: NSObject {
         for pane in SettingsPane.allCases {
             let host: NSViewController
             switch pane {
-            case .general:   host = Self.host(GeneralSettingsPane(model: model, state: state))
-            case .speedTest: host = Self.host(SpeedTestSettingsPane(speedTest: model.speedTest))
-            case .history:   host = Self.host(HistoryView(model: history))
-            case .hotspot:   host = Self.host(HotspotSettingsPane(metering: model.metering, state: state))
-            case .about:     host = Self.host(AboutSettingsPane(onUninstall: onUninstall))
+            case .general:   host = Self.paneHost(GeneralSettingsPane(model: model, state: state), width: pane.width)
+            case .speedTest: host = Self.paneHost(SpeedTestSettingsPane(speedTest: model.speedTest), width: pane.width)
+            case .history:   host = Self.paneHost(HistoryView(model: history), width: pane.width)
+            case .hotspot:   host = Self.paneHost(HotspotSettingsPane(metering: model.metering, state: state), width: pane.width)
+            case .about:     host = Self.paneHost(AboutSettingsPane(onUninstall: onUninstall), width: pane.width)
             }
             host.title = pane.title
             let item = NSTabViewItem(viewController: host)
@@ -99,10 +114,33 @@ public final class SettingsWindowController: NSObject {
         window.toolbarStyle = .preference
         window.isReleasedWhenClosed = false
         window.toolbar?.allowsUserCustomization = false
+
+        // Required, so it outranks every pane's own height. A pane taller than
+        // this scrolls inside the window instead of stretching it.
+        heightCap = tabs.view.heightAnchor.constraint(lessThanOrEqualToConstant: 10_000)
+        heightCap.isActive = true
+        // Moved to a smaller screen, it has to fit that one.
+        screenObservers = [NSWindow.didResizeNotification, NSWindow.didChangeScreenNotification].map {
+            NotificationCenter.default.addObserver(forName: $0, object: window, queue: .main) { [weak self] _ in
+                self?.keepOnScreen()
+            }
+        }
     }
 
-    private static func host<Content: View>(_ view: Content) -> NSHostingController<Content> {
-        let host = NSHostingController(rootView: view)
+    deinit {
+        screenObservers.forEach(NotificationCenter.default.removeObserver)
+    }
+
+    /// A pane in a scroll view, which scrolls only once the pane is taller than
+    /// the window can be (#46). The scroll view takes the pane's full height as
+    /// its own, so the window still grows and shrinks with the pane up to then.
+    ///
+    /// The width is fixed here, not by the pane. With scroll bars set to show
+    /// always, the scroll bar took its width from outside a fixed-width pane:
+    /// the window grew 17 pt wider when the pane scrolled, and stayed that way.
+    /// Panes fill the width they're given, up to this.
+    public static func paneHost<Content: View>(_ view: Content, width: CGFloat) -> NSViewController {
+        let host = NSHostingController(rootView: ScrollView(.vertical) { view }.frame(width: width))
         host.sizingOptions = [.preferredContentSize]
         return host
     }
@@ -123,6 +161,7 @@ public final class SettingsWindowController: NSObject {
     /// Sizes the window to the selected pane now, without animating, so it can be
     /// positioned at its real size before it is shown.
     public func fitSelectedPane() {
+        keepOnScreen()
         guard let child = tabs.tabView.selectedTabViewItem?.viewController else { return }
         child.view.layoutSubtreeIfNeeded()
         let size = child.preferredContentSize.height > 0 ? child.preferredContentSize
@@ -149,20 +188,56 @@ public final class SettingsWindowController: NSObject {
         }
     }
 
-    /// Resizes to `size`, keeping the top edge where it is, as settings windows do.
+    /// Resizes to a pane of `size`. See `frame(for:current:usable:)`.
     private func fit(_ size: NSSize, animate: Bool = true) {
         guard size.width > 0, size.height > 0 else { return }
-        let content = NSRect(origin: .zero, size: size)
-        var frame = window.frameRect(forContentRect: content)
-        let current = window.frame
-        frame.origin.x = current.midX - frame.width / 2
-        frame.origin.y = current.maxY - frame.height
-        // Never below the bottom of the screen it is on.
-        if let visible = window.screen?.visibleFrame, frame.minY < visible.minY {
-            frame.origin.y = visible.minY
-        }
-        guard frame != current else { return }
+        let wanted = window.frameRect(forContentRect: NSRect(origin: .zero, size: size)).size
+        let frame = Self.frame(for: wanted, current: window.frame, usable: usableFrame())
+        guard frame != window.frame else { return }
         window.setFrame(frame, display: true, animate: animate && window.isVisible)
+    }
+
+    /// The part of the window's screen below the menu bar. Before the window is
+    /// first shown it has no screen; it opens on the main one.
+    private func usableFrame() -> NSRect? {
+        (window.screen ?? NSScreen.main).map { screen in
+            var usable = screen.visibleFrame
+            usable.size.height = min(usable.maxY, highestTop(screen)) - usable.minY
+            return usable
+        }
+    }
+
+    /// Keeps the window within its screen after it resizes (#46).
+    ///
+    /// Most resizes don't come from `fit(_:)`. A list opening or a test
+    /// finishing changes the pane's height, and Auto Layout resizes the window
+    /// to match, keeping its top edge where it is. That ran the window off the
+    /// bottom of the screen. So the content is capped at the screen's height,
+    /// and a window that grew past the bottom moves up.
+    private func keepOnScreen() {
+        guard let usable = usableFrame() else { return }
+        let chrome = window.frame.height - window.contentLayoutRect.height
+        let cap = usable.height - chrome
+        if heightCap.constant != cap { heightCap.constant = cap }
+        let frame = Self.frame(for: window.frame.size, current: window.frame, usable: usable)
+        if frame != window.frame { window.setFrame(frame, display: true) }
+    }
+
+    /// Where the window goes for a pane that wants a frame of `size`: centred
+    /// where it is, with its top edge kept, as settings windows do. Within
+    /// `usable`, the part of the screen below the menu bar: never off its bottom
+    /// or above its top, and never taller than it, which is where the pane
+    /// starts to scroll instead.
+    public static func frame(for size: NSSize, current: NSRect, usable: NSRect?) -> NSRect {
+        var frame = NSRect(x: current.midX - size.width / 2, y: current.maxY - size.height,
+                           width: size.width, height: size.height)
+        guard let usable else { return frame }
+        if frame.height > usable.height {
+            frame.size.height = usable.height
+            frame.origin.y = current.maxY - frame.height
+        }
+        frame.origin.y = min(max(frame.origin.y, usable.minY), usable.maxY - frame.height)
+        return frame
     }
 
     private func setHistoryOnScreen(_ onScreen: Bool) {
