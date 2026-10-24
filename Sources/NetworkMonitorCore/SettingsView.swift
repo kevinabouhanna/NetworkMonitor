@@ -331,7 +331,7 @@ struct HotspotSettingsPane: View {
                     // occasionally; it is not worth a dozen permanent rows.
                     DisclosureGroup(isExpanded: $state.appsExpanded) {
                         ForEach(state.coveredItems) { appToggle($0) }
-                        if state.coveredItems.isEmpty {
+                        if state.coveredItems.isEmpty && state.listLoaded {
                             Text("Nothing on this Mac to pause.").foregroundStyle(.secondary)
                         }
                     } label: {
@@ -373,14 +373,15 @@ struct HotspotSettingsPane: View {
             }
         }
         .settingsForm()
-        // Refreshed on each appearance rather than held: apps get installed, and
-        // `isDeferred` depends on what is running right now.
+        // Refreshed on each appearance rather than held, because apps get
+        // installed. Off the main thread (#65): the pane shows at once with what
+        // was found last time, and the re-check and the lists arrive after.
         .onAppear {
-            // Re-assert first, so the list describes what is actually in force
-            // rather than what is merely installed.
-            metering.refresh()
-            state.coveredItems = metering.toggleItems()
-            state.uncovered = metering.uncoveredUpdaters()
+            metering.refreshInBackground { listing in
+                state.coveredItems = listing.items
+                state.uncovered = listing.uncovered
+                state.listLoaded = true
+            }
         }
     }
 
@@ -528,6 +529,8 @@ struct HotspotSettingsPane: View {
     /// switched off. Named for when, because "Apps paused" read as happening
     /// already, on home Wi-Fi too.
     private var coverageSummary: String {
+        // No count until the apps have been looked at, rather than "(0)".
+        guard state.listLoaded else { return "Paused on a hotspot" }
         let total = state.coveredItems.count
         let on = state.coveredItems.filter { metering.isSuppressionEnabled(for: $0.id) }.count
         return on == total ? "Paused on a hotspot (\(total))"
@@ -546,10 +549,18 @@ struct HotspotSettingsPane: View {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
                     Text(item.label)
-                    if item.isDeferred {
-                        Text("quit it to apply")
+                    // Only while a change is really waiting: on a hotspot, for an
+                    // app that was open when it was due. Its settings can't be
+                    // changed safely while it runs, so the change is made the
+                    // moment it quits, and the note goes (#65). It used to show
+                    // whenever the app was open, on any network, so quitting and
+                    // reopening changed nothing.
+                    if metering.deferred.contains(item.label) {
+                        Text("paused once you quit it")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
+                            .help("NetworkMonitor can't change \(item.label)'s settings while it's "
+                                  + "open. It pauses its updates as soon as you quit it.")
                     }
                 }
                 if item.isGroup {
@@ -706,16 +717,17 @@ final class SettingsPaneState: ObservableObject {
     @Published var launchAtLogin = LoginItem.isEnabled
     @Published var errorMessage: String?
     @Published var appsExpanded = false
-    /// Loaded when the pane appears, never from `body`.
+    /// Loaded off the main thread when the pane appears, never from `body`.
     ///
-    /// `toggleItems()` reaches `discover()`, which walks `/Applications` reading
-    /// Info.plists to find Sparkle frameworks. Recomputing that on every layout
-    /// pass would make a switch feel slow for no reason.
+    /// Finding them walks `/Applications` reading Info.plists to find Sparkle
+    /// frameworks; see `MeteringController.refreshInBackground(_:)`.
     @Published var coveredItems: [MeteringController.ToggleItem] = []
     /// Loaded alongside `coveredItems`, and for the same reason never from
     /// `body`: it walks the same bundles.
     @Published var uncovered: [UpdaterScan.Finding] = []
     @Published var uncoveredExpanded = false
+    /// Whether the lists above have been loaded at least once.
+    @Published var listLoaded = false
     /// Why the last helper install failed, if it did. Cleared by a success or a
     /// deliberate cancel, which is an answer rather than a failure.
     @Published var helperMessage: String?

@@ -206,6 +206,43 @@ public final class MeteringController: ObservableObject {
         evaluate()
     }
 
+    /// What Settings › Hotspot lists.
+    public struct Listing {
+        public var items: [ToggleItem]
+        public var uncovered: [UpdaterScan.Finding]
+    }
+
+    /// `refresh()`, and the two lists Settings › Hotspot shows, with the slow
+    /// parts off the main thread (#65). `done` gets the lists on the main thread,
+    /// after the re-check.
+    ///
+    /// On the main thread they held the pane back from appearing for 250–520
+    /// ms: asking the helper launched it twice, about 100 ms and 160 ms, for the
+    /// same `status` answer, and the scans walk the apps on this Mac, about 50
+    /// ms (220 ms the first time). Here the helper is asked once.
+    ///
+    /// Low Data Mode is left out of the scan: it isn't an app, so it has no row,
+    /// and its `discover()` can update its own cached state, which belongs to the
+    /// main thread. Everything else only reads files and preferences.
+    public func refreshInBackground(_ done: @escaping (Listing) -> Void) {
+        let appSuppressors = suppressors.filter { !($0 is LowDataModeSuppressor) }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let status = PrivilegedSuppressor.isInstalled ? PrivilegedSuppressor.invoke("status") : nil
+            let coverage = appSuppressors.map { ($0.name, $0.discover()) }
+            let listing = Listing(items: Self.toggleRows(coverage),
+                                  uncovered: UpdaterScan.uncovered(UpdaterScan.findings(),
+                                                                   by: coverage.flatMap(\.1)))
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                let state = HelperInstaller.state(status: status)
+                if state != self.helperState { self.helperState = state }
+                self.lowData?.refreshAvailability(status: status)
+                self.evaluate()
+                done(listing)
+            }
+        }
+    }
+
     // MARK: The helper
 
     /// Whether the helper is installed and new enough. Refreshed by `refresh()`
@@ -374,8 +411,6 @@ public final class MeteringController: ObservableObject {
         public var effect: String
         /// How it is reached, for the diagnostic report.
         public var mechanism: String
-        /// The write is queued until the app quits.
-        public var isDeferred: Bool
         /// The apps a row that stands for a whole tier covers. Empty for a row
         /// that is one app.
         public var members: [Member] = []
@@ -396,8 +431,12 @@ public final class MeteringController: ObservableObject {
     /// **Not cheap** — `discover()` walks `/Applications` reading Info.plists —
     /// so call it when a view appears, never from inside `body`.
     public func toggleItems() -> [ToggleItem] {
+        Self.toggleRows(coverage())
+    }
+
+    private static func toggleRows(_ coverage: [(suppressor: String, items: [CoveredItem])]) -> [ToggleItem] {
         var rows: [ToggleItem] = []
-        for (name, all) in coverage() {
+        for (name, all) in coverage {
             // Low Data Mode is not an app; the feature's own switch covers it.
             let items = all.filter { $0.id != LowDataModeSuppressor.itemID }
             guard !items.isEmpty else { continue }
@@ -408,7 +447,6 @@ public final class MeteringController: ObservableObject {
                     label: name,
                     effect: "",
                     mechanism: "",
-                    isDeferred: false,
                     members: items.map {
                         ToggleItem.Member(name: $0.displayName, effect: $0.effect)
                     }))
@@ -417,8 +455,7 @@ public final class MeteringController: ObservableObject {
                     ToggleItem(id: $0.id,
                                label: $0.displayName,
                                effect: $0.effect,
-                               mechanism: $0.mechanism,
-                               isDeferred: $0.isDeferred)
+                               mechanism: $0.mechanism)
                 })
             }
         }

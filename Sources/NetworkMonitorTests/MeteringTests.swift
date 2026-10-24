@@ -398,6 +398,8 @@ final class FakeSuppressor: UpdateSuppressor {
 
     /// Ids this fake was told to leave alone on the most recent pass.
     var lastExcluded: Set<String> = []
+    /// Answers like an app that is open: the change has to wait for it to quit.
+    var defers = false
 
     func discover() -> [CoveredItem] {
         [CoveredItem(id: "fake/thing", displayName: "Thing", mechanism: "Fake",
@@ -410,7 +412,7 @@ final class FakeSuppressor: UpdateSuppressor {
         guard !excluding.contains("fake/thing") else { return result }
         applyCount += 1
         calls.append("apply")
-        result.applied = ["Thing"]
+        if defers { result.deferred = ["Thing"] } else { result.applied = ["Thing"] }
         return result
     }
 
@@ -538,6 +540,22 @@ func runMeteringControllerTests() {
             Check.expectTrue(controller.isSuppressing)
             Check.expectEqual(controller.verdict, .expensive)
             Check.expectEqual(fake.applyCount, 1)
+        }
+
+        // #65: Settings says "paused once you quit it" beside the names in
+        // `deferred`. It used to say so whenever the app was open, on any
+        // network, so quitting and reopening it never made the note go.
+        Check.test("an app whose change waits for it to quit is named only on a hotspot") {
+            let (controller, fake, store, urls) = makeControllerWithStore(enabled: true, fingerprint: hotspot)
+            defer { urls.forEach { try? FileManager.default.removeItem(at: $0) } }
+            fake.defers = true
+            controller.evaluate()
+            Check.expectEqual(controller.deferred, ["Thing"])
+            Check.expectEqual(controller.toggleItems().map(\.label), ["Thing"], "the row it marks")
+
+            store.setCurrentNetwork(home)
+            controller.evaluate()
+            Check.expectEqual(controller.deferred, [], "nothing waits off a hotspot")
         }
 
         Check.test("a metered network with the setting off does nothing") {

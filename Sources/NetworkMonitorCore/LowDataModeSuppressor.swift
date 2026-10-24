@@ -118,11 +118,18 @@ public final class LowDataModeSuppressor: UpdateSuppressor {
 
     @discardableResult
     public func refreshAvailability() -> Availability {
+        refreshAvailability(status: isHelperInstalled() ? invoke("status") : nil)
+    }
+
+    /// The same, from the helper's `status` answer already in hand, so one call
+    /// serves this and `HelperInstaller.state(status:)` (#65). `nil` is no answer.
+    @discardableResult
+    public func refreshAvailability(status output: String?) -> Availability {
         guard isHelperInstalled() else {
             cachedAvailability = .helperMissing
             return .helperMissing
         }
-        guard let output = invoke("status"),
+        guard let output,
               let data = output.data(using: .utf8),
               let status = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else {

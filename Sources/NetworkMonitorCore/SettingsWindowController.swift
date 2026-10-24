@@ -157,9 +157,14 @@ public final class SettingsWindowController: NSObject {
     /// the window grew 17 pt wider when the pane scrolled, and stayed that way.
     /// Panes fill the width they're given, up to this.
     public static func paneHost<Content: View>(_ view: Content, width: CGFloat) -> NSViewController {
-        let host = NSHostingController(rootView: ScrollView(.vertical) { view }.frame(width: width))
+        let host = PaneHostingController(view, width: width)
         host.sizingOptions = [.preferredContentSize]
         return host
+    }
+
+    /// Whether a pane scrolls: taller than the window can be on this screen.
+    public static func scrolls(paneHeight: CGFloat, tallest: CGFloat) -> Bool {
+        paneHeight > tallest + 0.5
     }
 
     /// Selects `pane`, or the last one viewed, ready for `AppDelegate` to show.
@@ -265,6 +270,11 @@ public final class SettingsWindowController: NSObject {
         let chrome = window.frame.height - window.contentLayoutRect.height
         let cap = usable.height - chrome
         if heightCap.constant != cap { heightCap.constant = cap }
+        if let pane = tabs.tabView.selectedTabViewItem?.viewController,
+           let scrolling = (pane as? ScrollingPane)?.scrolling {
+            let scrolls = Self.scrolls(paneHeight: pane.preferredContentSize.height, tallest: cap)
+            if scrolling.scrolls != scrolls { scrolling.scrolls = scrolls }
+        }
         let frame = Self.frame(for: window.frame.size, current: window.frame, usable: usable)
         if frame != window.frame { window.setFrame(frame, display: true) }
     }
@@ -301,6 +311,50 @@ public final class SettingsWindowController: NSObject {
             setHistoryOnScreen(pane == .history)
         }
     }
+}
+
+/// Whether the pane on screen scrolls, which is when it gets a scroll bar (#65).
+///
+/// With scroll bars set to show always, a scroll bar takes 15 pt of the pane's
+/// width while it's there. A Hotspot list that made the pane scroll then wrapped
+/// a footnote onto a second line, and once the list closed the pane kept that
+/// line's height: 14 pt of extra space until another pane was chosen. Kept out
+/// of panes that fit, it can't change how they're laid out.
+final class PaneScrolling: ObservableObject {
+    @Published var scrolls = false
+}
+
+protocol ScrollingPane: AnyObject {
+    var scrolling: PaneScrolling { get }
+}
+
+/// A pane in its scroll view, at the width every pane shares.
+struct PaneScrollView<Content: View>: View {
+    @ObservedObject var scrolling: PaneScrolling
+    let width: CGFloat
+    let content: Content
+
+    var body: some View {
+        ScrollView(.vertical) {
+            // Scroll views inside the pane, History's lists, keep their own.
+            content.scrollIndicators(.automatic)
+        }
+        .scrollIndicators(scrolling.scrolls ? .automatic : .never)
+        .frame(width: width)
+    }
+}
+
+private final class PaneHostingController<Content: View>: NSHostingController<PaneScrollView<Content>>,
+                                                        ScrollingPane {
+    let scrolling: PaneScrolling
+
+    init(_ content: Content, width: CGFloat) {
+        let scrolling = PaneScrolling()
+        self.scrolling = scrolling
+        super.init(rootView: PaneScrollView(scrolling: scrolling, width: width, content: content))
+    }
+
+    @MainActor required dynamic init?(coder: NSCoder) { fatalError("not used") }
 }
 
 /// Reports which pane was chosen. `NSTabViewController` is the tab view's

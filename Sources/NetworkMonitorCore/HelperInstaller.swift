@@ -68,8 +68,14 @@ public enum HelperInstaller {
     /// Asks the installed helper its version. One `sudo -n status`; call it when
     /// something is about to be decided, not from a view's body.
     public static func state() -> State {
+        state(status: PrivilegedSuppressor.isInstalled ? PrivilegedSuppressor.invoke("status") : nil)
+    }
+
+    /// The same, from a `status` answer already in hand; `nil` is no answer.
+    /// See `MeteringController.refreshInBackground(_:)`.
+    public static func state(status output: String?) -> State {
         guard PrivilegedSuppressor.isInstalled else { return .missing }
-        guard let output = PrivilegedSuppressor.invoke("status"),
+        guard let output,
               let data = output.data(using: .utf8),
               let status = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else {
