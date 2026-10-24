@@ -71,6 +71,8 @@ public final class MonitorViewModel: ObservableObject {
     /// it has to hear about network changes, and it borrows the nettop samples to
     /// notice other apps competing with it.
     public let speedTest: SpeedTestController
+    /// The readout's colours, and the speed test's alongside them (#45).
+    public let menuBarColors: MenuBarColors
 
     private let identityResolver = AppIdentityResolver()
     private let nettop: NettopStream
@@ -129,10 +131,12 @@ public final class MonitorViewModel: ObservableObject {
     public init(store: UsageStore = UsageStore(history: UsageHistory()),
                 metering: MeteringController? = nil,
                 speedTest: SpeedTestController = SpeedTestController(),
+                menuBarColors: MenuBarColors = MenuBarColors(),
                 nettop: NettopStream? = nil) {
         self.store = store
         self.metering = metering ?? MeteringController(store: store)
         self.speedTest = speedTest
+        self.menuBarColors = menuBarColors
         self.dayStart = store.dayStart
         self.countingSince = store.countingSince
         let profile = PowerProfile.current()
@@ -172,6 +176,7 @@ public final class MonitorViewModel: ObservableObject {
         // Off the main thread: it lists the temporary directory.
         DispatchQueue.global(qos: .utility).async { SpeedTestRunner.removeLeftoverFolders() }
         speedTest.menuBarDidChange = { [weak self] in self?.menuBarRateDidChange.send() }
+        menuBarColors.didChange = { [weak self] in self?.menuBarRateDidChange.send() }
 
         nettop.onSample = { [weak self] sample in
             self?.handleNettopSample(sample)
@@ -586,15 +591,15 @@ public final class MonitorViewModel: ObservableObject {
     /// Two stacked lines, download above upload, at a constant rendered width,
     /// in the speed unit chosen in Settings.
     ///
-    /// A running speed test takes the title over, when the user has asked for
-    /// that, and keeps it for a few seconds after with the result. Same width,
-    /// different tint; see `MenuBarTitle.speedTestImage`.
+    /// A running speed test takes the title over and keeps it for a few seconds
+    /// after with the result. Same width, tints kept clear of the live colours;
+    /// see `MenuBarTitle.speedTestImage` and `MenuBarColors`.
     public var menuBarImage: NSImage {
         if let reading = speedTest.menuBarReading {
             return MenuBarTitle.speedTestImage(downBits: reading.down, upBits: reading.up,
-                                               unit: speedTest.unit)
+                                               unit: speedTest.unit, tints: menuBarColors.test)
         }
         return MenuBarTitle.image(down: downBytesPerSecond, up: upBytesPerSecond,
-                                  unit: speedTest.unit)
+                                  unit: speedTest.unit, tints: menuBarColors.live)
     }
 }

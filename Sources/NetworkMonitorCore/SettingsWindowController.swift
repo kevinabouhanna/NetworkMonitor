@@ -171,6 +171,9 @@ public final class SettingsWindowController: NSObject {
 
     public func windowWillClose() {
         setHistoryOnScreen(false)
+        // Opened by a colour well in General. Left up, it would outlive the
+        // window it belongs to once the app is back in the menu bar.
+        if NSColorPanel.sharedColorPanelExists { NSColorPanel.shared.close() }
     }
 
     // MARK: Pane changes

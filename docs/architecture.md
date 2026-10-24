@@ -222,8 +222,13 @@ Two stacked lines, `↓` download in green (`#51FF70`) over `↑` upload in ligh
   an idle Mac redraws nothing. While nobody can see the menu bar (display asleep, screen
   locked, another user's session in front), nothing is drawn at all, and the readout is
   redrawn and resampled the moment someone can.
-- **A speed test takes it over** in cyan, at the same width, and holds the result for 8
-  seconds.
+- **Colours you choose.** Settings › General changes both lines (`MenuBarColors`). A colour
+  is saved as sRGB `#RRGGBB`, and only while it differs from the default, so a later
+  default reaches everyone who never picked one.
+- **A speed test takes it over** at the same width, and holds the result for 8 seconds.
+  It's drawn in the first of four pairs (cyan, pink, amber, violet) whose colours stay clear
+  of both live ones, measured in OKLab: at least 0.15 for its download colour and 0.05 for
+  its pale upload colour. With the default colours that's always cyan.
 
 ## App lifecycle
 

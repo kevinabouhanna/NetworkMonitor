@@ -4,15 +4,16 @@ Everything NetworkMonitor does, and where to find it.
 
 ## The menu bar readout
 
-Two lines, always visible: **↓ download** in green over **↑ upload**, in **MB/s** or
-**Mbps** (**Settings › General › Show speeds in**). Mbps matches how your line is sold;
-MB/s matches the data totals. Amounts of data are always in MB and GB, the way data plans
-are sold.
+Two lines, always visible: **↓ download** in green over **↑ upload** in light grey, in
+**MB/s** or **Mbps** (**Settings › General › Show speeds in**). Mbps matches how your line
+is sold; MB/s matches the data totals. Amounts of data are always in MB and GB, the way
+data plans are sold. Pick other colours under **Settings › General › Menu bar colors**.
 
 The readout keeps a **fixed width**, so nothing beside it in the menu bar jumps around as
 the numbers change. It updates up to twice a second, less often on battery and in Low Power
 Mode (see [battery](accuracy-and-battery.md#battery)). While a speed test runs, the readout
-shows it in cyan.
+shows it in cyan, or in another pair of colours if yours come close to cyan, so a test never
+looks like the live rates.
 
 - **Click** it for the popover.
 - **Right-click** (or Control-click) it for **Test Internet Speed**, the last result,
@@ -84,12 +85,12 @@ Low Data Mode, and tells you which apps it can't stop. See [Hotspot mode](hotspo
 
 ## Settings
 
-One window with a pane for each area. It's titled and sized after the pane, and reopens on
-the pane you used last.
+One window with a pane for each area. It's titled and sized after the pane, up to the
+height of the screen, where the pane scrolls instead. It reopens on the pane you used last.
 
 | Pane | What's in it |
 |---|---|
-| **General** | Start at login · Show speeds in MB/s or Mbps · Popover totals: Counting since, Sampling, Reset Now |
+| **General** | Start at login · Show speeds in MB/s or Mbps · Menu bar colors: Download, Upload, the speed test's colours, Use Default Colors · Popover totals: Counting since, Sampling, Reset Now |
 | **Speed Test** | Run a test right there · Show the test in the popover as a Card or Compact |
 | **History** | [Usage History](usage-history.md) |
 | **Hotspot** | Stop apps updating on hotspots · what it decided about the connection you're on · Paused on a hotspot, each app with how and its own switch · Can't be paused, each with why · Low Data Mode · what got through |
