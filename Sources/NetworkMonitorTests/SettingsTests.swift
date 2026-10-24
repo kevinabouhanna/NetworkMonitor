@@ -20,6 +20,12 @@ func runSettingsTests() {
             }
         }
 
+        // Without it a tab clicked while the last pane change was still
+        // animating was ignored, and needed a second click (#55).
+        Check.test("the toolbar takes clicks while a pane is changing") {
+            Check.expectTrue(SettingsWindowController.paneTransition.contains(.allowUserInteraction))
+        }
+
         // The HIG's "restore the most recently viewed pane".
         Check.test("Settings reopens on the last pane viewed, General the first time") {
             let defaults = UserDefaults(suiteName: "settings-pane-\(UUID().uuidString)")!
