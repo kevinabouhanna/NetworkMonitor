@@ -80,6 +80,28 @@ func runSettingsTests() {
             Check.expectEqual(frame.height, 800)
         }
 
+        // #57: Auto Layout resizes keeping the left edge, which walked the
+        // window left 60 pt each time History gave way to a narrower pane.
+        Check.test("a resize that kept the left edge goes back to the old centre") {
+            let history = NSRect(x: 336, y: 40, width: 768, height: 820)
+            let shrunk = NSRect(x: 336, y: 90, width: 648, height: 770)
+            Check.expectEqual(SettingsWindowController.centred(shrunk, after: history),
+                              NSRect(x: 396, y: 90, width: 648, height: 770))
+            let grown = NSRect(x: 396, y: 40, width: 768, height: 820)
+            Check.expectEqual(SettingsWindowController.centred(grown, after: shrunk.offsetBy(dx: 60, dy: 0)),
+                              NSRect(x: 336, y: 40, width: 768, height: 820), "growing too")
+        }
+
+        Check.test("a centred resize, a taller pane and a drag are left alone") {
+            let general = NSRect(x: 396, y: 90, width: 648, height: 770)
+            let fitted = NSRect(x: 336, y: 40, width: 768, height: 820)
+            Check.expectEqual(SettingsWindowController.centred(fitted, after: general), fitted)
+            let taller = NSRect(x: 396, y: 40, width: 648, height: 820)
+            Check.expectEqual(SettingsWindowController.centred(taller, after: general), taller)
+            let dragged = general.offsetBy(dx: -200, dy: 30)
+            Check.expectEqual(SettingsWindowController.centred(dragged, after: general), dragged)
+        }
+
         // #46: with both Hotspot lists open, the window ran off the screen.
         Check.test("a pane taller than the screen is capped at the screen, and scrolls") {
             let frame = SettingsWindowController.frame(for: NSSize(width: 540, height: 1600),
