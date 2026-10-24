@@ -20,6 +20,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             model: model, history: HistoryViewModel(monitor: model),
             onUninstall: { [weak self] in self?.uninstall() })
         controller.window.delegate = self
+        controller.highestTop = { [weak self] screen in
+            screen.frame.maxY - (self?.menuBarHeight(on: screen) ?? 0)
+        }
         return controller
     }()
     /// Invisible stand-in for the status item that the popover anchors to.
