@@ -8,9 +8,11 @@ import SwiftUI
 // Quit is deliberately not here. It is a menu bar app, and the menu bar is where
 // a Mac user looks to quit one — it stays on the status item's right-click menu.
 
-/// Width every form pane shares, so switching between them only changes height.
+/// Width every pane shares, History included, so switching panes only ever
+/// changes the window's height (#61). Between the 648 pt the forms had and the
+/// 768 pt History had.
 enum SettingsMetrics {
-    static let paneWidth: CGFloat = 648
+    static let paneWidth: CGFloat = 720
 }
 
 // MARK: - General
