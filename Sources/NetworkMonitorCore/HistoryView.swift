@@ -32,7 +32,7 @@ public struct HistoryView: View {
         }
         .padding(20)
         // Up to, as Settings' forms are: see `SettingsWindowController.paneHost`.
-        .frame(maxWidth: HistoryMetrics.windowWidth)
+        .frame(maxWidth: SettingsMetrics.paneWidth)
     }
 
     // MARK: Navigation
@@ -415,7 +415,7 @@ private struct HistoryChart: View {
     // MARK: Geometry
 
     private var plotWidth: CGFloat {
-        HistoryMetrics.windowWidth - 40 - HistoryMetrics.yAxisWidth
+        SettingsMetrics.paneWidth - 40 - HistoryMetrics.yAxisWidth
     }
 
     /// At most 24 pt, and never more than 60% of a bar's slot.
@@ -738,7 +738,6 @@ private struct FilterChip: View {
 // MARK: - Shared values
 
 enum HistoryMetrics {
-    static let windowWidth: CGFloat = 768
     static let chartHeight: CGFloat = 200
     static let xAxisHeight: CGFloat = 22
     static let yAxisWidth: CGFloat = 46

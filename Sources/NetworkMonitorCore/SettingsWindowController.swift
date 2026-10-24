@@ -25,11 +25,6 @@ public enum SettingsPane: String, CaseIterable {
         }
     }
 
-    /// The window's width on this pane, whether or not the pane scrolls.
-    var width: CGFloat {
-        self == .history ? HistoryMetrics.windowWidth : SettingsMetrics.paneWidth
-    }
-
     static let lastKey = "settingsPane"
 
     /// The pane Settings last showed, which it reopens on: the HIG's "restore the
@@ -95,11 +90,11 @@ public final class SettingsWindowController: NSObject {
         for pane in SettingsPane.allCases {
             let host: NSViewController
             switch pane {
-            case .general:   host = Self.paneHost(GeneralSettingsPane(model: model, state: state), width: pane.width)
-            case .speedTest: host = Self.paneHost(SpeedTestSettingsPane(speedTest: model.speedTest), width: pane.width)
-            case .history:   host = Self.paneHost(HistoryView(model: history), width: pane.width)
-            case .hotspot:   host = Self.paneHost(HotspotSettingsPane(metering: model.metering, state: state), width: pane.width)
-            case .about:     host = Self.paneHost(AboutSettingsPane(onUninstall: onUninstall), width: pane.width)
+            case .general:   host = Self.paneHost(GeneralSettingsPane(model: model, state: state), width: SettingsMetrics.paneWidth)
+            case .speedTest: host = Self.paneHost(SpeedTestSettingsPane(speedTest: model.speedTest), width: SettingsMetrics.paneWidth)
+            case .history:   host = Self.paneHost(HistoryView(model: history), width: SettingsMetrics.paneWidth)
+            case .hotspot:   host = Self.paneHost(HotspotSettingsPane(metering: model.metering, state: state), width: SettingsMetrics.paneWidth)
+            case .about:     host = Self.paneHost(AboutSettingsPane(onUninstall: onUninstall), width: SettingsMetrics.paneWidth)
             }
             host.title = pane.title
             let item = NSTabViewItem(viewController: host)
@@ -141,16 +136,17 @@ public final class SettingsWindowController: NSObject {
         screenObservers.forEach(NotificationCenter.default.removeObserver)
     }
 
-    /// How one pane gives way to the next.
+    /// How one pane gives way to the next: at once.
     ///
-    /// `.allowUserInteraction` is what keeps the toolbar answering (#55).
-    /// Without it, AppKit ignores clicks until a transition ends, and the
-    /// transition includes the window's resize: a second tab clicked within
-    /// about 0.3 s of the first did nothing, longer around History's resize.
-    /// Measured: 21 of 32 such clicks dropped without it, none with it. A
-    /// click mid-transition starts the next one, and the window still ends on
-    /// the last pane clicked, at its size.
-    public static let paneTransition: NSViewController.TransitionOptions = [.crossfade, .allowUserInteraction]
+    /// No crossfade (#61). It ran about 0.7 s on every switch, after blocking
+    /// the main thread 40–80 ms to set up, and that was the lag. While it ran,
+    /// the outgoing pane stayed on screen in a window already resized for the
+    /// next one, which is where a passing scroll bar came from.
+    ///
+    /// `.allowUserInteraction` keeps the toolbar answering (#55). Without it,
+    /// AppKit ignores clicks until a transition ends: a second tab clicked
+    /// within about 0.3 s of the first did nothing.
+    public static let paneTransition: NSViewController.TransitionOptions = [.allowUserInteraction]
 
     /// A pane in a scroll view, which scrolls only once the pane is taller than
     /// the window can be (#46). The scroll view takes the pane's full height as
@@ -187,7 +183,7 @@ public final class SettingsWindowController: NSObject {
         child.view.layoutSubtreeIfNeeded()
         let size = child.preferredContentSize.height > 0 ? child.preferredContentSize
                                                          : child.view.fittingSize
-        fit(size, animate: false)
+        fit(size)
     }
 
     public func windowWillClose() {
@@ -212,13 +208,14 @@ public final class SettingsWindowController: NSObject {
         }
     }
 
-    /// Resizes to a pane of `size`. See `frame(for:current:usable:)`.
-    private func fit(_ size: NSSize, animate: Bool = true) {
+    /// Resizes to a pane of `size`, at once, like the pane itself (#61). See
+    /// `frame(for:current:usable:)`.
+    private func fit(_ size: NSSize) {
         guard size.width > 0, size.height > 0 else { return }
         let wanted = window.frameRect(forContentRect: NSRect(origin: .zero, size: size)).size
         let frame = Self.frame(for: wanted, current: window.frame, usable: usableFrame())
         guard frame != window.frame else { return }
-        window.setFrame(frame, display: true, animate: animate && window.isVisible)
+        window.setFrame(frame, display: true)
     }
 
     /// The part of the window's screen below the menu bar. Before the window is
@@ -310,6 +307,7 @@ public final class SettingsWindowController: NSObject {
 /// delegate already, so the hook is an override rather than a delegate of our own.
 private final class PaneTabViewController: NSTabViewController {
     var onSelect: ((SettingsPane) -> Void)?
+
 
     override func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
         super.tabView(tabView, didSelect: tabViewItem)

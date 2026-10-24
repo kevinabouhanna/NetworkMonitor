@@ -26,6 +26,13 @@ func runSettingsTests() {
             Check.expectTrue(SettingsWindowController.paneTransition.contains(.allowUserInteraction))
         }
 
+        // A crossfade took about 0.7 s on every switch, and let a scroll bar
+        // flash on the way out of a taller pane (#61).
+        Check.test("panes change at once") {
+            Check.expectEqual(SettingsWindowController.paneTransition.subtracting(.allowUserInteraction), [],
+                              "no crossfade or slide of any kind")
+        }
+
         // The HIG's "restore the most recently viewed pane".
         Check.test("Settings reopens on the last pane viewed, General the first time") {
             let defaults = UserDefaults(suiteName: "settings-pane-\(UUID().uuidString)")!
