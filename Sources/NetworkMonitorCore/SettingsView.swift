@@ -10,7 +10,7 @@ import SwiftUI
 
 /// Width every form pane shares, so switching between them only changes height.
 enum SettingsMetrics {
-    static let paneWidth: CGFloat = 540
+    static let paneWidth: CGFloat = 648
 }
 
 // MARK: - General
@@ -42,13 +42,19 @@ struct GeneralSettingsPane: View {
             // One choice for every speed, so the menu bar and the speed test never
             // show the same line in two different units.
             Section {
-                Picker("Show speeds in", selection: $speedTest.unit) {
-                    ForEach(SpeedUnit.allCases) { unit in
-                        Text(unit.label).tag(unit)
+                // In LabeledContent, so the switch sits at the row's right edge
+                // like every other control here. A segmented Picker sized to fit
+                // keeps its label, and stopped short of the edge (#51).
+                LabeledContent("Show speeds in") {
+                    Picker("Show speeds in", selection: $speedTest.unit) {
+                        ForEach(SpeedUnit.allCases) { unit in
+                            Text(unit.label).tag(unit)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
                 }
-                .pickerStyle(.segmented)
-                .fixedSize()
             } footer: {
                 SettingsFootnote("In the menu bar and the speed test. Data you've used is "
                                  + "always counted in MB and GB, the way data plans are sold.")
@@ -187,13 +193,17 @@ struct SpeedTestSettingsPane: View {
             }
 
             Section {
-                Picker("Show the test in the popover as", selection: $speedTest.style) {
-                    ForEach(SpeedTestStyle.allCases) { style in
-                        Text(style.label).tag(style)
+                // At the row's right edge; see General's speed unit.
+                LabeledContent("Show the test in the popover as") {
+                    Picker("Show the test in the popover as", selection: $speedTest.style) {
+                        ForEach(SpeedTestStyle.allCases) { style in
+                            Text(style.label).tag(style)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
                 }
-                .pickerStyle(.segmented)
-                .fixedSize()
             } footer: {
                 SettingsFootnote(speedTest.style == .card
                                  ? "A card with a dial and every figure, in place of your apps."

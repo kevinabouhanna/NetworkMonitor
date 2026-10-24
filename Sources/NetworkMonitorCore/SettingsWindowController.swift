@@ -84,7 +84,7 @@ public final class SettingsWindowController: NSObject {
         self.history = history
         self.defaults = defaults
         let state = SettingsPaneState()
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 400),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: SettingsMetrics.paneWidth, height: 400),
                           styleMask: [.titled, .closable], backing: .buffered, defer: false)
         super.init()
 

@@ -738,7 +738,7 @@ private struct FilterChip: View {
 // MARK: - Shared values
 
 enum HistoryMetrics {
-    static let windowWidth: CGFloat = 640
+    static let windowWidth: CGFloat = 768
     static let chartHeight: CGFloat = 200
     static let xAxisHeight: CGFloat = 22
     static let yAxisWidth: CGFloat = 46
