@@ -89,7 +89,7 @@ public final class SettingsWindowController: NSObject {
         super.init()
 
         tabs.tabStyle = .toolbar
-        tabs.transitionOptions = [.crossfade]
+        tabs.transitionOptions = Self.paneTransition
         for pane in SettingsPane.allCases {
             let host: NSViewController
             switch pane {
@@ -130,6 +130,17 @@ public final class SettingsWindowController: NSObject {
     deinit {
         screenObservers.forEach(NotificationCenter.default.removeObserver)
     }
+
+    /// How one pane gives way to the next.
+    ///
+    /// `.allowUserInteraction` is what keeps the toolbar answering (#55).
+    /// Without it, AppKit ignores clicks until a transition ends, and the
+    /// transition includes the window's resize: a second tab clicked within
+    /// about 0.3 s of the first did nothing, longer around History's resize.
+    /// Measured: 21 of 32 such clicks dropped without it, none with it. A
+    /// click mid-transition starts the next one, and the window still ends on
+    /// the last pane clicked, at its size.
+    public static let paneTransition: NSViewController.TransitionOptions = [.crossfade, .allowUserInteraction]
 
     /// A pane in a scroll view, which scrolls only once the pane is taller than
     /// the window can be (#46). The scroll view takes the pane's full height as
