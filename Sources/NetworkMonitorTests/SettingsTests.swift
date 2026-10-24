@@ -109,6 +109,15 @@ func runSettingsTests() {
             Check.expectEqual(SettingsWindowController.centred(dragged, after: general), dragged)
         }
 
+        // #65: a scroll bar on a pane that fits takes width from it, and once
+        // left 14 pt of a wrapped line behind. Only a taller pane gets one.
+        Check.test("only a pane taller than the window can be scrolls") {
+            Check.expectFalse(SettingsWindowController.scrolls(paneHeight: 333.5, tallest: 782))
+            Check.expectFalse(SettingsWindowController.scrolls(paneHeight: 782.4, tallest: 782),
+                              "half a point of rounding isn't scrolling")
+            Check.expectTrue(SettingsWindowController.scrolls(paneHeight: 873.5, tallest: 782))
+        }
+
         // #46: with both Hotspot lists open, the window ran off the screen.
         Check.test("a pane taller than the screen is capped at the screen, and scrolls") {
             let frame = SettingsWindowController.frame(for: NSSize(width: 540, height: 1600),

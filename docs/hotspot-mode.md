@@ -80,9 +80,9 @@ Each app has its own switch under **Paused on a hotspot**, if you want to leave 
 and a line saying how it's paused, such as *Turns off its automatic update check* or
 *Blocks its update server*. What the helper pauses shares one switch, **Through
 NetworkMonitor's helper**, because the helper does it all at once; it lists only what's on
-your Mac. An app that's running when its setting needs changing is marked *quit it to
-apply*, and the change is made as soon as it quits, because apps write their settings back
-when they quit.
+your Mac. On a hotspot, an app that's open when its setting needs changing is marked
+*paused once you quit it*, and the change is made the moment it quits, because apps write
+their settings back when they quit. Off a hotspot nothing is waiting, so nothing is marked.
 
 ## Low Data Mode, for the apps no setting reaches
 
