@@ -72,6 +72,8 @@ public final class SettingsWindowController: NSObject {
     /// Caps the content at the screen's height; see `keepOnScreen()`.
     private var heightCap: NSLayoutConstraint!
     private var screenObservers: [NSObjectProtocol] = []
+    /// The frame at the last resize or move; see `windowDidResize()`.
+    private var lastFrame: NSRect?
 
     /// How high the window's top may go on a screen. `AppDelegate` sets it to
     /// just under the menu bar, which it knows the real height of: an
@@ -119,12 +121,20 @@ public final class SettingsWindowController: NSObject {
         // this scrolls inside the window instead of stretching it.
         heightCap = tabs.view.heightAnchor.constraint(lessThanOrEqualToConstant: 10_000)
         heightCap.isActive = true
-        // Moved to a smaller screen, it has to fit that one.
-        screenObservers = [NSWindow.didResizeNotification, NSWindow.didChangeScreenNotification].map {
-            NotificationCenter.default.addObserver(forName: $0, object: window, queue: .main) { [weak self] _ in
+        let center = NotificationCenter.default
+        screenObservers = [
+            center.addObserver(forName: NSWindow.didResizeNotification, object: window, queue: .main) { [weak self] _ in
+                self?.windowDidResize()
+            },
+            // Dragged by the user: that is where it stays centred from now on.
+            center.addObserver(forName: NSWindow.didMoveNotification, object: window, queue: .main) { [weak self] _ in
+                self?.lastFrame = self?.window.frame
+            },
+            // Moved to a smaller screen, it has to fit that one.
+            center.addObserver(forName: NSWindow.didChangeScreenNotification, object: window, queue: .main) { [weak self] _ in
                 self?.keepOnScreen()
-            }
-        }
+            },
+        ]
     }
 
     deinit {
@@ -219,6 +229,31 @@ public final class SettingsWindowController: NSObject {
             usable.size.height = min(usable.maxY, highestTop(screen)) - usable.minY
             return usable
         }
+    }
+
+    private func windowDidResize() {
+        if let lastFrame {
+            let centred = Self.centred(window.frame, after: lastFrame)
+            if centred != window.frame { window.setFrame(centred, display: true) }
+        }
+        lastFrame = window.frame
+        keepOnScreen()
+    }
+
+    /// `frame` moved back to the centre of `last`, when it got there by a
+    /// resize that kept the left edge (#57).
+    ///
+    /// Auto Layout resizes the window that way when it gets in before
+    /// `fit(_:)`, which happens when a tab is clicked while the last pane is
+    /// still changing. Between History and a narrower pane that moved the window
+    /// 60 pt left each time, and `fit(_:)` then centred on where it had moved
+    /// to. A resize that changes the width and moves the left edge is
+    /// `fit(_:)`'s own, already centred.
+    public static func centred(_ frame: NSRect, after last: NSRect) -> NSRect {
+        guard frame.width != last.width, frame.minX == last.minX else { return frame }
+        var centred = frame
+        centred.origin.x = last.midX - frame.width / 2
+        return centred
     }
 
     /// Keeps the window within its screen after it resizes (#46).
