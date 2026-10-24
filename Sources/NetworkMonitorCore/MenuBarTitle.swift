@@ -27,14 +27,15 @@ public enum MenuBarTitle {
     /// widths, which is what the padding in `ByteFormat.menuBarRate` relies on.
     public static let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
 
-    /// Download line colour, `#51FF70`.
+    /// Download line colour by default, `#51FF70`. Settings can change both
+    /// (#45); see `MenuBarColors`.
     public static let downTint = NSColor(srgbRed: 0x51 / 255, green: 0xFF / 255,
                                          blue: 0x70 / 255, alpha: 1)
-    /// Upload line colour, `#E5E5E5`.
+    /// Upload line colour by default, `#E5E5E5`.
     ///
     /// Fixed sRGB values as specified, so they do not adapt to appearance. Both
     /// are light and read well on a dark menu bar; on a light menu bar the upload
-    /// line is close to the background.
+    /// line is close to the background, which is one reason to change it.
     public static let upTint = NSColor(srgbRed: 0xE5 / 255, green: 0xE5 / 255,
                                        blue: 0xE5 / 255, alpha: 1)
 
@@ -49,6 +50,8 @@ public enum MenuBarTitle {
     /// Tints while a speed test has the menu bar, so its figures — a capacity
     /// rather than what is moving, in the same unit as the live rates — are
     /// never mistaken for them. Same family as the download green, shifted to cyan.
+    /// The first of `MenuBarTints.testChoices`, used unless the live colours
+    /// come too close to it.
     public static let testDownTint = NSColor(srgbRed: 0x64 / 255, green: 0xD2 / 255,
                                              blue: 0xFF / 255, alpha: 1)
     public static let testUpTint = NSColor(srgbRed: 0xB4 / 255, green: 0xE9 / 255,
@@ -61,17 +64,18 @@ public enum MenuBarTitle {
     }
 
     /// The two lines, each tinted separately.
-    public static func attributed(down: Double, up: Double,
-                                  unit: SpeedUnit = .bytes) -> NSAttributedString {
-        attributed(downLine(down, unit: unit), downTint, upLine(up, unit: unit), upTint)
+    public static func attributed(down: Double, up: Double, unit: SpeedUnit = .bytes,
+                                  tints: MenuBarTints = .live) -> NSAttributedString {
+        attributed(downLine(down, unit: unit), tints.down, upLine(up, unit: unit), tints.up)
     }
 
     /// A speed test's two lines, in the chosen unit, at the live title's exact
     /// width.
-    public static func speedTestAttributed(downBits: Double, upBits: Double,
-                                           unit: SpeedUnit = .bits) -> NSAttributedString {
-        attributed("↓ \(ByteFormat.menuBarSpeed(downBits, unit: unit))", testDownTint,
-                   "↑ \(ByteFormat.menuBarSpeed(upBits, unit: unit))", testUpTint)
+    public static func speedTestAttributed(downBits: Double, upBits: Double, unit: SpeedUnit = .bits,
+                                           tints: MenuBarTints = MenuBarTints.testChoices[0])
+        -> NSAttributedString {
+        attributed("↓ \(ByteFormat.menuBarSpeed(downBits, unit: unit))", tints.down,
+                   "↑ \(ByteFormat.menuBarSpeed(upBits, unit: unit))", tints.up)
     }
 
     private static func attributed(_ top: String, _ topTint: NSColor,
@@ -114,14 +118,15 @@ public enum MenuBarTitle {
     ///
     /// `isTemplate = false` is what preserves the green; a template image would
     /// be recoloured to the monochrome menu bar tint.
-    public static func image(down: Double, up: Double, unit: SpeedUnit = .bytes) -> NSImage {
-        image(attributed(down: down, up: up, unit: unit))
+    public static func image(down: Double, up: Double, unit: SpeedUnit = .bytes,
+                             tints: MenuBarTints = .live) -> NSImage {
+        image(attributed(down: down, up: up, unit: unit, tints: tints))
     }
 
     /// The speed test's title, drawn exactly as the live one is.
-    public static func speedTestImage(downBits: Double, upBits: Double,
-                                      unit: SpeedUnit) -> NSImage {
-        image(speedTestAttributed(downBits: downBits, upBits: upBits, unit: unit))
+    public static func speedTestImage(downBits: Double, upBits: Double, unit: SpeedUnit,
+                                      tints: MenuBarTints = MenuBarTints.testChoices[0]) -> NSImage {
+        image(speedTestAttributed(downBits: downBits, upBits: upBits, unit: unit, tints: tints))
     }
 
     private static func image(_ text: NSAttributedString) -> NSImage {

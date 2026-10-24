@@ -18,11 +18,13 @@ enum SettingsMetrics {
 struct GeneralSettingsPane: View {
     @ObservedObject var model: MonitorViewModel
     @ObservedObject var speedTest: SpeedTestController
+    @ObservedObject var colors: MenuBarColors
     @ObservedObject var state: SettingsPaneState
 
     init(model: MonitorViewModel, state: SettingsPaneState) {
         self.model = model
         self.speedTest = model.speedTest
+        self.colors = model.menuBarColors
         self.state = state
     }
 
@@ -50,6 +52,36 @@ struct GeneralSettingsPane: View {
             } footer: {
                 SettingsFootnote("In the menu bar and the speed test. Data you've used is "
                                  + "always counted in MB and GB, the way data plans are sold.")
+            }
+
+            // The live rates only (#45). A speed test's colours follow from
+            // these, so the two never look alike; they're shown, not offered.
+            Section {
+                ColorPicker("Download", selection: binding(\.download), supportsOpacity: false)
+                ColorPicker("Upload", selection: binding(\.upload), supportsOpacity: false)
+                LabeledContent("During a speed test") {
+                    HStack(spacing: 6) {
+                        Text("↓")
+                        ColorSwatch(color: colors.test.down)
+                        Text("↑").padding(.leading, 4)
+                        ColorSwatch(color: colors.test.up)
+                    }
+                    .foregroundStyle(.secondary)
+                }
+                // Always there, dimmed at the defaults. A row that came and went
+                // changed the pane's height from the colour panel, which has the
+                // focus while a colour is picked, and the window only caught up
+                // on the next click in Settings.
+                HStack {
+                    Spacer()
+                    Button("Use Default Colors") { colors.reset() }
+                        .disabled(colors.isDefault)
+                }
+            } header: {
+                Text("Menu bar colors")
+            } footer: {
+                SettingsFootnote("A speed test shows its figures in its own colors, kept clear of "
+                                 + "these, so they're never taken for live rates.")
             }
 
             Section {
@@ -95,6 +127,16 @@ struct GeneralSettingsPane: View {
         .settingsForm()
     }
 
+    /// A colour well's binding. Whatever space the colour panel hands back, the
+    /// menu bar gets the sRGB colour that is saved.
+    private func binding(_ line: ReferenceWritableKeyPath<MenuBarColors, NSColor>) -> Binding<CGColor> {
+        Binding(get: { colors[keyPath: line].cgColor },
+                set: { picked in
+                    guard let color = NSColor(cgColor: picked) else { return }
+                    colors[keyPath: line] = MenuBarColors.normalized(color)
+                })
+    }
+
     private func apply(_ enabled: Bool) {
         do {
             if enabled { try LoginItem.enable() } else { try LoginItem.disable() }
@@ -104,6 +146,19 @@ struct GeneralSettingsPane: View {
             // Snap the switch back so it never claims a state that did not stick.
             state.launchAtLogin = LoginItem.isEnabled
         }
+    }
+}
+
+/// A colour shown, not offered: shaped like a colour well, smaller, with
+/// nothing to press.
+private struct ColorSwatch: View {
+    let color: NSColor
+
+    var body: some View {
+        Capsule()
+            .fill(Color(nsColor: color))
+            .overlay(Capsule().strokeBorder(Color.secondary.opacity(0.35)))
+            .frame(width: 30, height: 16)
     }
 }
 

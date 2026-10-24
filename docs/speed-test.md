@@ -35,7 +35,9 @@ test Apple ships with every Mac since Monterey, against Apple's nearest servers.
   beneath once it's done. The list stays in view and gives up that much height, so
   the popover never grows.
 - **The menu bar**, always. While the test runs, the readout shows it in cyan, so its
-  figures are never mistaken for the live rate, at exactly the readout's usual width.
+  figures are never mistaken for the live rate, at exactly the readout's usual width. If
+  you've given the live rates colours close to cyan (Settings › General › Menu bar colors),
+  the test uses pink, amber or violet instead, and General shows which.
   It holds the result for 8 seconds, then the live rates return. Start a test from the
   right-click menu and this is where you watch it.
 

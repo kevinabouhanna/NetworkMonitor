@@ -28,7 +28,7 @@
 
 ## ✨ Features
 
-- ⚡ **Live speed** in the menu bar, download and upload, in MB/s or Mbps.
+- ⚡ **Live speed** in the menu bar, download and upload, in MB/s or Mbps, in colours you choose.
 - 📊 **Which apps used your data** on this connection, biggest first.
 - 🏠 **Internet only.** AirPlay, Time Machine and other home-network traffic don't count.
 - 📱 **Hotspot mode** pauses app updates on a mobile hotspot, and resumes them when you leave.
