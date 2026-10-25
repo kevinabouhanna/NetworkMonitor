@@ -47,6 +47,10 @@ public struct NetworkFingerprint: Equatable {
     /// and so what tells the app's own flags apart from the network's: see
     /// `InterfaceFlagOwnership`.
     public let interfaceName: String?
+    /// The Wi-Fi network's name, once Location is allowed (#85). A label only,
+    /// never part of `id`: many networks share a name, and one router can have
+    /// two (2.4 and 5 GHz).
+    public let wifiName: String?
 
     /// Everything `MeteredHeuristic` needs except the user's own decision, which
     /// lives in the store and is deliberately **not** part of the fingerprint:
@@ -69,7 +73,8 @@ public struct NetworkFingerprint: Equatable {
                 isConstrained: Bool,
                 gatewayIP: String? = nil,
                 interfaceDisplayName: String? = nil,
-                interfaceName: String? = nil) {
+                interfaceName: String? = nil,
+                wifiName: String? = nil) {
         self.id = id
         self.kind = kind
         self.gatewayMAC = gatewayMAC
@@ -79,6 +84,29 @@ public struct NetworkFingerprint: Equatable {
         self.gatewayIP = gatewayIP
         self.interfaceDisplayName = interfaceDisplayName
         self.interfaceName = interfaceName
+        self.wifiName = wifiName
+    }
+
+    /// The same fingerprint with another Wi-Fi name.
+    public func named(_ wifiName: String?) -> NetworkFingerprint {
+        NetworkFingerprint(id: id, kind: kind, gatewayMAC: gatewayMAC, defaultLabel: defaultLabel,
+                           isExpensive: isExpensive, isConstrained: isConstrained,
+                           gatewayIP: gatewayIP, interfaceDisplayName: interfaceDisplayName,
+                           interfaceName: interfaceName, wifiName: wifiName)
+    }
+
+    /// Whether `other` is this same link, whatever either knows of its name. A
+    /// name arriving once Location is allowed changes nothing about the link,
+    /// so it must not re-baseline the counters as a real change does.
+    public func isSameLink(as other: NetworkFingerprint) -> Bool {
+        named(nil) == other.named(nil)
+    }
+
+    /// Whether `id` names an interface rather than a network: no router address
+    /// and no router IP to tell networks on it apart, so any number may share
+    /// it. Before 1.9.7 on macOS 27, that was every Wi-Fi network (#70).
+    public static func isUnidentified(_ id: String) -> Bool {
+        id.hasPrefix("if:") && !id.contains("@")
     }
 
     public static let offline = NetworkFingerprint(
@@ -91,7 +119,8 @@ public struct NetworkFingerprint: Equatable {
                      isExpensive: Bool,
                      isConstrained: Bool,
                      gatewayIP: String? = nil,
-                     interfaceDisplayName: String? = nil) -> NetworkFingerprint {
+                     interfaceDisplayName: String? = nil,
+                     wifiName: String? = nil) -> NetworkFingerprint {
         // Keying on the gateway MAC alone (not MAC + medium) means moving the
         // same router from Wi-Fi to Ethernet keeps one bucket, which is what a
         // data cap cares about.
@@ -133,7 +162,8 @@ public struct NetworkFingerprint: Equatable {
                                   isConstrained: isConstrained,
                                   gatewayIP: gatewayIP,
                                   interfaceDisplayName: interfaceDisplayName,
-                                  interfaceName: interfaceName)
+                                  interfaceName: interfaceName,
+                                  wifiName: wifiName)
     }
 }
 
@@ -147,6 +177,12 @@ public final class NetworkIdentityWatcher {
 
     /// Fires only when the fingerprint actually changes, on the main queue.
     public var onChange: ((NetworkFingerprint) -> Void)?
+
+    /// The Wi-Fi network's name on a BSD interface, or nil when it may not be
+    /// read. Set before `start()`; called on the watcher's own queue.
+    public var wifiName: (String) -> String? = { _ in nil }
+    /// The last path seen, so `refresh()` can evaluate it again.
+    private var lastPath: NWPath?
 
     /// The interface flags this app raised itself, kept out of `kind`.
     private let ownership: InterfaceFlagOwnership
@@ -174,12 +210,9 @@ public final class NetworkIdentityWatcher {
     /// fingerprint comparison then discards changes that aren't real.
     private func handle(_ path: NWPath) {
         debounce?.cancel()
+        lastPath = path
         let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            let next = Self.fingerprint(for: path, ownership: self.ownership)
-            guard next != self.current else { return }
-            self.current = next
-            DispatchQueue.main.async { self.onChange?(next) }
+            self?.evaluate(path)
         }
         debounce = work
         // 2 s is comfortably longer than a DHCP handshake burst and short
@@ -187,8 +220,26 @@ public final class NetworkIdentityWatcher {
         queue.asyncAfter(deadline: .now() + 2, execute: work)
     }
 
+    /// Evaluates the current path again, for something that changes the
+    /// fingerprint without changing the path: the Wi-Fi name becoming readable,
+    /// or no longer.
+    public func refresh() {
+        queue.async { [weak self] in
+            guard let self, let path = self.lastPath else { return }
+            self.evaluate(path)
+        }
+    }
+
+    private func evaluate(_ path: NWPath) {
+        let next = Self.fingerprint(for: path, ownership: ownership, wifiName: wifiName)
+        guard next != current else { return }
+        current = next
+        DispatchQueue.main.async { self.onChange?(next) }
+    }
+
     static func fingerprint(for path: NWPath,
-                            ownership: InterfaceFlagOwnership) -> NetworkFingerprint {
+                            ownership: InterfaceFlagOwnership,
+                            wifiName: (String) -> String? = { _ in nil }) -> NetworkFingerprint {
         guard path.status == .satisfied else { return .offline }
 
         // The interface carrying the default route, ignoring tunnels: a VPN's
@@ -235,13 +286,16 @@ public final class NetworkIdentityWatcher {
             kind = .other
         }
 
+        let name = path.usesInterfaceType(.wifi) ? interfaceName.flatMap(wifiName) : nil
+
         return .make(kind: kind,
                      gatewayMAC: gatewayMAC,
                      interfaceName: interfaceName,
                      isExpensive: path.isExpensive,
                      isConstrained: path.isConstrained,
                      gatewayIP: gatewayIP,
-                     interfaceDisplayName: displayName)
+                     interfaceDisplayName: displayName,
+                     wifiName: name.flatMap { $0.isEmpty ? nil : $0 })
     }
 }
 

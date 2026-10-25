@@ -30,9 +30,15 @@
 	<key>LSUIElement</key>
 	<true/>
 
-	<!-- No NSLocationUsageDescription on purpose. Network identity comes from
-	     the default gateway's MAC address, which needs no permission, so the
-	     app never prompts. SSID would require Location access and is not used. -->
+	<!-- Asked for a few seconds after launch (#85): macOS shares the Wi-Fi
+	     network's name only with Location permission. Network identity still
+	     comes from the router's address, which needs none. -->
+	<key>NSLocationUsageDescription</key>
+	<string>NetworkMonitor uses Location only to read your Wi-Fi network's name, to show it in Usage History. It never looks up where you are.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>NetworkMonitor uses Location only to read your Wi-Fi network's name, to show it in Usage History. It never looks up where you are.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>NetworkMonitor uses Location only to read your Wi-Fi network's name, to show it in Usage History. It never looks up where you are.</string>
 
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Kevin Abouhanna</string>

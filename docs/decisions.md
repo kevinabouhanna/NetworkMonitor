@@ -8,8 +8,9 @@ odd: most odd-looking things were the second or third attempt.
 - **Under-reporting is the one error it can't afford.** Anything ambiguous counts as
   internet traffic. A total that's slightly high is an annoyance; one that hides real usage
   defeats the app.
-- **No permission prompts.** Networks are identified without Location. The only password
-  ever asked for is optional, for Hotspot mode's helper.
+- **Few permission prompts.** Networks are identified without any permission. Location is
+  asked for only to show Wi-Fi names (#85), and the only password ever asked for is
+  optional, for Hotspot mode's helper.
 - **No network access of its own.** The only traffic it causes is a speed test you start.
 - **Nothing to configure where the app can decide.** Sampling rates follow the power source;
   Hotspot mode is one switch with no list to maintain. A switch that needs configuring to
@@ -69,6 +70,7 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-24 | **Menu bar colors** can be changed; a speed test's colours follow, kept clear of them (#45) | Colour is the only thing that tells a test's figures from the live rates, so a live colour that matched the test's would hide which is which |
 | 2026-10-25 | **The gateway's address is read from configd**, then `arp` (issue #70) | macOS 27 hides the ARP table from apps without Local Network permission, so every Wi-Fi network had become one. configd needs no permission, and asking for it would mean a prompt after every ad-hoc-signed update |
 | 2026-10-25 | **History's All / Wi-Fi / Hotspot switch** replaces Metered only, opens on Hotspot while you're on one, and app bars are split by network type (issue #70) | A day on Wi-Fi and a hotspot should read as two parts, everywhere in the pane. Hotspot is a kind of network, so it filters by kind and matches the chart's colours; Metered only was nearly the same set under another name |
+| 2026-10-25 | **Wi-Fi names, with Location, always on** (issue #85) | "Wi-Fi · 9493" told people nothing. macOS 27 shares the name only with Location, so the app asks a few seconds after launch, with no setting. The name is only a label: the router's address stays the identity, and a router's two band names are both kept |
 
 ## Approaches turned down
 
@@ -82,7 +84,7 @@ Newest last. Links go to the commit or pull request.
 | `nettop -P` | one row per process, losing the remote address needed for the LAN split |
 | Switching per-app tracking off on battery | the cost was a bug; it switched attribution off on hotspots |
 | Subtracting multicast from the total | made the total smaller than its own rows |
-| The Wi-Fi name (SSID) as identity | needs Location permission |
+| The Wi-Fi name (SSID) as identity | many networks share a name, and one router can have two; it's a label instead (#85) |
 | The access point's address (BSSID) as identity | changes on every roam |
 | Resetting on every path change | path changes fire several times per event; would wipe hotspot totals |
 | A rolling 24-hour reset | drifts to arbitrary hours; midnight matches how carriers count |

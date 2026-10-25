@@ -34,6 +34,10 @@ The ↓ ↑ readout appears in the menu bar. NetworkMonitor has no Dock icon and
 window of its own; everything starts from the readout. It registers itself to
 start at login, which you can turn off in **Settings › General**.
 
+A few seconds in, it asks to use your location. Click **Allow** to see networks by
+their Wi-Fi name: macOS shares the name only with Location permission, and it's used
+for nothing else. Refuse, and networks are named like *Wi-Fi · 3f2a*.
+
 On macOS 13 or 14 there's a shortcut for steps 2 and 3: Control-click the app in
 Applications, choose **Open**, then **Open** again.
 

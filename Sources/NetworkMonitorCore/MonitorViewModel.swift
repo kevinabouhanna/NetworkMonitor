@@ -73,6 +73,8 @@ public final class MonitorViewModel: ObservableObject {
     public let speedTest: SpeedTestController
     /// The readout's colours, and the speed test's alongside them (#45).
     public let menuBarColors: MenuBarColors
+    /// Wi-Fi names, and the Location permission they need (#85).
+    public let wifiNames: WiFiNames
 
     private let identityResolver = AppIdentityResolver()
     private let nettop: NettopStream
@@ -132,11 +134,13 @@ public final class MonitorViewModel: ObservableObject {
                 metering: MeteringController? = nil,
                 speedTest: SpeedTestController = SpeedTestController(),
                 menuBarColors: MenuBarColors = MenuBarColors(),
+                wifiNames: WiFiNames = WiFiNames(),
                 nettop: NettopStream? = nil) {
         self.store = store
         self.metering = metering ?? MeteringController(store: store)
         self.speedTest = speedTest
         self.menuBarColors = menuBarColors
+        self.wifiNames = wifiNames
         self.dayStart = store.dayStart
         self.countingSince = store.countingSince
         let profile = PowerProfile.current()
@@ -159,7 +163,11 @@ public final class MonitorViewModel: ObservableObject {
         pathWatcher.onChange = { [weak self] fingerprint in
             self?.handleNetworkChange(fingerprint)
         }
+        // Read on the watcher's queue, so it takes the component, not `self`.
+        pathWatcher.wifiName = { [wifiNames] interface in wifiNames.name(onInterface: interface) }
+        wifiNames.onChange = { [weak self] in self?.pathWatcher.refresh() }
         pathWatcher.start()
+        wifiNames.start()
         // Adopt whatever the watcher already knows so the first tick has a bucket.
         store.setCurrentNetwork(pathWatcher.fingerprint)
         refreshHeader()
@@ -491,6 +499,14 @@ public final class MonitorViewModel: ObservableObject {
     // MARK: Network changes
 
     private func handleNetworkChange(_ fingerprint: NetworkFingerprint) {
+        // Only the Wi-Fi name is new, read once Location was allowed, or gone
+        // once it was taken away. The link is the same, so the store keeps the
+        // name and nothing is re-baselined: a reset would drop a sample.
+        if fingerprint.isSameLink(as: store.currentNetwork) {
+            store.setCurrentNetwork(fingerprint)
+            objectWillChange.send()
+            return
+        }
         // Joining a different network restarts its counter; an offline blip and
         // a rejoin resume the same one. The store decides which happened.
         if store.setCurrentNetwork(fingerprint) {

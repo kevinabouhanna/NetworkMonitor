@@ -171,9 +171,10 @@ public final class HistoryViewModel: ObservableObject {
 
     // MARK: Names
 
-    /// The user's name for a network if they gave it one, else the default.
+    /// The user's name for a network if they gave it one, else its Wi-Fi name,
+    /// else the default.
     public func networkName(_ id: String, defaultLabel: String) -> String {
-        monitor.store.customLabel(for: id) ?? defaultLabel
+        monitor.store.displayLabel(for: id, defaultLabel: defaultLabel)
     }
 
     public var filteredNetworkName: String? {
@@ -184,13 +185,16 @@ public final class HistoryViewModel: ObservableObject {
 
     /// Asks for a new name, in a sheet on the history window.
     public func rename(networkID id: String, defaultLabel: String, in window: NSWindow?) {
+        // What an empty field goes back to: its Wi-Fi name, if it has one.
+        let fallback = monitor.store.wifiLabel(for: id)
+            ?? monitor.store.displayLabel(for: id, defaultLabel: defaultLabel)
         let alert = NSAlert()
         alert.messageText = "Rename Network"
         alert.informativeText = "The name is used in Usage History and its exports. "
-            + "Leave it empty to go back to “\(defaultLabel)”."
+            + "Leave it empty to go back to “\(fallback)”."
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         field.stringValue = monitor.store.customLabel(for: id) ?? ""
-        field.placeholderString = defaultLabel
+        field.placeholderString = fallback
         alert.accessoryView = field
         alert.addButton(withTitle: "Rename")
         alert.addButton(withTitle: "Cancel")
@@ -283,7 +287,8 @@ public final class HistoryViewModel: ObservableObject {
         let save: (NSApplication.ModalResponse) -> Void = { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
             let csv = history.exportCSV(for: period, filter: filter) { [weak self] id in
-                self?.monitor.store.customLabel(for: id)
+                guard let store = self?.monitor.store else { return nil }
+                return store.customLabel(for: id) ?? store.wifiLabel(for: id)
             }
             do {
                 try csv.write(to: url, atomically: true, encoding: .utf8)

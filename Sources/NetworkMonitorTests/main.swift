@@ -46,5 +46,6 @@ runSuppressedValueTests()
 runSpeedTestTests()
 runMenuBarStripTests()
 runWindowStackTests()
+runWiFiNamesTests()
 
 exit(Check.summarize())
