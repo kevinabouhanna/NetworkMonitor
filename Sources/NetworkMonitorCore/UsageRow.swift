@@ -15,6 +15,9 @@ public struct UsageRow: Identifiable, Equatable {
     /// Processes this app launched that live outside its bundle, biggest first.
     /// Empty for all but a handful of rows.
     public let children: [UsageRow]
+    /// This process's own bytes by the kind of network they used, for History's
+    /// bars (#70). Empty in the popover, which is one network at a time.
+    public let ownKinds: [NetworkFingerprint.Kind: Int64]
 
     /// Bytes billed to this process alone.
     public var ownTotal: Int64 { bytesIn + bytesOut }
@@ -28,9 +31,16 @@ public struct UsageRow: Identifiable, Equatable {
 
     public var hasChildren: Bool { !children.isEmpty }
 
+    /// `ownKinds` with every child's, the split of `total`.
+    public var kinds: [NetworkFingerprint.Kind: Int64] {
+        children.reduce(into: ownKinds) { sum, child in
+            sum.merge(child.kinds, uniquingKeysWith: +)
+        }
+    }
+
     public init(id: String, displayName: String, bytesIn: Int64, bytesOut: Int64,
                 bundlePath: String?, isSystem: Bool, isActive: Bool,
-                children: [UsageRow] = []) {
+                children: [UsageRow] = [], ownKinds: [NetworkFingerprint.Kind: Int64] = [:]) {
         self.id = id
         self.displayName = displayName
         self.bytesIn = bytesIn
@@ -39,6 +49,7 @@ public struct UsageRow: Identifiable, Equatable {
         self.isSystem = isSystem
         self.isActive = isActive
         self.children = children
+        self.ownKinds = ownKinds
     }
 }
 
@@ -86,7 +97,8 @@ extension UsageRow {
             bytesOut: rest.reduce(0) { $0 + $1.bytesOut },
             bundlePath: nil,
             isSystem: false,
-            isActive: rest.contains(where: \.isActive))
+            isActive: rest.contains(where: \.isActive),
+            ownKinds: rest.reduce(into: [:]) { $0.merge($1.kinds, uniquingKeysWith: +) })
         return Array(shown) + [other]
     }
 
@@ -100,11 +112,14 @@ extension UsageRow {
     /// row, synthesised from the child's `ParentApp`. Otherwise a terminal whose
     /// only network activity is the dev server it started would leave that
     /// server with nowhere to nest.
+    ///
+    /// `kinds` splits each app's own bytes by network kind, for History.
     public static func partition(
         apps: [String: AppTotals],
         lastActivity: [String: Date],
         now: Date,
-        activityWindow: TimeInterval = UsageRow.activityWindow
+        activityWindow: TimeInterval = UsageRow.activityWindow,
+        kinds: [String: [NetworkFingerprint.Kind: Int64]] = [:]
     ) -> (apps: [UsageRow], system: [UsageRow], systemTotal: Int64) {
 
         func isActive(_ key: String) -> Bool {
@@ -117,7 +132,8 @@ extension UsageRow {
                      bytesOut: totals.bytesOut,
                      bundlePath: totals.bundlePath,
                      isSystem: totals.isSystem,
-                     isActive: isActive(key))
+                     isActive: isActive(key),
+                     ownKinds: kinds[key] ?? [:])
         }
 
         var topLevel: [String: UsageRow] = [:]
@@ -154,7 +170,8 @@ extension UsageRow {
                                         isSystem: false,
                                         isActive: existing.isActive
                                             || sortedChildren.contains(where: \.isActive),
-                                        children: sortedChildren))
+                                        children: sortedChildren,
+                                        ownKinds: existing.ownKinds))
             } else if let parent = parentsByKey[parentKey] {
                 appRows.append(UsageRow(id: parent.key,
                                         displayName: parent.displayName,

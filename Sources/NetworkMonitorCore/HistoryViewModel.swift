@@ -53,14 +53,15 @@ public final class HistoryViewModel: ObservableObject {
 
     // MARK: Window lifecycle
 
-    /// Each opening starts at the present, unfiltered, at the scale last used.
+    /// Each opening starts at the present, at the scale last used, unfiltered
+    /// or on Hotspot while the Mac is on one: see `HistoryFilter.opening(on:)`.
     public func windowDidOpen() {
         retention = history?.retention ?? .forever
         hoveredBin = nil
         expandedApps.removeAll()
         systemExpanded = false
         show(HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar),
-             filter: HistoryFilter())
+             filter: .opening(on: monitor.store.currentNetwork.kind))
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             guard let self, self.period.contains(Date()) else { return }
@@ -138,11 +139,12 @@ public final class HistoryViewModel: ObservableObject {
         show(period, filter: next)
     }
 
-    public var meteredOnly: Bool {
-        get { filter.meteredOnly }
+    /// The switch above the chart: all networks, Wi-Fi or Hotspot.
+    public var kind: NetworkFingerprint.Kind? {
+        get { filter.kind }
         set {
             var next = filter
-            next.meteredOnly = newValue
+            next.kind = newValue
             show(period, filter: next)
         }
     }
