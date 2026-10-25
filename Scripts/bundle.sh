@@ -161,13 +161,27 @@ elif [ -f "$SIGNING_P12" ] && [ -n "$SIGNING_P12_PASSWORD" ]; then
   #
   # A throwaway keychain, so the key never sits in the login keychain and
   # nothing prompts: its password is made up here, which is what lets the
-  # partition list be set without the user's. Never added to the search list,
-  # and deleted however this exits. The certificate isn't trusted, and needn't
-  # be: codesign signs with it by hash, and the signature verifies.
+  # partition list be set without the user's. The certificate isn't trusted,
+  # and needn't be: codesign signs with it by hash, and the signature verifies.
+  #
+  # On the search list while signing. `--keychain` alone was enough on macOS 27
+  # but not on the GitHub runner, where codesign answered "no identity found"
+  # for an identity `security find-identity` had just listed (#86). The list
+  # is put back, and the keychain deleted, however this exits.
   KEYCHAIN="$(mktemp -d)/signing.keychain-db"
   KEYCHAIN_PASSWORD="$(uuidgen)"
-  trap 'security delete-keychain "$KEYCHAIN" 2>/dev/null || true' EXIT
+  SEARCH_LIST=()
+  while IFS= read -r line; do
+    line="${line#"${line%%[![:space:]]*}"}"; line="${line#\"}"; line="${line%\"}"
+    [ -n "$line" ] && SEARCH_LIST+=("$line")
+  done < <(security list-keychains -d user)
+  restore_keychains() {
+    security list-keychains -d user -s "${SEARCH_LIST[@]}" 2>/dev/null || true
+    security delete-keychain "$KEYCHAIN" 2>/dev/null || true
+  }
+  trap restore_keychains EXIT
   security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+  security list-keychains -d user -s "$KEYCHAIN" "${SEARCH_LIST[@]}"
   security set-keychain-settings "$KEYCHAIN"
   security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
   security import "$SIGNING_P12" -k "$KEYCHAIN" -P "$SIGNING_P12_PASSWORD" \
