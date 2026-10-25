@@ -14,6 +14,7 @@ feature works, and why it was built that way.
 | [Hotspot mode](hotspot-mode.md) | What counts as a hotspot, what it pauses, the helper, Low Data Mode |
 | [Accuracy and battery](accuracy-and-battery.md) | What the numbers mean, why rows don't add up exactly, and what it costs to run |
 | [Privacy](privacy.md) | What it reads, sends and stores |
+| [Security policy](../SECURITY.md) | Reporting a vulnerability, what's in scope, checking a download |
 
 ## Working on NetworkMonitor
 
