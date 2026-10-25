@@ -17,14 +17,21 @@ not a window of its own, so nothing exists twice.
 - **Stacked by network type**: Wi-Fi, Hotspot, Ethernet and Other. Each type keeps its
   colour whatever else is in the period. The legend under the chart gives each type's
   total, so no figure is readable only by hovering.
+- **All, Wi-Fi or Hotspot**, the switch above the chart, narrows everything to that
+  kind of network: the chart, the totals and the lists. It opens on **Hotspot** while
+  you're on one, and on **All** otherwise. Ethernet and Other are under All, and on the
+  Networks list.
+- **Each app's bar is split by network type**, in the chart's colours, so an app that
+  used both Wi-Fi and a hotspot shows how much went over each. Splits too small to see
+  are left out; the Networks list has the exact figures.
 - **Total, Daily average and On metered connections** above the chart. The daily
-  average divides by the days elapsed so far, not by the length of the month.
+  average divides by the days elapsed so far, not by the length of the month. On
+  metered connections is shown under All.
 - **Apps, Networks and Sessions.** Apps are grouped exactly as in the popover. A
   session is one visit to a network.
 - **The lists are the filters.** Click a row to see only that app, network or session,
   and the chart and totals follow; click it again, or its chip above the chart, to
-  undo. **Metered only** narrows everything to hotspots and other metered connections.
-  Filters combine.
+  undo. Filters combine, with each other and with the switch.
 - **Name a network** by right-clicking it under Networks. The name is used in History
   and in exports, for every past visit too.
 - **Keep history for** a month, three months, a year, or forever (the default).

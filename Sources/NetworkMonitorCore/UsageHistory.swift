@@ -23,17 +23,26 @@ public struct HistoryFilter: Equatable {
     /// An app, together with every process it launched.
     public var appKey: String?
     public var sessionID: Int64?
-    public var meteredOnly = false
+    /// One kind of network, as charted: Wi-Fi or Hotspot from the switch above
+    /// the chart (#70). nil is all of them.
+    public var kind: NetworkFingerprint.Kind?
 
     public init(networkID: String? = nil, appKey: String? = nil,
-                sessionID: Int64? = nil, meteredOnly: Bool = false) {
+                sessionID: Int64? = nil, kind: NetworkFingerprint.Kind? = nil) {
         self.networkID = networkID
         self.appKey = appKey
         self.sessionID = sessionID
-        self.meteredOnly = meteredOnly
+        self.kind = kind
     }
 
     public var isEmpty: Bool { self == HistoryFilter() }
+
+    /// Where History opens: on Hotspot while the Mac is on one, so the first
+    /// thing shown is what's being spent on it now (#70), and on everything
+    /// otherwise.
+    public static func opening(on current: NetworkFingerprint.Kind) -> HistoryFilter {
+        HistoryFilter(kind: current == .hotspot ? .hotspot : nil)
+    }
 }
 
 /// How long history is kept.
@@ -539,7 +548,11 @@ public final class UsageHistory {
         }
         if let id = filter.networkID { add("s.network_id = ?", .text(id)) }
         if let id = filter.sessionID { add("s.id = ?", .int(id)) }
-        if filter.meteredOnly { terms.append("s.metered = 1") }
+        // `charted` folds a session that never learned its network into Other.
+        if let kind = filter.kind?.charted {
+            if kind == .other { terms.append("s.kind IN ('other', 'offline')") }
+            else { add("s.kind = ?", .text(kind.rawValue)) }
+        }
         if let key = filter.appKey, let appTable {
             values.append(.text(key))
             let index = values.count + 2
@@ -627,34 +640,41 @@ public final class UsageHistory {
                 }
             }
 
-            // Per-app totals, nested and grouped exactly as the popover does.
+            // Per-app totals, nested and grouped exactly as the popover does,
+            // and split by the kind of network, which colours each app's bar.
             let (appWhere, appValues) = conditions(filter, hourColumn: "a.hour", appTable: "a")
             let appQuery = try database.prepare("""
                 SELECT a.app_key, p.name, p.bundle_path, p.is_system,
                        p.parent_key, p.parent_name, p.parent_bundle_path,
-                       SUM(a.bytes_in), SUM(a.bytes_out)
+                       SUM(a.bytes_in), SUM(a.bytes_out), s.kind
                 FROM app_traffic a
                 JOIN apps p ON p.key = a.app_key
                 JOIN sessions s ON s.id = a.session_id
                 WHERE \(appWhere)
-                GROUP BY a.app_key
+                GROUP BY a.app_key, s.kind
                 """)
             appQuery.bind(range + appValues)
             var apps: [String: AppTotals] = [:]
+            var appKinds: [String: [NetworkFingerprint.Kind: Int64]] = [:]
             while try appQuery.step() {
                 let key = appQuery.string(0) ?? ""
                 let parent: ParentApp? = appQuery.string(4).map {
                     ParentApp(key: $0, displayName: appQuery.string(5) ?? "",
                               bundlePath: appQuery.string(6) ?? "")
                 }
-                apps[key] = AppTotals(displayName: appQuery.string(1) ?? key,
-                                      bundlePath: appQuery.string(2),
-                                      isSystem: appQuery.int64(3) != 0,
-                                      parent: parent,
-                                      bytesIn: appQuery.int64(7),
-                                      bytesOut: appQuery.int64(8))
+                let inBytes = appQuery.int64(7), outBytes = appQuery.int64(8)
+                var totals = apps[key] ?? AppTotals(displayName: appQuery.string(1) ?? key,
+                                                    bundlePath: appQuery.string(2),
+                                                    isSystem: appQuery.int64(3) != 0,
+                                                    parent: parent)
+                totals.bytesIn += inBytes
+                totals.bytesOut += outBytes
+                apps[key] = totals
+                let kind = (NetworkFingerprint.Kind(rawValue: appQuery.string(9) ?? "") ?? .other).charted
+                appKinds[key, default: [:]][kind, default: 0] += inBytes + outBytes
             }
-            let partitioned = UsageRow.partition(apps: apps, lastActivity: [:], now: period.start)
+            let partitioned = UsageRow.partition(apps: apps, lastActivity: [:], now: period.start,
+                                                 kinds: appKinds)
 
             // Networks: the period's visits grouped by where they were, named
             // after the most recent one.

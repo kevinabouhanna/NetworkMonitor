@@ -347,13 +347,37 @@ func runUsageHistoryTests() {
             Check.expectEqual(report.networks.map(\.bytes), [600, 50])
         }
 
-        Check.test("metered only keeps the metered sessions") {
+        // The All / Wi-Fi / Hotspot switch (#70).
+        Check.test("a kind filter keeps only that kind of network") {
             let url = temporaryURL(); defer { remove(url) }
             let cal = calendar()
-            let report = populated(url, cal).report(for: day(reference, cal),
-                                                    filter: HistoryFilter(meteredOnly: true))
-            Check.expectEqual(report.total, 50)
-            Check.expectEqual(report.networks.map(\.id), ["B"])
+            let history = populated(url, cal)
+            let hotspot = history.report(for: day(reference, cal),
+                                         filter: HistoryFilter(kind: .hotspot))
+            Check.expectEqual(hotspot.total, 50)
+            Check.expectEqual(hotspot.networks.map(\.id), ["B"])
+            Check.expectEqual(hotspot.apps.map(\.displayName), ["Safari"])
+            let wifi = history.report(for: day(reference, cal), filter: HistoryFilter(kind: .wifi))
+            Check.expectEqual(wifi.total, 1_000)
+            Check.expectEqual(wifi.byKind[.hotspot], nil)
+        }
+
+        Check.test("History opens on Hotspot while the Mac is on one") {
+            Check.expectEqual(HistoryFilter.opening(on: .hotspot), HistoryFilter(kind: .hotspot))
+            Check.expectEqual(HistoryFilter.opening(on: .wifi), HistoryFilter())
+            Check.expectEqual(HistoryFilter.opening(on: .offline), HistoryFilter())
+        }
+
+        // Each app's bar is split into the chart's colours (#70).
+        Check.test("an app's bytes are split by the kind of network they used") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let report = populated(url, cal).report(for: day(reference, cal))
+            let safari = report.apps.first { $0.displayName == "Safari" }
+            Check.expectEqual(safari?.kinds, [.wifi: 600, .hotspot: 50])
+            Check.expectEqual(safari?.total, 650)
+            let terminal = report.apps.first { $0.displayName == "Terminal" }
+            Check.expectEqual(terminal?.kinds, [.wifi: 400], "its own 100 and node's 300")
         }
 
         Check.test("a session filter is that one visit") {

@@ -113,11 +113,19 @@ public struct HistoryView: View {
                     .foregroundStyle(.tertiary)
             }
             Spacer(minLength: 8)
-            Toggle("Metered only",
-                   isOn: Binding(get: { model.meteredOnly }, set: { model.meteredOnly = $0 }))
-                .toggleStyle(.checkbox)
-                .font(.system(size: 12))
-                .help("Only connections NetworkMonitor counted as metered, such as a hotspot")
+            // Wi-Fi and Hotspot, the two kinds asked for in #70. Ethernet and
+            // Other stay under All, and on the Networks list.
+            Picker("Networks", selection: Binding(get: { model.kind }, set: { model.kind = $0 })) {
+                Text("All").tag(NetworkFingerprint.Kind?.none)
+                ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
+                    Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .controlSize(.small)
+            .help("Every connection, Wi-Fi only, or hotspots only")
         }
         .frame(height: 22)
     }
@@ -132,7 +140,7 @@ public struct HistoryView: View {
                 stat("Daily average",
                      days > 0 ? ByteFormat.bytes(report.total / Int64(days)) : "—")
             }
-            if !model.meteredOnly {
+            if model.kind == nil {
                 stat("On metered connections", ByteFormat.bytes(report.meteredBytes))
             }
             Spacer()
@@ -252,6 +260,9 @@ public struct HistoryView: View {
                 subtitle: nil,
                 bytes: report.systemTotal,
                 fraction: fraction(report.systemTotal, of: largest),
+                kinds: report.systemRows.reduce(into: [:]) {
+                    $0.merge($1.kinds, uniquingKeysWith: +)
+                },
                 isMuted: true,
                 isSelected: false,
                 disclosure: model.systemExpanded,
@@ -278,6 +289,7 @@ public struct HistoryView: View {
             subtitle: nil,
             bytes: row.total,
             fraction: fraction(row.total, of: largest),
+            kinds: row.kinds,
             indented: indented,
             isSelected: model.filter.appKey == row.id,
             disclosure: row.hasChildren ? model.expandedApps.contains(row.id) : nil,
@@ -607,10 +619,13 @@ private struct HistoryListRow: View {
     var isMetered = false
     let bytes: Int64
     let fraction: Double
+    /// An app's bytes by network type, which split its bar into the chart's
+    /// colours (#70). Empty for Networks and Sessions, which are one type each.
+    var kinds: [NetworkFingerprint.Kind: Int64] = [:]
     var indented = false
     var isMuted = false
     /// The network type's colour on the Networks and Sessions lists, so a row
-    /// matches its part of the chart; the accent colour for apps.
+    /// matches its part of the chart. Apps take theirs from `kinds`.
     var barColor: Color = .accentColor
     let isSelected: Bool
     /// nil for a row with nothing to expand; otherwise whether it is open.
@@ -650,10 +665,7 @@ private struct HistoryListRow: View {
                 }
             }
             Spacer(minLength: 12)
-            Capsule()
-                .fill(barColor.opacity(isMuted ? 0.5 : 0.85))
-                .frame(width: max(3, HistoryMetrics.rowBarWidth * min(max(fraction, 0), 1)),
-                       height: 5)
+            bar
                 .frame(width: HistoryMetrics.rowBarWidth, alignment: .leading)
             Text(ByteFormat.bytes(bytes))
                 .font(.system(size: 12, weight: .medium))
@@ -670,6 +682,39 @@ private struct HistoryListRow: View {
         .onHover { hover.isHovering = $0 }
         .onTapGesture(perform: onSelect)
         .help(isSelected ? "Click to show everything again" : "Click to see only \(title)")
+    }
+
+    /// The row's share of the biggest row. Split by network type, it reads as
+    /// that row's part of the chart: Wi-Fi then Hotspot, left to right, 1 pt
+    /// apart as the chart's segments are 2 pt apart.
+    private var bar: some View {
+        let width = max(3, HistoryMetrics.rowBarWidth * min(max(fraction, 0), 1))
+        let total = Double(kinds.values.reduce(0, +))
+        let gap: CGFloat = 1
+        // Parts under 2 pt read as noise on a short bar, not as a share. The
+        // Networks list has the exact split.
+        var parts = NetworkFingerprint.Kind.charted.filter { kind in
+            total > 0 && Double(kinds[kind] ?? 0) / total * width >= 2
+        }
+        if parts.isEmpty, let largest = kinds.max(by: { $0.value < $1.value })?.key {
+            parts = [largest.charted]
+        }
+        let room = width - gap * CGFloat(max(parts.count - 1, 0))
+        let shown = Double(parts.reduce(0) { $0 + (kinds[$1] ?? 0) })
+        return HStack(spacing: gap) {
+            if parts.isEmpty {
+                Rectangle().fill(barColor)
+            } else {
+                ForEach(parts, id: \.self) { kind in
+                    Rectangle()
+                        .fill(HistoryPalette.color(for: kind))
+                        .frame(width: room * Double(kinds[kind] ?? 0) / max(shown, 1))
+                }
+            }
+        }
+        .frame(width: width, height: 5)
+        .clipShape(Capsule())
+        .opacity(isMuted ? 0.5 : 0.85)
     }
 
     @ViewBuilder

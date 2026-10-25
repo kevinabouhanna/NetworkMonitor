@@ -199,6 +199,23 @@ func runUsageRowPartitionTests() {
             Check.expectEqual(result.apps.first?.children.last?.total, 5500 - 1000 - 900 - 800)
         }
 
+        // History splits each bar by network kind, so the split has to survive
+        // nesting and the roll-up the same way the bytes do (#70).
+        Check.test("network kinds add up through children and the roll-up") {
+            var apps: [String: AppTotals] = [:]
+            var kinds: [String: [NetworkFingerprint.Kind: Int64]] = [:]
+            for i in 1...10 {
+                apps["vscode\u{1}p\(i)"] = child("p\(i)", Int64(i) * 100, of: code)
+                kinds["vscode\u{1}p\(i)"] = i.isMultiple(of: 2) ? [.hotspot: Int64(i) * 100]
+                                                               : [.wifi: Int64(i) * 100]
+            }
+            let result = UsageRow.partition(apps: apps, lastActivity: [:], now: Date(), kinds: kinds)
+            let parent = result.apps.first
+            Check.expectEqual(parent?.kinds, [.wifi: 2500, .hotspot: 3000])
+            // Shown: p10, p9, p8. Rolled up: p1 to p7.
+            Check.expectEqual(parent?.children.last?.kinds, [.wifi: 1600, .hotspot: 1200])
+        }
+
         Check.test("a short list is left alone rather than rolled up") {
             var apps: [String: AppTotals] = [:]
             for i in 1...UsageRow.maxChildrenShown {
