@@ -610,6 +610,62 @@ func runUsageStoreTests() {
             Check.expectEqual(reopened.currentLabel, "Kevin's Wi-Fi")
         }
 
+        // #85: the Wi-Fi name is a label, below the user's own and above
+        // "Wi-Fi · 9493". It lives with the router, never in its identity.
+        Check.test("a Wi-Fi name labels its network, under a name the user gave") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home").named("Abouhanna"))
+            Check.expectEqual(store.currentLabel, "Abouhanna")
+            Check.expectEqual(store.displayLabel(for: "home", defaultLabel: "Wi-Fi · 9493"), "Abouhanna")
+            Check.expectEqual(store.displayLabel(for: "office", defaultLabel: "Wi-Fi · 3f2a"),
+                              "Wi-Fi · 3f2a", "a network never named keeps its default")
+            store.setLabel("Home", for: "home")
+            Check.expectEqual(store.currentLabel, "Home")
+
+            let reopened = UsageStore(storeURL: url)
+            Check.expectEqual(reopened.wifiLabel(for: "home"), "Abouhanna")
+        }
+
+        // 2.4 and 5 GHz on one router are one network. Named apart, both
+        // names show, first seen first, so the label doesn't flip as the Mac
+        // moves between bands.
+        Check.test("a router's two band names are both kept, in the order seen") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            store.setCurrentNetwork(network("home").named("Home"))
+            store.setCurrentNetwork(network("home").named("Home-5G"))
+            store.setCurrentNetwork(network("home").named("Home"))
+            Check.expectEqual(store.wifiLabel(for: "home"), "Home / Home-5G")
+        }
+
+        // The merged history from before 1.9.7 on macOS 27 (#70) has no router
+        // to name it after, and must not pass for a network of its own.
+        Check.test("a network the app couldn't identify says so") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            Check.expectEqual(store.displayLabel(for: "if:en0", defaultLabel: "Wi-Fi"),
+                              "Wi-Fi · networks not told apart")
+            Check.expectEqual(store.displayLabel(for: "if:en0@192.0.2.1", defaultLabel: "Wi-Fi"),
+                              "Wi-Fi", "the router's IP tells it apart")
+            store.setLabel("Before 1.9.7", for: "if:en0")
+            Check.expectEqual(store.displayLabel(for: "if:en0", defaultLabel: "Wi-Fi"), "Before 1.9.7")
+        }
+
+        Check.test("a store from before Wi-Fi names still loads") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let old = #"{"dayStart":"2026-10-24T22:00:00Z","labels":{},"buckets":{},"lastNetworkID":"home"}"#
+            try? old.data(using: .utf8)!.write(to: url)
+            let store = UsageStore(storeURL: url)
+            Check.expectNil(store.wifiLabel(for: "home"))
+            store.setCurrentNetwork(network("home").named("Abouhanna"))
+            Check.expectEqual(store.wifiLabel(for: "home"), "Abouhanna")
+        }
+
         Check.test("a blank label falls back to the default") {
             let url = temporaryURL()
             defer { try? FileManager.default.removeItem(at: url) }
@@ -785,6 +841,20 @@ func runNetworkFingerprintTests() {
 
         // #70: on macOS 27 the router's address went unread, and home Wi-Fi and
         // an iPhone hotspot on en0 were one network.
+        Check.test("the Wi-Fi name is a label, never part of the identity") {
+            let home = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "00:00:5e:00:53:2a",
+                                               interfaceName: "en0", isExpensive: false,
+                                               isConstrained: false)
+            let named = home.named("Abouhanna")
+            Check.expectEqual(named.id, home.id)
+            Check.expectTrue(named.isSameLink(as: home), "a name arriving is not a new link")
+            Check.expectFalse(named == home, "but it is a change the watcher reports")
+            let hotspot = NetworkFingerprint.make(kind: .hotspot, gatewayMAC: "00:00:5e:00:53:64",
+                                                  interfaceName: "en0", isExpensive: true,
+                                                  isConstrained: false)
+            Check.expectFalse(hotspot.named("Abouhanna").isSameLink(as: named))
+        }
+
         Check.test("without the router's address, its IP keeps networks apart") {
             let home = NetworkFingerprint.make(kind: .wifi, gatewayMAC: nil, interfaceName: "en0",
                                                isExpensive: false, isConstrained: false,
@@ -813,6 +883,18 @@ func runNetworkFingerprintTests() {
                                                  interfaceName: "en0",
                                                  isExpensive: false, isConstrained: false)
             Check.expectFalse(first.defaultLabel == second.defaultLabel)
+        }
+    }
+}
+
+func runWiFiNamesTests() {
+    Check.suite("WiFiNames") {
+        // macOS has no "while using": Allow is `.authorizedAlways`.
+        Check.test("names are read only once Location is allowed") {
+            Check.expectEqual(WiFiNames.access(.notDetermined), .asking)
+            Check.expectEqual(WiFiNames.access(.authorizedAlways), .allowed)
+            Check.expectEqual(WiFiNames.access(.denied), .denied)
+            Check.expectEqual(WiFiNames.access(.restricted), .denied)
         }
     }
 }

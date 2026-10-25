@@ -21,12 +21,14 @@ struct GeneralSettingsPane: View {
     @ObservedObject var model: MonitorViewModel
     @ObservedObject var speedTest: SpeedTestController
     @ObservedObject var colors: MenuBarColors
+    @ObservedObject var wifiNames: WiFiNames
     @ObservedObject var state: SettingsPaneState
 
     init(model: MonitorViewModel, state: SettingsPaneState) {
         self.model = model
         self.speedTest = model.speedTest
         self.colors = model.menuBarColors
+        self.wifiNames = model.wifiNames
         self.state = state
     }
 
@@ -60,6 +62,24 @@ struct GeneralSettingsPane: View {
             } footer: {
                 SettingsFootnote("In the menu bar and the speed test. Data you've used is "
                                  + "always counted in MB and GB, the way data plans are sold.")
+            }
+
+            // Wi-Fi names are always on (#85). Nothing to show unless Location
+            // was refused, which is the one reason they'd be missing.
+            if wifiNames.access == .denied {
+                Section {
+                    LabeledContent("Wi-Fi names") {
+                        Button("Open Location Settings") {
+                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:"
+                                + "com.apple.preference.security?Privacy_LocationServices")!)
+                        }
+                    }
+                } footer: {
+                    SettingsFootnote("macOS shares a Wi-Fi network's name only with Location "
+                                     + "permission, and it's off for NetworkMonitor. Until it's "
+                                     + "on, networks are named like “Wi-Fi · 3f2a”. NetworkMonitor "
+                                     + "uses it for the name alone, and never looks up where you are.")
+                }
             }
 
             // The live rates only (#45). A speed test's colours follow from

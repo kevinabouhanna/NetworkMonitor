@@ -184,6 +184,16 @@ between access points. With no address (a captive portal, IPv6-only) it falls ba
 the interface and the gateway's IP, `if:en0@172.20.10.1`. Path changes are debounced for
 2 seconds, longer than a DHCP burst.
 
+**Wi-Fi names** (`WiFiNames.swift`, issue #85). The name is a label, kept per network in
+`usage.json` (`wifiNames`), first seen first. macOS 27 shares it only with Location
+permission: without it CoreWLAN's `ssid()` is nil, configd's `SSID_STR` is empty and
+`ipconfig getsummary` prints `<redacted>`. So the app asks with
+`requestAlwaysAuthorization()` 3 seconds after launch (macOS has no "while using"), reads
+`ssid()` on the path watcher's queue once allowed, and evaluates the path again when the
+answer changes. A name arriving for the network already in use is not a change of link,
+so it doesn't re-baseline the counters. Every ad-hoc-signed build is a new app to macOS
+and is asked again; see issue #86.
+
 **Why configd** (issue #70). macOS 27 hides the ARP table from apps without Local Network
 permission: `arp` run by the app answers "no entry" for a router a terminal can see.
 From 27.0.1 until 1.9.7, every network on Wi-Fi therefore fell back to one key, `if:en0`,

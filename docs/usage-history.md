@@ -71,13 +71,21 @@ until the Mac has been silent for **30 minutes**, as it is after a sleep.
 
 ## Networks
 
-A network is identified by its router's hardware address, not its name, so no
-Location permission is needed. Two routers with the same Wi-Fi name stay apart, and
-roaming between access points of one network stays one network. The same router over
-Wi-Fi and over Ethernet is one network, which is what a data cap cares about.
+A network is identified by its router's hardware address, not its name. Two routers with
+the same Wi-Fi name stay apart, and roaming between access points of one network stays
+one network. The same router over Wi-Fi and over Ethernet is one network, which is what
+a data cap cares about.
 
-Until you name a network, it's called by its type plus the last four characters of
-the router's address, for example *Wi-Fi · 3f2a*.
+**What it's called:**
+- **Its Wi-Fi name**, once Location is allowed (macOS shares the name only then). Past
+  visits take the name too.
+- **Both names for a router whose bands are named apart**, such as *Home / Home-5G*.
+  2.4 and 5 GHz on one router are one network.
+- **Otherwise its type and the last four characters of the router's address**, such as
+  *Wi-Fi · 3f2a*: Ethernet, USB tethering, or Location refused.
+- **Networks not told apart**, for traffic the app couldn't place on a network, such as
+  everything on macOS 27 before 1.9.7.
+- **A name you give it** under Networks wins over all of these.
 
 ## CSV format
 

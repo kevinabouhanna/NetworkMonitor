@@ -132,10 +132,14 @@ struct PersistedState: Codable {
     /// bucket so that resetting a network's totals does not also discard what
     /// the user said about it. Optional, so an older store still decodes.
     var meteredOverrides: [String: Bool]?
+    /// Fingerprint id → the Wi-Fi names seen on it, first seen first (#85).
+    /// More than one when a router's 2.4 and 5 GHz bands are named apart.
+    /// Optional, so an older store still decodes.
+    var wifiNames: [String: [String]]?
 
     static func empty(now: Date = Date(), calendar: Calendar = .current) -> PersistedState {
         PersistedState(dayStart: calendar.startOfDay(for: now), labels: [:], buckets: [:],
-                       lastNetworkID: nil, meteredOverrides: [:])
+                       lastNetworkID: nil, meteredOverrides: [:], wifiNames: [:])
     }
 }
 
@@ -303,6 +307,7 @@ public final class UsageStore {
         }
         if fingerprint.id != NetworkFingerprint.offline.id {
             state.lastNetworkID = fingerprint.id
+            noteWiFiName(fingerprint.wifiName, for: fingerprint.id)
         }
         // The default name: one the user gives it later should rename every
         // visit, so it is looked up when history is shown, not stored here.
@@ -427,8 +432,35 @@ public final class UsageStore {
     }
 
     public func label(for id: String) -> String {
-        if let custom = customLabel(for: id) { return custom }
-        return state.buckets[id]?.defaultLabel ?? "Network"
+        displayLabel(for: id, defaultLabel: state.buckets[id]?.defaultLabel ?? "Network")
+    }
+
+    /// What a network is called: the name the user gave it, else its Wi-Fi
+    /// name, else `defaultLabel`, such as "Wi-Fi · 9493". One the app couldn't
+    /// identify says so, rather than passing for a network of its own.
+    public func displayLabel(for id: String, defaultLabel: String) -> String {
+        if let name = customLabel(for: id) ?? wifiLabel(for: id) { return name }
+        return NetworkFingerprint.isUnidentified(id) ? "\(defaultLabel) · networks not told apart"
+                                                     : defaultLabel
+    }
+
+    /// Its Wi-Fi names, joined: "Home / Home-5G" for a router whose two bands
+    /// are named apart. nil if none was ever read.
+    public func wifiLabel(for id: String) -> String? {
+        guard let names = state.wifiNames?[id], !names.isEmpty else { return nil }
+        return names.joined(separator: " / ")
+    }
+
+    /// Keeps `name` for the network `id`, after any it already has. A router
+    /// keeps its first name first, so its label doesn't flip as the Mac moves
+    /// between its bands.
+    private func noteWiFiName(_ name: String?, for id: String) {
+        guard let name, !name.isEmpty else { return }
+        var names = state.wifiNames?[id] ?? []
+        guard !names.contains(name) else { return }
+        names.append(name)
+        state.wifiNames = (state.wifiNames ?? [:]).merging([id: names]) { $1 }
+        dirty = true
     }
 
     /// The name the user gave a network, if they gave it one.
