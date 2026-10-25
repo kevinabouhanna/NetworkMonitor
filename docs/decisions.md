@@ -71,6 +71,7 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-25 | **The gateway's address is read from configd**, then `arp` (issue #70) | macOS 27 hides the ARP table from apps without Local Network permission, so every Wi-Fi network had become one. configd needs no permission, and asking for it would mean a prompt after every ad-hoc-signed update |
 | 2026-10-25 | **History's All / Wi-Fi / Hotspot switch** replaces Metered only, opens on Hotspot while you're on one, and app bars are split by network type (issue #70) | A day on Wi-Fi and a hotspot should read as two parts, everywhere in the pane. Hotspot is a kind of network, so it filters by kind and matches the chart's colours; Metered only was nearly the same set under another name |
 | 2026-10-25 | **Wi-Fi names, with Location, always on** (issue #85) | "Wi-Fi · 9493" told people nothing. macOS 27 shares the name only with Location, so the app asks a few seconds after launch, with no setting. The name is only a label: the router's address stays the identity, and a router's two band names are both kept |
+| 2026-10-25 | **Every build signed with one self-signed certificate** (issue #86) | Ad-hoc signatures made each update a new app to macOS, which asked for Location again. A fixed certificate gives every build the same designated requirement; checked, an update with it wasn't asked. The key stays out of the repo: in `~/.config/networkmonitor-signing/` and two repository secrets |
 
 ## Approaches turned down
 

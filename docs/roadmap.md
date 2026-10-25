@@ -17,6 +17,8 @@ The plan, in order:
    and it signs with the hardened runtime and a timestamp. Running `nettop` needs no
    hardened-runtime exception, but Wi-Fi names will: the hardened runtime needs the
    `com.apple.security.personal-information.location` entitlement for Location (#85).
+   The change of certificate, from NetworkMonitor's own (#86), makes it a new app to macOS
+   once, so Location is asked for one more time.
 2. **Notarize in the release workflow** (`notarytool submit --wait`, then `stapler
    staple`), check that a fresh Mac opens it without a warning, and drop the **Open Anyway**
    steps from the README, the website and the release notes. This is the milestone that

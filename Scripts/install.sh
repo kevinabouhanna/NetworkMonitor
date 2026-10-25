@@ -4,10 +4,11 @@
 # start at login.
 #
 # No Apple Developer account, no Developer ID and no notarization are required.
-# The app is signed ad-hoc, which is enough for macOS to run it locally, and the
-# login item is registered by the app through SMAppService, which accepts an
-# ad-hoc signature (verified: registration reports .enabled and the item is
-# recorded as an app, with the bundle's own name and icon).
+# The app is signed with NetworkMonitor's own certificate when it's on this Mac,
+# and ad-hoc otherwise (see bundle.sh). Either is enough for macOS to run it
+# locally, and the login item is registered by the app through SMAppService,
+# which accepts an ad-hoc signature (verified: registration reports .enabled and
+# the item is recorded as an app, with the bundle's own name and icon).
 #
 # Usage:
 #   ./Scripts/install.sh                # install + enable launch at login

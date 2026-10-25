@@ -14,10 +14,10 @@
 # The layout is written by dmgbuild (Python), installed into a virtualenv under
 # .build/ on first use so nothing is added to the system Python.
 #
-# Until builds are signed with a Developer ID, the app inside is ad-hoc signed
-# and Gatekeeper blocks it on first open; the website walks people through
-# "Open Anyway". Set SIGN_IDENTITY for bundle.sh, then notarize the .dmg, and
-# that step goes away.
+# Until builds are signed with a Developer ID, the app inside carries
+# NetworkMonitor's own certificate (#86), which Gatekeeper doesn't know, so it
+# blocks it on first open; the website walks people through "Open Anyway". Set
+# SIGN_IDENTITY for bundle.sh, then notarize the .dmg, and that step goes away.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."

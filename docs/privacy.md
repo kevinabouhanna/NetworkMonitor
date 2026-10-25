@@ -54,7 +54,7 @@ read. The last result is kept in memory only, and dropped when you change networ
 
 - **Location, to read the Wi-Fi network's name.** Asked a few seconds after the app
   first opens. Refuse it and everything works, with networks named like *Wi-Fi · 3f2a*.
-  Until releases are signed with a Developer ID, macOS may ask again after an update.
+  Updates keep the answer: every release is signed with the same certificate.
 - **Nothing else, normally.** No Local Network, no Accessibility, no Full Disk Access, no
   network extension.
 - **Your password, once, if you choose it.** Switching on Hotspot mode offers to

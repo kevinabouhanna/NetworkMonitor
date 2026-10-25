@@ -33,10 +33,21 @@ jobs:
       # `make dmg` builds the universal app — with its privileged helper inside,
       # also universal — and packages it as the drag-to-Applications disk image
       # the website's Download buttons point at.
+      # Signed with NetworkMonitor's own certificate (#86), so every release is
+      # the same app to macOS and Location, asked for Wi-Fi names, survives an
+      # update. A release without it would be ad-hoc and ask again, so a
+      # missing secret fails the build rather than shipping that.
       - name: Build the universal app and its disk image
         env:
           MARKETING_VERSION: ${{ steps.version.outputs.value }}
-        run: make dmg
+          SIGNING_P12_BASE64: ${{ secrets.SIGNING_P12_BASE64 }}
+          SIGNING_P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+        run: |
+          test -n "$SIGNING_P12_BASE64" || { echo "SIGNING_P12_BASE64 is not set" >&2; exit 1; }
+          export SIGNING_P12="$RUNNER_TEMP/signing.p12"
+          echo "$SIGNING_P12_BASE64" | base64 --decode > "$SIGNING_P12"
+          make dmg
+          rm -f "$SIGNING_P12"
 
       - name: Verify the stamped version matches the tag
         run: |
@@ -60,6 +71,9 @@ jobs:
           case "$archs" in *arm64*x86_64*|*x86_64*arm64*) ;; *) exit 1 ;; esac
           test -x build/NetworkMonitor.app/Contents/Resources/helper-setup.sh
           codesign --verify --deep --strict build/NetworkMonitor.app
+          # The certificate's, not ad-hoc: see the build step.
+          codesign -d -r- build/NetworkMonitor.app 2>&1 | tee /dev/stderr \
+            | grep -q 'certificate leaf = H"96c1f2de35dd57e4894a844f7068e8f0135c0ca2"'
 
       # Plain steps, no Terminal. The one rough edge left is Gatekeeper's
       # first-open warning, which only a Developer ID signature and notarization
