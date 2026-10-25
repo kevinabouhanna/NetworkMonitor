@@ -99,6 +99,9 @@ height of the screen, where the pane scrolls instead. It reopens on the pane you
 While Settings is open, NetworkMonitor has a Dock icon and a menu, so ⌘W, ⌘, and ⌘Y work
 and ⌘-Tab can find it. It goes back to living in the menu bar when you close it.
 
+With Settings open behind another app, a click on the menu bar item shows only the popover,
+and Settings stays behind. ⌘-Tab or the Dock icon shows Settings on its own.
+
 ## Staying out of the way
 
 - No Dock icon, no app switcher entry, no window to manage. Just the menu bar.

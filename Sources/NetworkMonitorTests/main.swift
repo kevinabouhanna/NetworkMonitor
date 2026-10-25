@@ -45,5 +45,6 @@ runJSONConfigEditTests()
 runSuppressedValueTests()
 runSpeedTestTests()
 runMenuBarStripTests()
+runWindowStackTests()
 
 exit(Check.summarize())
