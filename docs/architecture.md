@@ -191,8 +191,9 @@ permission: without it CoreWLAN's `ssid()` is nil, configd's `SSID_STR` is empty
 `requestAlwaysAuthorization()` 3 seconds after launch (macOS has no "while using"), reads
 `ssid()` on the path watcher's queue once allowed, and evaluates the path again when the
 answer changes. A name arriving for the network already in use is not a change of link,
-so it doesn't re-baseline the counters. Every ad-hoc-signed build is a new app to macOS
-and is asked again; see issue #86.
+so it doesn't re-baseline the counters. Releases are all signed with one certificate,
+so the answer survives updates (issue #86); an ad-hoc build is a new app to macOS and is
+asked again.
 
 **Why configd** (issue #70). macOS 27 hides the ARP table from apps without Local Network
 permission: `arp` run by the app answers "no entry" for a router a terminal can see.

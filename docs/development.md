@@ -34,7 +34,7 @@ make run     # build build/NetworkMonitor.app and open it
 |---|---|
 | `make test` | Runs the test suite |
 | `make build` | Debug build of the package |
-| `make app` | Release build of `build/NetworkMonitor.app` for this Mac's architecture, ad-hoc signed, with the helper inside |
+| `make app` | Release build of `build/NetworkMonitor.app` for this Mac's architecture, signed (see step 4 below), with the helper inside |
 | `make universal` | The same, for arm64 and x86_64 |
 | `make dmg` | `universal`, then `build/NetworkMonitor.dmg` |
 | `make run` | `app`, then quit any running copy and open the new one |
@@ -114,8 +114,18 @@ There's no Xcode project. `Scripts/bundle.sh` assembles the bundle by hand, beca
    `Contents/Library/LaunchServices/`, and `helper-setup.sh` in `Resources`.
 4. **Signing**, inside out and without `--deep`: the helper first, with its own
    identifier, then the app. `--deep` re-signed the helper with an identifier guessed from
-   its file name, which was the app's. With `SIGN_IDENTITY` set (a Developer ID identity),
-   it also turns on the hardened runtime and a timestamp, ready for notarization.
+   its file name, which was the app's. With what:
+   - **NetworkMonitor's own certificate** (issue #86), when it's there: the `.p12` in
+     `SIGNING_P12` and its password in `SIGNING_P12_PASSWORD`, or by default
+     `~/.config/networkmonitor-signing/signing.p12` and `password`. It's self-signed, so
+     Gatekeeper still asks for Open Anyway. The point is that every build has the same
+     designated requirement, the identifier plus this certificate, so macOS keeps Location
+     (asked for Wi-Fi names) across updates. Checked: an ad-hoc rebuild was asked again,
+     and two builds with this certificate and different hashes were not. Each build
+     imports the key into a throwaway keychain and deletes it afterwards.
+   - **Ad-hoc**, without it: forks and pull request CI. Each build is a new app to macOS.
+   - **A Developer ID**, with `SIGN_IDENTITY` set: the hardened runtime and a timestamp,
+     ready for notarization.
 
 `Scripts/make-dmg.sh` packages the app with `dmgbuild` (`Scripts/dmg-settings.py`): an
 LZFSE-compressed image with the app, an `Applications` link and a light background. The
@@ -163,6 +173,9 @@ Every change follows the same path:
 2. The **Release** workflow (`.github/workflows/release.yml`) runs the tests, builds the
    universal DMG with the tag's version, checks the version, the helper and the
    signature, and publishes `NetworkMonitor.dmg` with install and update instructions.
+   It signs with the certificate in the repository secrets `SIGNING_P12_BASE64` and
+   `SIGNING_P12_PASSWORD`, fails without them, and checks the signature names that
+   certificate (fingerprint `96c1f2de…`).
 3. Add a **What's new in X.Y.Z** section to the release notes by hand.
 4. Update the website (below).
 

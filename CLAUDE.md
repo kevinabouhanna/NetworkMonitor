@@ -52,6 +52,10 @@ release of its own:
   Tools has no XCTest. The pre-push hook runs it too (`make hooks` installs it).
 - `make app` builds `build/NetworkMonitor.app`.
 - `make install` builds and installs to /Applications.
+- **Signing.** Builds are signed with NetworkMonitor's own certificate from
+  `~/.config/networkmonitor-signing/` when it's there, and ad-hoc otherwise; the
+  Release workflow uses the copy in the repository secrets. Keep it that way: an
+  ad-hoc release would make macOS ask for Location again after the update (#86).
 - **Command Line Tools only.** With the macOS 27 SDK, SwiftUI's `@State` is a
   macro, and its implementation ships only with Xcode. Hold view state in an
   `ObservableObject` instead; see `SettingsPaneState`.
