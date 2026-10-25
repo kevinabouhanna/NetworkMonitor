@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import SystemConfiguration
 
 /// Identifies *which* network you are attached to, so usage can be bucketed per
 /// network instead of wiped whenever connectivity blips.
@@ -98,7 +99,11 @@ public struct NetworkFingerprint: Equatable {
         if let mac = gatewayMAC {
             identifier = "gw:\(mac)"
         } else if let interfaceName {
-            identifier = "if:\(interfaceName)"
+            // The router's IP, while its address is unknown, keeps an iPhone
+            // hotspot (172.20.10.1) apart from home Wi-Fi on the same interface.
+            // On the interface alone they were one network (#70). Two routers
+            // on the same IP still share a key until the address is known.
+            identifier = gatewayIP.map { "if:\(interfaceName)@\($0)" } ?? "if:\(interfaceName)"
         } else {
             identifier = "unknown"
         }
@@ -242,9 +247,10 @@ public final class NetworkIdentityWatcher {
 
 /// Resolves the default gateway's hardware address.
 ///
-/// Shells out to `route` and `arp` rather than walking the routing table via
-/// `sysctl(NET_RT_FLAGS)`. This runs only on a debounced network change — a few
-/// times a day — so the pointer-arithmetic version buys nothing and risks more.
+/// From configd first, then `arp`. The gateway's IP comes from `route` rather
+/// than walking the routing table via `sysctl(NET_RT_FLAGS)`. This runs only on
+/// a debounced network change — a few times a day — so the pointer-arithmetic
+/// version buys nothing and risks more.
 public enum GatewayProbe {
 
     public static func macAddress() -> String? {
@@ -262,8 +268,39 @@ public enum GatewayProbe {
         // even though the gateway is reachable. Retry briefly rather than
         // fingerprinting the network as unknown.
         for attempt in 0..<5 {
-            if let mac = arpLookup(gateway) { return mac }
+            if let mac = configdLookup(gateway) ?? arpLookup(gateway) { return mac }
             if attempt < 4 { Thread.sleep(forTimeInterval: 0.4) }
+        }
+        return nil
+    }
+
+    /// The router's hardware address as configd resolved it, which needs no
+    /// permission (#70).
+    ///
+    /// macOS 27 hides the ARP table from apps without Local Network access:
+    /// `arp -n` run by NetworkMonitor answered "no entry" for a router that a
+    /// terminal showed, so from 27.0.1 on every network fell back to the same
+    /// `if:en0` key. configd resolves the router itself, for the network
+    /// signature it keeps, and publishes it in each service's IPv4 state, which
+    /// any process can read. Checked from a process `arp` answered "no entry"
+    /// to: configd gave it the router's address all the same.
+    public static func configdLookup(_ gateway: String) -> String? {
+        guard let store = SCDynamicStoreCreate(nil, "NetworkMonitor" as CFString, nil, nil),
+              let states = SCDynamicStoreCopyMultiple(
+                store, nil, ["State:/Network/Service/[^/]+/IPv4"] as CFArray) as? [String: Any]
+        else { return nil }
+        return routerMAC(forGateway: gateway, in: Array(states.values))
+    }
+
+    /// From services' IPv4 state, the address resolved for `gateway`. Matched
+    /// on the router's IP, since a VPN or a second interface has a service of
+    /// its own.
+    public static func routerMAC(forGateway gateway: String, in states: [Any]) -> String? {
+        for case let state as [String: Any] in states
+        where state["ARPResolvedIPAddress"] as? String == gateway {
+            if let mac = state["ARPResolvedHardwareAddress"] as? String, mac.contains(":") {
+                return normalizeMAC(mac)
+            }
         }
         return nil
     }

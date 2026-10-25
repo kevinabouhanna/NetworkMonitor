@@ -12,7 +12,7 @@ flowchart LR
     subgraph mac["macOS"]
         K["Kernel byte counters<br/>sysctl NET_RT_IFLIST2"]
         N["nettop<br/>long-lived child, on a PTY"]
-        P["NWPathMonitor<br/>route + arp: gateway MAC"]
+        P["NWPathMonitor<br/>route + configd: gateway MAC"]
         E["Power source, Low Power Mode,<br/>display sleep, screen lock"]
     end
 
@@ -176,11 +176,19 @@ kernel counted. Without the clamp, a measured 90 seconds gave 367 KB of "interne
 ## A total per connection
 
 **Telling networks apart.** A network is identified by its default gateway's hardware
-address (`route -n get default`, then `arp`), stored as `gw:<mac>`. Its Wi-Fi name would
-need Location permission. The gateway address needs none, tells apart two routers with
-the same Wi-Fi name, and stays the same while roaming between access points. With no
-reachable gateway (a captive portal, IPv6-only) it falls back to the interface name.
-Path changes are debounced for 2 seconds, longer than a DHCP burst.
+address, stored as `gw:<mac>`. The gateway's IP comes from `route -n get default`, and
+its address from configd (`ARPResolvedHardwareAddress` in the service's IPv4 state), then
+`arp`. Its Wi-Fi name would need Location permission. The gateway address needs none,
+tells apart two routers with the same Wi-Fi name, and stays the same while roaming
+between access points. With no address (a captive portal, IPv6-only) it falls back to
+the interface and the gateway's IP, `if:en0@172.20.10.1`. Path changes are debounced for
+2 seconds, longer than a DHCP burst.
+
+**Why configd** (issue #70). macOS 27 hides the ARP table from apps without Local Network
+permission: `arp` run by the app answers "no entry" for a router a terminal can see.
+From 27.0.1 until 1.9.7, every network on Wi-Fi therefore fell back to one key, `if:en0`,
+and home Wi-Fi and an iPhone hotspot were one network. configd resolves the router
+itself and publishes it to any process.
 
 **Buckets** (`UsageStore.swift`). Each network has a bucket: kernel bytes, LAN bytes,
 per-app totals, and when counting started.

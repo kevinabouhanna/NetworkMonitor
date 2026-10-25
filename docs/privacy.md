@@ -12,7 +12,8 @@ leaves your Mac.
   the internet or on your own network. It never sees the contents of any traffic.
 - **The default gateway's hardware address**, to tell one network from another (see
   [how it tells networks apart](features.md#a-total-per-connection)). This is why it
-  needs no Location permission: it never reads your Wi-Fi network's name.
+  needs no Location permission: it never reads your Wi-Fi network's name. The address
+  comes from macOS's own network configuration, which needs no Local Network permission.
 - **The installed apps' update settings**, only when you switch on
   [Hotspot mode](hotspot-mode.md), to know what it can pause and to put it back.
 
@@ -49,8 +50,8 @@ read. The last result is kept in memory only, and dropped when you change networ
 
 ## Permissions
 
-- **None asked for, normally.** No Location, no Accessibility, no Full Disk Access, no
-  network extension.
+- **None asked for, normally.** No Location, no Local Network, no Accessibility, no Full
+  Disk Access, no network extension.
 - **Your password, once, if you choose it.** Switching on Hotspot mode offers to
   install a small helper, and macOS asks for your password to allow it. The helper can
   do a fixed handful of things and nothing else; see

@@ -156,6 +156,25 @@ func runUsageHistoryTests() {
             Check.expectEqual(report.networks.map(\.id), ["A", "B"])
         }
 
+        // #70: with the router's address unreadable, home Wi-Fi and a hotspot
+        // came in as one network that changed kind. Relabelling the visit made
+        // the hour on Wi-Fi read as Hotspot.
+        Check.test("a network that changes kind starts a new session") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            history.join(network("A"), label: "Net A", switched: false, now: reference)
+            history.recordInterface(bytesIn: 300, bytesOut: 0, now: reference)
+            history.join(network("A", kind: .hotspot), label: "Net A", switched: false,
+                         now: reference + 60)
+            history.recordInterface(bytesIn: 40, bytesOut: 0, now: reference + 61)
+
+            let report = history.report(for: day(reference, cal))
+            Check.expectEqual(report.sessions.count, 2)
+            Check.expectEqual(report.byKind[.wifi], 300)
+            Check.expectEqual(report.byKind[.hotspot], 40)
+        }
+
         // Offline is a gap, not a place — the store's rule, §4.2.
         Check.test("an offline blip and a rejoin continue the same session") {
             let url = temporaryURL(); defer { remove(url) }
