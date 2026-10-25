@@ -145,6 +145,9 @@ They use a temporary database and a UTC calendar.
 ## Known limits
 
 - History begins when you install 1.4.0 or later.
+- **On macOS 27 before 1.9.7**, every Wi-Fi network, iPhone hotspots included, was
+  recorded as one network ([#70](https://github.com/kevinabouhanna/NetworkMonitor/issues/70)).
+  Those visits can't be split after the fact: nothing recorded when the switches happened.
 - The Day/Week/Month/Year choice is remembered while the app runs, not across launches.
 - Which day a week starts on follows your Mac's region settings.
 - The database has a schema version (`user_version = 1`) but no migrations yet.

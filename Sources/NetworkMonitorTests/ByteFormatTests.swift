@@ -127,14 +127,35 @@ func runGatewayProbeTests() {
             Check.expectEqual(GatewayProbe.parseARP(output), "00:00:5e:00:53:2a")
         }
 
+        // configd's IPv4 state for a service, trimmed to the keys read, with
+        // documentation addresses (RFC 5737, RFC 7042).
+        let wifi: [String: Any] = ["InterfaceName": "en0", "Router": "192.0.2.1",
+                                   "ARPResolvedIPAddress": "192.0.2.1",
+                                   "ARPResolvedHardwareAddress": "0:0:5e:0:53:2a"]
+        let vpn: [String: Any] = ["InterfaceName": "utun4", "Router": "198.51.100.1"]
+
+        Check.test("configd's router address is read for that router only") {
+            Check.expectEqual(GatewayProbe.routerMAC(forGateway: "192.0.2.1", in: [vpn, wifi]),
+                              "00:00:5e:00:53:2a")
+            Check.expectNil(GatewayProbe.routerMAC(forGateway: "198.51.100.1", in: [vpn, wifi]))
+            Check.expectNil(GatewayProbe.routerMAC(forGateway: "203.0.113.1", in: [vpn, wifi]))
+        }
+
         // Integration: this machine has a reachable default gateway. A CI runner
         // does not necessarily, so this one is skipped there.
         if Check.skipsLiveTests {
             Check.skip("resolves this machine's gateway MAC", "needs a real default route")
         } else {
+            // Through configd, so it holds on macOS 27, where `arp` run by the
+            // app gets "no entry". It used to accept no answer at all, which is
+            // how three weeks of it went unnoticed (#70).
             Check.test("resolves this machine's gateway MAC") {
-                Check.expectNotNil(GatewayProbe.defaultGatewayIP(), "no default route found")
-                if let mac = GatewayProbe.macAddress() {
+                guard let gateway = GatewayProbe.defaultGatewayIP() else {
+                    return Check.expectNotNil(nil as String?, "no default route found")
+                }
+                let mac = GatewayProbe.configdLookup(gateway)
+                Check.expectNotNil(mac, "configd has no address for \(gateway)")
+                if let mac {
                     Check.expectEqual(mac.split(separator: ":").count, 6, "malformed MAC \(mac)")
                 }
             }

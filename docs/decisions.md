@@ -67,6 +67,7 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-25 | Settings › Hotspot loads in the background, marks only changes that are really waiting for an app to quit, and gives a pane a scroll bar only while it scrolls (#65) | Opening it asked the helper twice on the main thread (about 260 ms) and rescanned the apps; *quit it to apply* showed whenever the app was open, on any network; a scroll bar that came and went left a wrapped line's height behind |
 | 2026-10-25 | Settings is one width, 720 pt, for every pane, and changes panes at once, with no crossfade (#61) | The crossfade ran about 0.7 s per switch and let a scroll bar flash on the way out of a taller pane; History at 768 pt and the rest at 648 pt made the window change width |
 | 2026-10-24 | **Menu bar colors** can be changed; a speed test's colours follow, kept clear of them (#45) | Colour is the only thing that tells a test's figures from the live rates, so a live colour that matched the test's would hide which is which |
+| 2026-10-25 | **The gateway's address is read from configd**, then `arp` (issue #70) | macOS 27 hides the ARP table from apps without Local Network permission, so every Wi-Fi network had become one. configd needs no permission, and asking for it would mean a prompt after every ad-hoc-signed update |
 
 ## Approaches turned down
 

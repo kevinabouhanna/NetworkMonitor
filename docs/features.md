@@ -55,7 +55,8 @@ what each app spent on it.
 - **Counting since** (Settings › General) shows when the current total began.
 
 Networks are told apart by their router's hardware address, not their Wi-Fi name, so no
-Location permission is needed.
+Location permission is needed. It's read from macOS's own network settings, so no Local
+Network permission either.
 
 Totals from earlier networks and days go to [Usage History](usage-history.md).
 

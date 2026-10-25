@@ -783,6 +783,19 @@ func runNetworkFingerprintTests() {
             Check.expectEqual(fingerprint.id, "if:en0")
         }
 
+        // #70: on macOS 27 the router's address went unread, and home Wi-Fi and
+        // an iPhone hotspot on en0 were one network.
+        Check.test("without the router's address, its IP keeps networks apart") {
+            let home = NetworkFingerprint.make(kind: .wifi, gatewayMAC: nil, interfaceName: "en0",
+                                               isExpensive: false, isConstrained: false,
+                                               gatewayIP: "192.0.2.1")
+            let hotspot = NetworkFingerprint.make(kind: .hotspot, gatewayMAC: nil, interfaceName: "en0",
+                                                  isExpensive: true, isConstrained: false,
+                                                  gatewayIP: "172.20.10.1")
+            Check.expectEqual(home.id, "if:en0@192.0.2.1")
+            Check.expectEqual(hotspot.id, "if:en0@172.20.10.1")
+        }
+
         Check.test("a hotspot is labelled and flagged as metered") {
             let hotspot = NetworkFingerprint.make(kind: .hotspot, gatewayMAC: "aa:bb:cc:dd:ee:01",
                                                   interfaceName: "en0",

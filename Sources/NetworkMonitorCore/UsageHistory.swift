@@ -277,8 +277,12 @@ public final class UsageHistory {
 
         if var current = open {
             let quiet = now.timeIntervalSince(current.lastSeen) >= Self.sessionGap
-            if current.network.id == network.id && !switched && !quiet {
-                // The same visit, perhaps renamed or reclassified.
+            // A change of kind is a new visit, so hours already counted keep the
+            // kind they were counted as. Relabelled in place, one visit that
+            // spanned home Wi-Fi and a hotspot read as all Hotspot (#70).
+            if current.network.id == network.id && current.network.kind == network.kind
+                && !switched && !quiet {
+                // The same visit, perhaps renamed.
                 current.network = network
                 current.provisionalUntil = nil
                 open = current
