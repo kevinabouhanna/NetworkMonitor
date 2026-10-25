@@ -247,6 +247,12 @@ Two stacked lines, `↓` download in green (`#51FF70`) over `↑` upload in ligh
   menu (for ⌘W, ⌘, and ⌘Y) and a ⌘-Tab entry, then goes back to menu bar only when
   Settings closes. Without that, revealing an auto-hidden menu bar activated another app,
   whose windows covered Settings with no way back to it.
+- **The popover leaves Settings where it is** (issue #71). Activating the app for the
+  popover brought Settings forward over the app you were in, and AppKit makes it the main
+  window for that whatever it's told. So Settings goes off screen for that moment and
+  straight back below the window that was in front of it (`WindowStack`). Esc or a second
+  click on the item hands focus back to that app. ⌘-Tab, the Dock icon or a click on
+  Settings closes the popover and shows Settings alone.
 
 ### The auto-hidden menu bar
 

@@ -15,7 +15,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private var menuBarMonitors: [Any] = []
     /// Settings: toolbar panes for General, Speed Test, History, Hotspot and
     /// About. Created on first use.
-    private lazy var settings: SettingsWindowController = {
+    private var settingsController: SettingsWindowController?
+    private var settings: SettingsWindowController {
+        if let settingsController { return settingsController }
         let controller = SettingsWindowController(
             model: model, history: HistoryViewModel(monitor: model),
             onUninstall: { [weak self] in self?.uninstall() })
@@ -23,11 +25,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         controller.highestTop = { [weak self] screen in
             screen.frame.maxY - (self?.menuBarHeight(on: screen) ?? 0)
         }
+        settingsController = controller
         return controller
-    }()
+    }
+    /// The Settings window while it's open, without creating it to find out.
+    private var openSettingsWindow: NSWindow? {
+        guard let window = settingsController?.window, window.isVisible else { return nil }
+        return window
+    }
     /// Invisible stand-in for the status item that the popover anchors to.
     /// See `anchorView(under:)`.
     private var anchorWindow: NSWindow?
+    /// The app the popover opened over while Settings was open behind it, to
+    /// hand focus back to when the popover is dismissed; see `closePopover`.
+    private var appUnderPopover: NSRunningApplication?
+    /// Set while the app activates for the popover, so `appDidBecomeActive`
+    /// can tell that apart from ⌘-Tab or the Dock.
+    private var activatingForPopover = false
+    /// Set while `closePopover` closes it, so `popoverShouldClose` can tell
+    /// that apart from Esc.
+    private var closingPopover = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
@@ -142,6 +159,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         NotificationCenter.default.addObserver(
             self, selector: #selector(appDidResignActive),
             name: NSApplication.didResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appDidBecomeActive),
+            name: NSApplication.didBecomeActiveNotification, object: nil)
     }
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
@@ -156,11 +176,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
     private func togglePopover() {
         if popover.isShown {
-            closePopover()
+            closePopover(returningFocus: true)
             return
         }
         guard let button = statusItem.button else { return }
         model.setPopoverOpen(true)
+        if !NSApp.isActive, openSettingsWindow != nil {
+            appUnderPopover = NSWorkspace.shared.frontmostApplication
+        }
         if let anchor = anchorView(under: button) {
             popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
         } else {
@@ -168,7 +191,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
         // An LSUIElement app is not active by default, so without this the
         // popover renders unfocused and swallows the first click.
-        NSApp.activate(ignoringOtherApps: true)
+        activateForPopover()
         clearInitialFocus()
 
         // Clicks in other apps, the menu bar included. A click on the status item
@@ -253,8 +276,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         return window.contentView
     }
 
-    private func closePopover() {
-        popover.performClose(nil)
+    /// Activates the app for the popover, leaving Settings where it was.
+    private func activateForPopover() {
+        if !NSApp.isActive { activatingForPopover = true }
+        keepingSettingsInPlace { NSApp.activate(ignoringOtherApps: true) }
+    }
+
+    /// Runs `change` without letting it bring Settings forward from behind
+    /// another app's window (#71).
+    ///
+    /// Activating the app brings its main window forward, and Settings is made
+    /// main for it whatever it says: AppKit ignored `canBecomeMain` returning
+    /// false. The popover closing while the app is active makes Settings key,
+    /// which brings it forward too. Off screen for that moment, it is left
+    /// alone, and it goes straight back below the window that was in front of
+    /// it. Measured on macOS 27: Settings stayed behind Chrome, where without
+    /// this it came forward over it when the popover opened.
+    private func keepingSettingsInPlace(_ change: () -> Void) {
+        guard let window = openSettingsWindow,
+              let inFront = WindowStack.window(inFrontOf: window.windowNumber) else {
+            change()
+            return
+        }
+        window.orderOut(nil)
+        change()
+        window.order(.below, relativeTo: inFront)
+    }
+
+    /// `returningFocus` is for the popover being dismissed: Esc, or the status
+    /// item clicked again. If it opened over another app with Settings open
+    /// behind, focus goes back to that app. Left here, it would make Settings
+    /// key from behind that app's window, and the keyboard would go to a
+    /// window nobody can see.
+    private func closePopover(returningFocus: Bool = false) {
+        let returnTo = returningFocus && NSApp.isActive ? appUnderPopover : nil
+        appUnderPopover = nil
+        closingPopover = true
+        if NSApp.isActive {
+            keepingSettingsInPlace { popover.performClose(nil) }
+        } else {
+            popover.performClose(nil)
+        }
+        closingPopover = false
+        returnTo?.activate(options: [])
+    }
+
+    /// Esc, which closes the popover without going through `closePopover`. It
+    /// is sent back through it, a turn later rather than from inside AppKit's
+    /// own close.
+    func popoverShouldClose(_ popover: NSPopover) -> Bool {
+        guard !closingPopover else { return true }
+        DispatchQueue.main.async { [weak self] in self?.closePopover(returningFocus: true) }
+        return false
     }
 
     /// Every way the popover closes ends here — the status item, an outside
@@ -324,7 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             if switchedAway {
                 self.closePopover()
             } else {
-                NSApp.activate(ignoringOtherApps: true)
+                self.activateForPopover()
             }
         }
         // Both are needed. Leaving over another app's window reaches only the
@@ -339,6 +412,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }) {
             menuBarMonitors.append(local)
         }
+    }
+
+    /// Back to the app by ⌘-Tab, the Dock or a click on Settings while it's
+    /// open: Settings alone (#71).
+    ///
+    /// The popover can still be up. ⌘-Tab away with the pointer in the menu
+    /// bar reads as the menu bar appearing, so the popover rides it out, and
+    /// coming back showed it over Settings. Settings is also made key here,
+    /// since keeping it in place when the popover opened left it neither key
+    /// nor main.
+    @objc private func appDidBecomeActive() {
+        guard !activatingForPopover else {
+            activatingForPopover = false
+            return
+        }
+        // Uninstall's alert activates the app too, and keeps the keyboard.
+        guard let window = openSettingsWindow, NSApp.modalWindow == nil else { return }
+        if popover.isShown { closePopover() }
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    /// The Dock icon, which is there only while Settings is open. It can be
+    /// clicked with the app already active, behind the popover, and then
+    /// nothing else brings Settings forward.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard openSettingsWindow != nil else { return true }
+        showSettings()
+        return false
     }
 
     private func stopWatchingMenuBar() {
@@ -365,7 +466,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // The outside-click monitor leaves status item clicks alone, so this one
         // would otherwise open the menu over the popover. `toggleSpeedTest` also
         // decides whether to open the popover by whether it is shut.
-        if popover.isShown { closePopover() }
+        if popover.isShown { closePopover(returningFocus: true) }
 
         let menu = NSMenu()
 
