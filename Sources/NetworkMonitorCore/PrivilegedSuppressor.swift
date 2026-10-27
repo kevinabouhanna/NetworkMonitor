@@ -84,6 +84,11 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
         CoveredApplication(app: "Figma", mechanism: "Update endpoint",
                            effect: "Blocks its update server",
                            bundleID: "com.figma.Desktop"),
+        // Chrome, through GoogleUpdater's update check. Where Keystone still
+        // does the updating, `PreferenceSuppressor` covers it as well (#92).
+        CoveredApplication(app: "Google Chrome", mechanism: "Update endpoint",
+                           effect: "Blocks its update server",
+                           bundleID: "com.google.Chrome"),
     ]
 
     /// The entries that apply to this Mac: macOS itself, and the apps that are

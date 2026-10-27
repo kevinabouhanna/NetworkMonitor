@@ -93,7 +93,13 @@ public final class PreferenceSuppressor: UpdateSuppressor {
         // business putting anything there.
         // Detected by the browser's own identifier; suppressed through Keystone's,
         // which is a separate component with no bundle of its own.
-        if ApplicationSearch.isInstalled(bundleIdentifier: "com.google.Chrome") {
+        //
+        // Only where Keystone still does the updating. GoogleUpdater, which has
+        // replaced it on most Macs, never reads `checkInterval`, so offering the
+        // row there said Chrome was paused while it updated (#92). There the
+        // helper covers Chrome instead, by blocking the update check.
+        if ApplicationSearch.isInstalled(bundleIdentifier: "com.google.Chrome"),
+           !Self.googleUpdaterInstalled() {
             found.append(Target(displayName: "Google Chrome",
                                 domain: "com.google.Keystone.Agent",
                                 key: "checkInterval",
@@ -124,6 +130,19 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                         effect: $0.effect,
                         isDeferred: isRunning(domain: $0.domain),
                         bundleIdentifiers: $0.bundleIdentifiers)
+        }
+    }
+
+    /// Whether GoogleUpdater has replaced Keystone on this Mac. It installs
+    /// either for one user or for the whole Mac, with a `Current` link to the
+    /// version in use either way.
+    public static func googleUpdaterInstalled(
+        roots: [URL] = [FileManager.default.homeDirectoryForCurrentUser,
+                        URL(fileURLWithPath: "/")]
+    ) -> Bool {
+        roots.contains {
+            FileManager.default.fileExists(atPath: $0.appendingPathComponent(
+                "Library/Application Support/Google/GoogleUpdater/Current").path)
         }
     }
 

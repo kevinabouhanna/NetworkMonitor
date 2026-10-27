@@ -53,7 +53,7 @@ beside the total whenever a connection counts.
 | App | What changes |
 |---|---|
 | Any app that updates with Sparkle (VLC, AppCleaner, ChatGPT, Affinity, VoiceInk and others), found by looking inside each app | its `SUEnableAutomaticChecks` setting |
-| Google Chrome | Google's updater's `checkInterval` |
+| Google Chrome, where Google's older updater (Keystone) still runs | Keystone's `checkInterval` |
 | Microsoft AutoUpdate, which updates Microsoft's Mac apps | `HowToCheck`, set to Manual |
 | Figma | `DisableUpdater` |
 | Visual Studio Code | `"update.mode": "none"` in its `settings.json` |
@@ -70,6 +70,10 @@ With it, the switch also covers:
   its own setting can only be changed once it quits: while you're on the hotspot, their
   update servers are pointed nowhere in `/etc/hosts`. Each of those two hosts was checked
   to carry update downloads and nothing else.
+- **Google Chrome**, wherever Google's newer updater (GoogleUpdater) has replaced Keystone.
+  It reads no setting NetworkMonitor can change unless your Mac is managed by an
+  organisation, so its update check, `update.googleapis.com`, is pointed nowhere too. That
+  host only answers update checks; the downloads come from shared servers that stay open.
 - **Low Data Mode** for the hotspot (below).
 
 Cancel the password prompt and everything else still works. Settings shows an **Allow…**
@@ -132,9 +136,9 @@ you've left the hotspot.
 
 - **It's not a firewall.** For almost every app it changes the app's own setting for
   checking automatically, so a manual **Check for Updates…** still works, which is the
-  point: it stops unattended downloads, not you. Canva and Figma are the exception: with
-  the helper, their update servers can't be reached while you're on the hotspot, so a
-  manual check in those two waits until you leave. Nothing ever interrupts an update
+  point: it stops unattended downloads, not you. Canva, Figma and Chrome are the exception:
+  with the helper, their update servers can't be reached while you're on the hotspot, so a
+  manual check in those three waits until you leave. Nothing ever interrupts an update
   already downloading.
 - **"Stops updating" includes security updates.** There's no reliable way to tell a
   security patch from a feature release, and pretending otherwise would be worse than
@@ -252,7 +256,7 @@ sudoers rule makes the grant explicit and auditable. This, the password prompt a
 extra Login Items row all reverse once there's a Developer ID; see the
 [roadmap](roadmap.md).
 
-**Versioning.** `HelperProtocol.version` (now 2) lives in the `LowDataMode` target that the
+**Versioning.** `HelperProtocol.version` (now 3) lives in the `LowDataMode` target that the
 app and the helper share. Bump it when a verb is added or changed, or the sudoers rule
 changes, and installed helpers are offered an update once per build. Otherwise an app
 update never asks for a password.

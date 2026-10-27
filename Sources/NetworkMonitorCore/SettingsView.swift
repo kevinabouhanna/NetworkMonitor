@@ -450,9 +450,9 @@ struct HotspotSettingsPane: View {
                     Button("Allow…") { askForHelper() }
                 } label: {
                     Label(metering.helperState == .outdated
-                          ? "macOS updates, Claude, Slack, Canva and Low Data Mode need a quick "
+                          ? "macOS updates, Chrome, Claude, Slack and Low Data Mode need a quick "
                             + "update to NetworkMonitor's helper."
-                          : "macOS updates, Claude, Slack, Canva and Low Data Mode need your "
+                          : "macOS updates, Chrome, Claude, Slack and Low Data Mode need your "
                             + "permission once.",
                           systemImage: "lock.shield")
                 }

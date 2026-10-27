@@ -49,8 +49,8 @@ These are documented choices, not vulnerabilities:
 - **The helper's verbs run without a password**, for the account that installed it. That
   is what the sudoers rule is for. Each verb takes no arguments, and every setting, domain
   and host it touches is compiled in.
-- **Hotspot mode edits `/etc/hosts`**, to block Canva's and Figma's update servers while
-  you're on a hotspot. It puts the file back when you leave.
+- **Hotspot mode edits `/etc/hosts`**, to block Google's, Canva's and Figma's update
+  servers while you're on a hotspot. It puts the file back when you leave.
 - **Attacks that already need root or an administrator's password.**
 
 ## Checking a download
