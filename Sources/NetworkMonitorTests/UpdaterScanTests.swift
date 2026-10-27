@@ -420,8 +420,15 @@ func runUpdateFolderSuppressorTests() {
             Check.expectEqual(folders.map { $0.path.replacingOccurrences(of: caches.path + "/", with: "") },
                               ["com.tinyspeck.slackmacgap.ShipIt",
                                "@granolaelectron-updater",
-                               "@granolaelectron-updater/pending",
-                               "com.granola.app.ShipIt"])
+                               "@granolaelectron-updater/pending"])
+        }
+
+        // Nothing is left to download, and Squirrel's installer works in there.
+        Check.test("a folder already holding a downloaded update is left alone") {
+            let caches = temporaryDirectory("caches")
+            defer { cleanUp(caches) }
+            makeDirectory(caches.appendingPathComponent("com.tinyspeck.slackmacgap.ShipIt/update.PNJHfZu/Slack.app"))
+            Check.expectTrue(UpdateFolderSuppressor.folders(for: [slack], in: caches).isEmpty)
         }
 
         Check.test("a folder is locked while metered and put back exactly after") {
@@ -466,6 +473,7 @@ func runUpdateFolderSuppressorTests() {
             let electron = caches.appendingPathComponent("@granolaelectron-updater")
             Check.expectEqual(mode(of: shipIt), 0o555)
             Check.expectEqual(mode(of: electron), 0o555)
+            Check.expectNil(mode(of: caches.appendingPathComponent("com.granola.app.ShipIt")))
             // electron-updater's first step, refused.
             Check.expectNil(try? FileManager.default.createDirectory(
                 at: electron.appendingPathComponent("pending"), withIntermediateDirectories: true))

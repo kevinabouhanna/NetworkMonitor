@@ -65,7 +65,8 @@ joined the hotspot would still update. Electron apps can't: Squirrel makes a fol
 download in `~/Library/Caches/<app>.ShipIt` before it fetches anything, and
 electron-updater writes to `~/Library/Caches/<its cache>` first, so with those folders
 read-only the download never starts. A folder that isn't there yet is made read-only, and
-removed again when you leave. Each folder goes back to exactly how it was, and one whose
+removed again when you leave. An update that has already downloaded is left to install:
+its folder isn't locked. Each folder goes back to exactly how it was, and one whose
 permissions someone else changed meanwhile is left alone.
 
 **With your password, once.** Switching Hotspot mode on offers to install a small helper.

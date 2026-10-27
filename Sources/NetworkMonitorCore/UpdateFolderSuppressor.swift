@@ -18,8 +18,12 @@ import Foundation
 /// - **electron-updater** downloads into `~/Library/Caches/<updaterCacheDirName>/pending`,
 ///   creating `pending` or clearing a stale blockmap in it first, so a read-only
 ///   folder stops it there. When `pending` already exists with no blockmap, the
-///   request starts and fails at its first write. It then hands the archive to
-///   Squirrel, so its ShipIt folder is locked as well.
+///   request starts and fails at its first write.
+///
+/// Two folders are left alone because locking them would save nothing and could
+/// stop an update that's already downloaded from installing: a ShipIt folder
+/// that already holds one, and an electron-updater app's ShipIt folder, which
+/// Squirrel only fills from that app's own cache.
 ///
 /// No list of apps: `UpdaterScan` finds them by how they update, so this reaches
 /// Electron apps nobody here has looked at. A folder that isn't there yet is
@@ -70,8 +74,16 @@ public final class UpdateFolderSuppressor: UpdateSuppressor {
         for finding in findings {
             switch finding.mechanism {
             case .squirrel:
-                break
+                guard let identifier = finding.bundleIdentifier else { continue }
+                let shipIt = caches.appendingPathComponent("\(identifier).ShipIt")
+                // An update already downloaded leaves nothing to stop, and the
+                // installer that puts it in place works in this folder.
+                guard !holdsDownloadedUpdate(shipIt) else { continue }
+                add(shipIt, finding)
             case .electronUpdater:
+                // Its ShipIt folder is left alone: Squirrel only copies the
+                // archive there from this cache, over the loopback, so locking it
+                // would save nothing and stop an update already here installing.
                 guard let name = finding.updaterCacheDirName else { continue }
                 let cache = caches.appendingPathComponent(name)
                 add(cache, finding)
@@ -81,8 +93,6 @@ public final class UpdateFolderSuppressor: UpdateSuppressor {
             case .sparkle, .ownUpdater:
                 continue
             }
-            guard let identifier = finding.bundleIdentifier else { continue }
-            add(caches.appendingPathComponent("\(identifier).ShipIt"), finding)
         }
         return folders
     }
@@ -205,6 +215,12 @@ public final class UpdateFolderSuppressor: UpdateSuppressor {
 
     /// The mode a folder created for the lock gets: readable, not writable.
     static let createdMode = 0o555
+
+    /// Whether Squirrel has an update staged here: an `update.XXXXXXX` folder.
+    static func holdsDownloadedUpdate(_ shipIt: URL) -> Bool {
+        let entries = (try? FileManager.default.contentsOfDirectory(atPath: shipIt.path)) ?? []
+        return entries.contains { $0.hasPrefix("update.") && isDirectory(shipIt.appendingPathComponent($0).path) }
+    }
 
     private static func isDirectory(_ path: String) -> Bool {
         var info = stat()
