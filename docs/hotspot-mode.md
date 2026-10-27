@@ -58,6 +58,16 @@ beside the total whenever a connection counts.
 | Figma | `DisableUpdater` |
 | Visual Studio Code | `"update.mode": "none"` in its `settings.json` |
 | Claude | `disableAutoUpdates` in its app configuration |
+| Any Electron app that updates with Squirrel or electron-updater (Slack, Claude, Figma, VS Code, Granola, Synergy and others), found by looking inside each app, **even while it's open** | the folder its updates download to is made read-only |
+
+Settings only take effect when an app starts, so an app that was already open when you
+joined the hotspot would still update. Electron apps can't: Squirrel makes a folder for the
+download in `~/Library/Caches/<app>.ShipIt` before it fetches anything, and
+electron-updater writes to `~/Library/Caches/<its cache>` first, so with those folders
+read-only the download never starts. A folder that isn't there yet is made read-only, and
+removed again when you leave. An update that has already downloaded is left to install:
+its folder isn't locked. Each folder goes back to exactly how it was, and one whose
+permissions someone else changed meanwhile is left alone.
 
 **With your password, once.** Switching Hotspot mode on offers to install a small helper.
 With it, the switch also covers:
@@ -89,7 +99,7 @@ Each app has its own switch under **Paused on a hotspot**, if you want to leave 
 and a line saying how it's paused, such as *Turns off its automatic update check* or
 *Blocks its update server*. What the helper pauses shares one switch, **Through
 NetworkMonitor's helper**, because the helper does it all at once; it lists only what's on
-your Mac. On a hotspot, an app that's open when its setting needs changing is marked
+your Mac. The Electron apps share one too, **Through their update folders**. On a hotspot, an app that's open when its setting needs changing is marked
 *paused once you quit it*, and the change is made the moment it quits, because apps write
 their settings back when they quit. Off a hotspot nothing is waiting, so nothing is marked.
 
@@ -122,7 +132,7 @@ way NetworkMonitor can't switch off, each with the reason:
 
 | The reason it gives | What's behind it |
 |---|---|
-| *Updates from inside the app, with no setting NetworkMonitor can turn off* | an Electron app's updater (Squirrel or electron-updater), which runs inside the app itself |
+| *Updates from inside the app, with no setting NetworkMonitor can turn off* | an Electron app whose download folder NetworkMonitor can't tell, such as an electron-updater app that doesn't name its cache |
 | *Has its own updater, with no setting NetworkMonitor can turn off* | a separate updater program in the app, such as Opera's or Raycast's |
 | *macOS keeps its update setting where NetworkMonitor can't change it* | a sandboxed Sparkle app, whose settings live in its container |
 | *Paused once you allow the helper below* | an app the helper covers, such as Slack, before the helper is installed |
@@ -143,7 +153,8 @@ you've left the hotspot.
   checking automatically, so a manual **Check for Updates…** still works, which is the
   point: it stops unattended downloads, not you. Canva, Figma and Chrome are the exception:
   with the helper, their update servers can't be reached while you're on the hotspot, so a
-  manual check in those three waits until you leave. Nothing ever interrupts an update
+  manual check in those three waits until you leave. So are Electron apps whose update
+  folder is locked: their manual check fails until you leave. Nothing ever interrupts an update
   already downloading.
 - **"Stops updating" includes security updates.** There's no reliable way to tell a
   security patch from a feature release, and pretending otherwise would be worse than
@@ -183,6 +194,7 @@ of the `UpdateSuppressor` protocol (`discover`, `apply`, `revert`) carry it out:
 |---|---|---|
 | `PreferenceSuppressor` | Sparkle apps, Chrome, Microsoft AutoUpdate, Figma | no |
 | `ConfigFileSuppressor` | VS Code, Claude | no |
+| `UpdateFolderSuppressor` | Electron apps' update folders (Squirrel, electron-updater) | no |
 | `PrivilegedSuppressor` | macOS and App Store updates, managed policies, Claude Code's managed settings, `/etc/hosts` entries | yes |
 | `LowDataModeSuppressor` | interface flags | yes |
 
@@ -295,8 +307,11 @@ their only record is the app's journal. The helper's hourly check covers its own
 
 - **Updaters compiled into an app's own binary** (Tauri apps, for example) can't be found
   by their shape.
-- **Electron apps without a setting** are only slowed by Low Data Mode if they respect it,
-  and most don't. A content filter would cover them, but needs a Developer ID.
+- **Electron apps with an updater of their own**, neither Squirrel nor electron-updater,
+  are only slowed by Low Data Mode if they respect it, and most don't. A content filter
+  would cover them, but needs a Developer ID.
+- **Sparkle apps that were open when you joined the hotspot** keep their setting until they
+  quit, so one could still update; Settings marks them *paused once you quit it*.
 - **Claude Code in an organisation that manages it.** If your organisation sends Claude Code
   settings from its servers or through MDM, Claude Code may use those instead of
   NetworkMonitor's file, and keep updating.

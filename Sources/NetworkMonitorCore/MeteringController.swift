@@ -77,6 +77,7 @@ public final class MeteringController: ObservableObject {
                 journal: SuppressionJournal = SuppressionJournal(),
                 suppressors: [UpdateSuppressor] = [PreferenceSuppressor(),
                                                    ConfigFileSuppressor(),
+                                                   UpdateFolderSuppressor(),
                                                    PrivilegedSuppressor(),
                                                    LowDataModeSuppressor()],
                 defaults: UserDefaults = .standard,
@@ -358,6 +359,8 @@ public final class MeteringController: ObservableObject {
                 names.insert("macOS and in-app updaters")
             case .lowDataMode:
                 names.insert("Low Data Mode")
+            case .folder(_, let app):
+                names.insert(app)
             }
         }
         return names.sorted()

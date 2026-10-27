@@ -62,6 +62,10 @@ public struct SuppressionRecord: Codable, Equatable {
         /// which interface, which flags and how to undo them live root-side, in
         /// the helper's own record, so that they survive this app being deleted.
         case lowDataMode
+        /// A folder an app downloads its updates into, made read-only. `app` is
+        /// whose it is, for the popover; the prior value is the folder's mode, or
+        /// `absent` when it was created for the lock.
+        case folder(path: String, app: String)
     }
 
     public var target: Target
