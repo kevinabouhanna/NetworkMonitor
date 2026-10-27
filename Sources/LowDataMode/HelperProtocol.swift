@@ -16,6 +16,8 @@ import Foundation
 /// - 2: adds `constrain` and `unconstrain` for Low Data Mode.
 /// - 3: `suppress` also blocks Google's update check, `update.googleapis.com`,
 ///   which GoogleUpdater uses for Chrome (#92).
+/// - 4: `suppress` also turns off Claude Code's auto-updater through a managed
+///   settings file of its own (#97).
 public enum HelperProtocol {
-    public static let version = 3
+    public static let version = 4
 }

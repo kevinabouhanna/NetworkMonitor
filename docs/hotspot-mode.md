@@ -66,14 +66,19 @@ With it, the switch also covers:
   6 to 14 GB, and live in settings only an administrator can change.
 - **Claude and Slack** through managed policy, which is the only kind of setting they
   fully honour.
+- **Claude Code** through its managed settings: a file of NetworkMonitor's own in
+  `/Library/Application Support/ClaudeCode/managed-settings.d` that sets
+  `DISABLE_AUTOUPDATER`. It covers every account on the Mac, and `claude update` still
+  works.
 - **Canva**, which has no update setting of any kind, and **Figma** while it's open, since
   its own setting can only be changed once it quits: while you're on the hotspot, their
   update servers are pointed nowhere in `/etc/hosts`. Each of those two hosts was checked
   to carry update downloads and nothing else.
-- **Google Chrome**, wherever Google's newer updater (GoogleUpdater) has replaced Keystone.
-  It reads no setting NetworkMonitor can change unless your Mac is managed by an
-  organisation, so its update check, `update.googleapis.com`, is pointed nowhere too. That
-  host only answers update checks; the downloads come from shared servers that stay open.
+- **Google Chrome**, and its Beta, Dev and Canary channels, wherever Google's newer updater
+  (GoogleUpdater) has replaced Keystone. It reads no setting NetworkMonitor can change
+  unless your Mac is managed by an organisation, so its update check,
+  `update.googleapis.com`, is pointed nowhere too. That host only answers update checks;
+  the downloads come from shared servers that stay open.
 - **Low Data Mode** for the hotspot (below).
 
 Cancel the password prompt and everything else still works. Settings shows an **Allow…**
@@ -178,7 +183,7 @@ of the `UpdateSuppressor` protocol (`discover`, `apply`, `revert`) carry it out:
 |---|---|---|
 | `PreferenceSuppressor` | Sparkle apps, Chrome, Microsoft AutoUpdate, Figma | no |
 | `ConfigFileSuppressor` | VS Code, Claude | no |
-| `PrivilegedSuppressor` | macOS and App Store updates, managed policies, `/etc/hosts` entries | yes |
+| `PrivilegedSuppressor` | macOS and App Store updates, managed policies, Claude Code's managed settings, `/etc/hosts` entries | yes |
 | `LowDataModeSuppressor` | interface flags | yes |
 
 A content-filter tier could be added later as one more conformer, without touching policy,
@@ -227,7 +232,7 @@ ask for anything else; adding a capability means shipping a new helper.
 | Verb | Does | Who can run it |
 |---|---|---|
 | `status` | reports what it holds, as JSON, with its version | you, without a password |
-| `suppress` / `restore` | the system update settings, managed policies and `/etc/hosts` entries | you, without a password |
+| `suppress` / `restore` | the system update settings, managed policies, Claude Code's managed settings and `/etc/hosts` entries | you, without a password |
 | `constrain` / `unconstrain` | raises or lowers Low Data Mode on the interface carrying traffic, which it picks itself | you, without a password |
 | `self-heal` | if `/Applications/NetworkMonitor.app` is gone, undoes everything and removes itself | launchd, as root |
 | `uninstall` | undoes everything and removes itself | the uninstaller, as root |
@@ -256,7 +261,7 @@ sudoers rule makes the grant explicit and auditable. This, the password prompt a
 extra Login Items row all reverse once there's a Developer ID; see the
 [roadmap](roadmap.md).
 
-**Versioning.** `HelperProtocol.version` (now 3) lives in the `LowDataMode` target that the
+**Versioning.** `HelperProtocol.version` (now 4) lives in the `LowDataMode` target that the
 app and the helper share. Bump it when a verb is added or changed, or the sudoers rule
 changes, and installed helpers are offered an update once per build. Otherwise an app
 update never asks for a password.
@@ -292,5 +297,8 @@ their only record is the app's journal. The helper's hourly check covers its own
   by their shape.
 - **Electron apps without a setting** are only slowed by Low Data Mode if they respect it,
   and most don't. A content filter would cover them, but needs a Developer ID.
+- **Claude Code in an organisation that manages it.** If your organisation sends Claude Code
+  settings from its servers or through MDM, Claude Code may use those instead of
+  NetworkMonitor's file, and keep updating.
 - **There's no way yet to mark a network as metered by hand.** Putting it in Low Data Mode
   in System Settings has the same effect.

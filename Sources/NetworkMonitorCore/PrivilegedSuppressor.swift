@@ -54,6 +54,9 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
         public var bundleID: String?
         /// Part of macOS rather than an app, so always present.
         public var isSystem = false
+        /// Where a tool with no app bundle is installed, any one of which
+        /// means it is here. `~` is the user's home.
+        public var paths: [String] = []
     }
 
     /// Mirrors the helper's compiled-in list, for display only. The helper does
@@ -86,9 +89,21 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
                            bundleID: "com.figma.Desktop"),
         // Chrome, through GoogleUpdater's update check. Where Keystone still
         // does the updating, `PreferenceSuppressor` covers it as well (#92).
-        CoveredApplication(app: "Google Chrome", mechanism: "Update endpoint",
-                           effect: "Blocks its update server",
-                           bundleID: "com.google.Chrome"),
+        // Beta, Dev and Canary are updated by the same GoogleUpdater, so the
+        // same blocked host covers them.
+    ] + PreferenceSuppressor.chromeChannels.map {
+        CoveredApplication(app: $0.name, mechanism: "Update endpoint",
+                           effect: "Blocks its update server", bundleID: $0.bundleID)
+    } + [
+        // A command-line tool, so found by where its installers put it: the
+        // native installer and its data, the older local install, npm or
+        // Homebrew, and its config file, which every install method leaves,
+        // nvm's and Volta's included (#97).
+        CoveredApplication(app: "Claude Code", mechanism: "Managed settings",
+                           effect: "Turns off updates with the setting IT departments use",
+                           paths: ["~/.local/bin/claude", "~/.local/share/claude",
+                                   "~/.claude/local/claude", "/opt/homebrew/bin/claude",
+                                   "/usr/local/bin/claude", "~/.claude.json"]),
     ]
 
     /// The entries that apply to this Mac: macOS itself, and the apps that are
@@ -103,6 +118,11 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
     /// By bundle identifier when there is one, otherwise by name in the two
     /// places apps are installed.
     public static func isPresent(_ entry: CoveredApplication) -> Bool {
+        if !entry.paths.isEmpty {
+            return entry.paths.contains {
+                FileManager.default.fileExists(atPath: ($0 as NSString).expandingTildeInPath)
+            }
+        }
         if let identifier = entry.bundleID {
             return ApplicationSearch.isInstalled(bundleIdentifier: identifier)
         }

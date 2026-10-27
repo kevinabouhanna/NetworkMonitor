@@ -93,6 +93,26 @@ let managedPreferences: [(app: String, domain: String, key: String, value: Bool)
      key: "AutoUpdate", value: false),
 ]
 
+/// Claude Code's policy folder, and the one file in it this helper writes.
+///
+/// Claude Code reads every `.json` in `managed-settings.d` as managed settings,
+/// so the helper adds a file of its own rather than editing
+/// `managed-settings.json`, which may be somebody's real policy. What it sets is
+/// `DISABLE_AUTOUPDATER`, Claude Code's own switch, through the `env` block.
+/// Managed settings apply to every account on the Mac, whatever its config
+/// folder, and a manual `claude update` still works (#97).
+let claudeCodePolicyDirectory = "/Library/Application Support/ClaudeCode"
+let claudeCodeDropInDirectory = "\(claudeCodePolicyDirectory)/managed-settings.d"
+let claudeCodeDropInPath = "\(claudeCodeDropInDirectory)/networkmonitor.json"
+let claudeCodeDropIn = Data("""
+    {
+      "env": {
+        "DISABLE_AUTOUPDATER": "1"
+      }
+    }
+
+    """.utf8)
+
 /// Update endpoints blocked at the name-resolution level.
 ///
 /// The last resort, used only where an app has no policy at all. Every entry
@@ -153,11 +173,30 @@ struct SystemState: Codable {
     /// exist and must be deleted again rather than emptied — restoring an empty
     /// managed policy file is not the same as having none.
     var priorManagedFiles: [String: Data?] = [:]
-    /// Directories created under /Library/Managed Preferences, removed on
-    /// restore if still empty. A machine with no MDM has no such directory, and
-    /// leaving one behind would be a leftover.
+    /// Directories created under /Library/Managed Preferences or for Claude
+    /// Code's policy, removed on restore if still empty. A machine with no MDM
+    /// has no such directory, and leaving one behind would be a leftover.
     var createdDirectories: [String] = []
     var appliedAt = Date()
+    /// What was at `claudeCodeDropInPath` before `suppress`. Optional, so a
+    /// record written by a helper from before Claude Code still decodes; `nil`
+    /// means it was never touched.
+    var claudeCodePrior: PriorFile?
+}
+
+/// A file's contents before this helper wrote it. `nil` contents means there
+/// was no file, so restoring removes it.
+struct PriorFile: Codable {
+    var contents: Data?
+}
+
+/// The only directories `restore` removes: these, and anything inside them. The
+/// paths come from the state file, so they are checked rather than trusted, as
+/// in `restoreManagedPreferences`.
+let removableDirectoryRoots = ["/Library/Managed Preferences", claudeCodePolicyDirectory]
+
+func isRemovableDirectory(_ path: String) -> Bool {
+    removableDirectoryRoots.contains { path == $0 || path.hasPrefix($0 + "/") }
 }
 
 // MARK: - Managed preferences
@@ -268,7 +307,6 @@ func removeOurContribution(at path: String) {
 }
 
 func restoreManagedPreferences(_ state: SystemState) {
-    let manager = FileManager.default
     for (path, prior) in state.priorManagedFiles {
         // Confined to the one directory this helper ever writes policy into. The
         // state file is the input to a root-privileged write, so its paths are
@@ -280,12 +318,57 @@ func restoreManagedPreferences(_ state: SystemState) {
             removeOurContribution(at: path)
         }
     }
-    // Longest first, so a nested per-user directory is removed before its
-    // parent. `removeItem` on a non-empty directory would delete somebody
-    // else's policy, so emptiness is checked rather than forced.
+}
+
+/// Removes the directories `suppress` created, once whatever it put in them is
+/// gone. Runs after every file has been restored.
+func removeCreatedDirectories(_ state: SystemState) {
+    let manager = FileManager.default
+    // Longest first, so a nested directory is removed before its parent.
+    // `removeItem` on a non-empty directory would delete somebody else's
+    // policy, so emptiness is checked rather than forced.
     for directory in state.createdDirectories.sorted(by: { $0.count > $1.count }) {
+        guard isRemovableDirectory(directory) else { continue }
         let entries = (try? manager.contentsOfDirectory(atPath: directory)) ?? ["keep"]
         if entries.isEmpty { try? manager.removeItem(atPath: directory) }
+    }
+}
+
+// MARK: - Claude Code
+
+/// Writes Claude Code's drop-in, recording what was at its path first, in the
+/// same write-ahead order as `applyManagedPreferences`.
+func applyClaudeCodeSettings(into state: inout SystemState,
+                             save: (SystemState) throws -> Void) throws {
+    let manager = FileManager.default
+    for directory in [claudeCodePolicyDirectory, claudeCodeDropInDirectory]
+    where !manager.fileExists(atPath: directory) {
+        state.createdDirectories.append(directory)
+        try save(state)
+        try manager.createDirectory(atPath: directory, withIntermediateDirectories: false,
+                                    attributes: [.posixPermissions: 0o755])
+    }
+
+    state.claudeCodePrior = PriorFile(contents: manager.contents(atPath: claudeCodeDropInPath))
+    try save(state)
+
+    try claudeCodeDropIn.write(to: URL(fileURLWithPath: claudeCodeDropInPath), options: .atomic)
+    try? manager.setAttributes([.posixPermissions: 0o644], ofItemAtPath: claudeCodeDropInPath)
+}
+
+/// Puts back what `applyClaudeCodeSettings` replaced. A file of ours that no
+/// longer holds what we wrote has been changed by someone since, and stays.
+///
+/// A prior that is our own file, left by a suppression whose record was lost,
+/// is removed rather than written back: putting it back would keep Claude Code
+/// from updating for good.
+func restoreClaudeCodeSettings(_ state: SystemState) {
+    guard let prior = state.claudeCodePrior else { return }
+    let manager = FileManager.default
+    if let contents = prior.contents, contents != claudeCodeDropIn {
+        try? contents.write(to: URL(fileURLWithPath: claudeCodeDropInPath), options: .atomic)
+    } else if manager.contents(atPath: claudeCodeDropInPath) == claudeCodeDropIn {
+        try? manager.removeItem(atPath: claudeCodeDropInPath)
     }
 }
 
@@ -651,6 +734,7 @@ func suppress() throws {
     synchronizeSoftwareUpdate()
 
     try applyManagedPreferences(into: &state, save: saveState)
+    try applyClaudeCodeSettings(into: &state, save: saveState)
 
     try writeHosts(HostsFile.applying(updateHosts, to: try currentHosts()))
 
@@ -675,6 +759,8 @@ func restore() throws {
     synchronizeSoftwareUpdate()
 
     restoreManagedPreferences(state)
+    restoreClaudeCodeSettings(state)
+    removeCreatedDirectories(state)
 
     if state.didModifyHosts {
         try writeHosts(HostsFile.withoutBlock(try currentHosts()))
@@ -711,6 +797,7 @@ func status() {
                 .filter { FileManager.default.fileExists(atPath: $0) }
                 .map { "\(pref.app): \($0)" }
         }.flatMap { $0 },
+        "claudeCodeSettings": FileManager.default.fileExists(atPath: claudeCodeDropInPath),
         "softwareUpdate": softwareUpdateKeys.reduce(into: [String: Any]()) {
             $0[$1] = readSoftwareUpdate($1) ?? "absent"
         },

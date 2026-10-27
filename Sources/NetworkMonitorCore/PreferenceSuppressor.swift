@@ -98,15 +98,20 @@ public final class PreferenceSuppressor: UpdateSuppressor {
         // replaced it on most Macs, never reads `checkInterval`, so offering the
         // row there said Chrome was paused while it updated (#92). There the
         // helper covers Chrome instead, by blocking the update check.
-        if ApplicationSearch.isInstalled(bundleIdentifier: "com.google.Chrome"),
-           !Self.googleUpdaterInstalled() {
-            found.append(Target(displayName: "Google Chrome",
+        //
+        // `checkInterval` is Keystone's, not one channel's, so one row covers
+        // every channel installed, named after the first.
+        let chromes = Self.chromeChannels.filter {
+            ApplicationSearch.isInstalled(bundleIdentifier: $0.bundleID)
+        }
+        if let first = chromes.first, !Self.googleUpdaterInstalled() {
+            found.append(Target(displayName: first.name,
                                 domain: "com.google.Keystone.Agent",
                                 key: "checkInterval",
                                 suppressedValue: .int(0),
                                 mechanism: "Keystone",
                                 effect: "Tells Google's updater not to check",
-                                bundleIdentifiers: ["com.google.Chrome"]))
+                                bundleIdentifiers: chromes.map(\.bundleID)))
         }
 
         if FileManager.default.fileExists(atPath: mauPath) {
@@ -132,6 +137,15 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                         bundleIdentifiers: $0.bundleIdentifiers)
         }
     }
+
+    /// Chrome's release channels, each its own app with its own identifier,
+    /// all updated by the same Google updater.
+    public static let chromeChannels: [(name: String, bundleID: String)] = [
+        ("Google Chrome", "com.google.Chrome"),
+        ("Google Chrome Beta", "com.google.Chrome.beta"),
+        ("Google Chrome Dev", "com.google.Chrome.dev"),
+        ("Google Chrome Canary", "com.google.Chrome.canary"),
+    ]
 
     /// Whether GoogleUpdater has replaced Keystone on this Mac. It installs
     /// either for one user or for the whole Mac, with a `Current` link to the

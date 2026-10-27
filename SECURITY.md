@@ -51,6 +51,10 @@ These are documented choices, not vulnerabilities:
   and host it touches is compiled in.
 - **Hotspot mode edits `/etc/hosts`**, to block Google's, Canva's and Figma's update
   servers while you're on a hotspot. It puts the file back when you leave.
+- **Hotspot mode writes managed policy files** while you're on a hotspot: for Claude and
+  Slack in `/Library/Managed Preferences`, and for Claude Code in
+  `/Library/Application Support/ClaudeCode/managed-settings.d`. It removes them when you
+  leave.
 - **Attacks that already need root or an administrator's password.**
 
 ## Checking a download
