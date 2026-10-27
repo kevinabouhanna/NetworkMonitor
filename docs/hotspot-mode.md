@@ -74,10 +74,11 @@ With it, the switch also covers:
   its own setting can only be changed once it quits: while you're on the hotspot, their
   update servers are pointed nowhere in `/etc/hosts`. Each of those two hosts was checked
   to carry update downloads and nothing else.
-- **Google Chrome**, wherever Google's newer updater (GoogleUpdater) has replaced Keystone.
-  It reads no setting NetworkMonitor can change unless your Mac is managed by an
-  organisation, so its update check, `update.googleapis.com`, is pointed nowhere too. That
-  host only answers update checks; the downloads come from shared servers that stay open.
+- **Google Chrome**, and its Beta, Dev and Canary channels, wherever Google's newer updater
+  (GoogleUpdater) has replaced Keystone. It reads no setting NetworkMonitor can change
+  unless your Mac is managed by an organisation, so its update check,
+  `update.googleapis.com`, is pointed nowhere too. That host only answers update checks;
+  the downloads come from shared servers that stay open.
 - **Low Data Mode** for the hotspot (below).
 
 Cancel the password prompt and everything else still works. Settings shows an **Allow…**
@@ -296,5 +297,8 @@ their only record is the app's journal. The helper's hourly check covers its own
   by their shape.
 - **Electron apps without a setting** are only slowed by Low Data Mode if they respect it,
   and most don't. A content filter would cover them, but needs a Developer ID.
+- **Claude Code in an organisation that manages it.** If your organisation sends Claude Code
+  settings from its servers or through MDM, Claude Code may use those instead of
+  NetworkMonitor's file, and keep updating.
 - **There's no way yet to mark a network as metered by hand.** Putting it in Low Data Mode
   in System Settings has the same effect.

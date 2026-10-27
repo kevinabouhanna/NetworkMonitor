@@ -405,11 +405,16 @@ func runPreferenceSuppressorTests() {
             }
         }
 
-        Check.test("where GoogleUpdater updates Chrome, the helper covers it") {
-            let chrome = PrivilegedSuppressor.coveredApplications.first {
-                $0.bundleID == "com.google.Chrome"
+        // Every channel, not only the one on the development machine: Beta, Dev
+        // and Canary are updated by the same GoogleUpdater.
+        Check.test("where GoogleUpdater updates Chrome, the helper covers every channel") {
+            for identifier in ["com.google.Chrome", "com.google.Chrome.beta",
+                               "com.google.Chrome.dev", "com.google.Chrome.canary"] {
+                let chrome = PrivilegedSuppressor.coveredApplications.first {
+                    $0.bundleID == identifier
+                }
+                Check.expectEqual(chrome?.mechanism, "Update endpoint", identifier)
             }
-            Check.expectEqual(chrome?.mechanism, "Update endpoint")
         }
 
         // #97: Claude Code has no app bundle, so it is found by where its
