@@ -123,6 +123,27 @@ func runUpdaterScanTests() {
             }
         }
 
+        // #92: Chrome's only updater component is a privileged helper tool,
+        // named by reverse DNS, so its name has a dot in it and no extension.
+        Check.test("a privileged helper tool named like an updater is found") {
+            let root = temporaryDirectory("apps")
+            defer { try? FileManager.default.removeItem(at: root) }
+            let chrome = makeApp(in: root, name: "Google Chrome",
+                                 identifier: "com.google.Chrome") {
+                makeFile($0.appendingPathComponent(
+                    "Library/LaunchServices/com.google.Chrome.UpdaterPrivilegedHelper"),
+                         executable: true)
+            }
+            Check.expectEqual(UpdaterScan.inspect(bundleAt: chrome)?.mechanism, .ownUpdater)
+
+            // Not runnable, not an updater, wherever it sits.
+            let inert = makeApp(in: root, name: "Inert", identifier: "com.example.inert") {
+                makeFile($0.appendingPathComponent(
+                    "Library/LaunchServices/com.example.Inert.UpdaterNotes"))
+            }
+            Check.expectNil(UpdaterScan.inspect(bundleAt: inert))
+        }
+
         Check.test("a picture named like an update is not an updater") {
             // Kindle ships `Resources/update.icns` — with its executable bit set,
             // as it is on the development machine, which is what once made the

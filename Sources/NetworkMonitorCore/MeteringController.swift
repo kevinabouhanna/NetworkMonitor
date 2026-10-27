@@ -422,10 +422,10 @@ public final class MeteringController: ObservableObject {
 
     /// Collapses `coverage()` into rows the user can actually toggle.
     ///
-    /// The grouping matters: `PrivilegedSuppressor` reports six applications that
-    /// all share one id, because the helper's `suppress` verb takes no arguments
-    /// and covers everything it knows or nothing. Rendering six switches that all
-    /// move together would be a lie about the granularity on offer, so they
+    /// The grouping matters: `PrivilegedSuppressor` reports every application it
+    /// covers under one id, because the helper's `suppress` verb takes no arguments
+    /// and covers everything it knows or nothing. Rendering a switch for each, all
+    /// moving together, would be a lie about the granularity on offer, so they
     /// collapse into a single row named after the tier.
     ///
     /// **Not cheap** — `discover()` walks `/Applications` reading Info.plists —

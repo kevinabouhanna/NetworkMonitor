@@ -124,6 +124,16 @@ let updateHosts = [
     // the time for the people who have it installed. This closes that window.
     // Verified update-only: interactive traffic is figma.com.
     "desktop.figma.com",
+    // Google: the update check for GoogleUpdater, which has replaced Keystone
+    // and updates Chrome. It reads neither Keystone's `checkInterval` nor, on a
+    // Mac that isn't enrolled in MDM, its own `updatePolicies`
+    // (`ManagedPreferencePolicyManager::HasActiveDevicePolicies`), so a host is
+    // the only lever left (#92). Verified update-only: it is the update
+    // protocol's endpoint, and Chrome's component updater is its only other
+    // caller. The payloads come from shared download hosts
+    // (`edgedl.me.gvt1.com`, `dl.google.com`), which stay open: with the check
+    // blocked, nothing asks for one.
+    "update.googleapis.com",
 ]
 
 // MARK: - State

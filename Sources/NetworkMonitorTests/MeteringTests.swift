@@ -382,6 +382,35 @@ func runPreferenceSuppressorTests() {
                 Check.expectFalse(target.displayName.isEmpty)
             }
         }
+
+        // #92: GoogleUpdater never reads Keystone's `checkInterval`, so where it
+        // is installed the Keystone row would say Chrome was paused while it
+        // updated. Found per user or for the whole Mac.
+        Check.test("GoogleUpdater is found for one user or for the whole Mac") {
+            let user = FileManager.default.temporaryDirectory
+                .appendingPathComponent("home-\(UUID().uuidString)")
+            let mac = FileManager.default.temporaryDirectory
+                .appendingPathComponent("root-\(UUID().uuidString)")
+            defer { [user, mac].forEach { try? FileManager.default.removeItem(at: $0) } }
+            Check.expectFalse(PreferenceSuppressor.googleUpdaterInstalled(roots: [user, mac]))
+
+            for root in [user, mac] {
+                let current = root.appendingPathComponent(
+                    "Library/Application Support/Google/GoogleUpdater/Current")
+                try? FileManager.default.createDirectory(at: current,
+                                                         withIntermediateDirectories: true)
+                Check.expectTrue(PreferenceSuppressor.googleUpdaterInstalled(roots: [root]),
+                                 root.lastPathComponent)
+                try? FileManager.default.removeItem(at: root)
+            }
+        }
+
+        Check.test("where GoogleUpdater updates Chrome, the helper covers it") {
+            let chrome = PrivilegedSuppressor.coveredApplications.first {
+                $0.bundleID == "com.google.Chrome"
+            }
+            Check.expectEqual(chrome?.mechanism, "Update endpoint")
+        }
     }
 }
 

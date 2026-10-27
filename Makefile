@@ -51,7 +51,7 @@ update:
 	@./Scripts/install.sh
 
 # The root helper for hotspot metering: macOS and App Store updates, plus the
-# apps that only honour managed policy (Claude, Slack, Canva). Asks for a
+# apps no setting reaches (Claude, Slack, Canva, Chrome). Asks for a
 # password; everything else in this Makefile does not.
 #
 # `helper` installs the hourly self-heal daemon too, which undoes everything if

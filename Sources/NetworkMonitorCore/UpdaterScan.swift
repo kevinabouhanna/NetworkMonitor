@@ -181,7 +181,11 @@ public enum UpdaterScan {
                     if ["app", "framework", "xpc", "bundle"].contains(ext) { return true }
                 } else if ext == "plist" {
                     if location.hasPrefix("Library/Launch") { return true }
-                } else if ext.isEmpty, manager.isExecutableFile(atPath: path) {
+                } else if ext.isEmpty || location == "Library/LaunchServices",
+                          manager.isExecutableFile(atPath: path) {
+                    // A privileged helper tool is named by reverse DNS, so what
+                    // follows its last dot is a word, not an extension: Chrome's
+                    // `com.google.Chrome.UpdaterPrivilegedHelper` (#92).
                     return true
                 }
             }

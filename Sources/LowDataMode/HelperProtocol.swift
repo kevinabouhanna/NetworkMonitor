@@ -14,6 +14,8 @@ import Foundation
 /// - 1: `status`, `suppress`, `restore`, `self-heal`, `uninstall`. Reported no
 ///   version at all, which the app reads as 1.
 /// - 2: adds `constrain` and `unconstrain` for Low Data Mode.
+/// - 3: `suppress` also blocks Google's update check, `update.googleapis.com`,
+///   which GoogleUpdater uses for Chrome (#92).
 public enum HelperProtocol {
-    public static let version = 2
+    public static let version = 3
 }
