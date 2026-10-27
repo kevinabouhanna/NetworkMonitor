@@ -54,6 +54,9 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
         public var bundleID: String?
         /// Part of macOS rather than an app, so always present.
         public var isSystem = false
+        /// Where a tool with no app bundle is installed, any one of which
+        /// means it is here. `~` is the user's home.
+        public var paths: [String] = []
     }
 
     /// Mirrors the helper's compiled-in list, for display only. The helper does
@@ -89,6 +92,12 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
         CoveredApplication(app: "Google Chrome", mechanism: "Update endpoint",
                            effect: "Blocks its update server",
                            bundleID: "com.google.Chrome"),
+        // A command-line tool, so found by where its installers put it: the
+        // native installer, the older local install, and npm or Homebrew (#97).
+        CoveredApplication(app: "Claude Code", mechanism: "Managed settings",
+                           effect: "Turns off updates with the setting IT departments use",
+                           paths: ["~/.local/bin/claude", "~/.claude/local/claude",
+                                   "/opt/homebrew/bin/claude", "/usr/local/bin/claude"]),
     ]
 
     /// The entries that apply to this Mac: macOS itself, and the apps that are
@@ -103,6 +112,11 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
     /// By bundle identifier when there is one, otherwise by name in the two
     /// places apps are installed.
     public static func isPresent(_ entry: CoveredApplication) -> Bool {
+        if !entry.paths.isEmpty {
+            return entry.paths.contains {
+                FileManager.default.fileExists(atPath: ($0 as NSString).expandingTildeInPath)
+            }
+        }
         if let identifier = entry.bundleID {
             return ApplicationSearch.isInstalled(bundleIdentifier: identifier)
         }
