@@ -370,3 +370,188 @@ func runUpdateWatchTests() {
         }
     }
 }
+
+// MARK: - UpdateFolderSuppressor
+
+/// Permission bits of a folder, or nil if there is none.
+private func mode(of url: URL) -> Int? {
+    var info = stat()
+    guard lstat(url.path, &info) == 0 else { return nil }
+    return Int(info.st_mode & 0o7777)
+}
+
+func runUpdateFolderSuppressorTests() {
+    Check.suite("UpdateFolderSuppressor") {
+
+        let slack = UpdaterScan.Finding(displayName: "Slack", bundleIdentifier: "com.tinyspeck.slackmacgap",
+                                        bundlePath: "/Applications/Slack.app", mechanism: .squirrel)
+        let granola = UpdaterScan.Finding(displayName: "Granola", bundleIdentifier: "com.granola.app",
+                                          bundlePath: "/Applications/Granola.app",
+                                          mechanism: .electronUpdater,
+                                          updaterCacheDirName: "@granolaelectron-updater")
+
+        /// A scratch caches folder, a journal in it, and a suppressor over both.
+        func scratch(_ findings: [UpdaterScan.Finding])
+            -> (UpdateFolderSuppressor, SuppressionJournal, URL) {
+            let caches = temporaryDirectory("caches")
+            let journal = SuppressionJournal(url: caches.appendingPathComponent("journal.json"))
+            return (UpdateFolderSuppressor(cachesDirectory: caches, findings: { findings }),
+                    journal, caches)
+        }
+        func cleanUp(_ caches: URL) {
+            // Locked folders inside would make removing the scratch folder fail.
+            let walker = FileManager.default.enumerator(atPath: caches.path)
+            while let entry = walker?.nextObject() as? String {
+                chmod(caches.appendingPathComponent(entry).path, 0o755)
+            }
+            try? FileManager.default.removeItem(at: caches)
+        }
+
+        Check.test("each updater's download folder is found, without a list of apps") {
+            let caches = temporaryDirectory("caches")
+            defer { cleanUp(caches) }
+            makeDirectory(caches.appendingPathComponent("@granolaelectron-updater/pending"))
+            let sparkle = UpdaterScan.Finding(displayName: "VLC", bundleIdentifier: "org.videolan.vlc",
+                                              bundlePath: "/Applications/VLC.app", mechanism: .sparkle)
+            let unnamed = UpdaterScan.Finding(displayName: "Mystery", bundleIdentifier: "com.example.mystery",
+                                              bundlePath: "/Applications/Mystery.app",
+                                              mechanism: .electronUpdater)
+            let folders = UpdateFolderSuppressor.folders(for: [slack, granola, sparkle, unnamed], in: caches)
+            Check.expectEqual(folders.map { $0.path.replacingOccurrences(of: caches.path + "/", with: "") },
+                              ["com.tinyspeck.slackmacgap.ShipIt",
+                               "@granolaelectron-updater",
+                               "@granolaelectron-updater/pending",
+                               "com.granola.app.ShipIt"])
+        }
+
+        Check.test("a folder is locked while metered and put back exactly after") {
+            let (suppressor, journal, caches) = scratch([slack])
+            defer { cleanUp(caches) }
+            let shipIt = caches.appendingPathComponent("com.tinyspeck.slackmacgap.ShipIt")
+            makeDirectory(shipIt)
+            chmod(shipIt.path, 0o750)
+
+            let result = suppressor.apply(journal: journal, excluding: [])
+            Check.expectEqual(result.applied, ["Slack"])
+            Check.expectEqual(mode(of: shipIt), 0o550)
+            suppressor.revert(journal: journal)
+            Check.expectEqual(mode(of: shipIt), 0o750)
+            Check.expectTrue(journal.isEmpty)
+        }
+
+        // What Squirrel does first, and what the lock exists to make fail.
+        Check.test("while locked, an update folder can't be made in it") {
+            let (suppressor, journal, caches) = scratch([slack])
+            defer { cleanUp(caches) }
+            let shipIt = caches.appendingPathComponent("com.tinyspeck.slackmacgap.ShipIt")
+            func mkdtempWorks() -> Bool {
+                var template = Array(shipIt.appendingPathComponent("update.XXXXXXX").path.utf8CString)
+                guard let made = mkdtemp(&template) else { return false }
+                rmdir(made)
+                return true
+            }
+            makeDirectory(shipIt)
+            Check.expectTrue(mkdtempWorks())
+            suppressor.apply(journal: journal, excluding: [])
+            Check.expectFalse(mkdtempWorks())
+            suppressor.revert(journal: journal)
+            Check.expectTrue(mkdtempWorks())
+        }
+
+        Check.test("a folder that isn't there yet is made read-only, then removed") {
+            let (suppressor, journal, caches) = scratch([slack, granola])
+            defer { cleanUp(caches) }
+            suppressor.apply(journal: journal, excluding: [])
+            let shipIt = caches.appendingPathComponent("com.tinyspeck.slackmacgap.ShipIt")
+            let electron = caches.appendingPathComponent("@granolaelectron-updater")
+            Check.expectEqual(mode(of: shipIt), 0o555)
+            Check.expectEqual(mode(of: electron), 0o555)
+            // electron-updater's first step, refused.
+            Check.expectNil(try? FileManager.default.createDirectory(
+                at: electron.appendingPathComponent("pending"), withIntermediateDirectories: true))
+            suppressor.revert(journal: journal)
+            Check.expectNil(mode(of: shipIt))
+            Check.expectNil(mode(of: electron))
+        }
+
+        Check.test("a folder already read-only is left exactly as it was") {
+            let (suppressor, journal, caches) = scratch([slack])
+            defer { cleanUp(caches) }
+            let shipIt = caches.appendingPathComponent("com.tinyspeck.slackmacgap.ShipIt")
+            makeDirectory(shipIt)
+            chmod(shipIt.path, 0o500)
+            Check.expectTrue(suppressor.apply(journal: journal, excluding: []).applied.isEmpty)
+            Check.expectTrue(journal.isEmpty)
+            suppressor.revert(journal: journal)
+            Check.expectEqual(mode(of: shipIt), 0o500)
+        }
+
+        Check.test("a symlink is never followed") {
+            let (suppressor, journal, caches) = scratch([slack])
+            defer { cleanUp(caches) }
+            let elsewhere = caches.appendingPathComponent("elsewhere")
+            makeDirectory(elsewhere)
+            try? FileManager.default.createSymbolicLink(
+                at: caches.appendingPathComponent("com.tinyspeck.slackmacgap.ShipIt"),
+                withDestinationURL: elsewhere)
+            suppressor.apply(journal: journal, excluding: [])
+            Check.expectEqual(mode(of: elsewhere), 0o755)
+            Check.expectTrue(journal.isEmpty)
+        }
+
+        Check.test("a mode changed by someone else after the lock is theirs") {
+            let (suppressor, journal, caches) = scratch([slack])
+            defer { cleanUp(caches) }
+            let shipIt = caches.appendingPathComponent("com.tinyspeck.slackmacgap.ShipIt")
+            makeDirectory(shipIt)
+            suppressor.apply(journal: journal, excluding: [])
+            chmod(shipIt.path, 0o700)
+            suppressor.revert(journal: journal)
+            Check.expectEqual(mode(of: shipIt), 0o700)
+            Check.expectTrue(journal.isEmpty)
+        }
+
+        Check.test("switched off, it locks nothing") {
+            let (suppressor, journal, caches) = scratch([slack])
+            defer { cleanUp(caches) }
+            let result = suppressor.apply(journal: journal, excluding: [UpdateFolderSuppressor.tierID])
+            Check.expectTrue(result.isEmpty)
+            Check.expectNil(mode(of: caches.appendingPathComponent("com.tinyspeck.slackmacgap.ShipIt")))
+        }
+
+        Check.test("each app is listed once, under one switch") {
+            let (suppressor, _, caches) = scratch([slack, granola])
+            defer { cleanUp(caches) }
+            let items = suppressor.discover()
+            Check.expectEqual(items.map(\.displayName), ["Slack", "Granola"])
+            Check.expectEqual(Set(items.map(\.id)), [UpdateFolderSuppressor.tierID])
+            Check.expectEqual(items.map(\.bundleIdentifiers),
+                              [["com.tinyspeck.slackmacgap"], ["com.granola.app"]])
+        }
+
+        // The journal is the user's own file, so a path in it is checked
+        // before anything is changed from it.
+        Check.test("a journal entry outside the caches folder is never acted on") {
+            let (suppressor, journal, caches) = scratch([])
+            defer { cleanUp(caches) }
+            let outside = temporaryDirectory("outside")
+            defer { try? FileManager.default.removeItem(at: outside) }
+            chmod(outside.path, 0o555)
+            try? journal.record(SuppressionRecord(target: .folder(path: outside.path, app: "X"),
+                                                  priorValue: .int(0o777), appliedValue: .int(0o555)))
+            suppressor.revert(journal: journal)
+            Check.expectEqual(mode(of: outside), 0o555)
+            chmod(outside.path, 0o755)
+        }
+
+        Check.test("a folder record survives the journal being read back") {
+            let (_, journal, caches) = scratch([])
+            defer { cleanUp(caches) }
+            let target = SuppressionRecord.Target.folder(path: "/x/y.ShipIt", app: "Slack")
+            try? journal.record(SuppressionRecord(target: target, priorValue: .absent,
+                                                  appliedValue: .int(0o555)))
+            let reread = SuppressionJournal(url: caches.appendingPathComponent("journal.json"))
+            Check.expectEqual(reread.record(for: target)?.appliedValue, .int(0o555))
+        }
+    }
+}

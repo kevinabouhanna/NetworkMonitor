@@ -71,10 +71,10 @@ public struct SuppressionResult: Equatable {
 
 /// A way of stopping something updating.
 ///
-/// The point of the protocol is that the tiers this app cannot reach today —
-/// Electron apps that download inside their own process, which need a content
-/// filter and therefore a Developer ID — arrive later as another conformer,
-/// leaving the policy, the journal, the settings and the UI untouched.
+/// The point of the protocol is that a new way of reaching updaters arrives as
+/// another conformer, leaving the policy, the journal, the settings and the UI
+/// untouched. `UpdateFolderSuppressor` (#93) came that way, and so would a
+/// content filter for the apps nothing reaches yet, which needs a Developer ID.
 public protocol UpdateSuppressor: AnyObject {
     /// Shown in the coverage list as a group heading.
     var name: String { get }
