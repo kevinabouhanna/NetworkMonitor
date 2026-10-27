@@ -256,7 +256,7 @@ sudoers rule makes the grant explicit and auditable. This, the password prompt a
 extra Login Items row all reverse once there's a Developer ID; see the
 [roadmap](roadmap.md).
 
-**Versioning.** `HelperProtocol.version` (now 2) lives in the `LowDataMode` target that the
+**Versioning.** `HelperProtocol.version` (now 3) lives in the `LowDataMode` target that the
 app and the helper share. Bump it when a verb is added or changed, or the sudoers rule
 changes, and installed helpers are offered an update once per build. Otherwise an app
 update never asks for a password.
