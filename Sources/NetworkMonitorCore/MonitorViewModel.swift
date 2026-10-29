@@ -409,6 +409,8 @@ public final class MonitorViewModel: ObservableObject {
             var entries: [(identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)] = []
             var pids = Set<Int32>()
             var merged: [String: (identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)] = [:]
+            // Each app's internet bytes by server address, for Connections (#115).
+            var servers: [String: [String: ByteCounts]] = [:]
 
             // LAN bytes are summed across the whole sample and handed to the store
             // separately: they never become an app row, but the headline has to
@@ -437,6 +439,10 @@ public final class MonitorViewModel: ObservableObject {
                 } else {
                     merged[identity.key] = (identity, bytesIn, bytesOut)
                 }
+                for (address, bytes) in row.servers {
+                    servers[identity.key, default: [:]][address,
+                        default: ByteCounts(bytesIn: 0, bytesOut: 0)] += bytes
+                }
                 self.lastActivity[identity.key] = now
 
                 // By the raw process name, not the app it folds into:
@@ -460,7 +466,7 @@ public final class MonitorViewModel: ObservableObject {
 
             self.lastSeenPIDs = pids
             self.identityResolver.retainOnly(pids: pids)
-            self.store.recordApps(entries,
+            self.store.recordApps(entries, servers: servers,
                                   localBytesIn: localIn, localBytesOut: localOut,
                                   now: now)
 

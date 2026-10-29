@@ -83,6 +83,15 @@ public enum RemoteEndpoint {
         return isIPv6 ? scopeOfIPv6(host) : scopeOfIPv4(host)
     }
 
+    /// The far end's address, without its port, or nil for a wildcard peer
+    /// (`*:*`) or a label that can't be read.
+    public static func remoteHost(connectionLabel label: String) -> String? {
+        guard let separator = label.range(of: "<->") else { return nil }
+        let remote = String(label[separator.upperBound...]).trimmingCharacters(in: .whitespaces)
+        guard !remote.hasPrefix("*") else { return nil }
+        return host(of: remote, isIPv6: label.hasPrefix("tcp6") || label.hasPrefix("udp6"))
+    }
+
     /// Strips the port, and an IPv6 zone such as `%en0`.
     ///
     /// The two families are punctuated differently — `192.168.1.1:443` against

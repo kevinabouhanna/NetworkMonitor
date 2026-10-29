@@ -45,12 +45,26 @@ let package = Package(
             dependencies: ["HostsFile", "LowDataMode"],
             path: "Sources/NetworkMonitorHelper"
         ),
+        // Where a server is and whose network it belongs to, from DB-IP's data
+        // shipped in Resources/Geo. Pure Foundation: the app needs it now, and
+        // the content filter will later, without the app's frameworks.
+        .target(
+            name: "ServerDirectory",
+            path: "Sources/ServerDirectory"
+        ),
+        // Converts DB-IP's CSVs into Resources/Geo. Run by Scripts/geodata.sh;
+        // never part of the app.
+        .executableTarget(
+            name: "GeoDataBuilder",
+            dependencies: ["ServerDirectory"],
+            path: "Sources/GeoDataBuilder"
+        ),
         // An executable, not a .testTarget: neither XCTest nor swift-testing is
         // available with Command Line Tools alone (both ship inside Xcode), so
         // `swift test` cannot run here. Run with `swift run NetworkMonitorTests`.
         .executableTarget(
             name: "NetworkMonitorTests",
-            dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode"],
+            dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory"],
             path: "Sources/NetworkMonitorTests"
         ),
     ]

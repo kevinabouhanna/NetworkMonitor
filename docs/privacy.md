@@ -8,8 +8,9 @@ leaves your Mac.
 - **Byte counters per network interface**, from the kernel (`sysctl`), for the live
   speed and the connection total.
 - **Bytes per process and connection**, from macOS's own `nettop` tool, for the app
-  list. It sees which process moved how many bytes, and whether the other end was on
-  the internet or on your own network. It never sees the contents of any traffic.
+  list. It sees which process moved how many bytes, and the address of the other end:
+  whether it was on the internet or on your own network, and which server it was. It
+  never sees the contents of any traffic.
 - **The default gateway's hardware address**, to tell one network from another (see
   [how it tells networks apart](features.md#a-total-per-connection)). It comes from
   macOS's own network configuration, which needs no permission.
@@ -39,7 +40,7 @@ Everything stays on your Mac:
 | What | Where |
 |---|---|
 | Totals for each network you've joined | `~/Library/Application Support/NetworkMonitor/usage.json` |
-| Usage History, by hour, app and network | `~/Library/Application Support/NetworkMonitor/history.sqlite` |
+| Usage History, by hour, app and network, including the address of each server an app talked to | `~/Library/Application Support/NetworkMonitor/history.sqlite` |
 | How to undo what Hotspot mode changed | `~/Library/Application Support/NetworkMonitor/suppression.json` |
 | The helper's own undo records (only with the helper) | `/Library/Application Support/NetworkMonitor/` |
 | Your settings | the app's preferences (`com.kevinabouhanna.NetworkMonitor`) |
@@ -47,8 +48,19 @@ Everything stays on your Mac:
 The speed test works in a temporary folder that is deleted as soon as the result is
 read. The last result is kept in memory only, and dropped when you change network.
 
-**Clear History** in Settings › History deletes Usage History.
+**Clear History** in Settings › History deletes Usage History, servers included, and the
+**Keep history for** setting applies to them too.
 [Uninstalling](installing.md#uninstall) deletes all of it.
+
+## Naming servers without asking anyone
+
+A server's address says nothing to a person, so NetworkMonitor names it: the country it's
+in, and the company whose network it belongs to. The answers come from DB-IP's free
+databases, shipped inside the app in `Contents/Resources/Geo` and refreshed with
+releases. Nothing is looked up online: asking a service about each address would tell
+it every server your Mac talks to. The data is
+[IP geolocation by DB-IP](https://db-ip.com), under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ## Permissions
 

@@ -62,6 +62,16 @@ can't run `nettop`.
 - Dragging the app to the Trash leaves the password-free changes in place; uninstall from
   the app.
 
+**Connections**
+
+- An app's servers can add up to a little less than its total: a socket that opened and
+  closed between two samples leaves no connection row.
+- No server names until the content filter (#115). Until then, a server is its address,
+  and a network that hosts other companies, such as Amazon's or Cloudflare's, says so
+  rather than naming the company behind the traffic.
+- A country is where a server answered from. It isn't where the company is based, or
+  where data ends up.
+
 **Usage History**
 
 - It starts when you install 1.4.0 or later.

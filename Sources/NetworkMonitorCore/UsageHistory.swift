@@ -175,6 +175,19 @@ public struct HistoryReport {
 /// **Threading.** Recording happens on the main thread, like the rest of the
 /// store. Reads run on a private queue, so stepping through a year of data
 /// never stalls the menu bar.
+/// One app's traffic with one server over a period.
+public struct ServerUsage: Equatable {
+    public let appKey: String
+    /// As `nettop` reported it, such as `142.250.180.14` or `2a00:1450:4001:82b::200e`.
+    public let address: String
+    public let bytesIn: Int64
+    public let bytesOut: Int64
+    /// The hour this app first talked to this server, as far back as history goes.
+    public let firstSeen: Date
+
+    public var total: Int64 { bytesIn + bytesOut }
+}
+
 public final class UsageHistory {
 
     /// A silence this long, typically a sleep, makes the next traffic a new
@@ -246,9 +259,11 @@ public final class UsageHistory {
         pending.traffic[slot, default: Traffic()].add(interfaceIn: bytesIn, interfaceOut: bytesOut)
     }
 
-    /// One nettop sample: per-app internet bytes, and the LAN bytes that are
-    /// kept out of every figure.
+    /// One nettop sample: per-app internet bytes, the same bytes by server
+    /// address (keyed by app key), and the LAN bytes that are kept out of every
+    /// figure.
     public func recordApps(_ entries: [(identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)],
+                           servers: [String: [String: ByteCounts]] = [:],
                            localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
                            now: Date = Date()) {
         let moving = entries.filter { $0.bytesIn > 0 || $0.bytesOut > 0 }
@@ -271,6 +286,16 @@ public final class UsageHistory {
         }
         pending.traffic[slot] = traffic
         pending.apps[slot] = apps
+
+        guard !servers.isEmpty else { return }
+        var byServer = pending.servers[slot, default: [:]]
+        for (appKey, addresses) in servers {
+            for (address, bytes) in addresses {
+                byServer[ServerKey(appKey: appKey, address: address),
+                         default: ByteCounts(bytesIn: 0, bytesOut: 0)] += bytes
+            }
+        }
+        pending.servers[slot] = byServer
     }
 
     /// The store has pointed accumulation at `fingerprint`.
@@ -448,6 +473,38 @@ public final class UsageHistory {
                                             .int(sums.bytesIn), .int(sums.bytesOut)])
                     }
                 }
+
+                // Three small upserts per app and server, each on an index. A
+                // flush carries at most a few hundred, so resolving ids in SQL
+                // costs less than keeping a cache of them in sync.
+                let server = try database.prepare("""
+                    INSERT INTO servers (address) VALUES (?1) ON CONFLICT(address) DO NOTHING
+                    """)
+                let appServer = try database.prepare("""
+                    INSERT INTO app_servers (app_key, server_id, first_seen)
+                    VALUES (?1, (SELECT id FROM servers WHERE address = ?2), ?3)
+                    ON CONFLICT(app_key, server_id) DO NOTHING
+                    """)
+                let serverTraffic = try database.prepare("""
+                    INSERT INTO server_traffic (hour, session_id, app_server_id, bytes_in, bytes_out)
+                    VALUES (?1, ?2,
+                            (SELECT a.id FROM app_servers a JOIN servers v ON v.id = a.server_id
+                             WHERE a.app_key = ?3 AND v.address = ?4),
+                            ?5, ?6)
+                    ON CONFLICT(hour, session_id, app_server_id) DO UPDATE SET
+                        bytes_in = bytes_in + excluded.bytes_in,
+                        bytes_out = bytes_out + excluded.bytes_out
+                    """)
+                for (slot, servers) in batch.servers {
+                    for (key, sums) in servers {
+                        try server.run([.text(key.address)])
+                        try appServer.run([.text(key.appKey), .text(key.address),
+                                           .real(TimeInterval(slot.hour))])
+                        try serverTraffic.run([.int(slot.hour), .int(slot.session),
+                                               .text(key.appKey), .text(key.address),
+                                               .int(sums.bytesIn), .int(sums.bytesOut)])
+                    }
+                }
             }
         } catch {
             // Dropped rather than retried: a database that refuses one write
@@ -470,10 +527,18 @@ public final class UsageHistory {
                     let hour = Int64(cutoff.timeIntervalSince1970)
                     try database.prepare("DELETE FROM traffic WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM app_traffic WHERE hour < ?1").run([.int(hour)])
+                    try database.prepare("DELETE FROM server_traffic WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM sessions WHERE ended_at < ?1 AND id != ?2")
                         .run([.real(cutoff.timeIntervalSince1970), .int(keep)])
                     try database.execute("""
                         DELETE FROM apps WHERE key NOT IN (SELECT DISTINCT app_key FROM app_traffic)
+                        """)
+                    try database.execute("""
+                        DELETE FROM app_servers
+                        WHERE id NOT IN (SELECT DISTINCT app_server_id FROM server_traffic)
+                        """)
+                    try database.execute("""
+                        DELETE FROM servers WHERE id NOT IN (SELECT DISTINCT server_id FROM app_servers)
                         """)
                 }
                 try database.execute("PRAGMA incremental_vacuum")
@@ -498,7 +563,8 @@ public final class UsageHistory {
         queue.sync {
             do {
                 try database.transaction {
-                    for table in ["app_traffic", "traffic", "sessions", "apps"] {
+                    for table in ["server_traffic", "app_servers", "servers",
+                                  "app_traffic", "traffic", "sessions", "apps"] {
                         try database.execute("DELETE FROM \(table)")
                     }
                 }
@@ -534,6 +600,44 @@ public final class UsageHistory {
         flush()
         let calendar = calendar
         return queue.sync { Self.query(database, period: period, filter: filter, calendar: calendar) }
+    }
+
+    /// Which servers each app talked to in `period`, biggest first,
+    /// synchronously. The Connections window (#112) names them and groups them
+    /// by company, country and app.
+    public func servers(in period: HistoryPeriod,
+                        filter: HistoryFilter = HistoryFilter()) -> [ServerUsage] {
+        guard let database else { return [] }
+        flush()
+        return queue.sync {
+            let (whereSQL, values) = Self.conditions(filter, hourColumn: "t.hour", appTable: "a")
+            do {
+                let query = try database.prepare("""
+                    SELECT a.app_key, v.address, SUM(t.bytes_in), SUM(t.bytes_out), a.first_seen
+                    FROM server_traffic t
+                    JOIN app_servers a ON a.id = t.app_server_id
+                    JOIN servers v ON v.id = a.server_id
+                    JOIN sessions s ON s.id = t.session_id
+                    LEFT JOIN apps p ON p.key = a.app_key
+                    WHERE \(whereSQL)
+                    GROUP BY t.app_server_id
+                    ORDER BY SUM(t.bytes_in) + SUM(t.bytes_out) DESC
+                    """)
+                query.bind([.int(Int64(period.start.timeIntervalSince1970)),
+                            .int(Int64(period.end.timeIntervalSince1970))] + values)
+                var rows: [ServerUsage] = []
+                while try query.step() {
+                    rows.append(ServerUsage(
+                        appKey: query.string(0) ?? "", address: query.string(1) ?? "",
+                        bytesIn: query.int64(2), bytesOut: query.int64(3),
+                        firstSeen: Date(timeIntervalSince1970: query.double(4))))
+                }
+                return rows
+            } catch {
+                NSLog("NetworkMonitor: reading servers failed: \(error)")
+                return []
+            }
+        }
     }
 
     /// `WHERE` terms shared by every query, for the table aliased `s`
@@ -898,6 +1002,27 @@ public final class UsageHistory {
                 bytes_out INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (hour, session_id, app_key)
             ) WITHOUT ROWID;
+            -- Connections (#115). Each app and server pair is stored once, so the
+            -- hourly rows carry a small number instead of an app's path.
+            CREATE TABLE IF NOT EXISTS servers (
+                id INTEGER PRIMARY KEY,
+                address TEXT NOT NULL UNIQUE
+            );
+            CREATE TABLE IF NOT EXISTS app_servers (
+                id INTEGER PRIMARY KEY,
+                app_key TEXT NOT NULL,
+                server_id INTEGER NOT NULL,
+                first_seen REAL NOT NULL,
+                UNIQUE (app_key, server_id)
+            );
+            CREATE TABLE IF NOT EXISTS server_traffic (
+                hour INTEGER NOT NULL,
+                session_id INTEGER NOT NULL,
+                app_server_id INTEGER NOT NULL,
+                bytes_in INTEGER NOT NULL DEFAULT 0,
+                bytes_out INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (hour, session_id, app_server_id)
+            ) WITHOUT ROWID;
             PRAGMA user_version = 1;
             """)
         return database
@@ -970,14 +1095,21 @@ public final class UsageHistory {
         }
     }
 
+    private struct ServerKey: Hashable {
+        let appKey: String
+        let address: String
+    }
+
     private struct Pending {
         var traffic: [Slot: Traffic] = [:]
         var apps: [Slot: [String: (bytesIn: Int64, bytesOut: Int64)]] = [:]
+        var servers: [Slot: [ServerKey: ByteCounts]] = [:]
         var identities: [String: AppIdentity] = [:]
         var sessions: [Int64: SessionRow] = [:]
 
         var isEmpty: Bool {
-            traffic.isEmpty && apps.isEmpty && identities.isEmpty && sessions.isEmpty
+            traffic.isEmpty && apps.isEmpty && servers.isEmpty && identities.isEmpty
+                && sessions.isEmpty
         }
     }
 }

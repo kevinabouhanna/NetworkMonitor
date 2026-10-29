@@ -127,6 +127,10 @@ cp "$PLIST_SRC" "${APP}/Contents/Info.plist"
                         "${APP}/Contents/Info.plist"
 # Committed, not generated at build time — regenerate with Scripts/make-icon.swift.
 cp Resources/AppIcon.icns "${APP}/Contents/Resources/AppIcon.icns"
+# Country and network-owner data for Connections, with DB-IP's licence notice,
+# which CC BY 4.0 asks to travel with the data. Committed too: see
+# Scripts/geodata.sh for why it can't be downloaded at build time.
+cp -R Resources/Geo "${APP}/Contents/Resources/Geo"
 printf 'APPL????' > "${APP}/Contents/PkgInfo"
 
 # The privileged helper and the script that installs it, carried inside the app

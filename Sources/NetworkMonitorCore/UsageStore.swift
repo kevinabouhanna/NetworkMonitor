@@ -206,7 +206,11 @@ public final class UsageStore {
     /// `bytesIn`/`bytesOut` are the app's *internet* bytes — LAN traffic is passed
     /// separately in `localBytesIn`/`localBytesOut` and never reaches an app row,
     /// because "how much internet did this app use" is the question being answered.
+    ///
+    /// `servers` splits each app's internet bytes by server address, keyed by
+    /// app key. Only Usage History keeps them; the popover's totals don't need them.
     public func recordApps(_ entries: [(identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)],
+                           servers: [String: [String: ByteCounts]] = [:],
                            localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
                            now: Date = Date()) {
         rolloverIfNeeded(now: now)
@@ -231,8 +235,8 @@ public final class UsageStore {
                 bucket.apps[entry.identity.key] = totals
             }
         }
-        history?.recordApps(entries, localBytesIn: localBytesIn, localBytesOut: localBytesOut,
-                            now: now)
+        history?.recordApps(entries, servers: servers,
+                            localBytesIn: localBytesIn, localBytesOut: localBytesOut, now: now)
     }
 
     /// Folds a row left behind by a version that could not adopt this process

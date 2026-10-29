@@ -27,9 +27,19 @@ public struct NettopRow: Equatable {
     public var internetBytesIn: Int64 { max(bytesIn - localBytesIn, 0) }
     public var internetBytesOut: Int64 { max(bytesOut - localBytesOut, 0) }
 
+    /// The internet bytes again, by the address of the server at the far end,
+    /// summed from the process's connection rows. What Usage History records as
+    /// the servers each app talked to.
+    ///
+    /// Can add up to a little less than `internetBytesIn`/`Out`: a socket that
+    /// opened and closed between two samples leaves no connection row, while its
+    /// bytes still reach the process row.
+    public internal(set) var servers: [String: ByteCounts]
+
     public init(pid: Int32, processName: String, bytesIn: Int64, bytesOut: Int64,
                 localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
-                subtractableLocalIn: Int64 = 0, subtractableLocalOut: Int64 = 0) {
+                subtractableLocalIn: Int64 = 0, subtractableLocalOut: Int64 = 0,
+                servers: [String: ByteCounts] = [:]) {
         self.pid = pid
         self.processName = processName
         self.bytesIn = bytesIn
@@ -38,6 +48,23 @@ public struct NettopRow: Equatable {
         self.localBytesOut = localBytesOut
         self.subtractableLocalIn = subtractableLocalIn
         self.subtractableLocalOut = subtractableLocalOut
+        self.servers = servers
+    }
+}
+
+/// Bytes each way.
+public struct ByteCounts: Equatable {
+    public var bytesIn: Int64
+    public var bytesOut: Int64
+
+    public init(bytesIn: Int64, bytesOut: Int64) {
+        self.bytesIn = bytesIn
+        self.bytesOut = bytesOut
+    }
+
+    public static func += (lhs: inout ByteCounts, rhs: ByteCounts) {
+        lhs.bytesIn += rhs.bytesIn
+        lhs.bytesOut += rhs.bytesOut
     }
 }
 
@@ -97,10 +124,20 @@ public struct NettopParser {
         return samples
     }
 
-    /// Adds a connection's bytes to its parent process, if they stayed local.
+    /// Adds a connection's bytes to its parent process: to its local figures if
+    /// they stayed on the LAN, and to its servers if they crossed the internet.
     private mutating func foldConnection(_ connection: Connection) {
         guard let index = pending.indices.last else { return }
-        guard connection.scope.isLocal else { return }
+        guard connection.scope.isLocal else {
+            // A wildcard peer has no address to record. Its bytes still count,
+            // through the process row.
+            if let server = connection.remoteHost,
+               connection.bytesIn > 0 || connection.bytesOut > 0 {
+                pending[index].servers[server, default: ByteCounts(bytesIn: 0, bytesOut: 0)]
+                    += ByteCounts(bytesIn: connection.bytesIn, bytesOut: connection.bytesOut)
+            }
+            return
+        }
         let parent = pending[index]
         let subtractable = connection.scope.isSubtractable
         pending[index] = NettopRow(
@@ -113,13 +150,16 @@ public struct NettopParser {
             subtractableLocalIn: parent.subtractableLocalIn
                 + (subtractable ? connection.bytesIn : 0),
             subtractableLocalOut: parent.subtractableLocalOut
-                + (subtractable ? connection.bytesOut : 0))
+                + (subtractable ? connection.bytesOut : 0),
+            servers: parent.servers)
     }
 
     struct Connection {
         let scope: TrafficScope
         let bytesIn: Int64
         let bytesOut: Int64
+        /// The far end's address, without its port. Nil for a wildcard peer.
+        var remoteHost: String? = nil
     }
 
     /// Parses a per-socket row such as
@@ -137,8 +177,10 @@ public struct NettopParser {
         let bytesIn = Int64(fields.removeLast().trimmingCharacters(in: .whitespaces)) ?? 0
         let label = fields.dropFirst().joined(separator: ",")
             .trimmingCharacters(in: .whitespaces)
-        return Connection(scope: RemoteEndpoint.scope(connectionLabel: label),
-                          bytesIn: bytesIn, bytesOut: bytesOut)
+        let scope = RemoteEndpoint.scope(connectionLabel: label)
+        // Only internet peers are kept by address, so only they are parsed again.
+        return Connection(scope: scope, bytesIn: bytesIn, bytesOut: bytesOut,
+                          remoteHost: scope.isLocal ? nil : RemoteEndpoint.remoteHost(connectionLabel: label))
     }
 
     /// Emits whatever is buffered, for use when the stream ends.
