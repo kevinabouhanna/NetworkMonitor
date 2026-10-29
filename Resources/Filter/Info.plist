@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>NetworkMonitor Filter</string>
+	<key>CFBundleExecutable</key>
+	<string>com.kevinabouhanna.NetworkMonitor.Filter</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.kevinabouhanna.NetworkMonitor.Filter</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>NetworkMonitorFilter</string>
+	<key>CFBundlePackageType</key>
+	<string>SYSX</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>NSSystemExtensionUsageDescription</key>
+	<string>Lets NetworkMonitor see which server each connection goes to, and later block the ones you choose. Nothing leaves your Mac.</string>
+	<key>NetworkExtension</key>
+	<dict>
+		<key>NEMachServiceName</key>
+		<string>GRQKG7M8CL.com.kevinabouhanna.NetworkMonitor.Filter</string>
+		<key>NEProviderClasses</key>
+		<dict>
+			<key>com.apple.networkextension.filter-data</key>
+			<string>FilterDataProvider</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

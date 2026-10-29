@@ -87,6 +87,8 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-30 | **Connections' controls are a window toolbar** plus one labelled row, as Calendar and Finder lay theirs out (#123) | Six controls in four sizes across three rows read as all over the place. The view, the period and search are the window's; what the list is grouped by and narrowed to belongs to the list |
 | 2026-10-30 | **Usage History reads as Connections does**: the period and ‹ Today › side by side with All / Wi-Fi / Hotspot in one row, then the heading, with the chips beside it (#125) | The same controls were scattered there too. The parts are shared (`PeriodControls.swift`), so the two windows can't drift apart |
 | 2026-10-30 | **Settings › Connections**, a pane like every other feature's (#126) | People look for a feature in Settings. It says what Connections is, opens it, shows today's top companies, sets the layout it opens with, and says where the names come from |
+| 2026-10-30 | **The content filter is a system extension** that allows everything and reports each flow's name over XPC, turned on only from Settings › Connections (#128) | Server names turn *Hosted on Amazon* into the company behind it, and it's the base the firewall's rules are enforced through. It fails open, and both ends check the other's signature by team |
+| 2026-10-30 | Companies come from a server's name before its network's owner (#128) | The owner names the landlord; the name names the tenant. A host's own domains (cloudfront.net, akamaiedge.net) still defer to the owner |
 
 ## Approaches turned down
 

@@ -58,10 +58,12 @@ reinstalls, with the tests first so a bad pull can't replace a working copy.
 Right-click the menu bar readout and choose **Uninstall NetworkMonitor…**, or open
 **Settings › About** and click **Uninstall…**. In order, it:
 
-1. puts back every setting Hotspot mode changed, before removing anything;
-2. removes the helper, if it was installed (macOS asks for your password);
-3. removes the login item and your usage history;
-4. moves the app to the Trash.
+1. removes the content filter, if you turned on Server names: its settings at once, and
+   the extension itself, which macOS may finish at the next restart;
+2. puts back every setting Hotspot mode changed, before removing anything;
+3. removes the helper, if it was installed (macOS asks for your password);
+4. removes the login item and your usage history;
+5. moves the app to the Trash.
 
 **Dragging the app to the Trash is not the same.** The helper notices within an
 hour that the app is gone, puts back the changes it made (system update settings,

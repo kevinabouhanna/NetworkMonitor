@@ -67,9 +67,12 @@ can't run `nettop`.
   servers each app reached through it.
 - Microsoft's and Google's networks also carry other companies' services (Azure, and
   Google's front ends for Google Cloud), which show as Microsoft or Google.
-- No server names until the content filter (#115). Until then, a server is its address,
-  and a network that hosts other companies, such as Amazon's or Cloudflare's, says so
-  rather than naming the company behind the traffic.
+- Server names need the content filter (#128) turned on. Without it, a server is its
+  address, and a network that hosts other companies, such as Amazon's or Cloudflare's,
+  says so rather than naming the company behind the traffic.
+- With it, an address keeps the latest name an app reached it by. An address shared by
+  many sites, as CDNs' and public DNS resolvers' are, can show a different site's name
+  from one moment to the next. Apps that connect to a bare address have no name to give.
 - A country is where DB-IP places a server's address, not where the company is based or
   where data ends up. For networks that answer one address from many places at once
   (Cloudflare, Fastly, Google's public DNS), the server that answered is usually much

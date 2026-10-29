@@ -71,6 +71,9 @@ public final class MonitorViewModel: ObservableObject {
     /// it has to hear about network changes, and it borrows the nettop samples to
     /// notice other apps competing with it.
     public let speedTest: SpeedTestController
+    /// The content filter (#128): off until turned on in Settings › Connections.
+    public let filter = FilterController()
+    private var filterNames: AnyCancellable?
     /// The readout's colours, and the speed test's alongside them (#45).
     public let menuBarColors: MenuBarColors
     /// Wi-Fi names, and the Location permission they need (#85).
@@ -180,6 +183,14 @@ public final class MonitorViewModel: ObservableObject {
         // the connection actually in use rather than `.offline`. `start()`
         // replays any journal left by the previous run before deciding.
         metering.start()
+
+        // What the filter saw names the servers nettop only gives addresses for.
+        filterNames = filter.flows.sink { [weak self] flows in
+            self?.store.history?.noteServerNames(flows.compactMap { flow in
+                flow.hostname.map { (RemoteEndpoint.ipv4Mapped(flow.address) ?? flow.address, $0) }
+            })
+        }
+        filter.resume()
 
         // Asked at the moment of each run, so a hotspot joined after launch is
         // caught. The menu bar hook routes through the same signal the live rate

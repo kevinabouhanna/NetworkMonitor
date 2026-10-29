@@ -199,12 +199,14 @@ public struct ServerUsage: Equatable {
     public let isSystem: Bool
     /// The app that launched it, for a process with no bundle of its own.
     public let parentName: String?
+    /// The name the content filter saw it connected by, such as `api.slack.com`.
+    public let name: String?
 
     public var total: Int64 { bytesIn + bytesOut }
 
     public init(appKey: String, address: String, bytesIn: Int64, bytesOut: Int64,
                 firstSeen: Date, appName: String, bundlePath: String? = nil,
-                isSystem: Bool = false, parentName: String? = nil) {
+                isSystem: Bool = false, parentName: String? = nil, name: String? = nil) {
         self.appKey = appKey
         self.address = address
         self.bytesIn = bytesIn
@@ -214,6 +216,7 @@ public struct ServerUsage: Equatable {
         self.bundlePath = bundlePath
         self.isSystem = isSystem
         self.parentName = parentName
+        self.name = name
     }
 }
 
@@ -296,6 +299,13 @@ public final class UsageHistory {
     public func recordInterface(bytesIn: Int64, bytesOut: Int64, now: Date = Date()) {
         guard bytesIn > 0 || bytesOut > 0, let slot = slot(at: now) else { return }
         pending.traffic[slot, default: Traffic()].add(interfaceIn: bytesIn, interfaceOut: bytesOut)
+    }
+
+    /// Server names the content filter saw, by address. Written with the next
+    /// flush; the latest name for an address wins.
+    public func noteServerNames(_ names: [(address: String, name: String)]) {
+        guard database != nil else { return }
+        for (address, name) in names { pending.names[address] = name }
     }
 
     /// One nettop sample: per-app internet bytes, the same bytes by server
@@ -530,9 +540,18 @@ public final class UsageHistory {
 
         // Servers in a transaction of their own: whatever goes wrong with them
         // must never cost Usage History the figures above.
-        guard !batch.servers.isEmpty else { return }
+        guard !batch.servers.isEmpty || !batch.names.isEmpty else { return }
         do {
             try database.transaction {
+                // Names first, so the servers written below keep theirs.
+                let named = try database.prepare("""
+                    INSERT INTO servers (address, name) VALUES (?1, ?2)
+                    ON CONFLICT(address) DO UPDATE SET name = excluded.name
+                    """)
+                for (address, name) in batch.names {
+                    try named.run([.text(address), .text(name)])
+                }
+
                 // Three small upserts per app and server, each on an index. A
                 // flush carries at most a few hundred, so resolving ids in SQL
                 // costs less than keeping a cache of them in sync. `MIN`, because
@@ -716,7 +735,7 @@ public final class UsageHistory {
         do {
             let query = try database.prepare("""
                 SELECT a.app_key, v.address, SUM(t.bytes_in), SUM(t.bytes_out), a.first_seen,
-                       p.name, p.bundle_path, p.is_system, p.parent_name
+                       p.name, p.bundle_path, p.is_system, p.parent_name, v.name
                 FROM server_traffic t
                 JOIN app_servers a ON a.id = t.app_server_id
                 JOIN servers v ON v.id = a.server_id
@@ -737,7 +756,7 @@ public final class UsageHistory {
                     firstSeen: Date(timeIntervalSince1970: query.double(4)),
                     appName: query.string(5) ?? (key as NSString).lastPathComponent,
                     bundlePath: query.string(6), isSystem: query.int64(7) != 0,
-                    parentName: query.string(8)))
+                    parentName: query.string(8), name: query.string(9)))
             }
             return rows
         } catch {
@@ -1139,7 +1158,8 @@ public final class UsageHistory {
             -- hourly rows carry a small number instead of an app's path.
             CREATE TABLE IF NOT EXISTS servers (
                 id INTEGER PRIMARY KEY,
-                address TEXT NOT NULL UNIQUE
+                address TEXT NOT NULL UNIQUE,
+                name TEXT
             );
             CREATE TABLE IF NOT EXISTS app_servers (
                 id INTEGER PRIMARY KEY,
@@ -1158,6 +1178,10 @@ public final class UsageHistory {
             ) WITHOUT ROWID;
             PRAGMA user_version = 1;
             """)
+        // Databases from before #128 have servers without a name column.
+        if (try? database.scalar("SELECT COUNT(*) FROM pragma_table_info('servers') WHERE name = 'name'")) == 0 {
+            try database.execute("ALTER TABLE servers ADD COLUMN name TEXT")
+        }
         return database
     }
 
@@ -1237,11 +1261,13 @@ public final class UsageHistory {
         var traffic: [Slot: Traffic] = [:]
         var apps: [Slot: [String: (bytesIn: Int64, bytesOut: Int64)]] = [:]
         var servers: [Slot: [ServerKey: ByteCounts]] = [:]
+        /// Server names from the content filter, by address.
+        var names: [String: String] = [:]
         var identities: [String: AppIdentity] = [:]
         var sessions: [Int64: SessionRow] = [:]
 
         var isEmpty: Bool {
-            traffic.isEmpty && apps.isEmpty && servers.isEmpty && identities.isEmpty
+            traffic.isEmpty && apps.isEmpty && servers.isEmpty && names.isEmpty && identities.isEmpty
                 && sessions.isEmpty
         }
     }

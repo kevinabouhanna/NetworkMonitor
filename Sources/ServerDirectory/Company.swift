@@ -79,6 +79,84 @@ public struct Company: Hashable {
         ("yandex", Company(name: "Yandex", isHost: false)),
     ]
 
+    /// The company behind a server's name (#128): `api.slack.com` is Slack,
+    /// wherever it's hosted. Nil for a name that belongs to the host rather
+    /// than its customer, such as `d2x.cloudfront.net`, where the network's
+    /// owner is the better answer.
+    public static func named(byHostname hostname: String) -> Company? {
+        guard let domain = registrableDomain(hostname) else { return nil }
+        if hostDomains.contains(domain) { return nil }
+        // Brands with a top-level domain of their own: dns.google is Google.
+        if let brand = brandDomains[String(domain.split(separator: ".").last ?? "")] { return brand }
+        if let company = byDomain[domain] { return company }
+        // Otherwise the domain is its own best name: figma.com is Figma.
+        guard let label = domain.split(separator: ".").first, !label.isEmpty else { return nil }
+        return Company(name: label.prefix(1).uppercased() + label.dropFirst(), isHost: false)
+    }
+
+    /// The part of a name a company registers: `api.slack.com` → `slack.com`,
+    /// `www.bbc.co.uk` → `bbc.co.uk`. A short list of second levels covers the
+    /// common country domains without shipping the whole public suffix list.
+    static func registrableDomain(_ hostname: String) -> String? {
+        let labels = hostname.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            .split(separator: ".").map(String.init)
+        guard labels.count >= 2, labels.last?.allSatisfy(\.isLetter) == true else { return nil }
+        let secondLevels: Set<String> = ["co", "com", "net", "org", "gov", "ac", "edu", "ne", "or", "go"]
+        let count = labels.count >= 3 && labels.last!.count == 2 && secondLevels.contains(labels[labels.count - 2]) ? 3 : 2
+        return labels.suffix(count).joined(separator: ".")
+    }
+
+    /// Domains that name a host's own service, whoever its customer is.
+    static let hostDomains: Set<String> = [
+        "amazonaws.com", "cloudfront.net", "awsglobalaccelerator.com", "elb.amazonaws.com",
+        "akamai.net", "akamaiedge.net", "akamaized.net", "akamaihd.net", "edgekey.net", "edgesuite.net",
+        "fastly.net", "fastlylb.net", "cloudflare.net", "cloudflare-dns.com",
+        "googleusercontent.com", "appspot.com", "azureedge.net", "azurefd.net", "trafficmanager.net",
+        "edgecastcdn.net", "b-cdn.net", "herokuapp.com", "vercel.app", "netlify.app",
+    ]
+
+    /// Top-level domains that belong to one company.
+    static let brandDomains: [String: Company] = [
+        "google": Company(name: "Google", isHost: false),
+        "apple": Company(name: "Apple", isHost: false),
+        "microsoft": Company(name: "Microsoft", isHost: false),
+        "amazon": Company(name: "Amazon", isHost: false),
+    ]
+
+    /// Several domains, one company.
+    static let byDomain: [String: Company] = {
+        let groups: [(String, [String])] = [
+            ("Google", ["google.com", "googleapis.com", "gstatic.com", "googlevideo.com", "youtube.com",
+                        "ytimg.com", "ggpht.com", "doubleclick.net", "googlesyndication.com",
+                        "google-analytics.com", "googletagmanager.com", "gvt1.com", "gvt2.com", "1e100.net"]),
+            ("Meta", ["facebook.com", "facebook.net", "fbcdn.net", "fbsbx.com", "instagram.com",
+                      "cdninstagram.com", "whatsapp.net", "whatsapp.com", "messenger.com", "meta.com"]),
+            ("Apple", ["apple.com", "icloud.com", "icloud-content.com", "mzstatic.com", "apple-dns.net",
+                       "aaplimg.com", "cdn-apple.com", "apple-cloudkit.com", "itunes.com"]),
+            ("Microsoft", ["microsoft.com", "live.com", "office.com", "office.net", "office365.com", "msn.com",
+                           "bing.com", "windows.com", "windows.net", "azure.com", "skype.com", "msedge.net",
+                           "microsoftonline.com", "sharepoint.com", "onedrive.com", "msftauth.net",
+                           "teams.microsoft.com", "trafficmanager.cn"]),
+            ("Amazon", ["amazon.com", "amazon-adsystem.com", "media-amazon.com", "ssl-images-amazon.com"]),
+            ("Anthropic", ["anthropic.com", "claude.ai", "claude.com"]),
+            ("OpenAI", ["openai.com", "chatgpt.com", "oaiusercontent.com"]),
+            ("GitHub", ["github.com", "githubusercontent.com", "githubassets.com", "github.io"]),
+            ("Slack", ["slack.com", "slack-edge.com", "slack-msgs.com"]),
+            ("X", ["x.com", "twitter.com", "twimg.com", "t.co"]),
+            ("ByteDance", ["tiktok.com", "tiktokcdn.com", "byteoversea.com", "ibytedtos.com"]),
+            ("Spotify", ["spotify.com", "scdn.co", "spotifycdn.com"]),
+            ("Netflix", ["netflix.com", "nflxvideo.net", "nflximg.net", "nflxext.com"]),
+            ("Zoom", ["zoom.us", "zoom.com"]),
+            ("LinkedIn", ["linkedin.com", "licdn.com"]),
+            ("Datadog", ["datadoghq.com", "datadoghq.eu", "datadog.com"]),
+        ]
+        var map: [String: Company] = [:]
+        for (name, domains) in groups {
+            for domain in domains { map[domain] = Company(name: name, isHost: false) }
+        }
+        return map
+    }()
+
     /// "Microsoft Corporation" → "Microsoft": the registered name without the
     /// legal form that follows it.
     public static func plainName(_ registered: String) -> String {

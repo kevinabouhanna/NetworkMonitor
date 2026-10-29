@@ -68,8 +68,13 @@ it every server your Mac talks to. The data is
   first opens. Refuse it and everything works, with networks named like *Wi-Fi · 3f2a*.
   Updates keep the answer: every release is signed with the same Developer ID.
   Updating from 1.13 or earlier asks once more, because that signature is new (#119).
-- **Nothing else, normally.** No Local Network, no Accessibility, no Full Disk Access, no
-  network extension.
+- **A content filter, only if you turn it on** in Settings › Connections (#128). It's the
+  part of macOS made for apps like this one: it sees each connection as it opens, the
+  process that opened it and the server's address and name, and tells NetworkMonitor,
+  which keeps the name with that server in Usage History. It never sees the contents of
+  any traffic, sends nothing anywhere, and blocks nothing yet. macOS asks you twice to
+  allow it; switching it off, or Uninstall, removes it.
+- **Nothing else, normally.** No Local Network, no Accessibility, no Full Disk Access.
 - **Your password, once, if you choose it.** Switching on Hotspot mode offers to
   install a small helper, and macOS asks for your password to allow it. The helper can
   do a fixed handful of things and nothing else; see

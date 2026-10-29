@@ -77,8 +77,22 @@ online. See [privacy](privacy.md#naming-servers-without-asking-anyone).
   where data ends up. For networks that answer one address from many places at once,
   such as Cloudflare's, the server that answered is usually much nearer.
 
-Server names, and so the real company behind hosted traffic, come with the content filter
-(#115).
+## Server names
+
+Without help, a server is only an address, and anything on a cloud's network reads as
+*Hosted on Amazon*. Turn on **Server names** in Settings › Connections and a content filter,
+the part of macOS made for apps like this one, tells NetworkMonitor the name each app
+connected by. Then `wss-primary.slack.com` on Amazon's network reads as **Slack**, and the
+Servers list shows names, with the address underneath.
+
+- **macOS asks twice:** once to allow the extension in System Settings › General › Login
+  Items & Extensions, then once to allow the filter.
+- **It blocks nothing yet.** Blocking comes with the firewall's rules (#114).
+- **It fails open:** if the filter stops, nothing is cut off.
+- **Stop Filtering** in the right-click menu switches it off at once, and Uninstall
+  removes it.
+- **A name is only known when the app connected by one.** A program that connects to a
+  bare address still reads by its network's owner.
 
 ## What it costs
 

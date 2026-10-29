@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  The app's entitlements when it carries the content filter (#128): everything
+  in NetworkMonitor.entitlements, plus installing a system extension and
+  configuring a content filter, granted by
+  Resources/Profiles/NetworkMonitor.provisionprofile. A build without the
+  Developer ID uses NetworkMonitor.entitlements and leaves the filter out.
+-->
+<dict>
+    <key>com.apple.application-identifier</key>
+    <string>GRQKG7M8CL.com.kevinabouhanna.NetworkMonitor</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>GRQKG7M8CL</string>
+    <key>com.apple.developer.networking.networkextension</key>
+    <array>
+        <string>content-filter-provider-systemextension</string>
+    </array>
+    <key>com.apple.developer.system-extension.install</key>
+    <true/>
+    <key>com.apple.security.personal-information.location</key>
+    <true/>
+</dict>
+</plist>

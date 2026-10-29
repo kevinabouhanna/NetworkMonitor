@@ -76,6 +76,8 @@ Two things in the Command Line Tools 27 shape the code:
 | `ServerDirectory` | library | Which country an address is in and whose network it belongs to, from `Resources/Geo`. Pure Foundation, so the content filter can use it later without the app's frameworks |
 | `GeoDataBuilder` | executable | Converts DB-IP's CSVs into `Resources/Geo`. Run by `make geodata`, never part of the app |
 | `MapDataBuilder` | executable | Converts Natural Earth's countries into `Resources/Geo/world.bin`, the Connections map. Run by `Scripts/mapdata.sh`, never part of the app |
+| `FilterProtocol` | library | What the app and its content filter agree on: identities, the XPC interfaces, `FlowReport`. Foundation only |
+| `NetworkMonitorFilter` | executable | The content filter, a Network Extension system extension (#128). In the bundle only for Developer ID builds |
 | `NetworkMonitorHelper` | executable | The root helper. Links only `LowDataMode` and `HostsFile`, never Core: a root binary shouldn't carry a menu bar app's dependencies |
 | `NetworkMonitorTests` | executable | The test suite |
 
@@ -136,6 +138,17 @@ There's no Xcode project. `Scripts/bundle.sh` assembles the bundle by hand, beca
 
    A `.p12` is imported into a throwaway keychain, deleted afterwards, so the key never
    sits in the login keychain and nothing prompts.
+   With the Developer ID, `bundle.sh` also assembles the content filter's bundle
+   (`Contents/Library/SystemExtensions/com.kevinabouhanna.NetworkMonitor.Filter.systemextension`),
+   embeds the two provisioning profiles from `Resources/Profiles/`, which grant its
+   entitlements and ship in every copy, and signs the filter, the helper and the app inside
+   out. The app then uses `Resources/NetworkMonitor+Filter.entitlements`. Without the
+   Developer ID or the profiles, the filter is left out and nothing else changes.
+
+   macOS only activates a system extension from a notarized app, so trying the filter on a
+   development build means `make app`, `./Scripts/notarize.sh build/NetworkMonitor.app`,
+   and copying the stapled app to /Applications; `make install` rebuilds, which undoes the
+   notarization.
 5. **Notarizing**, with `Scripts/notarize.sh <app or dmg>`: submits to Apple, waits, and
    staples the ticket. It uses the API key in `NOTARY_KEY`, `NOTARY_KEY_ID` and
    `NOTARY_ISSUER` if set, or else the keychain profile `networkmonitor`, saved once with
