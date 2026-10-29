@@ -40,6 +40,8 @@ func runFilterTests() {
             Check.expectEqual(company("www.googleapis.com")?.name, "Google")
             Check.expectEqual(company("api.figma.com")?.name, "Figma", "an unknown domain names itself")
             Check.expectEqual(company("api.figma.com")?.isHost, false)
+            Check.expectEqual(company("dns.google")?.name, "Google", "a brand's own top-level domain")
+            Check.expectEqual(company("http-intake.logs.us5.datadoghq.com")?.name, "Datadog")
         }
 
         Check.test("a host's own domain leaves it to the network's owner") {

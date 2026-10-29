@@ -86,6 +86,8 @@ public struct Company: Hashable {
     public static func named(byHostname hostname: String) -> Company? {
         guard let domain = registrableDomain(hostname) else { return nil }
         if hostDomains.contains(domain) { return nil }
+        // Brands with a top-level domain of their own: dns.google is Google.
+        if let brand = brandDomains[String(domain.split(separator: ".").last ?? "")] { return brand }
         if let company = byDomain[domain] { return company }
         // Otherwise the domain is its own best name: figma.com is Figma.
         guard let label = domain.split(separator: ".").first, !label.isEmpty else { return nil }
@@ -113,6 +115,14 @@ public struct Company: Hashable {
         "edgecastcdn.net", "b-cdn.net", "herokuapp.com", "vercel.app", "netlify.app",
     ]
 
+    /// Top-level domains that belong to one company.
+    static let brandDomains: [String: Company] = [
+        "google": Company(name: "Google", isHost: false),
+        "apple": Company(name: "Apple", isHost: false),
+        "microsoft": Company(name: "Microsoft", isHost: false),
+        "amazon": Company(name: "Amazon", isHost: false),
+    ]
+
     /// Several domains, one company.
     static let byDomain: [String: Company] = {
         let groups: [(String, [String])] = [
@@ -138,6 +148,7 @@ public struct Company: Hashable {
             ("Netflix", ["netflix.com", "nflxvideo.net", "nflximg.net", "nflxext.com"]),
             ("Zoom", ["zoom.us", "zoom.com"]),
             ("LinkedIn", ["linkedin.com", "licdn.com"]),
+            ("Datadog", ["datadoghq.com", "datadoghq.eu", "datadog.com"]),
         ]
         var map: [String: Company] = [:]
         for (name, domains) in groups {
