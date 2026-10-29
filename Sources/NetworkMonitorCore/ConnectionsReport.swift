@@ -128,6 +128,17 @@ public struct ConnectionsSummary: Equatable {
     public var total: Int64 { bytesIn + bytesOut }
 }
 
+/// What the map shades: bytes per country, and apart from them what went to
+/// networks that answer from everywhere, which no one country can stand for.
+public struct ConnectionsGeography: Equatable {
+    public var countries: [String: Int64] = [:]
+    public var everywhere: Int64 = 0
+    /// Those networks, biggest first: "Cloudflare", "Fastly".
+    public var everywhereCompanies: [String] = []
+
+    public var largest: Int64 { countries.values.max() ?? 0 }
+}
+
 /// Groups named connections into the window's list. No AppKit and no storage,
 /// so all of it is tested directly.
 public enum ConnectionsReport {
@@ -263,6 +274,37 @@ public enum ConnectionsReport {
         summary.apps = seen[.app, default: []].count
         summary.servers = seen[.server, default: []].subtracting([UsageHistory.otherServers]).count
         return summary
+    }
+
+    /// The map's shading for the same narrowing. Addresses the data places
+    /// nowhere, and an app's servers past its hourly limit, aren't on it.
+    public static func geography(_ connections: [Connection], filter: ConnectionsFilter = ConnectionsFilter(),
+                                 search: String = "", locale: Locale = .current) -> ConnectionsGeography {
+        var geography = ConnectionsGeography()
+        var everywhere: [String: Int64] = [:]
+        for connection in narrowed(connections, filter: filter, search: search, locale: locale) {
+            if let company = connection.owner?.company, company.answersEverywhere {
+                geography.everywhere += connection.usage.total
+                everywhere[company.name, default: 0] += connection.usage.total
+            } else if let country = connection.country, !connection.isOtherServers {
+                geography.countries[country, default: 0] += connection.usage.total
+            }
+        }
+        geography.everywhereCompanies = everywhere.sorted { $0.value > $1.value }.map(\.key)
+        return geography
+    }
+
+    /// The companies with servers in `country`, biggest first, for the map's card.
+    public static func companies(inCountry country: String, _ connections: [Connection],
+                                 filter: ConnectionsFilter = ConnectionsFilter(), search: String = "",
+                                 locale: Locale = .current) -> [(item: ConnectionsItem, bytes: Int64)] {
+        var totals: [String: (item: ConnectionsItem, bytes: Int64)] = [:]
+        for connection in narrowed(connections, filter: filter, search: search, locale: locale)
+        where connection.country == country && connection.owner?.company.answersEverywhere != true {
+            let key = key(of: connection, .company)
+            totals[key, default: (item(for: connection, .company, locale: locale), 0)].bytes += connection.usage.total
+        }
+        return totals.values.sorted { $0.bytes > $1.bytes }
     }
 
     /// The companies an app talks to that aren't hosts: whose traffic it is, as

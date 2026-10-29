@@ -124,6 +124,10 @@ public final class MonitorViewModel: ObservableObject {
     /// it runs. The total never depends on it, so the popover says the list is
     /// paused rather than letting it go quiet (#27). Cleared by the next sample.
     @Published public private(set) var perAppFailure: String?
+    /// The addresses of the servers moving data in each nettop sample, for the
+    /// Connections map's Live view. Sent whether or not anyone listens, which
+    /// costs nothing when nobody does.
+    public let serverActivity = PassthroughSubject<Set<String>, Never>()
 
     /// Sampling rates, chosen from the power source and Low Power Mode. Published so
     /// Settings can say which one is in force; there is nothing for the user to set.
@@ -464,6 +468,9 @@ public final class MonitorViewModel: ObservableObject {
                 })
             }
 
+            if !servers.isEmpty {
+                self.serverActivity.send(Set(servers.values.flatMap(\.keys)))
+            }
             self.lastSeenPIDs = pids
             self.identityResolver.retainOnly(pids: pids)
             self.store.recordApps(entries, servers: servers,

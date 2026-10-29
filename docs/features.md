@@ -78,9 +78,9 @@ network or every hotspot at once; export it as CSV. See [Usage History](usage-hi
 ## Connections
 
 Which companies your apps send data to, from which apps, in which countries, and to which
-servers: grouped by company, app or country, narrowed by clicking, searched, and read
-hour by hour on a timeline. Nothing pops up and nothing is looked up online. See
-[Connections](connections.md).
+servers: grouped by company, app or country, narrowed by clicking, searched, read hour by
+hour on a timeline, and shaded on a world map with a Live view. Nothing pops up and nothing
+is looked up online. See [Connections](connections.md).
 
 ## Speed test
 

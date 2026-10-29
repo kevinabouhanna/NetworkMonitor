@@ -29,6 +29,30 @@ look.
   talks to besides its maker. Hosts aren't counted: an app on Amazon's network isn't
   talking to Amazon.
 
+## The map
+
+The window shows the list, the map, or both side by side (**List | Both | Map**). Both is
+the default, and whichever you choose is remembered. Too narrow for both, the window shows
+the list until you widen it.
+
+- **Countries are shaded by how much data went there**, on a logarithmic scale, so a
+  country with a few kilobytes still shows beside one with gigabytes.
+- **Hover a country** for a card with its top companies. **Click it** to narrow the whole
+  window to it.
+- **Narrow to a company, app or server**, and lines run from your country to where its
+  data went. Your country comes from the Mac's Region setting, never from Location.
+- **Live** makes lines pulse to the countries your apps reach right now. The map redraws
+  on its own only while Live is on, and Live switches off when the window closes.
+- **Drag to move, pinch or use the buttons to zoom.** Places too small to see at the
+  current zoom, and places drawn inside another country such as Réunion, show as a dot
+  when something went there.
+- **Cloudflare, Fastly and similar networks aren't placed.** They answer each address from
+  whichever data centre is nearest, so no one country is where the data went. The corner
+  of the map says how much went to them.
+
+The outlines are Natural Earth's (public domain), drawn by the app. No map service is
+used and nothing is downloaded.
+
 ## What the names mean
 
 A server is an address. NetworkMonitor names it from data shipped inside the app: the

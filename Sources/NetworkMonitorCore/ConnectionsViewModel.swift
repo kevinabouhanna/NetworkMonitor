@@ -24,6 +24,19 @@ public final class ConnectionsViewModel: ObservableObject {
         public let others: [String]
     }
 
+    /// What the window shows: the list, the map, or both side by side.
+    public enum Layout: String, CaseIterable, Identifiable {
+        case list, both, map
+        public var id: String { rawValue }
+        public var label: String {
+            switch self {
+            case .list: return "List"
+            case .both: return "Both"
+            case .map:  return "Map"
+            }
+        }
+    }
+
     @Published public private(set) var period: HistoryPeriod
     @Published public var grouping: ConnectionsGrouping = .companies {
         didSet { if grouping != oldValue { expanded.removeAll(); rebuild() } }
@@ -48,11 +61,32 @@ public final class ConnectionsViewModel: ObservableObject {
     /// Sections showing every item rather than the first few.
     @Published public var showingAll: Set<String> = []
 
+    /// Both by default, and whatever was chosen last after that.
+    @Published public var layout: Layout {
+        didSet { defaults.set(layout.rawValue, forKey: Self.layoutKey) }
+    }
+    /// What the map shades, for the same narrowing as the list.
+    @Published public private(set) var geography = ConnectionsGeography()
+    /// Countries a server answered from in the last `liveWindow`, while Live is on.
+    @Published public private(set) var liveCountries: [String: Date] = [:]
+    /// The map's Live switch. Calm by default: a summary of the period.
+    @Published public var isLive = false {
+        didSet { if isLive != oldValue { updateLive() } }
+    }
+    /// Where the map's lines start: the Mac's Region setting, never Location.
+    public let homeCountry: String? = Locale.current.region?.identifier
+
     /// How many items a section shows before "Show all".
     public static let sectionPreview = 8
+    public static let layoutKey = "connectionsLayout"
+    /// How long a country stays lit on the Live map after its last packet.
+    public static let liveWindow: TimeInterval = 30
 
     private let monitor: MonitorViewModel
     private let calendar: Calendar
+    private let defaults: UserDefaults
+    private var liveSubscription: AnyCancellable?
+    private var livePrune: Timer?
     private var connections: [Connection] = []
     private var icons: [String: NSImage] = [:]
     private var generation = 0
@@ -64,9 +98,12 @@ public final class ConnectionsViewModel: ObservableObject {
     private var directory: ServerDirectory?
     private var directoryOpened = false
 
-    public init(monitor: MonitorViewModel, calendar: Calendar = .current) {
+    public init(monitor: MonitorViewModel, calendar: Calendar = .current,
+                defaults: UserDefaults = .standard) {
         self.monitor = monitor
         self.calendar = calendar
+        self.defaults = defaults
+        layout = defaults.string(forKey: Self.layoutKey).flatMap(Layout.init) ?? .both
         period = HistoryPeriod(scale: .day, containing: Date(), calendar: calendar)
     }
 
@@ -96,6 +133,8 @@ public final class ConnectionsViewModel: ObservableObject {
     public func windowDidClose() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+        // Nothing is drawn while nobody can see it.
+        isLive = false
     }
 
     // MARK: Period
@@ -237,10 +276,7 @@ public final class ConnectionsViewModel: ObservableObject {
             guard let self, request == self.generation else { return }
             self.naming.async { [weak self] in
                 guard let self else { return }
-                if !self.directoryOpened {
-                    self.directory = ServerDirectory.bundled()
-                    self.directoryOpened = true
-                }
+                self.openDirectoryIfNeeded()
                 let named = report.servers.map { Connection($0, directory: self.directory) }
                 let details = Self.appDetails(for: named)
                 DispatchQueue.main.async {
@@ -260,8 +296,61 @@ public final class ConnectionsViewModel: ObservableObject {
         let filter = ConnectionsFilter(keys: selected.mapValues(\.key))
         groups = ConnectionsReport.groups(connections, by: grouping, filter: filter, search: search)
         summary = ConnectionsReport.summary(connections, filter: filter, search: search)
+        geography = ConnectionsReport.geography(connections, filter: filter, search: search)
         // Narrowed to one, it may as well be open.
         if groups.count == 1, let only = groups.first { expanded.insert(only.id) }
+    }
+
+    // MARK: Map
+
+    /// The country's row, for narrowing to it from the map. Nil for a country
+    /// nothing went to.
+    public func countryItem(_ code: String) -> ConnectionsItem? {
+        connections.first { $0.country == code }.map { ConnectionsReport.item(for: $0, .country) }
+    }
+
+    /// The companies with servers in `code`, for the map's card.
+    public func companies(inCountry code: String) -> [(item: ConnectionsItem, bytes: Int64)] {
+        ConnectionsReport.companies(inCountry: code, connections,
+                                    filter: ConnectionsFilter(keys: selected.mapValues(\.key)), search: search)
+    }
+
+    /// Follows the servers each sample reaches while Live is on, and nothing
+    /// otherwise. Anycast networks are left out, as they are from the shading.
+    private func updateLive() {
+        liveSubscription = nil
+        livePrune?.invalidate()
+        livePrune = nil
+        liveCountries = [:]
+        guard isLive else { return }
+        liveSubscription = monitor.serverActivity
+            .receive(on: naming)
+            .map { [weak self] addresses -> Set<String> in
+                guard let self else { return [] }
+                self.openDirectoryIfNeeded()
+                return Set(addresses.compactMap { address -> String? in
+                    guard let info = self.directory?.lookup(address),
+                          info.owner?.company.answersEverywhere != true else { return nil }
+                    return info.country
+                })
+            }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] countries in
+                let now = Date()
+                for country in countries { self?.liveCountries[country] = now }
+            }
+        livePrune = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let cutoff = Date() - Self.liveWindow
+            self.liveCountries = self.liveCountries.filter { $0.value > cutoff }
+        }
+    }
+
+    /// On `naming` only.
+    private func openDirectoryIfNeeded() {
+        guard !directoryOpened else { return }
+        directory = ServerDirectory.bundled()
+        directoryOpened = true
     }
 
     /// The period's bars, each with the bytes of the hours inside it.

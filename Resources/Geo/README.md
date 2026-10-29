@@ -14,6 +14,12 @@ The data is DB-IP's. NetworkMonitor changed only its format: it merged
 neighbouring ranges with the same answer, and keyed IPv6 ranges on their first
 64 bits.
 
-`./Scripts/geodata.sh` downloads the current month and rebuilds both files.
+`world.bin` is the Connections map: every country's outline, from
+[Natural Earth](https://www.naturalearthdata.com)'s 1:10m countries, which are in the
+public domain. NetworkMonitor projected them with Equal Earth, simplified them to
+within about 11 km, and added dots for 11 places Natural Earth draws inside another
+country. `./Scripts/mapdata.sh` rebuilds it.
+
+`./Scripts/geodata.sh` downloads the current month and rebuilds both DB-IP files.
 They're committed, not built, because DB-IP removes each month's files once the
 next is out.

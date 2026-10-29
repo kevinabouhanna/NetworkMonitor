@@ -185,8 +185,11 @@ func runServerDirectoryTests() {
         // necessarily to Amazon, and the window must not say otherwise.
         Check.test("marks networks that host other companies") {
             Check.expectEqual(company("Amazon.com, Inc."), Company(name: "Amazon", isHost: true))
+            Check.expectFalse(company("Amazon.com, Inc.").answersEverywhere, "AWS regions are real places")
+            Check.expectTrue(company("Cloudflare, Inc.").answersEverywhere, "one address, every data centre")
             Check.expectEqual(company("Amazon Data Services Ireland Ltd"), Company(name: "Amazon", isHost: true))
-            Check.expectEqual(company("Cloudflare, Inc."), Company(name: "Cloudflare", isHost: true))
+            Check.expectEqual(company("Cloudflare, Inc.").name, "Cloudflare")
+            Check.expectTrue(company("Cloudflare, Inc.").isHost)
             Check.expectEqual(company("Shenzhen Tencent Computer Systems Company Limited"),
                               Company(name: "Tencent", isHost: true))
             Check.expectEqual(company("Google LLC", asn: 396982), Company(name: "Google", isHost: true),
@@ -215,7 +218,7 @@ func runServerDirectoryTests() {
             Check.expectEqual(google.owner?.company, Company(name: "Google", isHost: false))
             Check.expectEqual(google.country, "US")
             Check.expectEqual(directory.lookup("1.1.1.1").owner?.company,
-                              Company(name: "Cloudflare", isHost: true))
+                              Company(name: "Cloudflare", isHost: true, answersEverywhere: true))
             Check.expectEqual(directory.lookup("2001:4860:4860::8888").owner?.asn, 15169)
         }
 
@@ -229,6 +232,98 @@ func runServerDirectoryTests() {
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             Check.expectTrue(month.range(of: #"^\d{4}-\d{2}$"#, options: .regularExpression) != nil,
                              "MONTH reads \(month)")
+        }
+    }
+}
+
+func runWorldMapTests() {
+    func point(_ longitude: Double, _ latitude: Double) -> WorldMap.Point {
+        let (x, y) = EqualEarth.project(longitude: longitude, latitude: latitude)
+        return WorldMap.Point(x: x, y: y)
+    }
+
+    Check.suite("World map — projection and file") {
+
+        Check.test("Equal Earth puts the origin in the middle, and is symmetric") {
+            let origin = EqualEarth.project(longitude: 0, latitude: 0)
+            Check.expectEqual(origin.x, 0)
+            Check.expectEqual(origin.y, 0)
+            let north = EqualEarth.project(longitude: 30, latitude: 40)
+            let south = EqualEarth.project(longitude: -30, latitude: -40)
+            Check.expectEqual(south.x, -north.x)
+            Check.expectEqual(south.y, -north.y)
+        }
+
+        // The published extents of Equal Earth.
+        Check.test("Equal Earth's edges are where the paper puts them") {
+            Check.expectTrue(abs(EqualEarth.maxX - 2.7066) < 0.0005, "maxX \(EqualEarth.maxX)")
+            Check.expectTrue(abs(EqualEarth.maxY - 1.3173) < 0.0005, "maxY \(EqualEarth.maxY)")
+        }
+
+        Check.test("a map reads back what was written, to within its precision") {
+            let square = [point(0, 0), point(10, 0), point(10, 10), point(0, 10), point(0, 0)]
+            let map = WorldMap(countries: [
+                WorldMap.Country(code: "LB", label: point(5, 5), rings: [square]),
+                WorldMap.Country(code: "", label: point(1, 1), rings: [square]),
+                WorldMap.Country(code: "RE", label: point(55, -21), rings: []),
+            ])
+            guard let read = try? WorldMap(data: map.encoded()) else {
+                Check.expectTrue(false, "couldn't read it back"); return
+            }
+            Check.expectEqual(read.countries.map(\.code), ["LB", "", "RE"])
+            Check.expectTrue(read.countries[2].isDot)
+            Check.expectTrue(abs(read.countries[0].rings[0][1].x - square[1].x) < 0.0002)
+        }
+
+        Check.test("refuses a file that isn't one, or is cut short") {
+            Check.expectEqual(Result { try WorldMap(data: Data("not a map".utf8)) }
+                                .failureValue as? WorldMap.ReadError, .notAWorldMap)
+            let data = WorldMap(countries: [WorldMap.Country(code: "LB", label: point(0, 0),
+                                                             rings: [[point(0, 0), point(1, 1), point(0, 1)]])])
+                .encoded()
+            Check.expectEqual(Result { try WorldMap(data: data.prefix(data.count - 2)) }
+                                .failureValue as? WorldMap.ReadError, .truncated)
+        }
+
+        Check.test("a point in a lake is not in its country") {
+            let outer = [point(0, 0), point(20, 0), point(20, 20), point(0, 20)]
+            let lake = [point(5, 5), point(15, 5), point(15, 15), point(5, 15)]
+            Check.expectTrue(WorldMap.contains(point(2, 2), rings: [outer, lake]))
+            Check.expectFalse(WorldMap.contains(point(10, 10), rings: [outer, lake]))
+            Check.expectFalse(WorldMap.contains(point(30, 30), rings: [outer, lake]))
+        }
+    }
+
+    Check.suite("World map — the data shipped in Resources/Geo") {
+
+        let geo = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Resources/Geo")
+        guard let map = try? WorldMap(contentsOf: geo.appendingPathComponent("world.bin")),
+              let countries = try? RangeTable(contentsOf: geo.appendingPathComponent("countries.bin")) else {
+            Check.test("opens") { Check.expectTrue(false, "can't open \(geo.path)") }
+            return
+        }
+        func country(_ code: String) -> WorldMap.Country? { map.countries.first { $0.code == code } }
+
+        // Anything the list can name, the map can show and click.
+        Check.test("every country DB-IP can name has a place on the map") {
+            let mapped = Set(map.countries.map(\.code))
+            let named = (0..<UInt32(countries.labelCount)).map(countries.label(at:))
+            Check.expectEqual(named.filter { !mapped.contains($0) }, [])
+        }
+
+        // Inland on purpose: outlines are simplified to within about 11 km, so
+        // a city on the coast, such as Beirut, can fall just outside.
+        Check.test("Zahlé is in Lebanon and Paris in France") {
+            Check.expectTrue(country("LB").map { WorldMap.contains(point(35.90, 33.85), rings: $0.rings) } ?? false)
+            Check.expectTrue(country("FR").map { WorldMap.contains(point(2.35, 48.86), rings: $0.rings) } ?? false)
+            Check.expectFalse(country("FR").map { WorldMap.contains(point(35.90, 33.85), rings: $0.rings) } ?? true)
+        }
+
+        Check.test("places drawn inside another country are dots of their own") {
+            Check.expectEqual(country("RE")?.isDot, true)
+            Check.expectEqual(country("SJ")?.isDot, true)
         }
     }
 }

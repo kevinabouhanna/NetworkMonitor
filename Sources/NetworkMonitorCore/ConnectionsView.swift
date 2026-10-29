@@ -17,18 +17,36 @@ public struct ConnectionsView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            navigation
-            filterBar
-            summary
-            ConnectionsTimeline(model: model)
-            Divider()
-            list
-            Divider()
-            footer
+        GeometryReader { geometry in
+            VStack(alignment: .leading, spacing: 12) {
+                navigation
+                filterBar
+                summary
+                ConnectionsTimeline(model: model)
+                Divider()
+                switch shownLayout(width: geometry.size.width) {
+                case .list:
+                    list
+                case .map:
+                    ConnectionsMap(model: model)
+                case .both:
+                    HStack(alignment: .top, spacing: 14) {
+                        list.frame(width: (geometry.size.width - 40) * 0.46)
+                        ConnectionsMap(model: model)
+                    }
+                }
+                Divider()
+                footer
+            }
+            .padding(20)
         }
-        .padding(20)
         .frame(minWidth: ConnectionsMetrics.minWidth, minHeight: ConnectionsMetrics.minHeight)
+    }
+
+    /// Both needs room for the list and a map worth reading; narrower, it's the
+    /// list, and Both comes back when the window is widened.
+    private func shownLayout(width: CGFloat) -> ConnectionsViewModel.Layout {
+        model.layout == .both && width < ConnectionsMetrics.bothMinWidth ? .list : model.layout
     }
 
     // MARK: Navigation
@@ -128,6 +146,23 @@ public struct ConnectionsView: View {
             stat("Apps", "\(summary.apps)")
             stat("Servers", "\(summary.servers)")
             Spacer()
+            Picker("Show", selection: Binding(get: { model.layout }, set: { model.layout = $0 })) {
+                ForEach(ConnectionsViewModel.Layout.allCases) { layout in
+                    Label(layout.label, systemImage: Self.symbol(for: layout)).tag(layout)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("The list, the map, or both side by side")
+        }
+    }
+
+    private static func symbol(for layout: ConnectionsViewModel.Layout) -> String {
+        switch layout {
+        case .list: return "list.bullet"
+        case .both: return "rectangle.split.2x1"
+        case .map:  return "map"
         }
     }
 
@@ -441,4 +476,6 @@ enum ConnectionsMetrics {
     static let minHeight: CGFloat = 520
     static let rowBarWidth: CGFloat = 140
     static let timelineHeight: CGFloat = 54
+    /// Below this, Both shows the list alone.
+    static let bothMinWidth: CGFloat = 900
 }

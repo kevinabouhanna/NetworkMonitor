@@ -14,10 +14,16 @@ public struct Company: Hashable {
     /// True for clouds, content delivery networks and security proxies, which
     /// carry other companies' traffic.
     public let isHost: Bool
+    /// True for networks that answer one address from many places at once
+    /// (anycast), such as Cloudflare's. The database files each address under
+    /// one country, but the server that answered was usually the nearest, so
+    /// the map lists their traffic beside it rather than painting that country.
+    public let answersEverywhere: Bool
 
-    public init(name: String, isHost: Bool) {
+    public init(name: String, isHost: Bool, answersEverywhere: Bool = false) {
         self.name = name
         self.isHost = isHost
+        self.answersEverywhere = answersEverywhere
     }
 
     /// The company owning `asn`, registered as `registeredName`.
@@ -45,8 +51,8 @@ public struct Company: Hashable {
         // Hosts: their traffic belongs to their customers as much as to them.
         ("amazon", Company(name: "Amazon", isHost: true)),
         ("akamai", Company(name: "Akamai", isHost: true)),
-        ("cloudflare", Company(name: "Cloudflare", isHost: true)),
-        ("fastly", Company(name: "Fastly", isHost: true)),
+        ("cloudflare", Company(name: "Cloudflare", isHost: true, answersEverywhere: true)),
+        ("fastly", Company(name: "Fastly", isHost: true, answersEverywhere: true)),
         ("oracle", Company(name: "Oracle", isHost: true)),
         ("the constant company", Company(name: "Vultr", isHost: true)),
         ("ovh", Company(name: "OVHcloud", isHost: true)),
@@ -57,9 +63,9 @@ public struct Company: Hashable {
         ("tencent", Company(name: "Tencent", isHost: true)),
         ("huawei", Company(name: "Huawei", isHost: true)),
         ("zscaler", Company(name: "Zscaler", isHost: true)),
-        ("bunnyway", Company(name: "bunny.net", isHost: true)),
-        ("edgecast", Company(name: "Edgecast", isHost: true)),
-        ("imperva", Company(name: "Imperva", isHost: true)),
+        ("bunnyway", Company(name: "bunny.net", isHost: true, answersEverywhere: true)),
+        ("edgecast", Company(name: "Edgecast", isHost: true, answersEverywhere: true)),
+        ("imperva", Company(name: "Imperva", isHost: true, answersEverywhere: true)),
         ("yandex.cloud", Company(name: "Yandex", isHost: true)),
         // Companies on their own networks, under the name people know.
         ("google", Company(name: "Google", isHost: false)),

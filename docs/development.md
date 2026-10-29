@@ -75,6 +75,7 @@ Two things in the Command Line Tools 27 shape the code:
 | `HostsFile` | library | `/etc/hosts` editing, shared by the helper and the tests |
 | `ServerDirectory` | library | Which country an address is in and whose network it belongs to, from `Resources/Geo`. Pure Foundation, so the content filter can use it later without the app's frameworks |
 | `GeoDataBuilder` | executable | Converts DB-IP's CSVs into `Resources/Geo`. Run by `make geodata`, never part of the app |
+| `MapDataBuilder` | executable | Converts Natural Earth's countries into `Resources/Geo/world.bin`, the Connections map. Run by `Scripts/mapdata.sh`, never part of the app |
 | `NetworkMonitorHelper` | executable | The root helper. Links only `LowDataMode` and `HostsFile`, never Core: a root binary shouldn't carry a menu bar app's dependencies |
 | `NetworkMonitorTests` | executable | The test suite |
 
