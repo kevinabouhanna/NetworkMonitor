@@ -20,9 +20,8 @@ public struct HistoryView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            navigation
-            filterBar
-            summary
+            controls
+            heading
             HistoryChart(model: model)
             legend
             Divider()
@@ -35,10 +34,12 @@ public struct HistoryView: View {
         .frame(maxWidth: SettingsMetrics.paneWidth)
     }
 
-    // MARK: Navigation
+    // MARK: Controls
 
-    private var navigation: some View {
-        HStack(spacing: 10) {
+    /// The period centred and ‹ Today › trailing, as Calendar lays them out,
+    /// and as the Connections window does in its toolbar (#125).
+    private var controls: some View {
+        ZStack {
             Picker("Show", selection: Binding(get: { model.scale }, set: { model.scale = $0 })) {
                 ForEach(HistoryScale.allCases) { scale in
                     Text(scale.label).tag(scale)
@@ -47,114 +48,69 @@ public struct HistoryView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .fixedSize()
-
-            Spacer()
-
-            Button { model.step(-1) } label: {
-                Image(systemName: "chevron.left").frame(width: 16, height: 16)
+            .help("A day, week, month or year at a time")
+            HStack {
+                Spacer()
+                PeriodStepper(canStepBack: model.canStepBack, canStepForward: model.canStepForward,
+                              onStep: model.step, onToday: model.goToPresent)
             }
-            .buttonStyle(.borderless)
-            .disabled(!model.canStepBack)
-            .keyboardShortcut(.leftArrow, modifiers: [.command])
-            .help("Previous \(model.scale.label.lowercased())")
-
-            Text(model.title)
-                .font(.system(size: 13, weight: .semibold))
-                .frame(minWidth: 160)
-
-            Button { model.step(1) } label: {
-                Image(systemName: "chevron.right").frame(width: 16, height: 16)
-            }
-            .buttonStyle(.borderless)
-            .disabled(!model.canStepForward)
-            .keyboardShortcut(.rightArrow, modifiers: [.command])
-            .help("Next \(model.scale.label.lowercased())")
-
-            // Held in place but hidden on the current period, where it would
-            // only repeat the title beside it.
-            Button(presentLabel) { model.goToPresent() }
-                .disabled(model.isCurrent)
-                .opacity(model.isCurrent ? 0 : 1)
-        }
-    }
-
-    private var presentLabel: String {
-        switch model.scale {
-        case .day:   return "Today"
-        case .week:  return "This Week"
-        case .month: return "This Month"
-        case .year:  return "This Year"
         }
     }
 
     // MARK: Filters
 
-    /// Always the same height, so choosing a filter never shifts the chart.
-    private var filterBar: some View {
-        HStack(spacing: 6) {
-            if let name = model.filteredAppName {
-                FilterChip(label: name, onClear: model.clearApp)
-            }
-            if let name = model.filteredNetworkName {
-                FilterChip(label: name, onClear: model.clearNetwork)
-            }
-            if let session = model.filteredSession {
-                FilterChip(label: model.networkName(session.networkID,
-                                                    defaultLabel: session.defaultLabel)
-                               + " · " + HistoryFormat.sessionSpan(session),
-                           onClear: model.clearSession)
-            } else if model.filter.sessionID != nil {
-                FilterChip(label: "Session", onClear: model.clearSession)
-            }
-            if model.filter.appKey == nil && model.filter.networkID == nil
-                && model.filter.sessionID == nil {
-                Text("Click an app, network or session to see only its usage.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-            }
-            Spacer(minLength: 8)
-            // Wi-Fi and Hotspot, the two kinds asked for in #70. Ethernet and
-            // Other stay under All, and on the Networks list.
-            Picker("Networks", selection: Binding(get: { model.kind }, set: { model.kind = $0 })) {
-                Text("All").tag(NetworkFingerprint.Kind?.none)
-                ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
-                    Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
+    /// What History is narrowed to, as chips beside the heading they narrow.
+    /// Clicking a row in the lists below adds one.
+    @ViewBuilder
+    private var chips: some View {
+        if let name = model.filteredAppName {
+            FilterChip(label: name, onClear: model.clearApp)
+        }
+        if let name = model.filteredNetworkName {
+            FilterChip(label: name, onClear: model.clearNetwork)
+        }
+        if let session = model.filteredSession {
+            FilterChip(label: model.networkName(session.networkID,
+                                                defaultLabel: session.defaultLabel)
+                           + " · " + HistoryFormat.sessionSpan(session),
+                       onClear: model.clearSession)
+        } else if model.filter.sessionID != nil {
+            FilterChip(label: "Session", onClear: model.clearSession)
+        }
+    }
+
+    // MARK: Heading
+
+    /// The period's name, then the total, then what was metered and the daily
+    /// average as one quieter line.
+    private var heading: some View {
+        var details: [String] = []
+        if model.kind == nil {
+            details.append("\(ByteFormat.bytes(report.meteredBytes)) on metered connections")
+        }
+        if model.scale != .day {
+            let days = report.period.elapsedDays(now: Date())
+            if days > 0 { details.append("\(ByteFormat.bytes(report.total / Int64(days))) a day on average") }
+        }
+        return HStack(alignment: .top, spacing: 12) {
+            PeriodHeading(title: model.title, figure: ByteFormat.bytes(report.total),
+                          caption: "used", details: details)
+            Spacer(minLength: 12)
+            // Beside the figures they narrow: which networks, then any chips.
+            VStack(alignment: .trailing, spacing: 6) {
+                // Wi-Fi and Hotspot, the two kinds asked for in #70. Ethernet
+                // and Other stay under All, and on the Networks list.
+                LabelledControl("Networks") {
+                    Picker("Networks", selection: Binding(get: { model.kind }, set: { model.kind = $0 })) {
+                        Text("All").tag(NetworkFingerprint.Kind?.none)
+                        ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
+                            Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
+                        }
+                    }
+                    .help("Every connection, Wi-Fi only, or hotspots only")
                 }
+                HStack(spacing: 6) { chips }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .controlSize(.small)
-            .help("Every connection, Wi-Fi only, or hotspots only")
-        }
-        .frame(height: 22)
-    }
-
-    // MARK: Summary
-
-    private var summary: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 32) {
-            stat("Total", ByteFormat.bytes(report.total), prominent: true)
-            if model.scale != .day {
-                let days = report.period.elapsedDays(now: Date())
-                stat("Daily average",
-                     days > 0 ? ByteFormat.bytes(report.total / Int64(days)) : "—")
-            }
-            if model.kind == nil {
-                stat("On metered connections", ByteFormat.bytes(report.meteredBytes))
-            }
-            Spacer()
-        }
-    }
-
-    private func stat(_ label: String, _ value: String, prominent: Bool = false) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.system(size: prominent ? 22 : 15, weight: prominent ? .semibold : .medium,
-                              design: .rounded))
         }
     }
 

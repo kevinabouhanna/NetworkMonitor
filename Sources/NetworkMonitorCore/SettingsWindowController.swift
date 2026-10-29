@@ -3,13 +3,14 @@ import SwiftUI
 
 /// One area of Settings, shown as a button in the window's toolbar.
 public enum SettingsPane: String, CaseIterable {
-    case general, speedTest, history, hotspot, about
+    case general, speedTest, history, connections, hotspot, about
 
     public var title: String {
         switch self {
         case .general:   return "General"
         case .speedTest: return "Speed Test"
         case .history:   return "History"
+        case .connections: return "Connections"
         case .hotspot:   return "Hotspot"
         case .about:     return "About"
         }
@@ -20,6 +21,7 @@ public enum SettingsPane: String, CaseIterable {
         case .general:   return "gearshape"
         case .speedTest: return "gauge.with.dots.needle.67percent"
         case .history:   return "chart.bar.xaxis"
+        case .connections: return "globe"
         case .hotspot:   return "personalhotspot"
         case .about:     return "info.circle"
         }
@@ -77,6 +79,7 @@ public final class SettingsWindowController: NSObject {
     public var highestTop: (NSScreen) -> CGFloat = { $0.visibleFrame.maxY }
 
     public init(model: MonitorViewModel, history: HistoryViewModel,
+                connections: ConnectionsViewModel, onOpenConnections: @escaping () -> Void,
                 onUninstall: @escaping () -> Void, defaults: UserDefaults = .standard) {
         self.history = history
         self.defaults = defaults
@@ -93,6 +96,11 @@ public final class SettingsWindowController: NSObject {
             case .general:   host = Self.paneHost(GeneralSettingsPane(model: model, state: state), width: SettingsMetrics.paneWidth)
             case .speedTest: host = Self.paneHost(SpeedTestSettingsPane(speedTest: model.speedTest), width: SettingsMetrics.paneWidth)
             case .history:   host = Self.paneHost(HistoryView(model: history), width: SettingsMetrics.paneWidth)
+            case .connections:
+                host = Self.paneHost(ConnectionsSettingsPane(model: connections,
+                                                             glance: ConnectionsGlance(monitor: model),
+                                                             onOpen: onOpenConnections),
+                                     width: SettingsMetrics.paneWidth)
             case .hotspot:   host = Self.paneHost(HotspotSettingsPane(metering: model.metering, state: state), width: SettingsMetrics.paneWidth)
             case .about:     host = Self.paneHost(AboutSettingsPane(onUninstall: onUninstall), width: SettingsMetrics.paneWidth)
             }

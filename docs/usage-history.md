@@ -10,27 +10,29 @@ not a window of its own, so nothing exists twice.
 
 ## Using it
 
-- **Day, Week, Month or Year**, with ‹ and › (⌘← and ⌘→) to step back. Periods are
+- **Day, Week, Month or Year**, centred at the top, with **‹ Today ›** beside it (⌘← and
+  ⌘→ step too), as Calendar lays them out and as the Connections window does. Periods are
   calendar periods, not rolling windows, so "October" means the same bytes every time
   you look, the way Screen Time and carriers count. A day shows hours, a week or month
   shows days, a year shows months. Click a bar to open it.
 - **Stacked by network type**: Wi-Fi, Hotspot, Ethernet and Other. Each type keeps its
   colour whatever else is in the period. The legend under the chart gives each type's
   total, so no figure is readable only by hovering.
-- **All, Wi-Fi or Hotspot**, the switch above the chart, narrows everything to that
+- **Networks: All, Wi-Fi or Hotspot**, beside the heading, narrows everything to that
   kind of network: the chart, the totals and the lists. It opens on **Hotspot** while
   you're on one, and on **All** otherwise. Ethernet and Other are under All, and on the
   Networks list.
 - **Each app's bar is split by network type**, in the chart's colours, so an app that
   used both Wi-Fi and a hotspot shows how much went over each. Splits too small to see
   are left out; the Networks list has the exact figures.
-- **Total, Daily average and On metered connections** above the chart. The daily
-  average divides by the days elapsed so far, not by the length of the month. On
-  metered connections is shown under All.
+- **The heading** names the period, then gives what was used, with what went over
+  metered connections and the daily average as one quieter line. The daily average
+  divides by the days elapsed so far, not by the length of the month. Metered is shown
+  under All.
 - **Apps, Networks and Sessions.** Apps are grouped exactly as in the popover. A
   session is one visit to a network.
 - **The lists are the filters.** Click a row to see only that app, network or session,
-  and the chart and totals follow; click it again, or its chip above the chart, to
+  and the chart and totals follow; click it again, or its chip by the heading, to
   undo. Filters combine, with each other and with the switch.
 - **Name a network** by right-clicking it under Networks. The name is used in History
   and in exports, for every past visit too.

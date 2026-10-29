@@ -7,9 +7,9 @@ func runSettingsTests() {
     Check.suite("Settings — panes") {
 
         // The toolbar's order: what people open most first, About last.
-        Check.test("the toolbar runs General, Speed Test, History, Hotspot, About") {
+        Check.test("the toolbar runs General, Speed Test, History, Connections, Hotspot, About") {
             Check.expectEqual(SettingsPane.allCases.map(\.title),
-                              ["General", "Speed Test", "History", "Hotspot", "About"])
+                              ["General", "Speed Test", "History", "Connections", "Hotspot", "About"])
         }
 
         // A missing symbol draws an empty toolbar button, silently.
@@ -60,7 +60,8 @@ func runSettingsTests() {
                                               suppressors: [], defaults: defaults)
             let model = MonitorViewModel(store: store, metering: metering)
             let settings = SettingsWindowController(model: model, history: HistoryViewModel(monitor: model),
-                                                    onUninstall: {}, defaults: defaults)
+                                                    connections: ConnectionsViewModel(monitor: model, defaults: defaults),
+                                                    onOpenConnections: {}, onUninstall: {}, defaults: defaults)
             Check.expectEqual(SettingsPane.last(in: defaults), .about,
                               "building the window must not overwrite the last pane")
             settings.select(nil)

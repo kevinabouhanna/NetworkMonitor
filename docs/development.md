@@ -225,7 +225,8 @@ open -n build/NetworkMonitor.app --args -powerProfile balanced   # or performanc
 Open a window straight away, for a screenshot or a quick check, the same way:
 
 ```sh
-open -n build/NetworkMonitor.app --args -open connections        # or settings
+open -n build/NetworkMonitor.app --args -open connections
+open -n build/NetworkMonitor.app --args -open settings -pane history   # any pane
 ```
 
 Then time the CPU of the app and its `nettop` child with `ps -o time=` over a couple of
