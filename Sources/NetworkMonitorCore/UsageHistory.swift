@@ -175,6 +175,14 @@ public struct HistoryReport {
 /// **Threading.** Recording happens on the main thread, like the rest of the
 /// store. Reads run on a private queue, so stepping through a year of data
 /// never stalls the menu bar.
+/// What the Connections window asks Usage History for in one go.
+public struct ServerReport {
+    public let servers: [ServerUsage]
+    public let hours: [(hour: Date, bytes: Int64)]
+    /// The first hour any server was recorded: how far back there is to go.
+    public let recordingSince: Date?
+}
+
 /// One app's traffic with one server over a period.
 public struct ServerUsage: Equatable {
     public let appKey: String
@@ -185,8 +193,28 @@ public struct ServerUsage: Equatable {
     public let bytesOut: Int64
     /// The hour this app first talked to this server, as far back as history goes.
     public let firstSeen: Date
+    /// The app as Usage History names it.
+    public let appName: String
+    public let bundlePath: String?
+    public let isSystem: Bool
+    /// The app that launched it, for a process with no bundle of its own.
+    public let parentName: String?
 
     public var total: Int64 { bytesIn + bytesOut }
+
+    public init(appKey: String, address: String, bytesIn: Int64, bytesOut: Int64,
+                firstSeen: Date, appName: String, bundlePath: String? = nil,
+                isSystem: Bool = false, parentName: String? = nil) {
+        self.appKey = appKey
+        self.address = address
+        self.bytesIn = bytesIn
+        self.bytesOut = bytesOut
+        self.firstSeen = firstSeen
+        self.appName = appName
+        self.bundlePath = bundlePath
+        self.isSystem = isSystem
+        self.parentName = parentName
+    }
 }
 
 public final class UsageHistory {
@@ -635,40 +663,113 @@ public final class UsageHistory {
     }
 
     /// Which servers each app talked to in `period`, biggest first,
-    /// synchronously. The Connections window (#112) names them and groups them
-    /// by company, country and app.
+    /// synchronously. The Connections window names them and groups them by
+    /// company, country and app.
     public func servers(in period: HistoryPeriod,
+                        filter: HistoryFilter = HistoryFilter()) -> [ServerUsage] {
+        servers(from: period.start, to: period.end, filter: filter)
+    }
+
+    /// The same for any span of whole hours, such as the part of a day picked
+    /// on the Connections window's timeline.
+    public func servers(from start: Date, to end: Date,
                         filter: HistoryFilter = HistoryFilter()) -> [ServerUsage] {
         guard let database else { return [] }
         flush()
-        return queue.sync {
-            let (whereSQL, values) = Self.conditions(filter, hourColumn: "t.hour", appTable: "a")
-            do {
-                let query = try database.prepare("""
-                    SELECT a.app_key, v.address, SUM(t.bytes_in), SUM(t.bytes_out), a.first_seen
-                    FROM server_traffic t
-                    JOIN app_servers a ON a.id = t.app_server_id
-                    JOIN servers v ON v.id = a.server_id
-                    JOIN sessions s ON s.id = t.session_id
-                    LEFT JOIN apps p ON p.key = a.app_key
-                    WHERE \(whereSQL)
-                    GROUP BY t.app_server_id
-                    ORDER BY SUM(t.bytes_in) + SUM(t.bytes_out) DESC
-                    """)
-                query.bind([.int(Int64(period.start.timeIntervalSince1970)),
-                            .int(Int64(period.end.timeIntervalSince1970))] + values)
-                var rows: [ServerUsage] = []
-                while try query.step() {
-                    rows.append(ServerUsage(
-                        appKey: query.string(0) ?? "", address: query.string(1) ?? "",
-                        bytesIn: query.int64(2), bytesOut: query.int64(3),
-                        firstSeen: Date(timeIntervalSince1970: query.double(4))))
-                }
-                return rows
-            } catch {
-                NSLog("NetworkMonitor: reading servers failed: \(error)")
-                return []
+        return queue.sync { Self.queryServers(database, from: start, to: end, filter: filter) }
+    }
+
+    /// Bytes to and from servers, hour by hour, for the Connections window's
+    /// timeline. Hours with none are left out.
+    public func serverHours(from start: Date, to end: Date,
+                            filter: HistoryFilter = HistoryFilter()) -> [(hour: Date, bytes: Int64)] {
+        guard let database else { return [] }
+        flush()
+        return queue.sync { Self.queryServerHours(database, from: start, to: end, filter: filter) }
+    }
+
+    /// What the Connections window shows: the servers in `span`, the period's
+    /// hourly totals, and the first hour any server was recorded. Computed off
+    /// the main thread and delivered on it, after writing what's pending, as
+    /// `loadReport` does.
+    public func loadServers(in span: DateInterval, hoursOf period: DateInterval,
+                            filter: HistoryFilter,
+                            completion: @escaping (ServerReport) -> Void) {
+        guard let database else {
+            completion(ServerReport(servers: [], hours: [], recordingSince: nil))
+            return
+        }
+        flush()
+        queue.async {
+            let report = ServerReport(
+                servers: Self.queryServers(database, from: span.start, to: span.end, filter: filter),
+                hours: Self.queryServerHours(database, from: period.start, to: period.end, filter: filter),
+                recordingSince: (try? database.scalar("SELECT MIN(hour) FROM server_traffic"))
+                    .map { Date(timeIntervalSince1970: TimeInterval($0)) })
+            DispatchQueue.main.async { completion(report) }
+        }
+    }
+
+    private static func queryServers(_ database: SQLiteDatabase, from start: Date, to end: Date,
+                                     filter: HistoryFilter) -> [ServerUsage] {
+        let (whereSQL, values) = conditions(filter, hourColumn: "t.hour", appTable: "a")
+        do {
+            let query = try database.prepare("""
+                SELECT a.app_key, v.address, SUM(t.bytes_in), SUM(t.bytes_out), a.first_seen,
+                       p.name, p.bundle_path, p.is_system, p.parent_name
+                FROM server_traffic t
+                JOIN app_servers a ON a.id = t.app_server_id
+                JOIN servers v ON v.id = a.server_id
+                JOIN sessions s ON s.id = t.session_id
+                LEFT JOIN apps p ON p.key = a.app_key
+                WHERE \(whereSQL)
+                GROUP BY t.app_server_id
+                ORDER BY SUM(t.bytes_in) + SUM(t.bytes_out) DESC
+                """)
+            query.bind([.int(Int64(start.timeIntervalSince1970)),
+                        .int(Int64(end.timeIntervalSince1970))] + values)
+            var rows: [ServerUsage] = []
+            while try query.step() {
+                let key = query.string(0) ?? ""
+                rows.append(ServerUsage(
+                    appKey: key, address: query.string(1) ?? "",
+                    bytesIn: query.int64(2), bytesOut: query.int64(3),
+                    firstSeen: Date(timeIntervalSince1970: query.double(4)),
+                    appName: query.string(5) ?? (key as NSString).lastPathComponent,
+                    bundlePath: query.string(6), isSystem: query.int64(7) != 0,
+                    parentName: query.string(8)))
             }
+            return rows
+        } catch {
+            NSLog("NetworkMonitor: reading servers failed: \(error)")
+            return []
+        }
+    }
+
+    private static func queryServerHours(_ database: SQLiteDatabase, from start: Date, to end: Date,
+                                         filter: HistoryFilter) -> [(hour: Date, bytes: Int64)] {
+        let (whereSQL, values) = conditions(filter, hourColumn: "t.hour", appTable: "a")
+        do {
+            let query = try database.prepare("""
+                SELECT t.hour, SUM(t.bytes_in + t.bytes_out)
+                FROM server_traffic t
+                JOIN app_servers a ON a.id = t.app_server_id
+                JOIN sessions s ON s.id = t.session_id
+                LEFT JOIN apps p ON p.key = a.app_key
+                WHERE \(whereSQL)
+                GROUP BY t.hour
+                ORDER BY t.hour
+                """)
+            query.bind([.int(Int64(start.timeIntervalSince1970)),
+                        .int(Int64(end.timeIntervalSince1970))] + values)
+            var hours: [(hour: Date, bytes: Int64)] = []
+            while try query.step() {
+                hours.append((Date(timeIntervalSince1970: TimeInterval(query.int64(0))), query.int64(1)))
+            }
+            return hours
+        } catch {
+            NSLog("NetworkMonitor: reading server hours failed: \(error)")
+            return []
         }
     }
 

@@ -13,14 +13,16 @@ public struct MenuBarPopoverView: View {
     @ObservedObject var metering: MeteringController
     var onSettings: () -> Void
     var onHistory: () -> Void
+    var onConnections: () -> Void
 
     public init(model: MonitorViewModel, onSettings: @escaping () -> Void,
-                onHistory: @escaping () -> Void) {
+                onHistory: @escaping () -> Void, onConnections: @escaping () -> Void) {
         self.model = model
         self.speedTest = model.speedTest
         self.metering = model.metering
         self.onSettings = onSettings
         self.onHistory = onHistory
+        self.onConnections = onConnections
     }
 
     /// One line under the total, while metered, when an update came through
@@ -180,6 +182,13 @@ public struct MenuBarPopoverView: View {
             if SpeedTestRunner.isAvailable {
                 SpeedTestButton(speedTest: speedTest)
             }
+            // Who the apps below sent their data to.
+            Button(action: onConnections) {
+                Image(systemName: "globe").font(.system(size: 12))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Connections")
             // The way back to the totals this header starts over at midnight
             // and on every network change.
             Button(action: onHistory) {

@@ -210,6 +210,12 @@ that run:
 open -n build/NetworkMonitor.app --args -powerProfile balanced   # or performance, saver
 ```
 
+Open a window straight away, for a screenshot or a quick check, the same way:
+
+```sh
+open -n build/NetworkMonitor.app --args -open connections        # or settings
+```
+
 Then time the CPU of the app and its `nettop` child with `ps -o time=` over a couple of
 minutes. Run it in the foreground: `top -l` hangs when run in the background, and its
 `IDLEW` column is a running total, not a rate. [Accuracy and battery](accuracy-and-battery.md)

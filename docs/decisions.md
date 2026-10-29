@@ -76,6 +76,10 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-29 | **Servers are named from DB-IP Lite, shipped in the app** (#111) | No lookups online: asking a service about each address would tell it every server the Mac talks to. DB-IP's free data is CC BY 4.0. Converted to sorted range starts with the narrowest label width that fits, and IPv6 keyed on its first 64 bits, it's 13 MB, from 60 MB of CSV |
 | 2026-10-29 | The converted data is committed, not downloaded at build time (#111) | DB-IP removes each month's files once the next is out (a 2025 month already returns 404), so a pinned download would break, and an old tag could never be rebuilt |
 | 2026-10-29 | Networks that host other companies are marked as hosts (#111) | Until server names arrive, the owner of a network is the only clue. That's right for Google or Microsoft, and wrong for anything on Amazon's or Cloudflare's network, which would otherwise all be blamed on them |
+| 2026-10-29 | **Connections is a window of its own**, opened from the popover's globe and ⌘K (#112) | It's read beside other work and wants room: resizable, which Settings' fixed 720 pt can't be, and wider again once the map sits beside the list (#113) |
+| 2026-10-29 | **Grouped by company first**; a company opens into its apps, countries and servers (#112) | Which companies get your data is the question. Apps and Countries are the same hierarchy turned around |
+| 2026-10-29 | Hosted traffic reads *Hosted on Amazon*, marked HOST, and never counts as talking to Amazon (#112) | The network's owner is the only clue until server names arrive; for clouds and CDNs it names the landlord, not the tenant |
+| 2026-10-29 | Each app shows its maker from its code signature (#112) | Reading a signature's certificates is quick, offline and needs no permission, and "by Microsoft, also talks to Google" is the line worth reading |
 
 ## Approaches turned down
 

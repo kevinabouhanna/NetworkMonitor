@@ -36,8 +36,9 @@ looks like the live rates.
   total says if an update downloaded anyway.
 - **Per-app figures paused**: if macOS's `nettop` can't be started, a grey line says so
   while NetworkMonitor keeps retrying. The total keeps counting regardless.
-- **Header buttons**: the gauge runs a [speed test](speed-test.md), the chart opens
-  [Usage History](usage-history.md), and the gear opens Settings.
+- **Header buttons**: the gauge runs a [speed test](speed-test.md), the globe opens
+  [Connections](connections.md), the chart opens [Usage History](usage-history.md), and
+  the gear opens Settings.
 
 The list holds eight rows and part of a ninth, so a cut-off row tells you there's more.
 Esc or a click elsewhere closes it.
@@ -73,6 +74,13 @@ talked to your own network doesn't appear at all. See
 Every hour, per app and per network, for as long as you choose. Look back by day, week,
 month or year; see each visit to a network as a session; narrow everything to one app, one
 network or every hotspot at once; export it as CSV. See [Usage History](usage-history.md).
+
+## Connections
+
+Which companies your apps send data to, from which apps, in which countries, and to which
+servers: grouped by company, app or country, narrowed by clicking, searched, and read
+hour by hour on a timeline. Nothing pops up and nothing is looked up online. See
+[Connections](connections.md).
 
 ## Speed test
 

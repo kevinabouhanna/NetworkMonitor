@@ -13,7 +13,7 @@ let package = Package(
         // thin shell so `swift test` never has to link an NSApplication main().
         .target(
             name: "NetworkMonitorCore",
-            dependencies: ["LowDataMode"],
+            dependencies: ["LowDataMode", "ServerDirectory"],
             path: "Sources/NetworkMonitorCore"
         ),
         .executableTarget(

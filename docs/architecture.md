@@ -326,6 +326,13 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    newer copy of the data improves old records too. Its files are sorted range starts,
    memory-mapped, and found with a binary search, so a lookup reads a few pages.
 
+5. **The Connections window** (`ConnectionsWindowController`, `ConnectionsViewModel`,
+   `ConnectionsView`) asks `UsageHistory.loadServers` for a span and the period's hourly
+   totals, names the servers off the main thread, and groups them with
+   `ConnectionsReport`, which is pure and tested. Grouping, narrowing and search only
+   regroup what's loaded, so they answer at once. Each app's maker comes from its code
+   signature (`AppMaker`).
+
 An app's servers can add up to a little less than its total: a socket that opened and
 closed between two samples leaves no connection row. In a 30-second capture on the
 development Mac, servers accounted for 95.4% of the apps' internet bytes.

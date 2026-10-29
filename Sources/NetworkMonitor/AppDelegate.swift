@@ -28,10 +28,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         settingsController = controller
         return controller
     }
-    /// The Settings window while it's open, without creating it to find out.
-    private var openSettingsWindow: NSWindow? {
-        guard let window = settingsController?.window, window.isVisible else { return nil }
-        return window
+    /// Which companies, countries and servers the apps talk to. Created on
+    /// first use.
+    private var connectionsController: ConnectionsWindowController?
+    private var connections: ConnectionsWindowController {
+        if let connectionsController { return connectionsController }
+        let controller = ConnectionsWindowController(model: ConnectionsViewModel(monitor: model))
+        controller.window.delegate = self
+        connectionsController = controller
+        return controller
+    }
+    /// Settings and Connections, those that are open, front to back, without
+    /// creating either to find out.
+    private var openWindows: [NSWindow] {
+        let ours = [settingsController?.window, connectionsController?.window]
+            .compactMap { $0 }.filter(\.isVisible)
+        return NSApp.orderedWindows.filter { window in ours.contains { $0 === window } }
     }
     /// Invisible stand-in for the status item that the popover anchors to.
     /// See `anchorView(under:)`.
@@ -56,6 +68,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         model.start()
         observeTitle()
         offerHelperUpdateIfNeeded()
+        openWindowFromLaunchArgument()
+    }
+
+    /// `open NetworkMonitor.app --args -open connections` (or `settings`), for
+    /// a screenshot or a check of a development build without clicking the menu
+    /// bar. Only the launch arguments are read, so it never outlives the run.
+    private func openWindowFromLaunchArgument() {
+        let arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+        switch arguments["open"] as? String {
+        case "connections": showConnections()
+        case "settings":    showSettings()
+        default:            break
+        }
     }
 
     /// The first launch of a new version whose helper is newer than the one
@@ -131,7 +156,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         let root = MenuBarPopoverView(
             model: model,
             onSettings: { [weak self] in self?.showSettings() },
-            onHistory: { [weak self] in self?.showHistory() })
+            onHistory: { [weak self] in self?.showHistory() },
+            onConnections: { [weak self] in self?.showConnections() })
         let host = NSHostingController(rootView: root)
         // Keeps `preferredContentSize` in step with what SwiftUI lays out.
         //
@@ -181,7 +207,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
         guard let button = statusItem.button else { return }
         model.setPopoverOpen(true)
-        if !NSApp.isActive, openSettingsWindow != nil {
+        if !NSApp.isActive, !openWindows.isEmpty {
             appUnderPopover = NSWorkspace.shared.frontmostApplication
         }
         if let anchor = anchorView(under: button) {
@@ -276,31 +302,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         return window.contentView
     }
 
-    /// Activates the app for the popover, leaving Settings where it was.
+    /// Activates the app for the popover, leaving its windows where they were.
     private func activateForPopover() {
         if !NSApp.isActive { activatingForPopover = true }
-        keepingSettingsInPlace { NSApp.activate(ignoringOtherApps: true) }
+        keepingWindowsInPlace { NSApp.activate(ignoringOtherApps: true) }
     }
 
-    /// Runs `change` without letting it bring Settings forward from behind
-    /// another app's window (#71).
+    /// Runs `change` without letting it bring Settings or Connections forward
+    /// from behind another app's window (#71).
     ///
     /// Activating the app brings its main window forward, and Settings is made
     /// main for it whatever it says: AppKit ignored `canBecomeMain` returning
     /// false. The popover closing while the app is active makes Settings key,
-    /// which brings it forward too. Off screen for that moment, it is left
+    /// which brings it forward too. Off screen for that moment, a window is left
     /// alone, and it goes straight back below the window that was in front of
     /// it. Measured on macOS 27: Settings stayed behind Chrome, where without
     /// this it came forward over it when the popover opened.
-    private func keepingSettingsInPlace(_ change: () -> Void) {
-        guard let window = openSettingsWindow,
-              let inFront = WindowStack.window(inFrontOf: window.windowNumber) else {
+    private func keepingWindowsInPlace(_ change: () -> Void) {
+        let placed = openWindows.compactMap { window -> (window: NSWindow, inFront: Int)? in
+            WindowStack.window(inFrontOf: window.windowNumber).map { (window, $0) }
+        }
+        guard !placed.isEmpty else {
             change()
             return
         }
-        window.orderOut(nil)
+        placed.forEach { $0.window.orderOut(nil) }
         change()
-        window.order(.below, relativeTo: inFront)
+        // A window that was behind the other of ours goes back after it, so
+        // there's something to go below.
+        let ours = Set(placed.map { $0.window.windowNumber })
+        for (window, inFront) in placed.filter({ !ours.contains($0.inFront) })
+            + placed.filter({ ours.contains($0.inFront) }) {
+            window.order(.below, relativeTo: inFront)
+        }
     }
 
     /// `returningFocus` is for the popover being dismissed: Esc, or the status
@@ -313,7 +347,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         appUnderPopover = nil
         closingPopover = true
         if NSApp.isActive {
-            keepingSettingsInPlace { popover.performClose(nil) }
+            keepingWindowsInPlace { popover.performClose(nil) }
         } else {
             popover.performClose(nil)
         }
@@ -428,17 +462,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             return
         }
         // Uninstall's alert activates the app too, and keeps the keyboard.
-        guard let window = openSettingsWindow, NSApp.modalWindow == nil else { return }
+        guard let window = openWindows.first, NSApp.modalWindow == nil else { return }
         if popover.isShown { closePopover() }
         window.makeKeyAndOrderFront(nil)
     }
 
-    /// The Dock icon, which is there only while Settings is open. It can be
+    /// The Dock icon, which is there only while a window is open. It can be
     /// clicked with the app already active, behind the popover, and then
-    /// nothing else brings Settings forward.
+    /// nothing else brings the window forward.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        guard openSettingsWindow != nil else { return true }
-        showSettings()
+        guard let frontmost = openWindows.first else { return true }
+        if frontmost === connectionsController?.window { showConnections() } else { showSettings() }
         return false
     }
 
@@ -489,6 +523,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             menu.addItem(.separator())
         }
 
+        menu.addItem(withTitle: "Connections…",
+                     action: #selector(showConnections), keyEquivalent: "k")
         menu.addItem(withTitle: "Usage History…",
                      action: #selector(showHistory), keyEquivalent: "y")
         menu.addItem(withTitle: "Settings…",
@@ -574,6 +610,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         show(pane: .history)
     }
 
+    /// The Connections window: from the popover's globe, Connections… in the
+    /// right-click menu, and ⌘K while a window is open.
+    @objc private func showConnections() {
+        if popover.isShown { closePopover() }
+        let wasVisible = connections.isVisible
+        present(connections.window, reposition: !wasVisible)
+        guard !wasVisible else { return }
+        connections.windowDidShow()
+        // Nothing focused, as Settings opens: see `show(pane:)`.
+        DispatchQueue.main.async { [weak self] in self?.connections.window.makeFirstResponder(nil) }
+    }
+
     private func show(pane: SettingsPane?) {
         if popover.isShown { closePopover() }
         let wasVisible = settings.isVisible
@@ -624,8 +672,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// back to whichever app had it before, unprompted — measured, also on
     /// macOS 27.
     func windowWillClose(_ notification: Notification) {
-        guard notification.object as? NSWindow === settings.window else { return }
-        settings.windowWillClose()
+        guard let closing = notification.object as? NSWindow else { return }
+        if closing === settingsController?.window { settingsController?.windowWillClose() }
+        if closing === connectionsController?.window { connectionsController?.windowWillClose() }
+        // Still a regular app while the other window is open.
+        let stillOpen = [settingsController?.window, connectionsController?.window]
+            .contains { $0 != nil && $0 !== closing && $0!.isVisible }
+        guard !stillOpen else { return }
         NSApp.setActivationPolicy(.accessory)
         NSApp.mainMenu = nil
     }
@@ -665,6 +718,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         windowMenu.addItem(withTitle: "Minimize",
                            action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowMenu.addItem(.separator())
+        windowMenu.addItem(withTitle: "Connections",
+                           action: #selector(showConnections), keyEquivalent: "k").target = self
         windowMenu.addItem(withTitle: "Usage History",
                            action: #selector(showHistory), keyEquivalent: "y").target = self
 
