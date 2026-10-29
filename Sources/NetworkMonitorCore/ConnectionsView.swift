@@ -76,15 +76,18 @@ public struct ConnectionsView: View {
                 }
             }
             Spacer(minLength: 12)
-            LabelledControl("Networks") {
-                Picker("Networks", selection: Binding(get: { model.kind }, set: { model.setKind($0) })) {
-                    Text("All").tag(NetworkFingerprint.Kind?.none)
-                    ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
-                        Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
-                    }
+            // All, Wi-Fi and Hotspot say what they are; no label needed.
+            Picker("Networks", selection: Binding(get: { model.kind }, set: { model.setKind($0) })) {
+                Text("All").tag(NetworkFingerprint.Kind?.none)
+                ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
+                    Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
                 }
-                .help("Every connection, Wi-Fi only, or hotspots only")
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .controlSize(.small)
+            .help("Every connection, Wi-Fi only, or hotspots only")
         }
         .frame(height: 24)
     }

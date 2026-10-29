@@ -36,10 +36,11 @@ public struct HistoryView: View {
 
     // MARK: Controls
 
-    /// The period centred and ‹ Today › trailing, as Calendar lays them out,
-    /// and as the Connections window does in its toolbar (#125).
+    /// The period and ‹ Today › side by side, as the Connections window has
+    /// them in its toolbar (#125), and which networks on the trailing side.
+    /// One row, one size.
     private var controls: some View {
-        ZStack {
+        HStack(spacing: 10) {
             Picker("Show", selection: Binding(get: { model.scale }, set: { model.scale = $0 })) {
                 ForEach(HistoryScale.allCases) { scale in
                     Text(scale.label).tag(scale)
@@ -49,11 +50,21 @@ public struct HistoryView: View {
             .labelsHidden()
             .fixedSize()
             .help("A day, week, month or year at a time")
-            HStack {
-                Spacer()
-                PeriodStepper(canStepBack: model.canStepBack, canStepForward: model.canStepForward,
-                              onStep: model.step, onToday: model.goToPresent)
+            PeriodStepper(canStepBack: model.canStepBack, canStepForward: model.canStepForward,
+                          onStep: model.step, onToday: model.goToPresent)
+            Spacer(minLength: 12)
+            // Wi-Fi and Hotspot, the two kinds asked for in #70. Ethernet and
+            // Other stay under All, and on the Networks list.
+            Picker("Networks", selection: Binding(get: { model.kind }, set: { model.kind = $0 })) {
+                Text("All").tag(NetworkFingerprint.Kind?.none)
+                ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
+                    Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
+                }
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("Every connection, Wi-Fi only, or hotspots only")
         }
     }
 
@@ -96,21 +107,7 @@ public struct HistoryView: View {
             PeriodHeading(title: model.title, figure: ByteFormat.bytes(report.total),
                           caption: "used", details: details)
             Spacer(minLength: 12)
-            // Beside the figures they narrow: which networks, then any chips.
-            VStack(alignment: .trailing, spacing: 6) {
-                // Wi-Fi and Hotspot, the two kinds asked for in #70. Ethernet
-                // and Other stay under All, and on the Networks list.
-                LabelledControl("Networks") {
-                    Picker("Networks", selection: Binding(get: { model.kind }, set: { model.kind = $0 })) {
-                        Text("All").tag(NetworkFingerprint.Kind?.none)
-                        ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
-                            Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
-                        }
-                    }
-                    .help("Every connection, Wi-Fi only, or hotspots only")
-                }
-                HStack(spacing: 6) { chips }
-            }
+            HStack(spacing: 6) { chips }
         }
     }
 

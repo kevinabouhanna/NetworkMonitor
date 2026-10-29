@@ -10,15 +10,15 @@ not a window of its own, so nothing exists twice.
 
 ## Using it
 
-- **Day, Week, Month or Year**, centred at the top, with **‹ Today ›** beside it (⌘← and
-  ⌘→ step too), as Calendar lays them out and as the Connections window does. Periods are
+- **Day, Week, Month or Year**, with **‹ Today ›** beside it (⌘← and ⌘→ step too), as
+  the Connections window has them in its toolbar. Periods are
   calendar periods, not rolling windows, so "October" means the same bytes every time
   you look, the way Screen Time and carriers count. A day shows hours, a week or month
   shows days, a year shows months. Click a bar to open it.
 - **Stacked by network type**: Wi-Fi, Hotspot, Ethernet and Other. Each type keeps its
   colour whatever else is in the period. The legend under the chart gives each type's
   total, so no figure is readable only by hovering.
-- **Networks: All, Wi-Fi or Hotspot**, beside the heading, narrows everything to that
+- **All, Wi-Fi or Hotspot**, at the end of the same row, narrows everything to that
   kind of network: the chart, the totals and the lists. It opens on **Hotspot** while
   you're on one, and on **All** otherwise. Ethernet and Other are under All, and on the
   Networks list.
