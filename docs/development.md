@@ -117,18 +117,29 @@ There's no Xcode project. `Scripts/bundle.sh` assembles the bundle by hand, beca
    `Contents/Library/LaunchServices/`, and `helper-setup.sh` in `Resources`.
 4. **Signing**, inside out and without `--deep`: the helper first, with its own
    identifier, then the app. `--deep` re-signed the helper with an identifier guessed from
-   its file name, which was the app's. With what:
-   - **NetworkMonitor's own certificate** (issue #86), when it's there: the `.p12` in
-     `SIGNING_P12` and its password in `SIGNING_P12_PASSWORD`, or by default
-     `~/.config/networkmonitor-signing/signing.p12` and `password`. It's self-signed, so
-     Gatekeeper still asks for Open Anyway. The point is that every build has the same
-     designated requirement, the identifier plus this certificate, so macOS keeps Location
-     (asked for Wi-Fi names) across updates. Checked: an ad-hoc rebuild was asked again,
-     and two builds with this certificate and different hashes were not. Each build
-     imports the key into a throwaway keychain and deletes it afterwards.
-   - **Ad-hoc**, without it: forks and pull request CI. Each build is a new app to macOS.
-   - **A Developer ID**, with `SIGN_IDENTITY` set: the hardened runtime and a timestamp,
-     ready for notarization.
+   its file name, which was the app's. `Scripts/signing.sh` chooses what with, the first
+   of these that's there:
+   - **The Developer ID** (issue #119): `SIGN_IDENTITY` for an identity already in a
+     keychain, or the `.p12` in `DEVID_P12` and its password in `DEVID_P12_PASSWORD`, by
+     default `~/.config/networkmonitor-signing/developer-id.p12` and
+     `developer-id.password`. Both get the hardened runtime and a timestamp, and the app
+     gets `Resources/NetworkMonitor.entitlements`, whose one entitlement is Location for
+     Wi-Fi names (#85). Running `nettop`, and AppleScript's `do shell script` for the
+     helper's prompt, were checked to need nothing. Offline there's no timestamp: the
+     build is signed without one and says it can't be notarized.
+   - **NetworkMonitor's own certificate** (issue #86): the `.p12` in `SIGNING_P12` and
+     its password in `SIGNING_P12_PASSWORD`, or `signing.p12` and `password` in the same
+     folder. It's self-signed, so Gatekeeper asks for Open Anyway, but every build has the
+     same designated requirement, so macOS keeps Location across updates.
+   - **Ad-hoc**, without either: forks and pull request CI. Each build is a new app to macOS.
+
+   A `.p12` is imported into a throwaway keychain, deleted afterwards, so the key never
+   sits in the login keychain and nothing prompts.
+5. **Notarizing**, with `Scripts/notarize.sh <app or dmg>`: submits to Apple, waits, and
+   staples the ticket. It uses the API key in `NOTARY_KEY`, `NOTARY_KEY_ID` and
+   `NOTARY_ISSUER` if set, or else the keychain profile `networkmonitor`, saved once with
+   `xcrun notarytool store-credentials networkmonitor --key … --key-id … --issuer …`.
+   `NOTARIZE=1 make dmg` notarizes the app before packaging it, then the disk image.
 
 `Scripts/make-dmg.sh` packages the app with `dmgbuild` (`Scripts/dmg-settings.py`): an
 LZFSE-compressed image with the app, an `Applications` link and a light background. The
@@ -176,13 +187,13 @@ Every change follows the same path:
 2. The **Release** workflow (`.github/workflows/release.yml`) runs the tests, builds the
    universal DMG with the tag's version, checks the version, the helper and the
    signature, and publishes `NetworkMonitor.dmg` with install and update instructions.
-   It signs with the certificate in the repository secrets `SIGNING_P12_BASE64` and
-   `SIGNING_P12_PASSWORD`, fails without them, and checks the signature names that
-   certificate (fingerprint `96c1f2de…`).
+   It signs with the Developer ID in the repository secrets `DEVID_P12_BASE64` and
+   `DEVID_P12_PASSWORD`, notarizes with the API key in `NOTARY_KEY_BASE64`,
+   `NOTARY_KEY_ID` and `NOTARY_ISSUER`, and fails without them. It then checks the team
+   (`GRQKG7M8CL`), the Location entitlement, and that `spctl` accepts both the app and
+   the disk image as *Notarized Developer ID*.
 3. Add a **What's new in X.Y.Z** section to the release notes by hand.
 4. Update the website (below).
-
-Notarization isn't done yet; see the [roadmap](roadmap.md).
 
 ## The website
 

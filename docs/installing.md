@@ -4,31 +4,22 @@ NetworkMonitor runs on macOS 13 or later, on Apple silicon and Intel. It comes a
 one universal disk image, `NetworkMonitor.dmg`, attached to every
 [GitHub release](https://github.com/kevinabouhanna/NetworkMonitor/releases).
 
-## Why macOS asks you to approve it
+## Signed and notarized
 
-Apps from outside the App Store are normally signed with a paid **Apple Developer
-ID** and **notarized**, which lets macOS confirm who made them. NetworkMonitor isn't
-yet. Its signature is *ad hoc*: it proves the app hasn't been altered since it was
-built, but not who built it.
+NetworkMonitor is signed with an Apple **Developer ID**, Kevin Abou Hanna's (team
+`GRQKG7M8CL`), and **notarized**: Apple has checked it for malicious software and
+issued a ticket that travels with the app. So macOS knows who made it and opens it
+without a warning. Version 1.13 and earlier weren't, and asked you to approve them
+with **Open Anyway** in System Settings.
 
-So the first time you open it, macOS stops it and says it can't check it for
-malicious software. That's Gatekeeper doing its job, not a sign that anything is
-wrong. You approve it once in System Settings, and from then on it opens like any
-other app. On current macOS, right-click › Open no longer skips the check; the
-approval in System Settings is the only way.
-
-If you'd rather not take a stranger's binary on trust, the code is all in this
-repository, and [building it yourself](development.md) needs only Apple's free
-Command Line Tools.
+If you'd rather not take a binary on trust, the code is all in this repository, and
+[building it yourself](development.md) needs only Apple's free Command Line Tools.
 
 ## Install
 
 1. [Download NetworkMonitor.dmg](https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg),
    open it, and drag **NetworkMonitor** into **Applications**.
-2. Open NetworkMonitor from Applications. macOS says it can't check it for
-   malicious software. Click **Done**.
-3. Open **System Settings › Privacy & Security**, scroll down to **Security**, and
-   click **Open Anyway** next to NetworkMonitor. Confirm with your password.
+2. Open NetworkMonitor from Applications.
 
 The ↓ ↑ readout appears in the menu bar. NetworkMonitor has no Dock icon and no
 window of its own; everything starts from the readout. It registers itself to
@@ -37,9 +28,6 @@ start at login, which you can turn off in **Settings › General**.
 A few seconds in, it asks to use your location. Click **Allow** to see networks by
 their Wi-Fi name: macOS shares the name only with Location permission, and it's used
 for nothing else. Refuse, and networks are named like *Wi-Fi · 3f2a*.
-
-On macOS 13 or 14 there's a shortcut for steps 2 and 3: Control-click the app in
-Applications, choose **Open**, then **Open** again.
 
 ## Update
 
@@ -51,8 +39,11 @@ To update:
 
 1. Download the new `NetworkMonitor.dmg`.
 2. Drag NetworkMonitor into Applications and choose **Replace**.
-3. Open it, and approve it with **Open Anyway** again. macOS checks each new
-   version afresh, because each one is a new, unsigned download.
+3. Open it.
+
+Updating from 1.13 or earlier, macOS asks for Location once more: the app is now
+signed with a Developer ID instead of its own certificate, so macOS sees it as new
+this one time.
 
 Your settings, totals and Usage History stay where they are, outside the app.
 
@@ -85,13 +76,13 @@ From a source checkout, `Scripts/uninstall.sh` does the same.
 
 If you switch Hotspot mode on and approve the password prompt, a small helper is
 installed. It shows up as an extra row in **System Settings › General › Login
-Items & Extensions**. macOS lists every background job on its own and can only
-group it under its app when the app is signed with a Developer ID. See
+Items & Extensions**. macOS groups a background job under its app only when the app
+registers it itself, which is the next step on [the roadmap](roadmap.md). See
 [Hotspot mode](hotspot-mode.md#the-helper) for exactly what it can do.
 
-## What would change with a Developer ID
+## What the Developer ID makes possible next
 
-Signing with a Developer ID and notarizing would remove the **Open Anyway** step,
-for the first install and for every update, and would let macOS group the helper
-under the app in Login Items. It would also make a built-in updater worthwhile.
-[The roadmap](roadmap.md) has the plan.
+It already removed the **Open Anyway** step. Next it lets the helper be registered by
+the app itself, which drops the password prompt and the extra Login Items row, makes a
+built-in updater worthwhile, and allows the content filter that real blocking in
+[Connections](connections.md) needs. [The roadmap](roadmap.md) has the plan.

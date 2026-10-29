@@ -80,6 +80,7 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-29 | **Grouped by company first**; a company opens into its apps, countries and servers (#112) | Which companies get your data is the question. Apps and Countries are the same hierarchy turned around |
 | 2026-10-29 | Hosted traffic reads *Hosted on Amazon*, marked HOST, and never counts as talking to Amazon (#112) | The network's owner is the only clue until server names arrive; for clouds and CDNs it names the landlord, not the tenant |
 | 2026-10-29 | Each app shows its maker from its code signature (#112) | Reading a signature's certificates is quick, offline and needs no permission, and "by Microsoft, also talks to Google" is the line worth reading |
+| 2026-10-29 | **Signed with the Developer ID and notarized**; the app first, stapled, then the disk image (#119) | Ends Open Anyway. Stapling both means the first open works offline. The self-signed certificate stays as the fallback for builds without the Developer ID, so contributors can still build |
 
 ## Approaches turned down
 
