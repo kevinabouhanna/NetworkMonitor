@@ -10,13 +10,10 @@
 #   ./Scripts/bundle.sh                 # native arch
 #   ./Scripts/bundle.sh --universal     # arm64 + x86_64 (for distribution)
 #
-# Signed with NetworkMonitor's own certificate when it's available (#86): the
-# .p12 in SIGNING_P12, its password in SIGNING_P12_PASSWORD, or by default the
-# two files in ~/.config/networkmonitor-signing/. Without it, ad-hoc.
-#
-# To sign with a Developer ID later, set:
-#   export SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
-# The bundle layout and hardened-runtime flag are already notarization-ready.
+# Signed with the Developer ID when it's available (#119), with the hardened
+# runtime and a timestamp, ready for Scripts/notarize.sh. Otherwise with
+# NetworkMonitor's own certificate (#86), or ad-hoc. Scripts/signing.sh says
+# where each comes from.
 
 set -euo pipefail
 
@@ -29,12 +26,7 @@ BUILD_DIR=".build/release"
 APP="build/${APP_NAME}.app"
 PLIST_SRC="Resources/Info.plist"
 UNIVERSAL=0
-SIGNING_DIR="${HOME}/.config/networkmonitor-signing"
-SIGNING_P12="${SIGNING_P12:-${SIGNING_DIR}/signing.p12}"
-if [ -z "${SIGNING_P12_PASSWORD:-}" ] && [ -f "${SIGNING_DIR}/password" ]; then
-  SIGNING_P12_PASSWORD="$(cat "${SIGNING_DIR}/password")"
-fi
-SIGNING_P12_PASSWORD="${SIGNING_P12_PASSWORD:-}"
+ENTITLEMENTS="Resources/NetworkMonitor.entitlements"
 
 for arg in "$@"; do
   case "$arg" in
@@ -148,64 +140,35 @@ echo "==> Signing"
 # helper with an identifier guessed from its file name — the name minus what
 # looked like an extension, `.helper` — which is the app's own.
 HELPER_PATH="${APP}/Contents/Library/LaunchServices/${HELPER_NAME}"
-if [ -n "${SIGN_IDENTITY:-}" ]; then
-  # --options runtime enables the hardened runtime, required for notarization.
-  # Spawning /usr/bin/nettop is allowed under the hardened runtime without an
-  # exception; it is a separate signed process, not injected code.
-  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" \
-           --identifier "$HELPER_NAME" "$HELPER_PATH"
-  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP"
-  echo "    signed with Developer ID — ready for: xcrun notarytool submit"
-elif [ -f "$SIGNING_P12" ] && [ -n "$SIGNING_P12_PASSWORD" ]; then
-  # NetworkMonitor's own self-signed certificate (#86). Not a Developer ID, so
-  # Gatekeeper still asks for Open Anyway, but every build signed with it is
-  # the same app to macOS: the designated requirement is the identifier and
-  # this certificate, where an ad-hoc one is the build's own hash. That is what
-  # lets Location, asked for Wi-Fi names (#85), survive an update.
-  #
-  # A throwaway keychain, so the key never sits in the login keychain and
-  # nothing prompts: its password is made up here, which is what lets the
-  # partition list be set without the user's. The certificate isn't trusted,
-  # and needn't be: codesign signs with it by hash, and the signature verifies.
-  #
-  # On the search list while signing. `--keychain` alone was enough on macOS 27
-  # but not on the GitHub runner, where codesign answered "no identity found"
-  # for an identity `security find-identity` had just listed (#86). The list
-  # is put back, and the keychain deleted, however this exits.
-  KEYCHAIN="$(mktemp -d)/signing.keychain-db"
-  KEYCHAIN_PASSWORD="$(uuidgen)"
-  SEARCH_LIST=()
-  while IFS= read -r line; do
-    line="${line#"${line%%[![:space:]]*}"}"; line="${line#\"}"; line="${line%\"}"
-    [ -n "$line" ] && SEARCH_LIST+=("$line")
-  done < <(security list-keychains -d user)
-  restore_keychains() {
-    security list-keychains -d user -s "${SEARCH_LIST[@]}" 2>/dev/null || true
-    security delete-keychain "$KEYCHAIN" 2>/dev/null || true
-  }
-  trap restore_keychains EXIT
-  security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-  security list-keychains -d user -s "$KEYCHAIN" "${SEARCH_LIST[@]}"
-  security set-keychain-settings "$KEYCHAIN"
-  security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-  security import "$SIGNING_P12" -k "$KEYCHAIN" -P "$SIGNING_P12_PASSWORD" \
-           -T /usr/bin/codesign >/dev/null
-  security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
-           -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
-  IDENTITY="$(security find-identity -p codesigning "$KEYCHAIN" \
-              | awk '/^ *1\)/ { print $2; exit }')"
-  codesign --force --keychain "$KEYCHAIN" --sign "$IDENTITY" \
-           --identifier "$HELPER_NAME" "$HELPER_PATH"
-  codesign --force --keychain "$KEYCHAIN" --sign "$IDENTITY" "$APP"
-  echo "    signed with NetworkMonitor's certificate (${IDENTITY:0:8}…)"
-else
-  # Ad-hoc signature. Enough to run locally; a downloaded copy needs "Open
-  # Anyway" in System Settings › Privacy & Security the first time. Every
-  # build is a new app to macOS, so permissions don't carry over.
-  codesign --force --sign - --identifier "$HELPER_NAME" "$HELPER_PATH"
-  codesign --force --sign - "$APP"
-  echo "    ad-hoc signed: no certificate found (see the top of this script)."
-fi
+source Scripts/signing.sh
+case "$SIGN_KIND" in
+  developer-id)
+    # The hardened runtime is on for both. Spawning /usr/bin/nettop needs no
+    # exception: it's a separate signed process, not injected code.
+    sign_developer_id --identifier "$HELPER_NAME" "$HELPER_PATH"
+    sign_developer_id --entitlements "$ENTITLEMENTS" "$APP"
+    echo "    signed with the Developer ID: notarize with Scripts/notarize.sh"
+    ;;
+  own)
+    # Not a Developer ID, so Gatekeeper still asks for Open Anyway, but every
+    # build signed with it is the same app to macOS: the designated requirement
+    # is the identifier and this certificate, where an ad-hoc one is the build's
+    # own hash. That is what lets Location, asked for Wi-Fi names (#85),
+    # survive an update.
+    codesign --force ${SIGN_KEYCHAIN_ARGS[@]+"${SIGN_KEYCHAIN_ARGS[@]}"} --sign "$SIGN_IDENTITY" \
+             --identifier "$HELPER_NAME" "$HELPER_PATH"
+    codesign --force ${SIGN_KEYCHAIN_ARGS[@]+"${SIGN_KEYCHAIN_ARGS[@]}"} --sign "$SIGN_IDENTITY" "$APP"
+    echo "    signed with NetworkMonitor's own certificate (${SIGN_IDENTITY:0:8}…)"
+    ;;
+  ad-hoc)
+    # Enough to run locally; a downloaded copy needs "Open Anyway" in System
+    # Settings › Privacy & Security the first time. Every build is a new app to
+    # macOS, so permissions don't carry over.
+    codesign --force --sign - --identifier "$HELPER_NAME" "$HELPER_PATH"
+    codesign --force --sign - "$APP"
+    echo "    ad-hoc signed: no certificate found (see Scripts/signing.sh)."
+    ;;
+esac
 
 codesign --verify --verbose=1 "$APP" 2>&1 | sed 's/^/    /'
 

@@ -30,24 +30,32 @@ jobs:
         run: make test
 
       # Universal, unlike CI's native build: a release has to run on Intel too.
-      # `make dmg` builds the universal app — with its privileged helper inside,
-      # also universal — and packages it as the drag-to-Applications disk image
+      # `make dmg` builds the universal app, with its privileged helper inside,
+      # also universal, and packages it as the drag-to-Applications disk image
       # the website's Download buttons point at.
-      # Signed with NetworkMonitor's own certificate (#86), so every release is
-      # the same app to macOS and Location, asked for Wi-Fi names, survives an
-      # update. A release without it would be ad-hoc and ask again, so a
-      # missing secret fails the build rather than shipping that.
-      - name: Build the universal app and its disk image
+      #
+      # Signed with the Developer ID and notarized (#119): the app first, so
+      # it's stapled before it's packaged, then the disk image. Either one opens
+      # without a warning, even offline. A release without them would ask for
+      # Open Anyway again, so a missing secret fails the build rather than
+      # shipping that.
+      - name: Build, sign, notarize and package
         env:
           MARKETING_VERSION: ${{ steps.version.outputs.value }}
-          SIGNING_P12_BASE64: ${{ secrets.SIGNING_P12_BASE64 }}
-          SIGNING_P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+          DEVID_P12_BASE64: ${{ secrets.DEVID_P12_BASE64 }}
+          DEVID_P12_PASSWORD: ${{ secrets.DEVID_P12_PASSWORD }}
+          NOTARY_KEY_BASE64: ${{ secrets.NOTARY_KEY_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
         run: |
-          test -n "$SIGNING_P12_BASE64" || { echo "SIGNING_P12_BASE64 is not set" >&2; exit 1; }
-          export SIGNING_P12="$RUNNER_TEMP/signing.p12"
-          echo "$SIGNING_P12_BASE64" | base64 --decode > "$SIGNING_P12"
-          make dmg
-          rm -f "$SIGNING_P12"
+          for name in DEVID_P12_BASE64 DEVID_P12_PASSWORD NOTARY_KEY_BASE64 NOTARY_KEY_ID NOTARY_ISSUER; do
+            test -n "${!name}" || { echo "$name is not set" >&2; exit 1; }
+          done
+          export DEVID_P12="$RUNNER_TEMP/developer-id.p12" NOTARY_KEY="$RUNNER_TEMP/notary.p8"
+          echo "$DEVID_P12_BASE64" | base64 --decode > "$DEVID_P12"
+          echo "$NOTARY_KEY_BASE64" | base64 --decode > "$NOTARY_KEY"
+          NOTARIZE=1 make dmg
+          rm -f "$DEVID_P12" "$NOTARY_KEY"
 
       - name: Verify the stamped version matches the tag
         run: |
@@ -71,38 +79,41 @@ jobs:
           case "$archs" in *arm64*x86_64*|*x86_64*arm64*) ;; *) exit 1 ;; esac
           test -x build/NetworkMonitor.app/Contents/Resources/helper-setup.sh
           codesign --verify --deep --strict build/NetworkMonitor.app
-          # The certificate's, not ad-hoc: see the build step.
-          codesign -d -r- build/NetworkMonitor.app 2>&1 | tee /dev/stderr \
-            | grep -q 'certificate leaf = H"96c1f2de35dd57e4894a844f7068e8f0135c0ca2"'
 
-      # Plain steps, no Terminal. The one rough edge left is Gatekeeper's
-      # first-open warning, which only a Developer ID signature and notarization
-      # remove; until then the notes walk through "Open Anyway" so nobody takes
-      # the warning for a broken build.
+      # What a downloader's Mac will check: the Developer ID, the Location
+      # entitlement Wi-Fi names need under the hardened runtime, and Apple's
+      # notarization stapled to both the app and the disk image.
+      - name: Verify the signature and notarization
+        run: |
+          codesign -dvv build/NetworkMonitor.app 2>&1 | tee /dev/stderr | grep -q 'TeamIdentifier=GRQKG7M8CL'
+          codesign -d --entitlements - build/NetworkMonitor.app 2>&1 | grep -q 'personal-information.location'
+          spctl -a -vv build/NetworkMonitor.app 2>&1 | tee /dev/stderr \
+            | grep -q 'source=Notarized Developer ID'
+          spctl -a -t open --context context:primary-signature -vv build/NetworkMonitor.dmg 2>&1 \
+            | tee /dev/stderr | grep -q 'source=Notarized Developer ID'
+          xcrun stapler validate build/NetworkMonitor.app
+          xcrun stapler validate build/NetworkMonitor.dmg
+
+      # Plain steps, no Terminal, and no Open Anyway: the release is signed
+      # with the Developer ID and notarized (#119).
       - name: Write the release notes preamble
         run: |
           cat > release-notes.md <<'NOTE'
           ### Installing
 
-          1. Download **NetworkMonitor.dmg** below, open it, and drag NetworkMonitor
-             into **Applications**.
-          2. Open it from Applications. The first time, macOS says it can't check it
-             for malicious software — close that message.
-          3. Open **System Settings › Privacy & Security**, scroll down to Security,
-             and click **Open Anyway** next to NetworkMonitor. Confirm with your
-             password.
-
-          That last step is needed because NetworkMonitor isn't signed with an
-          Apple Developer ID yet.
+          Download **NetworkMonitor.dmg** below, open it, drag NetworkMonitor into
+          **Applications**, and open it from there.
 
           ### Updating
 
           Download the disk image and drag NetworkMonitor into Applications again,
-          choosing **Replace**. Your settings and usage history stay. macOS checks
-          each new version afresh, so open it and approve it with **Open Anyway**
-          once more, as in step 3. If you use *Stop apps updating on hotspots* and
-          this version needs a newer helper, it asks for your password once, the
-          first time it opens.
+          choosing **Replace**. Your settings and usage history stay. If you use
+          *Stop apps updating on hotspots* and this version needs a newer helper, it
+          asks for your password once, the first time it opens.
+
+          Updating from 1.13 or earlier, macOS asks for Location once more: the app
+          is now signed with an Apple Developer ID instead of its own certificate,
+          so macOS sees it as new this one time.
 
           ---
           NOTE

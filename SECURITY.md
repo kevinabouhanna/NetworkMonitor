@@ -43,9 +43,6 @@ Most important first:
 
 These are documented choices, not vulnerabilities:
 
-- **No Developer ID.** The app is ad-hoc signed and not notarized, so macOS asks you to
-  approve it with Open Anyway, after every update too
-  ([why](docs/installing.md#why-macos-asks-you-to-approve-it)).
 - **The helper's verbs run without a password**, for the account that installed it. That
   is what the sudoers rule is for. Each verb takes no arguments, and every setting, domain
   and host it touches is compiled in.
@@ -65,6 +62,14 @@ The release page lists the SHA-256 of `NetworkMonitor.dmg`. To compare:
 
 ```sh
 shasum -a 256 ~/Downloads/NetworkMonitor.dmg
+```
+
+Releases are signed with the Developer ID of Kevin Abou Hanna (team `GRQKG7M8CL`) and
+notarized by Apple. To check an installed copy:
+
+```sh
+spctl -a -vv /Applications/NetworkMonitor.app
+# accepted, source=Notarized Developer ID, origin=Developer ID Application: Kevin Abou Hanna (GRQKG7M8CL)
 ```
 
 Download it only from the [Releases page](https://github.com/kevinabouhanna/NetworkMonitor/releases)

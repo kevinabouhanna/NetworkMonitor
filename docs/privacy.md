@@ -66,7 +66,8 @@ it every server your Mac talks to. The data is
 
 - **Location, to read the Wi-Fi network's name.** Asked a few seconds after the app
   first opens. Refuse it and everything works, with networks named like *Wi-Fi · 3f2a*.
-  Updates keep the answer: every release is signed with the same certificate.
+  Updates keep the answer: every release is signed with the same Developer ID.
+  Updating from 1.13 or earlier asks once more, because that signature is new (#119).
 - **Nothing else, normally.** No Local Network, no Accessibility, no Full Disk Access, no
   network extension.
 - **Your password, once, if you choose it.** Switching on Hotspot mode offers to

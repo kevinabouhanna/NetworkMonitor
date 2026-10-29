@@ -43,11 +43,9 @@
 For macOS 13 or later, on Apple silicon or Intel.
 
 1. [**Download NetworkMonitor.dmg**](https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg), open it, and drag NetworkMonitor into **Applications**.
-2. Open NetworkMonitor. macOS says it can't check it for malicious software. Click **Done**.
-3. Open **System Settings › Privacy & Security**, scroll down to **Security**, click **Open Anyway** next to NetworkMonitor, and confirm with your password.
+2. Open NetworkMonitor from Applications.
 
-> [!NOTE]
-> **Why the extra step?** NetworkMonitor isn't signed with a paid Apple Developer ID yet, so macOS can't confirm who made it. The code is all here to read, or to [build yourself](docs/development.md).
+It's signed with an Apple Developer ID and notarized by Apple, so macOS opens it without a warning. The code is all here to read, or to [build yourself](docs/development.md).
 
 Look for the ↓ ↑ readout in your menu bar. It starts at login from then on.
 
@@ -55,7 +53,7 @@ Look for the ↓ ↑ readout in your menu bar. It starts at login from then on.
 
 The app never goes online by itself, so it can't tell you about new versions. To hear about them, click **Watch › Custom › Releases** at the top of this page.
 
-To update, download the new DMG and drag NetworkMonitor into Applications, choosing **Replace**. Your settings and history are kept. macOS checks each new version afresh, so you'll need **Open Anyway** once more (steps 2 and 3 above).
+To update, download the new DMG and drag NetworkMonitor into Applications, choosing **Replace**. Your settings and history are kept. Updating from 1.13 or earlier, macOS asks for Location once more, because the app is now signed with a Developer ID.
 
 ### 🗑️ Uninstall
 

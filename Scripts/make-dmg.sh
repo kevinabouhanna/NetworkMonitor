@@ -14,10 +14,10 @@
 # The layout is written by dmgbuild (Python), installed into a virtualenv under
 # .build/ on first use so nothing is added to the system Python.
 #
-# Until builds are signed with a Developer ID, the app inside carries
-# NetworkMonitor's own certificate (#86), which Gatekeeper doesn't know, so it
-# blocks it on first open; the website walks people through "Open Anyway". Set
-# SIGN_IDENTITY for bundle.sh, then notarize the .dmg, and that step goes away.
+# Signed with the Developer ID when bundle.sh signed the app with it (#119).
+# With NOTARIZE=1, as the release workflow sets it, the app is notarized and
+# stapled before it's packaged, and the disk image after: either one then
+# opens without a warning, even offline.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -38,6 +38,12 @@ if ! "$VENV/bin/dmgbuild" --help >/dev/null 2>&1; then
   "$VENV/bin/pip" install --quiet --disable-pip-version-check "dmgbuild==${DMGBUILD_VERSION}"
 fi
 
+source Scripts/signing.sh
+if [ "${NOTARIZE:-0}" = 1 ]; then
+  [ "$SIGN_KIND" = developer-id ] || { echo "error: NOTARIZE=1 needs the Developer ID" >&2; exit 1; }
+  ./Scripts/notarize.sh "$APP"
+fi
+
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "${APP}/Contents/Info.plist")
 ARCHS=$(lipo -archs "${APP}/Contents/MacOS/NetworkMonitor")
 
@@ -45,5 +51,11 @@ echo "==> Packaging ${APP} (${VERSION}, ${ARCHS})"
 rm -f "$OUT"
 "$VENV/bin/dmgbuild" -s Scripts/dmg-settings.py -D app="$APP" "NetworkMonitor" "$OUT" >/dev/null
 hdiutil verify -quiet "$OUT"
+
+if [ "$SIGN_KIND" = developer-id ]; then
+  codesign --force --timestamp ${SIGN_KEYCHAIN_ARGS[@]+"${SIGN_KEYCHAIN_ARGS[@]}"} \
+           --sign "$SIGN_IDENTITY" "$OUT"
+  if [ "${NOTARIZE:-0}" = 1 ]; then ./Scripts/notarize.sh "$OUT"; fi
+fi
 
 echo "==> Done: ${OUT} — $(du -h "$OUT" | cut -f1 | tr -d ' ')"

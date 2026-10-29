@@ -1,10 +1,10 @@
 # Roadmap and known limits
 
-## Distribution: what a Developer ID would change
+## Distribution: what the Developer ID changes
 
-NetworkMonitor is ad-hoc signed today. That's why macOS asks you to approve it with **Open
-Anyway**, the first time and after every update (see [installing](installing.md)). Two
-separate things would fix that, and neither replaces the other:
+NetworkMonitor is signed with a Developer ID and notarized (#119), so macOS opens it
+without **Open Anyway**. Two separate things finish the job, and neither replaces the
+other:
 
 | | What it proves | What it unlocks |
 |---|---|---|
@@ -13,16 +13,11 @@ separate things would fix that, and neither replaces the other:
 
 The plan, in order:
 
-1. **Sign with a Developer ID.** `Scripts/bundle.sh` is ready for it: set `SIGN_IDENTITY`
-   and it signs with the hardened runtime and a timestamp. Running `nettop` needs no
-   hardened-runtime exception, but Wi-Fi names will: the hardened runtime needs the
-   `com.apple.security.personal-information.location` entitlement for Location (#85).
-   The change of certificate, from NetworkMonitor's own (#86), makes it a new app to macOS
-   once, so Location is asked for one more time.
-2. **Notarize in the release workflow** (`notarytool submit --wait`, then `stapler
-   staple`), check that a fresh Mac opens it without a warning, and drop the **Open Anyway**
-   steps from the README, the website and the release notes. This is the milestone that
-   makes the app easy to install for everyone.
+1. ~~**Sign with a Developer ID**~~, with the hardened runtime and the Location
+   entitlement Wi-Fi names need (#119). Done. The change of certificate made it a new app
+   to macOS once, so Location is asked for one more time.
+2. ~~**Notarize in the release workflow**~~ and drop **Open Anyway** from the README, the
+   website and the release notes (#119). Done.
 3. **Move the helper to `SMAppService.daemon` with XPC**, now that clients can be checked by
    team. That removes the password prompt and the extra Login Items row, and gives the
    helper proper caller authentication.

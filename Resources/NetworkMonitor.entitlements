@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  The app's entitlements under the hardened runtime, which a Developer ID
+  signature turns on (#119). Only what the hardened runtime would otherwise
+  block: Location, which macOS requires before it shares the Wi-Fi network's
+  name (#85). Running nettop, and AppleScript's `do shell script` for the
+  helper's administrator prompt, need nothing: both were checked signed this way.
+-->
+<dict>
+    <key>com.apple.security.personal-information.location</key>
+    <true/>
+</dict>
+</plist>
