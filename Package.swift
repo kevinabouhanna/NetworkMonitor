@@ -13,7 +13,7 @@ let package = Package(
         // thin shell so `swift test` never has to link an NSApplication main().
         .target(
             name: "NetworkMonitorCore",
-            dependencies: ["LowDataMode", "ServerDirectory"],
+            dependencies: ["LowDataMode", "ServerDirectory", "FilterProtocol"],
             path: "Sources/NetworkMonitorCore"
         ),
         .executableTarget(
@@ -52,6 +52,20 @@ let package = Package(
             name: "ServerDirectory",
             path: "Sources/ServerDirectory"
         ),
+        // What the app and its content filter agree on (#128). Pure
+        // Foundation, so the system extension links none of the app.
+        .target(
+            name: "FilterProtocol",
+            path: "Sources/FilterProtocol"
+        ),
+        // The content filter, a Network Extension system extension. bundle.sh
+        // puts it in the app only for Developer ID builds, with its profile.
+        .executableTarget(
+            name: "NetworkMonitorFilter",
+            dependencies: ["FilterProtocol"],
+            path: "Sources/NetworkMonitorFilter",
+            linkerSettings: [.linkedFramework("NetworkExtension")]
+        ),
         // Converts DB-IP's CSVs into Resources/Geo. Run by Scripts/geodata.sh;
         // never part of the app.
         .executableTarget(
@@ -71,7 +85,7 @@ let package = Package(
         // `swift test` cannot run here. Run with `swift run NetworkMonitorTests`.
         .executableTarget(
             name: "NetworkMonitorTests",
-            dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory"],
+            dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory", "FilterProtocol"],
             path: "Sources/NetworkMonitorTests"
         ),
     ]

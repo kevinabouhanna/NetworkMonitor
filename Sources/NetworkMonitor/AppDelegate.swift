@@ -531,6 +531,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
         menu.addItem(withTitle: "Connections…",
                      action: #selector(showConnections), keyEquivalent: "k")
+        // Always one click from switching the filter off (#128).
+        if model.filter.state == .on {
+            menu.addItem(withTitle: "Stop Filtering",
+                         action: #selector(stopFiltering), keyEquivalent: "")
+        }
         menu.addItem(withTitle: "Usage History…",
                      action: #selector(showHistory), keyEquivalent: "y")
         menu.addItem(withTitle: "Settings…",
@@ -567,6 +572,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
     }
 
+    @objc private func stopFiltering() {
+        model.filter.turnOff()
+    }
+
     // MARK: Uninstall
 
     /// The whole of `Scripts/uninstall.sh`, from the menu. Dragging the app to
@@ -586,6 +595,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         confirm.addButton(withTitle: "Cancel")
         guard confirm.runModal() == .alertFirstButtonReturn else { return }
 
+        // The content filter goes first: its extension is removed by the app
+        // that installed it, which is about to be in the Trash.
+        model.filter.remove { [weak self] in self?.finishUninstall() }
+    }
+
+    private func finishUninstall() {
         switch model.uninstall() {
         case .done:
             NSApp.terminate(nil)

@@ -22,6 +22,13 @@ public struct Connection: Equatable {
 
     /// An app's servers past its hourly limit, added up as one.
     public var isOtherServers: Bool { usage.address == UsageHistory.otherServers }
+
+    /// Whose server it is: from the name the filter saw it by when there is
+    /// one, so `api.slack.com` on Amazon's network is Slack (#128), and from
+    /// the network's owner otherwise.
+    public var company: Company? {
+        usage.name.flatMap(Company.named(byHostname:)) ?? owner?.company
+    }
 }
 
 /// The four things a connection can be grouped by.
@@ -152,7 +159,7 @@ public enum ConnectionsReport {
         switch dimension {
         case .company:
             if connection.isOtherServers { return otherKey }
-            guard let company = connection.owner?.company else { return unknownKey }
+            guard let company = connection.company else { return unknownKey }
             // Google's own network and Google Cloud are different answers.
             return (company.isHost ? "host:" : "") + company.name
         case .app:
@@ -176,18 +183,18 @@ public enum ConnectionsReport {
                                        subtitle: "Past an app's \(UsageHistory.serversPerAppPerHour) in an hour",
                                        isHost: false, symbol: nil, bundlePath: nil)
             }
-            guard let owner = connection.owner else {
+            guard let company = connection.company else {
                 return ConnectionsItem(dimension: dimension, key: key, title: "Unknown network",
                                        subtitle: "A private, carrier or VPN address, or one the data doesn't list",
                                        isHost: false, symbol: nil, bundlePath: nil)
             }
-            if owner.company.isHost {
+            if company.isHost {
                 return ConnectionsItem(dimension: dimension, key: key,
-                                       title: "Hosted on \(owner.company.name)",
+                                       title: "Hosted on \(company.name)",
                                        subtitle: "Company unknown",
                                        isHost: true, symbol: nil, bundlePath: nil)
             }
-            return ConnectionsItem(dimension: dimension, key: key, title: owner.company.name,
+            return ConnectionsItem(dimension: dimension, key: key, title: company.name,
                                    subtitle: nil, isHost: false, symbol: nil, bundlePath: nil)
         case .app:
             let usage = connection.usage
@@ -209,8 +216,11 @@ public enum ConnectionsReport {
             }
             let place = connection.country.map { countryName($0, locale: locale) }
             let owner = connection.owner.map { "\($0.registeredName) · AS\($0.asn)" }
-            return ConnectionsItem(dimension: dimension, key: key, title: connection.usage.address,
-                                   subtitle: [owner, place].compactMap { $0 }.joined(separator: " · "),
+            // By name when the filter saw one, with the address underneath.
+            let address = connection.usage.name == nil ? nil : connection.usage.address
+            return ConnectionsItem(dimension: dimension, key: key,
+                                   title: connection.usage.name ?? connection.usage.address,
+                                   subtitle: [address, owner, place].compactMap { $0 }.joined(separator: " · "),
                                    isHost: false, symbol: nil, bundlePath: nil)
         }
     }
@@ -311,7 +321,7 @@ public enum ConnectionsReport {
     /// far as the network's owner can tell.
     public static func companies(ofApp appKey: String, in connections: [Connection]) -> Set<String> {
         Set(connections.compactMap { connection -> String? in
-            guard connection.usage.appKey == appKey, let company = connection.owner?.company,
+            guard connection.usage.appKey == appKey, let company = connection.company,
                   !company.isHost else { return nil }
             return company.name
         })
@@ -328,6 +338,8 @@ public enum ConnectionsReport {
     /// True when anything shown about `connection` contains `query`.
     static func matches(_ connection: Connection, _ query: String, locale: Locale) -> Bool {
         var fields = [connection.usage.appName, connection.usage.address]
+        if let name = connection.usage.name { fields.append(name) }
+        if let company = connection.company { fields.append(company.name) }
         if let parent = connection.usage.parentName { fields.append(parent) }
         if let owner = connection.owner {
             fields += [owner.company.name, owner.registeredName, "AS\(owner.asn)"]

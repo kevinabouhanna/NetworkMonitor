@@ -9,6 +9,7 @@ import SwiftUI
 struct ConnectionsSettingsPane: View {
     @ObservedObject var model: ConnectionsViewModel
     @ObservedObject var glance: ConnectionsGlance
+    @ObservedObject var filter: FilterController
     let onOpen: () -> Void
 
     var body: some View {
@@ -52,6 +53,31 @@ struct ConnectionsSettingsPane: View {
                                  + "owner can tell.")
             }
 
+            if filter.state != .unavailable {
+                Section {
+                    LabeledContent("Server names") {
+                        Toggle("Server names", isOn: Binding(get: { Self.isOn(filter.state) },
+                                                             set: { $0 ? filter.turnOn() : filter.turnOff() }))
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+                    if let status = Self.status(filter.state) {
+                        Text(status).foregroundStyle(.secondary)
+                    }
+                    if filter.state == .waitingForApproval {
+                        Button("Open Login Items & Extensions…") {
+                            NSWorkspace.shared.open(URL(string:
+                                "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")!)
+                        }
+                    }
+                } footer: {
+                    SettingsFootnote("A content filter, the part of macOS made for apps like this one, tells "
+                                     + "NetworkMonitor the name of each server as a connection opens, so "
+                                     + "api.slack.com reads as Slack rather than Hosted on Amazon. It blocks "
+                                     + "nothing yet. macOS asks you to allow it, and nothing leaves your Mac.")
+                }
+            }
+
             Section {
                 LabeledContent("Opens with") {
                     Picker("Opens with", selection: Binding(get: { model.layout }, set: { model.layout = $0 })) {
@@ -80,6 +106,23 @@ struct ConnectionsSettingsPane: View {
         }
         .formStyle(.grouped)
         .onAppear { glance.reload() }
+    }
+
+    static func isOn(_ state: FilterController.State) -> Bool {
+        switch state {
+        case .on, .starting, .waitingForApproval: return true
+        default:                                  return false
+        }
+    }
+
+    static func status(_ state: FilterController.State) -> String? {
+        switch state {
+        case .starting:           return "Starting…"
+        case .waitingForApproval: return "Allow NetworkMonitor in System Settings › General › Login Items & "
+                                       + "Extensions › Network Extensions, then allow the filter when asked."
+        case .failed(let reason): return "Couldn't start the filter: \(reason)"
+        default:                  return nil
+        }
     }
 }
 

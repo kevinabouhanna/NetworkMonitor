@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  The content filter's entitlements (#128). Network Extension's content filter,
+  granted by Resources/Profiles/NetworkMonitorFilter.provisionprofile; the
+  sandbox, as Apple's own content-filter sample has it; and the app group its
+  Mach service is named under, which on macOS is prefixed with the team.
+-->
+<dict>
+    <key>com.apple.application-identifier</key>
+    <string>GRQKG7M8CL.com.kevinabouhanna.NetworkMonitor.Filter</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>GRQKG7M8CL</string>
+    <key>com.apple.developer.networking.networkextension</key>
+    <array>
+        <string>content-filter-provider-systemextension</string>
+    </array>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>GRQKG7M8CL.com.kevinabouhanna.NetworkMonitor</string>
+    </array>
+</dict>
+</plist>

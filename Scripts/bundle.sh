@@ -22,6 +22,8 @@ cd "$(dirname "$0")/.."
 APP_NAME="NetworkMonitor"
 HELPER_PRODUCT="NetworkMonitorHelper"
 HELPER_NAME="com.kevinabouhanna.NetworkMonitor.helper"
+FILTER_PRODUCT="NetworkMonitorFilter"
+FILTER_NAME="com.kevinabouhanna.NetworkMonitor.Filter"
 BUILD_DIR=".build/release"
 APP="build/${APP_NAME}.app"
 PLIST_SRC="Resources/Info.plist"
@@ -82,7 +84,7 @@ if [ "$UNIVERSAL" -eq 1 ]; then
   mkdir -p "$BUILD_DIR"
   # The app and the privileged helper it carries, each made universal: the
   # helper is installed from inside the bundle, on whatever Mac runs it.
-  for product in "$APP_NAME" "$HELPER_PRODUCT"; do
+  for product in "$APP_NAME" "$HELPER_PRODUCT" "$FILTER_PRODUCT"; do
     slices=()
     for arch in arm64 x86_64; do
       flags=(-c release --product "$product" --triple "${arch}-apple-macosx13.0"
@@ -95,6 +97,7 @@ if [ "$UNIVERSAL" -eq 1 ]; then
 else
   ./Scripts/swiftpm.sh build -c release --product "$APP_NAME"
   ./Scripts/swiftpm.sh build -c release --product "$HELPER_PRODUCT"
+  ./Scripts/swiftpm.sh build -c release --product "$FILTER_PRODUCT"
 fi
 
 BINARY="${BUILD_DIR}/${APP_NAME}"
@@ -143,8 +146,26 @@ HELPER_PATH="${APP}/Contents/Library/LaunchServices/${HELPER_NAME}"
 source Scripts/signing.sh
 case "$SIGN_KIND" in
   developer-id)
-    # The hardened runtime is on for both. Spawning /usr/bin/nettop needs no
-    # exception: it's a separate signed process, not injected code.
+    # The content filter (#128) goes in only with its profiles: the
+    # entitlements that let it filter, and let the app install it, are
+    # granted by them, and a build signed without them wouldn't launch.
+    APP_PROFILE="Resources/Profiles/NetworkMonitor.provisionprofile"
+    FILTER_PROFILE="Resources/Profiles/NetworkMonitorFilter.provisionprofile"
+    if [ -f "$APP_PROFILE" ] && [ -f "$FILTER_PROFILE" ] && [ -f "${BUILD_DIR}/${FILTER_PRODUCT}" ]; then
+      FILTER_BUNDLE="${APP}/Contents/Library/SystemExtensions/${FILTER_NAME}.systemextension"
+      mkdir -p "${FILTER_BUNDLE}/Contents/MacOS"
+      cp "${BUILD_DIR}/${FILTER_PRODUCT}" "${FILTER_BUNDLE}/Contents/MacOS/${FILTER_NAME}"
+      cp Resources/Filter/Info.plist "${FILTER_BUNDLE}/Contents/Info.plist"
+      /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${MARKETING_VERSION}" \
+                              -c "Set :CFBundleVersion ${BUILD_NUMBER}" "${FILTER_BUNDLE}/Contents/Info.plist"
+      cp "$FILTER_PROFILE" "${FILTER_BUNDLE}/Contents/embedded.provisionprofile"
+      cp "$APP_PROFILE" "${APP}/Contents/embedded.provisionprofile"
+      sign_developer_id --entitlements Resources/Filter/NetworkMonitorFilter.entitlements "$FILTER_BUNDLE"
+      ENTITLEMENTS="Resources/NetworkMonitor+Filter.entitlements"
+      echo "    with the content filter"
+    fi
+    # The hardened runtime is on for all of them. Spawning /usr/bin/nettop
+    # needs no exception: it's a separate signed process, not injected code.
     sign_developer_id --identifier "$HELPER_NAME" "$HELPER_PATH"
     sign_developer_id --entitlements "$ENTITLEMENTS" "$APP"
     echo "    signed with the Developer ID: notarize with Scripts/notarize.sh"
