@@ -67,7 +67,7 @@ public enum RemoteEndpoint {
     /// staying on the LAN.
     public static func scope(connectionLabel label: String) -> TrafficScope {
         guard let separator = label.range(of: "<->") else { return .internet }
-        let isIPv6 = label.hasPrefix("tcp6") || label.hasPrefix("udp6")
+        let isIPv6 = isIPv6Label(label)
         let remote = String(label[separator.upperBound...])
             .trimmingCharacters(in: .whitespaces)
 
@@ -80,7 +80,37 @@ public enum RemoteEndpoint {
         }
 
         guard let host = host(of: remote, isIPv6: isIPv6) else { return .internet }
+        if isIPv6, let mapped = ipv4Mapped(host) { return scopeOfIPv4(mapped) }
         return isIPv6 ? scopeOfIPv6(host) : scopeOfIPv4(host)
+    }
+
+    /// The far end's address, without its port, or nil for a wildcard peer
+    /// (`*:*`) or a label that can't be read.
+    public static func remoteHost(connectionLabel label: String) -> String? {
+        guard let separator = label.range(of: "<->") else { return nil }
+        let remote = String(label[separator.upperBound...]).trimmingCharacters(in: .whitespaces)
+        guard !remote.hasPrefix("*") else { return nil }
+        let isIPv6 = isIPv6Label(label)
+        guard let host = host(of: remote, isIPv6: isIPv6) else { return nil }
+        // One server, one address: a dual-stack socket reports an IPv4 peer as
+        // `::ffff:a.b.c.d`, and the same server over IPv4 is `a.b.c.d`.
+        return isIPv6 ? (ipv4Mapped(host) ?? host) : host
+    }
+
+    /// True for `tcp6`, `udp6` and `quic6` rows. The family is the protocol's
+    /// last character: `nettop` reports QUIC as `quic4` and `quic6`, so a fixed
+    /// list of TCP and UDP would read a `quic6` address as IPv4 and cut it at
+    /// its last colon.
+    static func isIPv6Label(_ label: String) -> Bool {
+        label.split(separator: " ", maxSplits: 1).first?.hasSuffix("6") ?? false
+    }
+
+    /// The IPv4 address inside an IPv4-mapped IPv6 one, such as
+    /// `::ffff:192.168.1.1`, or nil.
+    static func ipv4Mapped(_ host: String) -> String? {
+        guard host.lowercased().hasPrefix("::ffff:") else { return nil }
+        let tail = String(host.dropFirst(7))
+        return tail.split(separator: ".").count == 4 ? tail : nil
     }
 
     /// Strips the port, and an IPv6 zone such as `%en0`.

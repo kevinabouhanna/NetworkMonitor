@@ -254,4 +254,78 @@ func runNettopParserTests() {
             Check.expectTrue(parser.closeOnQuiet() == nil)
         }
     }
+
+    Check.suite("NettopParser — servers") {
+
+        // What Connections records: each internet socket's bytes, under the
+        // address it talked to. LAN sockets never become servers.
+        Check.test("splits a process's internet bytes by server, and leaves the LAN out") {
+            var parser = NettopParser()
+            let samples = parser.consume("""
+            time,,bytes_in,bytes_out,
+            02:21:32,Teams.700,1,1,
+            time,,bytes_in,bytes_out,
+            02:21:33,Teams.700,9000,900,
+            02:21:33,tcp4 192.168.1.107:51000<->192.168.1.42:7000,4000,200,
+            02:21:33,tcp4 192.168.1.107:51001<->52.112.0.1:443,3000,300,
+            02:21:33,tcp4 192.168.1.107:51002<->52.112.0.1:443,1000,100,
+            02:21:33,tcp6 2a02:a03f::1.51003<->2a00:1450:4001:82b::200e.443,1000,300,
+            time,,bytes_in,bytes_out,
+
+            """)
+            guard let row = samples.first?.first else {
+                Check.expectNotNil(samples.first?.first, "no row parsed"); return
+            }
+            Check.expectEqual(row.servers, [
+                "52.112.0.1": ByteCounts(bytesIn: 4000, bytesOut: 400),
+                "2a00:1450:4001:82b::200e": ByteCounts(bytesIn: 1000, bytesOut: 300),
+            ], "two sockets to one server add up; the LAN peer isn't a server")
+            Check.expectEqual(row.internetBytesIn, 5000, "the app's own figure is unchanged")
+        }
+
+        // A wildcard peer has no address, and an idle socket moved nothing.
+        Check.test("records no server for a wildcard peer or an idle socket") {
+            var parser = NettopParser()
+            let samples = parser.consume("""
+            time,,bytes_in,bytes_out,
+            02:21:32,quic.800,1,1,
+            time,,bytes_in,bytes_out,
+            02:21:33,quic.800,500,50,
+            02:21:33,udp4 *:61000<->*:*,500,50,
+            02:21:33,tcp4 10.0.0.2:51000<->142.250.0.1:443,,,
+            time,,bytes_in,bytes_out,
+
+            """)
+            Check.expectEqual(samples.first?.first?.servers, [:])
+            Check.expectEqual(samples.first?.first?.internetBytesIn, 500, "still counted as internet")
+        }
+
+        Check.test("reads the remote address without its port") {
+            Check.expectEqual(RemoteEndpoint.remoteHost(
+                connectionLabel: "tcp4 192.168.1.107:54524<->142.251.173.188:443"), "142.251.173.188")
+            Check.expectEqual(RemoteEndpoint.remoteHost(
+                connectionLabel: "tcp6 fe80::1%en0.5000<->2a00:1450:4001:82b::200e.443"),
+                              "2a00:1450:4001:82b::200e")
+            Check.expectNil(RemoteEndpoint.remoteHost(connectionLabel: "udp4 *:5353<->*:*"))
+        }
+
+        // nettop reports QUIC as quic4 and quic6. Read as IPv4, a quic6 address
+        // would be cut at its last colon.
+        Check.test("reads a quic6 row as IPv6") {
+            let label = "quic6 2a02:a03f::1.51003<->2a00:1450:4001:82b::200e.443"
+            Check.expectEqual(RemoteEndpoint.remoteHost(connectionLabel: label), "2a00:1450:4001:82b::200e")
+            Check.expectEqual(RemoteEndpoint.scope(connectionLabel: label), .internet)
+            Check.expectEqual(RemoteEndpoint.scope(
+                connectionLabel: "quic6 fe80::1%en0.51003<->fd00::42.443"), .localUnicast)
+        }
+
+        // One server must not be stored twice, once per socket family.
+        Check.test("reads an IPv4-mapped peer as the IPv4 address, for scope and server alike") {
+            Check.expectEqual(RemoteEndpoint.remoteHost(
+                connectionLabel: "tcp6 ::ffff:192.168.1.107.51000<->::ffff:142.250.0.1.443"), "142.250.0.1")
+            Check.expectEqual(RemoteEndpoint.scope(
+                connectionLabel: "tcp6 ::ffff:192.168.1.107.51000<->::ffff:192.168.1.42.7000"), .localUnicast,
+                              "a LAN peer is local whichever way it's written")
+        }
+    }
 }

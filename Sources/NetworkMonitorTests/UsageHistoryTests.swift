@@ -596,4 +596,139 @@ func runUsageHistoryTests() {
             Check.expectEqual(UsageHistory.binIndex(of: Date(timeIntervalSince1970: 99), in: starts), 3)
         }
     }
+
+    Check.suite("UsageHistory — servers") {
+
+        func bytes(_ bytesIn: Int64, _ bytesOut: Int64) -> ByteCounts {
+            ByteCounts(bytesIn: bytesIn, bytesOut: bytesOut)
+        }
+
+        Check.test("records which servers each app talked to, summed by the hour") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            history.join(network("A"), label: "Net A", switched: false, now: reference)
+            history.recordApps([(app("Teams"), 700, 70)],
+                               servers: ["Teams": ["52.112.0.1": bytes(500, 50),
+                                                   "13.107.6.1": bytes(200, 20)]],
+                               now: reference)
+            history.flush()
+            history.recordApps([(app("Teams"), 100, 10)],
+                               servers: ["Teams": ["52.112.0.1": bytes(100, 10)]],
+                               now: reference + 60)
+
+            let servers = history.servers(in: day(reference, cal))
+            Check.expectEqual(servers.map(\.address), ["52.112.0.1", "13.107.6.1"], "biggest first")
+            Check.expectEqual(servers.first?.bytesIn, 600, "across a flush, into one row")
+            Check.expectEqual(servers.first?.appKey, "Teams")
+            Check.expectEqual(servers.first?.firstSeen,
+                              cal.dateInterval(of: .hour, for: reference)?.start)
+        }
+
+        Check.test("keeps two apps on one server apart") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            history.join(network("A"), label: "Net A", switched: false, now: reference)
+            history.recordApps([(app("Chrome"), 300, 0), (app("Spotlight"), 100, 0)],
+                               servers: ["Chrome": ["142.250.0.1": bytes(300, 0)],
+                                         "Spotlight": ["142.250.0.1": bytes(100, 0)]],
+                               now: reference)
+            let servers = history.servers(in: day(reference, cal))
+            Check.expectEqual(servers.map(\.appKey), ["Chrome", "Spotlight"])
+            Check.expectEqual(Set(servers.map(\.address)), ["142.250.0.1"])
+        }
+
+        // The window's All / Wi-Fi / Hotspot switch and its app filter use the
+        // same filter as History.
+        Check.test("filters by kind of network and by app") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            history.join(network("A"), label: "Net A", switched: false, now: reference)
+            history.recordApps([(app("Chrome"), 300, 0)],
+                               servers: ["Chrome": ["142.250.0.1": bytes(300, 0)]], now: reference)
+            history.join(network("P", kind: .hotspot), label: "Phone", switched: true,
+                         now: reference + 60)
+            history.recordApps([(app("Mail"), 50, 0)],
+                               servers: ["Mail": ["17.42.0.1": bytes(50, 0)]], now: reference + 61)
+
+            Check.expectEqual(history.servers(in: day(reference, cal),
+                                              filter: HistoryFilter(kind: .hotspot)).map(\.address),
+                              ["17.42.0.1"])
+            Check.expectEqual(history.servers(in: day(reference, cal),
+                                              filter: HistoryFilter(appKey: "Chrome")).map(\.address),
+                              ["142.250.0.1"])
+        }
+
+        // A flush can hold two hours, written in no particular order.
+        Check.test("first seen is the earliest hour, whichever is written first") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            history.join(network("A"), label: "Net A", switched: false, now: reference)
+            history.recordApps([(app("Teams"), 10, 0)],
+                               servers: ["Teams": ["52.112.0.1": bytes(10, 0)]], now: reference + 3_600)
+            history.recordApps([(app("Teams"), 10, 0)],
+                               servers: ["Teams": ["52.112.0.1": bytes(10, 0)]], now: reference)
+            let servers = history.servers(in: day(reference, cal))
+            Check.expectEqual(servers.first?.firstSeen, cal.dateInterval(of: .hour, for: reference)?.start)
+            Check.expectEqual(servers.first?.bytesIn, 20)
+        }
+
+        // A BitTorrent client can reach thousands of peers an hour.
+        Check.test("an app's servers past the hourly limit are added up as one") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            history.join(network("A"), label: "Net A", switched: false, now: reference)
+            let limit = UsageHistory.serversPerAppPerHour
+            var peers: [String: ByteCounts] = [:]
+            for index in 0..<(limit + 20) { peers["10.\(index / 256).\(index % 256).1"] = bytes(1, 0) }
+            history.recordApps([(app("Torrent"), Int64(limit + 20), 0)], servers: ["Torrent": peers],
+                               now: reference)
+
+            let servers = history.servers(in: day(reference, cal))
+            Check.expectEqual(servers.count, limit + 1)
+            Check.expectEqual(servers.first(where: { $0.address == UsageHistory.otherServers })?.bytesIn, 20)
+            Check.expectEqual(servers.reduce(0) { $0 + $1.bytesIn }, Int64(limit + 20), "no byte is lost")
+
+            // A server already kept stays itself, and the next hour starts afresh.
+            let kept = servers.first { $0.address != UsageHistory.otherServers }!.address
+            history.recordApps([(app("Torrent"), 2, 0)],
+                               servers: ["Torrent": [kept: bytes(1, 0), "192.0.2.1": bytes(1, 0)]],
+                               now: reference + 60)
+            history.recordApps([(app("Torrent"), 1, 0)], servers: ["Torrent": ["192.0.2.1": bytes(1, 0)]],
+                               now: reference + 3_600)
+            let after = history.servers(in: day(reference, cal))
+            Check.expectEqual(after.first { $0.address == kept }?.bytesIn, 2)
+            Check.expectEqual(after.first { $0.address == "192.0.2.1" }?.bytesIn, 1,
+                              "only the next hour's sighting is kept by address")
+            Check.expectEqual(after.first { $0.address == UsageHistory.otherServers }?.bytesIn, 21)
+        }
+
+        Check.test("retention and clearing reach the servers too") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let now = Date()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            history.retention = .oneMonth
+            let old = now - 40 * 86_400, recent = now - 2 * 86_400
+            history.join(network("A"), label: "Net A", switched: false, now: old)
+            history.recordApps([(app("Old"), 10, 0)],
+                               servers: ["Old": ["198.51.100.1": bytes(10, 0)]], now: old)
+            history.join(network("B"), label: "Net B", switched: true, now: recent)
+            history.recordApps([(app("New"), 20, 0)],
+                               servers: ["New": ["203.0.113.1": bytes(20, 0)]], now: recent)
+            history.flush(now: old)
+            history.prune(now: now)
+
+            let year = HistoryPeriod(scale: .year, containing: now, calendar: cal)
+            let both = history.servers(in: year) + history.servers(in: year.shifted(by: -1, calendar: cal))
+            Check.expectEqual(both.map(\.address), ["203.0.113.1"])
+
+            history.clear(now: now)
+            Check.expectEqual(history.servers(in: year).count, 0)
+        }
+    }
 }

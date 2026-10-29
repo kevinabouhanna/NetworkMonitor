@@ -1,4 +1,4 @@
-.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon dmg-background clean
+.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata dmg-background clean
 
 all: test app
 
@@ -78,6 +78,11 @@ uninstall:
 # needed after editing the icon itself.
 icon:
 	@swift Scripts/make-icon.swift
+
+# Rebuilds Resources/Geo from DB-IP's current month. The files are committed,
+# so this is only for refreshing them, in a pull request of its own.
+geodata:
+	@./Scripts/geodata.sh
 
 # Redraws Resources/DMG/background.tiff, which is committed like the icon.
 dmg-background:

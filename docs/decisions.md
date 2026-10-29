@@ -72,6 +72,10 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-25 | **History's All / Wi-Fi / Hotspot switch** replaces Metered only, opens on Hotspot while you're on one, and app bars are split by network type (issue #70) | A day on Wi-Fi and a hotspot should read as two parts, everywhere in the pane. Hotspot is a kind of network, so it filters by kind and matches the chart's colours; Metered only was nearly the same set under another name |
 | 2026-10-25 | **Wi-Fi names, with Location, always on** (issue #85) | "Wi-Fi · 9493" told people nothing. macOS 27 shares the name only with Location, so the app asks a few seconds after launch, with no setting. The name is only a label: the router's address stays the identity, and a router's two band names are both kept |
 | 2026-10-25 | **Every build signed with one self-signed certificate** (issue #86) | Ad-hoc signatures made each update a new app to macOS, which asked for Location again. A fixed certificate gives every build the same designated requirement; checked, an update with it wasn't asked. The key stays out of the repo: in `~/.config/networkmonitor-signing/` and two repository secrets |
+| 2026-10-29 | **Connections keeps each app's servers**: `nettop`'s internet connection rows, by address, hourly, per visit (#111) | The rows were already parsed for the LAN split and thrown away. Keeping them needs no new permission and no new process. Each app and server pair is stored once, so an hourly row holds a small number rather than an app's path |
+| 2026-10-29 | **Servers are named from DB-IP Lite, shipped in the app** (#111) | No lookups online: asking a service about each address would tell it every server the Mac talks to. DB-IP's free data is CC BY 4.0. Converted to sorted range starts with the narrowest label width that fits, and IPv6 keyed on its first 64 bits, it's 13 MB, from 60 MB of CSV |
+| 2026-10-29 | The converted data is committed, not downloaded at build time (#111) | DB-IP removes each month's files once the next is out (a 2025 month already returns 404), so a pinned download would break, and an old tag could never be rebuilt |
+| 2026-10-29 | Networks that host other companies are marked as hosts (#111) | Until server names arrive, the owner of a network is the only clue. That's right for Google or Microsoft, and wrong for anything on Amazon's or Cloudflare's network, which would otherwise all be blamed on them |
 
 ## Approaches turned down
 
@@ -113,3 +117,6 @@ Newest last. Links go to the commit or pull request.
 | Importing usage from before History existed | it has no hours; spreading it out would invent data |
 | Four pop-up menus to filter History | the lists themselves are the filters |
 | `@testable import` | compiled in debug but broke release builds |
+| Reverse DNS to name servers | Sends a query for every address, so the monitor would make traffic, and the answers are often meaningless (`1e100.net`) |
+| A geolocation service online | Tells a third party every server the Mac talks to |
+| Downloading DB-IP's data at build time | Old months are removed, so builds would break and old tags couldn't be rebuilt |

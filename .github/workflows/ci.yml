@@ -45,6 +45,9 @@ jobs:
           codesign --verify --verbose=1 build/NetworkMonitor.app
           test -f build/NetworkMonitor.app/Contents/Info.plist
           test -f build/NetworkMonitor.app/Contents/Resources/AppIcon.icns
+          test -f build/NetworkMonitor.app/Contents/Resources/Geo/countries.bin
+          test -f build/NetworkMonitor.app/Contents/Resources/Geo/owners.bin
+          test -f build/NetworkMonitor.app/Contents/Resources/Geo/README.md
           test -x build/NetworkMonitor.app/Contents/MacOS/NetworkMonitor
 
       # Everything above proves the app compiles and is packaged correctly, and

@@ -304,12 +304,45 @@ Several fixes exist only because of macOS's "Automatically hide and show the men
   27 SDK), so view state lives in small `ObservableObject`s. See
   [development](development.md#command-line-tools-quirks).
 
+## Connections: which servers each app talked to
+
+`nettop`'s connection rows carry the far end's address. The LAN split above uses them
+to recognise local traffic, and since #111 the internet ones are kept too:
+
+1. **`NettopParser`** adds each internet socket's bytes to its process row's `servers`,
+   by address. A wildcard peer has no address, and its bytes count only through the
+   process row.
+2. **`MonitorViewModel`** folds the processes into apps, as it does for the popover, and
+   hands `UsageHistory` each app's bytes by server.
+3. **`UsageHistory`** stores them hourly, per visit to a network. Each app and server
+   pair is stored once (`app_servers`, with the hour it was first seen), so the hourly
+   rows (`server_traffic`) carry a small number rather than an app's path. An app keeps
+   at most 500 servers by address in an hour; past that, a BitTorrent client's peers or
+   a big call's are added up under `*`, so one app can't grow the file without bound.
+   Servers are written in a transaction of their own, so a failure there can't cost
+   Usage History its figures. Retention and **Clear History** cover them like the rest.
+4. **`ServerDirectory`** names them when they're read: the country, and the network's
+   owner and company, from DB-IP's data in `Resources/Geo`. Naming at read time means a
+   newer copy of the data improves old records too. Its files are sorted range starts,
+   memory-mapped, and found with a binary search, so a lookup reads a few pages.
+
+An app's servers can add up to a little less than its total: a socket that opened and
+closed between two samples leaves no connection row. In a 30-second capture on the
+development Mac, servers accounted for 95.4% of the apps' internet bytes.
+
+Addresses are read the same way whatever wrote them: the family comes from the
+protocol's last character (`tcp6`, `udp6`, `quic6`), an IPv4-mapped peer
+(`::ffff:a.b.c.d`) is its IPv4 address, and `ServerDirectory` reads NAT64's
+`64:ff9b::/96`, used on IPv6-only networks, as the IPv4 address inside it. Server names arrive with the
+content filter (#115). Until then, a server is its address, and a network that hosts
+other companies is marked as a host rather than taken for the company behind the traffic.
+
 ## Files and preferences
 
 | Path | What |
 |---|---|
 | `~/Library/Application Support/NetworkMonitor/usage.json` | Per-network totals |
-| `~/Library/Application Support/NetworkMonitor/history.sqlite` | Usage History |
+| `~/Library/Application Support/NetworkMonitor/history.sqlite` | Usage History, and the servers each app talked to |
 | `~/Library/Application Support/NetworkMonitor/suppression.json` | Hotspot mode's undo journal |
 | `/Library/Application Support/NetworkMonitor/` | The helper's own records (root) |
 | `/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper` | The helper |

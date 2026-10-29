@@ -62,6 +62,25 @@ can't run `nettop`.
 - Dragging the app to the Trash leaves the password-free changes in place; uninstall from
   the app.
 
+**Connections**
+
+- An app's servers can add up to a little less than its total: a socket that opened and
+  closed between two samples leaves no connection row. About 95% in a short capture.
+- An app keeps at most 500 servers by address in an hour. Past that, the rest are added
+  up as one, which only peer-to-peer apps and large calls reach.
+- With a VPN, the VPN's server appears as one server carrying everything, alongside the
+  servers each app reached through it.
+- Microsoft's and Google's networks also carry other companies' services (Azure, and
+  Google's front ends for Google Cloud), which show as Microsoft or Google.
+- No server names until the content filter (#115). Until then, a server is its address,
+  and a network that hosts other companies, such as Amazon's or Cloudflare's, says so
+  rather than naming the company behind the traffic.
+- A country is where DB-IP places a server's address, not where the company is based or
+  where data ends up. For networks that answer one address from many places at once
+  (Cloudflare, Fastly, Google's public DNS), the server that answered is usually much
+  nearer than that: on the development Mac in Lebanon, Cloudflare's addresses read as
+  Canada.
+
 **Usage History**
 
 - It starts when you install 1.4.0 or later.

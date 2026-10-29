@@ -46,6 +46,7 @@ make run     # build build/NetworkMonitor.app and open it
 | `make helper-no-daemon` | The same without the hourly self-check |
 | `make metering-report` | Prints what Hotspot mode reaches on this Mac, pending update downloads and the Low Data Mode state. Read-only, safe beside a running copy |
 | `make icon` | Redraws `Resources/AppIcon.icns` from `Scripts/make-icon.swift` |
+| `make geodata` | Rebuilds `Resources/Geo` from DB-IP's current month. The files are committed, because DB-IP removes old months; refresh them in a pull request of their own |
 | `make dmg-background` | Redraws the disk image background |
 | `make hooks` | Points git at `Scripts/hooks`, so `pre-push` runs the tests |
 | `make clean` | Removes `.build` and `build` |
@@ -72,6 +73,8 @@ Two things in the Command Line Tools 27 shape the code:
 | `NetworkMonitor` | executable | A thin shell: `main.swift` and `AppDelegate.swift` (status item, popover, menus, Settings window, lifecycle) |
 | `LowDataMode` | library | Interface flags, the helper's report, and `HelperProtocol.version`, shared by the app and the helper so the two can't disagree |
 | `HostsFile` | library | `/etc/hosts` editing, shared by the helper and the tests |
+| `ServerDirectory` | library | Which country an address is in and whose network it belongs to, from `Resources/Geo`. Pure Foundation, so the content filter can use it later without the app's frameworks |
+| `GeoDataBuilder` | executable | Converts DB-IP's CSVs into `Resources/Geo`. Run by `make geodata`, never part of the app |
 | `NetworkMonitorHelper` | executable | The root helper. Links only `LowDataMode` and `HostsFile`, never Core: a root binary shouldn't carry a menu bar app's dependencies |
 | `NetworkMonitorTests` | executable | The test suite |
 
