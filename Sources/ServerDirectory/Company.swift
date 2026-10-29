@@ -75,7 +75,7 @@ public struct Company: Hashable {
 
     /// "Microsoft Corporation" → "Microsoft": the registered name without the
     /// legal form that follows it.
-    static func plainName(_ registered: String) -> String {
+    public static func plainName(_ registered: String) -> String {
         var words = registered.split(separator: " ").map(String.init)
         while words.count > 1,
               let last = words.last,
@@ -83,8 +83,15 @@ public struct Company: Hashable {
         {
             words.removeLast()
         }
-        let name = words.joined(separator: " ")
+        var name = words.joined(separator: " ")
             .trimmingCharacters(in: CharacterSet(charactersIn: ", ").union(.whitespaces))
+        // Some are registered in capitals ("LIBANTELECOM"). Long words read
+        // better as words; short ones stay, as they're usually acronyms (UK, SKY).
+        if name == name.uppercased(), name.contains(where: \.isLetter) {
+            name = name.split(separator: " ")
+                .map { $0.count > 4 ? $0.capitalized : String($0) }
+                .joined(separator: " ")
+        }
         return name.isEmpty ? registered : name
     }
 

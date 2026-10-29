@@ -735,7 +735,7 @@ private struct HistoryListRow: View {
     }
 }
 
-private final class HistoryRowHover: ObservableObject {
+final class HistoryRowHover: ObservableObject {
     @Published var isHovering = false
 }
 
@@ -754,7 +754,7 @@ private struct KindBadge: View {
     }
 }
 
-private struct FilterChip: View {
+struct FilterChip: View {
     let label: String
     let onClear: () -> Void
 

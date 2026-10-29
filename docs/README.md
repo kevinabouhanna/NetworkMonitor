@@ -9,6 +9,7 @@ feature works, and why it was built that way.
 |---|---|
 | [Installing, updating and removing](installing.md) | Why macOS asks you to approve it, every step, and what uninstalling puts back |
 | [Features](features.md) | The menu bar readout, the popover, per-connection totals, Settings |
+| [Connections](connections.md) | Which companies, countries and servers your apps talk to, and what the names mean |
 | [Usage History](usage-history.md) | Looking back by day, week, month or year; sessions; CSV export |
 | [Speed test](speed-test.md) | What it measures, how it shows, and what it costs in data |
 | [Hotspot mode](hotspot-mode.md) | What counts as a hotspot, what it pauses, the helper, Low Data Mode |

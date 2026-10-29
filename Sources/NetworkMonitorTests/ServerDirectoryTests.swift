@@ -168,6 +168,8 @@ func runServerDirectoryTests() {
             Check.expectEqual(company("Hangar Networks, Inc.").name, "Hangar Networks")
             Check.expectEqual(company("Example Telecom S.A.L.").name, "Example Telecom")
             Check.expectEqual(company("Anthropic, PBC").name, "Anthropic")
+            Check.expectEqual(company("LIBANTELECOM").name, "Libantelecom", "capitals read as a word")
+            Check.expectEqual(company("SKY UK LIMITED").name, "SKY UK", "short ones are acronyms")
             Check.expectEqual(company("Inc.").name, "Inc.", "a name that is all legal form stays")
             Check.expectEqual(company("", asn: 64_512).name, "AS64512", "no name: the network's number")
         }

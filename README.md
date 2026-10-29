@@ -30,6 +30,7 @@
 
 - ⚡ **Live speed** in the menu bar, download and upload, in MB/s or Mbps, in colours you choose.
 - 📊 **Which apps used your data** on this connection, biggest first.
+- 🌐 **Connections:** which companies, countries and servers your apps talk to, quietly and without looking anything up online.
 - 🏠 **Internet only.** AirPlay, Time Machine and other home-network traffic don't count.
 - 📱 **Hotspot mode** pauses app updates on a mobile hotspot, and resumes them when you leave.
 - 🗓️ **Usage History** by day, week, month or year, per app and per network.
@@ -65,7 +66,7 @@ Right-click the menu bar readout and choose **Uninstall NetworkMonitor…** (or 
 
 ## 🖱️ Using it
 
-- **Click** the readout for this connection's total and the apps behind it.
+- **Click** the readout for this connection's total and the apps behind it. The 🌐 there opens Connections.
 - **Right-click** it for the speed test, Usage History, Settings and Quit.
 - **Settings** has a pane each for General, Speed Test, History, Hotspot and About.
 
