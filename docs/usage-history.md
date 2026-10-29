@@ -28,7 +28,7 @@ not a window of its own, so nothing exists twice.
 - **The heading** names the period, then gives what was used, with what went over
   metered connections and the daily average as one quieter line. The daily average
   divides by the days elapsed so far, not by the length of the month. Metered is shown
-  under All.
+  under All, and only when something went over a metered connection.
 - **Apps, Networks and Sessions.** Apps are grouped exactly as in the popover. A
   session is one visit to a network.
 - **The lists are the filters.** Click a row to see only that app, network or session,

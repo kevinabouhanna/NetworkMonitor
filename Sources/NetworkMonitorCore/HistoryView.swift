@@ -96,7 +96,8 @@ public struct HistoryView: View {
     /// average as one quieter line.
     private var heading: some View {
         var details: [String] = []
-        if model.kind == nil {
+        // Only when there's some: "0 B on metered connections" says nothing.
+        if model.kind == nil && report.meteredBytes > 0 {
             details.append("\(ByteFormat.bytes(report.meteredBytes)) on metered connections")
         }
         if model.scale != .day {
