@@ -12,7 +12,7 @@ public final class ConnectionsWindowController: NSObject {
 
     public init(model: ConnectionsViewModel) {
         self.model = model
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 780, height: 700),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 760),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
         super.init()
@@ -22,7 +22,7 @@ public final class ConnectionsWindowController: NSObject {
         host.sizingOptions = []
         window.contentViewController = host
         window.title = "Connections"
-        window.setContentSize(NSSize(width: 780, height: 700))
+        window.setContentSize(NSSize(width: 1120, height: 760))
         window.contentMinSize = NSSize(width: ConnectionsMetrics.minWidth, height: ConnectionsMetrics.minHeight)
         window.isReleasedWhenClosed = false
     }

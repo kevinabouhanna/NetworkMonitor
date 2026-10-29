@@ -30,7 +30,7 @@
 
 - ⚡ **Live speed** in the menu bar, download and upload, in MB/s or Mbps, in colours you choose.
 - 📊 **Which apps used your data** on this connection, biggest first.
-- 🌐 **Connections:** which companies, countries and servers your apps talk to, quietly and without looking anything up online.
+- 🌐 **Connections:** which companies, countries and servers your apps talk to, on a list and a world map, quietly and without looking anything up online.
 - 🏠 **Internet only.** AirPlay, Time Machine and other home-network traffic don't count.
 - 📱 **Hotspot mode** pauses app updates on a mobile hotspot, and resumes them when you leave.
 - 🗓️ **Usage History** by day, week, month or year, per app and per network.

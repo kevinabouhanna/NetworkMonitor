@@ -81,6 +81,9 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-29 | Hosted traffic reads *Hosted on Amazon*, marked HOST, and never counts as talking to Amazon (#112) | The network's owner is the only clue until server names arrive; for clouds and CDNs it names the landlord, not the tenant |
 | 2026-10-29 | Each app shows its maker from its code signature (#112) | Reading a signature's certificates is quick, offline and needs no permission, and "by Microsoft, also talks to Google" is the line worth reading |
 | 2026-10-29 | **Signed with the Developer ID and notarized**; the app first, stapled, then the disk image (#119) | Ends Open Anyway. Stapling both means the first open works offline. The self-signed certificate stays as the fallback for builds without the Developer ID, so contributors can still build |
+| 2026-10-30 | **The map is drawn by the app** from Natural Earth's outlines, projected with Equal Earth and simplified at build time to 99 KB (#113) | No map tiles, so no map service learns where you look, and nothing to download. Equal Earth keeps areas true, so a big shaded country is big |
+| 2026-10-30 | Anycast networks (Cloudflare, Fastly and others) are listed beside the map, not painted (#113) | DB-IP files their addresses under one country, but the answer came from the nearest data centre: on a Mac in Lebanon, Cloudflare read as Canada |
+| 2026-10-30 | The map redraws on its own only while Live is on, and Live switches off when the window closes (#113) | A still map costs nothing; animation is opted into, and never runs where nobody can see it |
 
 ## Approaches turned down
 
@@ -125,3 +128,4 @@ Newest last. Links go to the commit or pull request.
 | Reverse DNS to name servers | Sends a query for every address, so the monitor would make traffic, and the answers are often meaningless (`1e100.net`) |
 | A geolocation service online | Tells a third party every server the Mac talks to |
 | Downloading DB-IP's data at build time | Old months are removed, so builds would break and old tags couldn't be rebuilt |
+| Map tiles from Apple Maps or OpenStreetMap | Every pan and zoom would tell a map service where you're looking; outlines drawn locally need nothing |

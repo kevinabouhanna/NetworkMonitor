@@ -104,6 +104,25 @@ func runConnectionsTests() {
             Check.expectEqual(ConnectionsReport.companies(ofApp: "Chrome", in: sample), ["Google"])
         }
 
+        // Cloudflare answers from whichever data centre is nearest, so the
+        // country its addresses are filed under is not where the data went.
+        Check.test("the map shades countries, and keeps anycast networks off it") {
+            let cloudflare = NetworkOwner(asn: 13335, registeredName: "Cloudflare, Inc.",
+                                          company: Company(name: "Cloudflare", isHost: true, answersEverywhere: true))
+            let extra = [
+                connection("Chrome", "104.18.0.1", 700, country: "CA", owner: cloudflare),
+                connection("Torrent", UsageHistory.otherServers, 90, country: nil, owner: nil),
+            ]
+            let geography = ConnectionsReport.geography(sample + extra)
+            Check.expectEqual(geography.countries, ["NL": 500, "IE": 300, "US": 550])
+            Check.expectEqual(geography.everywhere, 700)
+            Check.expectEqual(geography.everywhereCompanies, ["Cloudflare"])
+            Check.expectEqual(geography.largest, 550)
+            Check.expectEqual(ConnectionsReport.companies(inCountry: "US", sample + extra).map(\.item.title),
+                              ["Google", "Hosted on Google"])
+            Check.expectEqual(ConnectionsReport.companies(inCountry: "CA", sample + extra).count, 0)
+        }
+
         Check.test("flags are regional indicators, and only for two letters") {
             Check.expectEqual(ConnectionsReport.flag("lb"), "🇱🇧")
             Check.expectNil(ConnectionsReport.flag("EU1"))

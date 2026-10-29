@@ -59,6 +59,13 @@ let package = Package(
             dependencies: ["ServerDirectory"],
             path: "Sources/GeoDataBuilder"
         ),
+        // Converts Natural Earth's countries into Resources/Geo/world.bin, the
+        // Connections map. Run by Scripts/mapdata.sh; never part of the app.
+        .executableTarget(
+            name: "MapDataBuilder",
+            dependencies: ["ServerDirectory"],
+            path: "Sources/MapDataBuilder"
+        ),
         // An executable, not a .testTarget: neither XCTest nor swift-testing is
         // available with Command Line Tools alone (both ship inside Xcode), so
         // `swift test` cannot run here. Run with `swift run NetworkMonitorTests`.

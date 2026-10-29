@@ -47,6 +47,7 @@ jobs:
           test -f build/NetworkMonitor.app/Contents/Resources/AppIcon.icns
           test -f build/NetworkMonitor.app/Contents/Resources/Geo/countries.bin
           test -f build/NetworkMonitor.app/Contents/Resources/Geo/owners.bin
+          test -f build/NetworkMonitor.app/Contents/Resources/Geo/world.bin
           test -f build/NetworkMonitor.app/Contents/Resources/Geo/README.md
           test -x build/NetworkMonitor.app/Contents/MacOS/NetworkMonitor
 
