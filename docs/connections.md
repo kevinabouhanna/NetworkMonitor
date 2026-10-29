@@ -1,8 +1,9 @@
 # Connections
 
 Which companies your apps send data to, from which apps, in which countries, and to which
-servers. Click the 🌐 in the popover, or choose **Connections…** (⌘K) from the right-click
-menu.
+servers. Click the 🌐 in the popover, choose **Connections…** (⌘K) from the right-click
+menu, or open **Settings › Connections**, which also shows today's top companies and sets
+the layout the window opens with.
 
 It runs quietly: nothing pops up and nothing is blocked. NetworkMonitor records the servers
 each app talks to as it already counts their data, and the window shows them whenever you

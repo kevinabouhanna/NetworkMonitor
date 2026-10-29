@@ -85,6 +85,8 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-30 | Anycast networks (Cloudflare, Fastly and others) are listed beside the map, not painted (#113) | DB-IP files their addresses under one country, but the answer came from the nearest data centre: on a Mac in Lebanon, Cloudflare read as Canada |
 | 2026-10-30 | The map redraws on its own only while Live is on, and Live switches off when the window closes (#113) | A still map costs nothing; animation is opted into, and never runs where nobody can see it |
 | 2026-10-30 | **Connections' controls are a window toolbar** plus one labelled row, as Calendar and Finder lay theirs out (#123) | Six controls in four sizes across three rows read as all over the place. The view, the period and search are the window's; what the list is grouped by and narrowed to belongs to the list |
+| 2026-10-30 | **Usage History reads as Connections does**: the period and ‹ Today › side by side with All / Wi-Fi / Hotspot in one row, then the heading, with the chips beside it (#125) | The same controls were scattered there too. The parts are shared (`PeriodControls.swift`), so the two windows can't drift apart |
+| 2026-10-30 | **Settings › Connections**, a pane like every other feature's (#126) | People look for a feature in Settings. It says what Connections is, opens it, shows today's top companies, sets the layout it opens with, and says where the names come from |
 
 ## Approaches turned down
 

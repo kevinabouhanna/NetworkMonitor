@@ -57,7 +57,7 @@ public struct ConnectionsView: View {
     /// (`ConnectionsWindowController`).
     private var scopeBar: some View {
         HStack(spacing: 10) {
-            labelled("Group by") {
+            LabelledControl("Group by") {
                 Picker("Group by", selection: Binding(get: { model.grouping }, set: { model.grouping = $0 })) {
                     ForEach(ConnectionsGrouping.allCases) { Text($0.label).tag($0) }
                 }
@@ -76,62 +76,34 @@ public struct ConnectionsView: View {
                 }
             }
             Spacer(minLength: 12)
-            labelled("Networks") {
-                Picker("Networks", selection: Binding(get: { model.kind }, set: { model.setKind($0) })) {
-                    Text("All").tag(NetworkFingerprint.Kind?.none)
-                    ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
-                        Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
-                    }
+            // All, Wi-Fi and Hotspot say what they are; no label needed.
+            Picker("Networks", selection: Binding(get: { model.kind }, set: { model.setKind($0) })) {
+                Text("All").tag(NetworkFingerprint.Kind?.none)
+                ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
+                    Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
                 }
-                .help("Every connection, Wi-Fi only, or hotspots only")
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .controlSize(.small)
+            .help("Every connection, Wi-Fi only, or hotspots only")
         }
         .frame(height: 24)
     }
 
-    /// A control with its name beside it: a segmented control alone doesn't
-    /// say what it chooses.
-    private func labelled<Content: View>(_ label: String, @ViewBuilder _ control: () -> Content) -> some View {
-        HStack(spacing: 6) {
-            Text(label)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-            control()
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .controlSize(.small)
-        }
-    }
-
     // MARK: Header
 
-    /// When, then how much, then who: the period's name leads, the total
-    /// follows, and the counts are one quieter line.
+    /// When, then how much, then who.
     private var header: some View {
         let summary = model.summary
-        return VStack(alignment: .leading, spacing: 3) {
-            Text(model.spanTitle.map { "\(model.title), \($0)" } ?? model.title)
-                .font(.system(size: 20, weight: .semibold))
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text(ByteFormat.bytes(summary.total))
-                    .fontWeight(.semibold)
-                    .monospacedDigit()
-                Text("to and from servers").foregroundStyle(.secondary)
-                Text("·").foregroundStyle(.tertiary)
-                Text([Self.count(summary.companies, "company", "companies"),
-                      Self.count(summary.countries, "country", "countries"),
-                      Self.count(summary.apps, "app", "apps"),
-                      Self.count(summary.servers, "server", "servers")].joined(separator: " · "))
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            .font(.system(size: 13))
-        }
-    }
-
-    static func count(_ value: Int, _ one: String, _ many: String) -> String {
-        "\(value) \(value == 1 ? one : many)"
+        return PeriodHeading(
+            title: model.spanTitle.map { "\(model.title), \($0)" } ?? model.title,
+            figure: ByteFormat.bytes(summary.total), caption: "to and from servers",
+            details: [PeriodHeading.count(summary.companies, "company", "companies"),
+                      PeriodHeading.count(summary.countries, "country", "countries"),
+                      PeriodHeading.count(summary.apps, "app", "apps"),
+                      PeriodHeading.count(summary.servers, "server", "servers")])
     }
 
     /// ⌘← and ⌘→ step through periods, as in History. The toolbar's arrows do

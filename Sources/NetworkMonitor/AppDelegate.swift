@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if let settingsController { return settingsController }
         let controller = SettingsWindowController(
             model: model, history: HistoryViewModel(monitor: model),
+            connections: connectionsModel,
+            onOpenConnections: { [weak self] in self?.showConnections() },
             onUninstall: { [weak self] in self?.uninstall() })
         controller.window.delegate = self
         controller.highestTop = { [weak self] screen in
@@ -31,9 +33,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Which companies, countries and servers the apps talk to. Created on
     /// first use.
     private var connectionsController: ConnectionsWindowController?
+    /// One model for the window and Settings › Connections, so the layout
+    /// chosen in one is the layout shown in the other.
+    private lazy var connectionsModel = ConnectionsViewModel(monitor: model)
     private var connections: ConnectionsWindowController {
         if let connectionsController { return connectionsController }
-        let controller = ConnectionsWindowController(model: ConnectionsViewModel(monitor: model))
+        let controller = ConnectionsWindowController(model: connectionsModel)
         controller.window.delegate = self
         connectionsController = controller
         return controller
@@ -71,14 +76,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         openWindowFromLaunchArgument()
     }
 
-    /// `open NetworkMonitor.app --args -open connections` (or `settings`), for
-    /// a screenshot or a check of a development build without clicking the menu
-    /// bar. Only the launch arguments are read, so it never outlives the run.
+    /// `open NetworkMonitor.app --args -open connections`, or `-open settings`
+    /// with `-pane history` (any pane), for a screenshot or a check of a
+    /// development build without clicking the menu bar. Only the launch
+    /// arguments are read, so it never outlives the run.
     private func openWindowFromLaunchArgument() {
         let arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
         switch arguments["open"] as? String {
         case "connections": showConnections()
-        case "settings":    showSettings()
+        case "settings":    show(pane: (arguments["pane"] as? String).flatMap(SettingsPane.init))
         default:            break
         }
     }
