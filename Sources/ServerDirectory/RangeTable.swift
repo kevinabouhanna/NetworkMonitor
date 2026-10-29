@@ -88,6 +88,12 @@ public struct RangeTable {
         labelOffsets = ipv6Labels + header.width * header.v6
         labelText = labelOffsets + 4 * (header.labels + 1)
         guard data.count >= labelText + header.text else { throw ReadError.truncated }
+        // The last label must end where the text does, or a label read would
+        // run past the file.
+        let textEnd = data.withUnsafeBytes {
+            Int($0.loadUnaligned(fromByteOffset: labelOffsets + 4 * header.labels, as: UInt32.self).littleEndian)
+        }
+        guard textEnd == header.text else { throw ReadError.truncated }
     }
 
     /// The label of the range holding `address`, or nil if it has none.
@@ -260,16 +266,30 @@ public struct RangeTableWriter {
         return entries
     }
 
-    /// IPv6 entries keyed on their first 64 bits. Where several start inside
-    /// one /64, the first keeps it.
-    private static func byFirst64Bits(_ entries: [(start: IPv6Value, label: UInt32)])
+    /// IPv6 entries keyed on their first 64 bits: each /64 takes the label of
+    /// the entry covering its first address.
+    ///
+    /// An entry that starts partway into a /64 doesn't own that one, but it does
+    /// own every later /64 it reaches, so it's keyed from the next. Keying it
+    /// nowhere would hand those to the entry before it: a gap that began inside
+    /// a /64 would have given unassigned space the previous range's country.
+    static func byFirst64Bits(_ entries: [(start: IPv6Value, label: UInt32)])
         -> [(start: UInt64, label: UInt32)] {
         var keyed: [(start: UInt64, label: UInt32)] = []
-        for entry in entries {
-            if let last = keyed.last {
-                if last.start == entry.start.high || last.label == entry.label { continue }
+        for (index, entry) in entries.enumerated() {
+            let first: UInt64
+            if entry.start.low == 0 {
+                first = entry.start.high
+            } else if entry.start.high < .max {
+                first = entry.start.high + 1
+            } else {
+                continue
             }
-            keyed.append((entry.start.high, entry.label))
+            // Owns nothing if the next entry starts at or before that /64.
+            if index + 1 < entries.count,
+               entries[index + 1].start <= IPv6Value(high: first, low: 0) { continue }
+            if keyed.last?.label == entry.label { continue }
+            keyed.append((first, entry.label))
         }
         return keyed
     }

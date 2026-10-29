@@ -661,6 +661,52 @@ func runUsageHistoryTests() {
                               ["142.250.0.1"])
         }
 
+        // A flush can hold two hours, written in no particular order.
+        Check.test("first seen is the earliest hour, whichever is written first") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            history.join(network("A"), label: "Net A", switched: false, now: reference)
+            history.recordApps([(app("Teams"), 10, 0)],
+                               servers: ["Teams": ["52.112.0.1": bytes(10, 0)]], now: reference + 3_600)
+            history.recordApps([(app("Teams"), 10, 0)],
+                               servers: ["Teams": ["52.112.0.1": bytes(10, 0)]], now: reference)
+            let servers = history.servers(in: day(reference, cal))
+            Check.expectEqual(servers.first?.firstSeen, cal.dateInterval(of: .hour, for: reference)?.start)
+            Check.expectEqual(servers.first?.bytesIn, 20)
+        }
+
+        // A BitTorrent client can reach thousands of peers an hour.
+        Check.test("an app's servers past the hourly limit are added up as one") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            history.join(network("A"), label: "Net A", switched: false, now: reference)
+            let limit = UsageHistory.serversPerAppPerHour
+            var peers: [String: ByteCounts] = [:]
+            for index in 0..<(limit + 20) { peers["10.\(index / 256).\(index % 256).1"] = bytes(1, 0) }
+            history.recordApps([(app("Torrent"), Int64(limit + 20), 0)], servers: ["Torrent": peers],
+                               now: reference)
+
+            let servers = history.servers(in: day(reference, cal))
+            Check.expectEqual(servers.count, limit + 1)
+            Check.expectEqual(servers.first(where: { $0.address == UsageHistory.otherServers })?.bytesIn, 20)
+            Check.expectEqual(servers.reduce(0) { $0 + $1.bytesIn }, Int64(limit + 20), "no byte is lost")
+
+            // A server already kept stays itself, and the next hour starts afresh.
+            let kept = servers.first { $0.address != UsageHistory.otherServers }!.address
+            history.recordApps([(app("Torrent"), 2, 0)],
+                               servers: ["Torrent": [kept: bytes(1, 0), "192.0.2.1": bytes(1, 0)]],
+                               now: reference + 60)
+            history.recordApps([(app("Torrent"), 1, 0)], servers: ["Torrent": ["192.0.2.1": bytes(1, 0)]],
+                               now: reference + 3_600)
+            let after = history.servers(in: day(reference, cal))
+            Check.expectEqual(after.first { $0.address == kept }?.bytesIn, 2)
+            Check.expectEqual(after.first { $0.address == "192.0.2.1" }?.bytesIn, 1,
+                              "only the next hour's sighting is kept by address")
+            Check.expectEqual(after.first { $0.address == UsageHistory.otherServers }?.bytesIn, 21)
+        }
+
         Check.test("retention and clearing reach the servers too") {
             let url = temporaryURL(); defer { remove(url) }
             let cal = calendar()

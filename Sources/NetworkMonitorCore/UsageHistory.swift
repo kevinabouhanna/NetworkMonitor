@@ -178,7 +178,8 @@ public struct HistoryReport {
 /// One app's traffic with one server over a period.
 public struct ServerUsage: Equatable {
     public let appKey: String
-    /// As `nettop` reported it, such as `142.250.180.14` or `2a00:1450:4001:82b::200e`.
+    /// As `nettop` reported it, such as `142.250.180.14` or `2a00:1450:4001:82b::200e`,
+    /// or `UsageHistory.otherServers` for an app's servers past its hourly limit.
     public let address: String
     public let bytesIn: Int64
     public let bytesOut: Int64
@@ -213,6 +214,16 @@ public final class UsageHistory {
     public var isMetered: () -> Bool = { false }
 
     /// Applied at most once a day, from `flush()`, and immediately when changed.
+    /// The most servers an app keeps by address in one hour; the rest are added
+    /// up under `otherServers`. A BitTorrent client or a video call can reach
+    /// thousands of peers in an hour, and each would otherwise be a row of its
+    /// own, every hour, for as long as history is kept. Counted from launch, so
+    /// a relaunch partway through an hour can let an app keep up to twice as many.
+    public static let serversPerAppPerHour = 500
+    /// Where an app's servers beyond `serversPerAppPerHour` are added up.
+    public static let otherServers = "*"
+    private var serversThisHour: (hour: Int64, byApp: [String: Set<String>]) = (0, [:])
+
     public var retention: HistoryRetention = .forever {
         didSet { if retention != oldValue { prune(now: Date()) } }
     }
@@ -288,12 +299,20 @@ public final class UsageHistory {
         pending.apps[slot] = apps
 
         guard !servers.isEmpty else { return }
+        if serversThisHour.hour != slot.hour { serversThisHour = (slot.hour, [:]) }
         var byServer = pending.servers[slot, default: [:]]
         for (appKey, addresses) in servers {
+            var seen = serversThisHour.byApp[appKey, default: []]
             for (address, bytes) in addresses {
-                byServer[ServerKey(appKey: appKey, address: address),
+                var kept = address
+                if !seen.contains(address) {
+                    if seen.count < Self.serversPerAppPerHour { seen.insert(address) }
+                    else { kept = Self.otherServers }
+                }
+                byServer[ServerKey(appKey: appKey, address: kept),
                          default: ByteCounts(bytesIn: 0, bytesOut: 0)] += bytes
             }
+            serversThisHour.byApp[appKey] = seen
         }
         pending.servers[slot] = byServer
     }
@@ -473,17 +492,32 @@ public final class UsageHistory {
                                             .int(sums.bytesIn), .int(sums.bytesOut)])
                     }
                 }
+            }
+        } catch {
+            // Dropped rather than retried: a database that refuses one write
+            // will refuse the next, and holding the batch would grow without
+            // bound. The popover's own totals are unaffected.
+            NSLog("NetworkMonitor: history write failed: \(error)")
+        }
 
+        // Servers in a transaction of their own: whatever goes wrong with them
+        // must never cost Usage History the figures above.
+        guard !batch.servers.isEmpty else { return }
+        do {
+            try database.transaction {
                 // Three small upserts per app and server, each on an index. A
                 // flush carries at most a few hundred, so resolving ids in SQL
-                // costs less than keeping a cache of them in sync.
+                // costs less than keeping a cache of them in sync. `MIN`, because
+                // a flush that spans an hour boundary holds two hours in no
+                // particular order.
                 let server = try database.prepare("""
                     INSERT INTO servers (address) VALUES (?1) ON CONFLICT(address) DO NOTHING
                     """)
                 let appServer = try database.prepare("""
                     INSERT INTO app_servers (app_key, server_id, first_seen)
                     VALUES (?1, (SELECT id FROM servers WHERE address = ?2), ?3)
-                    ON CONFLICT(app_key, server_id) DO NOTHING
+                    ON CONFLICT(app_key, server_id) DO UPDATE SET
+                        first_seen = MIN(first_seen, excluded.first_seen)
                     """)
                 let serverTraffic = try database.prepare("""
                     INSERT INTO server_traffic (hour, session_id, app_server_id, bytes_in, bytes_out)
@@ -507,10 +541,7 @@ public final class UsageHistory {
                 }
             }
         } catch {
-            // Dropped rather than retried: a database that refuses one write
-            // will refuse the next, and holding the batch would grow without
-            // bound. The popover's own totals are unaffected.
-            NSLog("NetworkMonitor: history write failed: \(error)")
+            NSLog("NetworkMonitor: writing servers failed: \(error)")
         }
     }
 
@@ -553,6 +584,7 @@ public final class UsageHistory {
     public func clear(now: Date = Date()) {
         guard let database else { return }
         pending = Pending()
+        serversThisHour = (0, [:])
         lastWrittenOpen = nil
         if let current = open {
             open = OpenSession(id: nextSessionID, network: current.network, start: now,

@@ -308,5 +308,24 @@ func runNettopParserTests() {
                               "2a00:1450:4001:82b::200e")
             Check.expectNil(RemoteEndpoint.remoteHost(connectionLabel: "udp4 *:5353<->*:*"))
         }
+
+        // nettop reports QUIC as quic4 and quic6. Read as IPv4, a quic6 address
+        // would be cut at its last colon.
+        Check.test("reads a quic6 row as IPv6") {
+            let label = "quic6 2a02:a03f::1.51003<->2a00:1450:4001:82b::200e.443"
+            Check.expectEqual(RemoteEndpoint.remoteHost(connectionLabel: label), "2a00:1450:4001:82b::200e")
+            Check.expectEqual(RemoteEndpoint.scope(connectionLabel: label), .internet)
+            Check.expectEqual(RemoteEndpoint.scope(
+                connectionLabel: "quic6 fe80::1%en0.51003<->fd00::42.443"), .localUnicast)
+        }
+
+        // One server must not be stored twice, once per socket family.
+        Check.test("reads an IPv4-mapped peer as the IPv4 address, for scope and server alike") {
+            Check.expectEqual(RemoteEndpoint.remoteHost(
+                connectionLabel: "tcp6 ::ffff:192.168.1.107.51000<->::ffff:142.250.0.1.443"), "142.250.0.1")
+            Check.expectEqual(RemoteEndpoint.scope(
+                connectionLabel: "tcp6 ::ffff:192.168.1.107.51000<->::ffff:192.168.1.42.7000"), .localUnicast,
+                              "a LAN peer is local whichever way it's written")
+        }
     }
 }

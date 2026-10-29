@@ -8,9 +8,11 @@ public enum IPAddress: Hashable {
 
     /// Parses `142.250.180.14` or `2a00:1450:4001:82b::200e`.
     ///
-    /// An IPv4 address written as IPv6 (`::ffff:142.250.180.14`) is read as the
-    /// IPv4 address it carries. `nettop` reports those on dual-stack sockets, and
-    /// DB-IP lists the address only once, under IPv4.
+    /// An IPv4 address written as IPv6 is read as the IPv4 address it carries,
+    /// because DB-IP lists it only under IPv4. That's an IPv4-mapped address
+    /// (`::ffff:142.250.180.14`), as a dual-stack socket reports one, or NAT64's
+    /// well-known prefix (`64:ff9b::142.250.180.14`), which is how a Mac on an
+    /// IPv6-only network reaches an IPv4 server.
     public init?(_ text: String) {
         var v4 = in_addr()
         if inet_pton(AF_INET, text, &v4) == 1 {
@@ -25,7 +27,9 @@ public enum IPAddress: Hashable {
             for index in 8..<16 { low = low << 8 | UInt64(bytes[index]) }
             return IPv6Value(high: high, low: low)
         }
-        if value.high == 0 && value.low >> 32 == 0xFFFF {
+        let mapped = value.high == 0 && value.low >> 32 == 0xFFFF
+        let nat64 = value.high == 0x0064_FF9B_0000_0000 && value.low >> 32 == 0
+        if mapped || nat64 {
             self = .v4(UInt32(truncatingIfNeeded: value.low))
         } else {
             self = .v6(value)

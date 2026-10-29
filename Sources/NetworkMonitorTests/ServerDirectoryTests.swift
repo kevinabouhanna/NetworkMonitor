@@ -29,6 +29,12 @@ func runServerDirectoryTests() {
             Check.expectEqual(IPAddress("::ffff:142.250.180.14"), IPAddress("142.250.180.14"))
         }
 
+        // How a Mac on an IPv6-only network reaches an IPv4 server.
+        Check.test("reads a NAT64 address as the IPv4 address inside it") {
+            Check.expectEqual(IPAddress("64:ff9b::8.8.8.8"), IPAddress("8.8.8.8"))
+            Check.expectEqual(IPAddress("64:ff9b::808:808"), IPAddress("8.8.8.8"))
+        }
+
         Check.test("rejects what isn't an address") {
             Check.expectNil(IPAddress(""))
             Check.expectNil(IPAddress("example.com"))
@@ -87,6 +93,30 @@ func runServerDirectoryTests() {
             Check.expectNil(table.label(for: address("10.0.0.1")), "the families are separate")
         }
 
+        // The bug this guards against: a range starting partway into a /64 was
+        // keyed nowhere, so the /64s after it read the range before it.
+        Check.test("a range that starts partway into a /64 owns the /64s after it") {
+            guard let table = table({
+                try $0.add(from: address("2001:db8::"), to: address("2001:db8::7fff"), label: "A")
+                try $0.add(from: address("2001:db8::8000"),
+                           to: address("2001:db8:0:9:ffff:ffff:ffff:ffff"), label: "B")
+            }) else { return }
+            Check.expectEqual(table.label(for: address("2001:db8::1")), "A", "the /64 goes to whoever starts it")
+            Check.expectEqual(table.label(for: address("2001:db8:0:1::1")), "B")
+            Check.expectEqual(table.label(for: address("2001:db8:0:9::1")), "B")
+            Check.expectNil(table.label(for: address("2001:db8:0:a::1")))
+        }
+
+        Check.test("a gap that starts partway into a /64 doesn't inherit the label before it") {
+            guard let table = table({
+                try $0.add(from: address("2001:db8::"), to: address("2001:db8::7fff"), label: "A")
+                try $0.add(from: address("2001:db8:0:5::"),
+                           to: address("2001:db8:0:5:ffff:ffff:ffff:ffff"), label: "C")
+            }) else { return }
+            Check.expectNil(table.label(for: address("2001:db8:0:2::1")), "unassigned space")
+            Check.expectEqual(table.label(for: address("2001:db8:0:5::1")), "C")
+        }
+
         Check.test("more labels than a byte holds still read back") {
             guard let table = table({ writer in
                 for index in 0..<300 {
@@ -107,6 +137,14 @@ func runServerDirectoryTests() {
             try? writer.add(from: address("10.0.0.0"), to: address("10.0.0.255"), label: "A")
             let data = writer.encoded()
             Check.expectEqual(Result { try RangeTable(data: data.prefix(data.count - 1)) }
+                                .failureValue as? RangeTable.ReadError, .truncated)
+            // A header that claims less label text than the labels use.
+            var short = data
+            let claimed = short.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: 20, as: UInt32.self) }
+            withUnsafeBytes(of: (claimed.littleEndian - 1).littleEndian) {
+                short.replaceSubrange(20..<24, with: $0)
+            }
+            Check.expectEqual(Result { try RangeTable(data: short) }
                                 .failureValue as? RangeTable.ReadError, .truncated)
         }
 
@@ -129,7 +167,9 @@ func runServerDirectoryTests() {
             Check.expectEqual(company("Microsoft Corporation").name, "Microsoft")
             Check.expectEqual(company("Hangar Networks, Inc.").name, "Hangar Networks")
             Check.expectEqual(company("Example Telecom S.A.L.").name, "Example Telecom")
+            Check.expectEqual(company("Anthropic, PBC").name, "Anthropic")
             Check.expectEqual(company("Inc.").name, "Inc.", "a name that is all legal form stays")
+            Check.expectEqual(company("", asn: 64_512).name, "AS64512", "no name: the network's number")
         }
 
         Check.test("merges the big companies' networks under the name people know") {

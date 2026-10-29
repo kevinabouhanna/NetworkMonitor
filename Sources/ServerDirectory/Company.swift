@@ -27,7 +27,8 @@ public struct Company: Hashable {
         for (pattern, company) in byName where lowered.containsWord(pattern) {
             return company
         }
-        return Company(name: plainName(registeredName), isHost: false)
+        let name = plainName(registeredName)
+        return Company(name: name.isEmpty ? "AS\(asn)" : name, isHost: false)
     }
 
     /// Networks whose registered name says less than their number. Google
@@ -92,7 +93,7 @@ public struct Company: Hashable {
         "corporation", "corp", "corp.", "co", "co.", "company", "plc", "llp", "lp", "l.p.",
         "gmbh", "ag", "b.v.", "bv", "n.v.", "nv", "s.a.", "sa", "sas", "s.a.s.", "sarl",
         "s.l.", "sl", "s.r.l.", "srl", "s.p.a.", "spa", "pte", "pte.", "pty", "k.k.",
-        "d.o.o.", "ab", "oy", "a/s", "as", "s.a.l.", "sal", "s.a.r.l.",
+        "d.o.o.", "ab", "oy", "a/s", "as", "s.a.l.", "sal", "s.a.r.l.", "pbc", "p.b.c.",
     ]
 }
 
