@@ -18,12 +18,10 @@ public struct ConnectionsView: View {
 
     public var body: some View {
         GeometryReader { geometry in
-            VStack(alignment: .leading, spacing: 12) {
-                navigation
-                filterBar
-                summary
+            VStack(alignment: .leading, spacing: 14) {
+                scopeBar
+                header
                 ConnectionsTimeline(model: model)
-                Divider()
                 switch shownLayout(width: geometry.size.width) {
                 case .list:
                     list
@@ -38,9 +36,12 @@ public struct ConnectionsView: View {
                 Divider()
                 footer
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 14)
         }
         .frame(minWidth: ConnectionsMetrics.minWidth, minHeight: ConnectionsMetrics.minHeight)
+        .background(periodShortcuts)
     }
 
     /// Both needs room for the list and a map worth reading; narrower, it's the
@@ -49,132 +50,104 @@ public struct ConnectionsView: View {
         model.layout == .both && width < ConnectionsMetrics.bothMinWidth ? .list : model.layout
     }
 
-    // MARK: Navigation
+    // MARK: Scope
 
-    private var navigation: some View {
+    /// What the list is grouped by and narrowed to, in one labelled row under
+    /// the toolbar. The view, the period and search are in the toolbar itself
+    /// (`ConnectionsWindowController`).
+    private var scopeBar: some View {
         HStack(spacing: 10) {
-            Picker("Group by", selection: Binding(get: { model.grouping }, set: { model.grouping = $0 })) {
-                ForEach(ConnectionsGrouping.allCases) { Text($0.label).tag($0) }
+            labelled("Group by") {
+                Picker("Group by", selection: Binding(get: { model.grouping }, set: { model.grouping = $0 })) {
+                    ForEach(ConnectionsGrouping.allCases) { Text($0.label).tag($0) }
+                }
+                .help("Group the list by company, app or country. A row inside a group narrows "
+                      + "the window to it.")
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .help("What the list is grouped by")
-
-            Spacer()
-
-            Picker("Show", selection: Binding(get: { model.scale }, set: { model.scale = $0 })) {
-                ForEach(HistoryScale.allCases) { Text($0.label).tag($0) }
+            if model.spanTitle != nil || !model.chips.isEmpty {
+                Divider().frame(height: 16)
+                HStack(spacing: 6) {
+                    if let span = model.spanTitle {
+                        FilterChip(label: span, onClear: model.clearSpan)
+                    }
+                    ForEach(model.chips) { item in
+                        FilterChip(label: item.title, onClear: { model.clear(item.dimension) })
+                    }
+                }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-
-            Button { model.step(-1) } label: {
-                Image(systemName: "chevron.left").frame(width: 16, height: 16)
+            Spacer(minLength: 12)
+            labelled("Networks") {
+                Picker("Networks", selection: Binding(get: { model.kind }, set: { model.setKind($0) })) {
+                    Text("All").tag(NetworkFingerprint.Kind?.none)
+                    ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
+                        Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
+                    }
+                }
+                .help("Every connection, Wi-Fi only, or hotspots only")
             }
-            .buttonStyle(.borderless)
-            .disabled(!model.canStepBack)
-            .keyboardShortcut(.leftArrow, modifiers: [.command])
-            .help("Previous \(model.scale.label.lowercased())")
-
-            Text(model.title)
-                .font(.system(size: 13, weight: .semibold))
-                .frame(minWidth: 130)
-
-            Button { model.step(1) } label: {
-                Image(systemName: "chevron.right").frame(width: 16, height: 16)
-            }
-            .buttonStyle(.borderless)
-            .disabled(!model.canStepForward)
-            .keyboardShortcut(.rightArrow, modifiers: [.command])
-            .help("Next \(model.scale.label.lowercased())")
         }
+        .frame(height: 24)
     }
 
-    // MARK: Filters
-
-    /// Always the same height, so choosing a filter never shifts the list.
-    private var filterBar: some View {
+    /// A control with its name beside it: a segmented control alone doesn't
+    /// say what it chooses.
+    private func labelled<Content: View>(_ label: String, @ViewBuilder _ control: () -> Content) -> some View {
         HStack(spacing: 6) {
-            if let span = model.spanTitle {
-                FilterChip(label: span, onClear: model.clearSpan)
-            }
-            ForEach(model.chips) { item in
-                FilterChip(label: item.title, onClear: { model.clear(item.dimension) })
-            }
-            if model.chips.isEmpty && model.span == nil {
-                Text("Click a row inside a group to see only it, or drag across the timeline.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 8)
-            HStack(spacing: 4) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search", text: Binding(get: { model.search }, set: { model.search = $0 }))
-                    .textFieldStyle(.plain)
-                    .frame(width: 130)
-            }
-            .font(.system(size: 11))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 5))
-            Picker("Networks", selection: Binding(get: { model.kind }, set: { model.setKind($0) })) {
-                Text("All").tag(NetworkFingerprint.Kind?.none)
-                ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
-                    Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .controlSize(.small)
-            .help("Every connection, Wi-Fi only, or hotspots only")
-        }
-        .frame(height: 22)
-    }
-
-    // MARK: Summary
-
-    private var summary: some View {
-        let summary = model.summary
-        return HStack(alignment: .firstTextBaseline, spacing: 28) {
-            stat("To and from servers", ByteFormat.bytes(summary.total), prominent: true)
-            stat("Companies", "\(summary.companies)")
-            stat("Countries", "\(summary.countries)")
-            stat("Apps", "\(summary.apps)")
-            stat("Servers", "\(summary.servers)")
-            Spacer()
-            Picker("Show", selection: Binding(get: { model.layout }, set: { model.layout = $0 })) {
-                ForEach(ConnectionsViewModel.Layout.allCases) { layout in
-                    Label(layout.label, systemImage: Self.symbol(for: layout)).tag(layout)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .help("The list, the map, or both side by side")
-        }
-    }
-
-    private static func symbol(for layout: ConnectionsViewModel.Layout) -> String {
-        switch layout {
-        case .list: return "list.bullet"
-        case .both: return "rectangle.split.2x1"
-        case .map:  return "map"
-        }
-    }
-
-    private func stat(_ label: String, _ value: String, prominent: Bool = false) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-            Text(value)
-                .font(.system(size: prominent ? 20 : 14, weight: prominent ? .semibold : .medium))
-                .monospacedDigit()
+            control()
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .controlSize(.small)
         }
+    }
+
+    // MARK: Header
+
+    /// When, then how much, then who: the period's name leads, the total
+    /// follows, and the counts are one quieter line.
+    private var header: some View {
+        let summary = model.summary
+        return VStack(alignment: .leading, spacing: 3) {
+            Text(model.spanTitle.map { "\(model.title), \($0)" } ?? model.title)
+                .font(.system(size: 20, weight: .semibold))
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Text(ByteFormat.bytes(summary.total))
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                Text("to and from servers").foregroundStyle(.secondary)
+                Text("·").foregroundStyle(.tertiary)
+                Text([Self.count(summary.companies, "company", "companies"),
+                      Self.count(summary.countries, "country", "countries"),
+                      Self.count(summary.apps, "app", "apps"),
+                      Self.count(summary.servers, "server", "servers")].joined(separator: " · "))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .font(.system(size: 13))
+        }
+    }
+
+    static func count(_ value: Int, _ one: String, _ many: String) -> String {
+        "\(value) \(value == 1 ? one : many)"
+    }
+
+    /// ⌘← and ⌘→ step through periods, as in History. The toolbar's arrows do
+    /// the same with the pointer.
+    private var periodShortcuts: some View {
+        ZStack {
+            Button("Previous") { model.step(-1) }
+                .keyboardShortcut(.leftArrow, modifiers: [.command])
+                .disabled(!model.canStepBack)
+            Button("Next") { model.step(1) }
+                .keyboardShortcut(.rightArrow, modifiers: [.command])
+                .disabled(!model.canStepForward)
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
     }
 
     // MARK: List
@@ -472,7 +445,7 @@ private struct ConnectionsTimeline: View {
 }
 
 enum ConnectionsMetrics {
-    static let minWidth: CGFloat = 640
+    static let minWidth: CGFloat = 760
     static let minHeight: CGFloat = 520
     static let rowBarWidth: CGFloat = 140
     static let timelineHeight: CGFloat = 54

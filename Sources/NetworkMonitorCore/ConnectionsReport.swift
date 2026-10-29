@@ -184,7 +184,7 @@ public enum ConnectionsReport {
             if owner.company.isHost {
                 return ConnectionsItem(dimension: dimension, key: key,
                                        title: "Hosted on \(owner.company.name)",
-                                       subtitle: "Company unknown: \(owner.company.name) hosts many",
+                                       subtitle: "Company unknown",
                                        isHost: true, symbol: nil, bundlePath: nil)
             }
             return ConnectionsItem(dimension: dimension, key: key, title: owner.company.name,

@@ -84,6 +84,7 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-30 | **The map is drawn by the app** from Natural Earth's outlines, projected with Equal Earth and simplified at build time to 99 KB (#113) | No map tiles, so no map service learns where you look, and nothing to download. Equal Earth keeps areas true, so a big shaded country is big |
 | 2026-10-30 | Anycast networks (Cloudflare, Fastly and others) are listed beside the map, not painted (#113) | DB-IP files their addresses under one country, but the answer came from the nearest data centre: on a Mac in Lebanon, Cloudflare read as Canada |
 | 2026-10-30 | The map redraws on its own only while Live is on, and Live switches off when the window closes (#113) | A still map costs nothing; animation is opted into, and never runs where nobody can see it |
+| 2026-10-30 | **Connections' controls are a window toolbar** plus one labelled row, as Calendar and Finder lay theirs out (#123) | Six controls in four sizes across three rows read as all over the place. The view, the period and search are the window's; what the list is grouped by and narrowed to belongs to the list |
 
 ## Approaches turned down
 

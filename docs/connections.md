@@ -10,6 +10,10 @@ look.
 
 ## Reading the window
 
+The toolbar holds the view (**List | Both | Map**), the period (**Day, Week, Month, Year**),
+**‹ Today ›**, and search. The row under it says what the list is grouped by and narrowed
+to, and which networks it covers. Then the period's name, its total, and the counts.
+
 - **Group by Companies, Apps or Countries.** Companies is the default, because that's the
   question: who gets your data.
 - **Open a group** to see what's inside it. A company opens into the apps that talk to
@@ -23,8 +27,8 @@ look.
   ✕, for the whole period.
 - **Search** finds a company, a network's registered name, an app, a country or an
   address.
-- **Day, Week, Month, Year** and the arrows move through time, as in Usage History, and
-  **All / Wi-Fi / Hotspot** narrows it to one kind of network.
+- **Day, Week, Month, Year**, the arrows and ⌘← ⌘→ move through time, as in Usage
+  History, and **Networks: All / Wi-Fi / Hotspot** narrows it to one kind of network.
 - **Under each app is who made it**, read from its code signature, and the companies it
   talks to besides its maker. Hosts aren't counted: an app on Amazon's network isn't
   talking to Amazon.
