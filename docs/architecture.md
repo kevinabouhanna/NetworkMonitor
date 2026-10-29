@@ -333,6 +333,16 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    regroup what's loaded, so they answer at once. Each app's maker comes from its code
    signature (`AppMaker`).
 
+6. **The content filter** (#128, `Sources/NetworkMonitorFilter`) is a Network Extension
+   system extension, in the bundle at `Contents/Library/SystemExtensions/` only in
+   Developer ID builds. `FilterController` installs it (`OSSystemExtensionRequest`),
+   switches it on (`NEFilterManager`), and listens for what it saw over XPC on
+   `GRQKG7M8CL.com.kevinabouhanna.NetworkMonitor.Filter`. Both ends check each other's code
+   signature by team. Each new flow is allowed and reported in batches; its name goes to
+   `UsageHistory.noteServerNames`, and `Company.named(byHostname:)` names the company,
+   so a host's customer is no longer *Hosted on…*. The contract between the two lives in
+   `FilterProtocol`, Foundation only.
+
 An app's servers can add up to a little less than its total: a socket that opened and
 closed between two samples leaves no connection row. In a 30-second capture on the
 development Mac, servers accounted for 95.4% of the apps' internet bytes.
