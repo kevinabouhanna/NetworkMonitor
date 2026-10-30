@@ -80,6 +80,20 @@ jobs:
           test -x build/NetworkMonitor.app/Contents/Resources/helper-setup.sh
           codesign --verify --deep --strict build/NetworkMonitor.app
 
+      # The content filter (#128) goes in only with its provisioning profiles.
+      # A release without it would quietly lose website names and blocking, so
+      # its absence fails the build. The country and owner tables live inside
+      # it, and the app links to them there.
+      - name: Verify the content filter is inside, for both architectures
+        run: |
+          filter=build/NetworkMonitor.app/Contents/Library/SystemExtensions/com.kevinabouhanna.NetworkMonitor.Filter.systemextension
+          archs=$(lipo -archs "$filter/Contents/MacOS/com.kevinabouhanna.NetworkMonitor.Filter")
+          echo "filter: $archs"
+          case "$archs" in *arm64*x86_64*|*x86_64*arm64*) ;; *) exit 1 ;; esac
+          test -f "$filter/Contents/embedded.provisionprofile"
+          test -f "$filter/Contents/Resources/Geo/owners.bin"
+          test -L build/NetworkMonitor.app/Contents/Resources/Geo/owners.bin
+
       # What a downloader's Mac will check: the Developer ID, the Location
       # entitlement Wi-Fi names need under the hardened runtime, and Apple's
       # notarization stapled to both the app and the disk image.

@@ -3,12 +3,17 @@
 # Builds NetworkMonitor, installs it to /Applications, and optionally sets it to
 # start at login.
 #
-# No Apple Developer account, no Developer ID and no notarization are required.
-# The app is signed with NetworkMonitor's own certificate when it's on this Mac,
-# and ad-hoc otherwise (see bundle.sh). Either is enough for macOS to run it
-# locally, and the login item is registered by the app through SMAppService,
-# which accepts an ad-hoc signature (verified: registration reports .enabled and
-# the item is recorded as an app, with the bundle's own name and icon).
+# No Apple Developer account is required. The app is signed with the Developer
+# ID, NetworkMonitor's own certificate, or ad-hoc, whichever this Mac has (see
+# signing.sh), and any of them is enough for macOS to run it locally. The login
+# item is registered by the app through SMAppService, which accepts an ad-hoc
+# signature (verified: registration reports .enabled and the item is recorded
+# as an app, with the bundle's own name and icon).
+#
+# A Developer ID build carries the content filter, and macOS runs only a
+# notarized one: installed without notarization, the filter already running
+# stays, and the new one never replaces it. So a Developer ID build is
+# notarized first, when this Mac has the notary credentials (notarize.sh).
 #
 # Usage:
 #   ./Scripts/install.sh                # install + enable launch at login
@@ -42,6 +47,14 @@ sleep 1
 
 echo "==> Building"
 ./Scripts/bundle.sh >/dev/null
+
+if [ -d "build/${APP_NAME}.app/Contents/Library/SystemExtensions" ]; then
+  echo "==> Notarizing, so macOS will run its content filter"
+  if ! ./Scripts/notarize.sh "build/${APP_NAME}.app" | sed 's/^/    /'; then
+    echo "    Not notarized: installing anyway. The content filter already running stays" >&2
+    echo "    until a notarized build replaces it. Is the login keychain locked?" >&2
+  fi
+fi
 
 echo "==> Installing to ${DEST}"
 if [ ! -w /Applications ]; then
