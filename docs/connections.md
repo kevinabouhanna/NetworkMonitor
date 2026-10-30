@@ -108,6 +108,12 @@ and Settings › Connections lists every rule, each with a button to take it bac
   *Block Meta* with *Always Allow WhatsApp* lets WhatsApp through, and *Block United States*
   with *Always Allow Apple* lets Apple's servers there through.
 - **On Hotspots** means while the Mac is on a hotspot, as the popover judges it.
+- **With Hotspot mode on, every app's updater waits on a hotspot** (#98): a program inside an
+  app named like an updater (`opera_autoupdate`, Raycast's `Updater`, Sparkle's), Sparkle's
+  downloader, or an updater of its own (GoogleUpdater, Microsoft AutoUpdate, Squirrel's
+  `ShipIt`), and the update-only servers Hotspot mode's helper blocks. Your rules come first,
+  so Always Allow lets one through, and macOS and Apple's apps follow Hotspot mode's system
+  setting instead. What it stopped shows under Blocked.
 - **Never blocked:** the local network, looking up names (DNS), the clock, and getting an
   address. Without them nothing else works.
 - **An app is the app and the programs it starts**, as Connections lists them: a rule on

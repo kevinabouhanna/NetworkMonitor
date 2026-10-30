@@ -26,7 +26,7 @@ func runFirewallTests() {
                                                   (.country, "IE"), (.server, "157.240.1.35")]
             for (subject, key) in cases {
                 let block = rule(subject, key, .block)
-                Check.expectEqual(FirewallPolicy(rules: [block]).decide(chromeToMeta), .block(block), "block \(subject)")
+                Check.expectEqual(FirewallPolicy(rules: [block]).decide(chromeToMeta), .block(.rule(block)), "block \(subject)")
                 let allow = rule(subject, key, .allow)
                 Check.expectEqual(FirewallPolicy(mode: .onlyAllowed, rules: [allow]).decide(chromeToMeta),
                                   .allow(.rule(allow)), "allow \(subject)")
@@ -51,7 +51,7 @@ func runFirewallTests() {
                         let narrowRule = rule(narrow, keys[narrow]!, narrowAction)
                         let wideRule = rule(wide, keys[wide]!, wideAction)
                         let verdict = FirewallPolicy(rules: [wideRule, narrowRule]).decide(chromeToMeta)
-                        let expected: Verdict = narrowAction == .allow ? .allow(.rule(narrowRule)) : .block(narrowRule)
+                        let expected: Verdict = narrowAction == .allow ? .allow(.rule(narrowRule)) : .block(.rule(narrowRule))
                         Check.expectEqual(verdict, expected, "\(narrow) \(narrowAction) over \(wide) \(wideAction)")
                     }
                 }
@@ -71,11 +71,11 @@ func runFirewallTests() {
             let hotspotOnly = rule(.company, "Meta", .blockOnHotspots)
             Check.expectEqual(FirewallPolicy(rules: [hotspotOnly], onHotspot: false).decide(chromeToMeta), .allow(.mode))
             Check.expectEqual(FirewallPolicy(rules: [hotspotOnly], onHotspot: true).decide(chromeToMeta),
-                              .block(hotspotOnly))
+                              .block(.rule(hotspotOnly)))
             // Off a hotspot, a wider rule still has its say.
             let country = rule(.country, "IE", .block)
             Check.expectEqual(FirewallPolicy(rules: [hotspotOnly, country], onHotspot: false).decide(chromeToMeta),
-                              .block(country))
+                              .block(.rule(country)))
         }
 
         Check.test("any of an app's names matches: Safari's pages come from a WebKit process") {
@@ -89,13 +89,13 @@ func runFirewallTests() {
 
         Check.test("only where allowed: blocks the rest, but never macOS and Apple's apps") {
             let policy = FirewallPolicy(mode: .onlyAllowed)
-            Check.expectEqual(policy.decide(chromeToMeta), .block(nil))
+            Check.expectEqual(policy.decide(chromeToMeta), .block(.mode))
             var apple = chromeToMeta
             apple.isApple = true
             Check.expectEqual(policy.decide(apple), .allow(.apple))
             // Unless they're blocked.
             let blockMeta = rule(.company, "Meta", .block)
-            Check.expectEqual(FirewallPolicy(mode: .onlyAllowed, rules: [blockMeta]).decide(apple), .block(blockMeta))
+            Check.expectEqual(FirewallPolicy(mode: .onlyAllowed, rules: [blockMeta]).decide(apple), .block(.rule(blockMeta)))
         }
 
         Check.test("essentials are never blocked, by any rule or mode") {
@@ -288,6 +288,79 @@ func runFirewallTests() {
             Check.expectEqual(ConnectionsViewModel.format(1, .blocked), "1 time")
             Check.expectEqual(ConnectionsViewModel.format(1204, .blocked), "\(1204.formatted()) times")
             Check.expectEqual(ConnectionsViewModel.format(2048, .bytes), ByteFormat.bytes(2048))
+        }
+    }
+
+    Check.suite("Firewall — updates on a hotspot (#98)") {
+
+        Check.test("an updater is known by its shape, wherever it is") {
+            let updaters = [
+                "/Applications/Opera.app/Contents/MacOS/opera_autoupdate",
+                "/Applications/Raycast.app/Contents/Resources/Updater",
+                "/Applications/AppCleaner.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate",
+                "/Applications/AppCleaner.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app/"
+                    + "Contents/MacOS/Updater",
+                "/Applications/AppCleaner.app/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/"
+                    + "Downloader.xpc/Contents/MacOS/Downloader",
+                "/Users/k/Library/Application Support/Google/GoogleUpdater/150.0.7000.0/GoogleUpdater.app/"
+                    + "Contents/MacOS/GoogleUpdater",
+                "/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/"
+                    + "Microsoft AutoUpdate",
+                "/Applications/Slack.app/Contents/Frameworks/Squirrel.framework/Resources/ShipIt",
+                "/Applications/Google Chrome.app/Contents/Library/LaunchServices/"
+                    + "com.google.Chrome.UpdaterPrivilegedHelper",
+            ]
+            for path in updaters { Check.expectTrue(FirewallPolicy.isUpdater(path), path) }
+            let apps = [
+                "/Applications/Slack.app/Contents/MacOS/Slack",
+                "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/"
+                    + "151/Helpers/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper",
+                "/usr/bin/curl",
+                // An app's own name doesn't make it an updater.
+                "/Applications/Update Notes.app/Contents/MacOS/Update Notes",
+            ]
+            for path in apps { Check.expectFalse(FirewallPolicy.isUpdater(path), path) }
+        }
+
+        Check.test("update servers are the helper's list, and their subdomains") {
+            Check.expectTrue(FirewallPolicy.isUpdateHost("update.googleapis.com"))
+            Check.expectTrue(FirewallPolicy.isUpdateHost("UPDATE.googleapis.com."))
+            Check.expectTrue(FirewallPolicy.isUpdateHost("eu.desktop.figma.com"))
+            Check.expectFalse(FirewallPolicy.isUpdateHost("figma.com"))
+            Check.expectFalse(FirewallPolicy.isUpdateHost("googleapis.com"))
+            Check.expectFalse(FirewallPolicy.isUpdateHost("notupdate.googleapis.com"))
+        }
+
+        let updater = FlowFacts(appKeys: ["/Applications/Opera.app"], companyKey: "Opera", country: "NO",
+                                address: "185.26.182.1", port: 443, isApple: false,
+                                executablePaths: ["/Applications/Opera.app/Contents/MacOS/opera_autoupdate"])
+
+        Check.test("stopped only on a hotspot with Hotspot mode on") {
+            Check.expectEqual(FirewallPolicy(pausesUpdates: true).decide(updater), .block(.updatesOnHotspot))
+            Check.expectEqual(FirewallPolicy(pausesUpdates: false).decide(updater), .allow(.mode))
+            var browsing = updater
+            browsing.executablePaths = ["/Applications/Opera.app/Contents/MacOS/Opera"]
+            Check.expectEqual(FirewallPolicy(pausesUpdates: true).decide(browsing), .allow(.mode), "the app itself")
+            var check = browsing
+            check.hostname = "update.googleapis.com"
+            Check.expectEqual(FirewallPolicy(pausesUpdates: true).decide(check), .block(.updatesOnHotspot),
+                              "an update server, whoever asks")
+        }
+
+        Check.test("your rules win, and Apple's own follows its system setting") {
+            let allowOpera = FirewallRule(subject: .app, key: "/Applications/Opera.app", title: "Opera", action: .allow)
+            Check.expectEqual(FirewallPolicy(rules: [allowOpera], pausesUpdates: true).decide(updater),
+                              .allow(.rule(allowOpera)))
+            var apple = updater
+            apple.isApple = true
+            Check.expectTrue(FirewallPolicy(pausesUpdates: true).decide(apple).allows)
+        }
+
+        Check.test("each reason has a name for the report") {
+            Check.expectEqual(BlockReason.mode.id, "mode")
+            Check.expectEqual(BlockReason.updatesOnHotspot.id, "hotspot-updates")
+            Check.expectTrue(FirewallPolicy(pausesUpdates: true).isActive)
+            Check.expectFalse(FirewallPolicy().isActive)
         }
     }
 }

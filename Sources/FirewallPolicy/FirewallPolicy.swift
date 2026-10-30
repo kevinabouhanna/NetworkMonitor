@@ -1,4 +1,5 @@
 import Foundation
+import HostsFile
 
 // What may connect (#114): the rules a person made in Connections, and what
 // happens to everything they didn't make one for. Shared by the app, which
@@ -58,25 +59,49 @@ public struct FlowFacts: Equatable {
     public var port: Int
     /// Signed by Apple: macOS itself or one of Apple's apps.
     public var isApple: Bool
+    /// The programs behind it, unfolded, to tell an app's updater from the
+    /// app (#98).
+    public var executablePaths: [String]
+    /// The name it connected by, when there is one.
+    public var hostname: String?
 
     public init(appKeys: [String], companyKey: String?, country: String?, address: String, port: Int,
-                isApple: Bool) {
+                isApple: Bool, executablePaths: [String] = [], hostname: String? = nil) {
         self.appKeys = appKeys
         self.companyKey = companyKey
         self.country = country
         self.address = address
         self.port = port
         self.isApple = isApple
+        self.executablePaths = executablePaths
+        self.hostname = hostname
     }
 }
 
 public enum Verdict: Equatable {
     case allow(AllowReason)
-    case block(FirewallRule?)
+    case block(BlockReason)
 
     public var allows: Bool {
         if case .allow = self { return true }
         return false
+    }
+}
+
+public enum BlockReason: Equatable {
+    case rule(FirewallRule)
+    /// Only Where I Allow, and nothing allowed it.
+    case mode
+    /// An updater, or an update server, on a hotspot with Hotspot mode on (#98).
+    case updatesOnHotspot
+
+    /// How a report names it: the rule's id, or what blocked it.
+    public var id: String {
+        switch self {
+        case .rule(let rule):   return rule.id
+        case .mode:             return "mode"
+        case .updatesOnHotspot: return "hotspot-updates"
+        }
     }
 }
 
@@ -94,11 +119,20 @@ public struct FirewallPolicy: Codable, Equatable {
     public var mode: FirewallMode
     public var rules: [FirewallRule]
     public var onHotspot: Bool
+    /// Hotspot mode is on and this is a hotspot: updates wait (#98).
+    public var pausesUpdates: Bool
 
-    public init(mode: FirewallMode = .anywhere, rules: [FirewallRule] = [], onHotspot: Bool = false) {
+    public init(mode: FirewallMode = .anywhere, rules: [FirewallRule] = [], onHotspot: Bool = false,
+                pausesUpdates: Bool = false) {
         self.mode = mode
         self.rules = rules
         self.onHotspot = onHotspot
+        self.pausesUpdates = pausesUpdates
+    }
+
+    /// Anything to decide at all. Without it, the filter looks nothing up.
+    public var isActive: Bool {
+        mode != .anywhere || !rules.isEmpty || pausesUpdates
     }
 
     /// Most specific first: one server is narrower than an app, an app than a
@@ -115,15 +149,64 @@ public struct FirewallPolicy: Codable, Equatable {
                 guard let rule = index["\(subject.rawValue):\(key)"] else { continue }
                 switch rule.action {
                 case .allow:           return .allow(.rule(rule))
-                case .block:           return .block(rule)
-                case .blockOnHotspots: if onHotspot { return .block(rule) }
+                case .block:           return .block(.rule(rule))
+                case .blockOnHotspots: if onHotspot { return .block(.rule(rule)) }
                 }
             }
         }
+        // After your rules, which always win: Always Allow lets an updater
+        // through. macOS and Apple's apps follow Hotspot mode's system setting
+        // instead, so an update started by hand still goes.
+        if pausesUpdates, !flow.isApple,
+           flow.executablePaths.contains(where: Self.isUpdater) || flow.hostname.map(Self.isUpdateHost) == true {
+            return .block(.updatesOnHotspot)
+        }
         switch mode {
         case .anywhere:    return .allow(.mode)
-        case .onlyAllowed: return flow.isApple ? .allow(.apple) : .block(nil)
+        case .onlyAllowed: return flow.isApple ? .allow(.apple) : .block(.mode)
         }
+    }
+
+    // MARK: Updates on a hotspot
+
+    /// Programs that do nothing but update, by name, wherever they are: no
+    /// list of apps to keep up.
+    static let updaterNames: Set<String> = ["googleupdater", "microsoft autoupdate", "microsoft update assistant",
+                                            "googlesoftwareupdateagent", "ksfetch", "shipit"]
+
+    /// An updater, by the shape of its path (#98): a program inside an app
+    /// named like one (`opera_autoupdate`, Raycast's `Updater`, Sparkle's
+    /// `Autoupdate` and `Updater.app`, Chrome's `UpdaterPrivilegedHelper`),
+    /// Sparkle's downloader, or an updater that is a program of its own
+    /// (GoogleUpdater, Microsoft AutoUpdate, Squirrel's ShipIt).
+    public static func isUpdater(_ path: String) -> Bool {
+        let raw = (path as NSString).pathComponents
+        let names = raw.map(name)
+        if names.contains(where: updaterNames.contains) { return true }
+        if let sparkle = raw.firstIndex(of: "Sparkle.framework"),
+           raw[sparkle...].contains(where: { $0.hasPrefix("Downloader") }) {
+            return true
+        }
+        // Inside an app, past the app itself, and not its main program: an
+        // app called "Update Notes" isn't an updater.
+        guard let app = raw.firstIndex(where: { $0.hasSuffix(".app") }) else { return false }
+        return names[(app + 1)...].contains { $0 != names[app] && $0.contains("update") }
+    }
+
+    /// A path component as compared: lowercased, without a bundle's extension.
+    /// Only a bundle's: `com.google.Chrome.UpdaterPrivilegedHelper` is all name.
+    private static func name(_ component: String) -> String {
+        let lowered = component.lowercased()
+        for suffix in [".app", ".xpc", ".framework", ".bundle"] where lowered.hasSuffix(suffix) {
+            return String(lowered.dropLast(suffix.count))
+        }
+        return lowered
+    }
+
+    /// A server that carries nothing but updates: the helper's list.
+    public static func isUpdateHost(_ hostname: String) -> Bool {
+        let name = hostname.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        return HostsFile.updateHosts.contains { name == $0 || name.hasSuffix("." + $0) }
     }
 
     private static func keys(of flow: FlowFacts, _ subject: RuleSubject) -> [String] {
