@@ -213,9 +213,12 @@ Every change follows the same path:
 
 1. Write the version's **What's new** in `ReleaseNotes/X.Y.Z.md` and merge it like any
    change. It's Markdown: short bullets, each with a bold lead and its issue, and no
-   `]]>`. Sparkle shows it in the update window, carried in the appcast (#152), and the
-   workflow puts it in the release notes under **What's new in X.Y.Z**. A tag without
-   it fails in the first seconds.
+   `]]>`. Sparkle shows it in the update window, carried in the appcast (#152) with the
+   nine versions before it, as HTML from `Scripts/release-notes.swift`. Each version is
+   a `<div data-sparkle-version="BUILD">`, and Sparkle hides the installed one and
+   everything older, so a reader several versions behind sees each version they missed
+   (#163). The workflow puts this version's file alone in the release notes, under
+   **What's new in X.Y.Z**. A tag without it fails in the first seconds.
 2. Tag `main` and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
 3. The **Release** workflow (`.github/workflows/release.yml`) runs the tests, builds the
    universal DMG with the tag's version, checks the version, the helper, the content filter

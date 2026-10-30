@@ -5,10 +5,11 @@
 # release, so the app's feed, releases/latest/download/appcast.xml, is always
 # the newest release's.
 #
-# The update window shows the version's What's new, from
-# ReleaseNotes/<version>.md, carried in the appcast as Markdown, which Sparkle
-# renders from 2.9 on (#152): nothing to fetch, and the same words as the
-# release's notes, which the workflow takes from the same file.
+# The update window shows What's new from ReleaseNotes/ (#152), carried in the
+# appcast so there's nothing to fetch: every recent version's, as HTML that
+# Sparkle trims to the versions newer than the one installed (#163). See
+# Scripts/release-notes.swift. The release's own notes take this version's
+# file alone.
 #
 # Usage: SPARKLE_ED_KEY=… Scripts/appcast.sh <NetworkMonitor.dmg> <NetworkMonitor.app> <version>
 
@@ -26,10 +27,6 @@ if [ ! -s "$NOTES" ]; then
   echo "error: ${NOTES} is missing: write the version's What's new before tagging" >&2
   exit 1
 fi
-if grep -q ']]>' "$NOTES"; then
-  echo "error: ${NOTES} can't contain ]]>, which would end the appcast's CDATA" >&2
-  exit 1
-fi
 
 # The key that signs must be the one the app trusts, or every update is
 # refused: checked before anything is published.
@@ -42,6 +39,11 @@ fi
 
 BUILD="$(plist CFBundleVersion)"
 MINIMUM="$(plist LSMinimumSystemVersion)"
+DESCRIPTION="$(swift Scripts/release-notes.swift "$VERSION" "$BUILD")"
+if [[ "$DESCRIPTION" == *']]>'* ]]; then
+  echo "error: the release notes can't contain ]]>, which would end the appcast's CDATA" >&2
+  exit 1
+fi
 LENGTH="$(stat -f %z "$DMG")"
 SIGNATURE="$(swift Scripts/ed25519-sign.swift "$DMG")"
 DATE="$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")"
@@ -59,8 +61,8 @@ cat <<XML
       <sparkle:version>${BUILD}</sparkle:version>
       <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>${MINIMUM}</sparkle:minimumSystemVersion>
-      <description sparkle:format="markdown"><![CDATA[
-$(cat "$NOTES")
+      <description><![CDATA[
+${DESCRIPTION}
 ]]></description>
       <sparkle:fullReleaseNotesLink>${REPO}/releases</sparkle:fullReleaseNotesLink>
       <enclosure url="${REPO}/releases/download/v${VERSION}/NetworkMonitor.dmg"
