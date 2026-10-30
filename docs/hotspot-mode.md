@@ -14,7 +14,8 @@ is off, and only the traffic counting runs. When you switch it on:
 
 1. **macOS asks you to allow a small helper, once:** switch on NetworkMonitor in System
    Settings › General › Login Items & Extensions, under **Allow in the Background**
-   (#131). It's optional; see [what it pauses](#what-it-pauses) for what it adds.
+   (#131). macOS may ask for your password or Touch ID to allow it; NetworkMonitor itself
+   never does. It's optional; see [what it pauses](#what-it-pauses) for what it adds.
 2. **NetworkMonitor looks inside the apps** in `/Applications` and `~/Applications` to see
    how each one updates. It reads their files on your Mac; there's no list downloaded from
    anywhere.

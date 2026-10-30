@@ -51,11 +51,19 @@ release of its own:
 - `make test` runs the suite. It is an executable, not `swift test`: Command Line
   Tools has no XCTest. The pre-push hook runs it too (`make hooks` installs it).
 - `make app` builds `build/NetworkMonitor.app`.
-- `make install` builds and installs to /Applications.
-- **Signing.** Builds are signed with NetworkMonitor's own certificate from
-  `~/.config/networkmonitor-signing/` when it's there, and ad-hoc otherwise; the
-  Release workflow uses the copy in the repository secrets. Keep it that way: an
-  ad-hoc release would make macOS ask for Location again after the update (#86).
+- `make install` builds, notarizes and installs to /Applications. Notarizing needs the
+  login keychain unlocked.
+- **Signing.** Builds are signed with the Developer ID (team GRQKG7M8CL) from
+  `~/.config/networkmonitor-signing/` when it's there, falling back to
+  NetworkMonitor's own certificate, then ad-hoc; the Release workflow uses the copies
+  in the repository secrets. Only a Developer ID build carries the content filter, the
+  helper daemon and the update feed. Keys and secrets are listed in
+  `docs/DISTRIBUTION.md`; never paste one anywhere, and set secrets with
+  `gh secret set NAME < file`.
+- **Test the filter, the helper daemon and Sparkle on a notarized build in
+  /Applications**, which `make install` makes; they don't work from `build/`. Point a
+  development build at local test data with launch arguments instead of publishing
+  anything (`docs/development.md#launch-arguments`).
 - **Command Line Tools only.** With the macOS 27 SDK, SwiftUI's `@State` is a
   macro, and its implementation ships only with Xcode. Hold view state in an
   `ObservableObject` instead; see `SettingsPaneState`.

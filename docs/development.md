@@ -4,11 +4,14 @@
 
 - **To run:** macOS 13 or later, Apple silicon or Intel.
 - **To build:** Apple's **Command Line Tools** (`xcode-select --install`). Xcode and a
-  developer account aren't needed, though everything works under Xcode too.
+  developer account aren't needed, though everything works under Xcode too. Notarizing,
+  which only a Developer ID build needs, uses `notarytool` and `stapler`, which come with
+  Xcode.
 - **Swift:** a Swift 6 toolchain. `Package.swift` declares tools version 5.9 on
   purpose, which keeps the Swift 5 language mode, so the package builds without Swift 6
   strict-concurrency annotations.
-- **No dependencies.** Usage History uses the system's own SQLite.
+- **One dependency: Sparkle** (#132), pinned to an exact release in `Package.swift` and
+  fetched by SwiftPM with its checksum. Usage History uses the system's own SQLite.
 - `make dmg` also needs `python3` (part of the Command Line Tools) and network access the
   first time, to install `dmgbuild` into `.build/dmgbuild-venv`. Nothing is added to the
   system Python.
@@ -38,11 +41,11 @@ make run     # build build/NetworkMonitor.app and open it
 | `make universal` | The same, for arm64 and x86_64 |
 | `make dmg` | `universal`, then `build/NetworkMonitor.dmg` |
 | `make run` | `app`, then quit any running copy and open the new one |
-| `make install` | Builds, copies to /Applications, and lets the app register itself to start at login |
+| `make install` | Builds, notarizes it when it carries the content filter (the login keychain must be unlocked), copies to /Applications, and lets the app register itself to start at login |
 | `make install-only` | The same without starting at login |
 | `make update` | `git pull --ff-only`, the tests, then `install`. Tests first, so a bad pull can't replace a working copy |
 | `make uninstall` | `Scripts/uninstall.sh` (see below) |
-| `make helper` | Installs the root helper by hand, with its hourly self-check. Asks for your password |
+| `make helper` | Installs the `sudo` helper by hand, with its hourly self-check, for builds without a Developer ID. Asks for your password |
 | `make helper-no-daemon` | The same without the hourly self-check |
 | `make metering-report` | Prints what Hotspot mode reaches on this Mac, pending update downloads and the Low Data Mode state. Read-only, safe beside a running copy |
 | `make icon` | Redraws `Resources/AppIcon.icns` from `Scripts/make-icon.swift` |
@@ -117,7 +120,9 @@ There's no Xcode project. `Scripts/bundle.sh` assembles the bundle by hand, beca
    one-step `--arch arm64 --arch x86_64` needs Xcode's build system. The helper is
    universal too, since it's installed from inside the bundle on whatever Mac runs it.
 3. **Layout:** the app binary, `Info.plist`, the icon, the helper in
-   `Contents/Library/LaunchServices/`, and `helper-setup.sh` in `Resources`.
+   `Contents/Library/LaunchServices/`, `helper-setup.sh` in `Resources`, the country and
+   map data in `Resources/Geo`, and `Sparkle.framework` in `Contents/Frameworks`, without
+   its XPC services, which only sandboxed apps need.
 4. **Signing**, inside out and without `--deep`: the helper first, with its own
    identifier, then the app. `--deep` re-signed the helper with an identifier guessed from
    its file name, which was the app's. `Scripts/signing.sh` chooses what with, the first
@@ -138,17 +143,22 @@ There's no Xcode project. `Scripts/bundle.sh` assembles the bundle by hand, beca
 
    A `.p12` is imported into a throwaway keychain, deleted afterwards, so the key never
    sits in the login keychain and nothing prompts.
-   With the Developer ID, `bundle.sh` also assembles the content filter's bundle
+   Sparkle's pieces are re-signed inside out with whichever of these the build uses.
+
+   With the Developer ID, `bundle.sh` also adds the helper daemon's plist
+   (`Contents/Library/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist`, #131)
+   and Sparkle's feed and public key to `Info.plist` (#132), and assembles the content
+   filter's bundle
    (`Contents/Library/SystemExtensions/com.kevinabouhanna.NetworkMonitor.Filter.systemextension`),
    embeds the two provisioning profiles from `Resources/Profiles/`, which grant its
    entitlements and ship in every copy, and signs the filter, the helper and the app inside
-   out. The app then uses `Resources/NetworkMonitor+Filter.entitlements`. Without the
-   Developer ID or the profiles, the filter is left out and nothing else changes.
+   out. The app then uses `Resources/NetworkMonitor+Filter.entitlements`. The country and
+   owner tables move into the filter, which needs them, and the app links to them there. The
+   filter's XPC service is named after the build (#142). Without the Developer ID or the
+   profiles, the filter is left out and nothing else changes.
 
-   macOS only activates a system extension from a notarized app, so trying the filter on a
-   development build means `make app`, `./Scripts/notarize.sh build/NetworkMonitor.app`,
-   and copying the stapled app to /Applications; `make install` rebuilds, which undoes the
-   notarization.
+   macOS only activates a system extension from a notarized app, and the helper daemon and
+   Sparkle need one too, so try them with `make install`, which notarizes.
 5. **Notarizing**, with `Scripts/notarize.sh <app or dmg>`: submits to Apple, waits, and
    staples the ticket. It uses the API key in `NOTARY_KEY`, `NOTARY_KEY_ID` and
    `NOTARY_ISSUER` if set, or else the keychain profile `networkmonitor`, saved once with
@@ -166,13 +176,17 @@ even in dark mode. The file name has no version, so
 - `Scripts/install.sh` builds, copies to `/Applications`, strips the quarantine flag, and
   opens the app, which registers itself to start at login. `--no-login` skips that.
 - `Scripts/uninstall.sh` quits the app and any `nettop` it left, puts back what Hotspot
-  mode changed, removes the helper (password), the login item and the app. Unlike the
-  in-app Uninstall, it **keeps your usage data** unless you pass `--purge`.
+  mode changed, removes the helper (with `sudo`, so it asks for your password), withdraws
+  the login item and the helper daemon, and removes the app. Unlike the in-app Uninstall,
+  it **keeps your usage data** unless you pass `--purge`.
 - `Scripts/install-helper.sh` installs the helper for development, through the same
   `helper-setup.sh` the app uses.
 - `Scripts/smoke-test.sh` launches the built app and fails if it isn't still running five
   seconds later. Deliberately shallow: a crash on launch is the one bug an auto-updater
   would ship to everyone.
+- `Scripts/appcast.sh` and `Scripts/ed25519-sign.swift` sign a release's disk image with the
+  update key and write its appcast (#132). `Scripts/geodata.sh` and `GeoDataBuilder package`
+  convert and sign a month of country data (#121).
 
 ## CI
 
@@ -199,15 +213,19 @@ Every change follows the same path:
 
 1. Tag `main` and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
 2. The **Release** workflow (`.github/workflows/release.yml`) runs the tests, builds the
-   universal DMG with the tag's version, checks the version, the helper and the
-   signature, and publishes `NetworkMonitor.dmg` with install and update instructions.
+   universal DMG with the tag's version, checks the version, the helper, the content filter
+   and the signature, signs the update and writes the appcast with `SPARKLE_ED_KEY`, and
+   publishes `NetworkMonitor.dmg` and `appcast.xml` with install and update instructions.
    It signs with the Developer ID in the repository secrets `DEVID_P12_BASE64` and
    `DEVID_P12_PASSWORD`, notarizes with the API key in `NOTARY_KEY_BASE64`,
    `NOTARY_KEY_ID` and `NOTARY_ISSUER`, and fails without them. It then checks the team
    (`GRQKG7M8CL`), the Location entitlement, and that `spctl` accepts both the app and
    the disk image as *Notarized Developer ID*.
 3. Add a **What's new in X.Y.Z** section to the release notes by hand.
-4. Update the website (below).
+4. Install it with `make install` from the tag.
+5. Update the website (below).
+
+[Distribution](DISTRIBUTION.md) has every key and secret, and where each lives.
 
 ## The website
 
@@ -225,6 +243,17 @@ beside the main checkout. Changes to it get an issue and a pull request against
 - **Every image is a real capture of the app**, never a mock-up. The Settings section
   shows each pane as a capture in `assets/settings/`, with the window's size in points on
   each `<img>` and clickable areas placed in the same points.
+
+## Launch arguments
+
+A development build reads a few launch arguments for that run only; nothing persists.
+
+| Argument | Does |
+|---|---|
+| `-powerProfile balanced` (or `performance`, `saver`) | measures a power profile without unplugging (below) |
+| `-open connections`, `-open welcome`, `-open settings -pane history` | opens a window straight away, for a screenshot or a check |
+| `-geoDataURL http://127.0.0.1:8765/ -geoDataCheckNow YES` | fetches the monthly data from a local package, at once (#121) |
+| `-updateFeedURL http://127.0.0.1:8765/appcast.xml -checkForUpdatesNow YES` | checks a local appcast for an update, at once (#132) |
 
 ## Measuring power
 

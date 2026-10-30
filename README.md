@@ -61,7 +61,7 @@ Before that, download the new DMG and drag NetworkMonitor into Applications, cho
 Right-click the menu bar readout and choose **Uninstall NetworkMonitor…** (or **Settings › About › Uninstall…**). It puts back every setting it changed, then moves itself to the Trash.
 
 > [!WARNING]
-> Don't just drag it to the Trash: the update settings that Hotspot mode changed without a password would stay off. If you already did, drag it back, open it, and uninstall from the menu.
+> Don't just drag it to the Trash: the update settings that Hotspot mode changed without its helper would stay off. If you already did, drag it back, open it, and uninstall from the menu.
 
 ## 🖱️ Using it
 
