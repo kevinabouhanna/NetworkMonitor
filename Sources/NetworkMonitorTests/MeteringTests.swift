@@ -51,6 +51,14 @@ func runMeteredHeuristicTests() {
                               .androidTetherSubnet)
         }
 
+        Check.test("an Android phone that says it's tethering is a hotspot, on any subnet") {
+            // Android picks a random subnet now: what it says is what counts.
+            Check.expectEqual(verdict(.init(androidSaysMetered: true, gatewayIP: "192.168.88.1")),
+                              .androidAnnounced)
+            Check.expectEqual(verdict(.init(androidSaysMetered: true, gatewayIP: "10.47.12.1")),
+                              .androidAnnounced)
+        }
+
         Check.test("an ordinary home gateway is not metered") {
             Check.expectEqual(verdict(.init(gatewayIP: "192.168.1.1")), .unmetered)
             Check.expectEqual(verdict(.init(gatewayIP: "10.0.0.1")), .unmetered)
@@ -81,14 +89,18 @@ func runMeteredHeuristicTests() {
         }
 
         Check.test("ranks are tried in order of how much they can be trusted") {
-            // isExpensive (2) outranks the subnet check (3).
+            // isExpensive (2) outranks what the phone says (3).
             Check.expectEqual(
-                verdict(.init(isExpensive: true, gatewayIP: "172.20.10.1")), .expensive)
-            // The subnet check (3) outranks the interface name (5).
+                verdict(.init(isExpensive: true, androidSaysMetered: true)), .expensive)
+            // What the phone says (3) outranks the subnet checks (4, 5).
+            Check.expectEqual(
+                verdict(.init(androidSaysMetered: true, gatewayIP: "192.168.43.1")),
+                .androidAnnounced)
+            // The subnet check (4) outranks the interface name (6).
             Check.expectEqual(
                 verdict(.init(gatewayIP: "172.20.10.1", interfaceDisplayName: "Wi-Fi")),
                 .iOSHotspotSubnet)
-            // The interface name (5) outranks Low Data Mode (6).
+            // The interface name (6) outranks Low Data Mode (7).
             Check.expectEqual(
                 verdict(.init(isConstrained: true, interfaceDisplayName: "iPhone USB")),
                 .tetherInterface)
@@ -96,12 +108,60 @@ func runMeteredHeuristicTests() {
 
         Check.test("every metered verdict reports itself as metered") {
             for verdict in [MeteredHeuristic.Verdict.userMarked, .expensive,
-                            .iOSHotspotSubnet, .androidTetherSubnet,
+                            .androidAnnounced, .iOSHotspotSubnet, .androidTetherSubnet,
                             .tetherInterface, .constrained] {
                 Check.expectTrue(verdict.isMetered, "\(verdict) should be metered")
                 Check.expectFalse(verdict.explanation.isEmpty)
             }
             Check.expectFalse(MeteredHeuristic.Verdict.unmetered.isMetered)
+        }
+    }
+
+    Check.suite("Android tethering") {
+        // Shaped as configd keeps it: State:/Network/Service/<id>/IPv4 and
+        // /DHCP, the lease's options as Option_<code>.
+        let phone = "State:/Network/Service/A"
+        let vpn = "State:/Network/Service/B"
+        func lease(_ option43: Data?) -> [String: Any] {
+            var options: [String: Any] = ["Option_3": Data([192, 168, 88, 1]), "Option_53": Data([5])]
+            options["Option_43"] = option43
+            return options
+        }
+
+        Check.test("a lease carrying ANDROID_METERED on the interface counts") {
+            let states: [String: Any] = [phone + "/IPv4": ["InterfaceName": "en0"],
+                                         phone + "/DHCP": lease(AndroidTethering.vendorInfo)]
+            Check.expectTrue(AndroidTethering.saysMetered(onInterface: "en0", in: states))
+        }
+
+        Check.test("only the lease of the interface in use counts") {
+            let states: [String: Any] = [phone + "/IPv4": ["InterfaceName": "en5"],
+                                         phone + "/DHCP": lease(AndroidTethering.vendorInfo),
+                                         vpn + "/IPv4": ["InterfaceName": "en0"],
+                                         vpn + "/DHCP": lease(nil)]
+            Check.expectFalse(AndroidTethering.saysMetered(onInterface: "en0", in: states))
+            Check.expectTrue(AndroidTethering.saysMetered(onInterface: "en5", in: states))
+        }
+
+        Check.test("a home router's lease, or another vendor's, doesn't count") {
+            let home: [String: Any] = [phone + "/IPv4": ["InterfaceName": "en0"],
+                                       phone + "/DHCP": lease(nil)]
+            Check.expectFalse(AndroidTethering.saysMetered(onInterface: "en0", in: home))
+            let other: [String: Any] = [phone + "/IPv4": ["InterfaceName": "en0"],
+                                        phone + "/DHCP": lease(Data("MSFT 5.0".utf8))]
+            Check.expectFalse(AndroidTethering.saysMetered(onInterface: "en0", in: other))
+            // An address set by hand has no lease at all.
+            Check.expectFalse(AndroidTethering.saysMetered(
+                onInterface: "en0", in: [phone + "/IPv4": ["InterfaceName": "en0"]]))
+        }
+
+        Check.test("the fingerprint hands the signal to the heuristic") {
+            let fingerprint = NetworkFingerprint.make(kind: .wifi, gatewayMAC: "02:00:00:00:00:01",
+                                                      interfaceName: "en0", isExpensive: false,
+                                                      androidSaysMetered: true, isConstrained: false,
+                                                      gatewayIP: "192.168.88.1")
+            Check.expectEqual(MeteredHeuristic.verdict(for: fingerprint.signals), .androidAnnounced)
+            Check.expectTrue(fingerprint.isSameLink(as: fingerprint.named("Galaxy")))
         }
     }
 
@@ -726,8 +786,27 @@ func runMeteringControllerTests() {
 
             controller.setOverride(true)
             Check.expectEqual(controller.verdict, .userMarked)
+            Check.expectEqual(controller.override, true)
             Check.expectTrue(controller.isSuppressing)
             Check.expectEqual(fake.applyCount, 1)
+        }
+
+        Check.test("choosing automatic again hands the decision back") {
+            let (controller, _, urls) = makeController(enabled: true, fingerprint: home)
+            defer { urls.forEach { try? FileManager.default.removeItem(at: $0) } }
+            controller.setOverride(true)
+            controller.setOverride(nil)
+            Check.expectNil(controller.override)
+            Check.expectEqual(controller.verdict, .unmetered)
+            Check.expectFalse(controller.isSuppressing)
+        }
+
+        Check.test("nothing is remembered about being offline") {
+            let (controller, _, urls) = makeController(enabled: true, fingerprint: .offline)
+            defer { urls.forEach { try? FileManager.default.removeItem(at: $0) } }
+            controller.setOverride(true)
+            Check.expectNil(controller.override)
+            Check.expectFalse(controller.isSuppressing)
         }
 
         Check.test("an override can also clear a network the heuristic flagged") {

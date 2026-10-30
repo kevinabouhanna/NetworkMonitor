@@ -10,10 +10,10 @@ import SystemConfiguration
 /// MAC of the kind iOS randomises for Personal Hotspot. But it only fires when
 /// macOS *recognises* the link, and the feature has to behave identically for
 /// USB tethering and for a stranger's Android phone. So `isExpensive` is one
-/// signal of six rather than the definition.
+/// signal of seven rather than the definition.
 ///
 /// The ranks are ordered by how much they can be trusted, and the first one that
-/// answers wins. Everything below rank 2 is convention rather than guarantee: a
+/// answers wins. Everything below rank 3 is convention rather than guarantee: a
 /// vendor is free to hand out a different subnet tomorrow. That is acceptable
 /// because of which way they fail — a missed signal means metering does not
 /// engage, never that an ordinary home network is wrongly suppressed — and
@@ -28,6 +28,9 @@ public enum MeteredHeuristic {
         public var userOverride: Bool?
         /// `NWPath.isExpensive`.
         public var isExpensive: Bool
+        /// The router said it's an Android phone sharing its connection: see
+        /// `AndroidTethering`.
+        public var androidSaysMetered: Bool
         /// `NWPath.isConstrained` — the link is in Low Data Mode.
         public var isConstrained: Bool
         /// IPv4 address of the default gateway, e.g. `172.20.10.1`.
@@ -38,11 +41,13 @@ public enum MeteredHeuristic {
 
         public init(userOverride: Bool? = nil,
                     isExpensive: Bool = false,
+                    androidSaysMetered: Bool = false,
                     isConstrained: Bool = false,
                     gatewayIP: String? = nil,
                     interfaceDisplayName: String? = nil) {
             self.userOverride = userOverride
             self.isExpensive = isExpensive
+            self.androidSaysMetered = androidSaysMetered
             self.isConstrained = isConstrained
             self.gatewayIP = gatewayIP
             self.interfaceDisplayName = interfaceDisplayName
@@ -60,13 +65,15 @@ public enum MeteredHeuristic {
         case userCleared
         /// Rank 2 — `NWPath.isExpensive`.
         case expensive
-        /// Rank 3 — gateway inside iOS Personal Hotspot's fixed range.
+        /// Rank 3 — an Android phone's DHCP reply says it is tethering (#109).
+        case androidAnnounced
+        /// Rank 4 — gateway inside iOS Personal Hotspot's fixed range.
         case iOSHotspotSubnet
-        /// Rank 4 — gateway inside a conventional Android tethering range.
+        /// Rank 5 — gateway inside a conventional Android tethering range.
         case androidTetherSubnet
-        /// Rank 5 — the default route runs over an interface named like a tether.
+        /// Rank 6 — the default route runs over an interface named like a tether.
         case tetherInterface
-        /// Rank 6 — the link is already in Low Data Mode, which is a statement
+        /// Rank 7 — the link is already in Low Data Mode, which is a statement
         /// about cost that someone has made deliberately.
         case constrained
         /// Nothing fired.
@@ -79,17 +86,18 @@ public enum MeteredHeuristic {
             }
         }
 
-        /// Shown in the popover next to the METERED badge.
+        /// Shown in Settings › Hotspot, beside the choice that overrules it.
         public var explanation: String {
             switch self {
-            case .userMarked:          return "You marked this network as metered."
-            case .userCleared:         return "You marked this network as not metered."
+            case .userMarked:          return "You said this network is a hotspot."
+            case .userCleared:         return "You said this network isn't a hotspot."
             case .expensive:           return "macOS reports this connection as a hotspot."
+            case .androidAnnounced:    return "An Android phone is sharing its connection."
             case .iOSHotspotSubnet:    return "This looks like an iPhone Personal Hotspot."
             case .androidTetherSubnet: return "This looks like a phone sharing its connection."
             case .tetherInterface:     return "You're tethered through a phone."
             case .constrained:         return "This network is in Low Data Mode."
-            case .unmetered:           return "This connection isn't metered."
+            case .unmetered:           return "This doesn't look like a hotspot."
             }
         }
     }
@@ -101,8 +109,9 @@ public enum MeteredHeuristic {
     public static let iOSHotspotRange = IPv4Range(prefix: "172.20.10.0", bits: 28)
 
     /// Android's long-standing defaults: `192.168.42.0/24` for USB tethering and
-    /// `192.168.43.0/24` for Wi-Fi. Vendors do override these, so this rank is
-    /// the weakest of the automatic ones and is expected to drift.
+    /// `192.168.43.0/24` for Wi-Fi. Recent Android versions pick a random subnet
+    /// instead, so a Samsung hotspot passed straight through here (#109), and
+    /// rank 3 is what catches them now.
     public static let androidTetherRanges = [
         IPv4Range(prefix: "192.168.42.0", bits: 24),
         IPv4Range(prefix: "192.168.43.0", bits: 24),
@@ -127,7 +136,10 @@ public enum MeteredHeuristic {
         // Rank 2.
         if signals.isExpensive { return .expensive }
 
-        // Ranks 3 and 4.
+        // Rank 3. Said by the phone itself, whatever subnet it chose.
+        if signals.androidSaysMetered { return .androidAnnounced }
+
+        // Ranks 4 and 5.
         if let gateway = signals.gatewayIP, let address = IPv4Address(gateway) {
             if iOSHotspotRange.contains(address) { return .iOSHotspotSubnet }
             if androidTetherRanges.contains(where: { $0.contains(address) }) {
@@ -135,13 +147,13 @@ public enum MeteredHeuristic {
             }
         }
 
-        // Rank 5.
+        // Rank 6.
         if let name = signals.interfaceDisplayName?.lowercased(),
            tetherNameFragments.contains(where: { name.contains($0) }) {
             return .tetherInterface
         }
 
-        // Rank 6.
+        // Rank 7.
         if signals.isConstrained { return .constrained }
 
         return .unmetered
@@ -196,6 +208,45 @@ public struct IPv4Range {
 }
 
 // MARK: - Live signal collection
+
+/// What an Android phone says about itself when it shares its connection
+/// (#109).
+///
+/// Android's tethering hands out addresses with its own DHCP server, which
+/// marks every offer and acknowledgement as metered: `IpServer` asks for it
+/// unconditionally, and `DhcpPacket` writes it as vendor-specific option 43,
+/// the bytes `ANDROID_METERED`. Android clients read it to treat the hotspot as
+/// metered; macOS ignores it, so a Samsung hotspot came up as plain Wi-Fi.
+///
+/// configd keeps every option of each service's lease in its dynamic store,
+/// which any process can read, so this needs no permission and no `ipconfig`.
+public enum AndroidTethering {
+
+    public static let vendorInfo = Data("ANDROID_METERED".utf8)
+
+    /// Whether the lease on `interfaceName` came from an Android phone.
+    public static func saysMetered(onInterface interfaceName: String?) -> Bool {
+        guard let interfaceName,
+              let store = SCDynamicStoreCreate(nil, "NetworkMonitor" as CFString, nil, nil),
+              let states = SCDynamicStoreCopyMultiple(
+                store, nil, ["State:/Network/Service/[^/]+/(IPv4|DHCP)"] as CFArray) as? [String: Any]
+        else { return false }
+        return saysMetered(onInterface: interfaceName, in: states)
+    }
+
+    /// From configd's service state, keyed as it keys it: the DHCP lease of
+    /// the service on `interfaceName`, since a VPN or a second interface has a
+    /// service of its own.
+    public static func saysMetered(onInterface interfaceName: String, in states: [String: Any]) -> Bool {
+        for (key, value) in states where key.hasSuffix("/IPv4") {
+            guard let ipv4 = value as? [String: Any], ipv4["InterfaceName"] as? String == interfaceName
+            else { continue }
+            let lease = states[String(key.dropLast("IPv4".count)) + "DHCP"] as? [String: Any]
+            if let option = lease?["Option_43"] as? Data, option.range(of: vendorInfo) != nil { return true }
+        }
+        return false
+    }
+}
 
 /// Reads the two signals that do not come from `NWPath`.
 public enum InterfaceNaming {

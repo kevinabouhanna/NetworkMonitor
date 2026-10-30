@@ -34,6 +34,9 @@ public struct NetworkFingerprint: Equatable {
     /// From `NWPath.isExpensive` — true for Personal Hotspot and cellular.
     /// This is the hook for metered-network features.
     public let isExpensive: Bool
+    /// The lease came from an Android phone sharing its connection, which says
+    /// so in it (#109). See `AndroidTethering`.
+    public let androidSaysMetered: Bool
     /// From `NWPath.isConstrained` — macOS Low Data Mode.
     public let isConstrained: Bool
     /// Default gateway's IPv4 address, which `MeteredHeuristic` reads as a
@@ -60,6 +63,7 @@ public struct NetworkFingerprint: Equatable {
     public var signals: MeteredHeuristic.Signals {
         MeteredHeuristic.Signals(userOverride: nil,
                                  isExpensive: isExpensive,
+                                 androidSaysMetered: androidSaysMetered,
                                  isConstrained: isConstrained,
                                  gatewayIP: gatewayIP,
                                  interfaceDisplayName: interfaceDisplayName)
@@ -70,6 +74,7 @@ public struct NetworkFingerprint: Equatable {
                 gatewayMAC: String?,
                 defaultLabel: String,
                 isExpensive: Bool,
+                androidSaysMetered: Bool = false,
                 isConstrained: Bool,
                 gatewayIP: String? = nil,
                 interfaceDisplayName: String? = nil,
@@ -80,6 +85,7 @@ public struct NetworkFingerprint: Equatable {
         self.gatewayMAC = gatewayMAC
         self.defaultLabel = defaultLabel
         self.isExpensive = isExpensive
+        self.androidSaysMetered = androidSaysMetered
         self.isConstrained = isConstrained
         self.gatewayIP = gatewayIP
         self.interfaceDisplayName = interfaceDisplayName
@@ -90,7 +96,8 @@ public struct NetworkFingerprint: Equatable {
     /// The same fingerprint with another Wi-Fi name.
     public func named(_ wifiName: String?) -> NetworkFingerprint {
         NetworkFingerprint(id: id, kind: kind, gatewayMAC: gatewayMAC, defaultLabel: defaultLabel,
-                           isExpensive: isExpensive, isConstrained: isConstrained,
+                           isExpensive: isExpensive, androidSaysMetered: androidSaysMetered,
+                           isConstrained: isConstrained,
                            gatewayIP: gatewayIP, interfaceDisplayName: interfaceDisplayName,
                            interfaceName: interfaceName, wifiName: wifiName)
     }
@@ -117,6 +124,7 @@ public struct NetworkFingerprint: Equatable {
                      gatewayMAC: String?,
                      interfaceName: String?,
                      isExpensive: Bool,
+                     androidSaysMetered: Bool = false,
                      isConstrained: Bool,
                      gatewayIP: String? = nil,
                      interfaceDisplayName: String? = nil,
@@ -159,6 +167,7 @@ public struct NetworkFingerprint: Equatable {
                                   gatewayMAC: gatewayMAC,
                                   defaultLabel: label,
                                   isExpensive: isExpensive,
+                                  androidSaysMetered: androidSaysMetered,
                                   isConstrained: isConstrained,
                                   gatewayIP: gatewayIP,
                                   interfaceDisplayName: interfaceDisplayName,
@@ -254,6 +263,7 @@ public final class NetworkIdentityWatcher {
         let gatewayIP = GatewayProbe.defaultGatewayIP()
         let gatewayMAC = gatewayIP.flatMap(GatewayProbe.macAddress(forGateway:))
         let displayName = interfaceName.flatMap(InterfaceNaming.displayName(forBSDName:))
+        let androidSaysMetered = AndroidTethering.saysMetered(onInterface: interfaceName)
 
         // Masked, for the same reason the override is left out below: putting a
         // hotel network the user marked metered into Low Data Mode must not turn
@@ -263,6 +273,7 @@ public final class NetworkIdentityWatcher {
         let signals = ownership.masking(
             MeteredHeuristic.Signals(userOverride: nil,
                                      isExpensive: path.isExpensive,
+                                     androidSaysMetered: androidSaysMetered,
                                      isConstrained: path.isConstrained,
                                      gatewayIP: gatewayIP,
                                      interfaceDisplayName: displayName),
@@ -292,6 +303,7 @@ public final class NetworkIdentityWatcher {
                      gatewayMAC: gatewayMAC,
                      interfaceName: interfaceName,
                      isExpensive: path.isExpensive,
+                     androidSaysMetered: androidSaysMetered,
                      isConstrained: path.isConstrained,
                      gatewayIP: gatewayIP,
                      interfaceDisplayName: displayName,
