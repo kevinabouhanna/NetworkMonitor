@@ -346,6 +346,9 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    welcome window (`WelcomeWindowController`) on first launch, and by `WebsiteNamesRow`
    in Settings › Connections and the Connections window (#134). `FilterController`
    follows `NEFilterConfigurationDidChange`, so turning it off in System Settings shows.
+   At each launch with the filter on, it asks macOS to activate the extension in its own
+   bundle: macOS keeps running the one it last activated, so without this an update never
+   reached the filter (#136).
 
 An app's servers can add up to a little less than its total: a socket that opened and
 closed between two samples leaves no connection row. In a 30-second capture on the
