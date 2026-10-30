@@ -1,9 +1,12 @@
 # Architecture
 
-NetworkMonitor is one menu bar process. It runs `nettop` as a long-lived child, and can
-optionally install a small root helper for [Hotspot mode](hotspot-mode.md). Everything
-else is in-process, and nothing talks to the network except a
-[speed test](speed-test.md) you start.
+NetworkMonitor is one menu bar process that runs `nettop` as a long-lived child. A
+build signed with the Developer ID adds two parts macOS runs on its behalf, each allowed
+once by you: a **content filter** (a system extension) for Connections, blocking and
+Hotspot mode, and a **helper** (a launch daemon) for the system settings Hotspot mode
+changes. It goes online for three things only: a [speed test](speed-test.md) you
+start, the daily [update check](installing.md), and the
+[monthly country data](privacy.md#what-it-sends).
 
 ## How data flows
 
@@ -11,25 +14,32 @@ else is in-process, and nothing talks to the network except a
 flowchart LR
     subgraph mac["macOS"]
         K["Kernel byte counters<br/>sysctl NET_RT_IFLIST2"]
-        N["nettop<br/>long-lived child, on a PTY"]
-        P["NWPathMonitor<br/>route + configd: gateway MAC"]
+        N["nettop<br/>long-lived child, on a PTY,<br/>restarted if it dies or stalls"]
+        P["NWPathMonitor<br/>route + configd: gateway MAC,<br/>DHCP lease"]
         E["Power source, Low Power Mode,<br/>display sleep, screen lock"]
     end
 
     subgraph app["NetworkMonitor"]
         S["Sampler<br/>InterfaceCounters → DeltaTracker → RateSmoother"]
-        NS["NettopStream → NettopParser<br/>per-process and per-connection rows"]
+        NS["NettopStream → NettopParser<br/>→ SampleSummary"]
         ID["AppIdentityResolver<br/>pid → outermost .app"]
         NW["NetworkIdentityWatcher<br/>+ MeteredHeuristic"]
         VM(["MonitorViewModel"])
         US["UsageStore<br/>usage.json"]
-        H["UsageHistory<br/>history.sqlite"]
-        M["MeteringController<br/>suppressors + journal"]
+        H["UsageHistory<br/>history.sqlite → Export CSV"]
+        M["MeteringController<br/>suppressors + journal + UpdateWatch"]
+        F["FilterController<br/>rules, Ask Me"]
         SP["SpeedTestController<br/>networkQuality"]
-        UI["Menu bar readout · Popover · Settings"]
+        UP["UpdateController (Sparkle)<br/>GeoDataUpdater"]
+        UI["Menu bar readout · Popover ·<br/>Settings · History · Connections"]
     end
 
-    HP["Root helper<br/>optional, Hotspot mode"]
+    subgraph signed["Developer ID builds"]
+        FX["Content filter<br/>system extension"]
+        HP["Helper<br/>launch daemon"]
+    end
+
+    GH[("GitHub releases<br/>appcast, data")]
 
     K --> S --> VM
     N --> NS --> VM
@@ -37,14 +47,40 @@ flowchart LR
     P --> NW --> VM
     E --> VM
     VM --> US --> H
-    VM --> M --> HP
+    VM --> M
+    UI -->|"This network: hotspot or not"| M
+    M -->|"XPC, signature checked both ways"| HP
+    VM --> F
+    F <-->|"XPC, signature checked both ways"| FX
     VM --> SP
+    VM --> UP --> GH
     VM --> UI
 ```
 
-`MonitorViewModel` is the hub. It owns the samplers, the store, Hotspot mode and the
-speed test, and publishes what the UI shows. `AppDelegate`, in the thin `NetworkMonitor`
-target, owns the status item, the popover, the right-click menu and the Settings window.
+**`MonitorViewModel` is the hub, and holds little logic of its own.** It owns the parts
+and passes each one what it needs: the samplers' figures to the store, network changes
+to Hotspot mode, nettop's processes to Connections. The decisions are made in the parts,
+and each is tested on its own: `SampleSummary` folds a nettop sample into apps, servers
+and LAN bytes; `MeteredHeuristic` decides what's a hotspot; `MeteringController`,
+`UpdateWatch`, `FirewallPolicy`, `UsageStore` and `UsageHistory` keep their own state.
+`AppDelegate`, in the thin `NetworkMonitor` target, owns the status item, the popover,
+the right-click menu and the windows.
+
+**Where the rest is described:**
+- **Hotspot detection and its manual override:**
+  [Hotspot mode](hotspot-mode.md#what-counts-as-a-hotspot). *This network* in Settings
+  beats every check.
+- **How the helper is reached:** [Hotspot mode › The helper](hotspot-mode.md#the-helper).
+  It's over XPC, the helper answers only NetworkMonitor signed by the team, and the app
+  only talks to a helper signed by it.
+- **The content filter and blocking:** [Connections](#connections-which-servers-each-app-talked-to)
+  below.
+- **What asks for permission, and what each permission unlocks:**
+  [Privacy › Permissions](privacy.md#permissions).
+- **Retention, pruning and Export CSV:** [Usage History](usage-history.md).
+- **VPNs and several interfaces:** below. The total counts a tunnel's traffic once, on
+  the physical interface, and a network is named after the interface carrying the
+  default route, never a tunnel.
 
 ## Threads
 
@@ -117,7 +153,13 @@ nettop -n -x -d -L 0 -s <1|3|10> -t external -J time,bytes_in,bytes_out
   which would add a whole interval of latency (the first sample after launch took 2.05 s
   instead of 1.24 s).
 - **Restarts back off** from 1 to 30 seconds if it dies or can't be launched, and the
-  popover says per-app figures are paused until a sample arrives again. Changing the interval means
+  popover says per-app figures are paused until a sample arrives again.
+- **A stall is a fault too** (#110). `nettop` writes a header every interval even when
+  nothing moves, so five intervals without a sample, and at least 30 seconds, means it's
+  hung, or a new macOS has changed its output so that no sample is recognised. Either
+  way it's restarted. The first time, nothing is said; a second stall in a row, or
+  output that arrives but can't be read, puts the paused line in the popover. The clock
+  stops while the Mac sleeps, so waking up isn't taken for a stall. Changing the interval means
   restarting it, so it only changes with the power source or Low Power Mode, never with
   screen sleep or the popover.
 - **Never orphaned.** Replacing it detaches its termination handler, sends `SIGTERM` and
@@ -413,6 +455,35 @@ protocol's last character (`tcp6`, `udp6`, `quic6`), an IPv4-mapped peer
 `64:ff9b::/96`, used on IPv6-only networks, as the IPv4 address inside it. Server names arrive with the
 content filter (#115). Until then, a server is its address, and a network that hosts
 other companies is marked as a host rather than taken for the company behind the traffic.
+
+## When something goes wrong
+
+Each part fails on its own, and says so where you'd look, rather than taking the rest
+down with it.
+
+| What fails | What happens |
+|---|---|
+| `nettop` exits, can't start, stalls or can't be read | Restarted, backing off to 30 s. The popover says per-app figures are paused; the total carries on, since it never depends on `nettop` |
+| `history.sqlite` can't be opened | Usage History is off, and everything else runs. Servers are written in a transaction of their own, so a failure there costs History none of its figures |
+| The content filter isn't allowed, or this build has none | Connections, blocking and stopping every app's updater say so in setup and Settings, with a way to turn it on. The rest works without it |
+| The helper isn't allowed | Hotspot mode pauses what needs no helper. Settings lists the rest as paused once you allow it |
+| NetworkMonitor quits or crashes on a hotspot | Every change Hotspot mode made is in its journal, put back at the next launch before anything is decided afresh. If the app is gone, the helper's hourly self-heal job puts back what it changed |
+| The monthly data or an update can't be fetched, or doesn't check out | Nothing changes: the copy in use stays, and the next check is the next day |
+| The network flaps | Changes are debounced for 2 seconds, and going offline keeps the last verdict, so a phone that sleeps doesn't undo Hotspot mode every time |
+
+## Testing and diagnosis
+
+- **`make test`** runs about 600 tests in a small harness of its own (`Check.suite`,
+  `Check.test`), since Command Line Tools has no XCTest. The pre-push hook runs it.
+  Tests that need live traffic or a real `nettop` skip themselves on CI.
+- **CI** (`build-and-test`, `universal`) builds, tests, bundles, and runs
+  `Scripts/smoke-test.sh`, which fails if the app isn't still running five seconds after
+  launch.
+- **`--metering-report`** prints Hotspot mode's state without changing anything: the
+  verdict, what's paused, the helper's status.
+- **Console** has every failure the app logs, prefixed `NetworkMonitor:`.
+- **Launch arguments** point a development build at local test data, open a window, or
+  pick a power profile: see [development](development.md#launch-arguments).
 
 ## Files and preferences
 

@@ -256,7 +256,62 @@ func runNettopStreamIntegrationTests() {
 /// What happens when `nettop` can't be started at all. No live traffic needed,
 /// so these run on CI too.
 func runNettopFailureTests() {
-    Check.suite("NettopStream — when nettop can't start") {
+    Check.suite("NettopStream — when nettop can't start, or stops reporting") {
+
+        /// A stand-in for nettop: a shell script that ignores its arguments.
+        func standIn(_ body: String) -> (path: String, cleanup: () -> Void) {
+            let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("nettop-stand-in-\(UUID().uuidString)")
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let path = dir.appendingPathComponent("nettop").path
+            FileManager.default.createFile(atPath: path, contents: Data("#!/bin/sh\n\(body)\n".utf8),
+                                           attributes: [.posixPermissions: 0o755])
+            return (path, { try? FileManager.default.removeItem(at: dir) })
+        }
+
+        func run(_ stream: NettopStream, for seconds: TimeInterval) -> (failures: [String], samples: Int) {
+            let lock = NSLock()
+            var messages: [String] = []
+            var samples = 0
+            stream.onFailure = { message in lock.lock(); messages.append(message); lock.unlock() }
+            stream.onSample = { _ in lock.lock(); samples += 1; lock.unlock() }
+            stream.start()
+            Thread.sleep(forTimeInterval: seconds)
+            stream.stop()
+            lock.lock(); defer { lock.unlock() }
+            return (messages, samples)
+        }
+
+        // #110: alive and silent used to leave the list quiet with nothing said.
+        Check.test("a nettop that goes silent is restarted, and said once it stays so") {
+            let script = standIn("exec sleep 600")
+            defer { script.cleanup() }
+            let messages = run(NettopStream(executable: script.path, stallAfter: 0.5), for: 3.5).failures
+            Check.expectTrue(messages.contains("it stopped reporting"), "\(messages)")
+        }
+
+        // #110: a macOS that changes nettop's format would otherwise never
+        // have a sample recognised, and nothing reported.
+        Check.test("output that can't be read is said at once") {
+            let script = standIn("while true; do echo 'Time Process In Out'; sleep 0.1; done")
+            defer { script.cleanup() }
+            let messages = run(NettopStream(executable: script.path, stallAfter: 0.5), for: 1.5).failures
+            Check.expectEqual(messages.first, "its output couldn't be read")
+        }
+
+        Check.test("a nettop that keeps reporting is left alone") {
+            let script = standIn("""
+                while true; do
+                  echo 'time,,bytes_in,bytes_out,'
+                  echo '20:17:18.926111,kernel_task.0,263,283,'
+                  sleep 0.1
+                done
+                """)
+            defer { script.cleanup() }
+            let (messages, samples) = run(NettopStream(executable: script.path, stallAfter: 0.5), for: 2)
+            Check.expectTrue(messages.isEmpty, "\(messages)")
+            Check.expectTrue(samples > 5, "\(samples) samples")
+        }
 
         // A missing binary used to be reported once and then given up on, so the
         // app list stopped for the rest of the run (#27).

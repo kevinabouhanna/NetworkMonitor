@@ -73,12 +73,39 @@ public final class NettopStream {
 
     /// Called on an internal queue with each completed sample.
     public var onSample: (([NettopRow]) -> Void)?
-    /// Called when the subprocess cannot be kept alive.
+    /// Called when the subprocess cannot be kept alive, or stops reporting.
     public var onFailure: ((String) -> Void)?
 
-    public init(sampleInterval: Int = 1, executable: String = "/usr/bin/nettop") {
+    // MARK: Stalls (#110)
+    //
+    // A nettop that exits is restarted, but one that stays alive and goes
+    // silent, or whose output a new macOS has changed so that no sample is
+    // ever recognised, used to leave the list quiet with nothing said. nettop
+    // writes a header every interval even when nothing moves, so a long
+    // stretch without a sample is a fault, not a quiet network.
+
+    /// No sample for this long and nettop is restarted: five intervals, and
+    /// never under 30 s.
+    private var stallAfter: TimeInterval { stallOverride ?? max(Double(sampleInterval) * 5, 30) }
+    private let stallOverride: TimeInterval?
+    /// On the uptime clock, which stops while the Mac sleeps, so waking up
+    /// isn't taken for a stall.
+    private var lastDelivery: TimeInterval = 0
+    /// Output since the last sample: some, and nothing recognised, is a format
+    /// the parser no longer reads.
+    private var bytesSinceDelivery = 0
+    private var stalls = 0
+    private var watchdog: DispatchSourceTimer?
+
+    private static func uptime() -> TimeInterval {
+        TimeInterval(clock_gettime_nsec_np(CLOCK_UPTIME_RAW)) / 1_000_000_000
+    }
+
+    public init(sampleInterval: Int = 1, executable: String = "/usr/bin/nettop",
+                stallAfter: TimeInterval? = nil) {
         self.executable = executable
         self.sampleInterval = max(sampleInterval, 1)
+        self.stallOverride = stallAfter
     }
 
     /// Changes the sample interval, restarting `nettop` only if it really changed.
@@ -136,7 +163,36 @@ public final class NettopStream {
             guard self.process == nil else { return }
             Self.reapOrphans()
             self.spawn()
+            self.startWatchdog()
         }
+    }
+
+    private func startWatchdog() {
+        watchdog?.cancel()
+        lastDelivery = Self.uptime()
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        let every = min(10, max(stallAfter / 3, 0.2))
+        timer.schedule(deadline: .now() + every, repeating: every)
+        timer.setEventHandler { [weak self] in self?.checkForStall() }
+        timer.resume()
+        watchdog = timer
+    }
+
+    /// On `queue`. A restart cures a hang, so the first stall is only
+    /// restarted; a second in a row, or output that can't be read, is said.
+    private func checkForStall() {
+        guard !stopping, !restarting, process != nil,
+              Self.uptime() - lastDelivery >= stallAfter else { return }
+        stalls += 1
+        let unreadable = bytesSinceDelivery > 0
+        if unreadable || stalls > 1 {
+            onFailure?(unreadable ? "its output couldn't be read" : "it stopped reporting")
+        }
+        lastDelivery = Self.uptime()
+        bytesSinceDelivery = 0
+        terminateChild()
+        teardown()
+        scheduleRestart()
     }
 
     /// Kills any nettop left behind by a previous run of this app.
@@ -191,6 +247,8 @@ public final class NettopStream {
     public func stop() {
         queue.sync {
             stopping = true
+            watchdog?.cancel()
+            watchdog = nil
             // Kill before closing descriptors, so an ignored terminate cannot leave
             // an orphan spinning on a closed stdin. See `terminateChild()`.
             terminateChild()
@@ -315,6 +373,7 @@ public final class NettopStream {
         let count = read(masterFD, &buffer, buffer.count)
 
         if count > 0 {
+            bytesSinceDelivery += count
             // A pipe carries exactly what nettop wrote, but stripping CR stays as
             // cheap insurance against one ending up inside a parsed field.
             let bytes = buffer[0..<count].filter { $0 != 0x0D }
@@ -337,6 +396,9 @@ public final class NettopStream {
 
     private func deliver(_ sample: [NettopRow]) {
         restartDelay = 1   // a real sample proves the stream is healthy
+        lastDelivery = Self.uptime()
+        bytesSinceDelivery = 0
+        stalls = 0
         onSample?(sample)
     }
 
