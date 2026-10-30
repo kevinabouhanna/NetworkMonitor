@@ -578,7 +578,12 @@ public final class UpdateWatch {
         var networkID: String?
         var ended: Bool
         var sightings: [Sighting]
+        /// 2 from 1.16.1: a download's bytes are what its app used (#95).
+        /// Missing before, when they were its size on disk.
+        var version: Int?
     }
+
+    private static let storageVersion = 2
 
     private func load() {
         guard let data = defaults.data(forKey: Self.storageKey),
@@ -587,12 +592,20 @@ public final class UpdateWatch {
         networkID = stored.networkID
         ended = stored.ended
         sightings = stored.sightings
+        // Saved by 1.15 or earlier: its downloads were sizes on disk, so they
+        // say "up to" rather than pass for data used (#160).
+        if stored.version == nil {
+            for index in sightings.indices where sightings[index].source == .download {
+                sightings[index].isSizeOnDisk = true
+            }
+        }
     }
 
     private func save() {
         guard let data = try? JSONEncoder().encode(Stored(networkID: networkID,
                                                           ended: ended,
-                                                          sightings: sightings))
+                                                          sightings: sightings,
+                                                          version: Self.storageVersion))
         else { return }
         defaults.set(data, forKey: Self.storageKey)
     }

@@ -325,6 +325,28 @@ func runUpdateWatchTests() {
             Check.expectEqual(watch.sightings.count, 1)
         }
 
+        Check.test("downloads saved before 1.16.1 come back as sizes on disk") {
+            // As 1.15 saved them: no version, and no isSizeOnDisk.
+            let defaults = freshDefaults()
+            let old = #"""
+                {"networkID":"gw:hotspot","ended":true,"sightings":[
+                 {"name":"Slack","source":"download","bytes":271600000,"lastSeen":0},
+                 {"name":"GoogleUpdater","app":"Google Chrome","source":"traffic","bytes":265600000,"lastSeen":0}]}
+                """#
+            defaults.set(Data(old.utf8), forKey: "meteringUpdateSightings")
+            let watch = makeWatch(caches: temporaryDirectory("caches"), defaults: defaults)
+            Check.expectTrue(watch.sightings.first { $0.name == "Slack" }?.isUpperBound ?? false)
+            Check.expectFalse(watch.sightings.first { $0.name == "GoogleUpdater" }?.isUpperBound ?? true,
+                              "updater traffic was always measured")
+
+            // Saved with a version, a measured download stays measured.
+            let current = freshDefaults()
+            current.set(Data(old.replacingOccurrences(of: "\"ended\":true,", with: "\"ended\":true,\"version\":2,").utf8),
+                        forKey: "meteringUpdateSightings")
+            let measured = makeWatch(caches: temporaryDirectory("caches"), defaults: current)
+            Check.expectFalse(measured.sightings.first { $0.name == "Slack" }?.isUpperBound ?? true)
+        }
+
         Check.test("app traffic isn't counted when no metered connection is being watched") {
             let caches = temporaryDirectory("caches")
             defer { try? FileManager.default.removeItem(at: caches) }
