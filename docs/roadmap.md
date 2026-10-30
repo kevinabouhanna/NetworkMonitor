@@ -18,9 +18,10 @@ The plan, in order:
    to macOS once, so Location is asked for one more time.
 2. ~~**Notarize in the release workflow**~~ and drop **Open Anyway** from the README, the
    website and the release notes (#119). Done.
-3. **Move the helper to `SMAppService.daemon` with XPC**, now that clients can be checked by
-   team. That removes the password prompt and the extra Login Items row, and gives the
-   helper proper caller authentication.
+3. ~~**Move the helper to `SMAppService.daemon` with XPC**~~, now that clients can be checked
+   by team (#131). Done: allowing it is a switch in System Settings instead of a password,
+   it's listed under NetworkMonitor in Login Items, an update brings its helper with it,
+   and only NetworkMonitor can ask it anything.
 4. **Only then, add Sparkle 2**: an EdDSA key whose private half is never committed, a
    "Check for Updates…" menu item, an automatic-check setting, and an appcast published with
    each release. Releasing stays "push a tag". NetworkMonitor will pause its own updates on

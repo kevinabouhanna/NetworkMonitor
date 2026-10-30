@@ -47,8 +47,9 @@ this one time.
 
 Your settings, totals and Usage History stay where they are, outside the app.
 
-If you use [Hotspot mode](hotspot-mode.md) and the new version needs a newer
-helper, it asks for your password once, the first time it opens.
+If you use [Hotspot mode](hotspot-mode.md), its helper comes with the new version and asks
+nothing. Coming from a version whose helper asked for your password, NetworkMonitor offers
+the new one once: switch it on in System Settings, and the old one's sudoers rule is removed.
 
 From a source checkout, `make update` pulls, runs the tests, rebuilds and
 reinstalls, with the tests first so a bad pull can't replace a working copy.
@@ -61,7 +62,8 @@ Right-click the menu bar readout and choose **Uninstall NetworkMonitor…**, or 
 1. removes the content filter, if you turned on website names: its settings at once, and
    the extension itself, which macOS may finish at the next restart;
 2. puts back every setting Hotspot mode changed, before removing anything;
-3. removes the helper, if it was installed (macOS asks for your password);
+3. removes the helper, if it was installed (a helper from a build without a Developer ID
+   asks for your password);
 4. removes the login item and your usage history;
 5. moves the app to the Trash.
 
@@ -76,15 +78,8 @@ From a source checkout, `Scripts/uninstall.sh` does the same.
 
 ## What the helper looks like to macOS
 
-If you switch Hotspot mode on and approve the password prompt, a small helper is
-installed. It shows up as an extra row in **System Settings › General › Login
-Items & Extensions**. macOS groups a background job under its app only when the app
-registers it itself, which is the next step on [the roadmap](roadmap.md). See
-[Hotspot mode](hotspot-mode.md#the-helper) for exactly what it can do.
-
-## What the Developer ID makes possible next
-
-It already removed the **Open Anyway** step. Next it lets the helper be registered by
-the app itself, which drops the password prompt and the extra Login Items row, makes a
-built-in updater worthwhile, and allows the content filter that real blocking in
-[Connections](connections.md) needs. [The roadmap](roadmap.md) has the plan.
+If you switch Hotspot mode on, the app registers a small helper, and macOS lists it under
+NetworkMonitor in **System Settings › General › Login Items & Extensions**, under **Allow
+in the Background**, for you to switch on (#131). Its hourly self-heal job is listed under
+NetworkMonitor too. See [Hotspot mode](hotspot-mode.md#the-helper) for exactly what it can
+do.
