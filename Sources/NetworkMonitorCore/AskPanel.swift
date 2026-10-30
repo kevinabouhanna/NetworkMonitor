@@ -61,7 +61,10 @@ public final class AskController: ObservableObject {
             target = site
         }
         if let country { detail.append(country) }
-        return Item(question: question, appName: app.displayName, bundlePath: app.bundlePath ?? app.parent?.bundlePath,
+        // A program started by an app says whose it is: "node" alone could be
+        // anyone's.
+        let name = app.parent.map { "\($0.displayName)'s \(app.displayName)" } ?? app.displayName
+        return Item(question: question, appName: name, bundlePath: app.bundlePath ?? app.parent?.bundlePath,
                     target: target, detail: detail.joined(separator: " · "))
     }
 

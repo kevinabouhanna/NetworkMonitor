@@ -421,6 +421,12 @@ func runFirewallTests() {
                                       address: "3.65.102.105", country: nil, deadline: now)
             Check.expectEqual(AskController.item(for: hosted).target, "a server on Amazon's network")
             Check.expectEqual(AskController.item(for: hosted).detail, "3.65.102.105")
+
+            // Seen on Kevin's Mac: Raycast's bundled node asked as plain "node".
+            let started = FlowQuestion(id: "q3", appKey: "/Applications/Raycast.app\u{1}/Users/k/node", companyKey: nil,
+                                       companyName: nil, companyIsHost: false, hostname: "backend.raycast.com",
+                                       address: "1.2.3.4", country: nil, deadline: now)
+            Check.expectEqual(AskController.item(for: started).appName, "Raycast's node")
         }
 
         Check.test("a rule for one app is listed, not shown on every app's row") {
