@@ -56,6 +56,11 @@ func runFilterTests() {
             Check.expectEqual(company("api.figma.com")?.isHost, false)
             Check.expectEqual(company("dns.google")?.name, "Google", "a brand's own top-level domain")
             Check.expectEqual(company("http-intake.logs.us5.datadoghq.com")?.name, "Datadog")
+            // Seen on Kevin's Mac in 1.14.0, each under a domain's name of its own.
+            Check.expectEqual(company("slackb.com")?.name, "Slack")
+            Check.expectEqual(company("x.raycast-releases.com")?.name, "Raycast")
+            Check.expectEqual(company("a-cdn.claudeusercontent.com")?.name, "Anthropic")
+            Check.expectEqual(company("proxy.googlezip.net")?.name, "Google")
         }
 
         Check.test("a host's own domain leaves it to the network's owner") {
