@@ -15,9 +15,12 @@ Nothing changes without all three, in this order.
    - Squash-merge.
    - **Never push to `main` directly.**
 3. **A release** once it is merged.
+   - Write its What's new in `ReleaseNotes/X.Y.Z.md`, merged with a pull
+     request before tagging: short bullets, each a bold lead and the issue,
+     with no `]]>`. The Release workflow fails without it, and puts it both in
+     the update window and in the release notes.
    - Tag `vX.Y.Z` on `main` and push the tag. The Release workflow builds,
      tests and publishes `NetworkMonitor.dmg`.
-   - Add a "What's new in X.Y.Z" section to the release notes.
    - Install it on the Mac with `make install` from the tag.
    - Bring the website (`gh-pages` branch) up to date:
      - the hero's version

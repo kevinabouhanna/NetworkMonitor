@@ -25,6 +25,14 @@ jobs:
         id: version
         run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      # The version's What's new is written before tagging (#152): it's what
+      # the update window shows and what the release's notes say. Checked
+      # first, so a missing one fails in seconds rather than after the build.
+      - name: Check the release notes are written
+        run: |
+          notes="ReleaseNotes/${{ steps.version.outputs.value }}.md"
+          test -s "$notes" || { echo "$notes is missing: write the What's new before tagging" >&2; exit 1; }
+
       # A tagged commit that fails its tests should not become a release.
       - name: Test
         run: make test
@@ -123,7 +131,7 @@ jobs:
 
       # Plain steps, no Terminal, and no Open Anyway: the release is signed
       # with the Developer ID and notarized (#119).
-      - name: Write the release notes preamble
+      - name: Write the release notes
         run: |
           cat > release-notes.md <<'NOTE'
           ### Installing
@@ -144,6 +152,8 @@ jobs:
 
           ---
           NOTE
+          { echo; echo "### What's new in ${{ steps.version.outputs.value }}"; echo
+            cat "ReleaseNotes/${{ steps.version.outputs.value }}.md"; echo; } >> release-notes.md
 
       - name: Publish the release
         env:
