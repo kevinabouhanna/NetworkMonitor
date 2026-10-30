@@ -73,9 +73,58 @@ public struct FlowReport: Codable, Equatable {
     }
 }
 
-/// What the app offers the filter: somewhere to send what it saw.
+/// Ask Me (#129): the filter holds an app's first connections to a company
+/// and asks the app whether they may go.
+public struct FlowQuestion: Codable, Equatable, Identifiable {
+    public let id: String
+    /// The app, by the key Connections uses.
+    public let appKey: String
+    /// The company, by `Company.key`, its name, and whether it only hosts;
+    /// nil when the address has no known owner.
+    public let companyKey: String?
+    public let companyName: String?
+    public let companyIsHost: Bool
+    public let hostname: String?
+    public let address: String
+    public let country: String?
+    /// When it's allowed anyway, if nobody answers.
+    public let deadline: Date
+
+    public init(id: String, appKey: String, companyKey: String?, companyName: String?, companyIsHost: Bool,
+                hostname: String?, address: String, country: String?, deadline: Date) {
+        self.id = id
+        self.appKey = appKey
+        self.companyKey = companyKey
+        self.companyName = companyName
+        self.companyIsHost = companyIsHost
+        self.hostname = hostname
+        self.address = address
+        self.country = country
+        self.deadline = deadline
+    }
+
+    public func encoded() -> Data { (try? JSONEncoder().encode(self)) ?? Data() }
+
+    public static func decode(_ data: Data) -> FlowQuestion? {
+        try? JSONDecoder().decode(FlowQuestion.self, from: data)
+    }
+}
+
+public enum FlowAnswer: String, Codable {
+    /// These connections, and the same app and company for the next hour.
+    case allowOnce
+    /// Allowed for good: the app has made a rule, on its way.
+    case allow
+    case block
+}
+
+/// What the app offers the filter: somewhere to send what it saw, and to ask.
 @objc public protocol FilterAppInterface {
     func flowsSeen(_ reports: Data)
+    /// A `FlowQuestion`, as JSON.
+    func ask(_ question: Data)
+    /// Nobody answered in time, and the connections went ahead.
+    func questionExpired(_ id: String)
 }
 
 /// What the filter offers the app. The first call opens the connection the
@@ -85,4 +134,6 @@ public struct FlowReport: Codable, Equatable {
     /// The rules, the mode and whether the Mac is on a hotspot (#114), as a
     /// `FirewallPolicy` in JSON. Sent on connecting and after every change.
     func applyPolicy(_ policy: Data)
+    /// The answer to a `FlowQuestion`, as a `FlowAnswer`'s raw value.
+    func answer(_ id: String, _ answer: String)
 }

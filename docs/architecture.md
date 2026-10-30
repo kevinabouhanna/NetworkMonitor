@@ -368,6 +368,14 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    `server_traffic.blocked`, beside the bytes, so Connections shows it through the same
    queries (`ServerMeasure`).
 
+   **Ask Me** (#129): a flow nothing decided gets `NEFilterNewFlowVerdict.pause()`, and the
+   filter sends the app a `FlowQuestion` over XPC, one per app and company, holding every
+   flow between them on it. The answer comes back as a `FlowAnswer` and the filter resumes
+   them through the provider; with none in 30 seconds it resumes them allowed and says so.
+   Answers are remembered by app and company: an hour for Allow Once, a minute for the
+   others, until the rule the app makes arrives. With the app not connected, nothing is
+   held. `AskController` shows the questions in a non-activating panel.
+
 An app's servers can add up to a little less than its total: a socket that opened and
 closed between two samples leaves no connection row. In a 30-second capture on the
 development Mac, servers accounted for 95.4% of the apps' internet bytes.

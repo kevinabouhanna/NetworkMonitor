@@ -62,12 +62,37 @@ final class Firewall {
     }
 
     /// The verdict, and for a blocked connection, the app it was for.
-    func verdict(for flow: NEFilterSocketFlow, address: String, port: Int) -> (verdict: Verdict, appKey: String?) {
+    /// What happens to a new flow: allowed, blocked, or held while the app
+    /// asks (#129). A blocked one carries what blocked it and the app it was
+    /// for, for the report.
+    struct Decision {
+        let verdict: NEFilterNewFlowVerdict
+        var blockedBy: String?
+        var appKey: String?
+
+        static let allow = Decision(verdict: .allow())
+    }
+
+    func decide(_ flow: NEFilterSocketFlow, address: String, port: Int, report: FlowReport) -> Decision {
+        let (verdict, appKey, facts, company) = self.verdict(for: flow, address: address, port: port)
+        switch verdict {
+        case .allow:
+            return .allow
+        case .block(let reason):
+            return Decision(verdict: .drop(), blockedBy: reason.id, appKey: appKey)
+        case .ask:
+            guard let appKey, let facts else { return .allow }
+            return ask(flow, appKey: appKey, facts: facts, company: company, report: report)
+        }
+    }
+
+    private func verdict(for flow: NEFilterSocketFlow, address: String, port: Int)
+        -> (Verdict, appKey: String?, facts: FlowFacts?, company: Company?) {
         let policy = current
         // Nothing to block: nothing to look up.
-        guard policy.isActive else { return (.allow(.mode), nil) }
+        guard policy.isActive else { return (.allow(.mode), nil, nil, nil) }
         let address = FirewallPolicy.serverAddress(address)
-        if FirewallPolicy.isEssential(address: address, port: port) { return (.allow(.essential), nil) }
+        if FirewallPolicy.isEssential(address: address, port: port) { return (.allow(.essential), nil, nil, nil) }
         let identity = self.identity(of: flow)
         let info = directory?.lookup(address)
         let company = flow.remoteHostname.flatMap(Company.named(byHostname:)) ?? info?.owner?.company
@@ -82,9 +107,91 @@ final class Firewall {
                 \(facts.companyKey ?? "-", privacy: .public), \(facts.country ?? "-", privacy: .public), \
                 by \(reason.id, privacy: .public)
                 """)
-            return (verdict, identity.primaryKey)
         }
-        return (verdict, nil)
+        return (verdict, identity.primaryKey, facts, company)
+    }
+
+    // MARK: Ask Me (#129)
+
+    /// One question's held flows, and their reports, for if the answer is no.
+    private struct Held {
+        let pair: String
+        let appKey: String
+        var flows: [NEFilterFlow]
+        var reports: [FlowReport]
+    }
+
+    /// Set by the provider when it starts: flows are resumed through it.
+    weak var provider: NEFilterDataProvider?
+    private var held: [String: Held] = [:]
+    private var heldByPair: [String: String] = [:]
+    /// Answers given, by app and company, and until when they hold.
+    private var answered: [String: (allows: Bool, until: Date)] = [:]
+
+    static let askTimeout: TimeInterval = 30
+    /// Allow Once, and no answer: the same app and company go ahead for an hour.
+    static let onceFor: TimeInterval = 60 * 60
+    /// Always Allow and Block: until the rule the app makes arrives.
+    static let ruleFor: TimeInterval = 60
+
+    /// One question per app and company: every flow between them waits on the
+    /// first one's answer. With the app not there to ask, it goes ahead.
+    private func ask(_ flow: NEFilterSocketFlow, appKey: String, facts: FlowFacts, company: Company?,
+                     report: FlowReport) -> Decision {
+        let pair = appKey + "|" + (facts.companyKey ?? facts.address)
+        let connected = AppLink.shared.isConnected
+        let now = Date()
+        lock.lock()
+        if let earlier = answered[pair], earlier.until > now {
+            lock.unlock()
+            return earlier.allows ? .allow : Decision(verdict: .drop(), blockedBy: "ask", appKey: appKey)
+        }
+        guard connected else { lock.unlock(); return .allow }
+        if let id = heldByPair[pair] {
+            held[id]?.flows.append(flow)
+            held[id]?.reports.append(report)
+            lock.unlock()
+            return Decision(verdict: .pause())
+        }
+        let id = UUID().uuidString
+        held[id] = Held(pair: pair, appKey: appKey, flows: [flow], reports: [report])
+        heldByPair[pair] = id
+        if answered.count > 512 { answered = answered.filter { $0.value.until > now } }
+        lock.unlock()
+
+        AppLink.shared.ask(FlowQuestion(id: id, appKey: appKey, companyKey: company?.key, companyName: company?.name,
+                                        companyIsHost: company?.isHost ?? false, hostname: facts.hostname,
+                                        address: facts.address, country: facts.country,
+                                        deadline: now + Self.askTimeout))
+        DispatchQueue.global().asyncAfter(deadline: .now() + Self.askTimeout) { [weak self] in
+            self?.resolve(id, .allowOnce, expired: true)
+        }
+        return Decision(verdict: .pause())
+    }
+
+    func answer(_ id: String, _ answer: FlowAnswer) {
+        resolve(id, answer, expired: false)
+    }
+
+    private func resolve(_ id: String, _ answer: FlowAnswer, expired: Bool) {
+        lock.lock()
+        guard let question = held.removeValue(forKey: id) else { lock.unlock(); return }
+        heldByPair.removeValue(forKey: question.pair)
+        let allows = answer != .block
+        answered[question.pair] = (allows, Date() + (answer == .allowOnce ? Self.onceFor : Self.ruleFor))
+        lock.unlock()
+
+        for flow in question.flows {
+            provider?.resumeFlow(flow, with: allows ? NEFilterNewFlowVerdict.allow() : NEFilterNewFlowVerdict.drop())
+        }
+        if !allows {
+            for report in question.reports {
+                AppLink.shared.report(FlowReport(address: report.address, port: report.port, hostname: report.hostname,
+                                                 pid: report.pid, time: report.time, blockedBy: "ask",
+                                                 appKey: question.appKey))
+            }
+        }
+        if expired { AppLink.shared.expired(id) }
     }
 
     // MARK: Which app

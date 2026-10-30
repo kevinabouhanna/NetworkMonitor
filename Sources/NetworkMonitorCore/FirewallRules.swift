@@ -25,9 +25,11 @@ public final class FirewallRules: ObservableObject {
         mode = defaults.string(forKey: Self.modeKey).flatMap(FirewallMode.init) ?? .anywhere
     }
 
+    /// The rule for every app on a row. Rules for one app, made by answering
+    /// Ask Me, are listed in Settings.
     public func rule(for item: ConnectionsItem) -> FirewallRule? {
         guard let subject = Self.subject(of: item) else { return nil }
-        return rules.first { $0.subject == subject && $0.key == item.key }
+        return rules.first { $0.subject == subject && $0.key == item.key && $0.appKey == nil }
     }
 
     /// Whether a row can have a rule: not "Unknown", and not "Other servers",
@@ -39,8 +41,13 @@ public final class FirewallRules: ObservableObject {
     /// One rule per row: a new one replaces the old.
     public func set(_ action: RuleAction, for item: ConnectionsItem) {
         guard Self.canHaveRule(item), let subject = Self.subject(of: item) else { return }
-        var updated = rules.filter { !($0.subject == subject && $0.key == item.key) }
-        updated.insert(FirewallRule(subject: subject, key: item.key, title: item.title, action: action), at: 0)
+        add(FirewallRule(subject: subject, key: item.key, title: item.title, action: action))
+    }
+
+    /// Any rule, replacing one with the same subject, key and app.
+    public func add(_ rule: FirewallRule) {
+        var updated = rules.filter { $0.id != rule.id }
+        updated.insert(rule, at: 0)
         save(updated)
     }
 

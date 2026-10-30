@@ -101,6 +101,7 @@ struct ConnectionsSettingsPane: View {
             LabeledContent("Let apps connect") {
                 Picker("Let apps connect", selection: Binding(get: { firewall.mode }, set: setMode)) {
                     Text("Anywhere").tag(FirewallMode.anywhere)
+                    Text("Ask Me").tag(FirewallMode.ask)
                     Text("Only Where I Allow").tag(FirewallMode.onlyAllowed)
                 }
                 .pickerStyle(.segmented)
@@ -126,7 +127,7 @@ struct ConnectionsSettingsPane: View {
                     } label: {
                         Label {
                             Text(rule.title)
-                            Text(Self.subjectName(rule.subject))
+                            Text(Self.subjectName(rule.subject) + (rule.appTitle.map { " · for \($0)" } ?? ""))
                         } icon: {
                             Image(systemName: Self.symbol(rule.subject)).foregroundStyle(.secondary)
                         }
@@ -141,10 +142,17 @@ struct ConnectionsSettingsPane: View {
     }
 
     private var footnote: String {
-        let mode = firewall.mode == .anywhere
-            ? "Everything connects except what you block."
-            : "Only what you allow connects, and macOS and Apple's apps. Allow an app under Blocked in "
+        let mode: String
+        switch firewall.mode {
+        case .anywhere:
+            mode = "Everything connects except what you block."
+        case .ask:
+            mode = "The first time an app connects to a company, NetworkMonitor asks. With no answer in 30 "
+                + "seconds, it's allowed. macOS and Apple's apps aren't asked about."
+        case .onlyAllowed:
+            mode = "Only what you allow connects, and macOS and Apple's apps. Allow an app under Blocked in "
                 + "Connections."
+        }
         guard filter.state == .on else { return mode + " This applies once “\(SetupCopy.websitesTitle)” is on." }
         return mode + " A rule applies from an app's next connection: one already open carries on until it closes."
     }
