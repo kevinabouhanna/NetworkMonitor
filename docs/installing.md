@@ -31,11 +31,13 @@ for nothing else. Refuse, and networks are named like *Wi-Fi · 3f2a*.
 
 ## Update
 
-NetworkMonitor never connects to the internet by itself, so it has no update
-check and can't tell you a new version exists. To hear about releases, click
-**Watch › Custom › Releases** on the repository page.
+From 1.15 on, NetworkMonitor updates itself with Sparkle (#132). Once a day it asks
+GitHub whether there's a newer version, never on a hotspot, and offers it: what's new,
+and **Install Update** when you're ready. **Check for Updates…** in its menu asks at
+once, and Settings › About switches the daily check off. An update installs only if its
+disk image is signed with the key built into the app.
 
-To update:
+Before 1.15, or to do it by hand:
 
 1. Download the new `NetworkMonitor.dmg`.
 2. Drag NetworkMonitor into Applications and choose **Replace**.

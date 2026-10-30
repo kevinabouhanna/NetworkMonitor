@@ -393,6 +393,16 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    checked against `FilterIdentity.appRequirement`, aren't held back, though a rule can
    still block them.
 
+9. **Updating itself** (#132). Sparkle 2.10.0, an exact SwiftPM dependency, linked by
+   `NetworkMonitorCore` and carried in `Contents/Frameworks` by every build (`bundle.sh`
+   re-signs it inside out, without its XPC services, which only sandboxed apps need).
+   Developer ID builds get `SUFeedURL` (`releases/latest/download/appcast.xml`) and
+   `SUPublicEDKey`. The Release workflow signs the disk image with the matching Ed25519 key
+   (`Scripts/ed25519-sign.swift`, as Sparkle's `sign_update` does), writes the appcast
+   (`Scripts/appcast.sh`, which refuses a key the app doesn't trust) and publishes both.
+   `UpdateController` refuses a background check on a metered connection, and uses
+   Sparkle's gentle reminders, since the app lives in the menu bar.
+
 An app's servers can add up to a little less than its total: a socket that opened and
 closed between two samples leaves no connection row. In a 30-second capture on the
 development Mac, servers accounted for 95.4% of the apps' internet bytes.

@@ -155,4 +155,26 @@ func runGeoDataTests() {
                               .block(.rule(blockGitHub)))
         }
     }
+
+    Check.suite("Updating itself (#132)") {
+
+        // What bundle.sh writes into a Developer ID build. A typo here would ship
+        // an app that refuses every update, or asks the wrong place.
+        let script = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Scripts/bundle.sh")
+        let text = (try? String(contentsOf: script, encoding: .utf8)) ?? ""
+        Check.test("the app trusts a real Ed25519 key") {
+            let key = text.range(of: #"SUPublicEDKey string (\S+)""#, options: .regularExpression)
+                .map { String(text[$0]).replacingOccurrences(of: "SUPublicEDKey string ", with: "")
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"")) }
+            let raw = key.flatMap { Data(base64Encoded: $0) }
+            Check.expectNotNil(raw.flatMap { try? Curve25519.Signing.PublicKey(rawRepresentation: $0) }, "\(key ?? "none")")
+        }
+
+        Check.test("it asks the newest release, over HTTPS") {
+            Check.expectTrue(text.contains(
+                "SUFeedURL string https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/appcast.xml"))
+        }
+    }
 }

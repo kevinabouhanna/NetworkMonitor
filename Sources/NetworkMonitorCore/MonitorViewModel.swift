@@ -81,6 +81,8 @@ public final class MonitorViewModel: ObservableObject {
     public let firewall = FirewallRules()
     /// The monthly refresh of the country and owner data (#121).
     public let geoData = GeoDataUpdater()
+    /// Updating NetworkMonitor itself (#132).
+    public let updates = UpdateController()
     private var firewallPolicy: AnyCancellable?
     /// The readout's colours, and the speed test's alongside them (#45).
     public let menuBarColors: MenuBarColors
@@ -229,6 +231,8 @@ public final class MonitorViewModel: ObservableObject {
             filter.applyGeoData(at: GeoDataUpdater.downloadedDirectory, month: month)
         }
         geoData.start()
+        updates.isMetered = { [weak self] in self?.metering.verdict.isMetered ?? false }
+        updates.start()
 
         // Asked at the moment of each run, so a hotspot joined after launch is
         // caught. The menu bar hook routes through the same signal the live rate
