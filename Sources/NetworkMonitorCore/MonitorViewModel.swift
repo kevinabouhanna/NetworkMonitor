@@ -71,7 +71,8 @@ public final class MonitorViewModel: ObservableObject {
     /// it has to hear about network changes, and it borrows the nettop samples to
     /// notice other apps competing with it.
     public let speedTest: SpeedTestController
-    /// The content filter (#128): off until turned on in Settings › Connections.
+    /// The content filter (#128): off until turned on in the welcome window or
+    /// Settings › Connections (#134).
     public let filter = FilterController()
     private var filterNames: AnyCancellable?
     /// The readout's colours, and the speed test's alongside them (#45).

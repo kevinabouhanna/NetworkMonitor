@@ -43,11 +43,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         connectionsController = controller
         return controller
     }
-    /// Settings and Connections, those that are open, front to back, without
-    /// creating either to find out.
+    /// The welcome window (#134), on first launch. Created when shown.
+    private var welcomeController: WelcomeWindowController?
+    private var welcomeCheck: AnyCancellable?
+    /// Settings, Connections and the welcome window, whichever exist, without
+    /// creating any to find out.
+    private var ourWindows: [NSWindow] {
+        [settingsController?.window, connectionsController?.window, welcomeController?.window].compactMap { $0 }
+    }
+    /// Those that are open, front to back.
     private var openWindows: [NSWindow] {
-        let ours = [settingsController?.window, connectionsController?.window]
-            .compactMap { $0 }.filter(\.isVisible)
+        let ours = ourWindows.filter(\.isVisible)
         return NSApp.orderedWindows.filter { window in ours.contains { $0 === window } }
     }
     /// Invisible stand-in for the status item that the popover anchors to.
@@ -73,17 +79,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         model.start()
         observeTitle()
         offerHelperUpdateIfNeeded()
+        showWelcomeIfNeeded()
         openWindowFromLaunchArgument()
     }
 
-    /// `open NetworkMonitor.app --args -open connections`, or `-open settings`
-    /// with `-pane history` (any pane), for a screenshot or a check of a
-    /// development build without clicking the menu bar. Only the launch
-    /// arguments are read, so it never outlives the run.
+    /// Once, on first launch, or the first after updating to a version that
+    /// has it, unless everything it offers is already on. Waits for the filter
+    /// to say whether it was left on.
+    private func showWelcomeIfNeeded() {
+        welcomeCheck = model.filter.$hasResolved.first { $0 }.sink { [weak self] _ in
+            guard let self else { return }
+            let defaults = UserDefaults.standard
+            let shown = defaults.bool(forKey: Welcome.shownKey)
+            defaults.set(true, forKey: Welcome.shownKey)
+            guard Welcome.shouldShow(shown: shown, filter: self.model.filter.state,
+                                     wifi: self.model.wifiNames.access) else { return }
+            self.showWelcome()
+        }
+    }
+
+    private func showWelcome() {
+        if popover.isShown { closePopover() }
+        let controller = welcomeController ?? WelcomeWindowController(filter: model.filter,
+                                                                       wifiNames: model.wifiNames)
+        controller.window.delegate = self
+        welcomeController = controller
+        present(controller.window, reposition: !controller.window.isVisible)
+    }
+
+    /// `open NetworkMonitor.app --args -open connections`, `-open welcome`, or
+    /// `-open settings` with `-pane history` (any pane), for a screenshot or a
+    /// check of a development build without clicking the menu bar. Only the
+    /// launch arguments are read, so it never outlives the run.
     private func openWindowFromLaunchArgument() {
         let arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
         switch arguments["open"] as? String {
         case "connections": showConnections()
+        case "welcome":     showWelcome()
         case "settings":    show(pane: (arguments["pane"] as? String).flatMap(SettingsPane.init))
         default:            break
         }
@@ -531,11 +563,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
         menu.addItem(withTitle: "Connections…",
                      action: #selector(showConnections), keyEquivalent: "k")
-        // Always one click from switching the filter off (#128).
-        if model.filter.state == .on {
-            menu.addItem(withTitle: "Stop Filtering",
-                         action: #selector(stopFiltering), keyEquivalent: "")
-        }
         menu.addItem(withTitle: "Usage History…",
                      action: #selector(showHistory), keyEquivalent: "y")
         menu.addItem(withTitle: "Settings…",
@@ -570,10 +597,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if case .confirming = speedTest.phase, !popover.isShown {
             togglePopover()
         }
-    }
-
-    @objc private func stopFiltering() {
-        model.filter.turnOff()
     }
 
     // MARK: Uninstall
@@ -696,9 +719,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         guard let closing = notification.object as? NSWindow else { return }
         if closing === settingsController?.window { settingsController?.windowWillClose() }
         if closing === connectionsController?.window { connectionsController?.windowWillClose() }
-        // Still a regular app while the other window is open.
-        let stillOpen = [settingsController?.window, connectionsController?.window]
-            .contains { $0 != nil && $0 !== closing && $0!.isVisible }
+        // Still a regular app while another window is open.
+        let stillOpen = ourWindows.contains { $0 !== closing && $0.isVisible }
         guard !stillOpen else { return }
         NSApp.setActivationPolicy(.accessory)
         NSApp.mainMenu = nil

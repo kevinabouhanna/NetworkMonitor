@@ -64,21 +64,12 @@ struct GeneralSettingsPane: View {
                                  + "always counted in MB and GB, the way data plans are sold.")
             }
 
-            // Wi-Fi names are always on (#85). Nothing to show unless Location
-            // was refused, which is the one reason they'd be missing.
-            if wifiNames.access == .denied {
+            // Wi-Fi names (#85), for anyone who said "not now" in the welcome
+            // window or was asked before it existed (#134). Once on, there's
+            // nothing to show.
+            if wifiNames.access != .allowed {
                 Section {
-                    LabeledContent("Wi-Fi names") {
-                        Button("Open Location Settings") {
-                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:"
-                                + "com.apple.preference.security?Privacy_LocationServices")!)
-                        }
-                    }
-                } footer: {
-                    SettingsFootnote("macOS shares a Wi-Fi network's name only with Location "
-                                     + "permission, and it's off for NetworkMonitor. Until it's "
-                                     + "on, networks are named like “Wi-Fi · 3f2a”. NetworkMonitor "
-                                     + "uses it for the name alone, and never looks up where you are.")
+                    WiFiNamesRow(wifiNames: wifiNames)
                 }
             }
 

@@ -67,7 +67,7 @@ can't run `nettop`.
   servers each app reached through it.
 - Microsoft's and Google's networks also carry other companies' services (Azure, and
   Google's front ends for Google Cloud), which show as Microsoft or Google.
-- Server names need the content filter (#128) turned on. Without it, a server is its
+- Server names need the content filter (#128), which is optional (#134). Without it, a server is its
   address, and a network that hosts other companies, such as Amazon's or Cloudflare's,
   says so rather than naming the company behind the traffic.
 - With it, an address keeps the latest name an app reached it by. An address shared by

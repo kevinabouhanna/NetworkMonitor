@@ -1,7 +1,9 @@
 import FilterProtocol
 import Foundation
+import NetworkExtension
 import NetworkMonitorCore
 import ServerDirectory
+import SystemExtensions
 
 func runFilterTests() {
     Check.suite("Content filter — what it reports") {
@@ -100,6 +102,57 @@ func runFilterTests() {
             history.flush(now: now)
             let reopened = UsageHistory(databaseURL: url, calendar: calendar)
             Check.expectEqual(reopened.servers(in: day).first?.name, "app.slack.com")
+        }
+    }
+}
+
+func runSetupTests() {
+    Check.suite("Welcome window and permissions (#134)") {
+
+        Check.test("shown once, and only with something to offer") {
+            Check.expectTrue(Welcome.shouldShow(shown: false, filter: .off, wifi: .asking))
+            Check.expectTrue(Welcome.shouldShow(shown: false, filter: .on, wifi: .denied))
+            Check.expectTrue(Welcome.shouldShow(shown: false, filter: .off, wifi: .allowed))
+            Check.expectTrue(Welcome.shouldShow(shown: false, filter: .unavailable, wifi: .asking))
+            Check.expectFalse(Welcome.shouldShow(shown: false, filter: .on, wifi: .allowed), "everything's on")
+            Check.expectFalse(Welcome.shouldShow(shown: false, filter: .unavailable, wifi: .allowed))
+            Check.expectFalse(Welcome.shouldShow(shown: true, filter: .off, wifi: .asking), "never twice")
+        }
+
+        // The point of #134: what you get, never how it works.
+        Check.test("says what you get, in plain words") {
+            let jargon = ["filter", "extension", "server", "ssid", "content", "permission", "dns", "socket"]
+            for text in SetupCopy.plain {
+                for word in jargon {
+                    Check.expectFalse(text.lowercased().contains(word), "“\(word)” in: \(text)")
+                }
+            }
+        }
+
+        Check.test("a newer request isn't a failure, and no isn't an error") {
+            let superseded = NSError(domain: OSSystemExtensionErrorDomain,
+                                     code: OSSystemExtensionError.requestSuperseded.rawValue)
+            Check.expectNil(FilterController.state(after: superseded))
+
+            let outsideApplications = NSError(domain: OSSystemExtensionErrorDomain,
+                                              code: OSSystemExtensionError.unsupportedParentBundleLocation.rawValue)
+            Check.expectEqual(FilterController.state(after: outsideApplications), .needsApplicationsFolder)
+
+            let declined = NSError(domain: NEFilterErrorDomain,
+                                   code: NEFilterManagerError.configurationPermissionDenied.rawValue)
+            let cancelled = NSError(domain: OSSystemExtensionErrorDomain,
+                                    code: OSSystemExtensionError.requestCanceled.rawValue)
+            for answer in [declined, cancelled] {
+                let state = FilterController.state(after: answer)
+                Check.expectNotNil(state)
+                if case .failed = state { Check.expectTrue(false, "an answer shown as a failure") }
+            }
+
+            let broken = NSError(domain: OSSystemExtensionErrorDomain,
+                                 code: OSSystemExtensionError.validationFailed.rawValue)
+            if case .failed = FilterController.state(after: broken) {} else {
+                Check.expectTrue(false, "a real failure is shown as one")
+            }
         }
     }
 }

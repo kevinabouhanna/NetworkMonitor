@@ -188,7 +188,8 @@ the interface and the gateway's IP, `if:en0@172.20.10.1`. Path changes are debou
 `usage.json` (`wifiNames`), first seen first. macOS 27 shares it only with Location
 permission: without it CoreWLAN's `ssid()` is nil, configd's `SSID_STR` is empty and
 `ipconfig getsummary` prints `<redacted>`. So the app asks with
-`requestAlwaysAuthorization()` 3 seconds after launch (macOS has no "while using"), reads
+`requestAlwaysAuthorization()` when the person turns names on, in the welcome window or
+Settings › General (#134; macOS has no "while using"), reads
 `ssid()` on the path watcher's queue once allowed, and evaluates the path again when the
 answer changes. A name arriving for the network already in use is not a change of link,
 so it doesn't re-baseline the counters. Releases are all signed with one certificate,
@@ -341,7 +342,10 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    signature by team. Each new flow is allowed and reported in batches; its name goes to
    `UsageHistory.noteServerNames`, and `Company.named(byHostname:)` names the company,
    so a host's customer is no longer *Hosted on…*. The contract between the two lives in
-   `FilterProtocol`, Foundation only.
+   `FilterProtocol`, Foundation only. It's offered, never switched on unasked: in the
+   welcome window (`WelcomeWindowController`) on first launch, and by `WebsiteNamesRow`
+   in Settings › Connections and the Connections window (#134). `FilterController`
+   follows `NEFilterConfigurationDidChange`, so turning it off in System Settings shows.
 
 An app's servers can add up to a little less than its total: a socket that opened and
 closed between two samples leaves no connection row. In a 30-second capture on the

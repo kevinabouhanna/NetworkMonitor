@@ -75,10 +75,17 @@ public final class ConnectionsViewModel: ObservableObject {
     }
     /// Where the map's lines start: the Mac's Region setting, never Location.
     public let homeCountry: String? = Locale.current.region?.identifier
+    /// The offer of website names above the list, until it's taken or closed
+    /// (#134). Closed, it stays closed: Settings › Connections still has it.
+    @Published public var offersWebsiteNames: Bool {
+        didSet { defaults.set(!offersWebsiteNames, forKey: Self.websiteNamesOfferClosedKey) }
+    }
+    public var filter: FilterController { monitor.filter }
 
     /// How many items a section shows before "Show all".
     public static let sectionPreview = 8
     public static let layoutKey = "connectionsLayout"
+    public static let websiteNamesOfferClosedKey = "websiteNamesOfferClosed"
     /// How long a country stays lit on the Live map after its last packet.
     public static let liveWindow: TimeInterval = 30
 
@@ -104,6 +111,7 @@ public final class ConnectionsViewModel: ObservableObject {
         self.calendar = calendar
         self.defaults = defaults
         layout = defaults.string(forKey: Self.layoutKey).flatMap(Layout.init) ?? .both
+        offersWebsiteNames = !defaults.bool(forKey: Self.websiteNamesOfferClosedKey)
         period = HistoryPeriod(scale: .day, containing: Date(), calendar: calendar)
     }
 

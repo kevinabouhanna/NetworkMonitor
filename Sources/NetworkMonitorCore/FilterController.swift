@@ -8,9 +8,10 @@ import SystemExtensions
 /// extension, switching the filter on and off, removing it, and receiving
 /// what it saw.
 ///
-/// Nothing happens until someone turns it on in Settings › Connections. Then
-/// macOS asks twice: once to allow the system extension (in System Settings),
-/// once to allow the filter. Turned off, the extension stays installed but
+/// Nothing happens until someone turns it on, in the welcome window or
+/// Settings › Connections (#134). Then macOS asks twice: once to allow the
+/// system extension (in System Settings), once to allow the filter. From then
+/// on it runs in the background. Turned off, the extension stays installed but
 /// filters nothing; uninstalling NetworkMonitor removes it.
 public final class FilterController: NSObject, ObservableObject, OSSystemExtensionRequestDelegate,
                                      FilterAppInterface {
@@ -19,14 +20,22 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         /// Not built in: a build without the Developer ID.
         case unavailable
         case off
+        /// macOS only installs system extensions from the Applications folder.
+        case needsApplicationsFolder
+        /// Turned on, before macOS says what it needs.
+        case starting
         /// Waiting for the person to allow the extension in System Settings.
         case waitingForApproval
-        case starting
+        /// Allowed there; now the filter itself, which macOS asks about too.
+        case confirming
         case on
         case failed(String)
     }
 
     @Published public private(set) var state: State
+    /// False until `resume()` has found out whether the filter was left on,
+    /// so the welcome window doesn't offer what's already there.
+    @Published public private(set) var hasResolved: Bool
 
     /// Each batch the filter reports, on the main queue.
     public let flows = PassthroughSubject<[FlowReport], Never>()
@@ -41,20 +50,58 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
             + "/Contents/Library/SystemExtensions/\(FilterIdentity.extensionIdentifier).systemextension")
     }
 
+    /// Whether the app runs from the Applications folder, the only place
+    /// macOS installs a system extension from.
+    public static var isInApplications: Bool {
+        Bundle.main.bundleURL.standardizedFileURL.deletingLastPathComponent().path == "/Applications"
+    }
+
+    /// Off, or why it can't be turned on yet.
+    private static var offState: State {
+        guard isBundled else { return .unavailable }
+        return isInApplications ? .off : .needsApplicationsFolder
+    }
+
     public override init() {
-        state = Self.isBundled ? .off : .unavailable
+        state = Self.offState
+        hasResolved = !Self.isBundled
         super.init()
     }
 
-    /// At launch: if the filter was left on, reconnect to it.
+    /// At launch: if the filter was left on, reconnect to it. And from then
+    /// on, follow it being switched off or on in System Settings.
     public func resume() {
         guard Self.isBundled else { return }
+        NotificationCenter.default.addObserver(forName: .NEFilterConfigurationDidChange,
+                                               object: nil, queue: .main) { [weak self] _ in
+            self?.followConfiguration()
+        }
         NEFilterManager.shared().loadFromPreferences { [weak self] _ in
             DispatchQueue.main.async {
                 guard let self else { return }
                 if NEFilterManager.shared().isEnabled {
                     self.state = .on
                     self.connect()
+                }
+                self.hasResolved = true
+            }
+        }
+    }
+
+    /// Only between on and off: while it's being turned on, the change is
+    /// the app's own.
+    private func followConfiguration() {
+        guard state == .on || state == .off else { return }
+        let manager = NEFilterManager.shared()
+        manager.loadFromPreferences { [weak self] _ in
+            DispatchQueue.main.async {
+                guard let self, self.state == .on || self.state == .off else { return }
+                if manager.isEnabled, self.state == .off {
+                    self.state = .on
+                    self.connect()
+                } else if !manager.isEnabled, self.state == .on {
+                    self.disconnect()
+                    self.state = Self.offState
                 }
             }
         }
@@ -63,7 +110,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     // MARK: Switching
 
     public func turnOn() {
-        guard Self.isBundled else { return }
+        guard Self.isBundled, Self.isInApplications else { return }
         state = .starting
         removing = false
         let request = OSSystemExtensionRequest.activationRequest(
@@ -81,7 +128,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
             manager.saveToPreferences { _ in
                 DispatchQueue.main.async {
                     self?.disconnect()
-                    self?.state = Self.isBundled ? .off : .unavailable
+                    self?.state = Self.offState
                 }
             }
         }
@@ -111,7 +158,10 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     private func enableFilter() {
         let manager = NEFilterManager.shared()
         manager.loadFromPreferences { [weak self] _ in
-            if manager.providerConfiguration == nil {
+            // macOS asks only about a filter it hasn't been told about.
+            let asks = manager.providerConfiguration == nil
+            DispatchQueue.main.async { self?.state = asks ? .confirming : .starting }
+            if asks {
                 let configuration = NEFilterProviderConfiguration()
                 configuration.filterSockets = true
                 configuration.filterPackets = false
@@ -123,7 +173,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
                 DispatchQueue.main.async {
                     guard let self else { return }
                     if let error {
-                        self.state = .failed(error.localizedDescription)
+                        self.state = Self.state(after: error) ?? Self.offState
                     } else {
                         self.state = .on
                         self.connect()
@@ -151,15 +201,37 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
                         didFinishWithResult result: OSSystemExtensionRequest.Result) {
         if removing {
             removing = false
-            state = .off
+            state = Self.offState
         } else {
             enableFilter()
         }
     }
 
     public func request(_ request: OSSystemExtensionRequest, didFailWithError error: Error) {
-        removing = false
-        state = .failed(error.localizedDescription)
+        if removing {
+            removing = false
+            state = Self.offState
+        } else if let next = Self.state(after: error) {
+            state = next
+        }
+    }
+
+    /// Where a failed request leaves things, in the person's terms. Nil keeps
+    /// the state as it is: a request replaced by a newer one isn't a failure.
+    public static func state(after error: Error) -> State? {
+        let error = error as NSError
+        switch (error.domain, error.code) {
+        case (OSSystemExtensionErrorDomain, OSSystemExtensionError.requestSuperseded.rawValue):
+            return nil
+        case (OSSystemExtensionErrorDomain, OSSystemExtensionError.unsupportedParentBundleLocation.rawValue):
+            return .needsApplicationsFolder
+        // Cancelled, or Don't Allow: an answer, not an error.
+        case (OSSystemExtensionErrorDomain, OSSystemExtensionError.requestCanceled.rawValue),
+             (NEFilterErrorDomain, NEFilterManagerError.configurationPermissionDenied.rawValue):
+            return offState
+        default:
+            return .failed(error.localizedDescription)
+        }
     }
 
     // MARK: The connection

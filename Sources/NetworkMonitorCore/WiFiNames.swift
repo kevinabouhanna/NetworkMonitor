@@ -10,8 +10,8 @@ import Foundation
 /// permission is used for the name and nothing else: no location is ever
 /// requested.
 ///
-/// Without a Developer ID every update is a different app to macOS, so it will
-/// likely ask again after one. `start()` asks whenever the answer is unknown.
+/// macOS asks only when the person turns names on, in the welcome window or
+/// Settings › General (#134), never by itself at launch.
 public final class WiFiNames: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     /// What Settings says, which is nothing unless names can't be read.
@@ -52,15 +52,18 @@ public final class WiFiNames: NSObject, ObservableObject, CLLocationManagerDeleg
         }
     }
 
-    /// Asks, if the answer is unknown, as it is on first launch and likely
-    /// after an update. A few seconds in, as the helper's offer is, so the
-    /// menu bar item is there to say whose question it is.
     public func start() {
         manager.delegate = self
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
-            guard let self, self.status == .notDetermined else { return }
-            self.manager.requestAlwaysAuthorization()
-        }
+    }
+
+    /// macOS's question, if it hasn't been answered. Once it has, only System
+    /// Settings can change the answer: `ask()` returns false, and the caller
+    /// opens it.
+    @discardableResult
+    public func ask() -> Bool {
+        guard status == .notDetermined else { return false }
+        manager.requestAlwaysAuthorization()
+        return true
     }
 
     public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
