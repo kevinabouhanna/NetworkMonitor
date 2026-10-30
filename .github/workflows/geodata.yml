@@ -4,9 +4,13 @@ name: Data refresh
 # new month at the start of each; this converts it, checks every row, and
 # publishes it signed as the `geodata` release, which the app downloads once a
 # month. Run it by hand from the Actions tab to publish this month's now.
+#
+# Tried again on the 10th and the 17th, in case DB-IP was late or the run
+# failed: a single run a month would otherwise leave the data a month behind
+# until the next. A retry stops at once when the month is already published.
 on:
   schedule:
-    - cron: "0 6 3 * *"   # the 3rd, 06:00 UTC, after DB-IP's release
+    - cron: "0 6 3,10,17 * *"   # the 3rd, 06:00 UTC, after DB-IP's release, then retries
   workflow_dispatch:
 
 permissions:
@@ -19,15 +23,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # A scheduled retry with this month already out has nothing to do. By
+      # hand, it always runs.
+      - name: Check whether this month is already published
+        id: due
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          month="$(date -u +%Y-%m)"
+          published="$(gh release download geodata -p manifest.json -O - 2>/dev/null | jq -r .month || true)"
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$published" = "$month" ]; then
+            echo "$month is already published"
+            echo "value=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=true" >> "$GITHUB_OUTPUT"
+          fi
+
       # Into the checkout's Resources/Geo, which isn't committed back: the
       # app's own copy changes with a release, in a pull request of its own.
       - name: Download and convert this month's data
+        if: steps.due.outputs.value == 'true'
         run: ./Scripts/geodata.sh "$(date -u +%Y-%m)"
 
       # Compressed, with a manifest of each table's size and SHA-256, signed
       # with the key whose public half is in the app. Without the key, the
       # build fails rather than publish data the app would refuse.
       - name: Package and sign
+        if: steps.due.outputs.value == 'true'
         env:
           GEODATA_SIGNING_KEY: ${{ secrets.GEODATA_SIGNING_KEY }}
         run: |
@@ -37,6 +59,7 @@ jobs:
       # A release that is never "latest", so the website's download link keeps
       # pointing at the app. Each month replaces the last month's files.
       - name: Publish
+        if: steps.due.outputs.value == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
