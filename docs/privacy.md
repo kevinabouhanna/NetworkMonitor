@@ -101,7 +101,8 @@ it every server your Mac talks to. The data is
 - **Nothing else, normally.** No Local Network, no Accessibility, no Full Disk Access.
 - **A helper, once, if you choose it.** Switching on Hotspot mode offers a small helper,
   which macOS lists under NetworkMonitor in System Settings › General › Login Items &
-  Extensions for you to switch on (#131). It answers only NetworkMonitor, checked by its
+  Extensions for you to switch on (#131), which macOS may confirm with your password or
+  Touch ID. It answers only NetworkMonitor, checked by its
   developer's signature, and can do a fixed handful of things and nothing else; see
   [Hotspot mode](hotspot-mode.md#the-helper). Leave it off, and everything except the parts
   that need it keeps working. A build from source, without a Developer ID, asks for your

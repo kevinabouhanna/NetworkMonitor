@@ -15,6 +15,9 @@ application.setActivationPolicy(.accessory)
 // guard so it works while a copy is already running.
 if CommandLine.arguments.contains("--unregister-login-item") {
     LoginItem.withdraw()
+    // And the helper daemon (#131), the other registration only the app can
+    // withdraw. `uninstall.sh` has already had the helper put everything back.
+    HelperService.unregister()
     exit(0)
 }
 

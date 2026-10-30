@@ -7,7 +7,7 @@ feature works, and why it was built that way.
 
 | Page | What's in it |
 |---|---|
-| [Installing, updating and removing](installing.md) | Why macOS asks you to approve it, every step, and what uninstalling puts back |
+| [Installing, updating and removing](installing.md) | Every step, how it updates itself, and what uninstalling puts back |
 | [Features](features.md) | The menu bar readout, the popover, per-connection totals, Settings |
 | [Connections](connections.md) | Which companies, countries and servers your apps talk to, and what the names mean |
 | [Usage History](usage-history.md) | Looking back by day, week, month or year; sessions; CSV export |
@@ -22,9 +22,9 @@ feature works, and why it was built that way.
 | Page | What's in it |
 |---|---|
 | [Architecture](architecture.md) | How data flows (with a diagram), threads, the two measurement sources, files |
-| [Building, testing and releasing](development.md) | Make targets, the test harness, CI, the release and website workflow |
+| [Building, testing and releasing](development.md) | Make targets, signing and notarizing, the test harness, CI, launch arguments, the release and website workflow |
 | [Decisions](decisions.md) | Principles, a dated decision log, and approaches that were turned down |
-| [Roadmap and known limits](roadmap.md) | Developer ID, notarization and an updater; ideas; known limits |
+| [Roadmap and known limits](roadmap.md) | What the Developer ID made possible, and what's done; ideas; known limits |
 
 Start with [Architecture](architecture.md) and [Decisions](decisions.md) before changing
 how anything is measured.
