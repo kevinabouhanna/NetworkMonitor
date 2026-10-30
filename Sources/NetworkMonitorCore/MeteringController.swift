@@ -107,6 +107,7 @@ public final class MeteringController: ObservableObject {
     public func start() {
         revertAll()
         observeApplicationExits()
+        moveSavedReportToHistory()
         evaluate()
     }
 
@@ -628,7 +629,26 @@ public final class MeteringController: ObservableObject {
     private func publishSightings() {
         let next = updateWatch.reportable
         if next != updatesGotThrough { updatesGotThrough = next }
+        keepInHistory(next)
     }
+
+    /// Into Usage History, with the visit each was first seen on, where they
+    /// outlive the next metered connection's report (#96).
+    private func keepInHistory(_ sightings: [UpdateWatch.Sighting]) {
+        guard !sightings.isEmpty, let history = store.history,
+              let report = updateWatch.reportStarted, let networkID = updateWatch.networkID
+        else { return }
+        history.recordUpdates(sightings, report: report, networkID: networkID)
+    }
+
+    /// The report saved before History kept updates, moved in once.
+    private func moveSavedReportToHistory() {
+        guard store.history != nil, !defaults.bool(forKey: Self.updatesInHistoryKey) else { return }
+        keepInHistory(updateWatch.reportable)
+        defaults.set(true, forKey: Self.updatesInHistoryKey)
+    }
+
+    static let updatesInHistoryKey = "meteringUpdatesInHistory"
 
     private func publishLowDataMode() {
         guard let lowData else { return }

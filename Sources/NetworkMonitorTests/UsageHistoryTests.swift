@@ -463,17 +463,96 @@ func runUsageHistoryTests() {
                                         networkName: { $0 == "A" ? "Home" : nil })
             let lines = csv.split(separator: "\n").map(String.init)
             Check.expectEqual(lines.count, 4)
-            Check.expectEqual(lines[0],
-                              "Hour,Network,Network Type,Metered,App,Downloaded (bytes),Uploaded (bytes)")
-            Check.expectEqual(lines[1], "2026-10-21 09:00,Home,Wi-Fi,No,Safari,600,60")
-            Check.expectEqual(lines[2], "2026-10-21 09:00,Home,Wi-Fi,No,\"Mail, Calendar\",100,10")
-            Check.expectEqual(lines[3], "2026-10-21 09:00,Home,Wi-Fi,No,Not attributed to an app,300,30")
+            Check.expectEqual(lines[0], "Hour,Network,Network Type,Metered,App,Downloaded (bytes),"
+                                        + "Uploaded (bytes),Update That Got Through")
+            Check.expectEqual(lines[1], "2026-10-21 09:00,Home,Wi-Fi,No,Safari,600,60,")
+            Check.expectEqual(lines[2], "2026-10-21 09:00,Home,Wi-Fi,No,\"Mail, Calendar\",100,10,")
+            Check.expectEqual(lines[3], "2026-10-21 09:00,Home,Wi-Fi,No,Not attributed to an app,300,30,")
         }
 
         Check.test("CSV quotes only what needs quoting") {
             Check.expectEqual(UsageHistory.csvField("Safari"), "Safari")
             Check.expectEqual(UsageHistory.csvField("a,b"), "\"a,b\"")
             Check.expectEqual(UsageHistory.csvField("say \"hi\""), "\"say \"\"hi\"\"\"")
+        }
+    }
+
+    Check.suite("UsageHistory — updates that got through") {
+        func hotspotWithTraffic(_ history: UsageHistory) {
+            history.join(network("H", kind: .hotspot), label: "Net H", switched: false, now: reference)
+            history.recordInterface(bytesIn: 1_000, bytesOut: 100, now: reference)
+            history.recordApps([(app("Slack"), 600, 60)], now: reference)
+        }
+
+        Check.test("an update is kept with its visit, once per report, its figures kept current") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            hotspotWithTraffic(history)
+            let slack = UpdateWatch.Sighting(name: "Slack", source: .download, bytes: 100_000_000,
+                                             lastSeen: reference.addingTimeInterval(60))
+            history.recordUpdates([slack], report: reference, networkID: "H")
+            history.flush(now: reference)
+
+            var grown = slack
+            grown.bytes = 120_000_000
+            grown.version = "4.41"
+            history.recordUpdates([grown], report: reference, networkID: "H")
+
+            let report = history.report(for: day(reference, cal))
+            Check.expectEqual(report.updates.count, 1)
+            Check.expectEqual(report.updates.first?.label, "Slack updated to 4.41")
+            Check.expectEqual(report.updates.first?.bytes, 120_000_000)
+            Check.expectEqual(report.sessions.first.map { report.updates(in: $0.id).count }, 1)
+        }
+
+        Check.test("updates are named for their app, and say when they're the most it could be") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            hotspotWithTraffic(history)
+            history.recordUpdates([UpdateWatch.Sighting(name: "GoogleUpdater", app: "Google Chrome",
+                                                        source: .traffic, bytes: 5_000_000, lastSeen: reference),
+                                   UpdateWatch.Sighting(name: "Granola", source: .download, bytes: 3_000_000,
+                                                        lastSeen: reference, isSizeOnDisk: true)],
+                                  report: reference, networkID: "H")
+            let updates = history.report(for: day(reference, cal)).updates
+            Check.expectEqual(Set(updates.map(\.appName)), ["Google Chrome", "Granola"])
+            Check.expectTrue(updates.first { $0.appName == "Granola" }?.amount.hasPrefix("up to ") ?? false)
+        }
+
+        Check.test("Clear History takes its updates with it") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            hotspotWithTraffic(history)
+            history.recordUpdates([UpdateWatch.Sighting(name: "Slack", source: .download, bytes: 5_000_000,
+                                                        lastSeen: reference)],
+                                  report: reference, networkID: "H")
+            history.flush(now: reference)
+            history.clear(now: reference)
+            Check.expectTrue(history.report(for: day(reference, cal)).updates.isEmpty)
+            Check.expectEqual(history.exportCSV(for: day(reference, cal)).split(separator: "\n").count, 1)
+        }
+
+        Check.test("CSV puts each update on its app's line, or a line of its own with no bytes") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            hotspotWithTraffic(history)
+            history.recordUpdates([UpdateWatch.Sighting(name: "Slack", source: .download, bytes: 120_000_000,
+                                                        lastSeen: reference, version: "4.41"),
+                                   UpdateWatch.Sighting(name: "GoogleUpdater", app: "Google Chrome",
+                                                        source: .traffic, bytes: 5_000_000, lastSeen: reference)],
+                                  report: reference, networkID: "H")
+            let lines = history.exportCSV(for: day(reference, cal)).split(separator: "\n").map(String.init)
+            Check.expectEqual(lines[1], "2026-10-21 09:00,Net H,Hotspot,No,Slack,600,60,"
+                                        + UsageHistory.csvField("Slack updated to 4.41, "
+                                                                + ByteFormat.bytes(120_000_000)))
+            Check.expectTrue(lines.contains("2026-10-21 09:00,Net H,Hotspot,No,Google Chrome,0,0,"
+                                            + UsageHistory.csvField("Google Chrome downloaded an update, "
+                                                                    + ByteFormat.bytes(5_000_000))),
+                             lines.joined(separator: "\n"))
         }
     }
 

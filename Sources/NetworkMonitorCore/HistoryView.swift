@@ -279,18 +279,39 @@ public struct HistoryView: View {
         let largest = max(report.sessions.map(\.bytes).max() ?? 0, 1)
         ForEach(report.sessions) { total in
             let session = total.session
+            let updates = report.updates(in: session.id)
             HistoryListRow(
                 leading: { AnyView(KindBadge(kind: session.kind)) },
                 title: model.networkName(session.networkID, defaultLabel: session.defaultLabel),
                 subtitle: HistoryFormat.sessionSpan(session) + " · "
-                    + HistoryFormat.duration(session.end.timeIntervalSince(session.start)),
+                    + HistoryFormat.duration(session.end.timeIntervalSince(session.start))
+                    + (updates.isEmpty ? "" : " · " + Self.gotThrough(updates.count)),
                 isMetered: session.isMetered,
                 bytes: total.bytes,
                 fraction: fraction(total.bytes, of: largest),
                 barColor: HistoryPalette.color(for: session.kind),
                 isSelected: model.filter.sessionID == session.id,
                 onSelect: { model.toggleSession(session.id) })
+            // Listed once the visit is chosen: what got through on it (#96).
+            if model.filter.sessionID == session.id {
+                ForEach(updates) { update in
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.down.circle").foregroundStyle(.orange)
+                        Text(update.label)
+                        Spacer(minLength: 8)
+                        Text(update.amount).monospacedDigit().foregroundStyle(.secondary)
+                    }
+                    .font(.system(size: 11))
+                    .padding(.leading, 34)
+                    .padding(.trailing, 8)
+                    .padding(.vertical, 3)
+                }
+            }
         }
+    }
+
+    static func gotThrough(_ count: Int) -> String {
+        count == 1 ? "1 update got through" : "\(count) updates got through"
     }
 
     // MARK: Footer
