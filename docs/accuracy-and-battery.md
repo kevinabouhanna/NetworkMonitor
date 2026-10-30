@@ -20,6 +20,12 @@ app's sockets moved. In the 50 MB test, `curl` was credited with 94.8% of the ke
 figure, and the rest was wire overhead. The final second before you quit is never
 completed either. So the big total is the one to trust; the rows tell you where it went.
 
+**A process that comes and goes between two samples may not get a row.** `nettop` reports
+the processes alive when it samples, every 1 to 10 seconds depending on the power
+profile. A socket that opens and closes in between still reaches its process's row, but a
+process that starts and ends in between may never be named. Its bytes are still in the
+total, and in History and the CSV they're under *Not attributed to an app*.
+
 ## Internet, not your own network
 
 Mirroring your screen to an Apple TV, Time Machine to a NAS, a Plex stream from your own

@@ -176,8 +176,8 @@ public struct MenuBarPopoverView: View {
                     }
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
-                    .help("macOS's nettop couldn't start (\(failure)). The total is still "
-                          + "counted, and NetworkMonitor keeps trying.")
+                    .help("macOS's nettop isn't reporting per-app figures (\(failure)). The "
+                          + "total is still counted, and NetworkMonitor keeps trying.")
                 }
             }
             Spacer()

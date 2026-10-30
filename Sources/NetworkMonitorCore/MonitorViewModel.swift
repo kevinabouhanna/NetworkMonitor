@@ -463,71 +463,19 @@ public final class MonitorViewModel: ObservableObject {
             guard let self else { return }
             if self.perAppFailure != nil { self.perAppFailure = nil }
             let now = Date()
-            var entries: [(identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)] = []
-            var pids = Set<Int32>()
-            var merged: [String: (identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)] = [:]
-            // Each app's internet bytes by server address, for Connections (#115).
-            var servers: [String: [String: ByteCounts]] = [:]
-
-            // LAN bytes are summed across the whole sample and handed to the store
-            // separately: they never become an app row, but the headline has to
-            // know about them to subtract them from the kernel's total.
-            var localIn: Int64 = 0, localOut: Int64 = 0
-
-            for row in sample {
-                pids.insert(row.pid)
-                // Only the unicast part is subtracted from the kernel's total;
-                // multicast is excluded from the rows but left in the headline,
-                // because its reported size cannot be trusted.
-                localIn += row.subtractableLocalIn
-                localOut += row.subtractableLocalOut
-                // Only internet bytes reach a row. An app that did nothing but talk
-                // to a NAS or mirror a screen should not appear at all.
-                let bytesIn = row.internetBytesIn, bytesOut = row.internetBytesOut
-                guard bytesIn > 0 || bytesOut > 0 else { continue }
-                let identity = self.identityResolver.identity(pid: row.pid,
-                                                              fallbackName: row.processName)
-                // Several helper pids collapse onto one identity; merge before
-                // recording so the store sees one entry per app.
-                if var existing = merged[identity.key] {
-                    existing.bytesIn += bytesIn
-                    existing.bytesOut += bytesOut
-                    merged[identity.key] = existing
-                } else {
-                    merged[identity.key] = (identity, bytesIn, bytesOut)
-                }
-                for (address, bytes) in row.servers {
-                    servers[identity.key, default: [:]][address,
-                        default: ByteCounts(bytesIn: 0, bytesOut: 0)] += bytes
-                }
-                self.lastActivity[identity.key] = now
-
-                // By the raw process name, not the app it folds into:
-                // `GoogleUpdater` is an updater whether or not its row groups
-                // under Chrome, and the name is the only list-free signal there is.
-                if self.metering.isSuppressing,
-                   UpdaterScan.looksLikeUpdater(row.processName) {
-                    self.metering.noteUpdaterTraffic(processName: row.processName,
-                                                     appName: identity.displayName,
-                                                     bytes: bytesIn + bytesOut)
-                }
+            let summary = SampleSummary(sample) {
+                self.identityResolver.identity(pid: $0.pid, fallbackName: $0.processName)
             }
-            entries = Array(merged.values)
+            let entries = summary.apps
+            for entry in entries { self.lastActivity[entry.identity.key] = now }
             if self.metering.isSuppressing {
-                // By the app a process belongs to: Squirrel's ShipIt and
-                // Sparkle's downloader run inside the app they update. Outside
-                // an app, by its executable too: Claude Code updates itself
-                // from the folder it runs from, inside a terminal (#94).
+                for updater in summary.updaters {
+                    self.metering.noteUpdaterTraffic(processName: updater.processName,
+                                                     appName: updater.appName, bytes: updater.bytes)
+                }
                 for entry in entries {
-                    let identity = entry.identity, bytes = entry.bytesIn + entry.bytesOut
-                    if let bundlePath = identity.bundlePath {
-                        self.metering.noteAppTraffic(path: bundlePath, bytes: bytes, now: now)
-                        continue
-                    }
-                    self.metering.noteAppTraffic(path: AppIdentityResolver.keyBeforeAdoption(identity.key)
-                                                     ?? identity.key, bytes: bytes, now: now)
-                    if let parent = identity.parent?.bundlePath {
-                        self.metering.noteAppTraffic(path: parent, bytes: bytes, now: now)
+                    for path in entry.identity.trafficPaths {
+                        self.metering.noteAppTraffic(path: path, bytes: entry.bytesIn + entry.bytesOut, now: now)
                     }
                 }
             }
@@ -539,13 +487,13 @@ public final class MonitorViewModel: ObservableObject {
                 })
             }
 
-            if !servers.isEmpty {
-                self.serverActivity.send(Set(servers.values.flatMap(\.keys)))
+            if !summary.servers.isEmpty {
+                self.serverActivity.send(Set(summary.servers.values.flatMap(\.keys)))
             }
-            self.lastSeenPIDs = pids
-            self.identityResolver.retainOnly(pids: pids)
-            self.store.recordApps(entries, servers: servers,
-                                  localBytesIn: localIn, localBytesOut: localOut,
+            self.lastSeenPIDs = summary.pids
+            self.identityResolver.retainOnly(pids: summary.pids)
+            self.store.recordApps(entries, servers: summary.servers,
+                                  localBytesIn: summary.localIn, localBytesOut: summary.localOut,
                                   now: now)
 
             if self.popoverIsOpen { self.rebuildRows(now: now) }
