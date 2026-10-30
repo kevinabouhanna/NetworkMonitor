@@ -202,12 +202,15 @@ public final class MonitorViewModel: ObservableObject {
             })
         }
         filter.resume()
-        // The rules, and whether this is a hotspot for the ones that say "on
-        // hotspots". The values come from the publishers: they fire before
-        // the properties change.
-        firewallPolicy = Publishers.CombineLatest3(firewall.$rules, firewall.$mode, $isExpensiveNetwork)
-            .sink { [weak self] rules, mode, onHotspot in
-                self?.filter.apply(FirewallPolicy(mode: mode, rules: rules, onHotspot: onHotspot))
+        // The rules, whether this is a hotspot for the ones that say "on
+        // hotspots", and whether Hotspot mode pauses updates here (#98). The
+        // values come from the publishers: they fire before the properties
+        // change.
+        firewallPolicy = Publishers.CombineLatest4(firewall.$rules, firewall.$mode, $isExpensiveNetwork,
+                                                   metering.$isEnabled)
+            .sink { [weak self] rules, mode, onHotspot, pausing in
+                self?.filter.apply(FirewallPolicy(mode: mode, rules: rules, onHotspot: onHotspot,
+                                                  pausesUpdates: pausing && onHotspot))
             }
 
         // Asked at the moment of each run, so a hotspot joined after launch is

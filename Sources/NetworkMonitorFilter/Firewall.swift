@@ -31,6 +31,8 @@ final class Firewall {
         /// The app the connection is for, as a blocked attempt is listed.
         let primaryKey: String?
         let isApple: Bool
+        /// The programs themselves, to tell an updater from its app (#98).
+        let paths: [String]
     }
 
     private init() {
@@ -63,21 +65,22 @@ final class Firewall {
     func verdict(for flow: NEFilterSocketFlow, address: String, port: Int) -> (verdict: Verdict, appKey: String?) {
         let policy = current
         // Nothing to block: nothing to look up.
-        guard policy.mode != .anywhere || !policy.rules.isEmpty else { return (.allow(.mode), nil) }
+        guard policy.isActive else { return (.allow(.mode), nil) }
         let address = FirewallPolicy.serverAddress(address)
         if FirewallPolicy.isEssential(address: address, port: port) { return (.allow(.essential), nil) }
         let identity = self.identity(of: flow)
         let info = directory?.lookup(address)
         let company = flow.remoteHostname.flatMap(Company.named(byHostname:)) ?? info?.owner?.company
         let facts = FlowFacts(appKeys: identity.appKeys, companyKey: company?.key, country: info?.country,
-                              address: address, port: port, isApple: identity.isApple)
+                              address: address, port: port, isApple: identity.isApple,
+                              executablePaths: identity.paths, hostname: flow.remoteHostname)
         let verdict = policy.decide(facts)
-        if case .block(let rule) = verdict {
+        if case .block(let reason) = verdict {
             // Debug level: kept only while someone streams the log.
             log.debug("""
                 blocked \(address, privacy: .public):\(port) for \(facts.appKeys, privacy: .public), \
                 \(facts.companyKey ?? "-", privacy: .public), \(facts.country ?? "-", privacy: .public), \
-                by \(rule?.id ?? "the mode", privacy: .public)
+                by \(reason.id, privacy: .public)
                 """)
             return (verdict, identity.primaryKey)
         }
@@ -94,12 +97,16 @@ final class Firewall {
         if let cached = identities[cacheKey] { lock.unlock(); return cached }
         lock.unlock()
 
+        let processPath = process.flatMap(Self.path)
+        let appPath = app.flatMap(Self.path)
         let processKeys = process.map(appKeys) ?? []
         let appTokenKeys = app.map(appKeys) ?? []
         var keys: [String] = []
         for key in processKeys + appTokenKeys where !keys.contains(key) { keys.append(key) }
+        var paths: [String] = []
+        for path in [processPath, appPath].compactMap({ $0 }) where !paths.contains(path) { paths.append(path) }
         let identity = Identity(appKeys: keys, primaryKey: appTokenKeys.first ?? processKeys.first,
-                                isApple: (app ?? process).map(Self.isSignedByApple) ?? false)
+                                isApple: (app ?? process).map(Self.isSignedByApple) ?? false, paths: paths)
 
         lock.lock()
         if identities.count >= Self.identityLimit { identities.removeAll() }
@@ -113,12 +120,18 @@ final class Firewall {
     /// that app.
     private func appKeys(_ token: Data) -> [String] {
         let pid = FlowReport.pid(fromAuditToken: token)
-        guard let path = Self.executablePath(pid: pid) ?? Self.signedPath(token) else { return [] }
+        guard let path = Self.path(token) else { return [] }
         if let bundle = AppKey.bundlePath(forExecutablePath: path) { return [bundle] }
         if let parent = Self.nearestApp(above: pid) {
             return [AppKey.key(adopting: path, by: parent), path, parent]
         }
         return [path]
+    }
+
+    /// The program behind a token: from the process table, or failing that,
+    /// its code signature.
+    private static func path(_ token: Data) -> String? {
+        executablePath(pid: FlowReport.pid(fromAuditToken: token)) ?? signedPath(token)
     }
 
     private static func executablePath(pid: Int32) -> String? {

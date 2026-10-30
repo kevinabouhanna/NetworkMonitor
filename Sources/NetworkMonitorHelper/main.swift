@@ -113,48 +113,9 @@ let claudeCodeDropIn = Data("""
 
     """.utf8)
 
-/// Update endpoints blocked at the name-resolution level.
-///
-/// The last resort, used only where an app has no policy at all. Every entry
-/// must carry update traffic **and nothing else** — an unchecked entry here is
-/// how a metering feature breaks the apps it promised to leave working.
-///
-/// **Three candidates were removed after checking what else uses them, and that
-/// check is the only reason this feature does not break things:**
-///
-/// - `update.code.visualstudio.com` is literally `updateUrl` in VS Code's
-///   product.json, and is also where the Remote-SSH extension downloads the VS
-///   Code server (`/commit:<hash>/server-darwin-arm64/stable`). Blocking it
-///   breaks remote development. VS Code is covered by its own `update.mode`
-///   setting instead, which needs no privileges.
-/// - `api.anthropic.com` is Claude Desktop's update feed *and* the API it uses
-///   for everything else — its feed URL is
-///   `api.anthropic.com/api/desktop/darwin/universal/squirrel/update`. Blocking
-///   it takes the app off the air. Claude is covered by managed preferences.
-/// - `downloads.claude.ai` carries the update payload but also Claude Code and
-///   claude-ssh downloads. With the policy above stopping the check, blocking
-///   the payload host buys nothing and risks breaking a feature.
-let updateHosts = [
-    // Canva — `app-update.yml` names this as the electron-updater feed. Canva
-    // exposes no policy and no user setting of any kind, so this is the only
-    // lever it has. Verified update-only: normal use is canva.com.
-    "desktop-release.canva.com",
-    // Figma — its `DisableUpdater` preference is the primary lever, but that
-    // write is deferred while Figma is running, and Figma is running most of
-    // the time for the people who have it installed. This closes that window.
-    // Verified update-only: interactive traffic is figma.com.
-    "desktop.figma.com",
-    // Google: the update check for GoogleUpdater, which has replaced Keystone
-    // and updates Chrome. It reads neither Keystone's `checkInterval` nor, on a
-    // Mac that isn't enrolled in MDM, its own `updatePolicies`
-    // (`ManagedPreferencePolicyManager::HasActiveDevicePolicies`), so a host is
-    // the only lever left (#92). Verified update-only: it is the update
-    // protocol's endpoint, and Chrome's component updater is its only other
-    // caller. The payloads come from shared download hosts
-    // (`edgedl.me.gvt1.com`, `dl.google.com`), which stay open: with the check
-    // blocked, nothing asks for one.
-    "update.googleapis.com",
-]
+/// Update endpoints blocked at the name-resolution level: `HostsFile`'s list,
+/// which the content filter blocks on a hotspot too (#98).
+let updateHosts = HostsFile.updateHosts
 
 // MARK: - State
 

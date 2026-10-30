@@ -34,7 +34,7 @@ final class FilterDataProvider: NEFilterDataProvider {
         let port = Int(remote.port) ?? 0
         let (verdict, appKey) = Firewall.shared.verdict(for: socket, address: remote.hostname, port: port)
         var blockedBy: String?
-        if case .block(let rule) = verdict { blockedBy = rule?.id ?? "mode" }
+        if case .block(let reason) = verdict { blockedBy = reason.id }
         AppLink.shared.report(FlowReport(address: remote.hostname, port: port,
                                          hostname: socket.remoteHostname,
                                          pid: FlowReport.pid(fromAuditToken: flow.sourceAppAuditToken),

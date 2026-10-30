@@ -103,7 +103,7 @@ public final class SettingsWindowController: NSObject {
                                                              firewall: model.firewall,
                                                              onOpen: onOpenConnections),
                                      width: SettingsMetrics.paneWidth)
-            case .hotspot:   host = Self.paneHost(HotspotSettingsPane(metering: model.metering, state: state), width: SettingsMetrics.paneWidth)
+            case .hotspot:   host = Self.paneHost(HotspotSettingsPane(metering: model.metering, state: state, filter: model.filter), width: SettingsMetrics.paneWidth)
             case .about:     host = Self.paneHost(AboutSettingsPane(onUninstall: onUninstall), width: SettingsMetrics.paneWidth)
             }
             host.title = pane.title

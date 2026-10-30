@@ -19,6 +19,14 @@ public enum SetupCopy {
     public static let websitesSummary = "Slack shows up as slack.com, not just as Amazon, whose computers it "
         + "runs on. It also lets you block any app, company or country."
 
+    /// The same switch, offered in Settings › Hotspot for what it does there (#98).
+    public static let hotspotUpdatesTitle = "Stop every app's updates on hotspots"
+    public static let hotspotUpdatesSummary = "Not only the apps listed here: any app's updater is stopped "
+        + "while you're on a hotspot. It turns on the same thing as seeing which websites your apps visit."
+    public static let hotspotUpdatesOn = "Any app's updater is stopped while you're on a hotspot, "
+        + "including ones listed as can't be paused when they update with a program of their own. "
+        + "Choose Blocked in Connections to see them."
+
     public static let wifiTitle = "Know your Wi-Fi networks by name"
     public static let wifiSummary = "Usage History calls them Home and Office, not “Wi-Fi · 3f2a”. macOS "
         + "calls this Location, but NetworkMonitor never looks up where you are."
@@ -35,7 +43,8 @@ public enum SetupCopy {
 
     /// Everything the person reads before a step: what they get, never how.
     public static var plain: [String] {
-        [welcome, later, websitesTitle, websitesSummary, wifiTitle, wifiSummary, needsApplications, failed]
+        [welcome, later, websitesTitle, websitesSummary, hotspotUpdatesTitle, hotspotUpdatesSummary,
+         hotspotUpdatesOn, wifiTitle, wifiSummary, needsApplications, failed]
     }
 }
 
@@ -104,9 +113,14 @@ struct WebsiteNamesRow: View {
     @ObservedObject var filter: FilterController
     /// Settings offers to turn it off again. The welcome window only says it's on.
     var offersTurnOff = false
+    /// What it's offered as: website names, or, in Settings › Hotspot, a stop
+    /// to every app's updates there (#98).
+    var symbol = "globe"
+    var title = SetupCopy.websitesTitle
+    var summary = SetupCopy.websitesSummary
 
     var body: some View {
-        PermissionRow(symbol: "globe", title: SetupCopy.websitesTitle, summary: SetupCopy.websitesSummary) {
+        PermissionRow(symbol: symbol, title: title, summary: summary) {
             trailing
         } detail: {
             detail

@@ -63,6 +63,7 @@ let package = Package(
         // Foundation for the same reason as FilterProtocol.
         .target(
             name: "FirewallPolicy",
+            dependencies: ["HostsFile"],
             path: "Sources/FirewallPolicy"
         ),
         // The content filter, a Network Extension system extension. bundle.sh

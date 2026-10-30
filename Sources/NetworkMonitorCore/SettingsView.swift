@@ -301,6 +301,8 @@ struct HotspotSettingsPane: View {
     /// for the switch nor redraw when the verdict changes.
     @ObservedObject var metering: MeteringController
     @ObservedObject var state: SettingsPaneState
+    /// What stops any app's updater on a hotspot, at the network (#98).
+    @ObservedObject var filter: FilterController
 
     var body: some View {
         Form {
@@ -371,6 +373,24 @@ struct HotspotSettingsPane: View {
                         SettingsFootnote("Quit these while you're on a hotspot to be sure they "
                                          + "don't update. Low Data Mode slows the ones that "
                                          + "respect it.")
+                    }
+                }
+
+                // Every app's updater, stopped at the network: what the lists
+                // above can't promise (#98).
+                if filter.state == .on {
+                    Section {
+                        LabeledContent("Every app's updater") {
+                            Text("Stopped on hotspots").foregroundStyle(.secondary)
+                        }
+                    } footer: {
+                        SettingsFootnote(SetupCopy.hotspotUpdatesOn)
+                    }
+                } else if filter.state != .unavailable {
+                    Section {
+                        WebsiteNamesRow(filter: filter, symbol: "arrow.down.circle",
+                                        title: SetupCopy.hotspotUpdatesTitle,
+                                        summary: SetupCopy.hotspotUpdatesSummary)
                     }
                 }
 
