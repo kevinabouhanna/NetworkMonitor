@@ -218,6 +218,9 @@ public enum UpdateCaches {
     public struct Payload: Equatable {
         public var path: String
         public var owner: Owner
+        /// When the updater made it, which is when its download began: each
+        /// framework creates the folder or file first and downloads into it.
+        public var created: Date
         public var modified: Date
     }
 
@@ -234,10 +237,13 @@ public enum UpdateCaches {
             else { return }
             for child in children where include(child) {
                 let url = directory.appendingPathComponent(child)
-                guard let modified = (try? url.resourceValues(
-                    forKeys: [.contentModificationDateKey]))?.contentModificationDate
+                guard let values = try? url.resourceValues(
+                        forKeys: [.creationDateKey, .contentModificationDateKey]),
+                      let modified = values.contentModificationDate
                 else { continue }
-                found.append(Payload(path: url.path, owner: owner, modified: modified))
+                found.append(Payload(path: url.path, owner: owner,
+                                     created: min(values.creationDate ?? modified, modified),
+                                     modified: modified))
             }
         }
 
@@ -293,6 +299,9 @@ public enum UpdateCaches {
 ///   connection became metered is an update that downloaded over it. This is
 ///   the only way to see an Electron app's update at all: the download runs in
 ///   the app's own process, and to nettop it is just the app using the network.
+///   So its cost is that app's traffic while the payload was being written
+///   (#95). The payload's size is the unpacked update on disk, which said 272
+///   MB for a Slack update that used about 120 MB.
 /// - **Traffic.** An updater that runs as its own process — `GoogleUpdater`,
 ///   `opera_autoupdate`, `softwareupdated` — shows up in nettop under its own
 ///   name, so its bytes are counted as they happen.
@@ -321,6 +330,24 @@ public final class UpdateWatch {
         public var source: Source
         public var bytes: Int64
         public var lastSeen: Date
+        /// For a download, `bytes` is the update's size on disk, not data
+        /// used: the app's traffic wasn't seen while it downloaded. An
+        /// unpacked update is bigger than the download, so it's at most that.
+        public var isSizeOnDisk: Bool?
+
+        public var isUpperBound: Bool { isSizeOnDisk == true }
+    }
+
+    /// What a payload's owner is called, and where its app is, to find its
+    /// traffic.
+    public struct Owner: Equatable {
+        public var name: String
+        public var bundlePath: String?
+
+        public init(name: String, bundlePath: String? = nil) {
+            self.name = name
+            self.bundlePath = bundlePath
+        }
     }
 
     /// Below this, a sighting is an update *check*, not an update, and is not
@@ -336,7 +363,7 @@ public final class UpdateWatch {
 
     private let cachesDirectory: URL
     private let defaults: UserDefaults
-    private let resolveOwner: (UpdateCaches.Owner) -> String
+    private let resolveOwner: (UpdateCaches.Owner) -> Owner
     private static let storageKey = "meteringUpdateSightings"
 
     private var networkID: String?
@@ -345,8 +372,12 @@ public final class UpdateWatch {
     private var activeSince = Date.distantPast
     private var baseline: [String: Date] = [:]
     private var sizes: [String: (modified: Date, bytes: Int64)] = [:]
-    private var names: [UpdateCaches.Owner: String] = [:]
+    private var owners: [UpdateCaches.Owner: Owner] = [:]
     private var lastScan = Date.distantPast
+    /// Each app's internet bytes by the minute, by bundle path, while
+    /// watching: what a download's cost is read from. Memory only, and
+    /// a minute is fine enough for downloads that take several.
+    private var minutes: [String: [Int64: Int64]] = [:]
 
     public convenience init(defaults: UserDefaults = .standard) {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -356,7 +387,7 @@ public final class UpdateWatch {
 
     public init(cachesDirectory: URL,
                 defaults: UserDefaults,
-                resolveOwner: @escaping (UpdateCaches.Owner) -> String) {
+                resolveOwner: @escaping (UpdateCaches.Owner) -> Owner) {
         self.cachesDirectory = cachesDirectory
         self.defaults = defaults
         self.resolveOwner = resolveOwner
@@ -382,6 +413,7 @@ public final class UpdateWatch {
         if isActive, networkID == id { return }
         if networkID != id || ended {
             sightings.removeAll()
+            minutes.removeAll()
             networkID = id
         }
         ended = false
@@ -428,6 +460,24 @@ public final class UpdateWatch {
         return bytes >= Self.reportableBytes
     }
 
+    /// One sample's internet bytes for an app, by its bundle path.
+    public func recordApp(bundlePath: String, bytes: Int64, now: Date = Date()) {
+        guard isActive, bytes > 0 else { return }
+        minutes[bundlePath, default: [:]][Self.minute(now), default: 0] += bytes
+    }
+
+    /// An app's bytes in the minutes from `start` to `end`, both included.
+    func traffic(of bundlePath: String, from start: Date, to end: Date) -> Int64 {
+        let first = Self.minute(start), last = Self.minute(end)
+        return minutes[bundlePath]?.reduce(0) { total, entry in
+            (first...last).contains(entry.key) ? total + entry.value : total
+        } ?? 0
+    }
+
+    private static func minute(_ date: Date) -> Int64 {
+        Int64((date.timeIntervalSince1970 / 60).rounded(.down))
+    }
+
     /// Looks at the caches if `scanInterval` has passed. Returns true when the
     /// caller should republish — after any scan, since traffic totals have been
     /// growing in between.
@@ -442,6 +492,9 @@ public final class UpdateWatch {
 
     /// One pass over the caches. Public so a test can run it without waiting.
     public func scan(now: Date = Date()) {
+        // An app's payloads together: Sparkle stages a download and then an
+        // installation, and they're one update.
+        var downloads: [String: (owner: Owner, start: Date, end: Date, size: Int64)] = [:]
         for payload in UpdateCaches.payloads(in: cachesDirectory) {
             // Unchanged since the connection began, or older than it.
             if baseline[payload.path] == payload.modified { continue }
@@ -457,16 +510,41 @@ public final class UpdateWatch {
 
             // Cached: resolving an electron-updater directory walks every app's
             // bundle, and a download in progress changes on every scan.
-            let name = names[payload.owner] ?? resolveOwner(payload.owner)
-            names[payload.owner] = name
-            if let index = sightings.firstIndex(where: {
-                $0.source == .download && $0.name == name
-            }) {
-                sightings[index].bytes = max(sightings[index].bytes, bytes)
+            let owner = owners[payload.owner] ?? resolveOwner(payload.owner)
+            owners[payload.owner] = owner
+            // Begun before the connection was, only its part on it counts.
+            let start = max(payload.created, activeSince)
+            if let seen = downloads[owner.name] {
+                downloads[owner.name] = (owner, min(seen.start, start), max(seen.end, payload.modified),
+                                         max(seen.size, bytes))
+            } else {
+                downloads[owner.name] = (owner, start, payload.modified, bytes)
+            }
+        }
+
+        for (name, download) in downloads {
+            let used = download.owner.bundlePath.map {
+                traffic(of: $0, from: download.start, to: download.end)
+            } ?? 0
+            // What the app used, once there's enough of it to be an update:
+            // less means its traffic wasn't seen, after a relaunch or under
+            // another name, and the size on disk is all there is to go on.
+            let measured = used >= Self.reportableBytes
+            let bytes = measured ? used : download.size
+            if let index = sightings.firstIndex(where: { $0.source == .download && $0.name == name }) {
+                let previous = sightings[index]
+                if measured {
+                    // Replaces a size on disk, and otherwise only grows: a
+                    // relaunch mid-download forgets the minutes before it.
+                    sightings[index].bytes = previous.isUpperBound ? bytes : max(previous.bytes, bytes)
+                    sightings[index].isSizeOnDisk = nil
+                } else if previous.isUpperBound {
+                    sightings[index].bytes = max(previous.bytes, bytes)
+                }
                 sightings[index].lastSeen = now
             } else {
-                sightings.append(Sighting(name: name, app: nil, source: .download,
-                                          bytes: bytes, lastSeen: now))
+                sightings.append(Sighting(name: name, app: nil, source: .download, bytes: bytes,
+                                          lastSeen: now, isSizeOnDisk: measured ? nil : true))
             }
         }
     }
@@ -477,20 +555,20 @@ public final class UpdateWatch {
     /// LaunchServices for a bundle identifier and from each app's
     /// `app-update.yml` for an electron-updater directory. Falls back to the raw
     /// identifier, which is still more use than nothing.
-    static func resolveInstalledOwner(_ owner: UpdateCaches.Owner) -> String {
+    static func resolveInstalledOwner(_ owner: UpdateCaches.Owner) -> Owner {
         switch owner {
         case .bundle(let identifier):
             if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier) {
-                return ApplicationSearch.displayName(at: url)
+                return Owner(name: ApplicationSearch.displayName(at: url), bundlePath: url.path)
             }
-            return identifier
+            return Owner(name: identifier)
         case .electronCache(let directory):
             if let finding = UpdaterScan.findings()
                 .first(where: { $0.updaterCacheDirName == directory }) {
-                return finding.displayName
+                return Owner(name: finding.displayName, bundlePath: finding.bundlePath)
             }
-            return String(directory.dropLast("-updater".count))
-                .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+            return Owner(name: String(directory.dropLast("-updater".count))
+                .trimmingCharacters(in: CharacterSet(charactersIn: "@")))
         }
     }
 

@@ -255,8 +255,8 @@ func runUpdateWatchTests() {
         func makeWatch(caches: URL, defaults: UserDefaults) -> UpdateWatch {
             UpdateWatch(cachesDirectory: caches, defaults: defaults) { owner in
                 switch owner {
-                case .bundle(let id): return id == "com.granola.app" ? "Granola" : id
-                case .electronCache: return "Granola"
+                case .bundle(let id): return .init(name: id == "com.granola.app" ? "Granola" : id)
+                case .electronCache: return .init(name: "Granola", bundlePath: "/Applications/Granola.app")
                 }
             }
         }
@@ -265,7 +265,7 @@ func runUpdateWatchTests() {
             UserDefaults(suiteName: "netmon.tests.\(UUID().uuidString)")!
         }
 
-        Check.test("a download that lands while metered is reported, with its size") {
+        Check.test("a download whose app's traffic wasn't seen is reported by its size, as at most") {
             let caches = temporaryDirectory("caches")
             defer { try? FileManager.default.removeItem(at: caches) }
             // Already there before the hotspot: not this connection's cost.
@@ -281,6 +281,62 @@ func runUpdateWatchTests() {
             Check.expectEqual(watch.reportable.map(\.name), ["Granola"])
             Check.expectEqual(watch.reportable.first?.bytes, 2_000_000)
             Check.expectEqual(watch.reportable.first?.source, .download)
+            Check.expectTrue(watch.reportable.first?.isUpperBound ?? false)
+        }
+
+        // #95: Slack's update read 271.6 MB, its unpacked size on disk, when
+        // Slack used about 120 MB of the hotspot in that hour.
+        Check.test("a download is reported by what its app used while it downloaded") {
+            let caches = temporaryDirectory("caches")
+            defer { try? FileManager.default.removeItem(at: caches) }
+            let watch = makeWatch(caches: caches, defaults: freshDefaults())
+            let joined = Date().addingTimeInterval(-20 * 60)
+            watch.begin(networkID: "gw:hotspot", now: joined)
+            // Ordinary use, ten minutes before the download began.
+            watch.recordApp(bundlePath: "/Applications/Granola.app", bytes: 5_000_000,
+                            now: joined.addingTimeInterval(5 * 60))
+            makeFile(caches.appendingPathComponent(
+                "@granolaelectron-updater/pending/Granola.zip"), bytes: 3_000_000)
+            let written = UpdateCaches.payloads(in: caches)[0].modified
+            watch.recordApp(bundlePath: "/Applications/Granola.app", bytes: 1_500_000, now: written)
+            // Another app's traffic at the same moment.
+            watch.recordApp(bundlePath: "/Applications/Slack.app", bytes: 9_000_000, now: written)
+            watch.scan()
+
+            Check.expectEqual(watch.reportable.first?.bytes, 1_500_000)
+            Check.expectFalse(watch.reportable.first?.isUpperBound ?? true)
+        }
+
+        Check.test("a measurement replaces a size on disk, and then only grows") {
+            let caches = temporaryDirectory("caches")
+            defer { try? FileManager.default.removeItem(at: caches) }
+            let watch = makeWatch(caches: caches, defaults: freshDefaults())
+            watch.begin(networkID: "gw:hotspot", now: Date().addingTimeInterval(-60))
+            makeFile(caches.appendingPathComponent(
+                "@granolaelectron-updater/pending/Granola.zip"), bytes: 3_000_000)
+            watch.scan()
+            Check.expectTrue(watch.reportable.first?.isUpperBound ?? false)
+
+            let written = UpdateCaches.payloads(in: caches)[0].modified
+            watch.recordApp(bundlePath: "/Applications/Granola.app", bytes: 1_200_000, now: written)
+            watch.scan()
+            Check.expectEqual(watch.reportable.first?.bytes, 1_200_000)
+            Check.expectFalse(watch.reportable.first?.isUpperBound ?? true)
+            Check.expectEqual(watch.sightings.count, 1)
+        }
+
+        Check.test("app traffic isn't counted when no metered connection is being watched") {
+            let caches = temporaryDirectory("caches")
+            defer { try? FileManager.default.removeItem(at: caches) }
+            let watch = makeWatch(caches: caches, defaults: freshDefaults())
+            // Seen before the watch began, and stamped in the download's minute.
+            watch.recordApp(bundlePath: "/Applications/Granola.app", bytes: 5_000_000, now: Date())
+            watch.begin(networkID: "gw:hotspot", now: Date().addingTimeInterval(-60))
+            makeFile(caches.appendingPathComponent(
+                "@granolaelectron-updater/pending/Granola.zip"), bytes: 3_000_000)
+            watch.scan()
+            Check.expectEqual(watch.reportable.first?.bytes, 3_000_000)
+            Check.expectTrue(watch.reportable.first?.isUpperBound ?? false)
         }
 
         Check.test("something too small to be an update is not reported") {
