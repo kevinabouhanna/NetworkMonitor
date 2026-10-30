@@ -28,14 +28,21 @@ public struct FirewallRule: Codable, Hashable, Identifiable {
     /// What it was called when the rule was made, for the list of rules.
     public let title: String
     public var action: RuleAction
+    /// For one app only, by its key: an answer to Ask Me, such as "Amazon,
+    /// for Slack" (#129). Nil for every app.
+    public let appKey: String?
+    public let appTitle: String?
 
-    public var id: String { "\(subject.rawValue):\(key)" }
+    public var id: String { "\(subject.rawValue):\(key)" + (appKey.map { "@\($0)" } ?? "") }
 
-    public init(subject: RuleSubject, key: String, title: String, action: RuleAction) {
+    public init(subject: RuleSubject, key: String, title: String, action: RuleAction,
+                appKey: String? = nil, appTitle: String? = nil) {
         self.subject = subject
         self.key = key
         self.title = title
         self.action = action
+        self.appKey = appKey
+        self.appTitle = appTitle
     }
 }
 
@@ -45,6 +52,9 @@ public enum FirewallMode: String, Codable {
     case anywhere
     /// Only what's allowed connects, and macOS and Apple's own apps.
     case onlyAllowed
+    /// The first time an app reaches a company, it waits while NetworkMonitor
+    /// asks (#129).
+    case ask
 }
 
 /// What the filter knows about one new connection.
@@ -81,6 +91,8 @@ public struct FlowFacts: Equatable {
 public enum Verdict: Equatable {
     case allow(AllowReason)
     case block(BlockReason)
+    /// Ask Me, and nothing decided it: hold it and ask (#129).
+    case ask
 
     public var allows: Bool {
         if case .allow = self { return true }
@@ -144,13 +156,19 @@ public struct FirewallPolicy: Codable, Equatable {
     public func decide(_ flow: FlowFacts) -> Verdict {
         if Self.isEssential(address: flow.address, port: flow.port) { return .allow(.essential) }
         let index = Dictionary(rules.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
-        for subject in Self.precedence {
-            for key in Self.keys(of: flow, subject) {
-                guard let rule = index["\(subject.rawValue):\(key)"] else { continue }
-                switch rule.action {
-                case .allow:           return .allow(.rule(rule))
-                case .block:           return .block(.rule(rule))
-                case .blockOnHotspots: if onHotspot { return .block(.rule(rule)) }
+        // A rule for one app is narrower than any rule for every app, so those
+        // go first: "Amazon, for Slack" over "Block Amazon".
+        for scopes in [flow.appKeys.map { "@" + $0 }, [""]] {
+            for subject in Self.precedence {
+                for key in Self.keys(of: flow, subject) {
+                    for scope in scopes {
+                        guard let rule = index["\(subject.rawValue):\(key)\(scope)"] else { continue }
+                        switch rule.action {
+                        case .allow:           return .allow(.rule(rule))
+                        case .block:           return .block(.rule(rule))
+                        case .blockOnHotspots: if onHotspot { return .block(.rule(rule)) }
+                        }
+                    }
                 }
             }
         }
@@ -164,6 +182,11 @@ public struct FirewallPolicy: Codable, Equatable {
         switch mode {
         case .anywhere:    return .allow(.mode)
         case .onlyAllowed: return flow.isApple ? .allow(.apple) : .block(.mode)
+        // Nothing is asked about macOS or Apple's apps, nor about a program
+        // the filter couldn't name.
+        case .ask:
+            if flow.isApple { return .allow(.apple) }
+            return flow.appKeys.isEmpty ? .allow(.mode) : .ask
         }
     }
 

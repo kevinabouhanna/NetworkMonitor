@@ -11,6 +11,8 @@ import NetworkExtension
 final class FilterDataProvider: NEFilterDataProvider {
 
     override func startFilter(completionHandler: @escaping (Error?) -> Void) {
+        // Ask Me resumes held flows through the provider (#129).
+        Firewall.shared.provider = self
         // Every outbound flow, so each one passes through `handleNewFlow`.
         let everything = NENetworkRule(remoteNetwork: nil, remotePrefix: 0, localNetwork: nil,
                                        localPrefix: 0, protocol: .any, direction: .outbound)
@@ -32,13 +34,12 @@ final class FilterDataProvider: NEFilterDataProvider {
         guard let socket = flow as? NEFilterSocketFlow,
               let remote = socket.remoteEndpoint as? NWHostEndpoint else { return .allow() }
         let port = Int(remote.port) ?? 0
-        let (verdict, appKey) = Firewall.shared.verdict(for: socket, address: remote.hostname, port: port)
-        var blockedBy: String?
-        if case .block(let reason) = verdict { blockedBy = reason.id }
-        AppLink.shared.report(FlowReport(address: remote.hostname, port: port,
-                                         hostname: socket.remoteHostname,
-                                         pid: FlowReport.pid(fromAuditToken: flow.sourceAppAuditToken),
-                                         time: Date(), blockedBy: blockedBy, appKey: appKey))
-        return verdict.allows ? .allow() : .drop()
+        let report = FlowReport(address: remote.hostname, port: port, hostname: socket.remoteHostname,
+                                pid: FlowReport.pid(fromAuditToken: flow.sourceAppAuditToken), time: Date())
+        let decision = Firewall.shared.decide(socket, address: remote.hostname, port: port, report: report)
+        AppLink.shared.report(FlowReport(address: report.address, port: port, hostname: report.hostname,
+                                         pid: report.pid, time: report.time, blockedBy: decision.blockedBy,
+                                         appKey: decision.appKey))
+        return decision.verdict
     }
 }

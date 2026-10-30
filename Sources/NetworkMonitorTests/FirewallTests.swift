@@ -363,4 +363,77 @@ func runFirewallTests() {
             Check.expectFalse(FirewallPolicy().isActive)
         }
     }
+
+    Check.suite("Firewall — Ask Me (#129)") {
+
+        let now = Date(timeIntervalSince1970: 1_792_573_800)
+
+        let slack = FlowFacts(appKeys: ["/Applications/Slack.app"], companyKey: "host:Amazon", country: "DE",
+                              address: "3.65.102.105", port: 443, isApple: false)
+        var chrome = slack
+        chrome.appKeys = ["/Applications/Google Chrome.app"]
+
+        Check.test("asks about what nothing decided, and never about Apple's own") {
+            Check.expectEqual(FirewallPolicy(mode: .ask).decide(slack), .ask)
+            var apple = slack
+            apple.isApple = true
+            Check.expectEqual(FirewallPolicy(mode: .ask).decide(apple), .allow(.apple))
+            var unnamed = slack
+            unnamed.appKeys = []
+            Check.expectEqual(FirewallPolicy(mode: .ask).decide(unnamed), .allow(.mode), "a program it couldn't name")
+            var dns = slack
+            dns.port = 53
+            Check.expectEqual(FirewallPolicy(mode: .ask).decide(dns), .allow(.essential))
+        }
+
+        Check.test("an answer for one app holds for that app only, and before any rule for every app") {
+            let forSlack = FirewallRule(subject: .company, key: "host:Amazon", title: "Hosted on Amazon",
+                                        action: .allow, appKey: "/Applications/Slack.app", appTitle: "Slack")
+            let blockAmazon = FirewallRule(subject: .company, key: "host:Amazon", title: "Hosted on Amazon",
+                                           action: .block)
+            let serverBlock = FirewallRule(subject: .server, key: "3.65.102.105", title: "3.65.102.105", action: .block)
+            let policy = FirewallPolicy(mode: .ask, rules: [blockAmazon, forSlack, serverBlock])
+            Check.expectEqual(policy.decide(slack), .allow(.rule(forSlack)))
+            Check.expectEqual(policy.decide(chrome), .block(.rule(serverBlock)))
+            Check.expectEqual(FirewallPolicy(mode: .ask, rules: [forSlack]).decide(chrome), .ask, "Chrome still asked")
+            Check.expectEqual(forSlack.id, "company:host:Amazon@/Applications/Slack.app")
+        }
+
+        Check.test("rules from before Ask Me still read") {
+            let old = Data(#"[{"subject":"company","key":"Meta","title":"Meta","action":"block"}]"#.utf8)
+            let rules = try? JSONDecoder().decode([FirewallRule].self, from: old)
+            Check.expectEqual(rules?.first?.id, "company:Meta")
+            Check.expectNil(rules?.first?.appKey)
+        }
+
+        Check.test("a question survives the trip, and reads as a person would say it") {
+            let question = FlowQuestion(id: "q1", appKey: "/Applications/Slack.app", companyKey: "Slack",
+                                        companyName: "Slack", companyIsHost: false, hostname: "wss-primary.slack.com",
+                                        address: "3.65.102.105", country: "DE", deadline: now)
+            Check.expectEqual(FlowQuestion.decode(question.encoded()), question)
+            let item = AskController.item(for: question)
+            Check.expectEqual(item.appName, "Slack")
+            Check.expectEqual(item.target, "Slack")
+            Check.expectTrue(item.detail.hasPrefix("wss-primary.slack.com · "))
+
+            let hosted = FlowQuestion(id: "q2", appKey: "/Applications/Slack.app", companyKey: "host:Amazon",
+                                      companyName: "Amazon", companyIsHost: true, hostname: nil,
+                                      address: "3.65.102.105", country: nil, deadline: now)
+            Check.expectEqual(AskController.item(for: hosted).target, "a server on Amazon's network")
+            Check.expectEqual(AskController.item(for: hosted).detail, "3.65.102.105")
+        }
+
+        Check.test("a rule for one app is listed, not shown on every app's row") {
+            let defaults = UserDefaults(suiteName: "firewall-tests-\(UUID().uuidString)")!
+            let rules = FirewallRules(defaults: defaults)
+            rules.add(FirewallRule(subject: .company, key: "Meta", title: "Meta", action: .block,
+                                   appKey: "/Applications/Slack.app", appTitle: "Slack"))
+            let meta = ConnectionsItem(dimension: .company, key: "Meta", title: "Meta", subtitle: nil, isHost: false,
+                                       symbol: nil, bundlePath: nil)
+            Check.expectNil(rules.rule(for: meta))
+            rules.set(.allow, for: meta)
+            Check.expectEqual(rules.rules.count, 2, "one for Slack, one for everyone")
+            Check.expectEqual(rules.rule(for: meta)?.action, .allow)
+        }
+    }
 }

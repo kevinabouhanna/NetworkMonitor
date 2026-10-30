@@ -40,6 +40,10 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
 
     /// Each batch the filter reports, on the main queue.
     public let flows = PassthroughSubject<[FlowReport], Never>()
+    /// Ask Me's questions (#129), and those nobody answered in time, on the
+    /// main queue.
+    public let questions = PassthroughSubject<FlowQuestion, Never>()
+    public let expiredQuestions = PassthroughSubject<String, Never>()
 
     private var connection: NSXPCConnection?
     /// What the filter should enforce (#114), sent each time it connects.
@@ -327,5 +331,20 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         let flows = FlowReport.decode(reports)
         guard !flows.isEmpty else { return }
         DispatchQueue.main.async { self.flows.send(flows) }
+    }
+
+    public func ask(_ question: Data) {
+        guard let question = FlowQuestion.decode(question) else { return }
+        DispatchQueue.main.async { self.questions.send(question) }
+    }
+
+    public func questionExpired(_ id: String) {
+        DispatchQueue.main.async { self.expiredQuestions.send(id) }
+    }
+
+    /// The person's answer, for the filter to resume what it's holding.
+    public func answer(_ id: String, _ answer: FlowAnswer) {
+        (connection?.remoteObjectProxyWithErrorHandler { _ in } as? FilterExtensionInterface)?
+            .answer(id, answer.rawValue)
     }
 }

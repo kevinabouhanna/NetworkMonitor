@@ -129,11 +129,23 @@ and Settings › Connections lists every rule, each with a button to take it bac
 period, grouping, search and map, counting connections rather than bytes. Right-click one to
 allow it.
 
-**Let apps connect**, in Settings › Connections, is **Anywhere** (the default: everything
-connects except what you block) or **Only Where I Allow**: every app is blocked until you allow
-it, apart from macOS and Apple's own apps, which can always connect unless you block them. It
-asks first, since that includes your browser, and the window then opens on Blocked, where
-you allow each app or company with a right-click.
+**Let apps connect**, in Settings › Connections, is one of three:
+
+- **Anywhere**, the default: everything connects except what you block.
+- **Ask Me** (#129): the first time an app connects to a company, it waits while a small
+  panel at the top right asks. **Block** and **Always Allow** become rules for that app and
+  company, listed in Settings ("Amazon · for Slack"); **Always Allow** also offers the app
+  anywhere. **Allow Once** lets it go and asks again in an hour. Every connection between the
+  same app and company waits on the one question, and with no answer in 30 seconds they go
+  ahead, and the panel says so. Nothing is asked about macOS or Apple's apps, or while
+  NetworkMonitor isn't running.
+- **Only Where I Allow**: every app is blocked until you allow it, apart from macOS and
+  Apple's own apps, which can always connect unless you block them. It asks first, since
+  that includes your browser, and the window then opens on Blocked, where you allow each app
+  or company with a right-click.
+
+A rule for one app comes before any rule for every app: *Amazon · for Slack* allowed with
+*Hosted on Amazon* blocked lets Slack through and nothing else.
 
 ## What it costs
 

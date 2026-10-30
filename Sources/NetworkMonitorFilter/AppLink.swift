@@ -53,6 +53,28 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
         Firewall.shared.apply(policy)
     }
 
+    // MARK: Ask Me (#129)
+
+    var isConnected: Bool {
+        queue.sync { app != nil }
+    }
+
+    func ask(_ question: FlowQuestion) {
+        queue.async {
+            (self.app?.remoteObjectProxy as? FilterAppInterface)?.ask(question.encoded())
+        }
+    }
+
+    func expired(_ id: String) {
+        queue.async {
+            (self.app?.remoteObjectProxy as? FilterAppInterface)?.questionExpired(id)
+        }
+    }
+
+    func answer(_ id: String, _ answer: String) {
+        Firewall.shared.answer(id, FlowAnswer(rawValue: answer) ?? .allowOnce)
+    }
+
     func report(_ flow: FlowReport) {
         queue.async {
             guard self.app != nil else { return }

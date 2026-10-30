@@ -43,6 +43,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         connectionsController = controller
         return controller
     }
+    /// Ask Me's questions (#129), in a panel of their own.
+    private var askController: AskController?
     /// The welcome window (#134), on first launch. Created when shown.
     private var welcomeController: WelcomeWindowController?
     private var welcomeCheck: AnyCancellable?
@@ -77,6 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         LoginItem.migrateLegacyAgentIfNeeded()
         enableLoginItemOnFirstLaunch()
         model.start()
+        askController = AskController(filter: model.filter, firewall: model.firewall)
         observeTitle()
         offerHelperUpdateIfNeeded()
         showWelcomeIfNeeded()
