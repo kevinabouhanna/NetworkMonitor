@@ -513,6 +513,16 @@ public final class MonitorViewModel: ObservableObject {
                 }
             }
             entries = Array(merged.values)
+            if self.metering.isSuppressing {
+                // By the app a process belongs to: Squirrel's ShipIt and
+                // Sparkle's downloader run inside the app they update.
+                for entry in entries {
+                    guard let bundlePath = entry.identity.bundlePath ?? entry.identity.parent?.bundlePath
+                    else { continue }
+                    self.metering.noteAppTraffic(bundlePath: bundlePath,
+                                                 bytes: entry.bytesIn + entry.bytesOut, now: now)
+                }
+            }
             self.metering.tick(now: now)
 
             if self.speedTest.phase.isRunning {

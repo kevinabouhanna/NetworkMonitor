@@ -146,8 +146,16 @@ you're on a hotspot is the only sure way.
 While you're on a metered connection, NetworkMonitor also notices **updates that download
 anyway**: a file over 1 MB appearing where Electron and Sparkle apps stage their downloads,
 or a program named like an updater using the connection. The popover shows one line under
-the total when that happens, and Settings lists each one with its size, still there after
-you've left the hotspot.
+the total when that happens, and Settings lists each one with the data it used, still there
+after you've left the hotspot.
+
+**The data an update used** is its app's traffic while it downloaded: from when the
+updater created its download, or when you joined the hotspot if that was later, to its
+last change, counted by the minute. It's not the size of what's left behind, which is the
+unpacked update: Slack's read 271.6 MB when Slack used about 120 MB (#95). When the app's
+traffic wasn't seen, because NetworkMonitor was started mid-download, the size on disk is
+shown as **up to**, since a download is smaller than what it unpacks to. An updater
+program of its own is counted by its own traffic.
 
 ## Three things worth knowing
 

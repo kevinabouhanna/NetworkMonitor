@@ -527,13 +527,23 @@ struct HotspotSettingsPane: View {
             .font(.system(size: 12, weight: .medium))
         ForEach(metering.updatesGotThrough) { sighting in
             LabeledContent {
-                Text(ByteFormat.bytes(sighting.bytes)).monospacedDigit()
+                Text(Self.amount(for: sighting)).monospacedDigit()
+                    .help(sighting.isUpperBound
+                          ? "The update's size on your Mac. It used no more than this to download."
+                          : sighting.source == .download
+                              ? "What \(sighting.name) used while the update downloaded."
+                              : "What it used on this connection.")
             } label: {
                 Label(Self.label(for: sighting),
                       systemImage: sighting.source == .download
                           ? "arrow.down.circle" : "arrow.triangle.2.circlepath")
             }
         }
+    }
+
+    /// "120 MB", or "up to 272 MB" when only the size on disk is known.
+    static func amount(for sighting: UpdateWatch.Sighting) -> String {
+        (sighting.isUpperBound ? "up to " : "") + ByteFormat.bytes(sighting.bytes)
     }
 
     static func label(for sighting: UpdateWatch.Sighting) -> String {

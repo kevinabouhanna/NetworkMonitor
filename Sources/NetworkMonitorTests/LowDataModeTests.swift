@@ -565,7 +565,7 @@ func runLowDataModeMeteringTests() {
             let helper = FakeLowDataHelper()
             let ownership = InterfaceFlagOwnership()
             let watch = UpdateWatch(cachesDirectory: caches, defaults: defaults,
-                                    resolveOwner: { "\($0)" })
+                                    resolveOwner: { .init(name: "\($0)") })
             let controller = MeteringController(
                 store: store,
                 journal: SuppressionJournal(url: journalURL),

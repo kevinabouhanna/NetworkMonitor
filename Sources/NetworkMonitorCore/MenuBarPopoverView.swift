@@ -31,14 +31,15 @@ public struct MenuBarPopoverView: View {
     private var gotThroughSummary: String? {
         let sightings = metering.updatesGotThrough
         guard metering.isSuppressing, let first = sightings.first else { return nil }
-        let total = sightings.reduce(0) { $0 + $1.bytes }
+        let total = (sightings.contains(where: \.isUpperBound) ? "up to " : "")
+            + ByteFormat.bytes(sightings.reduce(0) { $0 + $1.bytes })
         if sightings.count == 1 {
             let what = first.source == .download
                 ? "\(first.name) downloaded an update"
                 : "\(first.name) is updating"
-            return "\(what) · \(ByteFormat.bytes(total))"
+            return "\(what) · \(total)"
         }
-        return "\(sightings.count) updates got through · \(ByteFormat.bytes(total))"
+        return "\(sightings.count) updates got through · \(total)"
     }
 
     private var showsCard: Bool {
