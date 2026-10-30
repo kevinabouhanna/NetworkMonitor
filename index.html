@@ -241,6 +241,9 @@ section { position: relative; }
   align-items: start; margin-top: 80px;
 }
 .speed-shot img { width: min(346px, 100%); margin-inline: auto; }
+/* The Connections window, at the size it opens, shadowed as Settings is. */
+.connections-shot { margin: clamp(48px, 7vw, 80px) auto clamp(56px, 8vw, 96px); width: min(1120px, 100%); }
+.connections-shot img { width: 100%; height: auto; filter: drop-shadow(0 28px 48px rgba(0, 0, 0, .55)); }
 .facts { display: grid; gap: 34px; }
 .facts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 44px clamp(32px, 6vw, 72px); margin-top: 80px; }
 .see-pane { margin: 56px 0 0; text-align: center; }
@@ -359,6 +362,7 @@ footer a { color: var(--text-2); }
       <a href="#problem">The problem</a>
       <a href="#features">Features</a>
       <a href="#hotspots">Hotspots</a>
+      <a href="#connections">Connections</a>
       <a href="#settings">Settings</a>
       <a href="#privacy">Privacy</a>
       <a href="#install">Install</a>
@@ -379,7 +383,7 @@ footer a { color: var(--text-2); }
         <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download for Mac</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
-      <p class="hero-meta reveal d3"><span>Version 1.13.0</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
+      <p class="hero-meta reveal d3"><span>Version 1.14.0</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
       <div class="featured reveal d3">
         <a href="https://www.trymacapps.com" target="_blank" rel="noopener">
           <img
@@ -464,7 +468,7 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <p class="eyebrow reveal">The solution</p>
       <h2 class="h2 reveal d1">Meet NetworkMonitor.</h2>
-      <p class="lead reveal d2">A small menu bar app that shows your speed live, tells you exactly which apps used this connection, and, if you ask it to, <strong>stops them updating while you’re on a hotspot</strong>. No Dock icon, no window to manage, no account.</p>
+      <p class="lead reveal d2">A small menu bar app that shows your speed live, tells you exactly which apps used this connection and who they talked to, and, if you ask it to, <strong>stops them updating while you’re on a hotspot</strong>. No Dock icon, no window to manage, no account.</p>
       <div class="pillars">
         <div class="pillar reveal">
           <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M14 6v22" stroke="#51ff70" stroke-width="5"/><path d="M5 25l9 13 9-13z" fill="#51ff70"/><path d="M30 38V16" stroke="#e5e5e5" stroke-width="5"/><path d="M21 19l9-13 9 13z" fill="#e5e5e5"/></svg>
@@ -575,22 +579,64 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>Reaches apps it’s never heard of.</h3>
-          <p>Apps are found by how they update, not from a list, so an Electron app it has never heard of is stopped too, even while it’s open. The same switch puts the hotspot in Low Data Mode, so iCloud, Photos and every app that respects it hold back, whatever you have installed. Settings lists every app it can’t pause, with the reason, and the popover tells you if an update downloaded over your hotspot anyway.</p>
+          <p>Apps are found by how they update, not from a list, so an Electron app it has never heard of is stopped too, even while it’s open. The same switch puts the hotspot in Low Data Mode, so iCloud, Photos and every app that respects it hold back, whatever you have installed. Settings lists every app it can’t pause, with the reason, and the popover tells you if an update downloaded over your hotspot anyway. With website names on, any app’s updater is also stopped at the network, whatever app it belongs to.</p>
         </div>
       </div>
 
       <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="hotspot">See the Hotspot pane</a></p>
 
       <div class="fine reveal">
-        <p style="margin:0"><b>Not a firewall.</b>For almost every app it changes the app’s own “check for updates automatically” setting, so a manual Check for Updates… still works: it stops unattended downloads, not you. Canva, Figma and Chrome are the exception: with the helper, their update servers stay out of reach until you leave the hotspot. So do Electron apps whose update folder is locked.</p>
+        <p style="margin:0"><b>The app’s own setting first.</b>For almost every app it changes the app’s own “check for updates automatically” setting, so a manual Check for Updates… still works: it stops unattended downloads, not you. Canva, Figma and Chrome are the exception: with the helper, their update servers stay out of reach until you leave the hotspot. So do Electron apps whose update folder is locked, and, with website names on, any app’s separate updater program.</p>
         <p style="margin:0"><b>Security updates pause too.</b>There’s no reliable way to tell a security patch from a feature release, and pretending otherwise would be worse. Leave the hotspot or turn the setting off and everything resumes.</p>
         <p style="margin:0"><b>Puts everything back.</b>Click Uninstall… in Settings › About, or right-click the menu bar item and choose Uninstall NetworkMonitor…. It restores every setting exactly as it found it, then removes the helper and moves the app to the Trash.</p>
       </div>
     </div>
   </section>
 
+  <!-- Connections -->
+  <section id="connections" class="pad">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow reveal">Connections</p>
+        <h2 class="h2 reveal d1">Who your apps talk to.<br><span class="grad">On a map.</span></h2>
+        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">Every app sends its data somewhere. Connections shows <strong>which companies, countries and servers</strong> each one reached, on a list, a world map, or both, for today or any day, week, month or year. Press <b>⌘K</b>, or click the globe in the popover.</p>
+      </div>
+
+      <figure class="connections-shot reveal">
+        <img src="assets/connections.png" width="2240" height="1688" loading="lazy"
+             alt="The Connections window on Today, grouped by company and showing Traffic, with All, Wi‑Fi and Hotspot. 1.3 GB to and from servers, 30 companies, 19 countries, 85 apps and 408 servers, over a timeline by the hour. On the left, companies biggest first, each with a bar: Apple 500.1 MB, Hosted on Amazon 220.8 MB, Meta 190.9 MB, Anthropic 174.7 MB, Google 138.5 MB, Libantelecom, Hosted on Cloudflare, T.H. Global Vision, Hosted on Fastly, Perplexity, Datadog, GitHub, Slack and Wikipedia. On the right, a world map with the United States, Western Europe, India and a few others shaded, a Live switch and zoom buttons, and a note that Cloudflare and Fastly's 56.8 MB answered from nearby data centres, so isn't placed on the map.">
+      </figure>
+
+      <div class="facts two">
+        <div class="reveal">
+          <h3>By company, app or country.</h3>
+          <p>A company opens into the apps that reached it, the countries its servers answered from and the servers themselves. Group by app instead to see everyone one app talks to, or by country. The timeline narrows it to an hour, and <b>Live</b> pulses the map to the countries your apps are reaching right now.</p>
+        </div>
+        <div class="reveal">
+          <h3>Website names, with your OK.</h3>
+          <p>On its own, a server is only an address, and anything on a cloud reads as <em>Hosted on Amazon</em>. Allow the part of macOS made for apps like this one, and Slack shows up as slack.com instead. It’s offered when NetworkMonitor first opens, and it’s optional.</p>
+        </div>
+        <div class="reveal">
+          <h3>Block what you choose.</h3>
+          <p>Right-click a company, app, country or server: <b>Block</b>, <b>Block on Hotspots</b> or <b>Always Allow</b>. The narrowest rule wins, so blocking Meta while allowing WhatsApp does what you’d expect. Settings lists every rule, and <b>Show: Blocked</b> lists what was stopped.</p>
+        </div>
+        <div class="reveal">
+          <h3>Or have it ask.</h3>
+          <p>Choose <b>Ask Me</b> and a small panel asks the first time an app reaches a company: Block, Allow Once or Always Allow. Unanswered in 30 seconds, it goes ahead. Or <b>Only Where I Allow</b>. The local network, looking up names and the clock are never blocked, and macOS is never asked about.</p>
+        </div>
+      </div>
+
+      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="connections">See the Connections pane</a></p>
+
+      <div class="fine reveal">
+        <p style="margin:0"><b>Named on your Mac.</b>Countries and network owners come from DB-IP’s free data, shipped inside the app. Nothing is looked up online: asking a service about each address would tell it every server your Mac talks to.</p>
+        <p style="margin:0"><b>Where, never what.</b>It sees which server each connection goes to and the name the app used for it, never what’s inside. If it stops, nothing is cut off.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- Speed test -->
-  <section id="speed-test" class="pad">
+  <section id="speed-test" class="pad divider">
     <div class="wrap">
       <div class="center">
         <p class="eyebrow reveal">Speed test</p>
@@ -631,39 +677,41 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <p class="eyebrow reveal">Settings</p>
       <h2 class="h2 reveal d1">One window.<br><span class="grad">Every feature.</span></h2>
-      <p class="lead reveal d2" style="max-width:700px;margin-inline:auto">General, Speed Test, History, Hotspot and About, each in a pane of its own. <strong>Click through them.</strong> Every pane is the real app, captured on the Mac this page was built on.</p>
+      <p class="lead reveal d2" style="max-width:700px;margin-inline:auto">General, Speed Test, History, Connections, Hotspot and About, each in a pane of its own. <strong>Click through them.</strong> Every pane is the real app, captured on the Mac this page was built on.</p>
 
       <div class="prefs-stage reveal" data-prefs>
         <div class="prefs-window">
           <div role="tablist" aria-label="Settings panes">
-            <button class="prefs-tab" role="tab" type="button" aria-selected="true" aria-controls="prefs-panel" data-pane="general" style="--x:-148;--y:32;--w:55;--h:48"
-                    data-caption="Start at login, speeds in MB/s or Mbps, the menu bar’s colours, and the popover’s totals.">General</button>
-            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="speed-test" style="--x:-92;--y:32;--w:71;--h:48"
+            <button class="prefs-tab" role="tab" type="button" aria-selected="true" aria-controls="prefs-panel" data-pane="general" style="--x:-187;--y:32;--w:55;--h:48"
+                    data-caption="Start at login, speeds in MB/s or Mbps, Wi‑Fi names, the menu bar’s colours, and the popover’s totals.">General</button>
+            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="speed-test" style="--x:-131;--y:32;--w:71;--h:48"
                     data-caption="Run a speed test from here, and choose how the popover shows one.">Speed Test</button>
-            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="history" style="--x:-20;--y:32;--w:55;--h:48"
+            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="history" style="--x:-59;--y:32;--w:55;--h:48"
                     data-caption="What every app used, hour by hour, day by day. It stays on your Mac.">History</button>
-            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="hotspot" style="--x:36;--y:32;--w:55;--h:48"
+            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="connections" style="--x:-3;--y:32;--w:78;--h:48"
+                    data-caption="Today’s top companies, website names, how apps may connect, and every rule you’ve made.">Connections</button>
+            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="hotspot" style="--x:76;--y:32;--w:55;--h:48"
                     data-caption="What it pauses on a hotspot and how, and what it can’t, with why. Click a list to open it.">Hotspot</button>
-            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="about" style="--x:92;--y:32;--w:55;--h:48"
+            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="about" style="--x:132;--y:32;--w:55;--h:48"
                     data-caption="The version, where to read more, and Uninstall…, which puts back everything it changed.">About</button>
           </div>
           <div id="prefs-panel" role="tabpanel" aria-label="General">
-            <img class="prefs-shot on" data-shot="general" data-w="720" data-h="742" src="assets/settings/general.png" width="1440" height="1484"
-                 alt="NetworkMonitor Settings, on its General pane. Start at login is on. Show speeds in offers Mbps or MB/s, with MB/s chosen. Under Menu bar colors: Download in green, Upload in light grey, During a speed test showing the test's two shades of cyan, and a dimmed Use Default Colors button. A note says a speed test shows its figures in its own colors, kept clear of these. Under Popover totals: Counting since 12:00 AM, Sampling every 10 seconds in Low Power Mode, and Start the totals over, with a Reset Now button.">
+            <img class="prefs-shot on" data-shot="general" data-w="720" data-h="843" src="assets/settings/general.png" width="1440" height="1686"
+                 alt="NetworkMonitor Settings, on its General pane, with a toolbar of six panes: General, Speed Test, History, Connections, Hotspot and About. Start at login is on. Show speeds in offers Mbps or MB/s, with MB/s chosen. Know your Wi‑Fi networks by name, with a Turn On… button: Usage History calls them Home and Office, not Wi‑Fi · 3f2a; macOS calls this Location, but NetworkMonitor never looks up where you are. Under Menu bar colors: Download in green, Upload in light grey, During a speed test in two shades of cyan, and a dimmed Use Default Colors button. Under Popover totals: Counting since 12:00 AM, Sampling every 10 seconds in Low Power Mode, and Start the totals over, with a Reset Now button.">
             <img class="prefs-shot" data-shot="speed-test" data-w="720" data-h="320" src="assets/settings/speed-test.png" width="1440" height="640" loading="lazy" aria-hidden="true"
                  alt="The Speed Test pane: Test your internet speed, with a Test Now button. A note says it runs macOS's built-in networkQuality only when you start it, download first, then upload, typically using 50 to 500 MB. Show the test in the popover as Card or Compact, with Card chosen.">
-            <img class="prefs-shot" data-shot="history" data-w="720" data-h="820" src="assets/settings/history.png" width="1440" height="1640" loading="lazy" aria-hidden="true"
-                 alt="The History pane, on Yesterday, with the All, Wi‑Fi and Hotspot switch on All: 1.7 GB in all, none of it on metered connections. A bar chart by the hour, all over Wi‑Fi, peaks at about 410 MB at 6 PM. Below it, Apps, biggest first, each bar in Wi‑Fi’s blue: Google Chrome 867.5 MB, iTerm2 316.9 MB, Figma 67.7 MB, Slack 38.2 MB, WhatsApp 26.4 MB, Claude Usage 19.9 MB and Microsoft Teams 15.7 MB. Networks and Sessions are the other two lists. Keep history for Forever, with Clear History… and Export CSV… buttons.">
-            <img class="prefs-shot" data-shot="hotspot" data-w="720" data-h="422" src="assets/settings/hotspot.png" width="1440" height="844" loading="lazy" aria-hidden="true"
-                 alt="The Hotspot pane. Stop apps updating on hotspots is on. Right now reads This connection isn't metered. A note says it also puts the hotspot in Low Data Mode, so iCloud and other background downloads wait. Paused on a hotspot (12) is closed, with a note that the apps were found by looking inside the apps on this Mac and are paused only while on a hotspot. Can't be paused (3) is closed, with a note to quit those while on a hotspot.">
-            <img class="prefs-shot" data-shot="hotspot-apps" data-w="720" data-h="1062" src="assets/settings/hotspot-apps.png" width="1440" height="2124" loading="lazy" aria-hidden="true"
-                 alt="The Hotspot pane with Paused on a hotspot (12) open, each app switched on, with a line saying how it's paused. AppCleaner, Claude Usage, iTerm, OpenDisk, Remote for Mac, VLC and VoiceInk: Turns off its automatic update check. Figma: Turns off its updater. Microsoft AutoUpdate: Sets Microsoft's apps to update only when you ask. Visual Studio Code: Turns off automatic updates in its settings. Through NetworkMonitor's helper, one switch for macOS updates, App Store apps, Claude, Slack, Figma, Google Chrome and Claude Code, each with what it turns off or blocks. Through their update folders, one switch for Claude, Figma, Granola, Slack, Synergy and Visual Studio Code: Locks the folder its updates download to. Can't be paused (3) is closed.">
-            <img class="prefs-shot" data-shot="hotspot-uncovered" data-w="720" data-h="543" src="assets/settings/hotspot-uncovered.png" width="1440" height="1086" loading="lazy" aria-hidden="true"
-                 alt="The Hotspot pane with Can't be paused (3) open, each app with the reason. OmniDiskSweeper, Opera and Raycast: Has its own updater, with no setting NetworkMonitor can turn off. A note says to quit these while on a hotspot. Paused on a hotspot (12) is closed.">
-            <img class="prefs-shot" data-shot="hotspot-both" data-w="720" data-h="1183" src="assets/settings/hotspot-both.png" width="1440" height="2366" loading="lazy" aria-hidden="true"
-                 alt="The Hotspot pane with both lists open. Paused on a hotspot (12): each app with how it's paused and its own switch, including Through NetworkMonitor's helper for macOS updates, App Store apps, Claude, Slack, Figma, Google Chrome and Claude Code, and Through their update folders for Claude, Figma, Granola, Slack, Synergy and Visual Studio Code. Can't be paused (3): OmniDiskSweeper, Opera and Raycast, each with the reason.">
+            <img class="prefs-shot" data-shot="history" data-w="720" data-h="785" src="assets/settings/history.png" width="1440" height="1570" loading="lazy" aria-hidden="true"
+                 alt="The History pane on Today, with Day, Week, Month and Year, a ‹ Today › stepper, and All, Wi‑Fi and Hotspot. 1.5 GB used, all over Wi‑Fi, in a bar chart by the hour that peaks at about 740 MB at noon. Below it, Apps, biggest first: Software Update 522.3 MB, Google Chrome 320.5 MB, iTerm2 166.6 MB, Slack 133.8 MB, Xcode 86.4 MB, WhatsApp 76.5 MB and GoogleUpdater 38.9 MB. Networks and Sessions are the other two lists. Keep history for Forever, with Clear History… and Export CSV… buttons.">
+            <img class="prefs-shot" data-shot="connections" data-w="720" data-h="878" src="assets/settings/connections.png" width="1440" height="1756" loading="lazy" aria-hidden="true"
+                 alt="The Connections pane. Which companies, countries and servers your apps talk to, on a list and a world map, with an Open Connections… button. Today: Apple 500.0 MB, Hosted on Amazon 220.8 MB, Anthropic 173.6 MB, Google 138.5 MB and Meta 113.3 MB. See which websites your apps visit is On, with a Turn Off button. Under Blocking, Let apps connect offers Anywhere, Ask Me and Only Where I Allow, with Anywhere chosen, and a note to right-click a company, app, country or server in Connections to block it. Opens with List, Both or Map, with Both chosen. Countries and networks: DB-IP Lite, October 2026.">
+            <img class="prefs-shot" data-shot="hotspot" data-w="720" data-h="666" src="assets/settings/hotspot.png" width="1440" height="1332" loading="lazy" aria-hidden="true"
+                 alt="The Hotspot pane. Stop apps updating on hotspots is on, and right now this connection isn't metered. Paused on a hotspot (12) and Can't be paused (3) are both closed. Every app's updater: Stopped on hotspots. Got through on your last metered connection: Slack downloaded an update, 271.6 MB, and GoogleUpdater, 265.6 MB.">
+            <img class="prefs-shot" data-shot="hotspot-apps" data-w="720" data-h="870" src="assets/settings/hotspot-apps.png" width="1440" height="1740" loading="lazy" aria-hidden="true"
+                 alt="The Hotspot pane with Paused on a hotspot (12) open, each app switched on with a line saying how it's paused: AppCleaner, Claude Usage, iTerm, OpenDisk and Remote for Mac turn off their automatic update check, Figma turns off its updater, and Microsoft AutoUpdate sets Microsoft's apps to update only when you ask. Through NetworkMonitor's helper: macOS updates, App Store apps, Claude, Slack, Figma, Google Chrome and Claude Code. Through their update folders: Claude, Figma, Granola and Synergy. Then Visual Studio Code, VLC and VoiceInk, the list scrolling on.">
+            <img class="prefs-shot" data-shot="hotspot-uncovered" data-w="720" data-h="787" src="assets/settings/hotspot-uncovered.png" width="1440" height="1574" loading="lazy" aria-hidden="true"
+                 alt="The Hotspot pane with Can't be paused (3) open: OmniDiskSweeper, Opera and Raycast, each having its own updater with no setting NetworkMonitor can turn off. Every app's updater: Stopped on hotspots, including ones listed as can't be paused when they update with a program of their own.">
             <img class="prefs-shot" data-shot="about" data-w="720" data-h="564" src="assets/settings/about.png" width="1440" height="1128" loading="lazy" aria-hidden="true"
-                 alt="The About pane: the NetworkMonitor icon, Version 1.13.0 (76), and Live network speed in your menu bar, and which app used your data. Links to the website, the release notes and the source code on GitHub. Free and open source, under the MIT licence. Remove NetworkMonitor, with an Uninstall… button.">
+                 alt="The About pane: the NetworkMonitor icon, Version 1.14.0 (91), and Live network speed in your menu bar, and which app used your data. Links to the website, the release notes and the source code on GitHub. Free and open source, under the MIT licence. Remove NetworkMonitor, with an Uninstall… button.">
             <button class="prefs-row" type="button" aria-expanded="false" data-row="apps" style="--x:-340;--y:236;--w:680;--h:44" hidden>Paused on a hotspot</button>
             <button class="prefs-row" type="button" aria-expanded="false" data-row="uncovered" style="--x:-340;--y:334;--w:680;--h:44" hidden>Can’t be paused</button>
             <a class="prefs-link" href="#top" style="--x:150;--y:319;--w:182;--h:30" hidden>Website</a>
@@ -697,11 +745,11 @@ footer a { color: var(--text-2); }
       <svg class="privacy-mark reveal" viewBox="0 0 88 88" aria-hidden="true" fill="none"><rect x="18" y="38" width="52" height="40" rx="10" fill="url(#g)"/><path d="M29 38V28a15 15 0 0 1 30 0v10" stroke="#e5e5e5" stroke-width="6"/><path d="M44 51v12" stroke="#000" stroke-width="6" stroke-linecap="round"/><defs><linearGradient id="g" x1="0" y1="38" x2="0" y2="78" gradientUnits="userSpaceOnUse"><stop stop-color="#51ff70"/><stop offset="1" stop-color="#2fd152"/></linearGradient></defs></svg>
       <p class="eyebrow reveal">Privacy</p>
       <h2 class="h2 reveal d1">It measures volume.<br>Never contents.</h2>
-      <p class="lead reveal d2" style="max-width:640px;margin-inline:auto">NetworkMonitor counts how much, never what. <strong>And it has no way to phone home.</strong></p>
+      <p class="lead reveal d2" style="max-width:640px;margin-inline:auto">NetworkMonitor counts how much, and where it went, never what. <strong>And it has no way to phone home.</strong></p>
       <div class="privacy-grid">
-        <div class="reveal"><h3>One permission, for Wi‑Fi names.</h3><p>It asks for Location only because macOS shares a Wi‑Fi network’s name no other way, and uses it for that name alone. It never looks up where you are. The only thing that ever asks for your password is the hotspot helper, once, when you switch hotspot metering on.</p></div>
+        <div class="reveal"><h3>Two permissions, both optional.</h3><p>Location, only because macOS shares a Wi‑Fi network’s name no other way; it never looks up where you are. And website names, to see and block where apps connect. Both are offered when it first opens, and each can be turned on later. The only thing that ever asks for your password is the hotspot helper, once.</p></div>
         <div class="reveal d1"><h3>No network access of its own.</h3><p>The only traffic NetworkMonitor ever causes is a speed test you start yourself, run by macOS’s built-in networkQuality against Apple’s servers. No analytics, no telemetry, no update check, no account.</p></div>
-        <div class="reveal d2"><h3>Stays on your Mac.</h3><p>Your usage lives in local files on your Mac that you can delete at any time.</p></div>
+        <div class="reveal d2"><h3>Stays on your Mac.</h3><p>Your usage, and the servers your apps reached, live in local files on your Mac that you can delete at any time. Countries and companies are named from data inside the app.</p></div>
         <div class="reveal d3"><h3>Open source.</h3><p>MIT licensed. <a href="https://github.com/kevinabouhanna/NetworkMonitor">Read every line</a> before you run it.</p></div>
       </div>
     </div>
@@ -720,7 +768,7 @@ footer a { color: var(--text-2); }
           <p>The usual Mac way: open the disk image and drag NetworkMonitor into <strong>Applications</strong>.</p>
           <div class="get">
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download NetworkMonitor.dmg</a>
-            <span class="meta">Version 1.13.0 · 3.2 MB · Universal</span>
+            <span class="meta">Version 1.14.0 · 10.1 MB · Universal</span>
           </div>
           <figure class="dmg-shot" style="margin-bottom:0">
             <img src="assets/dmg-window.png" width="1424" height="1104" loading="lazy"
@@ -728,16 +776,16 @@ footer a { color: var(--text-2); }
           </figure>
           <ol class="steps" id="first-launch">
             <li>Open <b>NetworkMonitor.dmg</b> and drag the app into <b>Applications</b>.</li>
-            <li>Open NetworkMonitor from Applications. The first time, macOS says it can’t verify the app, because it isn’t signed with an Apple Developer ID yet. Click <b>Done</b>.</li>
-            <li>Open <b>System Settings › Privacy &amp; Security</b>, scroll down to Security, and click <b>Open Anyway</b> next to NetworkMonitor. Confirm with your password.</li>
+            <li>Open NetworkMonitor from Applications. It’s signed with an Apple Developer ID and notarized, so macOS opens it straight away.</li>
+            <li>The welcome window says what it can do with your OK: website names, and Wi‑Fi networks by name. Both are optional.</li>
             <li>Look for <span class="green">↓</span><span style="color:var(--light)">↑</span> in your menu bar.</li>
           </ol>
-          <p class="aside">On macOS 13 or 14 there’s a shortcut for steps 2 and 3: Control-click the app in Applications, choose <b>Open</b>, then <b>Open</b> again.<br><br><b>Updating:</b> download the new version and drag it over the old one. Your settings and history stay. macOS checks each new version afresh, so approve it with <b>Open Anyway</b> once more, as in step 3. <b>Removing:</b> right-click the menu bar item and choose <b>Uninstall NetworkMonitor…</b>, which puts back every setting it changed first.</p>
+          <p class="aside"><b>Updating:</b> download the new version and drag it over the old one, choosing <b>Replace</b>. Your settings and history stay. Coming from 1.13 or earlier, macOS asks for Location once more, since the app is now signed with an Apple Developer ID. <b>Removing:</b> right-click the menu bar item and choose <b>Uninstall NetworkMonitor…</b>, which puts back every setting it changed first.</p>
         </article>
       </div>
 
       <div class="ctas reveal">
-        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.13.0">What’s in version 1.13.0</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.14.0">What’s in version 1.14.0</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
     </div>
@@ -817,7 +865,6 @@ footer a { color: var(--text-2); }
     let settle = 0;
 
     const shotName = () => state.pane !== 'hotspot' ? state.pane
-      : state.apps && state.uncovered ? 'hotspot-both'
       : state.apps ? 'hotspot-apps' : state.uncovered ? 'hotspot-uncovered' : 'hotspot';
 
     function render(animate) {
@@ -848,11 +895,13 @@ footer a { color: var(--text-2); }
       }
       panel.setAttribute('aria-label', tab.textContent);
       caption.textContent = tab.dataset.caption;
-      apps.hidden = uncovered.hidden = state.pane !== 'hotspot';
+      apps.hidden = state.pane !== 'hotspot';
+      // Open, the first list runs past the bottom of the window, over the second row.
+      uncovered.hidden = state.pane !== 'hotspot' || state.apps;
       apps.setAttribute('aria-expanded', String(state.apps));
       apps.style.setProperty('--h', state.apps ? 34 : 44);
       uncovered.setAttribute('aria-expanded', String(state.uncovered));
-      uncovered.style.setProperty('--y', state.apps ? 974 : 334);
+      uncovered.style.setProperty('--y', 334);
       uncovered.style.setProperty('--h', state.uncovered ? 34 : 44);
       links.forEach(link => { link.hidden = state.pane !== 'about'; });
     }
@@ -872,7 +921,7 @@ footer a { color: var(--text-2); }
       event.preventDefault();
       choose(tabs[(next + tabs.length) % tabs.length].dataset.pane, true);
     });
-    apps.addEventListener('click', () => { state.apps = !state.apps; render(true); });
+    apps.addEventListener('click', () => { state.apps = !state.apps; if (state.apps) state.uncovered = false; render(true); });
     uncovered.addEventListener('click', () => { state.uncovered = !state.uncovered; render(true); });
     // "See the Hotspot pane" opens it on the way down.
     document.querySelectorAll('[data-pane-link]').forEach(link => {
