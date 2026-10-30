@@ -28,6 +28,18 @@ func runFilterTests() {
             Check.expectTrue(FilterIdentity.appRequirement.contains("GRQKG7M8CL"))
             Check.expectTrue(FilterIdentity.machServiceName.hasPrefix(FilterIdentity.teamIdentifier + "."))
         }
+
+        // #142: a name per build, under the app group, as both ends read it.
+        Check.test("each build's filter has a service name of its own") {
+            let name = FilterIdentity.machServiceName(build: "89")
+            Check.expectEqual(name, "GRQKG7M8CL.com.kevinabouhanna.NetworkMonitor.Filter.89")
+            Check.expectTrue(name.hasPrefix(FilterIdentity.appGroup + "."), "under the app group")
+            Check.expectTrue(FilterIdentity.machServiceName(build: "89") != FilterIdentity.machServiceName(build: "90"))
+            let info: [String: Any] = ["NetworkExtension": ["NEMachServiceName": name]]
+            Check.expectEqual(FilterIdentity.machServiceName(inInfo: info), name)
+            Check.expectEqual(FilterIdentity.machServiceName(inInfo: nil), FilterIdentity.machServiceName,
+                              "a filter without a stamped name")
+        }
     }
 
     Check.suite("Content filter — companies from server names") {

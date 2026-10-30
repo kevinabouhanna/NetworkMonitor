@@ -23,7 +23,7 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
     static let batchLimit = 500
 
     func start() {
-        let listener = NSXPCListener(machServiceName: FilterIdentity.machServiceName)
+        let listener = NSXPCListener(machServiceName: FilterIdentity.machServiceName(inInfo: Bundle.main.infoDictionary))
         listener.delegate = self
         listener.resume()
         self.listener = listener

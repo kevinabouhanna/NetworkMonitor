@@ -156,8 +156,12 @@ case "$SIGN_KIND" in
       mkdir -p "${FILTER_BUNDLE}/Contents/MacOS"
       cp "${BUILD_DIR}/${FILTER_PRODUCT}" "${FILTER_BUNDLE}/Contents/MacOS/${FILTER_NAME}"
       cp Resources/Filter/Info.plist "${FILTER_BUNDLE}/Contents/Info.plist"
+      # Each build's service name is its own (#142): one name for every
+      # version could leave an updated filter with none.
       /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${MARKETING_VERSION}" \
-                              -c "Set :CFBundleVersion ${BUILD_NUMBER}" "${FILTER_BUNDLE}/Contents/Info.plist"
+                              -c "Set :CFBundleVersion ${BUILD_NUMBER}" \
+                              -c "Set :NetworkExtension:NEMachServiceName GRQKG7M8CL.com.kevinabouhanna.NetworkMonitor.Filter.${BUILD_NUMBER}" \
+                              "${FILTER_BUNDLE}/Contents/Info.plist"
       cp "$FILTER_PROFILE" "${FILTER_BUNDLE}/Contents/embedded.provisionprofile"
       # The filter looks up each connection's country and owner to apply the
       # rules (#114), so the data moves into it, and the app links to it

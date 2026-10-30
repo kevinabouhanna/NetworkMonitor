@@ -9,10 +9,25 @@ public enum FilterIdentity {
     /// The system extension's bundle identifier, and its App ID's.
     public static let extensionIdentifier = "com.kevinabouhanna.NetworkMonitor.Filter"
     public static let teamIdentifier = "GRQKG7M8CL"
-    /// The XPC service the filter listens on. A Network Extension's Mach
-    /// service must be named under one of its app groups, which on macOS are
-    /// prefixed with the team.
+    /// The XPC service the filter listens on, before a build number is added.
+    /// A Network Extension's Mach service must be named under one of its app
+    /// groups, which on macOS are prefixed with the team.
     public static let machServiceName = "GRQKG7M8CL.com.kevinabouhanna.NetworkMonitor.Filter"
+    public static let appGroup = "GRQKG7M8CL.com.kevinabouhanna.NetworkMonitor"
+
+    /// Each build's own name (#142). With one name for every version, an
+    /// update could find the outgoing filter still holding it, and the new
+    /// one came up with no service at all until a restart.
+    public static func machServiceName(build: String) -> String {
+        build.isEmpty ? machServiceName : "\(machServiceName).\(build)"
+    }
+
+    /// The name a filter bundle's Info.plist declares, as `bundle.sh` stamps
+    /// it: what the filter listens on, and what the app shipping it connects
+    /// to.
+    public static func machServiceName(inInfo info: [String: Any]?) -> String {
+        ((info?["NetworkExtension"] as? [String: Any])?["NEMachServiceName"] as? String) ?? machServiceName
+    }
     /// Only NetworkMonitor itself, signed with its Developer ID, may connect:
     /// the filter sees every server the Mac talks to, and says so to nobody else.
     public static let appRequirement = """
