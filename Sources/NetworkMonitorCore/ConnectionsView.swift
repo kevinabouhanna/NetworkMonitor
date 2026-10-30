@@ -19,6 +19,9 @@ public struct ConnectionsView: View {
     public var body: some View {
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 14) {
+                if model.offersWebsiteNames {
+                    WebsiteNamesOffer(filter: model.filter) { model.offersWebsiteNames = false }
+                }
                 scopeBar
                 header
                 ConnectionsTimeline(model: model)
@@ -231,7 +234,7 @@ public struct ConnectionsView: View {
             Link(ServerDirectory.credit, destination: ServerDirectory.creditURL)
                 .font(.system(size: 10))
             Text("·").foregroundStyle(.tertiary)
-            Text("A server is its address until NetworkMonitor can read server names. Nothing is looked up online.")
+            Text("Everything is named on this Mac: nothing is looked up online.")
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -242,6 +245,36 @@ public struct ConnectionsView: View {
 }
 
 /// One row: a group at the top level, or an item inside one.
+/// Website names, offered where they'd show (#134), while they're off: a
+/// slim row above the list, closed for good with its ×.
+private struct WebsiteNamesOffer: View {
+    @ObservedObject var filter: FilterController
+    let onClose: () -> Void
+
+    var body: some View {
+        switch filter.state {
+        case .unavailable, .on:
+            EmptyView()
+        default:
+            HStack(alignment: .top, spacing: 10) {
+                WebsiteNamesRow(filter: filter)
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 18, height: 18)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Close. Settings › Connections still has it.")
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.accentColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+    }
+}
+
 private struct ConnectionsRow: View {
     let item: ConnectionsItem
     let subtitle: String?

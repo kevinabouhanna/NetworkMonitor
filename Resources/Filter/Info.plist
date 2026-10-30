@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>NetworkMonitor Filter</string>
+	<string>NetworkMonitor</string>
 	<key>CFBundleExecutable</key>
 	<string>com.kevinabouhanna.NetworkMonitor.Filter</string>
 	<key>CFBundleIdentifier</key>
@@ -23,7 +23,7 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
 	<key>NSSystemExtensionUsageDescription</key>
-	<string>Lets NetworkMonitor see which server each connection goes to, and later block the ones you choose. Nothing leaves your Mac.</string>
+	<string>Lets NetworkMonitor show which websites your apps visit. Nothing leaves your Mac.</string>
 	<key>NetworkExtension</key>
 	<dict>
 		<key>NEMachServiceName</key>

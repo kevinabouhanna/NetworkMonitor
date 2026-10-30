@@ -8,9 +8,10 @@ odd: most odd-looking things were the second or third attempt.
 - **Under-reporting is the one error it can't afford.** Anything ambiguous counts as
   internet traffic. A total that's slightly high is an annoyance; one that hides real usage
   defeats the app.
-- **Few permission prompts.** Networks are identified without any permission. Location is
-  asked for only to show Wi-Fi names (#85), and the only password ever asked for is
-  optional, for Hotspot mode's helper.
+- **Few permission prompts, and each one optional.** Networks are identified without any
+  permission. The welcome window offers the two that add something, Wi-Fi names (Location,
+  #85) and website names (the content filter, #128), each said as what you get (#134). The
+  only password ever asked for is optional, for Hotspot mode's helper.
 - **No network access of its own.** The only traffic it causes is a speed test you start.
 - **Nothing to configure where the app can decide.** Sampling rates follow the power source;
   Hotspot mode is one switch with no list to maintain. A switch that needs configuring to
@@ -89,6 +90,7 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-30 | **Settings › Connections**, a pane like every other feature's (#126) | People look for a feature in Settings. It says what Connections is, opens it, shows today's top companies, sets the layout it opens with, and says where the names come from |
 | 2026-10-30 | **The content filter is a system extension** that allows everything and reports each flow's name over XPC, turned on only from Settings › Connections (#128) | Server names turn *Hosted on Amazon* into the company behind it, and it's the base the firewall's rules are enforced through. It fails open, and both ends check the other's signature by team |
 | 2026-10-30 | Companies come from a server's name before its network's owner (#128) | The owner names the landlord; the name names the tenant. A host's own domains (cloudfront.net, akamaiedge.net) still defer to the owner |
+| 2026-10-30 | **Permissions are set up in a welcome window**, each as what you get, not a switch in Settings that says how it works (#134) | "Server names" and "a content filter" didn't tell anyone why to turn it on. On first launch the welcome window offers website names and Wi-Fi names, both optional, with the steps macOS needs shown while it waits. Said no, each has a **Turn On…** where it's used. Location is no longer asked for by itself at launch, and **Stop Filtering** left the menu: it blocked nothing |
 
 ## Approaches turned down
 

@@ -3,9 +3,9 @@ import ServerDirectory
 import SwiftUI
 
 /// Settings › Connections (#126): where Connections is found, like every other
-/// feature. What it is, today's top companies at a glance, which layout the
-/// window opens with, and where the names come from. The window itself is
-/// where it's read.
+/// feature. What it is, today's top companies at a glance, website names,
+/// which layout the window opens with, and where the names come from. The
+/// window itself is where it's read.
 struct ConnectionsSettingsPane: View {
     @ObservedObject var model: ConnectionsViewModel
     @ObservedObject var glance: ConnectionsGlance
@@ -53,28 +53,11 @@ struct ConnectionsSettingsPane: View {
                                  + "owner can tell.")
             }
 
+            // Where anyone who said "not now" in the welcome window finds it
+            // again (#134).
             if filter.state != .unavailable {
                 Section {
-                    LabeledContent("Server names") {
-                        Toggle("Server names", isOn: Binding(get: { Self.isOn(filter.state) },
-                                                             set: { $0 ? filter.turnOn() : filter.turnOff() }))
-                            .toggleStyle(.switch)
-                            .labelsHidden()
-                    }
-                    if let status = Self.status(filter.state) {
-                        Text(status).foregroundStyle(.secondary)
-                    }
-                    if filter.state == .waitingForApproval {
-                        Button("Open Login Items & Extensions…") {
-                            NSWorkspace.shared.open(URL(string:
-                                "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")!)
-                        }
-                    }
-                } footer: {
-                    SettingsFootnote("A content filter, the part of macOS made for apps like this one, tells "
-                                     + "NetworkMonitor the name of each server as a connection opens, so "
-                                     + "api.slack.com reads as Slack rather than Hosted on Amazon. It blocks "
-                                     + "nothing yet. macOS asks you to allow it, and nothing leaves your Mac.")
+                    WebsiteNamesRow(filter: filter, offersTurnOff: true)
                 }
             }
 
@@ -106,23 +89,6 @@ struct ConnectionsSettingsPane: View {
         }
         .formStyle(.grouped)
         .onAppear { glance.reload() }
-    }
-
-    static func isOn(_ state: FilterController.State) -> Bool {
-        switch state {
-        case .on, .starting, .waitingForApproval: return true
-        default:                                  return false
-        }
-    }
-
-    static func status(_ state: FilterController.State) -> String? {
-        switch state {
-        case .starting:           return "Starting…"
-        case .waitingForApproval: return "Allow NetworkMonitor in System Settings › General › Login Items & "
-                                       + "Extensions › Network Extensions, then allow the filter when asked."
-        case .failed(let reason): return "Couldn't start the filter: \(reason)"
-        default:                  return nil
-        }
     }
 }
 
