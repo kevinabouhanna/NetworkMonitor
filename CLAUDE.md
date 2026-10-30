@@ -57,9 +57,9 @@ release of its own:
   `~/.config/networkmonitor-signing/` when it's there, falling back to
   NetworkMonitor's own certificate, then ad-hoc; the Release workflow uses the copies
   in the repository secrets. Only a Developer ID build carries the content filter, the
-  helper daemon and the update feed. Keys and secrets are listed in
-  `docs/DISTRIBUTION.md`; never paste one anywhere, and set secrets with
-  `gh secret set NAME < file`.
+  helper daemon and the update feed. Every key and secret, and where each lives, is
+  in `docs/DISTRIBUTION.md`, a private note that git ignores. Never paste a key
+  anywhere, and set secrets with `gh secret set NAME < file`.
 - **Test the filter, the helper daemon and Sparkle on a notarized build in
   /Applications**, which `make install` makes; they don't work from `build/`. Point a
   development build at local test data with launch arguments instead of publishing

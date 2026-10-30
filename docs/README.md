@@ -22,8 +22,7 @@ feature works, and why it was built that way.
 | Page | What's in it |
 |---|---|
 | [Architecture](architecture.md) | How data flows (with a diagram), threads, the two measurement sources, files |
-| [Building, testing and releasing](development.md) | Make targets, the test harness, CI, launch arguments, the release and website workflow |
-| [Distribution and updates](DISTRIBUTION.md) | Signing, notarization, what the Developer ID does, every key and secret, releases, updates, uninstalling |
+| [Building, testing and releasing](development.md) | Make targets, signing and notarizing, the test harness, CI, launch arguments, the release and website workflow |
 | [Decisions](decisions.md) | Principles, a dated decision log, and approaches that were turned down |
 | [Roadmap and known limits](roadmap.md) | What the Developer ID made possible, and what's done; ideas; known limits |
 

@@ -2,9 +2,9 @@
 
 ## Distribution: the Developer ID plan, done
 
-Every step of this is done, as of 1.15.0. [Distribution](DISTRIBUTION.md) describes how it
-works now, with every key and secret. Two separate things finish the job, and neither
-replaces the other:
+Every step of this is done, as of 1.15.0. [Building and releasing](development.md) and
+[Architecture](architecture.md) describe how it works now. Two separate things finish the
+job, and neither replaces the other:
 
 | | What it proves | What it unlocks |
 |---|---|---|

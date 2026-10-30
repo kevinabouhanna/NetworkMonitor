@@ -225,7 +225,10 @@ Every change follows the same path:
 4. Install it with `make install` from the tag.
 5. Update the website (below).
 
-[Distribution](DISTRIBUTION.md) has every key and secret, and where each lives.
+The keys behind these secrets are never committed. The update key's public half is
+`SUPublicEDKey` in `bundle.sh`, and the data key's is `GeoDataUpdater.publicKey`; the
+*Data refresh* workflow signs with `GEODATA_SIGNING_KEY`. The Developer ID certificate and
+its provisioning profiles are valid until 28 November 2027, and are renewed together.
 
 ## The website
 
