@@ -18,6 +18,42 @@ import Foundation
 ///   which GoogleUpdater uses for Chrome (#92).
 /// - 4: `suppress` also turns off Claude Code's auto-updater through a managed
 ///   settings file of its own (#97).
+/// - 5: `serve`, as a launch daemon answering over XPC (#131).
 public enum HelperProtocol {
-    public static let version = 4
+    public static let version = 5
+}
+
+/// The helper as a launch daemon the app registers itself (#131): what both
+/// sides call it, and how each checks the other. With a Developer ID there is
+/// a team to check callers by, so XPC replaces `sudo` and its sudoers rule,
+/// and allowing it is a switch in System Settings rather than a password.
+public enum HelperDaemon {
+    /// The daemon's launchd label and Mach service, and its plist inside the
+    /// app, in `Contents/Library/LaunchDaemons`.
+    public static let label = "com.kevinabouhanna.NetworkMonitor.daemon"
+    public static let machServiceName = label
+    public static let plistName = "\(label).plist"
+
+    /// Only NetworkMonitor, signed by its team, may ask anything of it.
+    public static let clientRequirement = """
+        anchor apple generic and identifier "com.kevinabouhanna.NetworkMonitor" \
+        and certificate leaf[subject.OU] = "GRQKG7M8CL"
+        """
+    /// And the app only talks to the helper it shipped.
+    public static let helperRequirement = """
+        anchor apple generic and identifier "com.kevinabouhanna.NetworkMonitor.helper" \
+        and certificate leaf[subject.OU] = "GRQKG7M8CL"
+        """
+
+    /// What may be asked over XPC: the verbs the sudoers rule granted, and
+    /// `uninstall`, which the app's own Uninstall used to run with a password.
+    /// `self-heal` stays the hourly job's.
+    public static let verbs: Set<String> = ["status", "suppress", "restore", "constrain", "unconstrain",
+                                            "uninstall"]
+}
+
+/// What the daemon offers: one verb at a time, with no arguments, answered
+/// with its exit status and what it printed.
+@objc public protocol HelperXPCInterface {
+    func run(_ verb: String, reply: @escaping (Int32, String) -> Void)
 }

@@ -630,8 +630,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         switch model.uninstall() {
         case .done:
             NSApp.terminate(nil)
-        case .cancelled:
+        case .cancelled, .waitingForApproval:
             // Nothing has changed: the helper step comes first for this reason.
+            // (Uninstalling never registers anything, so never waits.)
             return
         case .failed(let message):
             let failure = NSAlert()

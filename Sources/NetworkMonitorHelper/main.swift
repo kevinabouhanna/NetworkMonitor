@@ -39,6 +39,15 @@ import LowDataMode
 // flags it can raise are `constrained` and `expensive`.
 //
 // Verbs: status | suppress | restore | constrain | unconstrain | self-heal | uninstall
+//
+// # Now a launch daemon too (#131)
+//
+// With a Developer ID there is a team to check callers by, so the app
+// registers this binary as a launch daemon (`SMAppService`) and asks over XPC,
+// and the reasoning above is history for those builds: Daemon.swift answers
+// only NetworkMonitor signed by its team, and the sudoers rule is removed.
+// Allowing it is a switch in System Settings. Builds without a Developer ID
+// still install it with `helper-setup.sh` and reach it through `sudo`.
 
 // MARK: - Constants
 
@@ -885,6 +894,12 @@ func acquireLock() throws -> Int32 {
 // Everything below needs root. Refusing early gives a clear message instead of
 // a confusing permission error three calls deep.
 guard getuid() == 0 else { fail("must run as root") }
+
+// As a launch daemon (#131): launchd starts it with `serve`, and it answers
+// the app over XPC, running each verb as this same binary. See Daemon.swift.
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "serve" {
+    Daemon.serve()
+}
 
 let verbs = ["status", "suppress", "restore", "constrain", "unconstrain",
              "self-heal", "uninstall"]

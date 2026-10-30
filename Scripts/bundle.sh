@@ -178,6 +178,11 @@ case "$SIGN_KIND" in
       ENTITLEMENTS="Resources/NetworkMonitor+Filter.entitlements"
       echo "    with the content filter"
     fi
+    # The helper as a launch daemon the app registers itself (#131): its plist
+    # goes in only with the Developer ID, since the daemon checks callers by
+    # team. Builds without one install the helper with helper-setup.sh.
+    mkdir -p "${APP}/Contents/Library/LaunchDaemons"
+    cp Resources/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist "${APP}/Contents/Library/LaunchDaemons/"
     # The hardened runtime is on for all of them. Spawning /usr/bin/nettop
     # needs no exception: it's a separate signed process, not injected code.
     sign_developer_id --identifier "$HELPER_NAME" "$HELPER_PATH"

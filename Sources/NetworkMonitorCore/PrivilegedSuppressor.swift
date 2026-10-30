@@ -140,8 +140,7 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
     /// rule without the binary grants nothing. Reporting "installed" on half of
     /// it would make the settings pane claim coverage that does not exist.
     public static var isInstalled: Bool {
-        FileManager.default.isExecutableFile(atPath: helperPath)
-            && FileManager.default.fileExists(atPath: sudoersPath)
+        HelperService.status == .enabled || HelperInstaller.legacyInstalled
     }
 
     public var isInstalled: Bool { Self.isInstalled }
@@ -235,8 +234,10 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
     }
 
     /// The one way into the helper, shared with `LowDataModeSuppressor` so both
-    /// tiers reach root by exactly the same `sudo -n` route.
+    /// tiers reach root by exactly the same route: the launch daemon over XPC
+    /// once it's allowed (#131), `sudo -n` otherwise.
     static func invoke(_ verb: String) -> String? {
+        if HelperService.status == .enabled { return HelperService.invoke(verb) }
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
         task.arguments = ["-n", helperPath, verb]

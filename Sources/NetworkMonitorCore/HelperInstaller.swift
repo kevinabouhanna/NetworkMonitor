@@ -17,6 +17,10 @@ import LowDataMode
 /// rule rather than XPC (see the helper's own header). What runs as root is
 /// `helper-setup.sh`, the same installer `Scripts/install-helper.sh` uses, from
 /// the bundle the user just authorised.
+///
+/// A Developer ID build registers the helper as a launch daemon instead
+/// (#131, `HelperService`): no password, one switch in System Settings, and an
+/// update needs nothing at all. This route stays for the others.
 public enum HelperInstaller {
 
     public enum State: Equatable {
@@ -24,8 +28,12 @@ public enum HelperInstaller {
         case current
         case missing
         /// Installed by an older app. Works for what it knew, but not for what
-        /// was added since — Low Data Mode, for a helper from before it.
+        /// was added since — Low Data Mode, for a helper from before it. With
+        /// the daemon available, any `sudo` helper is this: it moves over.
         case outdated
+        /// The daemon is registered and waiting to be switched on in System
+        /// Settings (#131).
+        case waitingForApproval
     }
 
     public enum Outcome: Equatable {
@@ -33,6 +41,8 @@ public enum HelperInstaller {
         /// The user closed the password dialog. Not an error, and not repeated
         /// without them asking: Settings offers it again.
         case cancelled
+        /// Registered; macOS lists it in Login Items for the person to allow.
+        case waitingForApproval
         case failed(String)
     }
 
@@ -60,9 +70,16 @@ public enum HelperInstaller {
     /// Whether this copy can install the helper: it carries one, and it is
     /// installed where the helper expects to find it.
     public static var canInstall: Bool {
-        isInRequiredLocation
-            && FileManager.default.isExecutableFile(atPath: bundledHelper.path)
-            && setupScript != nil
+        HelperService.isAvailable
+            || (isInRequiredLocation
+                && FileManager.default.isExecutableFile(atPath: bundledHelper.path)
+                && setupScript != nil)
+    }
+
+    /// Whether the `sudo` helper is here: its binary and its sudoers rule.
+    static var legacyInstalled: Bool {
+        FileManager.default.isExecutableFile(atPath: PrivilegedSuppressor.helperPath)
+            && FileManager.default.fileExists(atPath: PrivilegedSuppressor.sudoersPath)
     }
 
     /// Asks the installed helper its version. One `sudo -n status`; call it when
@@ -74,7 +91,18 @@ public enum HelperInstaller {
     /// The same, from a `status` answer already in hand; `nil` is no answer.
     /// See `MeteringController.refreshInBackground(_:)`.
     public static func state(status output: String?) -> State {
-        guard PrivilegedSuppressor.isInstalled else { return .missing }
+        state(daemon: HelperService.status, legacyInstalled: legacyInstalled, status: output)
+    }
+
+    /// The same, from what's known: pure, so every combination is tested.
+    public static func state(daemon: HelperService.Status, legacyInstalled: Bool, status output: String?) -> State {
+        switch daemon {
+        case .enabled:            return .current
+        case .waitingForApproval: return .waitingForApproval
+        case .notRegistered:      return legacyInstalled ? .outdated : .missing
+        case .unavailable:        break
+        }
+        guard legacyInstalled else { return .missing }
         guard let output,
               let data = output.data(using: .utf8),
               let status = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -94,6 +122,7 @@ public enum HelperInstaller {
     /// until it is answered, so call it on the main thread from a user action or
     /// a moment chosen for it, never from layout.
     public static func install() -> Outcome {
+        if HelperService.isAvailable { return HelperService.register() }
         guard canInstall, let script = setupScript else {
             return .failed(isInRequiredLocation
                 ? "This copy of NetworkMonitor is missing its helper. Download it again."
@@ -109,6 +138,20 @@ public enum HelperInstaller {
     /// own Uninstall, which is the clean way out for anyone who never opens
     /// Terminal.
     public static func uninstall() -> Outcome {
+        // The daemon puts everything back and removes the sudo helper's files
+        // and the self-heal job, as root, without asking; then it goes.
+        switch HelperService.status {
+        case .enabled:
+            guard HelperService.invoke("uninstall") != nil else {
+                return .failed("NetworkMonitor's helper couldn't put back the settings it changed.")
+            }
+            HelperService.unregister()
+            return .done
+        case .waitingForApproval, .notRegistered:
+            HelperService.unregister()
+        case .unavailable:
+            break
+        }
         guard PrivilegedSuppressor.isInstalled
                 || FileManager.default.fileExists(atPath: PrivilegedSuppressor.helperPath)
         else { return .done }
