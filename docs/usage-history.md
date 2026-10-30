@@ -70,6 +70,13 @@ until the Mac has been silent for **30 minutes**, as it is after a sleep.
 - **Relaunching** on the same network within 30 minutes continues the visit.
 - **Each session keeps its own metered verdict**, read again as it closes, so a
   hotspot visit stays metered after you've moved on to home Wi-Fi.
+- **Updates that got through stay with their visit** (#96). A hotspot visit where one
+  did says *2 updates got through* under its name, and choosing it lists them: the app,
+  the version once known, and the data used, or *up to* when only the most it could be
+  is known. Hotspot mode's *Got through* list only holds the last metered connection;
+  History keeps them under the same retention and Clear History as everything else.
+  Each is kept once, with the visit it was first seen on, even when one connection runs
+  across several visits.
 
 ## Networks
 
@@ -92,7 +99,7 @@ a data cap cares about.
 ## CSV format
 
 ```
-Hour,Network,Network Type,Metered,App,Downloaded (bytes),Uploaded (bytes)
+Hour,Network,Network Type,Metered,App,Downloaded (bytes),Uploaded (bytes),Update That Got Through
 ```
 
 - One line per app, per hour, per visit. That's everything History holds; a
@@ -100,6 +107,9 @@ Hour,Network,Network Type,Metered,App,Downloaded (bytes),Uploaded (bytes)
 - `Hour` is `yyyy-MM-dd HH:mm` in your time zone.
 - Without an app filter, each hour also has a *Not attributed to an app* line for the
   rest of the internet total, so the file adds up to what the window shows.
+- `Update That Got Through` is filled on the app's line in the hour an update was first
+  seen, such as *Slack updated to 4.41, 120 MB* (#96). When the app has no line in that
+  hour, the update gets a line of its own with no bytes, so the columns still add up.
 - Fields are quoted only when they need it (RFC 4180). The file is UTF-8.
 
 ## How it's built

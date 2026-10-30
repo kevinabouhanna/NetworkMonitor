@@ -165,7 +165,8 @@ The popover shows one line under the total when that happens, and Settings lists
 with the data it used and the version it updated to, still there after you've left the
 hotspot. An app that was on the paused list says it **updated anyway**, in orange, both
 there and beside its switch, until the next metered connection: that's how a pause that
-didn't hold is found.
+didn't hold is found. Each one also stays in [Usage History](usage-history.md#sessions),
+with the visit it happened on (#96).
 
 **The data an update used** is its app's traffic while it downloaded: from when the
 updater created its download, or when you joined the hotspot if that was later, to its

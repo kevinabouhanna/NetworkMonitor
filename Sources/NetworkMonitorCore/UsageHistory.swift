@@ -17,6 +17,31 @@ public struct HistorySession: Identifiable, Equatable {
     public let isMetered: Bool
 }
 
+/// An update that got through on a metered connection (#96), kept with the
+/// visit it was first seen on.
+public struct HistoryUpdate: Identifiable, Equatable {
+    public let sessionID: Int64
+    /// The app, not its updater's process: Google Chrome, not GoogleUpdater.
+    public let appName: String
+    public let bytes: Int64
+    /// `bytes` is the most it could have used, not what it did.
+    public let isUpperBound: Bool
+    public let version: String?
+    public let seenAt: Date
+    public var id: String { "\(sessionID):\(appName):\(seenAt.timeIntervalSince1970)" }
+
+    /// As Settings › Hotspot says it: "Slack updated to 4.41".
+    public var label: String {
+        version.map { "\(appName) updated to \($0)" } ?? "\(appName) downloaded an update"
+    }
+
+    /// "120 MB", or "up to 272 MB".
+    public var amount: String {
+        guard bytes > 0 else { return "—" }
+        return (isUpperBound ? "up to " : "") + ByteFormat.bytes(bytes)
+    }
+}
+
 /// What a history view is narrowed to. Each field is optional and they combine.
 public struct HistoryFilter: Equatable {
     public var networkID: String?
@@ -135,6 +160,12 @@ public struct HistoryReport {
     public let sessions: [SessionTotal]
     /// The first hour on record, whatever the filter: where stepping back stops.
     public let recordingSince: Date?
+    /// Updates that got through on these sessions, oldest first.
+    public var updates: [HistoryUpdate] = []
+
+    public func updates(in session: Int64) -> [HistoryUpdate] {
+        updates.filter { $0.sessionID == session }
+    }
 
     public var total: Int64 { bytesIn + bytesOut }
     public var peakBin: Int64 { bins.map(\.total).max() ?? 0 }
@@ -457,6 +488,17 @@ public final class UsageHistory {
         return Int64(start.timeIntervalSince1970)
     }
 
+    /// The watch's list for one metered connection (#96), written with the next
+    /// flush. Each update is kept once per report, with the visit on
+    /// `networkID` it was first seen on: History can split one connection into
+    /// several visits, and the list goes on growing across them.
+    public func recordUpdates(_ sightings: [UpdateWatch.Sighting], report: Date, networkID: String) {
+        for sighting in sightings {
+            pending.updates["\(report.timeIntervalSince1970)|\(sighting.id)"] =
+                UpdateRow(report: report, networkID: networkID, sighting: sighting)
+        }
+    }
+
     // MARK: Writing
 
     /// Writes everything recorded since the last flush, synchronously.
@@ -550,6 +592,29 @@ public final class UsageHistory {
                         try appTraffic.run([.int(slot.hour), .int(slot.session), .text(key),
                                             .int(sums.bytesIn), .int(sums.bytesOut)])
                     }
+                }
+
+                // After the sessions, so a visit opened since the last flush
+                // is there to be found. The visit and the time are the first
+                // seen; later scans only bring the figures up to date.
+                let updates = try database.prepare("""
+                    INSERT INTO updates (report, source, name, session_id, app, bytes, upper_bound,
+                                         version, seen_at)
+                    SELECT ?1, ?2, ?3, id, ?4, ?5, ?6, ?7, ?8 FROM sessions
+                    WHERE network_id = ?9 AND started_at <= ?8
+                    ORDER BY started_at DESC LIMIT 1
+                    ON CONFLICT(report, source, name) DO UPDATE SET
+                        app = excluded.app, bytes = excluded.bytes,
+                        upper_bound = excluded.upper_bound, version = excluded.version
+                    """)
+                for row in batch.updates.values {
+                    let sighting = row.sighting
+                    try updates.run([.real(row.report.timeIntervalSince1970), .text(sighting.source.rawValue),
+                                     .text(sighting.name), sighting.app.map { .text($0) } ?? .null,
+                                     .int(sighting.bytes), .int(sighting.isUpperBound ? 1 : 0),
+                                     sighting.version.map { .text($0) } ?? .null,
+                                     .real((sighting.downloadStart ?? sighting.lastSeen).timeIntervalSince1970),
+                                     .text(row.networkID)])
                 }
             }
         } catch {
@@ -648,6 +713,7 @@ public final class UsageHistory {
                     try database.prepare("DELETE FROM server_traffic WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM sessions WHERE ended_at < ?1 AND id != ?2")
                         .run([.real(cutoff.timeIntervalSince1970), .int(keep)])
+                    try database.execute("DELETE FROM updates WHERE session_id NOT IN (SELECT id FROM sessions)")
                     try database.execute("""
                         DELETE FROM apps WHERE key NOT IN (SELECT DISTINCT app_key FROM app_traffic)
                         """)
@@ -683,7 +749,7 @@ public final class UsageHistory {
             do {
                 try database.transaction {
                     for table in ["server_traffic", "app_servers", "servers",
-                                  "app_traffic", "traffic", "sessions", "apps"] {
+                                  "app_traffic", "traffic", "updates", "sessions", "apps"] {
                         try database.execute("DELETE FROM \(table)")
                     }
                 }
@@ -1012,6 +1078,24 @@ public final class UsageHistory {
             let since = try database.scalar("SELECT MIN(hour) FROM traffic")
                 .map { Date(timeIntervalSince1970: TimeInterval($0)) }
 
+            // Session ids are integers from this database, so they're written
+            // into the statement rather than bound one by one.
+            var updates: [HistoryUpdate] = []
+            if !sessionTotals.isEmpty {
+                let ids = sessionTotals.map { String($0.session.id) }.joined(separator: ",")
+                let statement = try database.prepare("""
+                    SELECT session_id, COALESCE(app, name), bytes, upper_bound, version, seen_at
+                    FROM updates WHERE session_id IN (\(ids)) ORDER BY seen_at
+                    """)
+                while try statement.step() {
+                    updates.append(HistoryUpdate(
+                        sessionID: statement.int64(0), appName: statement.string(1) ?? "",
+                        bytes: statement.int64(2), isUpperBound: statement.int64(3) != 0,
+                        version: statement.string(4),
+                        seenAt: Date(timeIntervalSince1970: statement.double(5))))
+                }
+            }
+
             return HistoryReport(
                 period: period, filter: filter,
                 bins: zip(binIntervals, binKinds).map { HistoryReport.Bin(interval: $0, byKind: $1) },
@@ -1022,7 +1106,8 @@ public final class UsageHistory {
                     $0.bytes != $1.bytes ? $0.bytes > $1.bytes : $0.defaultLabel < $1.defaultLabel
                 },
                 sessions: sessionTotals.sorted { $0.session.start > $1.session.start },
-                recordingSince: since)
+                recordingSince: since,
+                updates: updates)
         } catch {
             NSLog("NetworkMonitor: history query failed: \(error)")
             return .empty(period, filter, calendar: calendar)
@@ -1051,7 +1136,8 @@ public final class UsageHistory {
     /// process owned, so the file adds up to the same total as the window.
     public func exportCSV(for period: HistoryPeriod, filter: HistoryFilter = HistoryFilter(),
                           networkName: (String) -> String? = { _ in nil }) -> String {
-        var lines = ["Hour,Network,Network Type,Metered,App,Downloaded (bytes),Uploaded (bytes)"]
+        var lines = ["Hour,Network,Network Type,Metered,App,Downloaded (bytes),Uploaded (bytes),"
+                     + "Update That Got Through"]
         guard let database else { return lines.joined(separator: "\n") + "\n" }
         flush()
 
@@ -1066,12 +1152,37 @@ public final class UsageHistory {
         queue.sync {
             do {
                 func line(_ hour: Int64, _ networkID: String, _ label: String, _ kind: String,
-                          _ metered: Bool, _ app: String, _ bytesIn: Int64, _ bytesOut: Int64) -> String {
+                          _ metered: Bool, _ app: String, _ bytesIn: Int64, _ bytesOut: Int64,
+                          note: String = "") -> String {
                     let date = Date(timeIntervalSince1970: TimeInterval(hour))
                     let kindLabel = (NetworkFingerprint.Kind(rawValue: kind) ?? .other).historyLabel
                     return [formatter.string(from: date), networkName(networkID) ?? label, kindLabel,
-                            metered ? "Yes" : "No", app, String(bytesIn), String(bytesOut)]
+                            metered ? "Yes" : "No", app, String(bytesIn), String(bytesOut), note]
                         .map(Self.csvField).joined(separator: ",")
+                }
+
+                // Updates that got through (#96), on their app's line in the
+                // hour each was first seen, or a line of their own with no
+                // bytes, so the columns still add up.
+                struct Note { var text: String; let networkID: String, label: String, kind: String, metered: Bool }
+                var notes: [String: Note] = [:]
+                let found = try database.prepare("""
+                    SELECT u.seen_at, u.session_id, COALESCE(u.app, u.name), u.bytes, u.upper_bound,
+                           u.version, s.network_id, s.label, s.kind, s.metered
+                    FROM updates u JOIN sessions s ON s.id = u.session_id
+                    WHERE u.seen_at >= ?1 AND u.seen_at < ?2
+                    """)
+                found.bind([.real(period.start.timeIntervalSince1970), .real(period.end.timeIntervalSince1970)])
+                while try found.step() {
+                    let update = HistoryUpdate(sessionID: found.int64(1), appName: found.string(2) ?? "",
+                                               bytes: found.int64(3), isUpperBound: found.int64(4) != 0,
+                                               version: found.string(5),
+                                               seenAt: Date(timeIntervalSince1970: found.double(0)))
+                    let key = "\(self.hourStart(update.seenAt)):\(update.sessionID):\(update.appName)"
+                    let text = "\(update.label), \(update.amount)"
+                    if notes[key] != nil { notes[key]?.text += "; " + text; continue }
+                    notes[key] = Note(text: text, networkID: found.string(6) ?? "", label: found.string(7) ?? "",
+                                      kind: found.string(8) ?? "", metered: found.int64(9) != 0)
                 }
 
                 // App lines, keyed by hour and session so the unattributed
@@ -1092,10 +1203,25 @@ public final class UsageHistory {
                 while try apps.step() {
                     let key = "\(apps.int64(0)):\(apps.int64(1))"
                     if appLines[key] == nil { order.append(key) }
+                    let note = notes.removeValue(forKey: key + ":" + (apps.string(6) ?? ""))
                     appLines[key, default: []].append(line(
                         apps.int64(0), apps.string(2) ?? "", apps.string(3) ?? "",
                         apps.string(4) ?? "", apps.int64(5) != 0, apps.string(6) ?? "",
-                        apps.int64(7), apps.int64(8)))
+                        apps.int64(7), apps.int64(8), note: note?.text ?? ""))
+                }
+                // Within the filter, as the lines above are.
+                for (key, note) in notes.sorted(by: { $0.key < $1.key }) where filter.appKey == nil {
+                    let parts = key.split(separator: ":", maxSplits: 2).map(String.init)
+                    guard parts.count == 3, let hour = Int64(parts[0]), let session = Int64(parts[1]),
+                          filter.networkID.map({ $0 == note.networkID }) ?? true,
+                          filter.sessionID.map({ $0 == session }) ?? true,
+                          filter.kind.map({ $0 == (NetworkFingerprint.Kind(rawValue: note.kind) ?? .other).charted })
+                              ?? true
+                    else { continue }
+                    let group = "\(parts[0]):\(parts[1])"
+                    if appLines[group] == nil { order.append(group) }
+                    appLines[group, default: []].append(line(hour, note.networkID, note.label, note.kind,
+                                                             note.metered, parts[2], 0, 0, note: note.text))
                 }
 
                 guard filter.appKey == nil else {
@@ -1239,6 +1365,22 @@ public final class UsageHistory {
                 blocked INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (hour, session_id, app_server_id)
             ) WITHOUT ROWID;
+            -- Updates that got through on a metered connection (#96), once per
+            -- report: the watch's list for one connection, which can span
+            -- several sessions. Kept with the session it was first seen on.
+            CREATE TABLE IF NOT EXISTS updates (
+                report REAL NOT NULL,
+                source TEXT NOT NULL,
+                name TEXT NOT NULL,
+                session_id INTEGER NOT NULL,
+                app TEXT,
+                bytes INTEGER NOT NULL,
+                upper_bound INTEGER NOT NULL DEFAULT 0,
+                version TEXT,
+                seen_at REAL NOT NULL,
+                PRIMARY KEY (report, source, name)
+            ) WITHOUT ROWID;
+            CREATE INDEX IF NOT EXISTS updates_by_session ON updates (session_id);
             PRAGMA user_version = 1;
             """)
         // Databases from before #128 have servers without a name column.
@@ -1335,10 +1477,17 @@ public final class UsageHistory {
         var names: [String: String] = [:]
         var identities: [String: AppIdentity] = [:]
         var sessions: [Int64: SessionRow] = [:]
+        var updates: [String: UpdateRow] = [:]
 
         var isEmpty: Bool {
             traffic.isEmpty && apps.isEmpty && servers.isEmpty && blocked.isEmpty && names.isEmpty
-                && identities.isEmpty && sessions.isEmpty
+                && identities.isEmpty && sessions.isEmpty && updates.isEmpty
         }
+    }
+
+    private struct UpdateRow {
+        let report: Date
+        let networkID: String
+        let sighting: UpdateWatch.Sighting
     }
 }

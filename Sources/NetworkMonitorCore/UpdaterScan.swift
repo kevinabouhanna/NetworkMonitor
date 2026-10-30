@@ -377,6 +377,20 @@ public final class UpdateWatch {
         /// `bytes` is all the app used on the connection, update included.
         public var includesOtherUse: Bool?
 
+        public init(name: String, app: String? = nil, source: Source, bytes: Int64, lastSeen: Date,
+                    isSizeOnDisk: Bool? = nil, downloadStart: Date? = nil, version: String? = nil,
+                    includesOtherUse: Bool? = nil) {
+            self.name = name
+            self.app = app
+            self.source = source
+            self.bytes = bytes
+            self.lastSeen = lastSeen
+            self.isSizeOnDisk = isSizeOnDisk
+            self.downloadStart = downloadStart
+            self.version = version
+            self.includesOtherUse = includesOtherUse
+        }
+
         public var isUpperBound: Bool { isSizeOnDisk == true || includesOtherUse == true }
         /// The app, not its updater's process: Google Chrome, not GoogleUpdater.
         public var appName: String { app ?? name }
@@ -412,7 +426,11 @@ public final class UpdateWatch {
     private let resolveOwner: (UpdateCaches.Owner) -> Owner
     private static let storageKey = "meteringUpdateSightings"
 
-    private var networkID: String?
+    /// The metered connection the sightings are from.
+    public private(set) var networkID: String?
+    /// When this report began: the connection, as History keeps each update
+    /// once per report (#96).
+    public private(set) var reportStarted: Date?
     /// The last connection was left, rather than the app merely quitting on it.
     private var ended = false
     private var activeSince = Date.distantPast
@@ -475,6 +493,7 @@ public final class UpdateWatch {
             sightings.removeAll()
             minutes.removeAll()
             networkID = id
+            reportStarted = now
         }
         ended = false
         save()
@@ -743,6 +762,7 @@ public final class UpdateWatch {
         /// 2 from 1.16.1: a download's bytes are what its app used (#95).
         /// Missing before, when they were its size on disk.
         var version: Int?
+        var reportStarted: Date?
     }
 
     private static let storageVersion = 2
@@ -754,6 +774,8 @@ public final class UpdateWatch {
         networkID = stored.networkID
         ended = stored.ended
         sightings = stored.sightings
+        // Saved before reports had a start: the first sighting is as near.
+        reportStarted = stored.reportStarted ?? sightings.map(\.lastSeen).min()
         // Saved by 1.15 or earlier: its downloads were sizes on disk, so they
         // say "up to" rather than pass for data used (#160).
         if stored.version == nil {
@@ -771,7 +793,8 @@ public final class UpdateWatch {
         guard let data = try? JSONEncoder().encode(Stored(networkID: networkID,
                                                           ended: ended,
                                                           sightings: sightings,
-                                                          version: Self.storageVersion))
+                                                          version: Self.storageVersion,
+                                                          reportStarted: reportStarted))
         else { return }
         defaults.set(data, forKey: Self.storageKey)
     }
