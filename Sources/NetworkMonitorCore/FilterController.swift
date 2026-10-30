@@ -42,6 +42,9 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
 
     private var connection: NSXPCConnection?
     private var removing = false
+    /// Set while the launch's request brings the running filter up to this
+    /// build's (#136).
+    private var updating = false
 
     /// The filter is in the app only when it was signed with the Developer ID
     /// and its profiles; see `Scripts/bundle.sh`.
@@ -68,8 +71,9 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         super.init()
     }
 
-    /// At launch: if the filter was left on, reconnect to it. And from then
-    /// on, follow it being switched off or on in System Settings.
+    /// At launch: if the filter was left on, reconnect to it, and bring it up
+    /// to this build's. And from then on, follow it being switched off or on
+    /// in System Settings.
     public func resume() {
         guard Self.isBundled else { return }
         NotificationCenter.default.addObserver(forName: .NEFilterConfigurationDidChange,
@@ -82,6 +86,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
                 if NEFilterManager.shared().isEnabled {
                     self.state = .on
                     self.connect()
+                    self.update()
                 }
                 self.hasResolved = true
             }
@@ -107,12 +112,24 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         }
     }
 
+    /// macOS keeps running the extension it last activated until the app
+    /// asks for another (#136). The same version is a no-op; another is
+    /// replaced, and the person is asked nothing.
+    private func update() {
+        updating = true
+        let request = OSSystemExtensionRequest.activationRequest(
+            forExtensionWithIdentifier: FilterIdentity.extensionIdentifier, queue: .main)
+        request.delegate = self
+        OSSystemExtensionManager.shared.submitRequest(request)
+    }
+
     // MARK: Switching
 
     public func turnOn() {
         guard Self.isBundled, Self.isInApplications else { return }
         state = .starting
         removing = false
+        updating = false
         let request = OSSystemExtensionRequest.activationRequest(
             forExtensionWithIdentifier: FilterIdentity.extensionIdentifier, queue: .main)
         request.delegate = self
@@ -139,6 +156,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         guard Self.isBundled else { completion(); return }
         disconnect()
         removing = true
+        updating = false
         NEFilterManager.shared().loadFromPreferences { _ in
             NEFilterManager.shared().removeFromPreferences { _ in
                 DispatchQueue.main.async {
@@ -202,6 +220,12 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         if removing {
             removing = false
             state = Self.offState
+        } else if updating {
+            // Still on. A replaced filter dropped its connection, which
+            // reconnects by itself; one that was asked to approve is back.
+            updating = false
+            state = .on
+            connect()
         } else {
             enableFilter()
         }
@@ -211,6 +235,10 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         if removing {
             removing = false
             state = Self.offState
+        } else if updating {
+            // The filter already running carries on.
+            updating = false
+            if state == .waitingForApproval { state = .on }
         } else if let next = Self.state(after: error) {
             state = next
         }
