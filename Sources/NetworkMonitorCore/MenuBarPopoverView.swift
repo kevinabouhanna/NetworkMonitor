@@ -34,10 +34,11 @@ public struct MenuBarPopoverView: View {
         let total = (sightings.contains(where: \.isUpperBound) ? "up to " : "")
             + ByteFormat.bytes(sightings.reduce(0) { $0 + $1.bytes })
         if sightings.count == 1 {
-            let what = first.source == .download
-                ? "\(first.name) downloaded an update"
-                : "\(first.name) is updating"
-            return "\(what) · \(total)"
+            // The app, not its updater's process (#94).
+            let what = first.source == .traffic && first.version == nil
+                ? "\(first.appName) is updating"
+                : HotspotSettingsPane.label(for: first)
+            return first.bytes > 0 ? "\(what) · \(total)" : what
         }
         return "\(sightings.count) updates got through · \(total)"
     }

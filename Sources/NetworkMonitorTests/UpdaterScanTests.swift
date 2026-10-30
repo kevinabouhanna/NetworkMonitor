@@ -256,7 +256,8 @@ func runUpdateWatchTests() {
             UpdateWatch(cachesDirectory: caches, defaults: defaults) { owner in
                 switch owner {
                 case .bundle(let id): return .init(name: id == "com.granola.app" ? "Granola" : id)
-                case .electronCache: return .init(name: "Granola", bundlePath: "/Applications/Granola.app")
+                case .electronCache: return .init(name: "Granola", path: "/Applications/Granola.app")
+                case .program(let name, let folder): return .init(name: name, path: folder)
                 }
             }
         }
@@ -293,14 +294,14 @@ func runUpdateWatchTests() {
             let joined = Date().addingTimeInterval(-20 * 60)
             watch.begin(networkID: "gw:hotspot", now: joined)
             // Ordinary use, ten minutes before the download began.
-            watch.recordApp(bundlePath: "/Applications/Granola.app", bytes: 5_000_000,
+            watch.recordApp(path: "/Applications/Granola.app", bytes: 5_000_000,
                             now: joined.addingTimeInterval(5 * 60))
             makeFile(caches.appendingPathComponent(
                 "@granolaelectron-updater/pending/Granola.zip"), bytes: 3_000_000)
             let written = UpdateCaches.payloads(in: caches)[0].modified
-            watch.recordApp(bundlePath: "/Applications/Granola.app", bytes: 1_500_000, now: written)
+            watch.recordApp(path: "/Applications/Granola.app", bytes: 1_500_000, now: written)
             // Another app's traffic at the same moment.
-            watch.recordApp(bundlePath: "/Applications/Slack.app", bytes: 9_000_000, now: written)
+            watch.recordApp(path: "/Applications/Slack.app", bytes: 9_000_000, now: written)
             watch.scan()
 
             Check.expectEqual(watch.reportable.first?.bytes, 1_500_000)
@@ -318,7 +319,7 @@ func runUpdateWatchTests() {
             Check.expectTrue(watch.reportable.first?.isUpperBound ?? false)
 
             let written = UpdateCaches.payloads(in: caches)[0].modified
-            watch.recordApp(bundlePath: "/Applications/Granola.app", bytes: 1_200_000, now: written)
+            watch.recordApp(path: "/Applications/Granola.app", bytes: 1_200_000, now: written)
             watch.scan()
             Check.expectEqual(watch.reportable.first?.bytes, 1_200_000)
             Check.expectFalse(watch.reportable.first?.isUpperBound ?? true)
@@ -347,12 +348,135 @@ func runUpdateWatchTests() {
             Check.expectFalse(measured.sightings.first { $0.name == "Slack" }?.isUpperBound ?? true)
         }
 
+        // #94: what the watch didn't see on 27 October.
+        func makeFullWatch(caches: URL, home: URL, applications: URL) -> UpdateWatch {
+            UpdateWatch(cachesDirectory: caches, programFolders: UpdateCaches.programFolders(home: home),
+                        applicationDirectories: [applications], defaults: freshDefaults()) { owner in
+                switch owner {
+                case .program(let name, let folder): return .init(name: name, path: folder)
+                case .bundle(let id): return .init(name: id)
+                case .electronCache:
+                    return .init(name: "Granola", path: applications.appendingPathComponent("Granola.app").path)
+                }
+            }
+        }
+
+        func writeApp(_ app: URL, version: String, modified: Date) {
+            let plist = app.appendingPathComponent("Contents/Info.plist")
+            makeFile(plist, text: """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <plist version="1.0"><dict><key>CFBundleShortVersionString</key><string>\(version)</string></dict></plist>
+                """)
+            try? FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: plist.path)
+        }
+
+        Check.test("Claude Code's update is measured from its staging download, through the move") {
+            let root = temporaryDirectory("home")
+            defer { try? FileManager.default.removeItem(at: root) }
+            let caches = root.appendingPathComponent("Caches"), apps = root.appendingPathComponent("Applications")
+            makeDirectory(caches)
+            let versions = root.appendingPathComponent(".local/share/claude/versions")
+            makeFile(versions.appendingPathComponent("2.1.314"), bytes: 4)
+            let watch = makeFullWatch(caches: caches, home: root, applications: apps)
+            watch.begin(networkID: "gw:hotspot", now: Date().addingTimeInterval(-20 * 60))
+
+            let staged = root.appendingPathComponent(".cache/claude/staging/claude-2.1.315")
+            makeFile(staged, bytes: 2_000_000)
+            let started = UpdateCaches.payloads(inFolder: staged.deletingLastPathComponent(),
+                                                owner: .program(name: "Claude Code", folder: versions.path))[0]
+            // The running version downloads it, from the folder it runs from.
+            watch.recordApp(path: versions.appendingPathComponent("2.1.314").path, bytes: 40_000_000,
+                            now: started.modified)
+            watch.scan()
+            Check.expectEqual(watch.reportable.map(\.name), ["Claude Code"])
+            Check.expectEqual(watch.reportable.first?.bytes, 40_000_000)
+
+            // Moved into place a minute and a half later: the download began
+            // when the staging file did, not when the version file appeared.
+            let placed = versions.appendingPathComponent("2.1.315")
+            try? FileManager.default.moveItem(at: staged, to: placed)
+            let later = started.created.addingTimeInterval(90)
+            try? FileManager.default.setAttributes([.creationDate: started.created.addingTimeInterval(60),
+                                                    .modificationDate: later], ofItemAtPath: placed.path)
+            watch.recordApp(path: versions.appendingPathComponent("2.1.314").path, bytes: 5_000_000, now: later)
+            watch.scan(now: later.addingTimeInterval(30))
+            Check.expectEqual(watch.reportable.first?.bytes, 45_000_000)
+            Check.expectEqual(watch.sightings.count, 1)
+            Check.expectFalse(watch.reportable.first?.isUpperBound ?? true)
+        }
+
+        Check.test("an app whose version changed on the connection got through, however small") {
+            let root = temporaryDirectory("home")
+            defer { try? FileManager.default.removeItem(at: root) }
+            let caches = root.appendingPathComponent("Caches"), apps = root.appendingPathComponent("Applications")
+            makeDirectory(caches)
+            let now = Date()
+            writeApp(apps.appendingPathComponent("Foo.app"), version: "1.0", modified: now.addingTimeInterval(-3600))
+            writeApp(apps.appendingPathComponent("Bar.app"), version: "3.0", modified: now.addingTimeInterval(-3600))
+            let watch = makeFullWatch(caches: caches, home: root, applications: apps)
+            watch.begin(networkID: "gw:hotspot", now: now.addingTimeInterval(-60))
+            watch.recordApp(path: apps.appendingPathComponent("Foo.app").path, bytes: 500_000, now: now)
+
+            writeApp(apps.appendingPathComponent("Foo.app"), version: "2.0", modified: now)
+            // Touched, but the same version: not an update.
+            writeApp(apps.appendingPathComponent("Bar.app"), version: "3.0", modified: now)
+            watch.scan(now: now)
+
+            Check.expectEqual(watch.reportable.map(\.name), ["Foo"])
+            let foo = watch.reportable.first
+            Check.expectEqual(foo?.source, .installed)
+            Check.expectEqual(foo?.version, "2.0")
+            Check.expectEqual(foo?.bytes, 500_000)
+            Check.expectTrue(foo?.isUpperBound ?? false, "all it used on the connection, update included")
+        }
+
+        Check.test("a version change joins the download already seen for that app") {
+            let root = temporaryDirectory("home")
+            defer { try? FileManager.default.removeItem(at: root) }
+            let caches = root.appendingPathComponent("Caches"), apps = root.appendingPathComponent("Applications")
+            let now = Date()
+            writeApp(apps.appendingPathComponent("Granola.app"), version: "7.667.0",
+                     modified: now.addingTimeInterval(-3600))
+            makeDirectory(caches)
+            let watch = makeFullWatch(caches: caches, home: root, applications: apps)
+            watch.begin(networkID: "gw:hotspot", now: now.addingTimeInterval(-60))
+            makeFile(caches.appendingPathComponent("@granolaelectron-updater/pending/Granola.zip"),
+                     bytes: 3_000_000)
+            writeApp(apps.appendingPathComponent("Granola.app"), version: "7.668.0", modified: now)
+            watch.scan(now: now)
+
+            Check.expectEqual(watch.sightings.count, 1)
+            Check.expectEqual(watch.sightings.first?.source, .download)
+            Check.expectEqual(watch.sightings.first?.version, "7.668.0")
+        }
+
+        Check.test("an updater with an app of its own is named for the app it updates") {
+            let root = temporaryDirectory("home")
+            defer { try? FileManager.default.removeItem(at: root) }
+            let apps = root.appendingPathComponent("Applications")
+            let caches = root.appendingPathComponent("Caches")
+            makeDirectory(caches)
+            // GoogleUpdater resolves to GoogleUpdater.app, not Chrome.
+            let without = makeFullWatch(caches: caches, home: root, applications: apps)
+            without.begin(networkID: "gw:hotspot")
+            without.recordTraffic(processName: "GoogleUpdater", appName: "GoogleUpdater", bytes: 5_000_000)
+            Check.expectEqual(without.reportable.first?.appName, "GoogleUpdater",
+                              "not Chrome's when Chrome isn't installed")
+
+            writeApp(apps.appendingPathComponent("Google Chrome.app"), version: "142.0", modified: Date())
+            let watch = makeFullWatch(caches: caches, home: root, applications: apps)
+            watch.begin(networkID: "gw:hotspot")
+            watch.recordTraffic(processName: "GoogleUpdater", appName: "GoogleUpdater", bytes: 5_000_000)
+            Check.expectEqual(watch.reportable.first?.appName, "Google Chrome")
+            Check.expectEqual(watch.reportable.first?.name, "GoogleUpdater")
+        }
+
         Check.test("app traffic isn't counted when no metered connection is being watched") {
             let caches = temporaryDirectory("caches")
             defer { try? FileManager.default.removeItem(at: caches) }
             let watch = makeWatch(caches: caches, defaults: freshDefaults())
             // Seen before the watch began, and stamped in the download's minute.
-            watch.recordApp(bundlePath: "/Applications/Granola.app", bytes: 5_000_000, now: Date())
+            watch.recordApp(path: "/Applications/Granola.app", bytes: 5_000_000, now: Date())
             watch.begin(networkID: "gw:hotspot", now: Date().addingTimeInterval(-60))
             makeFile(caches.appendingPathComponent(
                 "@granolaelectron-updater/pending/Granola.zip"), bytes: 3_000_000)
