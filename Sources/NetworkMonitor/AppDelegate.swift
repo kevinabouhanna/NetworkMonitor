@@ -80,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         enableLoginItemOnFirstLaunch()
         model.start()
         askController = AskController(filter: model.filter, firewall: model.firewall)
+        showUpdatesGently()
         observeTitle()
         offerHelperUpdateIfNeeded()
         showWelcomeIfNeeded()
@@ -570,6 +571,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                      action: #selector(showHistory), keyEquivalent: "y")
         menu.addItem(withTitle: "Settings…",
                      action: #selector(showSettings), keyEquivalent: ",")
+        if model.updates.isAvailable {
+            menu.addItem(withTitle: "Check for Updates…",
+                         action: #selector(checkForUpdates), keyEquivalent: "")
+        }
 
         menu.addItem(.separator())
         menu.addItem(withTitle: "Uninstall NetworkMonitor…",
@@ -590,6 +595,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// From the right-click menu. The popover stays shut unless the test needs
     /// an answer first — a metered connection asks before spending the data, and
     /// that question lives in the popover.
+    /// While Sparkle shows an update (#132), a regular app with a Dock icon, so
+    /// its window can't be lost behind another app's; badged when it found the
+    /// update on its own; back in the menu bar once it's done, unless one of
+    /// NetworkMonitor's own windows is still open.
+    private func showUpdatesGently() {
+        model.updates.onWillShowUpdate = { [weak self] userInitiated in
+            guard let self else { return }
+            NSApp.mainMenu = self.mainMenu
+            NSApp.setActivationPolicy(.regular)
+            if !userInitiated { NSApp.dockTile.badgeLabel = "1" }
+        }
+        model.updates.onUpdateAttended = { NSApp.dockTile.badgeLabel = nil }
+        model.updates.onUpdateSessionEnded = { [weak self] in
+            NSApp.dockTile.badgeLabel = nil
+            guard let self, self.openWindows.isEmpty else { return }
+            NSApp.setActivationPolicy(.accessory)
+            NSApp.mainMenu = nil
+        }
+    }
+
+    /// Sparkle's own window (#132), which says what's new and asks.
+    @objc private func checkForUpdates() {
+        if popover.isShown { closePopover() }
+        NSApp.activate(ignoringOtherApps: true)
+        model.updates.checkForUpdates()
+    }
+
     @objc private func toggleSpeedTest() {
         let speedTest = model.speedTest
         if speedTest.phase.isRunning {
@@ -743,6 +775,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         appMenu.addItem(withTitle: "About NetworkMonitor",
                         action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
                         keyEquivalent: "")
+        if model.updates.isAvailable {
+            appMenu.addItem(withTitle: "Check for Updates…",
+                            action: #selector(checkForUpdates), keyEquivalent: "").target = self
+        }
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Settings…",
                         action: #selector(showSettings), keyEquivalent: ",").target = self

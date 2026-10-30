@@ -53,7 +53,9 @@ plist_value() { /usr/libexec/PlistBuddy -c "Print :$1" "$PLIST_SRC"; }
 in_git_repo() { git rev-parse --git-dir >/dev/null 2>&1; }
 
 if [ -z "${MARKETING_VERSION:-}" ]; then
-  if in_git_repo && tag=$(git describe --tags --abbrev=0 2>/dev/null); then
+  # Only version tags: the data refresh's `geodata` release (#121) has a tag
+  # too, and the nearest tag of any kind made a build call itself "geodata".
+  if in_git_repo && tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null); then
     MARKETING_VERSION="${tag#v}"
   else
     MARKETING_VERSION="$(plist_value CFBundleShortVersionString)"
@@ -128,6 +130,24 @@ cp Resources/AppIcon.icns "${APP}/Contents/Resources/AppIcon.icns"
 cp -R Resources/Geo "${APP}/Contents/Resources/Geo"
 printf 'APPL????' > "${APP}/Contents/PkgInfo"
 
+# Sparkle (#132), which the app links, so every build carries it. Its two XPC
+# services are only for sandboxed apps, which this isn't, so they're left out,
+# leaving less to sign. Universal as downloaded, from the exact release in
+# Package.swift.
+# The universal build resolves into each architecture's scratch path, the
+# others into .build itself.
+SPARKLE_FRAMEWORK=""
+for scratch in .build .build/arm64 .build/x86_64; do
+  candidate="${scratch}/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+  if [ -d "$candidate" ]; then SPARKLE_FRAMEWORK="$candidate"; break; fi
+done
+[ -n "$SPARKLE_FRAMEWORK" ] || { echo "error: Sparkle.framework not found; run swift package resolve" >&2; exit 1; }
+mkdir -p "${APP}/Contents/Frameworks"
+ditto "$SPARKLE_FRAMEWORK" "${APP}/Contents/Frameworks/Sparkle.framework"
+rm -rf "${APP}/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices" \
+       "${APP}/Contents/Frameworks/Sparkle.framework/XPCServices"
+SPARKLE="${APP}/Contents/Frameworks/Sparkle.framework"
+
 # The privileged helper and the script that installs it, carried inside the app
 # so that Settings can install, update and remove them with one administrator
 # prompt — no Terminal. Contents/Library/LaunchServices is where macOS expects a
@@ -144,6 +164,15 @@ echo "==> Signing"
 # looked like an extension, `.helper` — which is the app's own.
 HELPER_PATH="${APP}/Contents/Library/LaunchServices/${HELPER_NAME}"
 source Scripts/signing.sh
+
+# Sparkle's pieces, inside out, with whatever this build is signed with:
+# re-signed even when they came signed, since notarization wants every piece
+# under the Developer ID, with the hardened runtime and a timestamp.
+sign_sparkle() {
+  for piece in "${SPARKLE}/Versions/B/Autoupdate" "${SPARKLE}/Versions/B/Updater.app" "$SPARKLE"; do
+    "$@" "$piece"
+  done
+}
 case "$SIGN_KIND" in
   developer-id)
     # The content filter (#128) goes in only with its profiles: the
@@ -183,6 +212,17 @@ case "$SIGN_KIND" in
     # team. Builds without one install the helper with helper-setup.sh.
     mkdir -p "${APP}/Contents/Library/LaunchDaemons"
     cp Resources/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist "${APP}/Contents/Library/LaunchDaemons/"
+    # Updating itself (#132): the feed, the newest release's appcast, and the
+    # public half of the key each update is signed with. Only here: a build
+    # from source isn't replaced by a release. Checks daily, without asking
+    # first; Settings › About switches it off.
+    /usr/libexec/PlistBuddy \
+      -c "Add :SUFeedURL string https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/appcast.xml" \
+      -c "Add :SUPublicEDKey string Aepvgea9syp9AsDuIzvxAVpldAhbPvAgi1mExn9it5Y=" \
+      -c "Add :SUEnableAutomaticChecks bool true" \
+      -c "Add :SUScheduledCheckInterval integer 86400" \
+      "${APP}/Contents/Info.plist"
+    sign_sparkle sign_developer_id
     # The hardened runtime is on for all of them. Spawning /usr/bin/nettop
     # needs no exception: it's a separate signed process, not injected code.
     sign_developer_id --identifier "$HELPER_NAME" "$HELPER_PATH"
@@ -195,6 +235,7 @@ case "$SIGN_KIND" in
     # is the identifier and this certificate, where an ad-hoc one is the build's
     # own hash. That is what lets Location, asked for Wi-Fi names (#85),
     # survive an update.
+    sign_sparkle codesign --force ${SIGN_KEYCHAIN_ARGS[@]+"${SIGN_KEYCHAIN_ARGS[@]}"} --sign "$SIGN_IDENTITY"
     codesign --force ${SIGN_KEYCHAIN_ARGS[@]+"${SIGN_KEYCHAIN_ARGS[@]}"} --sign "$SIGN_IDENTITY" \
              --identifier "$HELPER_NAME" "$HELPER_PATH"
     codesign --force ${SIGN_KEYCHAIN_ARGS[@]+"${SIGN_KEYCHAIN_ARGS[@]}"} --sign "$SIGN_IDENTITY" "$APP"
@@ -204,6 +245,7 @@ case "$SIGN_KIND" in
     # Enough to run locally; a downloaded copy needs "Open Anyway" in System
     # Settings › Privacy & Security the first time. Every build is a new app to
     # macOS, so permissions don't carry over.
+    sign_sparkle codesign --force --sign -
     codesign --force --sign - --identifier "$HELPER_NAME" "$HELPER_PATH"
     codesign --force --sign - "$APP"
     echo "    ad-hoc signed: no certificate found (see Scripts/signing.sh)."

@@ -636,6 +636,7 @@ struct HotspotSettingsPane: View {
 /// Who made it, which version this is, where to read more, and the way out —
 /// uninstalling, which lived only on the right-click menu before.
 struct AboutSettingsPane: View {
+    @ObservedObject var updates: UpdateController
     let onUninstall: () -> Void
 
     private var version: String {
@@ -675,6 +676,22 @@ struct AboutSettingsPane: View {
                      "https://github.com/kevinabouhanna/NetworkMonitor")
             } footer: {
                 SettingsFootnote("Free and open source, under the MIT licence.")
+            }
+
+            // Updating itself (#132): its one network access besides the
+            // monthly data, said as plainly, with its switch.
+            if updates.isAvailable {
+                Section {
+                    Toggle("Check for updates automatically", isOn: $updates.checksAutomatically)
+                        .toggleStyle(.switch)
+                    LabeledContent("Updates") {
+                        Button("Check Now") { updates.checkForUpdates() }
+                    }
+                } footer: {
+                    SettingsFootnote("Once a day, NetworkMonitor asks GitHub whether there's a newer version, "
+                                     + "never on a hotspot. An update installs only when you say so, and only "
+                                     + "if it's signed by NetworkMonitor.")
+                }
             }
 
             Section {

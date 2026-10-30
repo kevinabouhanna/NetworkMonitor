@@ -25,7 +25,7 @@ send traffic.
 
 ## What it sends
 
-Two things, and nothing else:
+Three things, and nothing else:
 
 - **The speed test, when you start it.** It runs `networkQuality`, the tool Apple ships
   with every Mac, against Apple's own test servers.
@@ -41,7 +41,14 @@ Two things, and nothing else:
     there.
   - On by default. Switch it off in Settings › Connections › **Update them monthly**.
 
-There is no analytics, no telemetry, no crash reporting, no update check and no account.
+- **Once a day, whether there's a newer version** (#132). Sparkle, the updater many Mac
+  apps use, fetches the newest release's appcast from GitHub, a small file listing that
+  version. GitHub sees your IP address and which version of NetworkMonitor asked. Never
+  on a hotspot or metered connection, unless you choose **Check for Updates…**. An update
+  downloads and installs only when you say so, and only if its disk image is signed with
+  the key built into the app. Switch the daily check off in Settings › About.
+
+There is no analytics, no telemetry, no crash reporting and no account.
 
 Other speed test services were considered and turned down. One of them publishes
 every result, with the tester's IP address, as open data.

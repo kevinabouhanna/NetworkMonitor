@@ -8,18 +8,26 @@ import PackageDescription
 let package = Package(
     name: "NetworkMonitor",
     platforms: [.macOS(.v13)],
+    dependencies: [
+        // Updating itself (#132). An exact release, a few weeks old when
+        // chosen: what ships in the app is a decision, not whatever is newest.
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
+    ],
     targets: [
         // Everything testable lives in NetworkMonitorCore. The executable is a
         // thin shell so `swift test` never has to link an NSApplication main().
         .target(
             name: "NetworkMonitorCore",
-            dependencies: ["LowDataMode", "ServerDirectory", "FilterProtocol", "FirewallPolicy"],
+            dependencies: ["LowDataMode", "ServerDirectory", "FilterProtocol", "FirewallPolicy",
+                           .product(name: "Sparkle", package: "Sparkle")],
             path: "Sources/NetworkMonitorCore"
         ),
         .executableTarget(
             name: "NetworkMonitor",
             dependencies: ["NetworkMonitorCore"],
-            path: "Sources/NetworkMonitor"
+            path: "Sources/NetworkMonitor",
+            // Sparkle.framework sits in Contents/Frameworks (bundle.sh).
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
         // The privileged half of hotspot metering: the only part that runs as
         // root, and deliberately the smallest thing in the package. It links

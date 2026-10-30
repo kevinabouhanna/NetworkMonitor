@@ -108,6 +108,19 @@ jobs:
           xcrun stapler validate build/NetworkMonitor.app
           xcrun stapler validate build/NetworkMonitor.dmg
 
+      # Updating itself (#132): the disk image signed with the key whose public
+      # half is in the app, and the appcast Sparkle reads, published with the
+      # release so the app's feed, releases/latest/download/appcast.xml, is
+      # always the newest one's. The script refuses a key the app doesn't trust.
+      - name: Sign the update and write the appcast
+        env:
+          SPARKLE_ED_KEY: ${{ secrets.SPARKLE_ED_KEY }}
+        run: |
+          test -n "$SPARKLE_ED_KEY" || { echo "SPARKLE_ED_KEY is not set" >&2; exit 1; }
+          ./Scripts/appcast.sh build/NetworkMonitor.dmg build/NetworkMonitor.app \
+            "${{ steps.version.outputs.value }}" > build/appcast.xml
+          cat build/appcast.xml
+
       # Plain steps, no Terminal, and no Open Anyway: the release is signed
       # with the Developer ID and notarized (#119).
       - name: Write the release notes preamble
@@ -120,10 +133,10 @@ jobs:
 
           ### Updating
 
-          Download the disk image and drag NetworkMonitor into Applications again,
-          choosing **Replace**. Your settings and usage history stay. If you use
-          *Stop apps updating on hotspots* and this version needs a newer helper, it
-          asks for your password once, the first time it opens.
+          From 1.15 on, NetworkMonitor offers each new version itself: **Check for
+          Updates…** in its menu, or once a day on its own. Before that, download
+          the disk image and drag NetworkMonitor into Applications again, choosing
+          **Replace**. Your settings and usage history stay.
 
           Updating from 1.13 or earlier, macOS asks for Location once more: the app
           is now signed with an Apple Developer ID instead of its own certificate,
@@ -137,7 +150,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-             build/NetworkMonitor.dmg \
+             build/NetworkMonitor.dmg build/appcast.xml \
              --title "$GITHUB_REF_NAME" \
              --notes-file release-notes.md \
              --generate-notes

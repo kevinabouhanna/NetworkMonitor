@@ -22,10 +22,10 @@ The plan, in order:
    by team (#131). Done: allowing it is a switch in System Settings instead of a password,
    it's listed under NetworkMonitor in Login Items, an update brings its helper with it,
    and only NetworkMonitor can ask it anything.
-4. **Only then, add Sparkle 2**: an EdDSA key whose private half is never committed, a
-   "Check for Updates…" menu item, an automatic-check setting, and an appcast published with
-   each release. Releasing stays "push a tag". NetworkMonitor will pause its own updates on
-   a hotspot first.
+4. ~~**Only then, add Sparkle 2**~~ (#132). Done: an EdDSA key whose private half is never
+   committed, a "Check for Updates…" menu item, an automatic-check setting, and an appcast
+   published with each release. Releasing stays "push a tag". NetworkMonitor pauses its own
+   updates on a hotspot first.
 
 The App Store isn't on the list: App Store apps must be sandboxed, and a sandboxed app
 can't run `nettop`.
