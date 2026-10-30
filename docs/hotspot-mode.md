@@ -33,20 +33,28 @@ The lists are made again each time you open the pane, so an app you install late
 The first of these that applies decides. Every check is unprivileged, and **Settings ›
 Hotspot › Right now** always says which one fired.
 
-1. **macOS says so.** It marks a connection as expensive, as it does for an iPhone
+1. **You said so.** **Settings › Hotspot › This network** is *Detect automatically* until
+   you choose *Is a hotspot* or *Isn't a hotspot*, which is remembered for that network
+   and beats everything below.
+2. **macOS says so.** It marks a connection as expensive, as it does for an iPhone
    hotspot it recognises.
-2. **The router looks like an iPhone's Personal Hotspot**: its address is in
+3. **An Android phone says so.** Android's hotspot and USB tethering mark every address
+   they hand out as metered, in the DHCP reply: vendor option 43, `ANDROID_METERED`.
+   macOS ignores it; NetworkMonitor reads it from configd's copy of the lease (#109).
+4. **The router looks like an iPhone's Personal Hotspot**: its address is in
    `172.20.10.0/28`.
-3. **The router looks like an Android phone sharing its connection**: `192.168.42.0/24`
-   or `192.168.43.0/24`.
-4. **You're tethered through a phone over USB**: the interface's name contains *iPhone*,
+5. **The router looks like an older Android phone sharing its connection**:
+   `192.168.42.0/24` or `192.168.43.0/24`. Newer ones pick a random subnet, which is
+   why 3 comes first.
+6. **You're tethered through a phone over USB**: the interface's name contains *iPhone*,
    *iPad*, *Android*, *RNDIS* or *USB tether*.
-5. **The connection is in Low Data Mode**, which you can set for any network in System
+7. **The connection is in Low Data Mode**, which you can set for any network in System
    Settings, such as a capped home line or hotel Wi-Fi.
 
-These are conventions, so they fail safe: a miss means updates aren't paused, never that
-your home network is treated as a hotspot. The popover shows an orange **METERED** badge
-beside the total whenever a connection counts.
+Everything after 3 is convention, so it fails safe: a miss means updates aren't paused,
+never that your home network is treated as a hotspot, and *This network* settles any
+miss. The popover shows an orange **METERED** badge beside the total whenever a
+connection counts.
 
 ## What it pauses
 
@@ -334,5 +342,5 @@ their only record is the app's journal. The helper's hourly check covers its own
 - **Claude Code in an organisation that manages it.** If your organisation sends Claude Code
   settings from its servers or through MDM, Claude Code may use those instead of
   NetworkMonitor's file, and keep updating.
-- **There's no way yet to mark a network as metered by hand.** Putting it in Low Data Mode
-  in System Settings has the same effect.
+- **A phone whose maker replaced Android's tethering** may not say it's a hotspot, and
+  may use a subnet nobody can guess. Choose *Is a hotspot* under *This network*, once.
