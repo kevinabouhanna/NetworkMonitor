@@ -98,6 +98,15 @@ struct ConnectionsSettingsPane: View {
     /// a row in Connections, and taken back here.
     private var rulesSection: some View {
         Section {
+            LabeledContent("Let apps connect") {
+                Picker("Let apps connect", selection: Binding(get: { firewall.mode }, set: setMode)) {
+                    Text("Anywhere").tag(FirewallMode.anywhere)
+                    Text("Only Where I Allow").tag(FirewallMode.onlyAllowed)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+            }
             if firewall.rules.isEmpty {
                 Text("Right-click a company, app, country or server in Connections to block it, or to "
                      + "always allow it.")
@@ -125,12 +134,36 @@ struct ConnectionsSettingsPane: View {
                 }
             }
         } header: {
-            Text("Blocked and allowed")
+            Text("Blocking")
         } footer: {
-            SettingsFootnote(filter.state == .on
-                ? "A rule applies from an app's next connection: one already open carries on until it closes."
-                : "They apply once “\(SetupCopy.websitesTitle)” is on.")
+            SettingsFootnote(footnote)
         }
+    }
+
+    private var footnote: String {
+        let mode = firewall.mode == .anywhere
+            ? "Everything connects except what you block."
+            : "Only what you allow connects, and macOS and Apple's apps. Allow an app under Blocked in "
+                + "Connections."
+        guard filter.state == .on else { return mode + " This applies once “\(SetupCopy.websitesTitle)” is on." }
+        return mode + " A rule applies from an app's next connection: one already open carries on until it closes."
+    }
+
+    /// Only Where I Allow cuts off every app not yet allowed, the browser
+    /// included, so it asks first.
+    private func setMode(_ mode: FirewallMode) {
+        guard mode == .onlyAllowed, firewall.mode != .onlyAllowed else {
+            firewall.mode = mode
+            return
+        }
+        let alert = NSAlert()
+        alert.messageText = "Only let apps connect where you allow?"
+        alert.informativeText = "Every other app is blocked, your browser included, until you allow it: "
+            + "choose Blocked in Connections and right-click it. macOS and Apple's apps can always connect, "
+            + "and you can switch back here at any time."
+        alert.addButton(withTitle: "Only Where I Allow")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn { firewall.mode = mode }
     }
 
     static func subjectName(_ subject: RuleSubject) -> String {

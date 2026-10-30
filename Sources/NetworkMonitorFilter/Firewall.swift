@@ -28,6 +28,8 @@ final class Firewall {
 
     private struct Identity {
         let appKeys: [String]
+        /// The app the connection is for, as a blocked attempt is listed.
+        let primaryKey: String?
         let isApple: Bool
     }
 
@@ -57,12 +59,13 @@ final class Firewall {
         return policy
     }
 
-    func verdict(for flow: NEFilterSocketFlow, address: String, port: Int) -> Verdict {
+    /// The verdict, and for a blocked connection, the app it was for.
+    func verdict(for flow: NEFilterSocketFlow, address: String, port: Int) -> (verdict: Verdict, appKey: String?) {
         let policy = current
         // Nothing to block: nothing to look up.
-        guard policy.mode != .anywhere || !policy.rules.isEmpty else { return .allow(.mode) }
+        guard policy.mode != .anywhere || !policy.rules.isEmpty else { return (.allow(.mode), nil) }
         let address = FirewallPolicy.serverAddress(address)
-        if FirewallPolicy.isEssential(address: address, port: port) { return .allow(.essential) }
+        if FirewallPolicy.isEssential(address: address, port: port) { return (.allow(.essential), nil) }
         let identity = self.identity(of: flow)
         let info = directory?.lookup(address)
         let company = flow.remoteHostname.flatMap(Company.named(byHostname:)) ?? info?.owner?.company
@@ -76,8 +79,9 @@ final class Firewall {
                 \(facts.companyKey ?? "-", privacy: .public), \(facts.country ?? "-", privacy: .public), \
                 by \(rule?.id ?? "the mode", privacy: .public)
                 """)
+            return (verdict, identity.primaryKey)
         }
-        return verdict
+        return (verdict, nil)
     }
 
     // MARK: Which app
@@ -90,11 +94,12 @@ final class Firewall {
         if let cached = identities[cacheKey] { lock.unlock(); return cached }
         lock.unlock()
 
+        let processKeys = process.map(appKeys) ?? []
+        let appTokenKeys = app.map(appKeys) ?? []
         var keys: [String] = []
-        for token in [process, app].compactMap({ $0 }) {
-            for key in appKeys(token) where !keys.contains(key) { keys.append(key) }
-        }
-        let identity = Identity(appKeys: keys, isApple: (app ?? process).map(Self.isSignedByApple) ?? false)
+        for key in processKeys + appTokenKeys where !keys.contains(key) { keys.append(key) }
+        let identity = Identity(appKeys: keys, primaryKey: appTokenKeys.first ?? processKeys.first,
+                                isApple: (app ?? process).map(Self.isSignedByApple) ?? false)
 
         lock.lock()
         if identities.count >= Self.identityLimit { identities.removeAll() }

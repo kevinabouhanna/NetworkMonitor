@@ -32,11 +32,13 @@ final class FilterDataProvider: NEFilterDataProvider {
         guard let socket = flow as? NEFilterSocketFlow,
               let remote = socket.remoteEndpoint as? NWHostEndpoint else { return .allow() }
         let port = Int(remote.port) ?? 0
-        let verdict = Firewall.shared.verdict(for: socket, address: remote.hostname, port: port)
+        let (verdict, appKey) = Firewall.shared.verdict(for: socket, address: remote.hostname, port: port)
+        var blockedBy: String?
+        if case .block(let rule) = verdict { blockedBy = rule?.id ?? "mode" }
         AppLink.shared.report(FlowReport(address: remote.hostname, port: port,
                                          hostname: socket.remoteHostname,
                                          pid: FlowReport.pid(fromAuditToken: flow.sourceAppAuditToken),
-                                         time: Date()))
+                                         time: Date(), blockedBy: blockedBy, appKey: appKey))
         return verdict.allows ? .allow() : .drop()
     }
 }

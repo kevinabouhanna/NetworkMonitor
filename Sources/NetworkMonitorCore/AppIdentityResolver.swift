@@ -193,6 +193,23 @@ public final class AppIdentityResolver {
                     parent: parent)
     }
 
+    /// The identity a key stands for, rebuilt from the key alone: for a
+    /// connection the content filter blocked (#114), whose process may be gone
+    /// by the time the app hears of it. A bundle path, an executable's path,
+    /// or a parent's key and a child's path.
+    public static func identity(forKey key: String) -> AppIdentity {
+        guard let index = key.lastIndex(of: keySeparator) else {
+            return identity(forExecutablePath: key, fallbackName: (key as NSString).lastPathComponent)
+        }
+        let child = String(key[key.index(after: index)...])
+        let parent = identity(forExecutablePath: String(key[..<index]), fallbackName: "")
+        guard let bundlePath = parent.bundlePath else {
+            return identity(forExecutablePath: child, fallbackName: (child as NSString).lastPathComponent)
+        }
+        return adopted(identity(forExecutablePath: child, fallbackName: (child as NSString).lastPathComponent),
+                       by: ParentApp(key: parent.key, displayName: parent.displayName, bundlePath: bundlePath))
+    }
+
     /// Joins a parent key to a child key. A control character, so it cannot occur
     /// in either half — both are filesystem paths.
     static let keySeparator = AppKey.separator

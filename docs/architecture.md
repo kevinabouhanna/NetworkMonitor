@@ -363,7 +363,10 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    hostname or the address's owner; and the country. The country and owner tables live in
    the extension's bundle, which runs from `/Library/SystemExtensions`, and the app's
    `Resources/Geo` links to them there, so they ship once. With no rules and the default
-   mode it looks nothing up.
+   mode it looks nothing up. A blocked flow is reported with its rule and the app it was
+   for (the app token's key, as the process may be gone), and Usage History counts it in
+   `server_traffic.blocked`, beside the bytes, so Connections shows it through the same
+   queries (`ServerMeasure`).
 
 An app's servers can add up to a little less than its total: a socket that opened and
 closed between two samples leaves no connection row. In a 30-second capture on the

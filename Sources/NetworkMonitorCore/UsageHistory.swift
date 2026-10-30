@@ -183,6 +183,15 @@ public struct ServerReport {
     public let recordingSince: Date?
 }
 
+/// What the Connections window counts: bytes, or connections the content
+/// filter blocked (#114). Blocked ones travel in `bytesIn`, so everything
+/// that groups and sorts servers works on either.
+public enum ServerMeasure: String, CaseIterable, Identifiable {
+    case bytes, blocked
+
+    public var id: String { rawValue }
+}
+
 /// One app's traffic with one server over a period.
 public struct ServerUsage: Equatable {
     public let appKey: String
@@ -306,6 +315,18 @@ public final class UsageHistory {
     public func noteServerNames(_ names: [(address: String, name: String)]) {
         guard database != nil else { return }
         for (address, name) in names { pending.names[address] = name }
+    }
+
+    /// Connections the content filter blocked (#114), one entry each, by the
+    /// app they were for. Counted per hour beside the servers' bytes.
+    public func recordBlocked(_ attempts: [(identity: AppIdentity, address: String)], now: Date = Date()) {
+        guard !attempts.isEmpty, let slot = slot(at: now) else { return }
+        var blocked = pending.blocked[slot, default: [:]]
+        for attempt in attempts {
+            blocked[ServerKey(appKey: attempt.identity.key, address: attempt.address), default: 0] += 1
+            pending.identities[attempt.identity.key] = attempt.identity
+        }
+        pending.blocked[slot] = blocked
     }
 
     /// One nettop sample: per-app internet bytes, the same bytes by server
@@ -540,7 +561,7 @@ public final class UsageHistory {
 
         // Servers in a transaction of their own: whatever goes wrong with them
         // must never cost Usage History the figures above.
-        guard !batch.servers.isEmpty || !batch.names.isEmpty else { return }
+        guard !batch.servers.isEmpty || !batch.blocked.isEmpty || !batch.names.isEmpty else { return }
         do {
             try database.transaction {
                 // Names first, so the servers written below keep theirs.
@@ -584,6 +605,25 @@ public final class UsageHistory {
                         try serverTraffic.run([.int(slot.hour), .int(slot.session),
                                                .text(key.appKey), .text(key.address),
                                                .int(sums.bytesIn), .int(sums.bytesOut)])
+                    }
+                }
+
+                let blocked = try database.prepare("""
+                    INSERT INTO server_traffic (hour, session_id, app_server_id, blocked)
+                    VALUES (?1, ?2,
+                            (SELECT a.id FROM app_servers a JOIN servers v ON v.id = a.server_id
+                             WHERE a.app_key = ?3 AND v.address = ?4),
+                            ?5)
+                    ON CONFLICT(hour, session_id, app_server_id) DO UPDATE SET
+                        blocked = blocked + excluded.blocked
+                    """)
+                for (slot, attempts) in batch.blocked {
+                    for (key, count) in attempts {
+                        try server.run([.text(key.address)])
+                        try appServer.run([.text(key.appKey), .text(key.address),
+                                           .real(TimeInterval(slot.hour))])
+                        try blocked.run([.int(slot.hour), .int(slot.session),
+                                         .text(key.appKey), .text(key.address), .int(count)])
                     }
                 }
             }
@@ -691,20 +731,22 @@ public final class UsageHistory {
 
     /// The same for any span of whole hours, such as the part of a day picked
     /// on the Connections window's timeline.
-    public func servers(from start: Date, to end: Date,
-                        filter: HistoryFilter = HistoryFilter()) -> [ServerUsage] {
+    public func servers(from start: Date, to end: Date, filter: HistoryFilter = HistoryFilter(),
+                        measure: ServerMeasure = .bytes) -> [ServerUsage] {
         guard let database else { return [] }
         flush()
-        return queue.sync { Self.queryServers(database, from: start, to: end, filter: filter) }
+        return queue.sync { Self.queryServers(database, from: start, to: end, filter: filter, measure: measure) }
     }
 
     /// Bytes to and from servers, hour by hour, for the Connections window's
     /// timeline. Hours with none are left out.
-    public func serverHours(from start: Date, to end: Date,
-                            filter: HistoryFilter = HistoryFilter()) -> [(hour: Date, bytes: Int64)] {
+    public func serverHours(from start: Date, to end: Date, filter: HistoryFilter = HistoryFilter(),
+                            measure: ServerMeasure = .bytes) -> [(hour: Date, bytes: Int64)] {
         guard let database else { return [] }
         flush()
-        return queue.sync { Self.queryServerHours(database, from: start, to: end, filter: filter) }
+        return queue.sync {
+            Self.queryServerHours(database, from: start, to: end, filter: filter, measure: measure)
+        }
     }
 
     /// What the Connections window shows: the servers in `span`, the period's
@@ -712,7 +754,7 @@ public final class UsageHistory {
     /// the main thread and delivered on it, after writing what's pending, as
     /// `loadReport` does.
     public func loadServers(in span: DateInterval, hoursOf period: DateInterval,
-                            filter: HistoryFilter,
+                            filter: HistoryFilter, measure: ServerMeasure = .bytes,
                             completion: @escaping (ServerReport) -> Void) {
         guard let database else {
             completion(ServerReport(servers: [], hours: [], recordingSince: nil))
@@ -721,20 +763,35 @@ public final class UsageHistory {
         flush()
         queue.async {
             let report = ServerReport(
-                servers: Self.queryServers(database, from: span.start, to: span.end, filter: filter),
-                hours: Self.queryServerHours(database, from: period.start, to: period.end, filter: filter),
+                servers: Self.queryServers(database, from: span.start, to: span.end, filter: filter,
+                                           measure: measure),
+                hours: Self.queryServerHours(database, from: period.start, to: period.end, filter: filter,
+                                             measure: measure),
                 recordingSince: (try? database.scalar("SELECT MIN(hour) FROM server_traffic"))
                     .map { Date(timeIntervalSince1970: TimeInterval($0)) })
             DispatchQueue.main.async { completion(report) }
         }
     }
 
+    /// The columns a measure is read from: bytes in and out, or blocked
+    /// connections as "in" with nothing out.
+    private static func columns(_ measure: ServerMeasure) -> (in: String, out: String) {
+        switch measure {
+        case .bytes:   return ("SUM(t.bytes_in)", "SUM(t.bytes_out)")
+        case .blocked: return ("SUM(t.blocked)", "0")
+        }
+    }
+
     private static func queryServers(_ database: SQLiteDatabase, from start: Date, to end: Date,
-                                     filter: HistoryFilter) -> [ServerUsage] {
+                                     filter: HistoryFilter, measure: ServerMeasure = .bytes) -> [ServerUsage] {
         let (whereSQL, values) = conditions(filter, hourColumn: "t.hour", appTable: "a")
+        let (inSQL, outSQL) = columns(measure)
         do {
+            // HAVING leaves out servers with none of the measure: one that was
+            // only ever blocked moved no bytes, and one that moved bytes was
+            // never blocked.
             let query = try database.prepare("""
-                SELECT a.app_key, v.address, SUM(t.bytes_in), SUM(t.bytes_out), a.first_seen,
+                SELECT a.app_key, v.address, \(inSQL), \(outSQL), a.first_seen,
                        p.name, p.bundle_path, p.is_system, p.parent_name, v.name
                 FROM server_traffic t
                 JOIN app_servers a ON a.id = t.app_server_id
@@ -743,7 +800,8 @@ public final class UsageHistory {
                 LEFT JOIN apps p ON p.key = a.app_key
                 WHERE \(whereSQL)
                 GROUP BY t.app_server_id
-                ORDER BY SUM(t.bytes_in) + SUM(t.bytes_out) DESC
+                HAVING \(inSQL) + \(outSQL) > 0
+                ORDER BY \(inSQL) + \(outSQL) DESC
                 """)
             query.bind([.int(Int64(start.timeIntervalSince1970)),
                         .int(Int64(end.timeIntervalSince1970))] + values)
@@ -766,17 +824,20 @@ public final class UsageHistory {
     }
 
     private static func queryServerHours(_ database: SQLiteDatabase, from start: Date, to end: Date,
-                                         filter: HistoryFilter) -> [(hour: Date, bytes: Int64)] {
+                                         filter: HistoryFilter,
+                                         measure: ServerMeasure = .bytes) -> [(hour: Date, bytes: Int64)] {
         let (whereSQL, values) = conditions(filter, hourColumn: "t.hour", appTable: "a")
+        let sum = measure == .bytes ? "SUM(t.bytes_in + t.bytes_out)" : "SUM(t.blocked)"
         do {
             let query = try database.prepare("""
-                SELECT t.hour, SUM(t.bytes_in + t.bytes_out)
+                SELECT t.hour, \(sum)
                 FROM server_traffic t
                 JOIN app_servers a ON a.id = t.app_server_id
                 JOIN sessions s ON s.id = t.session_id
                 LEFT JOIN apps p ON p.key = a.app_key
                 WHERE \(whereSQL)
                 GROUP BY t.hour
+                HAVING \(sum) > 0
                 ORDER BY t.hour
                 """)
             query.bind([.int(Int64(start.timeIntervalSince1970)),
@@ -1174,6 +1235,8 @@ public final class UsageHistory {
                 app_server_id INTEGER NOT NULL,
                 bytes_in INTEGER NOT NULL DEFAULT 0,
                 bytes_out INTEGER NOT NULL DEFAULT 0,
+                -- Connections the content filter blocked (#114).
+                blocked INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (hour, session_id, app_server_id)
             ) WITHOUT ROWID;
             PRAGMA user_version = 1;
@@ -1181,6 +1244,11 @@ public final class UsageHistory {
         // Databases from before #128 have servers without a name column.
         if (try? database.scalar("SELECT COUNT(*) FROM pragma_table_info('servers') WHERE name = 'name'")) == 0 {
             try database.execute("ALTER TABLE servers ADD COLUMN name TEXT")
+        }
+        // And from before #114, without a count of blocked connections.
+        if (try? database.scalar(
+            "SELECT COUNT(*) FROM pragma_table_info('server_traffic') WHERE name = 'blocked'")) == 0 {
+            try database.execute("ALTER TABLE server_traffic ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0")
         }
         return database
     }
@@ -1261,14 +1329,16 @@ public final class UsageHistory {
         var traffic: [Slot: Traffic] = [:]
         var apps: [Slot: [String: (bytesIn: Int64, bytesOut: Int64)]] = [:]
         var servers: [Slot: [ServerKey: ByteCounts]] = [:]
+        /// Connections the content filter blocked, counted.
+        var blocked: [Slot: [ServerKey: Int64]] = [:]
         /// Server names from the content filter, by address.
         var names: [String: String] = [:]
         var identities: [String: AppIdentity] = [:]
         var sessions: [Int64: SessionRow] = [:]
 
         var isEmpty: Bool {
-            traffic.isEmpty && apps.isEmpty && servers.isEmpty && names.isEmpty && identities.isEmpty
-                && sessions.isEmpty
+            traffic.isEmpty && apps.isEmpty && servers.isEmpty && blocked.isEmpty && names.isEmpty
+                && identities.isEmpty && sessions.isEmpty
         }
     }
 }
