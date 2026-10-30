@@ -92,11 +92,13 @@ it every server your Mac talks to. The data is
   nothing anywhere. macOS asks you twice to allow it; **Turn Off** in Settings switches it
   off, and Uninstall removes it.
 - **Nothing else, normally.** No Local Network, no Accessibility, no Full Disk Access.
-- **Your password, once, if you choose it.** Switching on Hotspot mode offers to
-  install a small helper, and macOS asks for your password to allow it. The helper can
-  do a fixed handful of things and nothing else; see
-  [Hotspot mode](hotspot-mode.md#the-helper). Cancel, and everything except the parts
-  that need it keeps working.
+- **A helper, once, if you choose it.** Switching on Hotspot mode offers a small helper,
+  which macOS lists under NetworkMonitor in System Settings › General › Login Items &
+  Extensions for you to switch on (#131). It answers only NetworkMonitor, checked by its
+  developer's signature, and can do a fixed handful of things and nothing else; see
+  [Hotspot mode](hotspot-mode.md#the-helper). Leave it off, and everything except the parts
+  that need it keeps working. A build from source, without a Developer ID, asks for your
+  password instead.
 
 ## Why it isn't in the App Store
 

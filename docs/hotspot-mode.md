@@ -12,8 +12,9 @@ to maintain. It's off until you turn it on.
 Installing NetworkMonitor doesn't look at your other apps or change anything. Hotspot mode
 is off, and only the traffic counting runs. When you switch it on:
 
-1. **macOS asks for your password, once,** to install a small helper. It's optional; see
-   [what it pauses](#what-it-pauses) for what it adds.
+1. **macOS asks you to allow a small helper, once:** switch on NetworkMonitor in System
+   Settings › General › Login Items & Extensions, under **Allow in the Background**
+   (#131). It's optional; see [what it pauses](#what-it-pauses) for what it adds.
 2. **NetworkMonitor looks inside the apps** in `/Applications` and `~/Applications` to see
    how each one updates. It reads their files on your Mac; there's no list downloaded from
    anywhere.
@@ -69,8 +70,8 @@ removed again when you leave. An update that has already downloaded is left to i
 its folder isn't locked. Each folder goes back to exactly how it was, and one whose
 permissions someone else changed meanwhile is left alone.
 
-**With your password, once.** Switching Hotspot mode on offers to install a small helper.
-With it, the switch also covers:
+**With your OK, once.** Switching Hotspot mode on offers a small helper, which macOS lists
+under NetworkMonitor in Login Items for you to switch on. With it, the switch also covers:
 
 - **macOS software updates and App Store updates.** These are by far the largest, often
   6 to 14 GB, and live in settings only an administrator can change.
@@ -91,9 +92,9 @@ With it, the switch also covers:
   the downloads come from shared servers that stay open.
 - **Low Data Mode** for the hotspot (below).
 
-Cancel the password prompt and everything else still works. Settings shows an **Allow…**
-button for when you change your mind. If a new version of NetworkMonitor needs a newer
-helper, it asks once more, the first time it opens.
+Leave it off and everything else still works. Settings shows an **Allow…** button for when
+you change your mind, and the step in System Settings while it waits. The helper is part of
+the app, so a new version brings its helper with it and asks nothing.
 
 Each app has its own switch under **Paused on a hotspot**, if you want to leave one alone,
 and a line saying how it's paused, such as *Turns off its automatic update check* or
@@ -243,13 +244,29 @@ ask for anything else; adding a capability means shipping a new helper.
 
 | Verb | Does | Who can run it |
 |---|---|---|
-| `status` | reports what it holds, as JSON, with its version | you, without a password |
-| `suppress` / `restore` | the system update settings, managed policies, Claude Code's managed settings and `/etc/hosts` entries | you, without a password |
-| `constrain` / `unconstrain` | raises or lowers Low Data Mode on the interface carrying traffic, which it picks itself | you, without a password |
+| `status` | reports what it holds, as JSON, with its version | NetworkMonitor, over XPC |
+| `suppress` / `restore` | the system update settings, managed policies, Claude Code's managed settings and `/etc/hosts` entries | NetworkMonitor, over XPC |
+| `constrain` / `unconstrain` | raises or lowers Low Data Mode on the interface carrying traffic, which it picks itself | NetworkMonitor, over XPC |
 | `self-heal` | if `/Applications/NetworkMonitor.app` is gone, undoes everything and removes itself | launchd, as root |
-| `uninstall` | undoes everything and removes itself | the uninstaller, as root |
+| `uninstall` | undoes everything and removes itself | NetworkMonitor's Uninstall, over XPC |
 
-**Installed by the app**, through macOS's standard administrator dialog, running the
+**A launch daemon inside the app** (#131). The app registers it with `SMAppService`
+(`Contents/Library/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist`), macOS
+lists it under NetworkMonitor in Login Items, and once you switch it on launchd starts it on
+the app's first request. It answers over XPC, only to NetworkMonitor signed by its team
+(GRQKG7M8CL), and the app only talks to the helper signed by that team. Each request runs
+the same binary with the one verb, so a verb behaves exactly as it did under `sudo`; it
+quits when idle, so an updated app's helper is the one that answers. On first start it:
+
+- removes the old sudoers rule, if there is one;
+- copies itself to `/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper`
+  and installs the hourly `self-heal` job. Dragging the app to the Trash takes the daemon
+  with it, since its program is inside the app and macOS doesn't unregister it, so the
+  copy is what still puts everything back. The job is listed under NetworkMonitor too
+  (`AssociatedBundleIdentifiers`).
+
+**Builds without a Developer ID**, built from source, have no team to check callers by, so
+they keep the older way: installed through macOS's administrator dialog, running the
 `helper-setup.sh` inside the bundle. It installs:
 
 - the binary at `/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper`,
@@ -266,17 +283,16 @@ is wrong. The helper's own records live in `/Library/Application Support/Network
 are trusted only if root-owned and not writable by others, and a damaged one is an error,
 never "nothing to restore". Every verb takes a lock and fails fast if another is running.
 
-**Why not `SMAppService.daemon` and XPC?** Authorising an XPC client needs a team
-identifier, which an ad-hoc signature doesn't have. Without one, an XPC daemon is a service
-any local process can talk to, plus hundreds of lines buying no enforceable security. A
-sudoers rule makes the grant explicit and auditable. This, the password prompt and the
-extra Login Items row all reverse once there's a Developer ID; see the
-[roadmap](roadmap.md).
+**Why those builds use `sudo`.** Authorising an XPC client needs a team identifier, which an
+ad-hoc signature doesn't have. Without one, an XPC daemon is a service any local process can
+talk to. A sudoers rule makes the grant explicit and auditable instead.
 
-**Versioning.** `HelperProtocol.version` (now 4) lives in the `LowDataMode` target that the
-app and the helper share. Bump it when a verb is added or changed, or the sudoers rule
-changes, and installed helpers are offered an update once per build. Otherwise an app
-update never asks for a password.
+**Versioning.** `HelperProtocol.version` (now 5, for `serve`) lives in the `LowDataMode`
+target that the app and the helper share. For the daemon it hardly matters: the helper is
+inside the app, so they're always the same version. For `sudo` helpers, bump it when a verb
+is added or changed, or the sudoers rule changes, and installed helpers are offered an
+update once per build; a `sudo` helper on a Developer ID build is offered the daemon
+instead.
 
 ### Low Data Mode internals
 
@@ -294,8 +310,10 @@ put in Low Data Mode yourself.
 
 ### Uninstalling, in order
 
-The in-app **Uninstall…** removes the helper first, because that's the only step you can
-cancel, and if it's cancelled or fails nothing else is touched. Then it replays the journal,
+The in-app **Uninstall…** removes the helper first, and if that fails nothing else is
+touched. With the daemon it asks nothing: the daemon puts everything back, removes its copy,
+the self-heal job and any sudoers rule, and then the app unregisters it. A `sudo` helper
+asks for your password, and cancelling leaves everything as it was. Then it replays the journal,
 withdraws the login item, deletes `~/Library/Application Support/NetworkMonitor` and the
 app's preferences, and moves the app to the Trash, where you can still drag it back.
 

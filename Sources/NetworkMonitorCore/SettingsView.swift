@@ -455,7 +455,17 @@ struct HotspotSettingsPane: View {
     /// administrator dialog; nothing else about installing it is the user's job.
     @ViewBuilder
     private var helperNotice: some View {
-        if metering.helperState != .current {
+        if metering.helperState == .waitingForApproval {
+            // The daemon (#131): macOS lists it in Login Items for the person
+            // to switch on. Said as what to do there, not what it is.
+            LabeledContent {
+                Button("Open System Settings") { HelperService.openSystemSettings() }
+            } label: {
+                Label("To finish, switch on NetworkMonitor in System Settings, under Allow in the Background.",
+                      systemImage: "lock.shield")
+            }
+            .onAppear { metering.watchForApproval() }
+        } else if metering.helperState != .current {
             if HelperInstaller.canInstall {
                 LabeledContent {
                     Button("Allow…") { askForHelper() }
@@ -496,6 +506,10 @@ struct HotspotSettingsPane: View {
             state.uncovered = metering.uncoveredUpdaters()
         case .cancelled:
             state.helperMessage = nil
+        case .waitingForApproval:
+            // macOS has listed it; the notice above says where to switch it on.
+            state.helperMessage = nil
+            HelperService.openSystemSettings()
         case .failed(let message):
             state.helperMessage = message
         }

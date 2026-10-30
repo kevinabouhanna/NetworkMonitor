@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  The helper as a launch daemon (#131), registered by the app with SMAppService
+  and allowed by the person in System Settings > General > Login Items &
+  Extensions. launchd starts it on the app's first request, on its Mach service,
+  and it quits when idle. Only in Developer ID builds: the daemon checks its
+  callers by team.
+-->
+<dict>
+    <key>Label</key>
+    <string>com.kevinabouhanna.NetworkMonitor.daemon</string>
+    <key>BundleProgram</key>
+    <string>Contents/Library/LaunchServices/com.kevinabouhanna.NetworkMonitor.helper</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>com.kevinabouhanna.NetworkMonitor.helper</string>
+        <string>serve</string>
+    </array>
+    <key>MachServices</key>
+    <dict>
+        <key>com.kevinabouhanna.NetworkMonitor.daemon</key>
+        <true/>
+    </dict>
+    <key>AssociatedBundleIdentifiers</key>
+    <array>
+        <string>com.kevinabouhanna.NetworkMonitor</string>
+    </array>
+</dict>
+</plist>

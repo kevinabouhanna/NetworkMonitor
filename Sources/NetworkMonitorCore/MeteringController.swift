@@ -276,12 +276,29 @@ public final class MeteringController: ObservableObject {
         // Data Mode both start working on the spot rather than at the next
         // network change.
         refresh()
+        if outcome == .waitingForApproval { watchForApproval() }
         return outcome
     }
 
     private func refreshHelperState() {
         let state = HelperInstaller.state()
         if state != helperState { helperState = state }
+    }
+
+    private var approvalWatch: Timer?
+
+    /// While the daemon waits to be switched on in System Settings (#131),
+    /// look every few seconds, and once it's on, put it to work at once.
+    public func watchForApproval() {
+        guard approvalWatch == nil else { return }
+        approvalWatch = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
+            self.refreshHelperState()
+            guard self.helperState != .waitingForApproval else { return }
+            timer.invalidate()
+            self.approvalWatch = nil
+            self.refresh()
+        }
     }
 
     /// Switches one app in or out of the feature.
