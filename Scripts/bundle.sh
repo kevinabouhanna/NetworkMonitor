@@ -134,8 +134,14 @@ printf 'APPL????' > "${APP}/Contents/PkgInfo"
 # services are only for sandboxed apps, which this isn't, so they're left out,
 # leaving less to sign. Universal as downloaded, from the exact release in
 # Package.swift.
-SPARKLE_FRAMEWORK=".build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
-[ -d "$SPARKLE_FRAMEWORK" ] || { echo "error: Sparkle.framework not found; run swift package resolve" >&2; exit 1; }
+# The universal build resolves into each architecture's scratch path, the
+# others into .build itself.
+SPARKLE_FRAMEWORK=""
+for scratch in .build .build/arm64 .build/x86_64; do
+  candidate="${scratch}/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+  if [ -d "$candidate" ]; then SPARKLE_FRAMEWORK="$candidate"; break; fi
+done
+[ -n "$SPARKLE_FRAMEWORK" ] || { echo "error: Sparkle.framework not found; run swift package resolve" >&2; exit 1; }
 mkdir -p "${APP}/Contents/Frameworks"
 ditto "$SPARKLE_FRAMEWORK" "${APP}/Contents/Frameworks/Sparkle.framework"
 rm -rf "${APP}/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices" \
