@@ -348,9 +348,12 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    follows `NEFilterConfigurationDidChange`, so turning it off in System Settings shows.
    At each launch with the filter on, it asks macOS to activate the extension in its own
    bundle: macOS keeps running the one it last activated, so without this an update never
-   reached the filter (#136). It connects only once that request is through: an app still
-   connected to the old filter across the swap left the new one without its Mach service,
-   and every look-up failed until a restart (seen with build 87).
+   reached the filter (#136). It connects only once that request is through. Even so, a
+   swap now and then left the new filter's launchd job with no Mach service, and every
+   look-up failed until a restart (twice in six swaps): every version declared the same
+   name, and the outgoing one could still hold it. So each build's name is its own,
+   `…NetworkMonitor.Filter.<build>`, stamped by `bundle.sh` and read from the filter's
+   Info.plist at both ends (#142).
 
 7. **Blocking** (#114). `FirewallPolicy`, Foundation only, holds the rules, the mode and the
    decision, and `AppKey` the folding of an executable path into the app Connections lists

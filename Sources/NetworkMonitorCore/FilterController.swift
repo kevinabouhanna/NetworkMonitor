@@ -60,6 +60,14 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
             + "/Contents/Library/SystemExtensions/\(FilterIdentity.extensionIdentifier).systemextension")
     }
 
+    /// The service of the filter this app ships, which is the one macOS was
+    /// asked to run (#142).
+    static var machServiceName: String {
+        let path = Bundle.main.bundlePath
+            + "/Contents/Library/SystemExtensions/\(FilterIdentity.extensionIdentifier).systemextension"
+        return FilterIdentity.machServiceName(inInfo: Bundle(path: path)?.infoDictionary)
+    }
+
     /// Whether the app runs from the Applications folder, the only place
     /// macOS installs a system extension from.
     public static var isInApplications: Bool {
@@ -276,7 +284,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
 
     private func connect() {
         guard connection == nil else { return }
-        let connection = NSXPCConnection(machServiceName: FilterIdentity.machServiceName, options: [])
+        let connection = NSXPCConnection(machServiceName: Self.machServiceName, options: [])
         connection.setCodeSigningRequirement(FilterIdentity.extensionRequirement)
         connection.remoteObjectInterface = NSXPCInterface(with: FilterExtensionInterface.self)
         connection.exportedInterface = NSXPCInterface(with: FilterAppInterface.self)
