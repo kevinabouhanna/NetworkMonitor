@@ -422,7 +422,8 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    held. `AskController` shows the questions in a non-activating panel.
 
 8. **The monthly data refresh** (#121). The *Data refresh* workflow converts DB-IP's new
-   month on the 3rd, and `GeoDataBuilder package` compresses the tables (LZFSE) and signs a
+   month on the 3rd, trying again on the 10th and 17th unless that month is already out,
+   and `GeoDataBuilder package` compresses the tables (LZFSE) and signs a
    manifest of their sizes and SHA-256s with an Ed25519 key from the repository secrets. It
    publishes them as the `geodata` release, never marked latest. `GeoDataUpdater` checks
    at most daily while the data is from an earlier month, and never on a metered or
