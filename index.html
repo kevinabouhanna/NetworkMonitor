@@ -383,7 +383,7 @@ footer a { color: var(--text-2); }
         <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download for Mac</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
-      <p class="hero-meta reveal d3"><span>Version 1.14.0</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
+      <p class="hero-meta reveal d3"><span>Version 1.15.0</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
       <div class="featured reveal d3">
         <a href="https://www.trymacapps.com" target="_blank" rel="noopener">
           <img
@@ -571,11 +571,11 @@ footer a { color: var(--text-2); }
           </div>
         </div>
         <div class="reveal">
-          <h3>And with your password, once.</h3>
+          <h3>And with one switch, once.</h3>
           <div class="chips">
             <span class="chip">macOS system updates</span><span class="chip">App Store</span><span class="chip">Google Chrome</span><span class="chip">Claude</span><span class="chip">Claude Code</span><span class="chip">Slack</span><span class="chip">Canva</span><span class="chip">Low Data Mode</span>
           </div>
-          <p style="margin-top:14px">Switch it on and macOS asks for your password once, so NetworkMonitor can install a small helper. The helper can do exactly five things: pause, restore, turn Low Data Mode on and off, and report. The settings it touches are built into it, so it can’t be asked to change anything else.</p>
+          <p style="margin-top:14px">These need a small helper that’s part of the app: you switch it on once in System Settings, and updates bring it along. It does exactly five things: pause, restore, turn Low Data Mode on and off, and report. The settings it touches are built into it, it answers only NetworkMonitor, and it can’t be asked to change anything else.</p>
         </div>
         <div class="reveal">
           <h3>Reaches apps it’s never heard of.</h3>
@@ -693,7 +693,7 @@ footer a { color: var(--text-2); }
             <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="hotspot" style="--x:76;--y:32;--w:55;--h:48"
                     data-caption="What it pauses on a hotspot and how, and what it can’t, with why. Click a list to open it.">Hotspot</button>
             <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="about" style="--x:132;--y:32;--w:55;--h:48"
-                    data-caption="The version, where to read more, and Uninstall…, which puts back everything it changed.">About</button>
+                    data-caption="The version, updates, where to read more, and Uninstall…, which puts back everything it changed.">About</button>
           </div>
           <div id="prefs-panel" role="tabpanel" aria-label="General">
             <img class="prefs-shot on" data-shot="general" data-w="720" data-h="843" src="assets/settings/general.png" width="1440" height="1686"
@@ -702,16 +702,16 @@ footer a { color: var(--text-2); }
                  alt="The Speed Test pane: Test your internet speed, with a Test Now button. A note says it runs macOS's built-in networkQuality only when you start it, download first, then upload, typically using 50 to 500 MB. Show the test in the popover as Card or Compact, with Card chosen.">
             <img class="prefs-shot" data-shot="history" data-w="720" data-h="785" src="assets/settings/history.png" width="1440" height="1570" loading="lazy" aria-hidden="true"
                  alt="The History pane on Today, with Day, Week, Month and Year, a ‹ Today › stepper, and All, Wi‑Fi and Hotspot. 1.5 GB used, all over Wi‑Fi, in a bar chart by the hour that peaks at about 740 MB at noon. Below it, Apps, biggest first: Software Update 522.3 MB, Google Chrome 320.5 MB, iTerm2 166.6 MB, Slack 133.8 MB, Xcode 86.4 MB, WhatsApp 76.5 MB and GoogleUpdater 38.9 MB. Networks and Sessions are the other two lists. Keep history for Forever, with Clear History… and Export CSV… buttons.">
-            <img class="prefs-shot" data-shot="connections" data-w="720" data-h="878" src="assets/settings/connections.png" width="1440" height="1756" loading="lazy" aria-hidden="true"
-                 alt="The Connections pane. Which companies, countries and servers your apps talk to, on a list and a world map, with an Open Connections… button. Today: Apple 500.0 MB, Hosted on Amazon 220.8 MB, Anthropic 173.6 MB, Google 138.5 MB and Meta 113.3 MB. See which websites your apps visit is On, with a Turn Off button. Under Blocking, Let apps connect offers Anywhere, Ask Me and Only Where I Allow, with Anywhere chosen, and a note to right-click a company, app, country or server in Connections to block it. Opens with List, Both or Map, with Both chosen. Countries and networks: DB-IP Lite, October 2026.">
+            <img class="prefs-shot" data-shot="connections" data-w="720" data-h="870" src="assets/settings/connections.png" width="1440" height="1740" loading="lazy" aria-hidden="true"
+                 alt="The Connections pane. Which companies, countries and servers your apps talk to, on a list and a world map, with an Open Connections… button. Today: Apple 541.2 MB, Hosted on Amazon 248.0 MB, Meta 228.2 MB, Anthropic 226.3 MB and Datacamp 189.1 MB. See which websites your apps visit is On, with a Turn Off button. Under Blocking, Let apps connect offers Anywhere, Ask Me and Only Where I Allow, with Anywhere chosen. Opens with List, Both or Map, with Both chosen. Countries and networks: DB-IP Lite, October 2026, and Update them monthly, switched on.">
             <img class="prefs-shot" data-shot="hotspot" data-w="720" data-h="666" src="assets/settings/hotspot.png" width="1440" height="1332" loading="lazy" aria-hidden="true"
                  alt="The Hotspot pane. Stop apps updating on hotspots is on, and right now this connection isn't metered. Paused on a hotspot (12) and Can't be paused (3) are both closed. Every app's updater: Stopped on hotspots. Got through on your last metered connection: Slack downloaded an update, 271.6 MB, and GoogleUpdater, 265.6 MB.">
             <img class="prefs-shot" data-shot="hotspot-apps" data-w="720" data-h="870" src="assets/settings/hotspot-apps.png" width="1440" height="1740" loading="lazy" aria-hidden="true"
                  alt="The Hotspot pane with Paused on a hotspot (12) open, each app switched on with a line saying how it's paused: AppCleaner, Claude Usage, iTerm, OpenDisk and Remote for Mac turn off their automatic update check, Figma turns off its updater, and Microsoft AutoUpdate sets Microsoft's apps to update only when you ask. Through NetworkMonitor's helper: macOS updates, App Store apps, Claude, Slack, Figma, Google Chrome and Claude Code. Through their update folders: Claude, Figma, Granola and Synergy. Then Visual Studio Code, VLC and VoiceInk, the list scrolling on.">
             <img class="prefs-shot" data-shot="hotspot-uncovered" data-w="720" data-h="787" src="assets/settings/hotspot-uncovered.png" width="1440" height="1574" loading="lazy" aria-hidden="true"
                  alt="The Hotspot pane with Can't be paused (3) open: OmniDiskSweeper, Opera and Raycast, each having its own updater with no setting NetworkMonitor can turn off. Every app's updater: Stopped on hotspots, including ones listed as can't be paused when they update with a program of their own.">
-            <img class="prefs-shot" data-shot="about" data-w="720" data-h="564" src="assets/settings/about.png" width="1440" height="1128" loading="lazy" aria-hidden="true"
-                 alt="The About pane: the NetworkMonitor icon, Version 1.14.0 (91), and Live network speed in your menu bar, and which app used your data. Links to the website, the release notes and the source code on GitHub. Free and open source, under the MIT licence. Remove NetworkMonitor, with an Uninstall… button.">
+            <img class="prefs-shot" data-shot="about" data-w="720" data-h="710" src="assets/settings/about.png" width="1440" height="1420" loading="lazy" aria-hidden="true"
+                 alt="The About pane: the NetworkMonitor icon, Version 1.15.0 (95), and Live network speed in your menu bar, and which app used your data. Links to the website, the release notes and the source code on GitHub. Free and open source, under the MIT licence. Check for updates automatically is on, with a Check Now button: once a day it asks GitHub whether there's a newer version, never on a hotspot, and an update installs only when you say so, and only if it's signed by NetworkMonitor. Remove NetworkMonitor, with an Uninstall… button.">
             <button class="prefs-row" type="button" aria-expanded="false" data-row="apps" style="--x:-340;--y:236;--w:680;--h:44" hidden>Paused on a hotspot</button>
             <button class="prefs-row" type="button" aria-expanded="false" data-row="uncovered" style="--x:-340;--y:334;--w:680;--h:44" hidden>Can’t be paused</button>
             <a class="prefs-link" href="#top" style="--x:150;--y:319;--w:182;--h:30" hidden>Website</a>
@@ -745,10 +745,10 @@ footer a { color: var(--text-2); }
       <svg class="privacy-mark reveal" viewBox="0 0 88 88" aria-hidden="true" fill="none"><rect x="18" y="38" width="52" height="40" rx="10" fill="url(#g)"/><path d="M29 38V28a15 15 0 0 1 30 0v10" stroke="#e5e5e5" stroke-width="6"/><path d="M44 51v12" stroke="#000" stroke-width="6" stroke-linecap="round"/><defs><linearGradient id="g" x1="0" y1="38" x2="0" y2="78" gradientUnits="userSpaceOnUse"><stop stop-color="#51ff70"/><stop offset="1" stop-color="#2fd152"/></linearGradient></defs></svg>
       <p class="eyebrow reveal">Privacy</p>
       <h2 class="h2 reveal d1">It measures volume.<br>Never contents.</h2>
-      <p class="lead reveal d2" style="max-width:640px;margin-inline:auto">NetworkMonitor counts how much, and where it went, never what. <strong>And it has no way to phone home.</strong></p>
+      <p class="lead reveal d2" style="max-width:640px;margin-inline:auto">NetworkMonitor counts how much, and where it went, never what. <strong>Nothing about your traffic ever leaves your Mac.</strong></p>
       <div class="privacy-grid">
-        <div class="reveal"><h3>Two permissions, both optional.</h3><p>Location, only because macOS shares a Wi‑Fi network’s name no other way; it never looks up where you are. And website names, to see and block where apps connect. Both are offered when it first opens, and each can be turned on later. The only thing that ever asks for your password is the hotspot helper, once.</p></div>
-        <div class="reveal d1"><h3>No network access of its own.</h3><p>The only traffic NetworkMonitor ever causes is a speed test you start yourself, run by macOS’s built-in networkQuality against Apple’s servers. No analytics, no telemetry, no update check, no account.</p></div>
+        <div class="reveal"><h3>Two permissions, both optional.</h3><p>Location, only because macOS shares a Wi‑Fi network’s name no other way; it never looks up where you are. And website names, to see and block where apps connect. Both are offered when it first opens, and each can be turned on later. Hotspot mode’s helper is one switch in System Settings, not a password.</p></div>
+        <div class="reveal d1"><h3>Two small downloads, both yours to switch off.</h3><p>Once a month, the new country and network data, the same file for everyone; once a day, whether there’s a newer version. Both come from GitHub, never on a hotspot, and say nothing about your traffic. Beyond those, only a speed test you start. No analytics, no telemetry, no account.</p></div>
         <div class="reveal d2"><h3>Stays on your Mac.</h3><p>Your usage, and the servers your apps reached, live in local files on your Mac that you can delete at any time. Countries and companies are named from data inside the app.</p></div>
         <div class="reveal d3"><h3>Open source.</h3><p>MIT licensed. <a href="https://github.com/kevinabouhanna/NetworkMonitor">Read every line</a> before you run it.</p></div>
       </div>
@@ -768,7 +768,7 @@ footer a { color: var(--text-2); }
           <p>The usual Mac way: open the disk image and drag NetworkMonitor into <strong>Applications</strong>.</p>
           <div class="get">
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download NetworkMonitor.dmg</a>
-            <span class="meta">Version 1.14.0 · 10.1 MB · Universal</span>
+            <span class="meta">Version 1.15.0 · 11.1 MB · Universal</span>
           </div>
           <figure class="dmg-shot" style="margin-bottom:0">
             <img src="assets/dmg-window.png" width="1424" height="1104" loading="lazy"
@@ -780,12 +780,12 @@ footer a { color: var(--text-2); }
             <li>The welcome window says what it can do with your OK: website names, and Wi‑Fi networks by name. Both are optional.</li>
             <li>Look for <span class="green">↓</span><span style="color:var(--light)">↑</span> in your menu bar.</li>
           </ol>
-          <p class="aside"><b>Updating:</b> download the new version and drag it over the old one, choosing <b>Replace</b>. Your settings and history stay. Coming from 1.13 or earlier, macOS asks for Location once more, since the app is now signed with an Apple Developer ID. <b>Removing:</b> right-click the menu bar item and choose <b>Uninstall NetworkMonitor…</b>, which puts back every setting it changed first.</p>
+          <p class="aside"><b>Updating:</b> from 1.15 on, NetworkMonitor offers each new version itself, and <b>Check for Updates…</b> in its menu asks at once. Coming from 1.14 or earlier, download this version and drag it over the old one, choosing <b>Replace</b>, once. Your settings and history stay. <b>Removing:</b> right-click the menu bar item and choose <b>Uninstall NetworkMonitor…</b>, which puts back every setting it changed first.</p>
         </article>
       </div>
 
       <div class="ctas reveal">
-        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.14.0">What’s in version 1.14.0</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.15.0">What’s in version 1.15.0</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
     </div>
