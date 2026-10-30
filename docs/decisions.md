@@ -12,7 +12,9 @@ odd: most odd-looking things were the second or third attempt.
   permission. The welcome window offers the two that add something, Wi-Fi names (Location,
   #85) and website names (the content filter, #128), each said as what you get (#134). The
   only password ever asked for is optional, for Hotspot mode's helper.
-- **No network access of its own.** The only traffic it causes is a speed test you start.
+- **No network access of its own,** but one: a speed test you start, and once a month the
+  country and network data, the same signed file for everyone, never on a hotspot, with a
+  switch to turn it off (#121).
 - **Nothing to configure where the app can decide.** Sampling rates follow the power source;
   Hotspot mode is one switch with no list to maintain. A switch that needs configuring to
   work has failed.
@@ -94,6 +96,7 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-30 | **Blocking by rules made in Connections**, enforced by the content filter (#114) | One rule per company, app, country or server: Block, Block on Hotspots or Always Allow, the narrowest winning. "Monitor" and "Custom" were the same once your rules always win, so the modes are one choice, Anywhere or Only where I allow, the second coming with blocked attempts in the window. The filter keys connections as Connections does, so a rule means the row it was made on |
 | 2026-10-30 | **Hotspot mode stops every app's updater at the network** (#98) | The settings and hosts it changed reached only apps someone had researched. With the content filter, any program inside an app named like an updater, Sparkle's downloader, or an updater of its own is blocked on a hotspot, and so are the helper's update-only servers, from one list in `HostsFile`. Apple's code is left to the system setting, so an update started by hand goes, and your rules win |
 | 2026-10-30 | **Ask Me asks once per app and company, in a panel, and lets it go after 30 seconds** (#129) | A question per connection would be dozens a minute. Holding every flow between an app and a company on one question keeps it to the first time. The answers are rules for that app, so rules gained an optional app; Allow Once lasts an hour. A panel that never takes the focus, and a connection that goes ahead unanswered, keep a missed question from breaking anything |
+| 2026-10-30 | **The country and network data refreshes itself monthly, on by default, signed** (#121) | Connections is only as right as its data, and DB-IP's changes every month. The whole file, the same for everyone, from the repository's `geodata` release: nothing about which servers this Mac talks to. An Ed25519 signature over a manifest of SHA-256s, with the public half in the app, so a tampered file is refused. On by default, with a switch, since it's the app's one network access of its own. Never on a hotspot, metered or in Low Data Mode |
 
 ## Approaches turned down
 

@@ -19,8 +19,10 @@ final class Firewall {
 
     private let lock = NSLock()
     private var policy: FirewallPolicy
-    /// The country and network-owner data, which ships inside the extension.
-    private lazy var directory = ServerDirectory.bundled()
+    /// The country and network-owner data: the copy inside the extension, or
+    /// a newer month the app sent since (#121).
+    private var directory: ServerDirectory?
+    private var directoryMonth: String?
     /// Per audit token, which names one run of one process.
     private var identities: [Data: Identity] = [:]
     private static let identityLimit = 4096
@@ -33,17 +35,53 @@ final class Firewall {
         let isApple: Bool
         /// The programs themselves, to tell an updater from its app (#98).
         let paths: [String]
+        /// NetworkMonitor itself, signed by its team (#121).
+        let isNetworkMonitor: Bool
     }
 
     private init() {
         policy = (try? Data(contentsOf: Self.storeURL)).flatMap(FirewallPolicy.decode) ?? FirewallPolicy()
+        if let newest = ServerDirectory.newest(downloaded: Self.geoURL) {
+            directory = newest.directory
+            directoryMonth = newest.month
+        }
     }
 
     /// In the extension's own container. It runs as root, so this is root's.
-    private static var storeURL: URL {
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+    private static var supportURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        return support.appendingPathComponent("policy.json")
+    }
+    private static var storeURL: URL { supportURL.appendingPathComponent("policy.json") }
+    private static var geoURL: URL { supportURL.appendingPathComponent("Geo", isDirectory: true) }
+
+    /// A newer month from the app. Kept only if it's newer than what's in
+    /// use and the tables open; the app checked its signature already.
+    func applyGeoData(countries: FileHandle, owners: FileHandle, month: String) {
+        lock.lock()
+        let current = directoryMonth
+        lock.unlock()
+        guard GeoData.isMonth(month), current.map({ month > $0 }) ?? true else { return }
+        do {
+            let tables = [("countries.bin", try countries.readToEnd() ?? Data()),
+                          ("owners.bin", try owners.readToEnd() ?? Data())]
+            let replacement = try ServerDirectory(countries: RangeTable(data: tables[0].1),
+                                                  owners: RangeTable(data: tables[1].1))
+            let manager = FileManager.default
+            try? manager.removeItem(at: Self.geoURL)
+            try manager.createDirectory(at: Self.geoURL, withIntermediateDirectories: true)
+            for (name, data) in tables { try data.write(to: Self.geoURL.appendingPathComponent(name)) }
+            try Data((month + "\n").utf8).write(to: Self.geoURL.appendingPathComponent(GeoData.monthFile))
+            lock.lock()
+            directory = replacement
+            directoryMonth = month
+            lock.unlock()
+            log.notice("data from \(month, privacy: .public)")
+        } catch {
+            log.error("couldn't use the data from \(month, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+        try? countries.close()
+        try? owners.close()
     }
 
     func apply(_ policy: FirewallPolicy) {
@@ -94,11 +132,15 @@ final class Firewall {
         let address = FirewallPolicy.serverAddress(address)
         if FirewallPolicy.isEssential(address: address, port: port) { return (.allow(.essential), nil, nil, nil) }
         let identity = self.identity(of: flow)
+        lock.lock()
+        let directory = self.directory
+        lock.unlock()
         let info = directory?.lookup(address)
         let company = flow.remoteHostname.flatMap(Company.named(byHostname:)) ?? info?.owner?.company
         let facts = FlowFacts(appKeys: identity.appKeys, companyKey: company?.key, country: info?.country,
                               address: address, port: port, isApple: identity.isApple,
-                              executablePaths: identity.paths, hostname: flow.remoteHostname)
+                              executablePaths: identity.paths, hostname: flow.remoteHostname,
+                              isNetworkMonitor: identity.isNetworkMonitor)
         let verdict = policy.decide(facts)
         if case .block(let reason) = verdict {
             // Debug level: kept only while someone streams the log.
@@ -213,7 +255,8 @@ final class Firewall {
         var paths: [String] = []
         for path in [processPath, appPath].compactMap({ $0 }) where !paths.contains(path) { paths.append(path) }
         let identity = Identity(appKeys: keys, primaryKey: appTokenKeys.first ?? processKeys.first,
-                                isApple: (app ?? process).map(Self.isSignedByApple) ?? false, paths: paths)
+                                isApple: (app ?? process).map(Self.isSignedByApple) ?? false, paths: paths,
+                                isNetworkMonitor: (app ?? process).map(Self.isNetworkMonitor) ?? false)
 
         lock.lock()
         if identities.count >= Self.identityLimit { identities.removeAll() }
@@ -291,6 +334,18 @@ final class Firewall {
     private static func isSignedByApple(_ token: Data) -> Bool {
         guard let code = guestCode(token), let apple else { return false }
         return SecCodeCheckValidity(code, [], apple) == errSecSuccess
+    }
+
+    private static let networkMonitor: SecRequirement? = {
+        var requirement: SecRequirement?
+        SecRequirementCreateWithString(FilterIdentity.appRequirement as CFString, [], &requirement)
+        return requirement
+    }()
+
+    /// The app itself, by the same check the XPC link makes.
+    private static func isNetworkMonitor(_ token: Data) -> Bool {
+        guard let code = guestCode(token), let networkMonitor else { return false }
+        return SecCodeCheckValidity(code, [], networkMonitor) == errSecSuccess
     }
 
     private static func guestCode(_ token: Data) -> SecCode? {

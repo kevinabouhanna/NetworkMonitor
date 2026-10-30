@@ -62,7 +62,10 @@ used and nothing is downloaded.
 
 A server is an address. NetworkMonitor names it from data shipped inside the app: the
 country DB-IP places the address in, and the network it belongs to. Nothing is looked up
-online. See [privacy](privacy.md#naming-servers-without-asking-anyone).
+online. The data is refreshed once a month, the same signed file for everyone, never on a
+hotspot; **Update them monthly** in Settings › Connections switches that off, and the
+month in use is shown there (#121). See
+[privacy](privacy.md#naming-servers-without-asking-anyone).
 
 - **A company** is the owner of the network the server is on. That's right for
   companies that run their own networks: Google, Microsoft, Meta, Apple and many more.

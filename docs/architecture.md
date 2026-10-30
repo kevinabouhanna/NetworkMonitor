@@ -379,6 +379,20 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    others, until the rule the app makes arrives. With the app not connected, nothing is
    held. `AskController` shows the questions in a non-activating panel.
 
+8. **The monthly data refresh** (#121). The *Data refresh* workflow converts DB-IP's new
+   month on the 3rd, and `GeoDataBuilder package` compresses the tables (LZFSE) and signs a
+   manifest of their sizes and SHA-256s with an Ed25519 key from the repository secrets. It
+   publishes them as the `geodata` release, never marked latest. `GeoDataUpdater` checks
+   at most daily while the data is from an earlier month, and never on a metered or
+   constrained connection (`URLRequest` refuses those too). It verifies the signature
+   against the public key in the app, then each table, opens them, and swaps the copy in
+   `~/Library/Application Support/NetworkMonitor/Geo` whole. `ServerDirectory.newest`
+   picks between it and the shipped copy by month. The filter gets the tables as open
+   files over XPC (`applyGeoData`), keeps a copy in its container, and uses the newest
+   from launch. Under Only Where I Allow and Ask Me, NetworkMonitor's own connections,
+   checked against `FilterIdentity.appRequirement`, aren't held back, though a rule can
+   still block them.
+
 An app's servers can add up to a little less than its total: a socket that opened and
 closed between two samples leaves no connection row. In a 30-second capture on the
 development Mac, servers accounted for 95.4% of the apps' internet bytes.
