@@ -515,12 +515,20 @@ public final class MonitorViewModel: ObservableObject {
             entries = Array(merged.values)
             if self.metering.isSuppressing {
                 // By the app a process belongs to: Squirrel's ShipIt and
-                // Sparkle's downloader run inside the app they update.
+                // Sparkle's downloader run inside the app they update. Outside
+                // an app, by its executable too: Claude Code updates itself
+                // from the folder it runs from, inside a terminal (#94).
                 for entry in entries {
-                    guard let bundlePath = entry.identity.bundlePath ?? entry.identity.parent?.bundlePath
-                    else { continue }
-                    self.metering.noteAppTraffic(bundlePath: bundlePath,
-                                                 bytes: entry.bytesIn + entry.bytesOut, now: now)
+                    let identity = entry.identity, bytes = entry.bytesIn + entry.bytesOut
+                    if let bundlePath = identity.bundlePath {
+                        self.metering.noteAppTraffic(path: bundlePath, bytes: bytes, now: now)
+                        continue
+                    }
+                    self.metering.noteAppTraffic(path: AppIdentityResolver.keyBeforeAdoption(identity.key)
+                                                     ?? identity.key, bytes: bytes, now: now)
+                    if let parent = identity.parent?.bundlePath {
+                        self.metering.noteAppTraffic(path: parent, bytes: bytes, now: now)
+                    }
                 }
             }
             self.metering.tick(now: now)

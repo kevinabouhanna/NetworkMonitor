@@ -534,34 +534,53 @@ struct HotspotSettingsPane: View {
              ? "Got through on this connection"
              : "Got through on your last metered connection")
             .font(.system(size: 12, weight: .medium))
+        let paused = pausedNames
         ForEach(metering.updatesGotThrough) { sighting in
             LabeledContent {
                 Text(Self.amount(for: sighting)).monospacedDigit()
-                    .help(sighting.isUpperBound
-                          ? "The update's size on your Mac. It used no more than this to download."
-                          : sighting.source == .download
-                              ? "What \(sighting.name) used while the update downloaded."
-                              : "What it used on this connection.")
+                    .help(Self.amountHelp(for: sighting))
             } label: {
-                Label(Self.label(for: sighting),
-                      systemImage: sighting.source == .download
-                          ? "arrow.down.circle" : "arrow.triangle.2.circlepath")
+                Label(Self.label(for: sighting, wasPaused: paused.contains(sighting.appName)),
+                      systemImage: sighting.source == .traffic
+                          ? "arrow.triangle.2.circlepath" : "arrow.down.circle")
+                    .foregroundStyle(paused.contains(sighting.appName) ? AnyShapeStyle(.orange)
+                                                                       : AnyShapeStyle(.primary))
+                    .help(sighting.app == nil ? "" : "Through its updater, \(sighting.name).")
             }
         }
     }
 
-    /// "120 MB", or "up to 272 MB" when only the size on disk is known.
-    static func amount(for sighting: UpdateWatch.Sighting) -> String {
-        (sighting.isUpperBound ? "up to " : "") + ByteFormat.bytes(sighting.bytes)
+    /// Every app on the paused list, group members included: one that got
+    /// through anyway is a pause that didn't hold, and says so (#94).
+    private var pausedNames: Set<String> {
+        Set(state.coveredItems.filter { metering.isSuppressionEnabled(for: $0.id) }
+                .flatMap { item in item.isGroup ? item.members.map(\.name) : [item.label] })
     }
 
-    static func label(for sighting: UpdateWatch.Sighting) -> String {
-        switch sighting.source {
-        case .download:
-            return "\(sighting.name) downloaded an update"
-        case .traffic:
-            return sighting.app.map { "\(sighting.name) (\($0))" } ?? sighting.name
+    /// "120 MB", or "up to 272 MB" when only the most it could be is known.
+    static func amount(for sighting: UpdateWatch.Sighting) -> String {
+        guard sighting.bytes > 0 else { return "—" }
+        return (sighting.isUpperBound ? "up to " : "") + ByteFormat.bytes(sighting.bytes)
+    }
+
+    static func amountHelp(for sighting: UpdateWatch.Sighting) -> String {
+        if sighting.includesOtherUse == true {
+            return "All \(sighting.appName) used on this connection, so its update used no more than this."
         }
+        if sighting.isSizeOnDisk == true {
+            return "The update's size on your Mac. It used no more than this to download."
+        }
+        return sighting.source == .download
+            ? "What \(sighting.appName) used while the update downloaded."
+            : "What its updater used on this connection."
+    }
+
+    /// The app, not its updater's process, and the version once it changed:
+    /// "Slack updated to 4.41". "Anyway" when it was on the paused list.
+    static func label(for sighting: UpdateWatch.Sighting, wasPaused: Bool = false) -> String {
+        let what = sighting.version.map { "\(sighting.appName) updated to \($0)" }
+            ?? "\(sighting.appName) downloaded an update"
+        return wasPaused ? what + " anyway" : what
     }
 
     // MARK: Can't be paused
@@ -626,6 +645,7 @@ struct HotspotSettingsPane: View {
                             .help("NetworkMonitor can't change \(item.label)'s settings while it's "
                                   + "open. It pauses its updates as soon as you quit it.")
                     }
+                    if !item.isGroup { updatedAnyway(item.label) }
                 }
                 if item.isGroup {
                     // A row standing in for a whole tier: each app it covers,
@@ -635,7 +655,10 @@ struct HotspotSettingsPane: View {
                             GridRow {
                                 Text(member.name)
                                     .font(.system(size: 11))
-                                SettingsRowDetail(member.effect)
+                                HStack(spacing: 5) {
+                                    SettingsRowDetail(member.effect)
+                                    updatedAnyway(member.name)
+                                }
                             }
                         }
                     }
@@ -647,6 +670,20 @@ struct HotspotSettingsPane: View {
         }
         .toggleStyle(.switch)
         .controlSize(.small)
+    }
+
+    /// Beside a paused app that updated on the last metered connection: the
+    /// one place it's learned that a pause didn't hold. Goes when the next
+    /// metered connection starts a new report (#94).
+    @ViewBuilder
+    private func updatedAnyway(_ name: String) -> some View {
+        if metering.updatesGotThrough.contains(where: { $0.appName == name }) {
+            Text("updated anyway")
+                .font(.system(size: 11))
+                .foregroundStyle(.orange)
+                .help("\(name) updated on your last metered connection although it was paused. "
+                      + "Its row under Got through says how much it used.")
+        }
     }
 }
 

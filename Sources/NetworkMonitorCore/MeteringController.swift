@@ -534,12 +534,13 @@ public final class MeteringController: ObservableObject {
         }
     }
 
-    /// One sample's internet bytes for an app, by its bundle path, so an
-    /// update that downloads in the app's own process is measured by what it
-    /// used (#95). Ignored unless a metered connection is being watched.
-    public func noteAppTraffic(bundlePath: String, bytes: Int64, now: Date = Date()) {
+    /// One sample's internet bytes for an app, by its bundle path, or a
+    /// program's executable path, so an update that downloads in the app's
+    /// own process is measured by what it used (#95, #94). Ignored unless a
+    /// metered connection is being watched.
+    public func noteAppTraffic(path: String, bytes: Int64, now: Date = Date()) {
         guard isSuppressing else { return }
-        updateWatch.recordApp(bundlePath: bundlePath, bytes: bytes, now: now)
+        updateWatch.recordApp(path: path, bytes: bytes, now: now)
     }
 
     /// Once per nettop sample. Looks at the updater caches when due; see

@@ -151,11 +151,21 @@ They're found by how they update, not by a list of names, so the list matches wh
 actually have installed. Low Data Mode slows the ones that respect it; quitting them while
 you're on a hotspot is the only sure way.
 
-While you're on a metered connection, NetworkMonitor also notices **updates that download
-anyway**: a file over 1 MB appearing where Electron and Sparkle apps stage their downloads,
-or a program named like an updater using the connection. The popover shows one line under
-the total when that happens, and Settings lists each one with the data it used, still there
-after you've left the hotspot.
+While you're on a metered connection, NetworkMonitor also notices **updates that get
+through anyway**, by three signs:
+
+- a file over 1 MB appearing where Electron and Sparkle apps stage their downloads, or
+  where Claude Code downloads and keeps its versions (`~/.cache/claude/staging` and
+  `~/.local/share/claude/versions`);
+- a program named like an updater using the connection, named for the app it updates:
+  *Google Chrome*, not *GoogleUpdater* (#94);
+- an app in Applications whose version changes, however it got the update (#94).
+
+The popover shows one line under the total when that happens, and Settings lists each one
+with the data it used and the version it updated to, still there after you've left the
+hotspot. An app that was on the paused list says it **updated anyway**, in orange, both
+there and beside its switch, until the next metered connection: that's how a pause that
+didn't hold is found.
 
 **The data an update used** is its app's traffic while it downloaded: from when the
 updater created its download, or when you joined the hotspot if that was later, to its
