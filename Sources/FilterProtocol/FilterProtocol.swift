@@ -37,13 +37,22 @@ public struct FlowReport: Codable, Equatable {
     /// The process that opened it, from the flow's audit token.
     public let pid: Int32
     public let time: Date
+    /// Set when it was blocked (#114): the rule's id, or "mode" when nothing
+    /// was allowed. Optional, so reports from a filter before it still decode.
+    public let blockedBy: String?
+    /// For a blocked connection, the app it was for, by the key Connections
+    /// uses. The process may be gone by the time the app reads this.
+    public let appKey: String?
 
-    public init(address: String, port: Int, hostname: String?, pid: Int32, time: Date) {
+    public init(address: String, port: Int, hostname: String?, pid: Int32, time: Date,
+                blockedBy: String? = nil, appKey: String? = nil) {
         self.address = address
         self.port = port
         self.hostname = hostname
         self.pid = pid
         self.time = time
+        self.blockedBy = blockedBy
+        self.appKey = appKey
     }
 
     /// Reports travel as JSON in a `Data`, which XPC carries without a

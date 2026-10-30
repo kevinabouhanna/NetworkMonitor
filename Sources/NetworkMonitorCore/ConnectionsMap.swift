@@ -158,11 +158,14 @@ struct ConnectionsMap: View {
         VStack {
             HStack {
                 Spacer()
-                Toggle("Live", isOn: Binding(get: { model.isLive }, set: { model.isLive = $0 }))
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-                    .font(.system(size: 11))
-                    .help("Lines pulse to the countries your apps reach right now")
+                // Live is traffic as it happens: nothing to do with what was blocked.
+                if model.measure == .bytes {
+                    Toggle("Live", isOn: Binding(get: { model.isLive }, set: { model.isLive = $0 }))
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .font(.system(size: 11))
+                        .help("Lines pulse to the countries your apps reach right now")
+                }
                 HStack(spacing: 2) {
                     zoomButton("minus.magnifyingglass", help: "Zoom out") { state.setZoom(state.zoom / 1.5, size: frame.size) }
                     zoomButton("plus.magnifyingglass", help: "Zoom in") { state.setZoom(state.zoom * 1.5, size: frame.size) }
@@ -196,7 +199,11 @@ struct ConnectionsMap: View {
     private var everywhereNote: String {
         let names = model.geography.everywhereCompanies
         let shown = names.prefix(2).joined(separator: " and ") + (names.count > 2 ? " and others" : "")
-        return "\(shown): \(ByteFormat.bytes(model.geography.everywhere)) answered from nearby data "
+        if model.measure == .blocked {
+            return "\(shown): \(model.format(model.geography.everywhere)) blocked, not placed on the map: "
+                + "they answer from many places at once."
+        }
+        return "\(shown): \(model.format(model.geography.everywhere)) answered from nearby data "
             + "centres, so not placed on the map."
     }
 
@@ -216,16 +223,16 @@ struct ConnectionsMap: View {
                 if let flag = ConnectionsReport.flag(code) { Text(flag) }
                 Text(ConnectionsReport.countryName(code)).font(.system(size: 12, weight: .semibold))
                 Spacer(minLength: 8)
-                Text(ByteFormat.bytes(bytes)).font(.system(size: 11)).monospacedDigit()
+                Text(model.format(bytes)).font(.system(size: 11)).monospacedDigit()
             }
             if companies.isEmpty {
-                Text("Nothing went here").font(.system(size: 10)).foregroundStyle(.secondary)
+                Text(model.measure == .blocked ? "Nothing blocked here" : "Nothing went here").font(.system(size: 10)).foregroundStyle(.secondary)
             } else {
                 ForEach(companies.prefix(4), id: \.item.id) { company in
                     HStack {
                         Text(company.item.title).lineLimit(1)
                         Spacer(minLength: 8)
-                        Text(ByteFormat.bytes(company.bytes)).monospacedDigit()
+                        Text(model.format(company.bytes)).monospacedDigit()
                     }
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)

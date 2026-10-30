@@ -119,6 +119,16 @@ and Settings › Connections lists every rule, each with a button to take it bac
 - **Blocking needs website names on.** Choosing Block while they're off starts turning
   them on, with the steps above the list.
 
+**Show: Blocked**, beside *Group by*, lists what was blocked instead of what was sent: the same
+period, grouping, search and map, counting connections rather than bytes. Right-click one to
+allow it.
+
+**Let apps connect**, in Settings › Connections, is **Anywhere** (the default: everything
+connects except what you block) or **Only Where I Allow**: every app is blocked until you allow
+it, apart from macOS and Apple's own apps, which can always connect unless you block them. It
+asks first, since that includes your browser, and the window then opens on Blocked, where
+you allow each app or company with a right-click.
+
 ## What it costs
 
 Nothing you'd notice. Recording uses rows `nettop` already reports, and measured no extra

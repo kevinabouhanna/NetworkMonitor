@@ -1,7 +1,9 @@
+import FilterProtocol
 import FirewallPolicy
 import Foundation
 import NetworkMonitorCore
 import ServerDirectory
+import SQLite3
 
 func runFirewallTests() {
     func rule(_ subject: RuleSubject, _ key: String, _ action: RuleAction) -> FirewallRule {
@@ -192,6 +194,100 @@ func runFirewallTests() {
             rules.set(.block, for: item(.company, ConnectionsReport.unknownKey))
             rules.set(.block, for: item(.company, ConnectionsReport.otherKey))
             Check.expectTrue(rules.rules.isEmpty)
+        }
+    }
+
+    Check.suite("Firewall — what was blocked, in Usage History") {
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let now = Date(timeIntervalSince1970: 1_792_573_800)
+        let day = HistoryPeriod(scale: .day, containing: now, calendar: calendar)
+        let curlKey = "/Applications/iTerm.app\u{1}/usr/bin/curl"
+
+        func temporaryURL() -> URL {
+            URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("blocked-\(UUID().uuidString).sqlite")
+        }
+        func remove(_ url: URL) {
+            for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: url.path + suffix) }
+        }
+        func joined(_ history: UsageHistory) {
+            history.join(NetworkFingerprint(id: "A", kind: .wifi, gatewayMAC: "A", defaultLabel: "A",
+                                            isExpensive: false, isConstrained: false),
+                         label: "A", switched: false, now: now)
+        }
+
+        Check.test("blocked connections are counted beside the bytes, and each view sees only its own") {
+            let url = temporaryURL()
+            defer { remove(url) }
+            let history = UsageHistory(databaseURL: url, calendar: calendar)
+            joined(history)
+            let slack = AppIdentity(key: "Slack", displayName: "Slack", bundlePath: nil, isSystem: false)
+            history.recordApps([(slack, 10, 0)],
+                               servers: ["Slack": ["3.65.102.105": ByteCounts(bytesIn: 10, bytesOut: 0)]], now: now)
+            let curl = AppIdentityResolver.identity(forKey: curlKey)
+            history.recordBlocked([(curl, "185.15.58.224"), (curl, "185.15.58.224"), (curl, "3.65.102.105")], now: now)
+
+            let traffic = history.servers(from: day.start, to: day.end)
+            Check.expectEqual(traffic.map(\.address), ["3.65.102.105"], "nothing blocked among the traffic")
+            Check.expectEqual(traffic.first?.appKey, "Slack")
+
+            let blocked = history.servers(from: day.start, to: day.end, measure: .blocked)
+            Check.expectEqual(blocked.map(\.address), ["185.15.58.224", "3.65.102.105"], "most first")
+            Check.expectEqual(blocked.map(\.bytesIn), [2, 1])
+            Check.expectTrue(blocked.allSatisfy { $0.appKey == curlKey && $0.bytesOut == 0 })
+            Check.expectEqual(blocked.first?.parentName, "iTerm", "named after the app that started it")
+            Check.expectEqual(history.serverHours(from: day.start, to: day.end, measure: .blocked).map(\.bytes), [3])
+            Check.expectEqual(history.serverHours(from: day.start, to: day.end).map(\.bytes), [10])
+
+            history.flush(now: now)
+            let reopened = UsageHistory(databaseURL: url, calendar: calendar)
+            Check.expectEqual(reopened.servers(from: day.start, to: day.end, measure: .blocked).map(\.bytesIn), [2, 1])
+        }
+
+        Check.test("a database from before blocking gains the count") {
+            let url = temporaryURL()
+            defer { remove(url) }
+            var database: OpaquePointer?
+            sqlite3_open(url.path, &database)
+            sqlite3_exec(database, """
+                CREATE TABLE server_traffic (
+                    hour INTEGER NOT NULL, session_id INTEGER NOT NULL, app_server_id INTEGER NOT NULL,
+                    bytes_in INTEGER NOT NULL DEFAULT 0, bytes_out INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (hour, session_id, app_server_id)) WITHOUT ROWID;
+                """, nil, nil, nil)
+            sqlite3_close(database)
+
+            let history = UsageHistory(databaseURL: url, calendar: calendar)
+            joined(history)
+            history.recordBlocked([(AppIdentityResolver.identity(forKey: curlKey), "185.15.58.224")], now: now)
+            Check.expectEqual(history.servers(from: day.start, to: day.end, measure: .blocked).map(\.bytesIn), [1])
+        }
+
+        Check.test("an app is rebuilt from its key alone, as the filter sends it") {
+            for key in ["/Applications/Safari.app", "/usr/sbin/mDNSResponder", curlKey] {
+                Check.expectEqual(AppIdentityResolver.identity(forKey: key).key, key, key)
+            }
+            let curl = AppIdentityResolver.identity(forKey: curlKey)
+            Check.expectEqual(curl.parent?.bundlePath, "/Applications/iTerm.app")
+            Check.expectEqual(curl.displayName, "curl")
+            Check.expectFalse(curl.isSystem, "started by an app, so not a system process")
+        }
+
+        Check.test("a report from a filter before blocking still reads") {
+            let old = Data(#"[{"address":"1.1.1.1","port":443,"pid":7,"time":800000000}]"#.utf8)
+            let reports = FlowReport.decode(old)
+            Check.expectEqual(reports.count, 1)
+            Check.expectNil(reports.first?.blockedBy)
+            let blocked = FlowReport(address: "1.1.1.1", port: 443, hostname: nil, pid: 7, time: now,
+                                     blockedBy: "company:Meta", appKey: curlKey)
+            Check.expectEqual(FlowReport.decode(FlowReport.encode([blocked])), [blocked])
+        }
+
+        Check.test("counts read as times, bytes as bytes") {
+            Check.expectEqual(ConnectionsViewModel.format(1, .blocked), "1 time")
+            Check.expectEqual(ConnectionsViewModel.format(1204, .blocked), "\(1204.formatted()) times")
+            Check.expectEqual(ConnectionsViewModel.format(2048, .bytes), ByteFormat.bytes(2048))
         }
     }
 }

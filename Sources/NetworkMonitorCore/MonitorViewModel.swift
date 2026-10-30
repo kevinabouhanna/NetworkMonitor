@@ -189,10 +189,16 @@ public final class MonitorViewModel: ObservableObject {
         // replays any journal left by the previous run before deciding.
         metering.start()
 
-        // What the filter saw names the servers nettop only gives addresses for.
+        // What the filter saw names the servers nettop only gives addresses for,
+        // and what it blocked is counted beside them (#114).
         filterNames = filter.flows.sink { [weak self] flows in
-            self?.store.history?.noteServerNames(flows.compactMap { flow in
-                flow.hostname.map { (RemoteEndpoint.ipv4Mapped(flow.address) ?? flow.address, $0) }
+            guard let history = self?.store.history else { return }
+            history.noteServerNames(flows.compactMap { flow in
+                flow.hostname.map { (FirewallPolicy.serverAddress(flow.address), $0) }
+            })
+            history.recordBlocked(flows.compactMap { flow in
+                guard flow.blockedBy != nil, let key = flow.appKey else { return nil }
+                return (AppIdentityResolver.identity(forKey: key), FirewallPolicy.serverAddress(flow.address))
             })
         }
         filter.resume()

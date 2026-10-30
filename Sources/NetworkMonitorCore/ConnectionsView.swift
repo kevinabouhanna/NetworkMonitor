@@ -70,6 +70,16 @@ public struct ConnectionsView: View {
                 .help("Group the list by company, app or country. A row inside a group narrows "
                       + "the window to it.")
             }
+            // What was blocked (#114), once there's a filter to block anything.
+            if model.filter.state != .unavailable {
+                LabelledControl("Show") {
+                    Picker("Show", selection: Binding(get: { model.measure }, set: { model.measure = $0 })) {
+                        Text("Traffic").tag(ServerMeasure.bytes)
+                        Text("Blocked").tag(ServerMeasure.blocked)
+                    }
+                    .help("What your apps sent and received, or the connections that were blocked")
+                }
+            }
             if model.spanTitle != nil || !model.chips.isEmpty {
                 Divider().frame(height: 16)
                 HStack(spacing: 6) {
@@ -105,7 +115,9 @@ public struct ConnectionsView: View {
         let summary = model.summary
         return PeriodHeading(
             title: model.spanTitle.map { "\(model.title), \($0)" } ?? model.title,
-            figure: ByteFormat.bytes(summary.total), caption: "to and from servers",
+            figure: model.measure == .bytes ? ByteFormat.bytes(summary.total) : summary.total.formatted(),
+            caption: model.measure == .bytes ? "to and from servers"
+                : (summary.total == 1 ? "connection blocked" : "connections blocked"),
             details: [PeriodHeading.count(summary.companies, "company", "companies"),
                       PeriodHeading.count(summary.countries, "country", "countries"),
                       PeriodHeading.count(summary.apps, "app", "apps"),
@@ -166,12 +178,16 @@ public struct ConnectionsView: View {
     private var emptyTitle: String {
         if !model.hasLoaded { return "Loading…" }
         if !model.search.isEmpty || !model.chips.isEmpty { return "Nothing matches" }
-        return "No connections in this \(model.span == nil ? model.scale.label.lowercased() : "span")"
+        let when = model.span == nil ? model.scale.label.lowercased() : "span"
+        return model.measure == .blocked ? "Nothing blocked in this \(when)" : "No connections in this \(when)"
     }
 
     private var emptyDetail: String {
         if !model.hasLoaded { return "" }
         if !model.search.isEmpty || !model.chips.isEmpty { return "Clear the search or a chip to see more." }
+        if model.measure == .blocked {
+            return "Right-click a company, app, country or server under Traffic to block it."
+        }
         return "Connections are recorded from this version on, while NetworkMonitor is running."
     }
 
@@ -183,7 +199,8 @@ public struct ConnectionsView: View {
                        indent: 0, disclosure: isOpen, rule: firewall.rule(for: group.item)?.action,
                        onToggleDisclosure: { model.toggle(group.id) },
                        onSelect: { model.toggle(group.id) },
-                       help: isOpen ? "Click to close" : "Click to see its \(sectionNames(group))")
+                       help: isOpen ? "Click to close" : "Click to see its \(sectionNames(group))",
+                       format: model.format)
             .contextMenu { ruleMenu(for: group.item) }
         if isOpen {
             ForEach(group.sections.filter { !$0.items.isEmpty }) { section in
@@ -209,7 +226,7 @@ public struct ConnectionsView: View {
                            fraction: fraction(item.total, of: largest), indent: 1, disclosure: nil,
                            rule: firewall.rule(for: item)?.action,
                            onToggleDisclosure: {}, onSelect: { model.narrow(to: item, in: group.item) },
-                           help: "Click to see only \(item.title)")
+                           help: "Click to see only \(item.title)", format: model.format)
                 .contextMenu { ruleMenu(for: item) }
         }
         if section.items.count > shown.count {
@@ -348,6 +365,8 @@ private struct ConnectionsRow: View {
     let onToggleDisclosure: () -> Void
     let onSelect: () -> Void
     let help: String
+    /// Bytes, or blocked connections (#114).
+    var format: (Int64) -> String = { ByteFormat.bytes($0) }
 
     /// Not `@State`, which needs Xcode from the macOS 27 SDK on.
     @StateObject private var hover = HistoryRowHover()
@@ -397,7 +416,7 @@ private struct ConnectionsRow: View {
             Spacer(minLength: 12)
             bar
                 .frame(width: ConnectionsMetrics.rowBarWidth, alignment: .leading)
-            Text(ByteFormat.bytes(item.total))
+            Text(format(item.total))
                 .font(.system(size: 12, weight: .medium))
                 .monospacedDigit()
                 .frame(width: 76, alignment: .trailing)
@@ -466,7 +485,7 @@ private struct ConnectionsTimeline: View {
                                        : 1)
                             .frame(width: width, height: geometry.size.height, alignment: .bottom)
                             .help("\(HistoryFormat.binTitle(bin.interval, scale: model.scale)): "
-                                  + ByteFormat.bytes(bin.bytes))
+                                  + model.format(bin.bytes))
                     }
                 }
                 .contentShape(Rectangle())

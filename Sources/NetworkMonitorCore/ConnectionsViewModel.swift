@@ -42,6 +42,16 @@ public final class ConnectionsViewModel: ObservableObject {
     @Published public var grouping: ConnectionsGrouping = .companies {
         didSet { if grouping != oldValue { expanded.removeAll(); rebuild() } }
     }
+    /// Traffic, or the connections the filter blocked (#114). Live shows
+    /// traffic as it happens, so it's off while Blocked is shown.
+    @Published public var measure: ServerMeasure = .bytes {
+        didSet {
+            guard measure != oldValue else { return }
+            if measure == .blocked { isLive = false }
+            expanded.removeAll()
+            reload()
+        }
+    }
     @Published public var search = "" {
         didSet { if search != oldValue { rebuild() } }
     }
@@ -83,6 +93,19 @@ public final class ConnectionsViewModel: ObservableObject {
     }
     public var filter: FilterController { monitor.filter }
     public var firewall: FirewallRules { monitor.firewall }
+
+    /// A figure as the window shows it: bytes, or a count of blocked
+    /// connections.
+    public func format(_ value: Int64) -> String {
+        Self.format(value, measure)
+    }
+
+    public static func format(_ value: Int64, _ measure: ServerMeasure) -> String {
+        switch measure {
+        case .bytes:   return ByteFormat.bytes(value)
+        case .blocked: return value == 1 ? "1 time" : "\(value.formatted()) times"
+        }
+    }
 
     /// From a row's menu (#114). Rules are kept whether or not the filter is
     /// on; if it isn't, this is the moment to turn it on, so the offer above
@@ -146,6 +169,9 @@ public final class ConnectionsViewModel: ObservableObject {
         showingAll.removeAll()
         kind = HistoryFilter.opening(on: monitor.store.currentNetwork.kind).kind
         period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar)
+        // Traffic, unless only what's allowed may connect: then what was
+        // blocked is where someone looks to allow it.
+        measure = firewall.mode == .onlyAllowed ? .blocked : .bytes
         reload()
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
@@ -296,7 +322,7 @@ public final class ConnectionsViewModel: ObservableObject {
         let period = self.period
         let span = spanInterval
         history.loadServers(in: span, hoursOf: period.interval,
-                            filter: HistoryFilter(kind: kind)) { [weak self] report in
+                            filter: HistoryFilter(kind: kind), measure: measure) { [weak self] report in
             guard let self, request == self.generation else { return }
             self.naming.async { [weak self] in
                 guard let self else { return }
