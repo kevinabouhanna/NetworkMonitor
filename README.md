@@ -34,9 +34,10 @@
 - 🏠 **Internet only.** AirPlay, Time Machine and other home-network traffic don't count.
 - 📱 **Hotspot mode** pauses app updates on a mobile hotspot, and resumes them when you leave.
 - 🗓️ **Usage History** by day, week, month or year, per app and per network.
+- 🌍 **Connections:** which companies, countries and servers each app talks to, on a list and a world map, and block any of them, or have it ask.
 - 🚀 **Speed test** on demand, using the one built into macOS.
 - 🔋 **Light on battery:** about 1% of one CPU core, less in Low Power Mode.
-- 🔒 **Private:** no telemetry, no account, no network access of its own.
+- 🔒 **Private:** no telemetry, no account. Its one network access of its own is a monthly download of country and network data from GitHub, which you can switch off.
 
 ## 📦 Install
 
@@ -51,7 +52,7 @@ Look for the ↓ ↑ readout in your menu bar. It starts at login from then on.
 
 ### 🔄 Update
 
-The app never goes online by itself, so it can't tell you about new versions. To hear about them, click **Watch › Custom › Releases** at the top of this page.
+Apart from that monthly data, the app doesn't go online, so it can't tell you about new versions. To hear about them, click **Watch › Custom › Releases** at the top of this page.
 
 To update, download the new DMG and drag NetworkMonitor into Applications, choosing **Replace**. Your settings and history are kept. Updating from 1.13 or earlier, macOS asks for Location once more, because the app is now signed with a Developer ID.
 

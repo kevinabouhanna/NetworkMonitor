@@ -48,6 +48,9 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     private var connection: NSXPCConnection?
     /// What the filter should enforce (#114), sent each time it connects.
     private var policy = FirewallPolicy()
+    /// A month of data newer than the filter shipped with (#121), sent each
+    /// time it connects; the filter ignores one it already has.
+    private var geoData: (directory: URL, month: String)?
     private var removing = false
     /// Set while the launch's request brings the running filter up to this
     /// build's (#136).
@@ -305,13 +308,14 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         // hand over the rules.
         connection.interruptionHandler = { [weak self, weak connection] in
             (connection?.remoteObjectProxyWithErrorHandler { _ in } as? FilterExtensionInterface)?.register { _ in }
-            DispatchQueue.main.async { self?.sendPolicy() }
+            DispatchQueue.main.async { self?.sendPolicy(); self?.sendGeoData() }
         }
         connection.resume()
         self.connection = connection
         // The first message opens the connection the filter reports over.
         (connection.remoteObjectProxyWithErrorHandler { _ in } as? FilterExtensionInterface)?.register { _ in }
         sendPolicy()
+        sendGeoData()
     }
 
     // MARK: The rules
@@ -328,6 +332,20 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     private func sendPolicy() {
         (connection?.remoteObjectProxyWithErrorHandler { _ in } as? FilterExtensionInterface)?
             .applyPolicy(policy.encoded())
+    }
+
+    public func applyGeoData(at directory: URL, month: String) {
+        geoData = (directory, month)
+        sendGeoData()
+    }
+
+    private func sendGeoData() {
+        guard let geoData, let proxy = connection?.remoteObjectProxyWithErrorHandler({ _ in })
+                as? FilterExtensionInterface,
+              let countries = try? FileHandle(forReadingFrom: geoData.directory.appendingPathComponent("countries.bin")),
+              let owners = try? FileHandle(forReadingFrom: geoData.directory.appendingPathComponent("owners.bin"))
+        else { return }
+        proxy.applyGeoData(countries, owners, geoData.month)
     }
 
     private func disconnect() {

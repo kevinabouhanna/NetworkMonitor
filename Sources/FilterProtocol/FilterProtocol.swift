@@ -151,4 +151,7 @@ public enum FlowAnswer: String, Codable {
     func applyPolicy(_ policy: Data)
     /// The answer to a `FlowQuestion`, as a `FlowAnswer`'s raw value.
     func answer(_ id: String, _ answer: String)
+    /// A newer month of the country and owner tables (#121), as open files:
+    /// the filter keeps its own copy, and uses it from then on.
+    func applyGeoData(_ countries: FileHandle, _ owners: FileHandle, _ month: String)
 }

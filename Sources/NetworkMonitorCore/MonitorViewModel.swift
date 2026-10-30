@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import FirewallPolicy
+import ServerDirectory
 import Foundation
 
 /// Drives the menu bar title and the popover.
@@ -78,6 +79,8 @@ public final class MonitorViewModel: ObservableObject {
     private var filterNames: AnyCancellable?
     /// What the filter blocks or always allows (#114), made in Connections.
     public let firewall = FirewallRules()
+    /// The monthly refresh of the country and owner data (#121).
+    public let geoData = GeoDataUpdater()
     private var firewallPolicy: AnyCancellable?
     /// The readout's colours, and the speed test's alongside them (#45).
     public let menuBarColors: MenuBarColors
@@ -212,6 +215,20 @@ public final class MonitorViewModel: ObservableObject {
                 self?.filter.apply(FirewallPolicy(mode: mode, rules: rules, onHotspot: onHotspot,
                                                   pausesUpdates: pausing && onHotspot))
             }
+
+        // Never on a hotspot, a metered connection or in Low Data Mode, as the
+        // app judges them, and never offline (#121).
+        geoData.mayDownload = { [weak self] in
+            guard let self else { return false }
+            let network = self.store.currentNetwork
+            return network.id != NetworkFingerprint.offline.id && !network.isConstrained
+                && !self.metering.verdict.isMetered
+        }
+        geoData.onUpdate = { [weak self] directory, month in self?.filter.applyGeoData(at: directory, month: month) }
+        if let month = GeoData.month(in: GeoDataUpdater.downloadedDirectory), month == geoData.month {
+            filter.applyGeoData(at: GeoDataUpdater.downloadedDirectory, month: month)
+        }
+        geoData.start()
 
         // Asked at the moment of each run, so a hotspot joined after launch is
         // caught. The menu bar hook routes through the same signal the live rate

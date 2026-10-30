@@ -71,6 +71,10 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
         }
     }
 
+    func applyGeoData(_ countries: FileHandle, _ owners: FileHandle, _ month: String) {
+        Firewall.shared.applyGeoData(countries: countries, owners: owners, month: month)
+    }
+
     func answer(_ id: String, _ answer: String) {
         Firewall.shared.answer(id, FlowAnswer(rawValue: answer) ?? .allowOnce)
     }

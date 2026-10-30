@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import ServerDirectory
 
@@ -9,8 +10,54 @@ import ServerDirectory
 //
 // Country rows are `start,end,CC`, where `ZZ` means nowhere. Owner rows are
 // `start,end,ASN,"Registered name"`, the name quoted when it contains a comma.
+//
+// And packages a converted month for the monthly refresh (#121): each table
+// compressed, and a manifest of them signed with the Ed25519 key in
+// GEODATA_SIGNING_KEY (the raw 32 bytes, base64), which the app checks
+// against its public half before using anything:
+//
+//   GeoDataBuilder package <converted directory> <output directory>
 
 let arguments = CommandLine.arguments
+
+func fail(_ message: String) -> Never {
+    FileHandle.standardError.write(Data((message + "\n").utf8))
+    exit(1)
+}
+
+if arguments.count >= 2, arguments[1] == "package" {
+    guard arguments.count == 4 else { fail("usage: GeoDataBuilder package <converted directory> <output directory>") }
+    let source = URL(fileURLWithPath: arguments[2], isDirectory: true)
+    let output = URL(fileURLWithPath: arguments[3], isDirectory: true)
+    guard let month = GeoData.month(in: source) else { fail("no MONTH in \(source.path)") }
+    guard let encodedKey = ProcessInfo.processInfo.environment["GEODATA_SIGNING_KEY"],
+          let keyData = Data(base64Encoded: encodedKey.trimmingCharacters(in: .whitespacesAndNewlines)),
+          let key = try? Curve25519.Signing.PrivateKey(rawRepresentation: keyData)
+    else { fail("GEODATA_SIGNING_KEY is missing or isn't an Ed25519 key") }
+    try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+
+    var files: [GeoDataManifest.File] = []
+    for name in GeoData.tables {
+        let data = try Data(contentsOf: source.appendingPathComponent(name))
+        _ = try RangeTable(data: data)
+        let compressed = try (data as NSData).compressed(using: .lzfse) as Data
+        let asset = name + ".lzfse"
+        try compressed.write(to: output.appendingPathComponent(asset), options: .atomic)
+        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        files.append(GeoDataManifest.File(name: name, asset: asset, size: data.count, sha256: digest))
+        print("\(name): \(data.count / 1024) KB, \(compressed.count / 1024) KB compressed")
+    }
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    let manifest = try encoder.encode(GeoDataManifest(month: month, files: files))
+    try manifest.write(to: output.appendingPathComponent(GeoDataManifest.fileName), options: .atomic)
+    let signature = try key.signature(for: manifest)
+    try Data(signature.base64EncodedString().utf8)
+        .write(to: output.appendingPathComponent(GeoDataManifest.signatureName), options: .atomic)
+    print("\(month), signed with \(key.publicKey.rawRepresentation.base64EncodedString())")
+    exit(0)
+}
+
 guard arguments.count == 4 else {
     FileHandle.standardError.write(Data(
         "usage: GeoDataBuilder <country.csv> <asn.csv> <output directory>\n".utf8))

@@ -12,6 +12,7 @@ struct ConnectionsSettingsPane: View {
     @ObservedObject var glance: ConnectionsGlance
     @ObservedObject var filter: FilterController
     @ObservedObject var firewall: FirewallRules
+    @ObservedObject var geoData: GeoDataUpdater
     let onOpen: () -> Void
 
     var body: some View {
@@ -77,8 +78,12 @@ struct ConnectionsSettingsPane: View {
 
             Section {
                 LabeledContent("Countries and networks") {
-                    Text(glance.dataSource).foregroundStyle(.secondary)
+                    Text(ConnectionsGlance.dataSource(month: geoData.month)).foregroundStyle(.secondary)
                 }
+                // The app's one network access of its own (#121): on, and in
+                // plain view, so it can be turned off.
+                Toggle("Update them monthly", isOn: $geoData.isEnabled)
+                    .toggleStyle(.switch)
                 LabeledContent("Map") {
                     Text("Natural Earth").foregroundStyle(.secondary)
                 }
@@ -86,8 +91,10 @@ struct ConnectionsSettingsPane: View {
                     Text("As long as Usage History").foregroundStyle(.secondary)
                 }
             } footer: {
-                SettingsFootnote("Everything is named on this Mac: nothing is looked up online. "
-                                 + "\(ServerDirectory.credit), CC BY 4.0. Map outlines in the public domain.")
+                SettingsFootnote("Everything is named on this Mac: nothing is looked up online. Once a month, "
+                                 + "NetworkMonitor downloads DB-IP's new data from GitHub, the same file for "
+                                 + "everyone, never on a hotspot. \(ServerDirectory.credit), CC BY 4.0. Map "
+                                 + "outlines in the public domain.")
             }
         }
         .formStyle(.grouped)
@@ -194,7 +201,7 @@ struct ConnectionsSettingsPane: View {
 }
 
 /// Today's top companies for the pane, loaded each time it's shown.
-final class ConnectionsGlance: ObservableObject {
+public final class ConnectionsGlance: ObservableObject {
     @Published private(set) var companies: [ConnectionsItem] = []
     @Published private(set) var hasLoaded = false
 
@@ -209,16 +216,13 @@ final class ConnectionsGlance: ObservableObject {
         self.monitor = monitor
     }
 
-    /// "DB-IP Lite, October 2026", from the month the bundled data was built.
-    var dataSource: String {
-        guard let url = Bundle.main.url(forResource: "Geo", withExtension: nil)?.appendingPathComponent("MONTH"),
-              let text = try? String(contentsOf: url, encoding: .utf8) else { return "DB-IP Lite" }
+    /// "DB-IP Lite, October 2026", from the month of the data in use.
+    public static func dataSource(month: String?) -> String {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM"
-        guard let month = formatter.date(from: text.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-            return "DB-IP Lite"
-        }
-        return "DB-IP Lite, " + month.formatted(.dateTime.month(.wide).year())
+        guard let month, let date = formatter.date(from: month) else { return "DB-IP Lite" }
+        return "DB-IP Lite, " + date.formatted(.dateTime.month(.wide).year())
     }
 
     func reload() {
@@ -230,7 +234,9 @@ final class ConnectionsGlance: ObservableObject {
         history.loadServers(in: today.interval, hoursOf: today.interval, filter: HistoryFilter()) { [weak self] report in
             guard let self else { return }
             self.naming.async {
-                if self.directory == nil { self.directory = ServerDirectory.bundled() }
+                if self.directory == nil {
+                    self.directory = ServerDirectory.newest(downloaded: GeoDataUpdater.downloadedDirectory)?.directory
+                }
                 let named = report.servers.map { Connection($0, directory: self.directory) }
                 let top = ConnectionsReport.groups(named, by: .companies)
                     .map(\.item)

@@ -74,9 +74,12 @@ public struct FlowFacts: Equatable {
     public var executablePaths: [String]
     /// The name it connected by, when there is one.
     public var hostname: String?
+    /// NetworkMonitor itself, fetching its monthly data (#121).
+    public var isNetworkMonitor: Bool
 
     public init(appKeys: [String], companyKey: String?, country: String?, address: String, port: Int,
-                isApple: Bool, executablePaths: [String] = [], hostname: String? = nil) {
+                isApple: Bool, executablePaths: [String] = [], hostname: String? = nil,
+                isNetworkMonitor: Bool = false) {
         self.appKeys = appKeys
         self.companyKey = companyKey
         self.country = country
@@ -85,6 +88,7 @@ public struct FlowFacts: Equatable {
         self.isApple = isApple
         self.executablePaths = executablePaths
         self.hostname = hostname
+        self.isNetworkMonitor = isNetworkMonitor
     }
 }
 
@@ -122,6 +126,8 @@ public enum AllowReason: Equatable {
     case essential
     case rule(FirewallRule)
     case apple
+    /// Its own monthly data, which the modes don't hold back: a rule still can.
+    case networkMonitor
     case mode
 }
 
@@ -179,6 +185,9 @@ public struct FirewallPolicy: Codable, Equatable {
            flow.executablePaths.contains(where: Self.isUpdater) || flow.hostname.map(Self.isUpdateHost) == true {
             return .block(.updatesOnHotspot)
         }
+        // Under Only Where I Allow and Ask Me, NetworkMonitor's own monthly
+        // download is no more held back than macOS is.
+        if mode != .anywhere, flow.isNetworkMonitor { return .allow(.networkMonitor) }
         switch mode {
         case .anywhere:    return .allow(.mode)
         case .onlyAllowed: return flow.isApple ? .allow(.apple) : .block(.mode)

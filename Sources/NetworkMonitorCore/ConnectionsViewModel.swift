@@ -132,6 +132,8 @@ public final class ConnectionsViewModel: ObservableObject {
     private let calendar: Calendar
     private let defaults: UserDefaults
     private var liveSubscription: AnyCancellable?
+    /// A new month of data (#121): named afresh from it.
+    private var geoSubscription: AnyCancellable?
     private var livePrune: Timer?
     private var connections: [Connection] = []
     private var icons: [String: NSImage] = [:]
@@ -152,6 +154,11 @@ public final class ConnectionsViewModel: ObservableObject {
         layout = defaults.string(forKey: Self.layoutKey).flatMap(Layout.init) ?? .both
         offersWebsiteNames = !defaults.bool(forKey: Self.websiteNamesOfferClosedKey)
         period = HistoryPeriod(scale: .day, containing: Date(), calendar: calendar)
+        geoSubscription = monitor.geoData.$month.dropFirst().removeDuplicates().sink { [weak self] _ in
+            guard let self else { return }
+            self.naming.async { self.directoryOpened = false }
+            self.reload()
+        }
     }
 
     private var history: UsageHistory? { monitor.store.history }
@@ -399,7 +406,7 @@ public final class ConnectionsViewModel: ObservableObject {
     /// On `naming` only.
     private func openDirectoryIfNeeded() {
         guard !directoryOpened else { return }
-        directory = ServerDirectory.bundled()
+        directory = ServerDirectory.newest(downloaded: GeoDataUpdater.downloadedDirectory)?.directory
         directoryOpened = true
     }
 

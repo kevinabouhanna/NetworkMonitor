@@ -1,0 +1,52 @@
+name: Data refresh
+
+# The country and network-owner data, every month (#121). DB-IP publishes a
+# new month at the start of each; this converts it, checks every row, and
+# publishes it signed as the `geodata` release, which the app downloads once a
+# month. Run it by hand from the Actions tab to publish this month's now.
+on:
+  schedule:
+    - cron: "0 6 3 * *"   # the 3rd, 06:00 UTC, after DB-IP's release
+  workflow_dispatch:
+
+permissions:
+  contents: write        # to update the `geodata` release
+
+jobs:
+  refresh:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Into the checkout's Resources/Geo, which isn't committed back: the
+      # app's own copy changes with a release, in a pull request of its own.
+      - name: Download and convert this month's data
+        run: ./Scripts/geodata.sh "$(date -u +%Y-%m)"
+
+      # Compressed, with a manifest of each table's size and SHA-256, signed
+      # with the key whose public half is in the app. Without the key, the
+      # build fails rather than publish data the app would refuse.
+      - name: Package and sign
+        env:
+          GEODATA_SIGNING_KEY: ${{ secrets.GEODATA_SIGNING_KEY }}
+        run: |
+          test -n "$GEODATA_SIGNING_KEY" || { echo "GEODATA_SIGNING_KEY is not set" >&2; exit 1; }
+          ./Scripts/swiftpm.sh run -c release GeoDataBuilder package Resources/Geo geodata
+
+      # A release that is never "latest", so the website's download link keeps
+      # pointing at the app. Each month replaces the last month's files.
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view geodata >/dev/null 2>&1; then
+            gh release create geodata --title "Country and network data" --prerelease --latest=false \
+              --notes "DB-IP's free country and network-owner data (CC BY 4.0, https://db-ip.com), converted for NetworkMonitor and signed. Refreshed every month by the Data refresh workflow; the app downloads it once a month."
+          fi
+          # The tables first and the manifest last, so a manifest never names
+          # files that aren't up yet.
+          gh release upload geodata geodata/*.lzfse --clobber
+          gh release upload geodata geodata/manifest.json geodata/manifest.json.sig --clobber
+          gh release edit geodata --prerelease --latest=false \
+            --title "Country and network data, $(jq -r .month geodata/manifest.json)"

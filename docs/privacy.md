@@ -25,10 +25,23 @@ send traffic.
 
 ## What it sends
 
-Nothing, with one exception you start yourself: the **speed test**. It runs
-`networkQuality`, the tool Apple ships with every Mac, against Apple's own test
-servers. There is no analytics, no telemetry, no crash reporting, no update check and
-no account.
+Two things, and nothing else:
+
+- **The speed test, when you start it.** It runs `networkQuality`, the tool Apple ships
+  with every Mac, against Apple's own test servers.
+- **Once a month, the country and network data** (#121). DB-IP publishes a new month at
+  the start of each, and the app downloads it from this repository's `geodata` release on
+  GitHub: a signed manifest and two compressed tables, about 5.5 MB. It's the same file
+  for everyone, so it says nothing about which servers your Mac talks to; GitHub sees
+  your IP address and that this Mac runs NetworkMonitor.
+  - It checks at most once a day, and only while its data is from an earlier month.
+  - Never on a hotspot, a metered connection or in Low Data Mode.
+  - It's used only if the manifest's signature checks out against the key built into the
+    app, and each table's size and SHA-256 match. Anything less keeps the copy already
+    there.
+  - On by default. Switch it off in Settings › Connections › **Update them monthly**.
+
+There is no analytics, no telemetry, no crash reporting, no update check and no account.
 
 Other speed test services were considered and turned down. One of them publishes
 every result, with the tester's IP address, as open data.
@@ -42,6 +55,8 @@ Everything stays on your Mac:
 | Totals for each network you've joined | `~/Library/Application Support/NetworkMonitor/usage.json` |
 | Usage History, by hour, app and network, including the address of each server an app talked to | `~/Library/Application Support/NetworkMonitor/history.sqlite` |
 | How to undo what Hotspot mode changed | `~/Library/Application Support/NetworkMonitor/suppression.json` |
+| The country and network data downloaded since the app's own (#121) | `~/Library/Application Support/NetworkMonitor/Geo/` |
+| The content filter's copy of your rules and of that data | its own container, which macOS removes with it |
 | The helper's own undo records (only with the helper) | `/Library/Application Support/NetworkMonitor/` |
 | Your settings | the app's preferences (`com.kevinabouhanna.NetworkMonitor`) |
 
@@ -56,24 +71,26 @@ read. The last result is kept in memory only, and dropped when you change networ
 
 A server's address says nothing to a person, so NetworkMonitor names it: the country it's
 in, and the company whose network it belongs to. The answers come from DB-IP's free
-databases, shipped inside the app in `Contents/Resources/Geo` and refreshed with
-releases. Nothing is looked up online: asking a service about each address would tell
+databases, shipped inside the app and refreshed once a month (see
+[What it sends](#what-it-sends)). Nothing is looked up online: asking a service about each address would tell
 it every server your Mac talks to. The data is
 [IP geolocation by DB-IP](https://db-ip.com), under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ## Permissions
 
-- **Location, to read the Wi-Fi network's name.** Asked a few seconds after the app
-  first opens. Refuse it and everything works, with networks named like *Wi-Fi · 3f2a*.
+- **Location, to read the Wi-Fi network's name.** Offered in the welcome window when the
+  app first opens, and in Settings › General after that (#134). Leave it off and
+  everything works, with networks named like *Wi-Fi · 3f2a*.
   Updates keep the answer: every release is signed with the same Developer ID.
   Updating from 1.13 or earlier asks once more, because that signature is new (#119).
-- **A content filter, only if you turn it on** in Settings › Connections (#128). It's the
-  part of macOS made for apps like this one: it sees each connection as it opens, the
-  process that opened it and the server's address and name, and tells NetworkMonitor,
-  which keeps the name with that server in Usage History. It never sees the contents of
-  any traffic, sends nothing anywhere, and blocks nothing yet. macOS asks you twice to
-  allow it; switching it off, or Uninstall, removes it.
+- **A content filter, only if you allow it** (#128), in the welcome window or
+  Settings › Connections. It's the part of macOS made for apps like this one: it sees
+  each connection as it opens, the process that opened it and the server's address and
+  name, and tells NetworkMonitor, which keeps the name with that server in Usage History.
+  It blocks only what you block (#114), never sees the contents of any traffic, and sends
+  nothing anywhere. macOS asks you twice to allow it; **Turn Off** in Settings switches it
+  off, and Uninstall removes it.
 - **Nothing else, normally.** No Local Network, no Accessibility, no Full Disk Access.
 - **Your password, once, if you choose it.** Switching on Hotspot mode offers to
   install a small helper, and macOS asks for your password to allow it. The helper can
