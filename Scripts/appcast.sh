@@ -5,6 +5,11 @@
 # release, so the app's feed, releases/latest/download/appcast.xml, is always
 # the newest release's.
 #
+# The update window shows the version's What's new, from
+# ReleaseNotes/<version>.md, carried in the appcast as Markdown, which Sparkle
+# renders from 2.9 on (#152): nothing to fetch, and the same words as the
+# release's notes, which the workflow takes from the same file.
+#
 # Usage: SPARKLE_ED_KEY=… Scripts/appcast.sh <NetworkMonitor.dmg> <NetworkMonitor.app> <version>
 
 set -euo pipefail
@@ -15,6 +20,16 @@ APP="${2:?usage: $0 <dmg> <app> <version>}"
 VERSION="${3:?usage: $0 <dmg> <app> <version>}"
 
 plist() { /usr/libexec/PlistBuddy -c "Print :$1" "${APP}/Contents/Info.plist"; }
+
+NOTES="ReleaseNotes/${VERSION}.md"
+if [ ! -s "$NOTES" ]; then
+  echo "error: ${NOTES} is missing: write the version's What's new before tagging" >&2
+  exit 1
+fi
+if grep -q ']]>' "$NOTES"; then
+  echo "error: ${NOTES} can't contain ]]>, which would end the appcast's CDATA" >&2
+  exit 1
+fi
 
 # The key that signs must be the one the app trusts, or every update is
 # refused: checked before anything is published.
@@ -44,7 +59,10 @@ cat <<XML
       <sparkle:version>${BUILD}</sparkle:version>
       <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>${MINIMUM}</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>${REPO}/releases/tag/v${VERSION}</sparkle:releaseNotesLink>
+      <description sparkle:format="markdown"><![CDATA[
+$(cat "$NOTES")
+]]></description>
+      <sparkle:fullReleaseNotesLink>${REPO}/releases</sparkle:fullReleaseNotesLink>
       <enclosure url="${REPO}/releases/download/v${VERSION}/NetworkMonitor.dmg"
                  length="${LENGTH}" type="application/octet-stream"
                  sparkle:edSignature="${SIGNATURE}"/>

@@ -211,8 +211,13 @@ Every change follows the same path:
 
 ## Releasing
 
-1. Tag `main` and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-2. The **Release** workflow (`.github/workflows/release.yml`) runs the tests, builds the
+1. Write the version's **What's new** in `ReleaseNotes/X.Y.Z.md` and merge it like any
+   change. It's Markdown: short bullets, each with a bold lead and its issue, and no
+   `]]>`. Sparkle shows it in the update window, carried in the appcast (#152), and the
+   workflow puts it in the release notes under **What's new in X.Y.Z**. A tag without
+   it fails in the first seconds.
+2. Tag `main` and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+3. The **Release** workflow (`.github/workflows/release.yml`) runs the tests, builds the
    universal DMG with the tag's version, checks the version, the helper, the content filter
    and the signature, signs the update and writes the appcast with `SPARKLE_ED_KEY`, and
    publishes `NetworkMonitor.dmg` and `appcast.xml` with install and update instructions.
@@ -221,7 +226,6 @@ Every change follows the same path:
    `NOTARY_KEY_ID` and `NOTARY_ISSUER`, and fails without them. It then checks the team
    (`GRQKG7M8CL`), the Location entitlement, and that `spctl` accepts both the app and
    the disk image as *Notarized Developer ID*.
-3. Add a **What's new in X.Y.Z** section to the release notes by hand.
 4. Install it with `make install` from the tag.
 5. Update the website (below).
 
