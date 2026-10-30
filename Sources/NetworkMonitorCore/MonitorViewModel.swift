@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import FirewallPolicy
 import Foundation
 
 /// Drives the menu bar title and the popover.
@@ -75,6 +76,9 @@ public final class MonitorViewModel: ObservableObject {
     /// Settings › Connections (#134).
     public let filter = FilterController()
     private var filterNames: AnyCancellable?
+    /// What the filter blocks or always allows (#114), made in Connections.
+    public let firewall = FirewallRules()
+    private var firewallPolicy: AnyCancellable?
     /// The readout's colours, and the speed test's alongside them (#45).
     public let menuBarColors: MenuBarColors
     /// Wi-Fi names, and the Location permission they need (#85).
@@ -192,6 +196,13 @@ public final class MonitorViewModel: ObservableObject {
             })
         }
         filter.resume()
+        // The rules, and whether this is a hotspot for the ones that say "on
+        // hotspots". The values come from the publishers: they fire before
+        // the properties change.
+        firewallPolicy = Publishers.CombineLatest3(firewall.$rules, firewall.$mode, $isExpensiveNetwork)
+            .sink { [weak self] rules, mode, onHotspot in
+                self?.filter.apply(FirewallPolicy(mode: mode, rules: rules, onHotspot: onHotspot))
+            }
 
         // Asked at the moment of each run, so a hotspot joined after launch is
         // caught. The menu bar hook routes through the same signal the live rate

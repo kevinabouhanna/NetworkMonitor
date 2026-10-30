@@ -100,6 +100,7 @@ public final class SettingsWindowController: NSObject {
                 host = Self.paneHost(ConnectionsSettingsPane(model: connections,
                                                              glance: ConnectionsGlance(monitor: model),
                                                              filter: model.filter,
+                                                             firewall: model.firewall,
                                                              onOpen: onOpenConnections),
                                      width: SettingsMetrics.paneWidth)
             case .hotspot:   host = Self.paneHost(HotspotSettingsPane(metering: model.metering, state: state), width: SettingsMetrics.paneWidth)

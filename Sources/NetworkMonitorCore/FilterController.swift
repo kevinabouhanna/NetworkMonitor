@@ -1,5 +1,6 @@
 import Combine
 import FilterProtocol
+import FirewallPolicy
 import Foundation
 import NetworkExtension
 import SystemExtensions
@@ -41,6 +42,8 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     public let flows = PassthroughSubject<[FlowReport], Never>()
 
     private var connection: NSXPCConnection?
+    /// What the filter should enforce (#114), sent each time it connects.
+    private var policy = FirewallPolicy()
     private var removing = false
     /// Set while the launch's request brings the running filter up to this
     /// build's (#136).
@@ -84,8 +87,10 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
             DispatchQueue.main.async {
                 guard let self else { return }
                 if NEFilterManager.shared().isEnabled {
+                    // Connected only once the update is through: held open
+                    // across the swap, the old filter kept its service name,
+                    // and the new one came up without it (#114).
                     self.state = .on
-                    self.connect()
                     self.update()
                 }
                 self.hasResolved = true
@@ -239,6 +244,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
             // The filter already running carries on.
             updating = false
             if state == .waitingForApproval { state = .on }
+            connect()
         } else if let next = Self.state(after: error) {
             state = next
         }
@@ -283,13 +289,33 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
                 }
             }
         }
-        connection.interruptionHandler = { [weak connection] in
+        // The filter restarted under the same connection: open it again, and
+        // hand over the rules.
+        connection.interruptionHandler = { [weak self, weak connection] in
             (connection?.remoteObjectProxyWithErrorHandler { _ in } as? FilterExtensionInterface)?.register { _ in }
+            DispatchQueue.main.async { self?.sendPolicy() }
         }
         connection.resume()
         self.connection = connection
         // The first message opens the connection the filter reports over.
         (connection.remoteObjectProxyWithErrorHandler { _ in } as? FilterExtensionInterface)?.register { _ in }
+        sendPolicy()
+    }
+
+    // MARK: The rules
+
+    /// The rules, the mode and the hotspot state, for the filter to enforce
+    /// (#114). It keeps its own copy, so they apply even before the app
+    /// connects after a restart.
+    public func apply(_ policy: FirewallPolicy) {
+        guard policy != self.policy else { return }
+        self.policy = policy
+        sendPolicy()
+    }
+
+    private func sendPolicy() {
+        (connection?.remoteObjectProxyWithErrorHandler { _ in } as? FilterExtensionInterface)?
+            .applyPolicy(policy.encoded())
     }
 
     private func disconnect() {

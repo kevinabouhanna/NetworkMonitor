@@ -159,6 +159,16 @@ case "$SIGN_KIND" in
       /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${MARKETING_VERSION}" \
                               -c "Set :CFBundleVersion ${BUILD_NUMBER}" "${FILTER_BUNDLE}/Contents/Info.plist"
       cp "$FILTER_PROFILE" "${FILTER_BUNDLE}/Contents/embedded.provisionprofile"
+      # The filter looks up each connection's country and owner to apply the
+      # rules (#114), so the data moves into it, and the app links to it
+      # there: once in the bundle, not twice. The licence notice is in both.
+      mkdir -p "${FILTER_BUNDLE}/Contents/Resources/Geo"
+      cp Resources/Geo/README.md "${FILTER_BUNDLE}/Contents/Resources/Geo/README.md"
+      for table in countries.bin owners.bin; do
+        mv "${APP}/Contents/Resources/Geo/${table}" "${FILTER_BUNDLE}/Contents/Resources/Geo/${table}"
+        ln -s "../../Library/SystemExtensions/${FILTER_NAME}.systemextension/Contents/Resources/Geo/${table}" \
+              "${APP}/Contents/Resources/Geo/${table}"
+      done
       cp "$APP_PROFILE" "${APP}/Contents/embedded.provisionprofile"
       sign_developer_id --entitlements Resources/Filter/NetworkMonitorFilter.entitlements "$FILTER_BUNDLE"
       ENTITLEMENTS="Resources/NetworkMonitor+Filter.entitlements"

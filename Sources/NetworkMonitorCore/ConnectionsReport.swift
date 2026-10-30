@@ -92,6 +92,17 @@ public struct ConnectionsItem: Identifiable, Equatable {
 
     public var id: String { "\(dimension.rawValue):\(key)" }
     public var total: Int64 { bytesIn + bytesOut }
+
+    public init(dimension: ConnectionsDimension, key: String, title: String, subtitle: String?, isHost: Bool,
+                symbol: String?, bundlePath: String?) {
+        self.dimension = dimension
+        self.key = key
+        self.title = title
+        self.subtitle = subtitle
+        self.isHost = isHost
+        self.symbol = symbol
+        self.bundlePath = bundlePath
+    }
 }
 
 /// A row of the list with the sections it opens into.
@@ -160,8 +171,7 @@ public enum ConnectionsReport {
         case .company:
             if connection.isOtherServers { return otherKey }
             guard let company = connection.company else { return unknownKey }
-            // Google's own network and Google Cloud are different answers.
-            return (company.isHost ? "host:" : "") + company.name
+            return company.key
         case .app:
             return connection.usage.appKey
         case .country:

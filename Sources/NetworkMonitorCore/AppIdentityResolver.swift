@@ -1,4 +1,5 @@
 import AppKit
+import FirewallPolicy
 import Foundation
 import UniformTypeIdentifiers
 
@@ -185,7 +186,7 @@ public final class AppIdentityResolver {
     /// terminal are two different rows under two different apps, and sharing one
     /// key would merge their bytes into whichever parent was recorded last.
     public static func adopted(_ identity: AppIdentity, by parent: ParentApp) -> AppIdentity {
-        AppIdentity(key: "\(parent.key)\(keySeparator)\(identity.key)",
+        AppIdentity(key: AppKey.key(adopting: identity.key, by: parent.key),
                     displayName: identity.displayName,
                     bundlePath: nil,
                     isSystem: false,
@@ -194,7 +195,7 @@ public final class AppIdentityResolver {
 
     /// Joins a parent key to a child key. A control character, so it cannot occur
     /// in either half — both are filesystem paths.
-    static let keySeparator: Character = "\u{1}"
+    static let keySeparator = AppKey.separator
 
     /// The key an adopted process would have had before nesting existed.
     ///
@@ -265,10 +266,12 @@ public final class AppIdentityResolver {
     public static func identity(forExecutablePath path: String, fallbackName: String) -> AppIdentity {
         let components = (path as NSString).pathComponents
 
-        if let index = components.firstIndex(where: { $0.hasSuffix(".app") }) {
-            let bundlePath = NSString.path(withComponents: Array(components[0...index]))
+        // The folding is `AppKey`'s, which the content filter shares, so a
+        // rule made on a row means that row (#114).
+        if let bundlePath = AppKey.bundlePath(forExecutablePath: path) {
             return AppIdentity(key: bundlePath,
-                               displayName: displayName(forBundle: bundlePath, components[index]),
+                               displayName: displayName(forBundle: bundlePath,
+                                                        (bundlePath as NSString).lastPathComponent),
                                bundlePath: bundlePath,
                                isSystem: false)
         }

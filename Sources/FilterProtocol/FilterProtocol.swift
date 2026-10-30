@@ -73,4 +73,7 @@ public struct FlowReport: Codable, Equatable {
 /// filter then reports over.
 @objc public protocol FilterExtensionInterface {
     func register(_ reply: @escaping (String) -> Void)
+    /// The rules, the mode and whether the Mac is on a hotspot (#114), as a
+    /// `FirewallPolicy` in JSON. Sent on connecting and after every change.
+    func applyPolicy(_ policy: Data)
 }

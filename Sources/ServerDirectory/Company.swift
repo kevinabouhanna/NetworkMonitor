@@ -20,6 +20,10 @@ public struct Company: Hashable {
     /// the map lists their traffic beside it rather than painting that country.
     public let answersEverywhere: Bool
 
+    /// What Connections groups it by and a rule names it by (#114). Google's
+    /// own network and Google Cloud are different answers.
+    public var key: String { (isHost ? "host:" : "") + name }
+
     public init(name: String, isHost: Bool, answersEverywhere: Bool = false) {
         self.name = name
         self.isHost = isHost

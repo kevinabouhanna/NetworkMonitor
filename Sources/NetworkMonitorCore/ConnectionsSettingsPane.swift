@@ -1,4 +1,5 @@
 import AppKit
+import FirewallPolicy
 import ServerDirectory
 import SwiftUI
 
@@ -10,6 +11,7 @@ struct ConnectionsSettingsPane: View {
     @ObservedObject var model: ConnectionsViewModel
     @ObservedObject var glance: ConnectionsGlance
     @ObservedObject var filter: FilterController
+    @ObservedObject var firewall: FirewallRules
     let onOpen: () -> Void
 
     var body: some View {
@@ -59,6 +61,7 @@ struct ConnectionsSettingsPane: View {
                 Section {
                     WebsiteNamesRow(filter: filter, offersTurnOff: true)
                 }
+                rulesSection
             }
 
             Section {
@@ -89,6 +92,63 @@ struct ConnectionsSettingsPane: View {
         }
         .formStyle(.grouped)
         .onAppear { glance.reload() }
+    }
+
+    /// What's blocked and what's always allowed (#114), made by right-clicking
+    /// a row in Connections, and taken back here.
+    private var rulesSection: some View {
+        Section {
+            if firewall.rules.isEmpty {
+                Text("Right-click a company, app, country or server in Connections to block it, or to "
+                     + "always allow it.")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                ForEach(firewall.rules) { rule in
+                    LabeledContent {
+                        HStack(spacing: 10) {
+                            RuleBadge(action: rule.action)
+                            Button { firewall.remove(rule) } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Remove this rule")
+                        }
+                    } label: {
+                        Label {
+                            Text(rule.title)
+                            Text(Self.subjectName(rule.subject))
+                        } icon: {
+                            Image(systemName: Self.symbol(rule.subject)).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        } header: {
+            Text("Blocked and allowed")
+        } footer: {
+            SettingsFootnote(filter.state == .on
+                ? "A rule applies from an app's next connection: one already open carries on until it closes."
+                : "They apply once “\(SetupCopy.websitesTitle)” is on.")
+        }
+    }
+
+    static func subjectName(_ subject: RuleSubject) -> String {
+        switch subject {
+        case .company: return "Company"
+        case .app:     return "App"
+        case .country: return "Country"
+        case .server:  return "Server"
+        }
+    }
+
+    static func symbol(_ subject: RuleSubject) -> String {
+        switch subject {
+        case .company: return "building.2"
+        case .app:     return "app"
+        case .country: return "globe"
+        case .server:  return "point.3.connected.trianglepath.dotted"
+        }
     }
 }
 
