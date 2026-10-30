@@ -29,6 +29,9 @@ public final class MeteringController: ObservableObject {
     @Published public private(set) var isSuppressing = false
     /// Why the current connection was judged metered or not.
     @Published public private(set) var verdict: MeteredHeuristic.Verdict = .unmetered
+    /// What the person said about the current network, if anything: `true`
+    /// for a hotspot, `false` for not one. Settings › Hotspot's choice.
+    @Published public private(set) var override: Bool?
     /// Names of what is suppressed right now, for the popover.
     @Published public private(set) var suppressed: [String] = []
     /// Names queued because their app is running.
@@ -167,6 +170,7 @@ public final class MeteringController: ObservableObject {
         var signals = ownership.masking(store.currentNetwork.signals,
                                         on: store.currentNetwork.interfaceName)
         signals.userOverride = store.currentMeteredOverride
+        override = signals.userOverride
         verdict = MeteredHeuristic.verdict(for: signals)
 
         let shouldSuppress = isEnabled && verdict.isMetered
@@ -322,8 +326,10 @@ public final class MeteringController: ObservableObject {
         !excluded.contains(id)
     }
 
-    /// Called when the user marks the current network metered or not.
+    /// Called when the user marks the current network metered or not. Not
+    /// while offline, which isn't a network to remember anything about.
     public func setOverride(_ value: Bool?) {
+        guard store.currentNetwork.id != NetworkFingerprint.offline.id else { return }
         store.setMeteredOverride(value, for: store.currentNetwork.id)
         evaluate()
     }

@@ -331,6 +331,15 @@ struct HotspotSettingsPane: View {
                         .foregroundStyle(metering.verdict.isMetered
                                          ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
                 }
+                // Right under the verdict, so a wrong one is settled where
+                // it's read: a phone that isn't recognised (#109), or a hotel
+                // that charges by the gigabyte. Remembered for this network.
+                Picker("This network", selection: Binding(get: { metering.override },
+                                                          set: { metering.setOverride($0) })) {
+                    Text("Detect automatically").tag(Bool?.none)
+                    Text("Is a hotspot").tag(Bool?.some(true))
+                    Text("Isn't a hotspot").tag(Bool?.some(false))
+                }
             } footer: {
                 // Said once, plainly, because Low Data Mode does a little more
                 // than the switch's name: iCloud Photos waits too.
