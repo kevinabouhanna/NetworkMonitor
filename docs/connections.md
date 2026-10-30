@@ -91,12 +91,33 @@ Servers list shows names, with the address underneath.
 - **macOS asks twice:** once in System Settings (General › Login Items & Extensions ›
   Network Extensions ⓘ), then once in a dialog. The row shows each step while it waits.
 - **It runs in the background** from then on, with nothing to manage.
-- **It blocks nothing yet.** Blocking comes with the firewall's rules (#114).
+- **It blocks only what you block** (see below).
 - **It fails open:** if the filter stops, nothing is cut off.
 - **Turn Off** in Settings › Connections switches it off, as does System Settings › Network
   › Filters, and Uninstall removes it.
 - **A name is only known when the app connected by one.** A program that connects to a
   bare address still reads by its network's owner.
+
+## Blocking
+
+Right-click a company, app, country or server in the Connections window and choose
+**Block**, **Block on Hotspots** or **Always Allow** (#114). The row says so beside its name,
+and Settings › Connections lists every rule, each with a button to take it back.
+
+- **The narrowest rule wins:** a server, then an app, then a company, then a country. So
+  *Block Meta* with *Always Allow WhatsApp* lets WhatsApp through, and *Block United States*
+  with *Always Allow Apple* lets Apple's servers there through.
+- **On Hotspots** means while the Mac is on a hotspot, as the popover judges it.
+- **Never blocked:** the local network, looking up names (DNS), the clock, and getting an
+  address. Without them nothing else works.
+- **An app is the app and the programs it starts**, as Connections lists them: a rule on
+  iTerm covers the `curl` you run in it, unless `curl` has a rule of its own. Safari's pages
+  load through a WebKit process, and a rule on either catches them.
+- **From the next connection:** a connection already open carries on until it closes.
+- **The filter keeps its own copy of the rules**, so they apply with the app quit and after
+  a restart, before the app is back.
+- **Blocking needs website names on.** Choosing Block while they're off starts turning
+  them on, with the steps above the list.
 
 ## What it costs
 

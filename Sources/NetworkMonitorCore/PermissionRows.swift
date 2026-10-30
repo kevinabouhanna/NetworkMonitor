@@ -16,7 +16,8 @@ public enum SetupCopy {
     public static let later = "Not now? You can turn these on later in Settings. Nothing leaves your Mac."
 
     public static let websitesTitle = "See which websites your apps visit"
-    public static let websitesSummary = "Slack shows up as slack.com, not just as Amazon, whose computers it runs on."
+    public static let websitesSummary = "Slack shows up as slack.com, not just as Amazon, whose computers it "
+        + "runs on. It also lets you block any app, company or country."
 
     public static let wifiTitle = "Know your Wi-Fi networks by name"
     public static let wifiSummary = "Usage History calls them Home and Office, not “Wi-Fi · 3f2a”. macOS "

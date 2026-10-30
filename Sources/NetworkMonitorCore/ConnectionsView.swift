@@ -1,4 +1,5 @@
 import AppKit
+import FirewallPolicy
 import ServerDirectory
 import SwiftUI
 
@@ -11,9 +12,11 @@ import SwiftUI
 /// its chip undoes that.
 public struct ConnectionsView: View {
     @ObservedObject var model: ConnectionsViewModel
+    @ObservedObject var firewall: FirewallRules
 
     public init(model: ConnectionsViewModel) {
         self.model = model
+        self.firewall = model.firewall
     }
 
     public var body: some View {
@@ -177,10 +180,11 @@ public struct ConnectionsView: View {
         let isOpen = model.expanded.contains(group.id)
         ConnectionsRow(item: group.item, subtitle: subtitle(for: group.item),
                        icon: model.icon(for: group.item), fraction: fraction(group.item.total, of: largest),
-                       indent: 0, disclosure: isOpen,
+                       indent: 0, disclosure: isOpen, rule: firewall.rule(for: group.item)?.action,
                        onToggleDisclosure: { model.toggle(group.id) },
                        onSelect: { model.toggle(group.id) },
                        help: isOpen ? "Click to close" : "Click to see its \(sectionNames(group))")
+            .contextMenu { ruleMenu(for: group.item) }
         if isOpen {
             ForEach(group.sections.filter { !$0.items.isEmpty }) { section in
                 sectionRows(section, in: group)
@@ -203,8 +207,10 @@ public struct ConnectionsView: View {
         ForEach(shown) { item in
             ConnectionsRow(item: item, subtitle: subtitle(for: item), icon: model.icon(for: item),
                            fraction: fraction(item.total, of: largest), indent: 1, disclosure: nil,
+                           rule: firewall.rule(for: item)?.action,
                            onToggleDisclosure: {}, onSelect: { model.narrow(to: item, in: group.item) },
                            help: "Click to see only \(item.title)")
+                .contextMenu { ruleMenu(for: item) }
         }
         if section.items.count > shown.count {
             Button("Show all \(section.items.count)") { model.showingAll.insert(sectionID) }
@@ -212,6 +218,37 @@ public struct ConnectionsView: View {
                 .font(.system(size: 11))
                 .padding(.leading, 46)
                 .padding(.vertical, 4)
+        }
+    }
+
+    // MARK: Rules
+
+    /// Right-click a row (#114): block it, block it on hotspots, or always
+    /// allow it. The one it has is ticked. Not in a build without the filter,
+    /// where nothing could enforce it.
+    @ViewBuilder
+    private func ruleMenu(for item: ConnectionsItem) -> some View {
+        if FirewallRules.canHaveRule(item), model.filter.state != .unavailable {
+            let current = firewall.rule(for: item)
+            ForEach(RuleAction.allCases, id: \.self) { action in
+                Toggle(Self.menuTitle(action, item.title), isOn: Binding(
+                    get: { current?.action == action },
+                    set: { isOn in
+                        if isOn { model.setRule(action, for: item) } else if let current { firewall.remove(current) }
+                    }))
+            }
+            if let current {
+                Divider()
+                Button("Remove Rule") { firewall.remove(current) }
+            }
+        }
+    }
+
+    static func menuTitle(_ action: RuleAction, _ title: String) -> String {
+        switch action {
+        case .block:           return "Block “\(title)”"
+        case .blockOnHotspots: return "Block “\(title)” on Hotspots"
+        case .allow:           return "Always Allow “\(title)”"
         }
     }
 
@@ -275,6 +312,29 @@ private struct WebsiteNamesOffer: View {
     }
 }
 
+/// What a row's rule says, beside its name: red for blocked, orange for
+/// blocked on hotspots, green for always allowed.
+struct RuleBadge: View {
+    let action: RuleAction
+
+    var body: some View {
+        Text(action.badge.uppercased())
+            .font(.system(size: 8, weight: .bold))
+            .padding(.horizontal, 4).padding(.vertical, 1)
+            .background(color.opacity(0.18), in: Capsule())
+            .foregroundStyle(color)
+            .fixedSize()
+    }
+
+    private var color: Color {
+        switch action {
+        case .block:           return .red
+        case .blockOnHotspots: return .orange
+        case .allow:           return .green
+        }
+    }
+}
+
 private struct ConnectionsRow: View {
     let item: ConnectionsItem
     let subtitle: String?
@@ -283,6 +343,8 @@ private struct ConnectionsRow: View {
     let indent: Int
     /// nil for a row with nothing to open; otherwise whether it's open.
     let disclosure: Bool?
+    /// The person's rule for it, if any (#114).
+    let rule: RuleAction?
     let onToggleDisclosure: () -> Void
     let onSelect: () -> Void
     let help: String
@@ -322,6 +384,7 @@ private struct ConnectionsRow: View {
                             .foregroundStyle(.secondary)
                             .help("A network that carries many companies' traffic")
                     }
+                    if let rule { RuleBadge(action: rule) }
                 }
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)

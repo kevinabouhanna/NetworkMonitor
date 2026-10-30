@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import FirewallPolicy
 import ServerDirectory
 
 /// Drives the Connections window: which period and part of it, what the list
@@ -81,6 +82,21 @@ public final class ConnectionsViewModel: ObservableObject {
         didSet { defaults.set(!offersWebsiteNames, forKey: Self.websiteNamesOfferClosedKey) }
     }
     public var filter: FilterController { monitor.filter }
+    public var firewall: FirewallRules { monitor.firewall }
+
+    /// From a row's menu (#114). Rules are kept whether or not the filter is
+    /// on; if it isn't, this is the moment to turn it on, so the offer above
+    /// the list comes back to walk through it.
+    public func setRule(_ action: RuleAction, for item: ConnectionsItem) {
+        firewall.set(action, for: item)
+        switch filter.state {
+        case .off, .failed:
+            offersWebsiteNames = true
+            filter.turnOn()
+        default:
+            break
+        }
+    }
 
     /// How many items a section shows before "Show all".
     public static let sectionPreview = 8

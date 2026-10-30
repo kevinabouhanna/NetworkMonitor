@@ -13,7 +13,7 @@ let package = Package(
         // thin shell so `swift test` never has to link an NSApplication main().
         .target(
             name: "NetworkMonitorCore",
-            dependencies: ["LowDataMode", "ServerDirectory", "FilterProtocol"],
+            dependencies: ["LowDataMode", "ServerDirectory", "FilterProtocol", "FirewallPolicy"],
             path: "Sources/NetworkMonitorCore"
         ),
         .executableTarget(
@@ -46,8 +46,8 @@ let package = Package(
             path: "Sources/NetworkMonitorHelper"
         ),
         // Where a server is and whose network it belongs to, from DB-IP's data
-        // shipped in Resources/Geo. Pure Foundation: the app needs it now, and
-        // the content filter will later, without the app's frameworks.
+        // shipped in Resources/Geo. Pure Foundation: the app and the content
+        // filter both need it, and the filter none of the app's frameworks.
         .target(
             name: "ServerDirectory",
             path: "Sources/ServerDirectory"
@@ -58,11 +58,18 @@ let package = Package(
             name: "FilterProtocol",
             path: "Sources/FilterProtocol"
         ),
+        // What may connect (#114): the rules, the mode, and the decision, for
+        // the app that keeps them and the filter that applies them. Pure
+        // Foundation for the same reason as FilterProtocol.
+        .target(
+            name: "FirewallPolicy",
+            path: "Sources/FirewallPolicy"
+        ),
         // The content filter, a Network Extension system extension. bundle.sh
         // puts it in the app only for Developer ID builds, with its profile.
         .executableTarget(
             name: "NetworkMonitorFilter",
-            dependencies: ["FilterProtocol"],
+            dependencies: ["FilterProtocol", "FirewallPolicy", "ServerDirectory"],
             path: "Sources/NetworkMonitorFilter",
             linkerSettings: [.linkedFramework("NetworkExtension")]
         ),
@@ -85,7 +92,8 @@ let package = Package(
         // `swift test` cannot run here. Run with `swift run NetworkMonitorTests`.
         .executableTarget(
             name: "NetworkMonitorTests",
-            dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory", "FilterProtocol"],
+            dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory", "FilterProtocol",
+                           "FirewallPolicy"],
             path: "Sources/NetworkMonitorTests"
         ),
     ]

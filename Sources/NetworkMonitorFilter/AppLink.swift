@@ -1,5 +1,6 @@
-import Foundation
 import FilterProtocol
+import FirewallPolicy
+import Foundation
 
 /// The filter's side of its connection to the app: listens on the Mach
 /// service, accepts only NetworkMonitor signed by its team, and sends it what
@@ -45,6 +46,11 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
 
     func register(_ reply: @escaping (String) -> Void) {
         reply(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "")
+    }
+
+    func applyPolicy(_ policy: Data) {
+        guard let policy = FirewallPolicy.decode(policy) else { return }
+        Firewall.shared.apply(policy)
     }
 
     func report(_ flow: FlowReport) {

@@ -1,8 +1,9 @@
-import Foundation
 import FilterProtocol
+import Foundation
 import NetworkExtension
 
-/// Sees every new outbound connection, allows it, and reports it to the app.
+/// Sees every new outbound connection, decides it by the person's rules
+/// (#114), and reports it to the app.
 ///
 /// Named `FilterDataProvider` for the Objective-C runtime, which is how the
 /// extension's Info.plist (`NEProviderClasses`) names it.
@@ -24,15 +25,18 @@ final class FilterDataProvider: NEFilterDataProvider {
         completionHandler()
     }
 
-    /// Always allows. Whatever goes wrong in here, the answer is still allow:
-    /// a filter that fails must never cut the Mac off.
+    /// Blocks only what a rule or the mode says to. Whatever goes wrong in
+    /// here, the answer is allow: a filter that fails must never cut the Mac
+    /// off.
     override func handleNewFlow(_ flow: NEFilterFlow) -> NEFilterNewFlowVerdict {
         guard let socket = flow as? NEFilterSocketFlow,
               let remote = socket.remoteEndpoint as? NWHostEndpoint else { return .allow() }
-        AppLink.shared.report(FlowReport(address: remote.hostname, port: Int(remote.port) ?? 0,
+        let port = Int(remote.port) ?? 0
+        let verdict = Firewall.shared.verdict(for: socket, address: remote.hostname, port: port)
+        AppLink.shared.report(FlowReport(address: remote.hostname, port: port,
                                          hostname: socket.remoteHostname,
                                          pid: FlowReport.pid(fromAuditToken: flow.sourceAppAuditToken),
                                          time: Date()))
-        return .allow()
+        return verdict.allows ? .allow() : .drop()
     }
 }

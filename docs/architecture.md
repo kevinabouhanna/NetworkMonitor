@@ -348,7 +348,22 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    follows `NEFilterConfigurationDidChange`, so turning it off in System Settings shows.
    At each launch with the filter on, it asks macOS to activate the extension in its own
    bundle: macOS keeps running the one it last activated, so without this an update never
-   reached the filter (#136).
+   reached the filter (#136). It connects only once that request is through: an app still
+   connected to the old filter across the swap left the new one without its Mach service,
+   and every look-up failed until a restart (seen with build 87).
+
+7. **Blocking** (#114). `FirewallPolicy`, Foundation only, holds the rules, the mode and the
+   decision, and `AppKey` the folding of an executable path into the app Connections lists
+   it under, shared with `AppIdentityResolver`. The app keeps the rules (`FirewallRules`) and
+   sends the filter a `FirewallPolicy` over XPC on connecting and after every change,
+   hotspot state included; the filter stores it in its container and applies it from
+   launch. For each new flow it works out the app keys from both audit tokens (the app the
+   flow is for and the process making it), through `proc_pidpath` and the parent chain,
+   which the sandbox allows; whether Apple signed it (`anchor apple`); the company, from the
+   hostname or the address's owner; and the country. The country and owner tables live in
+   the extension's bundle, which runs from `/Library/SystemExtensions`, and the app's
+   `Resources/Geo` links to them there, so they ship once. With no rules and the default
+   mode it looks nothing up.
 
 An app's servers can add up to a little less than its total: a socket that opened and
 closed between two samples leaves no connection row. In a 30-second capture on the
