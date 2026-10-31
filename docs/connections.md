@@ -136,6 +136,11 @@ and Settings › Connections lists every rule, each with a button to take it bac
   setting instead. What it stopped shows under Blocked.
 - **Never blocked:** the local network, looking up names (DNS), the clock, and getting an
   address. Without them nothing else works.
+- **Block Everything,** in the menu bar item's right-click menu (#198), stops every app's
+  new connections at once, Apple's included and whatever your rules allow, until you
+  choose it again. Only the essentials above and NetworkMonitor itself go through. While
+  it's on, the readout turns red and the popover says so, with **Turn Off**. It lasts
+  across a relaunch and a restart. Connections already open carry on until they close.
 - **An app is the app and the programs it starts**, as Connections lists them: a rule on
   iTerm covers the `curl` you run in it, unless `curl` has a rule of its own. Safari's pages
   load through a WebKit process, and a rule on either catches them.

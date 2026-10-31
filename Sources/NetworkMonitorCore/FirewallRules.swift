@@ -20,6 +20,13 @@ public final class FirewallRules: ObservableObject {
     public static let rulesKey = "firewallRules"
     public static let modeKey = "firewallMode"
     public static let listsKey = "blocklists"
+    public static let blocksEverythingKey = "blockEverything"
+
+    /// Block Everything (#198), from the right-click menu. Kept across a
+    /// relaunch, like the filter's own copy, until it's turned off.
+    @Published public var blocksEverything: Bool {
+        didSet { defaults.set(blocksEverything, forKey: Self.blocksEverythingKey) }
+    }
 
     private let defaults: UserDefaults
 
@@ -29,6 +36,7 @@ public final class FirewallRules: ObservableObject {
             .flatMap { try? JSONDecoder().decode([FirewallRule].self, from: $0) } ?? []
         mode = defaults.string(forKey: Self.modeKey).flatMap(FirewallMode.init) ?? .anywhere
         lists = Set((defaults.stringArray(forKey: Self.listsKey) ?? []).compactMap(BlocklistTopic.init))
+        blocksEverything = defaults.bool(forKey: Self.blocksEverythingKey)
     }
 
     /// The rule for every app on a row. Rules for one app, made by answering

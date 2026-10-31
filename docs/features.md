@@ -17,7 +17,7 @@ looks like the live rates.
 
 - **Click** it for the popover.
 - **Right-click** (or Control-click) it for **Test Internet Speed**, the last result,
-  **Connections…** (⌘K), **Usage History…** (⌘Y), **Settings…** (⌘,), **Check for
+  **Block Everything** (#198), **Connections…** (⌘K), **Usage History…** (⌘Y), **Settings…** (⌘,), **Check for
   Updates…**, **Uninstall NetworkMonitor…** and **Quit**.
 
 ## The popover

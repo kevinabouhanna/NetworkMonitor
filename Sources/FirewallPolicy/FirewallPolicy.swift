@@ -116,6 +116,8 @@ public enum BlockReason: Equatable {
     case updatesOnHotspot
     /// On a list that's switched on (#176).
     case list(BlocklistTopic)
+    /// Block Everything is on (#198).
+    case everything
 
     /// How a report names it: the rule's id, or what blocked it.
     public var id: String {
@@ -124,6 +126,7 @@ public enum BlockReason: Equatable {
         case .mode:             return "mode"
         case .updatesOnHotspot: return "hotspot-updates"
         case .list(let topic):  return Self.listPrefix + topic.rawValue
+        case .everything:       return "everything"
         }
     }
 
@@ -151,18 +154,22 @@ public struct FirewallPolicy: Codable, Equatable {
     public var pausesUpdates: Bool
     /// The lists switched on (#176). None until someone turns them on.
     public var lists: Set<BlocklistTopic>
+    /// Block Everything (#198): every new connection is blocked but the
+    /// essentials and NetworkMonitor itself, whatever the rules say.
+    public var blocksEverything: Bool
 
     public init(mode: FirewallMode = .anywhere, rules: [FirewallRule] = [], onHotspot: Bool = false,
-                pausesUpdates: Bool = false, lists: Set<BlocklistTopic> = []) {
+                pausesUpdates: Bool = false, lists: Set<BlocklistTopic> = [], blocksEverything: Bool = false) {
         self.mode = mode
         self.rules = rules
         self.onHotspot = onHotspot
         self.pausesUpdates = pausesUpdates
         self.lists = lists
+        self.blocksEverything = blocksEverything
     }
 
     private enum CodingKeys: String, CodingKey {
-        case mode, rules, onHotspot, pausesUpdates, lists
+        case mode, rules, onHotspot, pausesUpdates, lists, blocksEverything
     }
 
     /// A policy saved before a field existed reads it as off, so a filter
@@ -174,11 +181,12 @@ public struct FirewallPolicy: Codable, Equatable {
         onHotspot = try container.decodeIfPresent(Bool.self, forKey: .onHotspot) ?? false
         pausesUpdates = try container.decodeIfPresent(Bool.self, forKey: .pausesUpdates) ?? false
         lists = try container.decodeIfPresent(Set<BlocklistTopic>.self, forKey: .lists) ?? []
+        blocksEverything = try container.decodeIfPresent(Bool.self, forKey: .blocksEverything) ?? false
     }
 
     /// Anything to decide at all. Without it, the filter looks nothing up.
     public var isActive: Bool {
-        mode != .anywhere || !rules.isEmpty || pausesUpdates || !lists.isEmpty
+        mode != .anywhere || !rules.isEmpty || pausesUpdates || !lists.isEmpty || blocksEverything
     }
 
     /// Most specific first: one server is narrower than a site, a site than an
@@ -191,6 +199,9 @@ public struct FirewallPolicy: Codable, Equatable {
 
     public func decide(_ flow: FlowFacts) -> Verdict {
         if Self.isEssential(address: flow.address, port: flow.port) { return .allow(.essential) }
+        // Block Everything is a way out, so it comes before every rule: only
+        // what's needed to switch it off again goes through (#198).
+        if blocksEverything { return flow.isNetworkMonitor ? .allow(.networkMonitor) : .block(.everything) }
         let index = Dictionary(rules.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
         // A rule for one app is narrower than any rule for every app, so those
         // go first: "Amazon, for Slack" over "Block Amazon".
