@@ -8,6 +8,9 @@ public enum GeoData {
     /// The tables a copy is made of, and the file saying which month it is.
     public static let tables = ["countries.bin", "owners.bin"]
     public static let monthFile = "MONTH"
+    /// A shipped copy whose MONTH can't be read (#209): older than any
+    /// month, so a download replaces it, but used rather than nothing.
+    public static let unknownMonth = "0000-00"
 
     /// "2026-10", from a copy's MONTH file. Months written this way sort as
     /// text.
@@ -40,11 +43,19 @@ public enum GeoData {
 extension ServerDirectory {
     /// The newest of the shipped copy and one downloaded since, and its month.
     public static func newest(bundle: Bundle = .main, downloaded: URL?) -> (directory: ServerDirectory, month: String)? {
-        let shipped = bundle.url(forResource: "Geo", withExtension: nil)
+        newest(shipped: bundle.url(forResource: "Geo", withExtension: nil), downloaded: downloaded)
+    }
+
+    public static func newest(shipped: URL?, downloaded: URL?) -> (directory: ServerDirectory, month: String)? {
         for candidate in [GeoData.newest([shipped, downloaded].compactMap { $0 }), shipped].compactMap({ $0 }) {
             if let directory = try? ServerDirectory(directory: candidate), let month = GeoData.month(in: candidate) {
                 return (directory, month)
             }
+        }
+        // The tables without their MONTH are still the data (#209): the
+        // content filter had none at all until a month was downloaded.
+        if let shipped, let directory = try? ServerDirectory(directory: shipped) {
+            return (directory, GeoData.unknownMonth)
         }
         return nil
     }
