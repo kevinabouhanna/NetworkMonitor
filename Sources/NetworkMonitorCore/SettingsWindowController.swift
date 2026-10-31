@@ -98,7 +98,6 @@ public final class SettingsWindowController: NSObject {
             case .history:   host = Self.paneHost(HistoryView(model: history), width: SettingsMetrics.paneWidth)
             case .connections:
                 host = Self.paneHost(ConnectionsSettingsPane(model: connections,
-                                                             glance: ConnectionsGlance(monitor: model),
                                                              filter: model.filter,
                                                              firewall: model.firewall,
                                                              geoData: model.geoData,

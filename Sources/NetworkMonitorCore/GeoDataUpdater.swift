@@ -104,6 +104,15 @@ public final class GeoDataUpdater: ObservableObject {
         return String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)
     }
 
+    /// "DB-IP Lite, October 2026", from the month of the data in use.
+    public static func dataSource(month: String?) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM"
+        guard let month, let date = formatter.date(from: month) else { return "DB-IP Lite" }
+        return "DB-IP Lite, " + date.formatted(.dateTime.month(.wide).year())
+    }
+
     public func checkIfDue() {
         check(force: false)
     }

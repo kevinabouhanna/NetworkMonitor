@@ -34,13 +34,16 @@ struct GeneralSettingsPane: View {
 
     var body: some View {
         Form {
+            // Each row's explanation is behind an ⓘ beside it (#189).
             Section {
-                Toggle("Start at login", isOn: $state.launchAtLogin)
-                    .toggleStyle(.switch)
-                    .onChange(of: state.launchAtLogin) { enabled in apply(enabled) }
-            } footer: {
-                SettingsFootnote("Opens NetworkMonitor automatically when you log in. Quitting "
-                                 + "still quits it — it won't reopen until your next login.")
+                ExplainedRow("Start at login",
+                             "Opens NetworkMonitor automatically when you log in. Quitting still quits "
+                             + "it — it won't reopen until your next login.") {
+                    Toggle("Start at login", isOn: $state.launchAtLogin)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .onChange(of: state.launchAtLogin) { enabled in apply(enabled) }
+                }
             }
 
             // One choice for every speed, so the menu bar and the speed test never
@@ -49,7 +52,9 @@ struct GeneralSettingsPane: View {
                 // In LabeledContent, so the switch sits at the row's right edge
                 // like every other control here. A segmented Picker sized to fit
                 // keeps its label, and stopped short of the edge (#51).
-                LabeledContent("Show speeds in") {
+                ExplainedRow("Show speeds in",
+                             "In the menu bar and the speed test. Data you've used is always counted in "
+                             + "MB and GB, the way data plans are sold.") {
                     Picker("Show speeds in", selection: $speedTest.unit) {
                         ForEach(SpeedUnit.allCases) { unit in
                             Text(unit.label).tag(unit)
@@ -59,9 +64,6 @@ struct GeneralSettingsPane: View {
                     .labelsHidden()
                     .fixedSize()
                 }
-            } footer: {
-                SettingsFootnote("In the menu bar and the speed test. Data you've used is "
-                                 + "always counted in MB and GB, the way data plans are sold.")
             }
 
             // Wi-Fi names (#85), for anyone who said "not now" in the welcome
@@ -78,7 +80,9 @@ struct GeneralSettingsPane: View {
             Section {
                 ColorPicker("Download", selection: binding(\.download), supportsOpacity: false)
                 ColorPicker("Upload", selection: binding(\.upload), supportsOpacity: false)
-                LabeledContent("During a speed test") {
+                ExplainedRow("During a speed test",
+                             "A speed test shows its figures in its own colors, kept clear of these, so "
+                             + "they're never taken for live rates.") {
                     HStack(spacing: 6) {
                         Text("↓")
                         ColorSwatch(color: colors.test.down)
@@ -98,13 +102,13 @@ struct GeneralSettingsPane: View {
                 }
             } header: {
                 Text("Menu bar colors")
-            } footer: {
-                SettingsFootnote("A speed test shows its figures in its own colors, kept clear of "
-                                 + "these, so they're never taken for live rates.")
             }
 
             Section {
-                LabeledContent("Counting since") {
+                ExplainedRow("Counting since",
+                             "What this connection has used, per app, all the time. The totals start over "
+                             + "when you join a different network, and at midnight. History keeps every "
+                             + "hour of it.") {
                     Text(model.countingSince, format: .dateTime.hour().minute())
                         .monospacedDigit()
                 }
@@ -130,10 +134,6 @@ struct GeneralSettingsPane: View {
                 }
             } header: {
                 Text("Popover totals")
-            } footer: {
-                SettingsFootnote("What this connection has used, per app, all the time. The "
-                                 + "totals start over when you join a different network, and at "
-                                 + "midnight. History keeps every hour of it.")
             }
 
             if let error = state.errorMessage {
@@ -759,9 +759,40 @@ struct RowInfoButton<Content: View>: View {
         .popover(isPresented: $state.showsInfo, arrowEdge: .bottom) {
             content
                 .font(.system(size: 12))
-                .fixedSize()
+                .frame(maxWidth: 420, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(12)
         }
+    }
+}
+
+/// A row whose explanation is behind an ⓘ beside its label, rather than a
+/// paragraph under the section (#189).
+struct ExplainedRow<Control: View>: View {
+    let title: String
+    let explanation: String
+    @ViewBuilder let control: Control
+    /// Not `@State`; see `SettingsPaneState`.
+    @StateObject private var info = RowInfoState()
+
+    init(_ title: String, _ explanation: String, @ViewBuilder control: () -> Control) {
+        self.title = title
+        self.explanation = explanation
+        self.control = control()
+    }
+
+    var body: some View {
+        LabeledContent {
+            control
+        } label: {
+            HStack(spacing: 5) {
+                Text(title)
+                RowInfoButton(help: explanation, state: info) { Text(explanation) }
+            }
+        }
+        .contentShape(Rectangle())
+        .onHover { info.isHovering = $0 }
+        .accessibilityHint(explanation)
     }
 }
 
