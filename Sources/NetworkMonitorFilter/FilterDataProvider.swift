@@ -43,12 +43,14 @@ final class FilterDataProvider: NEFilterDataProvider {
         let fromResolver = Self.isResolver(pid)
         let hostname = fromResolver ? nil : socket.remoteHostname
         let report = FlowReport(address: remote.hostname, port: port, hostname: hostname, pid: pid, time: Date())
-        let decision = Firewall.shared.decide(socket, address: remote.hostname, port: port, report: report)
-        // Nameless, and not held for Ask Me: read the name from its handshake
-        // (#196), and decide again with it (#197). Its report waits for that.
-        let paused = !decision.allows && decision.blockedBy == nil
-        if !paused, !fromResolver,
-           let transport = HandshakeWatch.transport(of: socket, address: remote.hostname, port: port) {
+        // Nameless: read the name from its handshake (#196), decide again with
+        // it (#197), and under Ask Me, ask about the site by name (#199). Its
+        // report waits for that.
+        let transport = fromResolver ? nil : HandshakeWatch.transport(of: socket, address: remote.hostname, port: port)
+        let decision = Firewall.shared.decide(socket, address: remote.hostname, port: port, report: report,
+                                              deferAsk: transport != nil)
+        let paused = !decision.allows && decision.blockedBy == nil && !decision.asks
+        if !paused, let transport {
             return HandshakeWatch.shared.watch(socket, transport: transport, report: report, decision: decision)
         }
         AppLink.shared.report(FlowReport(address: report.address, port: port, hostname: report.hostname,

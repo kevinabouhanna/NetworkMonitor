@@ -97,6 +97,19 @@ public final class FirewallRules: ObservableObject {
         save(rules.filter { $0.id != rule.id })
     }
 
+    /// An app quit: its answers for this session go (#199).
+    public func removeRules(untilQuitOf appKey: String) {
+        let kept = rules.filter { !($0.lastsUntilQuit && $0.appKey == appKey) }
+        if kept.count != rules.count { save(kept) }
+    }
+
+    /// At launch: answers for apps that aren't running any more, quit while
+    /// NetworkMonitor wasn't, go too.
+    public func pruneUntilQuit(running appKeys: Set<String>) {
+        let kept = rules.filter { !$0.lastsUntilQuit || $0.appKey.map(appKeys.contains) == true }
+        if kept.count != rules.count { save(kept) }
+    }
+
     public func policy(onHotspot: Bool) -> FirewallPolicy {
         FirewallPolicy(mode: mode, rules: rules, onHotspot: onHotspot, lists: lists)
     }

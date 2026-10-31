@@ -156,11 +156,18 @@ final class Firewall {
         /// What the rules were asked, for deciding again once a nameless
         /// connection's handshake names it (#197). Nil with nothing to decide.
         var facts: FlowFacts?
+        /// Ask Me, put off until the handshake names the site (#199).
+        var asks = false
+        var company: Company?
 
         static let allow = Decision(verdict: .allow(), allows: true)
     }
 
-    func decide(_ flow: NEFilterSocketFlow, address: String, port: Int, report: FlowReport) -> Decision {
+    /// `deferAsk` for a nameless connection whose handshake will be read: a
+    /// question waits for the site's name rather than asking about the
+    /// network's owner (#199).
+    func decide(_ flow: NEFilterSocketFlow, address: String, port: Int, report: FlowReport,
+                deferAsk: Bool = false) -> Decision {
         let (verdict, appKey, facts, company) = self.verdict(for: flow, address: address, port: port)
         switch verdict {
         case .allow:
@@ -169,8 +176,31 @@ final class Firewall {
             return Decision(verdict: .drop(), blockedBy: reason.id, appKey: appKey, facts: facts)
         case .ask:
             guard let appKey, let facts else { return .allow }
-            return ask(flow, appKey: appKey, facts: facts, company: company, report: report)
+            if deferAsk {
+                return Decision(verdict: .allow(), appKey: appKey, facts: facts, asks: true, company: company)
+            }
+            switch hold(flow, dataStage: false, appKey: appKey, facts: facts, company: company, report: report) {
+            case .allow: return .allow
+            case .block: return Decision(verdict: .drop(), blockedBy: "ask", appKey: appKey)
+            case .held:  return Decision(verdict: .pause())
+            }
         }
+    }
+
+    /// Ask Me for a connection whose handshake was read first (#199): its
+    /// first bytes are held in the data callback while the app asks.
+    func askNamed(_ flow: NEFilterFlow, appKey: String, facts: FlowFacts, company: Company?,
+                  report: FlowReport) -> NEFilterDataVerdict {
+        switch hold(flow, dataStage: true, appKey: appKey, facts: facts, company: company, report: report) {
+        case .allow: return .allow()
+        case .block: return .drop()
+        case .held:  return .pause()
+        }
+    }
+
+    /// The company a name belongs to, or failing that, the network's owner.
+    func company(named name: String, otherwise owner: Company?) -> Company? {
+        Company.named(byHostname: name) ?? owner
     }
 
     private func verdict(for flow: NEFilterSocketFlow, address: String, port: Int)
@@ -218,12 +248,15 @@ final class Firewall {
     // MARK: Ask Me (#129)
 
     /// One question's held flows, and their reports, for if the answer is no.
+    /// A flow held in its data callback (#199) is resumed with a data verdict.
     private struct Held {
         let pair: String
         let appKey: String
-        var flows: [NEFilterFlow]
+        var flows: [(flow: NEFilterFlow, dataStage: Bool)]
         var reports: [FlowReport]
     }
+
+    private enum HoldOutcome { case allow, block, held }
 
     /// Set by the provider when it starts: flows are resumed through it.
     weak var provider: NEFilterDataProvider?
@@ -238,27 +271,36 @@ final class Firewall {
     /// Always Allow and Block: until the rule the app makes arrives.
     static let ruleFor: TimeInterval = 60
 
-    /// One question per app and company: every flow between them waits on the
-    /// first one's answer. With the app not there to ask, it goes ahead.
-    private func ask(_ flow: NEFilterSocketFlow, appKey: String, facts: FlowFacts, company: Company?,
-                     report: FlowReport) -> Decision {
-        let pair = appKey + "|" + (facts.companyKey ?? facts.address)
+    /// What a question is about: the company when it's a real one, and on a
+    /// host's network, where the owner says nothing, the site (#199).
+    static func subject(of facts: FlowFacts, company: Company?) -> String {
+        if let company, !company.isHost { return company.key }
+        if let name = facts.hostname { return "site:" + SiteName.site(of: name) }
+        return facts.companyKey ?? facts.address
+    }
+
+    /// One question per app and company, or site on a host's network: every
+    /// flow between them waits on the first one's answer. With the app not
+    /// there to ask, it goes ahead.
+    private func hold(_ flow: NEFilterFlow, dataStage: Bool, appKey: String, facts: FlowFacts, company: Company?,
+                      report: FlowReport) -> HoldOutcome {
+        let pair = appKey + "|" + Self.subject(of: facts, company: company)
         let connected = AppLink.shared.isConnected
         let now = Date()
         lock.lock()
         if let earlier = answered[pair], earlier.until > now {
             lock.unlock()
-            return earlier.allows ? .allow : Decision(verdict: .drop(), blockedBy: "ask", appKey: appKey)
+            return earlier.allows ? .allow : .block
         }
         guard connected else { lock.unlock(); return .allow }
         if let id = heldByPair[pair] {
-            held[id]?.flows.append(flow)
+            held[id]?.flows.append((flow, dataStage))
             held[id]?.reports.append(report)
             lock.unlock()
-            return Decision(verdict: .pause())
+            return .held
         }
         let id = UUID().uuidString
-        held[id] = Held(pair: pair, appKey: appKey, flows: [flow], reports: [report])
+        held[id] = Held(pair: pair, appKey: appKey, flows: [(flow, dataStage)], reports: [report])
         heldByPair[pair] = id
         if answered.count > 512 { answered = answered.filter { $0.value.until > now } }
         lock.unlock()
@@ -266,11 +308,11 @@ final class Firewall {
         AppLink.shared.ask(FlowQuestion(id: id, appKey: appKey, companyKey: company?.key, companyName: company?.name,
                                         companyIsHost: company?.isHost ?? false, hostname: facts.hostname,
                                         address: facts.address, country: facts.country,
-                                        deadline: now + Self.askTimeout))
+                                        deadline: now + Self.askTimeout, port: facts.port))
         DispatchQueue.global().asyncAfter(deadline: .now() + Self.askTimeout) { [weak self] in
             self?.resolve(id, .allowOnce, expired: true)
         }
-        return Decision(verdict: .pause())
+        return .held
     }
 
     func answer(_ id: String, _ answer: FlowAnswer) {
@@ -285,8 +327,12 @@ final class Firewall {
         answered[question.pair] = (allows, Date() + (answer == .allowOnce ? Self.onceFor : Self.ruleFor))
         lock.unlock()
 
-        for flow in question.flows {
-            provider?.resumeFlow(flow, with: allows ? NEFilterNewFlowVerdict.allow() : NEFilterNewFlowVerdict.drop())
+        for (flow, dataStage) in question.flows {
+            if dataStage {
+                provider?.resumeFlow(flow, with: allows ? NEFilterDataVerdict.allow() : NEFilterDataVerdict.drop())
+            } else {
+                provider?.resumeFlow(flow, with: allows ? NEFilterNewFlowVerdict.allow() : NEFilterNewFlowVerdict.drop())
+            }
         }
         if !allows {
             for report in question.reports {

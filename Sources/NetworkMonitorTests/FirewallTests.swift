@@ -416,8 +416,9 @@ func runFirewallTests() {
             Check.expectEqual(FlowQuestion.decode(question.encoded()), question)
             let item = AskController.item(for: question)
             Check.expectEqual(item.appName, "Slack")
-            Check.expectEqual(item.target, "Slack")
-            Check.expectTrue(item.detail.hasPrefix("wss-primary.slack.com · "))
+            // The site first, whose it is after (#199).
+            Check.expectEqual(item.target, "wss-primary.slack.com")
+            Check.expectTrue(item.detail.hasPrefix("Slack · "))
 
             let hosted = FlowQuestion(id: "q2", appKey: "/Applications/Slack.app", companyKey: "host:Amazon",
                                       companyName: "Amazon", companyIsHost: true, hostname: nil,

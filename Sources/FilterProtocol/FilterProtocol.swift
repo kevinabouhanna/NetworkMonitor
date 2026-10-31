@@ -115,9 +115,12 @@ public struct FlowQuestion: Codable, Equatable, Identifiable {
     public let country: String?
     /// When it's allowed anyway, if nobody answers.
     public let deadline: Date
+    /// The server's port (#199). Optional, so questions from a filter
+    /// before it still decode.
+    public let port: Int?
 
     public init(id: String, appKey: String, companyKey: String?, companyName: String?, companyIsHost: Bool,
-                hostname: String?, address: String, country: String?, deadline: Date) {
+                hostname: String?, address: String, country: String?, deadline: Date, port: Int? = nil) {
         self.id = id
         self.appKey = appKey
         self.companyKey = companyKey
@@ -127,6 +130,7 @@ public struct FlowQuestion: Codable, Equatable, Identifiable {
         self.address = address
         self.country = country
         self.deadline = deadline
+        self.port = port
     }
 
     public func encoded() -> Data { (try? JSONEncoder().encode(self)) ?? Data() }

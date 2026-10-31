@@ -33,17 +33,24 @@ public struct FirewallRule: Codable, Hashable, Identifiable {
     /// for Slack" (#129). Nil for every app.
     public let appKey: String?
     public let appTitle: String?
+    /// Only until that app quits (#199): an Ask Me answer for this session.
+    /// The app takes it back when the app quits; to the filter it's a rule
+    /// like any other. Nil, not false, so rules made before it read the same.
+    public let untilQuit: Bool?
 
     public var id: String { "\(subject.rawValue):\(key)" + (appKey.map { "@\($0)" } ?? "") }
 
+    public var lastsUntilQuit: Bool { untilQuit == true }
+
     public init(subject: RuleSubject, key: String, title: String, action: RuleAction,
-                appKey: String? = nil, appTitle: String? = nil) {
+                appKey: String? = nil, appTitle: String? = nil, untilQuit: Bool = false) {
         self.subject = subject
         self.key = key
         self.title = title
         self.action = action
         self.appKey = appKey
         self.appTitle = appTitle
+        self.untilQuit = untilQuit ? true : nil
     }
 }
 
