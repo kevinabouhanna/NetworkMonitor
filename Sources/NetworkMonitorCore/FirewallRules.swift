@@ -12,9 +12,14 @@ public final class FirewallRules: ObservableObject {
     @Published public var mode: FirewallMode {
         didSet { defaults.set(mode.rawValue, forKey: Self.modeKey) }
     }
+    /// The ad, tracker and malware lists switched on (#176). None at first.
+    @Published public var lists: Set<BlocklistTopic> {
+        didSet { defaults.set(lists.map(\.rawValue).sorted(), forKey: Self.listsKey) }
+    }
 
     public static let rulesKey = "firewallRules"
     public static let modeKey = "firewallMode"
+    public static let listsKey = "blocklists"
 
     private let defaults: UserDefaults
 
@@ -23,6 +28,7 @@ public final class FirewallRules: ObservableObject {
         rules = defaults.data(forKey: Self.rulesKey)
             .flatMap { try? JSONDecoder().decode([FirewallRule].self, from: $0) } ?? []
         mode = defaults.string(forKey: Self.modeKey).flatMap(FirewallMode.init) ?? .anywhere
+        lists = Set((defaults.stringArray(forKey: Self.listsKey) ?? []).compactMap(BlocklistTopic.init))
     }
 
     /// The rule for every app on a row. Rules for one app, made by answering
@@ -84,7 +90,7 @@ public final class FirewallRules: ObservableObject {
     }
 
     public func policy(onHotspot: Bool) -> FirewallPolicy {
-        FirewallPolicy(mode: mode, rules: rules, onHotspot: onHotspot)
+        FirewallPolicy(mode: mode, rules: rules, onHotspot: onHotspot, lists: lists)
     }
 
     static func subject(of item: ConnectionsItem) -> RuleSubject? {

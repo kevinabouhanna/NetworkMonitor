@@ -77,10 +77,12 @@ public struct FlowFacts: Equatable {
     public var hostname: String?
     /// NetworkMonitor itself, fetching its monthly data (#121).
     public var isNetworkMonitor: Bool
+    /// The lists holding its name (#176), as the filter looked them up.
+    public var listedIn: Set<BlocklistTopic>
 
     public init(appKeys: [String], companyKey: String?, country: String?, address: String, port: Int,
                 isApple: Bool, executablePaths: [String] = [], hostname: String? = nil,
-                isNetworkMonitor: Bool = false) {
+                isNetworkMonitor: Bool = false, listedIn: Set<BlocklistTopic> = []) {
         self.appKeys = appKeys
         self.companyKey = companyKey
         self.country = country
@@ -90,6 +92,7 @@ public struct FlowFacts: Equatable {
         self.executablePaths = executablePaths
         self.hostname = hostname
         self.isNetworkMonitor = isNetworkMonitor
+        self.listedIn = listedIn
     }
 }
 
@@ -111,6 +114,8 @@ public enum BlockReason: Equatable {
     case mode
     /// An updater, or an update server, on a hotspot with Hotspot mode on (#98).
     case updatesOnHotspot
+    /// On a list that's switched on (#176).
+    case list(BlocklistTopic)
 
     /// How a report names it: the rule's id, or what blocked it.
     public var id: String {
@@ -118,8 +123,12 @@ public enum BlockReason: Equatable {
         case .rule(let rule):   return rule.id
         case .mode:             return "mode"
         case .updatesOnHotspot: return "hotspot-updates"
+        case .list(let topic):  return Self.listPrefix + topic.rawValue
         }
     }
+
+    /// Every list's report starts so, for counting them.
+    public static let listPrefix = "list:"
 }
 
 public enum AllowReason: Equatable {
@@ -140,18 +149,36 @@ public struct FirewallPolicy: Codable, Equatable {
     public var onHotspot: Bool
     /// Hotspot mode is on and this is a hotspot: updates wait (#98).
     public var pausesUpdates: Bool
+    /// The lists switched on (#176). None until someone turns them on.
+    public var lists: Set<BlocklistTopic>
 
     public init(mode: FirewallMode = .anywhere, rules: [FirewallRule] = [], onHotspot: Bool = false,
-                pausesUpdates: Bool = false) {
+                pausesUpdates: Bool = false, lists: Set<BlocklistTopic> = []) {
         self.mode = mode
         self.rules = rules
         self.onHotspot = onHotspot
         self.pausesUpdates = pausesUpdates
+        self.lists = lists
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case mode, rules, onHotspot, pausesUpdates, lists
+    }
+
+    /// A policy saved before a field existed reads it as off, so a filter
+    /// updated before its app keeps applying what it was sent.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        mode = try container.decode(FirewallMode.self, forKey: .mode)
+        rules = try container.decode([FirewallRule].self, forKey: .rules)
+        onHotspot = try container.decodeIfPresent(Bool.self, forKey: .onHotspot) ?? false
+        pausesUpdates = try container.decodeIfPresent(Bool.self, forKey: .pausesUpdates) ?? false
+        lists = try container.decodeIfPresent(Set<BlocklistTopic>.self, forKey: .lists) ?? []
     }
 
     /// Anything to decide at all. Without it, the filter looks nothing up.
     public var isActive: Bool {
-        mode != .anywhere || !rules.isEmpty || pausesUpdates
+        mode != .anywhere || !rules.isEmpty || pausesUpdates || !lists.isEmpty
     }
 
     /// Most specific first: one server is narrower than a site, a site than an
@@ -181,9 +208,14 @@ public struct FirewallPolicy: Codable, Equatable {
                 }
             }
         }
-        // After your rules, which always win: Always Allow lets an updater
-        // through. macOS and Apple's apps follow Hotspot mode's system setting
-        // instead, so an update started by hand still goes.
+        // After your rules, which always win: Always Allow lets a listed site
+        // through (#176).
+        if let topic = flow.listedIn.intersection(lists).sorted().first {
+            return .block(.list(topic))
+        }
+        // Always Allow lets an updater through too. macOS and Apple's apps
+        // follow Hotspot mode's system setting instead, so an update started
+        // by hand still goes.
         if pausesUpdates, !flow.isApple,
            flow.executablePaths.contains(where: Self.isUpdater) || flow.hostname.map(Self.isUpdateHost) == true {
             return .block(.updatesOnHotspot)

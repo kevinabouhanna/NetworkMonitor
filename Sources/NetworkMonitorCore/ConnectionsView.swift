@@ -197,6 +197,7 @@ public struct ConnectionsView: View {
         ConnectionsRow(item: group.item, subtitle: subtitle(for: group.item),
                        icon: model.icon(for: group.item), fraction: fraction(group.item.total, of: largest),
                        indent: 0, disclosure: isOpen, rule: firewall.rule(for: group.item)?.action,
+                       listed: model.listed(group.item),
                        onToggleDisclosure: { model.toggle(group.id) },
                        onSelect: { model.toggle(group.id) },
                        help: isOpen ? "Click to close" : "Click to see its \(sectionNames(group))",
@@ -224,7 +225,7 @@ public struct ConnectionsView: View {
         ForEach(shown) { item in
             ConnectionsRow(item: item, subtitle: subtitle(for: item), icon: model.icon(for: item),
                            fraction: fraction(item.total, of: largest), indent: 1, disclosure: nil,
-                           rule: firewall.rule(for: item)?.action,
+                           rule: firewall.rule(for: item)?.action, listed: model.listed(item),
                            onToggleDisclosure: {}, onSelect: { model.narrow(to: item, in: group.item) },
                            help: "Click to see only \(item.title)", format: model.format)
                 .contextMenu { ruleMenu(for: item) }
@@ -398,6 +399,23 @@ struct RuleBadge: View {
     }
 }
 
+/// ADS or MALWARE, beside a server a list holds (#176), whether the lists are
+/// switched on or not: Connections says what it is either way.
+struct ListTag: View {
+    let topic: BlocklistTopic
+
+    var body: some View {
+        Text(topic.tag)
+            .font(.system(size: 8, weight: .bold))
+            .padding(.horizontal, 4).padding(.vertical, 1)
+            .background(color.opacity(0.18), in: Capsule())
+            .foregroundStyle(color)
+            .help("On the \(topic.title.lowercased()) list, from \(topic.source)")
+    }
+
+    private var color: Color { topic == .malware ? .purple : .red }
+}
+
 private struct ConnectionsRow: View {
     let item: ConnectionsItem
     let subtitle: String?
@@ -408,6 +426,8 @@ private struct ConnectionsRow: View {
     let disclosure: Bool?
     /// The person's rule for it, if any (#114).
     let rule: RuleAction?
+    /// A named server on an ad, tracker or malware list (#176).
+    let listed: BlocklistTopic?
     let onToggleDisclosure: () -> Void
     let onSelect: () -> Void
     let help: String
@@ -449,6 +469,7 @@ private struct ConnectionsRow: View {
                             .foregroundStyle(.secondary)
                             .help("A network that carries many companies' traffic")
                     }
+                    if let listed { ListTag(topic: listed) }
                     if let rule { RuleBadge(action: rule) }
                 }
                 if let subtitle, !subtitle.isEmpty {

@@ -57,6 +57,8 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     /// A month of data newer than the filter shipped with (#121), sent each
     /// time it connects; the filter ignores one it already has.
     private var geoData: (directory: URL, month: String)?
+    /// The newest lists (#176), for the filter to keep its own copy of.
+    private var blocklists: (directory: URL, version: String)?
     private var removing = false
     /// Set while the launch's request brings the running filter up to this
     /// build's (#136).
@@ -299,7 +301,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         // hand over the rules.
         connection.interruptionHandler = { [weak self, weak connection] in
             (connection?.remoteObjectProxyWithErrorHandler { _ in } as? FilterExtensionInterface)?.register { _ in }
-            DispatchQueue.main.async { self?.sendPolicy(); self?.sendGeoData() }
+            DispatchQueue.main.async { self?.sendPolicy(); self?.sendGeoData(); self?.sendBlocklists() }
         }
         connection.resume()
         self.connection = connection
@@ -307,6 +309,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         (connection.remoteObjectProxyWithErrorHandler { _ in } as? FilterExtensionInterface)?.register { _ in }
         sendPolicy()
         sendGeoData()
+        sendBlocklists()
     }
 
     // MARK: The rules
@@ -337,6 +340,23 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
               let owners = try? FileHandle(forReadingFrom: geoData.directory.appendingPathComponent("owners.bin"))
         else { return }
         proxy.applyGeoData(countries, owners, geoData.month)
+    }
+
+    /// Newer lists are in place (#176): the filter gets them as open files.
+    public func applyBlocklists(at directory: URL, version: String) {
+        blocklists = (directory, version)
+        sendBlocklists()
+    }
+
+    private func sendBlocklists() {
+        guard let blocklists, let proxy = connection?.remoteObjectProxyWithErrorHandler({ _ in })
+                as? FilterExtensionInterface,
+              let ads = try? FileHandle(forReadingFrom: blocklists.directory.appendingPathComponent(
+                  BlocklistTopic.ads.fileName)),
+              let malware = try? FileHandle(forReadingFrom: blocklists.directory.appendingPathComponent(
+                  BlocklistTopic.malware.fileName))
+        else { return }
+        proxy.applyBlocklists(ads, malware, blocklists.version)
     }
 
     private func disconnect() {
