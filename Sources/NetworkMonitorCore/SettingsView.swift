@@ -352,7 +352,11 @@ struct HotspotSettingsPane: View {
                     // Collapsed by default. "Which apps?" is a question asked
                     // occasionally; it is not worth a dozen permanent rows.
                     DisclosureGroup(isExpanded: $state.appsExpanded) {
-                        ForEach(state.coveredItems) { appToggle($0) }
+                        // A line between rows, so each switch sits with its own (#185).
+                        ForEach(Array(state.coveredItems.enumerated()), id: \.element.id) { index, item in
+                            if index > 0 { Divider() }
+                            PausedAppRow(item: item, metering: metering)
+                        }
                         if state.coveredItems.isEmpty && state.listLoaded {
                             Text("Nothing on this Mac to pause.").foregroundStyle(.secondary)
                         }
@@ -619,19 +623,32 @@ struct HotspotSettingsPane: View {
         return on == total ? "Paused on a hotspot (\(total))"
                            : "Paused on a hotspot (\(on) of \(total))"
     }
+}
 
-    /// One row of the list.
-    ///
-    /// On by default and on for every app the moment the parent switch goes on —
-    /// the opt-out set starts empty, so there is no state to seed and nothing to
-    /// migrate for anyone upgrading.
-    private func appToggle(_ item: MeteringController.ToggleItem) -> some View {
+/// One row of *Paused on a hotspot*: an app, or a tier of apps that one switch
+/// moves together.
+///
+/// The name and the switch on one line, so it's plain which switch is whose,
+/// and what pausing it does behind an ⓘ that shows while the pointer is over
+/// the row (#185). What needs attention stays in view.
+///
+/// On by default and on for every app the moment the parent switch goes on —
+/// the opt-out set starts empty, so there is no state to seed and nothing to
+/// migrate for anyone upgrading.
+struct PausedAppRow: View {
+    let item: MeteringController.ToggleItem
+    @ObservedObject var metering: MeteringController
+    /// Not `@State`; see `SettingsPaneState`.
+    @StateObject private var state = PausedAppRowState()
+
+    var body: some View {
         Toggle(isOn: Binding(
             get: { metering.isSuppressionEnabled(for: item.id) },
             set: { metering.setSuppressionEnabled($0, for: item.id) })) {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
                     Text(item.label)
+                    info
                     // Only while a change is really waiting: on a hotspot, for an
                     // app that was open when it was due. Its settings can't be
                     // changed safely while it runs, so the change is made the
@@ -645,46 +662,81 @@ struct HotspotSettingsPane: View {
                             .help("NetworkMonitor can't change \(item.label)'s settings while it's "
                                   + "open. It pauses its updates as soon as you quit it.")
                     }
-                    if !item.isGroup { updatedAnyway(item.label) }
+                    if !item.isGroup { updatedAnyway([item.label]) }
                 }
                 if item.isGroup {
-                    // A row standing in for a whole tier: each app it covers,
-                    // with what pausing it does, since one switch moves them all.
-                    Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 2) {
-                        ForEach(item.members) { member in
-                            GridRow {
-                                Text(member.name)
-                                    .font(.system(size: 11))
-                                HStack(spacing: 5) {
-                                    SettingsRowDetail(member.effect)
-                                    updatedAnyway(member.name)
-                                }
-                            }
-                        }
-                    }
-                    .padding(.top, 2)
-                } else {
-                    SettingsRowDetail(item.effect)
+                    // Who the one switch moves, by name.
+                    SettingsRowDetail(ListFormatter.localizedString(byJoining: item.members.map(\.name)))
+                    updatedAnyway(item.members.map(\.name))
                 }
             }
         }
         .toggleStyle(.switch)
         .controlSize(.small)
+        .accessibilityHint(Self.effect(of: item))
+        .contentShape(Rectangle())
+        .onHover { state.isHovering = $0 }
     }
 
-    /// Beside a paused app that updated on the last metered connection: the
-    /// one place it's learned that a pause didn't hold. Goes when the next
-    /// metered connection starts a new report (#94).
-    @ViewBuilder
-    private func updatedAnyway(_ name: String) -> some View {
-        if metering.updatesGotThrough.contains(where: { $0.appName == name }) {
-            Text("updated anyway")
-                .font(.system(size: 11))
-                .foregroundStyle(.orange)
-                .help("\(name) updated on your last metered connection although it was paused. "
-                      + "Its row under Got through says how much it used.")
+    /// What pausing it does: for a tier, each app's, a line each.
+    static func effect(of item: MeteringController.ToggleItem) -> String {
+        item.isGroup ? item.members.map { "\($0.name): \($0.effect)" }.joined(separator: "\n") : item.effect
+    }
+
+    private var info: some View {
+        Button { state.showsInfo.toggle() } label: {
+            Image(systemName: "info.circle").foregroundStyle(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .help(Self.effect(of: item))
+        .opacity(state.isHovering || state.showsInfo ? 1 : 0)
+        .accessibilityHidden(true)
+        .popover(isPresented: $state.showsInfo, arrowEdge: .bottom) {
+            Group {
+                if item.isGroup {
+                    Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
+                        ForEach(item.members) { member in
+                            GridRow {
+                                Text(member.name)
+                                Text(member.effect).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } else {
+                    Text(item.effect)
+                }
+            }
+            .font(.system(size: 12))
+            .fixedSize()
+            .padding(12)
         }
     }
+
+    /// Beside a paused app that updated on the last metered connection, or
+    /// under a tier's apps, naming those that did: the one place it's learned
+    /// that a pause didn't hold. Goes when the next metered connection starts
+    /// a new report (#94).
+    @ViewBuilder
+    private func updatedAnyway(_ names: [String]) -> some View {
+        let updated = names.filter { name in metering.updatesGotThrough.contains { $0.appName == name } }
+        if !updated.isEmpty {
+            Text(item.isGroup ? ListFormatter.localizedString(byJoining: updated) + " updated anyway"
+                              : "updated anyway")
+                .font(.system(size: 11))
+                .foregroundStyle(.orange)
+                .help(updated.count == 1
+                      ? "\(updated[0]) updated on your last metered connection although it was paused. "
+                        + "Its row under Got through says how much it used."
+                      : "These updated on your last metered connection although they were paused. "
+                        + "Their rows under Got through say how much each used.")
+        }
+    }
+}
+
+/// Whether the pointer is over a paused app's row, and whether its ⓘ is open.
+final class PausedAppRowState: ObservableObject {
+    @Published var isHovering = false
+    @Published var showsInfo = false
 }
 
 // MARK: - About
