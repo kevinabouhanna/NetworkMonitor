@@ -383,7 +383,7 @@ footer a { color: var(--text-2); }
         <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download for Mac</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
-      <p class="hero-meta reveal d3"><span>Version 1.17.1</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
+      <p class="hero-meta reveal d3"><span>Version 1.18.0</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
       <div class="featured reveal d3">
         <a href="https://www.trymacapps.com" target="_blank" rel="noopener">
           <img
@@ -604,17 +604,17 @@ footer a { color: var(--text-2); }
 
       <figure class="connections-shot reveal">
         <img src="assets/connections.png" width="2240" height="1688" loading="lazy"
-             alt="The Connections window on Today, grouped by company and showing Traffic, with All, Wi‑Fi and Hotspot. 1.3 GB to and from servers, 30 companies, 19 countries, 85 apps and 408 servers, over a timeline by the hour. On the left, companies biggest first, each with a bar: Apple 500.1 MB, Hosted on Amazon 220.8 MB, Meta 190.9 MB, Anthropic 174.7 MB, Google 138.5 MB, Libantelecom, Hosted on Cloudflare, T.H. Global Vision, Hosted on Fastly, Perplexity, Datadog, GitHub, Slack and Wikipedia. On the right, a world map with the United States, Western Europe, India and a few others shaded, a Live switch and zoom buttons, and a note that Cloudflare and Fastly's 56.8 MB answered from nearby data centres, so isn't placed on the map.">
+             alt="The Connections window on Today, grouped by company and showing Traffic, with All, Wi‑Fi and Hotspot. 1.1 GB to and from servers, 33 companies, 20 countries, 84 apps and 449 servers, over a timeline by the hour. On the left, companies biggest first, each with a bar: Meta 473.3 MB, Anthropic 237.4 MB, Apple 115.5 MB, Hosted on Amazon 111.1 MB, Google 78.7 MB, GitHub, Libantelecom, Slack, Hosted on Cloudflare, Hosted on Fastly, Perplexity, Datadog, Figma, Raycast, Hosted on Google, Airtable and C BEYOND. On the right, a world map with the United States, Western Europe, Brazil, India and a few others shaded, orange lines pulsing from Lebanon to the United States, Europe and Brazil, zoom buttons, and a note that Cloudflare and Fastly's 48.0 MB answered from nearby data centres, so isn't placed on the map.">
       </figure>
 
       <div class="facts two">
         <div class="reveal">
           <h3>By company, app or country.</h3>
-          <p>A company opens into the apps that reached it, the countries its servers answered from and the servers themselves. Group by app instead to see everyone one app talks to, or by country. The timeline narrows it to an hour, and <b>Live</b> pulses the map to the countries your apps are reaching right now.</p>
+          <p>A company opens into the apps that reached it, the countries its servers answered from and the servers themselves. Group by app instead to see everyone one app talks to, or by country. The timeline narrows it to an hour, and the map pulses to the countries your apps are reaching right now.</p>
         </div>
         <div class="reveal">
           <h3>Website names, with your OK.</h3>
-          <p>On its own, a server is only an address, and anything on a cloud reads as <em>Hosted on Amazon</em>. Allow the part of macOS made for apps like this one, and Slack shows up as slack.com instead. It’s offered when NetworkMonitor first opens, and it’s optional.</p>
+          <p>On its own, a server is only an address, and anything on a cloud reads as <em>Hosted on Amazon</em>. Allow the part of macOS made for apps like this one, and Slack shows up as slack.com instead. It’s offered when NetworkMonitor first opens, it’s optional, and once it’s on there’s nothing to manage.</p>
         </div>
         <div class="reveal">
           <h3>Block what you choose.</h3>
@@ -689,7 +689,7 @@ footer a { color: var(--text-2); }
             <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="history" style="--x:-59;--y:32;--w:55;--h:48"
                     data-caption="What every app used, hour by hour, day by day. It stays on your Mac.">History</button>
             <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="connections" style="--x:-3;--y:32;--w:78;--h:48"
-                    data-caption="Today’s top companies, website names, how apps may connect, and every rule you’ve made.">Connections</button>
+                    data-caption="Today’s top companies, how apps may connect, and every rule you’ve made.">Connections</button>
             <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="hotspot" style="--x:76;--y:32;--w:55;--h:48"
                     data-caption="What it pauses on a hotspot and how, and what it can’t, with why. Click a list to open it.">Hotspot</button>
             <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="about" style="--x:132;--y:32;--w:55;--h:48"
@@ -702,16 +702,16 @@ footer a { color: var(--text-2); }
                  alt="The Speed Test pane: Test your internet speed, with a Test Now button. A note says it runs macOS's built-in networkQuality only when you start it, download first, then upload, typically using 50 to 500 MB. Show the test in the popover as Card or Compact, with Card chosen.">
             <img class="prefs-shot" data-shot="history" data-w="720" data-h="785" src="assets/settings/history.png" width="1440" height="1570" loading="lazy" aria-hidden="true"
                  alt="The History pane on Today, with Day, Week, Month and Year, a ‹ Today › stepper, and All, Wi‑Fi and Hotspot. 1.5 GB used, all over Wi‑Fi, in a bar chart by the hour that peaks at about 740 MB at noon. Below it, Apps, biggest first: Software Update 522.3 MB, Google Chrome 320.5 MB, iTerm2 166.6 MB, Slack 133.8 MB, Xcode 86.4 MB, WhatsApp 76.5 MB and GoogleUpdater 38.9 MB. Networks and Sessions are the other two lists. Keep history for Forever, with Clear History… and Export CSV… buttons.">
-            <img class="prefs-shot" data-shot="connections" data-w="720" data-h="870" src="assets/settings/connections.png" width="1440" height="1740" loading="lazy" aria-hidden="true"
-                 alt="The Connections pane. Which companies, countries and servers your apps talk to, on a list and a world map, with an Open Connections… button. Today: Apple 541.2 MB, Hosted on Amazon 248.0 MB, Meta 228.2 MB, Anthropic 226.3 MB and Datacamp 189.1 MB. See which websites your apps visit is On, with a Turn Off button. Under Blocking, Let apps connect offers Anywhere, Ask Me and Only Where I Allow, with Anywhere chosen. Opens with List, Both or Map, with Both chosen. Countries and networks: DB-IP Lite, October 2026, and Update them monthly, switched on.">
+            <img class="prefs-shot" data-shot="connections" data-w="720" data-h="878" src="assets/settings/connections.png" width="1440" height="1756" loading="lazy" aria-hidden="true"
+                 alt="The Connections pane. Which companies, countries and servers your apps talk to, on a list and a world map, with an Open Connections… button. Today: Meta 473.3 MB, Anthropic 235.3 MB, Apple 115.5 MB, Hosted on Amazon 111.1 MB and Google 78.6 MB. Under Blocking, Let apps connect offers Anywhere, Ask Me and Only Where I Allow, with Anywhere chosen. Opens with List, Both or Map, with Both chosen. Countries and networks: DB-IP Lite, October 2026, and Update them monthly, switched on.">
             <img class="prefs-shot" data-shot="hotspot" data-w="720" data-h="704" src="assets/settings/hotspot.png" width="1440" height="1408" loading="lazy" aria-hidden="true"
                  alt="The Hotspot pane. Stop apps updating on hotspots is on, and right now this doesn't look like a hotspot. This network is set to Detect automatically, with Is a hotspot and Isn't a hotspot to choose from. Paused on a hotspot (13) and Can't be paused (3) are both closed. Every app's updater: Stopped on hotspots. Got through on your last metered connection, in orange as both were paused: Slack downloaded an update anyway, up to 271.6 MB, and Google Chrome downloaded an update anyway, 265.6 MB.">
             <img class="prefs-shot" data-shot="hotspot-apps" data-w="720" data-h="870" src="assets/settings/hotspot-apps.png" width="1440" height="1740" loading="lazy" aria-hidden="true"
-                 alt="The Hotspot pane with Paused on a hotspot (13) open, each app switched on with a line saying how it's paused: AppCleaner, Claude Usage, iTerm, NetworkMonitor itself, OpenDisk and Remote for Mac turn off their automatic update check, Figma turns off its updater, and Microsoft AutoUpdate sets Microsoft's apps to update only when you ask. Through NetworkMonitor's helper: macOS updates, App Store apps, Claude, Slack, Figma, Google Chrome and Claude Code, with Slack and Google Chrome marked updated anyway in orange. Through their update folders: Claude, Figma, Granola, Slack and Synergy, Slack again marked updated anyway. Then Visual Studio Code, the list scrolling on.">
-            <img class="prefs-shot" data-shot="hotspot-uncovered" data-w="720" data-h="825" src="assets/settings/hotspot-uncovered.png" width="1440" height="1650" loading="lazy" aria-hidden="true"
-                 alt="The Hotspot pane with Can't be paused (3) open: OmniDiskSweeper, Opera and Raycast, each having its own updater with no setting NetworkMonitor can turn off. Every app's updater: Stopped on hotspots, including ones listed as can't be paused when they update with a program of their own. Got through on your last metered connection, in orange: Slack downloaded an update anyway, up to 271.6 MB, and Google Chrome downloaded an update anyway, 265.6 MB.">
+                 alt="The Hotspot pane with Paused on a hotspot (13) open, one line per app with its switch, all on: AppCleaner, Claude Usage, Figma, iTerm, Microsoft AutoUpdate, NetworkMonitor itself, OpenDisk and Remote for Mac. Through NetworkMonitor's helper names macOS updates, App Store apps, Claude, Slack, Figma, Google Chrome and Claude Code on one line, with Slack and Google Chrome updated anyway in orange. Through their update folders names Claude, Figma, Granola, Slack and Synergy, with Slack updated anyway. Then Visual Studio Code, VLC and VoiceInk. How each is paused is behind an ⓘ that appears when you point at the row.">
+            <img class="prefs-shot" data-shot="hotspot-uncovered" data-w="720" data-h="798" src="assets/settings/hotspot-uncovered.png" width="1440" height="1596" loading="lazy" aria-hidden="true"
+                 alt="The Hotspot pane with Can't be paused (3) open, one line per app: OmniDiskSweeper, Opera and Raycast, with why behind an ⓘ that appears when you point at the row. Every app's updater: Stopped on hotspots, including ones listed as can't be paused when they update with a program of their own. Got through on your last metered connection, in orange: Slack downloaded an update anyway, up to 271.6 MB, and Google Chrome downloaded an update anyway, 265.6 MB.">
             <img class="prefs-shot" data-shot="about" data-w="720" data-h="710" src="assets/settings/about.png" width="1440" height="1420" loading="lazy" aria-hidden="true"
-                 alt="The About pane: the NetworkMonitor icon, Version 1.17.1 (105), and Live network speed in your menu bar, and which app used your data. Links to the website, the release notes and the source code on GitHub. Free and open source, under the MIT licence. Check for updates automatically is on, with a Check Now button: once a day it asks GitHub whether there's a newer version, never on a hotspot, and an update installs only when you say so, and only if it's signed by NetworkMonitor. Remove NetworkMonitor, with an Uninstall… button.">
+                 alt="The About pane: the NetworkMonitor icon, Version 1.18.0 (110), and Live network speed in your menu bar, and which app used your data. Links to the website, the release notes and the source code on GitHub. Free and open source, under the MIT licence. Check for updates automatically is on, with a Check Now button: once a day it asks GitHub whether there's a newer version, never on a hotspot, and an update installs only when you say so, and only if it's signed by NetworkMonitor. Remove NetworkMonitor, with an Uninstall… button.">
             <button class="prefs-row" type="button" aria-expanded="false" data-row="apps" style="--x:-340;--y:274;--w:680;--h:44" hidden>Paused on a hotspot</button>
             <button class="prefs-row" type="button" aria-expanded="false" data-row="uncovered" style="--x:-340;--y:372;--w:680;--h:44" hidden>Can’t be paused</button>
             <a class="prefs-link" href="#top" style="--x:150;--y:319;--w:182;--h:30" hidden>Website</a>
@@ -768,7 +768,7 @@ footer a { color: var(--text-2); }
           <p>The usual Mac way: open the disk image and drag NetworkMonitor into <strong>Applications</strong>.</p>
           <div class="get">
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download NetworkMonitor.dmg</a>
-            <span class="meta">Version 1.17.1 · 11.2 MB · Universal</span>
+            <span class="meta">Version 1.18.0 · 11.3 MB · Universal</span>
           </div>
           <figure class="dmg-shot" style="margin-bottom:0">
             <img src="assets/dmg-window.png" width="1424" height="1104" loading="lazy"
@@ -785,7 +785,7 @@ footer a { color: var(--text-2); }
       </div>
 
       <div class="ctas reveal">
-        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.17.1">What’s in version 1.17.1</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.18.0">What’s in version 1.18.0</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/wiki">Documentation</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
