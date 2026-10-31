@@ -125,6 +125,55 @@ public final class FirewallRules: ObservableObject {
         if kept.count != rules.count { save(kept) }
     }
 
+    // MARK: Export and import (#201)
+
+    /// What Export writes: the rules, in a file that says what it is.
+    public struct RulesFile: Codable, Equatable {
+        public let networkMonitorRules: Int
+        public let rules: [FirewallRule]
+
+        public static let format = 1
+    }
+
+    public enum ImportError: Error, Equatable {
+        case notRules
+    }
+
+    /// Every rule, newest first, as a file another Mac can import. Answers
+    /// "until it quits" (#199) are for this session on this Mac, so they stay.
+    public func exportData() -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let lasting = rules.filter { !$0.lastsUntilQuit }
+        return (try? encoder.encode(RulesFile(networkMonitorRules: RulesFile.format, rules: lasting))) ?? Data()
+    }
+
+    /// Adds the rules in an exported file, or a plain list of them, that
+    /// aren't here already. Never replaces one: a rule here wins. Returns how
+    /// many were added, and how many were already here.
+    @discardableResult
+    public func importRules(from data: Data) throws -> (added: Int, alreadyHere: Int) {
+        let decoder = JSONDecoder()
+        guard let incoming = (try? decoder.decode(RulesFile.self, from: data))?.rules
+                ?? (try? decoder.decode([FirewallRule].self, from: data))
+        else { throw ImportError.notRules }
+        var seen = Set(rules.map(\.id))
+        var added: [FirewallRule] = []
+        for rule in incoming where !seen.contains(rule.id) {
+            seen.insert(rule.id)
+            added.append(rule)
+        }
+        if !added.isEmpty { save(added + rules) }
+        return (added.count, incoming.count - added.count)
+    }
+
+    /// "Added 3 rules. 2 were already here."
+    public static func importSummary(added: Int, alreadyHere: Int) -> String {
+        let first = added == 0 ? "No new rules." : "Added \(added) rule\(added == 1 ? "" : "s")."
+        guard alreadyHere > 0 else { return first }
+        return first + " \(alreadyHere) \(alreadyHere == 1 ? "was" : "were") already here."
+    }
+
     public func policy(onHotspot: Bool) -> FirewallPolicy {
         FirewallPolicy(mode: mode, rules: rules, onHotspot: onHotspot, lists: lists)
     }

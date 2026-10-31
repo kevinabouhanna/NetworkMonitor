@@ -140,6 +140,9 @@ and Settings › Connections lists every rule, each with a button to take it bac
   setting instead. What it stopped shows under Blocked.
 - **Never blocked:** the local network, looking up names (DNS), the clock, and getting an
   address. Without them nothing else works.
+- **Export… and Import…** beside the rules in Settings › Connections (#201) save every rule
+  to a JSON file, for a backup or another Mac. Import adds the rules that aren't there yet,
+  never replaces one that is, and says how many it added.
 - **Block Everything,** in the menu bar item's right-click menu (#198), stops every app's
   new connections at once, Apple's included and whatever your rules allow, until you
   choose it again. Only the essentials above and NetworkMonitor itself go through. While
