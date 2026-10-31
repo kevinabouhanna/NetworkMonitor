@@ -352,7 +352,11 @@ struct HotspotSettingsPane: View {
                     // Collapsed by default. "Which apps?" is a question asked
                     // occasionally; it is not worth a dozen permanent rows.
                     DisclosureGroup(isExpanded: $state.appsExpanded) {
-                        ForEach(state.coveredItems) { appToggle($0) }
+                        // A line between rows, so each switch sits with its own (#185).
+                        ForEach(Array(state.coveredItems.enumerated()), id: \.element.id) { index, item in
+                            if index > 0 { Divider() }
+                            PausedAppRow(item: item, metering: metering)
+                        }
                         if state.coveredItems.isEmpty && state.listLoaded {
                             Text("Nothing on this Mac to pause.").foregroundStyle(.secondary)
                         }
@@ -369,11 +373,15 @@ struct HotspotSettingsPane: View {
 
                 // The other half of the honesty the list above owes: what it does
                 // not reach on this Mac, found by how each app updates rather than
-                // by a list of names, each with the reason.
+                // by a list of names, each with the reason behind its ⓘ (#185).
                 if !state.uncovered.isEmpty {
                     Section {
                         DisclosureGroup(isExpanded: $state.uncoveredExpanded) {
-                            ForEach(state.uncovered) { uncoveredRow($0) }
+                            ForEach(Array(state.uncovered.enumerated()), id: \.element.id) { index, finding in
+                                if index > 0 { Divider() }
+                                UncoveredAppRow(name: finding.displayName, reason: uncoveredReason(finding),
+                                                isActionable: helperWouldPause(finding))
+                            }
                         } label: {
                             Text("Can't be paused (\(state.uncovered.count))")
                                 .togglesDisclosure($state.uncoveredExpanded)
@@ -585,27 +593,17 @@ struct HotspotSettingsPane: View {
 
     // MARK: Can't be paused
 
-    private func uncoveredRow(_ finding: UpdaterScan.Finding) -> some View {
-        // Full width, or each row centres itself on its own text's width.
-        VStack(alignment: .leading, spacing: 1) {
-            Text(finding.displayName)
-            SettingsRowDetail(uncoveredReason(finding))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 2)
-    }
-
     /// Why it can't be paused, or — for an app only the helper reaches — what
     /// would pause it, which is the more useful thing to know.
     private func uncoveredReason(_ finding: UpdaterScan.Finding) -> String {
-        let helperWouldCover = PrivilegedSuppressor.coveredApplications.contains {
+        helperWouldPause(finding) ? "Paused once you allow the helper below" : finding.mechanism.whyNotPaused
+    }
+
+    private func helperWouldPause(_ finding: UpdaterScan.Finding) -> Bool {
+        !metering.helperInstalled && PrivilegedSuppressor.coveredApplications.contains {
             ($0.bundleID != nil && $0.bundleID == finding.bundleIdentifier)
                 || $0.app == finding.displayName
         }
-        if helperWouldCover && !metering.helperInstalled {
-            return "Paused once you allow the helper below"
-        }
-        return finding.mechanism.whyNotPaused
     }
 
     /// "Paused on a hotspot (7)" when everything is on, "(6 of 7)" once one is
@@ -619,19 +617,45 @@ struct HotspotSettingsPane: View {
         return on == total ? "Paused on a hotspot (\(total))"
                            : "Paused on a hotspot (\(on) of \(total))"
     }
+}
 
-    /// One row of the list.
-    ///
-    /// On by default and on for every app the moment the parent switch goes on —
-    /// the opt-out set starts empty, so there is no state to seed and nothing to
-    /// migrate for anyone upgrading.
-    private func appToggle(_ item: MeteringController.ToggleItem) -> some View {
+/// One row of *Paused on a hotspot*: an app, or a tier of apps that one switch
+/// moves together.
+///
+/// The name and the switch on one line, so it's plain which switch is whose,
+/// and what pausing it does behind an ⓘ that shows while the pointer is over
+/// the row (#185). What needs attention stays in view.
+///
+/// On by default and on for every app the moment the parent switch goes on —
+/// the opt-out set starts empty, so there is no state to seed and nothing to
+/// migrate for anyone upgrading.
+struct PausedAppRow: View {
+    let item: MeteringController.ToggleItem
+    @ObservedObject var metering: MeteringController
+    /// Not `@State`; see `SettingsPaneState`.
+    @StateObject private var info = RowInfoState()
+
+    var body: some View {
         Toggle(isOn: Binding(
             get: { metering.isSuppressionEnabled(for: item.id) },
             set: { metering.setSuppressionEnabled($0, for: item.id) })) {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
                     Text(item.label)
+                    RowInfoButton(help: Self.effect(of: item), state: info) {
+                        if item.isGroup {
+                            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
+                                ForEach(item.members) { member in
+                                    GridRow {
+                                        Text(member.name)
+                                        Text(member.effect).foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        } else {
+                            Text(item.effect)
+                        }
+                    }
                     // Only while a change is really waiting: on a hotspot, for an
                     // app that was open when it was due. Its settings can't be
                     // changed safely while it runs, so the change is made the
@@ -645,46 +669,106 @@ struct HotspotSettingsPane: View {
                             .help("NetworkMonitor can't change \(item.label)'s settings while it's "
                                   + "open. It pauses its updates as soon as you quit it.")
                     }
-                    if !item.isGroup { updatedAnyway(item.label) }
+                    if !item.isGroup { updatedAnyway([item.label]) }
                 }
                 if item.isGroup {
-                    // A row standing in for a whole tier: each app it covers,
-                    // with what pausing it does, since one switch moves them all.
-                    Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 2) {
-                        ForEach(item.members) { member in
-                            GridRow {
-                                Text(member.name)
-                                    .font(.system(size: 11))
-                                HStack(spacing: 5) {
-                                    SettingsRowDetail(member.effect)
-                                    updatedAnyway(member.name)
-                                }
-                            }
-                        }
-                    }
-                    .padding(.top, 2)
-                } else {
-                    SettingsRowDetail(item.effect)
+                    // Who the one switch moves, by name.
+                    SettingsRowDetail(ListFormatter.localizedString(byJoining: item.members.map(\.name)))
+                    updatedAnyway(item.members.map(\.name))
                 }
             }
         }
         .toggleStyle(.switch)
         .controlSize(.small)
+        .accessibilityHint(Self.effect(of: item))
+        .contentShape(Rectangle())
+        .onHover { info.isHovering = $0 }
     }
 
-    /// Beside a paused app that updated on the last metered connection: the
-    /// one place it's learned that a pause didn't hold. Goes when the next
-    /// metered connection starts a new report (#94).
+    /// What pausing it does: for a tier, each app's, a line each.
+    static func effect(of item: MeteringController.ToggleItem) -> String {
+        item.isGroup ? item.members.map { "\($0.name): \($0.effect)" }.joined(separator: "\n") : item.effect
+    }
+
+    /// Beside a paused app that updated on the last metered connection, or
+    /// under a tier's apps, naming those that did: the one place it's learned
+    /// that a pause didn't hold. Goes when the next metered connection starts
+    /// a new report (#94).
     @ViewBuilder
-    private func updatedAnyway(_ name: String) -> some View {
-        if metering.updatesGotThrough.contains(where: { $0.appName == name }) {
-            Text("updated anyway")
+    private func updatedAnyway(_ names: [String]) -> some View {
+        let updated = names.filter { name in metering.updatesGotThrough.contains { $0.appName == name } }
+        if !updated.isEmpty {
+            Text(item.isGroup ? ListFormatter.localizedString(byJoining: updated) + " updated anyway"
+                              : "updated anyway")
                 .font(.system(size: 11))
                 .foregroundStyle(.orange)
-                .help("\(name) updated on your last metered connection although it was paused. "
-                      + "Its row under Got through says how much it used.")
+                .help(updated.count == 1
+                      ? "\(updated[0]) updated on your last metered connection although it was paused. "
+                        + "Its row under Got through says how much it used."
+                      : "These updated on your last metered connection although they were paused. "
+                        + "Their rows under Got through say how much each used.")
         }
     }
+}
+
+/// One row of *Can't be paused*: the app, and why behind an ⓘ (#185). What
+/// would pause it, the helper, is something to do, so it stays in view.
+struct UncoveredAppRow: View {
+    let name: String
+    let reason: String
+    let isActionable: Bool
+    /// Not `@State`; see `SettingsPaneState`.
+    @StateObject private var info = RowInfoState()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 5) {
+                Text(name)
+                if !isActionable {
+                    RowInfoButton(help: reason, state: info) { Text(reason) }
+                }
+            }
+            if isActionable { SettingsRowDetail(reason) }
+        }
+        // Full width, or each row centres itself on its own text's width.
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .onHover { info.isHovering = $0 }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(isActionable ? "" : reason)
+    }
+}
+
+/// An ⓘ beside a row's name, there only while the pointer is over the row:
+/// what it says is a tooltip, or a popover when clicked (#185). VoiceOver
+/// gets it from the row instead.
+struct RowInfoButton<Content: View>: View {
+    let help: String
+    @ObservedObject var state: RowInfoState
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        Button { state.showsInfo.toggle() } label: {
+            Image(systemName: "info.circle").foregroundStyle(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .help(help)
+        .opacity(state.isHovering || state.showsInfo ? 1 : 0)
+        .accessibilityHidden(true)
+        .popover(isPresented: $state.showsInfo, arrowEdge: .bottom) {
+            content
+                .font(.system(size: 12))
+                .fixedSize()
+                .padding(12)
+        }
+    }
+}
+
+/// Whether the pointer is over a row, and whether its ⓘ is open.
+final class RowInfoState: ObservableObject {
+    @Published var isHovering = false
+    @Published var showsInfo = false
 }
 
 // MARK: - About

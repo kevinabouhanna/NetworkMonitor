@@ -20,9 +20,9 @@ is off, and only the traffic counting runs. When you switch it on:
    how each one updates. It reads their files on your Mac; there's no list downloaded from
    anywhere.
 3. **Settings › Hotspot shows two lists:**
-   - **Paused on a hotspot:** every app it can pause, each with a line saying how, and a
-     switch to leave it alone.
-   - **Can't be paused:** every app it can't, each with the reason.
+   - **Paused on a hotspot:** every app it can pause, one line each with a switch to leave
+     it alone. How it's paused is behind an ⓘ beside the name.
+   - **Can't be paused:** every app it can't, with the reason behind the same ⓘ.
 4. **Nothing changes until you join a hotspot.** Then everything on the first list is
    paused, and it's all put back when you leave.
 
@@ -105,11 +105,13 @@ Leave it off and everything else still works. Settings shows an **Allow…** but
 you change your mind, and the step in System Settings while it waits. The helper is part of
 the app, so a new version brings its helper with it and asks nothing.
 
-Each app has its own switch under **Paused on a hotspot**, if you want to leave one alone,
-and a line saying how it's paused, such as *Turns off its automatic update check* or
-*Blocks its update server*. What the helper pauses shares one switch, **Through
-NetworkMonitor's helper**, because the helper does it all at once; it lists only what's on
-your Mac. The Electron apps share one too, **Through their update folders**. On a hotspot, an app that's open when its setting needs changing is marked
+Each app has its own switch under **Paused on a hotspot**, on the same line as its name,
+if you want to leave one alone. Point at the row and an ⓘ appears beside the name: it says
+how the app is paused, such as *Turns off its automatic update check* or *Blocks its update
+server*, as a tooltip or, clicked, in a popover (#185). What the helper pauses shares one
+switch, **Through NetworkMonitor's helper**, because the helper does it all at once; it
+names only what's on your Mac, and its ⓘ says how each is paused. The Electron apps share
+one too, **Through their update folders**. On a hotspot, an app that's open when its setting needs changing is marked
 *paused once you quit it*, and the change is made the moment it quits, because apps write
 their settings back when they quit. Off a hotspot nothing is waiting, so nothing is marked.
 
