@@ -197,22 +197,30 @@ program of its own is counted by its own traffic.
 sequenceDiagram
     participant Mac as macOS network
     participant W as NetworkIdentityWatcher
+    participant VM as MonitorViewModel
     participant M as MeteringController
-    participant J as Journal (suppression.json)
     participant S as Suppressors
+    participant J as Journal (suppression.json)
     participant H as Root helper
+    participant F as Content filter
 
     Mac->>W: path changes (debounced 2 s)
-    W->>M: fingerprint + signals
-    M->>M: MeteredHeuristic verdict (own Low Data Mode flags masked)
+    W->>VM: fingerprint + signals
+    VM->>M: the network changed
+    M->>M: MeteredHeuristic verdict (This network first, own Low Data Mode flags masked)
+    M-->>VM: verdict
+    VM->>F: rules, and whether on a hotspot with Hotspot mode on (over XPC)
     alt switch on and metered
-        M->>J: record each prior value first
-        M->>S: apply (preferences, config files)
-        M->>H: suppress, constrain (over XPC)
+        M->>S: apply
+        S->>J: record each prior value first
+        S->>S: preferences, config files, update folders
+        S->>H: suppress, constrain (over XPC)
+        Note over F: with website names on, blocks every app's updater
     else no longer metered, or switch off
-        M->>S: revert from the journal
-        M->>H: restore, unconstrain (over XPC)
-        M->>J: clear records
+        M->>S: revert
+        S->>S: put back each value still as NetworkMonitor wrote it
+        S->>H: restore, unconstrain (over XPC)
+        S->>J: clear records
     end
 ```
 

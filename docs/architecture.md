@@ -47,13 +47,17 @@ flowchart LR
     P --> NW --> VM
     E --> VM
     VM --> US --> H
+    H -->|"read by History<br/>and Connections"| UI
     VM --> M
     UI -->|"This network: hotspot or not"| M
     M -->|"XPC, signature checked both ways"| HP
-    VM --> F
+    VM -->|"rules, and whether<br/>on a hotspot"| F
     F <-->|"XPC, signature checked both ways"| FX
+    F -->|"server names,<br/>blocked connections"| H
     VM --> SP
-    VM --> UP --> GH
+    VM --> UP
+    GH -->|"signed appcast<br/>and data"| UP
+    UP -->|"each month's data"| F
     VM --> UI
 ```
 

@@ -18,7 +18,8 @@
 <p align="center">
   <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg"><b>Download</b></a> ·
   <a href="https://kevinabouhanna.github.io/NetworkMonitor/">Website</a> ·
-  <a href="docs/README.md">Docs</a>
+  <a href="docs/README.md">Docs</a> ·
+  <a href="https://github.com/kevinabouhanna/NetworkMonitor/wiki">Wiki</a>
 </p>
 
 <p align="center">
@@ -70,7 +71,7 @@ Right-click the menu bar readout and choose **Uninstall NetworkMonitor…** (or 
 
 ## 📚 Learn more
 
-The [docs](docs/README.md) explain how every feature works, and why:
+The [docs](docs/README.md) explain how every feature works, and why. They're also on the [wiki](https://github.com/kevinabouhanna/NetworkMonitor/wiki).
 
 - **Using it:** [installing](docs/installing.md) · [features](docs/features.md) · [Connections](docs/connections.md) · [Usage History](docs/usage-history.md) · [speed test](docs/speed-test.md) · [Hotspot mode](docs/hotspot-mode.md) · [accuracy and battery](docs/accuracy-and-battery.md) · [privacy](docs/privacy.md)
 - **Working on it:** [architecture](docs/architecture.md) · [building and releasing](docs/development.md) · [decisions](docs/decisions.md) · [roadmap](docs/roadmap.md)

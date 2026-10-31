@@ -255,6 +255,21 @@ beside the main checkout. Changes to it get an issue and a pull request against
   shows each pane as a capture in `assets/settings/`, with the window's size in points on
   each `<img>` and clickable areas placed in the same points.
 
+## The wiki
+
+The [wiki](https://github.com/kevinabouhanna/NetworkMonitor/wiki) is a copy of `docs/` and
+`SECURITY.md`, made by `Scripts/wiki.py` (#177). The **Wiki** workflow
+(`.github/workflows/wiki.yml`) rebuilds it whenever they change on `main`, so change the
+docs here, never the wiki.
+
+- A page comes and goes with its doc, and the sidebar follows the tables in
+  `docs/README.md`.
+- Links are rewritten for the wiki, and images point at the commit that was copied.
+- Only files git tracks are copied, so the private notes git ignores in `docs/` stay
+  private.
+- To rebuild it by hand, run the workflow from the Actions tab, or
+  `python3 Scripts/wiki.py <wiki checkout>` and push.
+
 ## Launch arguments
 
 A development build reads a few launch arguments for that run only; nothing persists.
