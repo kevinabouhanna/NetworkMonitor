@@ -70,8 +70,8 @@ public struct HistoryView: View {
 
     // MARK: Filters
 
-    /// What History is narrowed to, as chips beside the heading they narrow.
-    /// Clicking a row in the lists below adds one.
+    /// What History is narrowed to, as chips at the end of the lists' row,
+    /// beside the row that was clicked to add one (#192).
     @ViewBuilder
     private var chips: some View {
         if let name = model.filteredAppName {
@@ -104,12 +104,8 @@ public struct HistoryView: View {
             let days = report.period.elapsedDays(now: Date())
             if days > 0 { details.append("\(ByteFormat.bytes(report.total / Int64(days))) a day on average") }
         }
-        return HStack(alignment: .top, spacing: 12) {
-            PeriodHeading(title: model.title, figure: ByteFormat.bytes(report.total),
-                          caption: "used", details: details)
-            Spacer(minLength: 12)
-            HStack(spacing: 6) { chips }
-        }
+        return PeriodHeading(title: model.title, figure: ByteFormat.bytes(report.total),
+                             caption: "used", details: details)
     }
 
     // MARK: Legend
@@ -141,14 +137,18 @@ public struct HistoryView: View {
 
     private var lists: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Picker("List", selection: $model.tab) {
-                ForEach(HistoryViewModel.Tab.allCases) { tab in
-                    Text(tab.label).tag(tab)
+            HStack(spacing: 12) {
+                Picker("List", selection: $model.tab) {
+                    ForEach(HistoryViewModel.Tab.allCases) { tab in
+                        Text(tab.label).tag(tab)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                Spacer(minLength: 12)
+                HStack(spacing: 6) { chips }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
