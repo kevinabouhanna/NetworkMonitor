@@ -215,7 +215,7 @@ sequenceDiagram
         S->>J: record each prior value first
         S->>S: preferences, config files, update folders
         S->>H: suppress, constrain (over XPC)
-        Note over F: with website names on, blocks every app's updater
+        Note left of F: with website names on, blocks every app's updater
     else no longer metered, or switch off
         M->>S: revert
         S->>S: put back each value still as NetworkMonitor wrote it
