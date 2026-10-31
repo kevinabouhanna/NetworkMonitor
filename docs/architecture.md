@@ -91,6 +91,7 @@ the right-click menu and the windows.
 | `com.networkmonitor.nettop` | spawning `nettop`, reading its PTY, parsing |
 | `com.networkmonitor.path` | path changes, the 2-second debounce, gateway lookup |
 | `com.networkmonitor.history` | Usage History reads (writes happen on main) |
+| `com.networkmonitor.speedtest` | running `networkQuality` and reading its PTY |
 
 ## Two sources, on purpose
 
@@ -453,8 +454,8 @@ development Mac, servers accounted for 95.4% of the apps' internet bytes.
 Addresses are read the same way whatever wrote them: the family comes from the
 protocol's last character (`tcp6`, `udp6`, `quic6`), an IPv4-mapped peer
 (`::ffff:a.b.c.d`) is its IPv4 address, and `ServerDirectory` reads NAT64's
-`64:ff9b::/96`, used on IPv6-only networks, as the IPv4 address inside it. Server names arrive with the
-content filter (#115). Until then, a server is its address, and a network that hosts
+`64:ff9b::/96`, used on IPv6-only networks, as the IPv4 address inside it. Server names come from the
+content filter (#128). Without it, a server is its address, and a network that hosts
 other companies is marked as a host rather than taken for the company behind the traffic.
 
 ## When something goes wrong
@@ -493,10 +494,21 @@ down with it.
 | `~/Library/Application Support/NetworkMonitor/usage.json` | Per-network totals |
 | `~/Library/Application Support/NetworkMonitor/history.sqlite` | Usage History, and the servers each app talked to |
 | `~/Library/Application Support/NetworkMonitor/suppression.json` | Hotspot mode's undo journal |
+| `~/Library/Application Support/NetworkMonitor/Geo/` | The country and network data downloaded since the app's own (#121) |
 | `/Library/Application Support/NetworkMonitor/` | The helper's own records (root) |
 | `/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper` | The helper |
 
-Preferences (`com.kevinabouhanna.NetworkMonitor`): `speedTestUnit`, `speedTestStyle`,
-`historyRetention`, `settingsPane`, `meteringEnabled`, `meteringExcludedItems`,
-`meteringUpdateSightings`, `hasConfiguredLoginItem`, `helperOfferedForBuild`.
+Preferences (`com.kevinabouhanna.NetworkMonitor`):
+
+- **The menu bar and speed test:** `speedTestUnit`, `speedTestStyle`,
+  `menuBarDownloadColor`, `menuBarUploadColor`.
+- **Windows:** `settingsPane`, `connectionsLayout`, `welcomeShown`,
+  `websiteNamesOfferClosed`.
+- **History and Connections:** `historyRetention`, `firewallMode`, `firewallRules`,
+  `geoDataUpdates`, `geoDataLastChecked`.
+- **Hotspot mode:** `meteringEnabled`, `meteringExcludedItems`, `meteringUpdateSightings`,
+  `meteringUpdatesInHistory`, `helperOfferedForBuild`.
+- **Start at login:** `hasConfiguredLoginItem`.
+- **Updates:** Sparkle's own `SU…` keys.
+
 `powerProfile` is read only as a launch argument, never stored.

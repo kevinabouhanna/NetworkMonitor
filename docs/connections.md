@@ -5,9 +5,9 @@ servers. Click the 🌐 in the popover, choose **Connections…** (⌘K) from th
 menu, or open **Settings › Connections**, which also shows today's top companies and sets
 the layout the window opens with.
 
-It runs quietly: nothing pops up and nothing is blocked. NetworkMonitor records the servers
-each app talks to as it already counts their data, and the window shows them whenever you
-look.
+It runs quietly: until you make a rule or choose **Ask Me** (see [Blocking](#blocking)),
+nothing pops up and nothing is blocked. NetworkMonitor records the servers each app talks
+to as it already counts their data, and the window shows them whenever you look.
 
 ## Reading the window
 
@@ -154,4 +154,4 @@ A rule for one app comes before any rule for every app: *Amazon · for Slack* al
 
 Nothing you'd notice. Recording uses rows `nettop` already reports, and measured no extra
 CPU. The record is kept as long as Usage History (**Keep history for** in Settings ›
-History) and cleared with it. The data that names servers adds about 4 MB to the download.
+History) and cleared with it. The data that names servers adds about 5.5 MB to the download.

@@ -39,6 +39,9 @@ can't run `nettop`.
   `releases/latest/download/NetworkMonitor.dmg` is one.
 - **A monthly data cap, with a warning as it nears** (#110). History has every figure it
   would need; nothing sets a cap or warns yet.
+- **A command-line tool** (#77).
+- **A choice of menu bar readout or Dock icon** (#69): one or the other, never neither,
+  with the Dock icon still there while Settings is open.
 - **Move the tests to a real test target** once Xcode isn't a constraint. The harness
   mirrors XCTest's names so it's a rename.
 

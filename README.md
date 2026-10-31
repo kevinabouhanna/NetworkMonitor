@@ -30,11 +30,10 @@
 
 - ⚡ **Live speed** in the menu bar, download and upload, in MB/s or Mbps, in colours you choose.
 - 📊 **Which apps used your data** on this connection, biggest first.
-- 🌐 **Connections:** which companies, countries and servers your apps talk to, on a list and a world map, quietly and without looking anything up online.
+- 🌐 **Connections:** which companies, countries and servers each app talks to, on a list and a world map, without looking anything up online. Block any of them, or have it ask.
 - 🏠 **Internet only.** AirPlay, Time Machine and other home-network traffic don't count.
 - 📱 **Hotspot mode** pauses app updates on a mobile hotspot, and resumes them when you leave.
 - 🗓️ **Usage History** by day, week, month or year, per app and per network.
-- 🌍 **Connections:** which companies, countries and servers each app talks to, on a list and a world map, and block any of them, or have it ask.
 - 🚀 **Speed test** on demand, using the one built into macOS.
 - 🔋 **Light on battery:** about 1% of one CPU core, less in Low Power Mode.
 - 🔒 **Private:** no telemetry, no account. Its own network access is a monthly download of country and network data and a daily update check, both from GitHub, and both can be switched off.
@@ -66,14 +65,14 @@ Right-click the menu bar readout and choose **Uninstall NetworkMonitor…** (or 
 ## 🖱️ Using it
 
 - **Click** the readout for this connection's total and the apps behind it. The 🌐 there opens Connections.
-- **Right-click** it for the speed test, Usage History, Settings and Quit.
-- **Settings** has a pane each for General, Speed Test, History, Hotspot and About.
+- **Right-click** it for the speed test, Connections, Usage History, Settings, Check for Updates, Uninstall and Quit.
+- **Settings** has a pane each for General, Speed Test, History, Connections, Hotspot and About.
 
 ## 📚 Learn more
 
 The [docs](docs/README.md) explain how every feature works, and why:
 
-- **Using it:** [installing](docs/installing.md) · [features](docs/features.md) · [Usage History](docs/usage-history.md) · [speed test](docs/speed-test.md) · [Hotspot mode](docs/hotspot-mode.md) · [accuracy and battery](docs/accuracy-and-battery.md) · [privacy](docs/privacy.md)
+- **Using it:** [installing](docs/installing.md) · [features](docs/features.md) · [Connections](docs/connections.md) · [Usage History](docs/usage-history.md) · [speed test](docs/speed-test.md) · [Hotspot mode](docs/hotspot-mode.md) · [accuracy and battery](docs/accuracy-and-battery.md) · [privacy](docs/privacy.md)
 - **Working on it:** [architecture](docs/architecture.md) · [building and releasing](docs/development.md) · [decisions](docs/decisions.md) · [roadmap](docs/roadmap.md)
 
 ## 🤝 Contributing
