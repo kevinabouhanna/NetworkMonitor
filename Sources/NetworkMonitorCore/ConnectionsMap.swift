@@ -5,9 +5,9 @@ import SwiftUI
 /// The world, shaded by how much data went to each country (#113).
 ///
 /// Drawn by the app from Natural Earth's outlines in `Resources/Geo/world.bin`:
-/// no map tiles and no network access. Calm by default, a summary of the
-/// period; with Live on, lines pulse to the countries answering right now,
-/// and only then does the map redraw on its own.
+/// no map tiles and no network access. Shaded for the period, and while it
+/// includes now, lines pulse to the countries answering right now (#182).
+/// Only the pulses redraw on their own, and only while there are some.
 struct ConnectionsMap: View {
     @ObservedObject var model: ConnectionsViewModel
     /// Not `@State`, which needs Xcode from the macOS 27 SDK on.
@@ -17,13 +17,11 @@ struct ConnectionsMap: View {
         GeometryReader { geometry in
             let frame = MapFrame(size: geometry.size, zoom: state.zoom, pan: state.pan)
             ZStack {
-                if model.isLive {
-                    TimelineView(.periodic(from: .now, by: 1.0 / 20)) { timeline in
-                        canvas(frame, time: timeline.date.timeIntervalSinceReferenceDate)
-                    }
-                } else {
-                    canvas(frame, time: nil)
+                canvas(frame)
+                if model.isLive, let home = homeShape {
+                    LivePulses(live: model.live, frame: frame, home: home)
                 }
+                homeRing(frame)
                 overlays(frame)
             }
             .contentShape(Rectangle())
@@ -48,11 +46,20 @@ struct ConnectionsMap: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("World map of \(model.geography.countries.count) countries your apps reached. "
                             + "The list has the same, country by country.")
+        .onAppear { model.mapDidAppear() }
+        .onDisappear { model.mapDidDisappear() }
+    }
+
+    /// Where the lines start: the Mac's Region setting, never Location.
+    private var homeShape: WorldShapes.Shape? {
+        model.homeCountry.flatMap { WorldShapes.shared?.byCode[$0] }
     }
 
     // MARK: Drawing
 
-    private func canvas(_ frame: MapFrame, time: TimeInterval?) -> some View {
+    /// Redrawn when the figures, the narrowing or the pointer change, never
+    /// on a timer.
+    private func canvas(_ frame: MapFrame) -> some View {
         Canvas { context, _ in
             guard let shapes = WorldShapes.shared else { return }
             let geography = model.geography
@@ -87,7 +94,7 @@ struct ConnectionsMap: View {
                 }
             }
 
-            guard let home = model.homeCountry.flatMap({ shapes.byCode[$0] }) else { return }
+            guard let home = homeShape else { return }
             let origin = frame.point(home.label)
             // Lines once the list is narrowed to a company, app or server: to
             // where it went. Unnarrowed, every country would be a line.
@@ -99,26 +106,18 @@ struct ConnectionsMap: View {
                                    with: .color(.accentColor.opacity(0.7)), lineWidth: 1.2)
                 }
             }
-            if let time {
-                let now = Date()
-                for (code, seen) in model.liveCountries where code != home.code {
-                    guard let shape = shapes.byCode[code] else { continue }
-                    let destination = frame.point(shape.label)
-                    let fade = max(0, 1 - now.timeIntervalSince(seen) / ConnectionsViewModel.liveWindow)
-                    let arc = Self.arc(from: origin, to: destination)
-                    context.stroke(arc, with: .color(.orange.opacity(0.35 * fade)), lineWidth: 1)
-                    // A pulse travelling outwards, each country's on its own beat.
-                    let beat = Double(abs(code.hashValue % 100)) / 100
-                    let progress = (time / 1.6 + beat).truncatingRemainder(dividingBy: 1)
-                    let position = Self.point(on: origin, to: destination, at: progress)
-                    context.fill(Path(ellipseIn: CGRect(x: position.x - 2.5, y: position.y - 2.5,
-                                                        width: 5, height: 5)),
-                                 with: .color(.orange.opacity(fade)))
-                }
-            }
+        }
+    }
+
+    /// On top of the pulses, so they leave from under it.
+    private func homeRing(_ frame: MapFrame) -> some View {
+        Canvas { context, _ in
+            guard let home = homeShape else { return }
+            let origin = frame.point(home.label)
             context.stroke(Path(ellipseIn: CGRect(x: origin.x - 4, y: origin.y - 4, width: 8, height: 8)),
                            with: .color(.primary.opacity(0.8)), lineWidth: 2)
         }
+        .allowsHitTesting(false)
     }
 
     /// Accent, deeper the more data went there, on a logarithmic scale: a
@@ -158,14 +157,6 @@ struct ConnectionsMap: View {
         VStack {
             HStack {
                 Spacer()
-                // Live is traffic as it happens: nothing to do with what was blocked.
-                if model.measure == .bytes {
-                    Toggle("Live", isOn: Binding(get: { model.isLive }, set: { model.isLive = $0 }))
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-                        .font(.system(size: 11))
-                        .help("Lines pulse to the countries your apps reach right now")
-                }
                 HStack(spacing: 2) {
                     zoomButton("minus.magnifyingglass", help: "Zoom out") { state.setZoom(state.zoom / 1.5, size: frame.size) }
                     zoomButton("plus.magnifyingglass", help: "Zoom in") { state.setZoom(state.zoom * 1.5, size: frame.size) }
@@ -279,6 +270,42 @@ struct ConnectionsMap: View {
                       let item = model.countryItem(code) else { return }
                 model.narrow(to: item)
             }
+    }
+}
+
+/// Lines to the countries answering right now, each with a pulse travelling
+/// out on its own beat (#182). A layer of its own over the countries, so only
+/// this redraws each frame, and only while a country other than home answers.
+private struct LivePulses: View {
+    @ObservedObject var live: LiveCountries
+    let frame: MapFrame
+    let home: WorldShapes.Shape
+
+    var body: some View {
+        if live.countries.keys.contains(where: { $0 != home.code }) {
+            TimelineView(.periodic(from: .now, by: 1.0 / 20)) { timeline in
+                Canvas { context, _ in
+                    guard let shapes = WorldShapes.shared else { return }
+                    let now = timeline.date
+                    let time = now.timeIntervalSinceReferenceDate
+                    let origin = frame.point(home.label)
+                    for (code, seen) in live.countries where code != home.code {
+                        guard let shape = shapes.byCode[code] else { continue }
+                        let destination = frame.point(shape.label)
+                        let fade = max(0, 1 - now.timeIntervalSince(seen) / ConnectionsViewModel.liveWindow)
+                        let arc = ConnectionsMap.arc(from: origin, to: destination)
+                        context.stroke(arc, with: .color(.orange.opacity(0.35 * fade)), lineWidth: 1)
+                        let beat = Double(abs(code.hashValue % 100)) / 100
+                        let progress = (time / 1.6 + beat).truncatingRemainder(dividingBy: 1)
+                        let position = ConnectionsMap.point(on: origin, to: destination, at: progress)
+                        context.fill(Path(ellipseIn: CGRect(x: position.x - 2.5, y: position.y - 2.5,
+                                                            width: 5, height: 5)),
+                                     with: .color(.orange.opacity(fade)))
+                    }
+                }
+            }
+            .allowsHitTesting(false)
+        }
     }
 }
 

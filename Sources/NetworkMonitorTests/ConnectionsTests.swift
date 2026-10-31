@@ -221,4 +221,48 @@ func runConnectionsTests() {
             Check.expectEqual(delivered?.recordingSince, calendar.dateInterval(of: .hour, for: reference)?.start)
         }
     }
+
+    Check.suite("Connections — the map's pulses (#182)") {
+
+        Check.test("live whenever a map someone can see shows traffic now, and only then") {
+            let defaults = UserDefaults(suiteName: "connections-live-\(UUID().uuidString)")!
+            let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("connections-live-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
+            let metering = MeteringController(store: store,
+                                              journal: SuppressionJournal(url: dir.appendingPathComponent("journal.json")),
+                                              suppressors: [], defaults: defaults)
+            let model = ConnectionsViewModel(monitor: MonitorViewModel(store: store, metering: metering),
+                                             defaults: defaults)
+            model.mapDidAppear()
+            Check.expectFalse(model.isLive, "not before the window opens")
+            model.windowDidOpen()
+            // Opens on Blocked when only what's allowed may connect.
+            model.measure = .bytes
+            Check.expectTrue(model.isLive)
+
+            // List, then Both: the new map can come before the old one goes.
+            model.mapDidDisappear()
+            Check.expectFalse(model.isLive, "the list alone")
+            model.mapDidAppear()
+            model.mapDidAppear()
+            model.mapDidDisappear()
+            Check.expectTrue(model.isLive, "a map is still showing")
+
+            model.measure = .blocked
+            Check.expectFalse(model.isLive, "Blocked isn't traffic as it happens")
+            model.measure = .bytes
+            model.step(-1)
+            Check.expectFalse(model.isLive, "yesterday")
+            model.goToPresent()
+            Check.expectTrue(model.isLive)
+
+            model.windowIsVisible = false
+            Check.expectFalse(model.isLive, "minimised, covered or on another Space")
+            model.windowIsVisible = true
+            model.windowDidClose()
+            Check.expectFalse(model.isLive, "closed")
+        }
+    }
 }

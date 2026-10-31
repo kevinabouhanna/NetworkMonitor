@@ -345,6 +345,10 @@ Several fixes exist only because of macOS's "Automatically hide and show the men
   only showing it waits for someone to look.
 - **The speed test's live readings** are a separate object from its phase, so the app
   list isn't rebuilt five times a second during a test.
+- **The map's pulses are a layer and an object of their own** (#182). Each sample
+  updates `LiveCountries`, which only the pulse layer watches, so neither the list nor
+  the countries redraw for it. Only the pulses redraw 20 times a second, and only while a
+  country is answering and the window can be seen.
 - **The popover's height is computed** from the number of rows, not measured, so it
   never starts from zero and the list never strobes a scrollbar. The list stops at 372
   points, eight rows and part of a ninth, so the cut-off row says "more below".
