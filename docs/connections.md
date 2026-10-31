@@ -96,8 +96,9 @@ Servers list shows names, with the address underneath.
 - **It runs in the background** from then on, with nothing to manage.
 - **It blocks only what you block** (see below).
 - **It fails open:** if the filter stops, nothing is cut off.
-- **Turn Off** in Settings › Connections switches it off, as does System Settings › Network
-  › Filters, and Uninstall removes it.
+- **Once it's on, Settings says nothing about it** (#181). It's switched off in System
+  Settings › Network › Filters, and then Settings › Connections offers **Turn On…** again.
+  Uninstall removes it.
 - **A name is only known when the app connected by one.** A program that connects to a
   bare address still reads by its network's owner.
 

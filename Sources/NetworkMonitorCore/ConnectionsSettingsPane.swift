@@ -57,10 +57,12 @@ struct ConnectionsSettingsPane: View {
             }
 
             // Where anyone who said "not now" in the welcome window finds it
-            // again (#134).
+            // again (#134). Once on, it runs with nothing to manage (#181).
             if filter.state != .unavailable {
-                Section {
-                    WebsiteNamesRow(filter: filter, offersTurnOff: true)
+                if filter.state.isOffered {
+                    Section {
+                        WebsiteNamesRow(filter: filter)
+                    }
                 }
                 rulesSection
             }

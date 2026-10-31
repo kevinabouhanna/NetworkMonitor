@@ -136,6 +136,15 @@ func runSetupTests() {
             Check.expectFalse(Welcome.shouldShow(shown: true, filter: .off, wifi: .asking), "never twice")
         }
 
+        Check.test("offered until it's on, then nothing to manage (#181)") {
+            for state: FilterController.State in [.off, .needsApplicationsFolder, .starting,
+                                                  .waitingForApproval, .confirming, .failed("x")] {
+                Check.expectTrue(state.isOffered, "\(state)")
+            }
+            Check.expectFalse(FilterController.State.on.isOffered)
+            Check.expectFalse(FilterController.State.unavailable.isOffered, "a build that can't have it")
+        }
+
         // The point of #134: what you get, never how it works.
         Check.test("says what you get, in plain words") {
             let jargon = ["filter", "extension", "server", "ssid", "content", "permission", "dns", "socket"]
