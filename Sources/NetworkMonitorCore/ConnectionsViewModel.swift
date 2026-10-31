@@ -127,6 +127,18 @@ public final class ConnectionsViewModel: ObservableObject {
     /// the list comes back to walk through it.
     public func setRule(_ action: RuleAction, for item: ConnectionsItem) {
         firewall.set(action, for: item)
+        turnOnFilterForRules()
+    }
+
+    /// A rule for a site by name, from a server row that has one (#197).
+    public func setSiteRule(_ action: RuleAction, domain: String, forName name: String) {
+        firewall.setSite(action, domain: domain, forName: name)
+        turnOnFilterForRules()
+    }
+
+    /// Rules need the content filter: choosing one while it's off starts
+    /// turning it on.
+    private func turnOnFilterForRules() {
         switch filter.state {
         case .off, .failed:
             offersWebsiteNames = true

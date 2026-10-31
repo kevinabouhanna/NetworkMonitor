@@ -245,7 +245,10 @@ public struct ConnectionsView: View {
     /// where nothing could enforce it.
     @ViewBuilder
     private func ruleMenu(for item: ConnectionsItem) -> some View {
-        if FirewallRules.canHaveRule(item), model.filter.state != .unavailable {
+        if FirewallRules.canHaveRule(item), model.filter.state != .unavailable,
+           let name = FirewallRules.serverName(of: item) {
+            siteRuleMenu(for: item, name: name)
+        } else if FirewallRules.canHaveRule(item), model.filter.state != .unavailable {
             let current = firewall.rule(for: item)
             ForEach(RuleAction.allCases, id: \.self) { action in
                 Toggle(Self.menuTitle(action, item.title), isOn: Binding(
@@ -258,6 +261,52 @@ public struct ConnectionsView: View {
                 Divider()
                 Button("Remove Rule") { firewall.remove(current) }
             }
+        }
+    }
+
+    /// A server with a name is ruled by name, not by its address, which a
+    /// CDN changes (#197): the name itself, or the whole site, for each action.
+    @ViewBuilder
+    private func siteRuleMenu(for item: ConnectionsItem, name: String) -> some View {
+        let current = firewall.rule(for: item)
+        let scopes = FirewallRules.siteScopes(for: name)
+        ForEach(RuleAction.allCases, id: \.self) { action in
+            if scopes.count == 1 {
+                Toggle(Self.menuTitle(action, name), isOn: siteBinding(action, scopes[0], name, current))
+            } else {
+                Menu(Self.menuTitle(action)) {
+                    ForEach(scopes, id: \.self) { domain in
+                        Toggle(domain == name ? name : "All of *.\(domain)",
+                               isOn: siteBinding(action, domain, name, current))
+                    }
+                }
+            }
+        }
+        if let current {
+            Divider()
+            Button("Remove Rule") { firewall.remove(current) }
+        }
+    }
+
+    private func siteBinding(_ action: RuleAction, _ domain: String, _ name: String,
+                             _ current: FirewallRule?) -> Binding<Bool> {
+        Binding(
+            get: { current?.subject == .site && current?.key == domain && current?.action == action },
+            set: { isOn in
+                if isOn {
+                    model.setSiteRule(action, domain: domain, forName: name)
+                } else if let current {
+                    firewall.remove(current)
+                }
+            })
+    }
+
+    /// A submenu's title, whose items name what it applies to.
+    static func menuTitle(_ action: RuleAction) -> String {
+        switch action {
+        case .block:           return "Block"
+        case .blockOnHotspots: return "Block on Hotspots"
+        case .allow:           return "Always Allow"
         }
     }
 

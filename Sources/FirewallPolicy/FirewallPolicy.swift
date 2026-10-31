@@ -7,9 +7,10 @@ import HostsFile
 // to each new connection. Pure Foundation, like FilterProtocol, so the two
 // can't disagree about what a rule means.
 
-/// What a rule is about: the four things Connections groups by.
+/// What a rule is about: the four things Connections groups by, and a site
+/// by name (#197), which covers the name and every name under it.
 public enum RuleSubject: String, Codable, CaseIterable {
-    case company, app, country, server
+    case company, app, country, server, site
 }
 
 public enum RuleAction: String, Codable, CaseIterable {
@@ -153,11 +154,13 @@ public struct FirewallPolicy: Codable, Equatable {
         mode != .anywhere || !rules.isEmpty || pausesUpdates
     }
 
-    /// Most specific first: one server is narrower than an app, an app than a
-    /// company, a company than a country. So *Block Meta* with *Always allow
-    /// WhatsApp* lets WhatsApp through, and *Block United States* with
-    /// *Always allow Apple* lets Apple's servers there through.
-    public static let precedence: [RuleSubject] = [.server, .app, .company, .country]
+    /// Most specific first: one server is narrower than a site, a site than an
+    /// app, an app than a company, a company than a country. So *Block Meta*
+    /// with *Always allow WhatsApp* lets WhatsApp through, *Block United
+    /// States* with *Always allow Apple* lets Apple's servers there through,
+    /// and *Block Google* with *Always allow \*.youtube.com* lets YouTube
+    /// through (#197). Within sites, the longer name wins.
+    public static let precedence: [RuleSubject] = [.server, .site, .app, .company, .country]
 
     public func decide(_ flow: FlowFacts) -> Verdict {
         if Self.isEssential(address: flow.address, port: flow.port) { return .allow(.essential) }
@@ -244,6 +247,7 @@ public struct FirewallPolicy: Codable, Equatable {
     private static func keys(of flow: FlowFacts, _ subject: RuleSubject) -> [String] {
         switch subject {
         case .server:  return [flow.address]
+        case .site:    return flow.hostname.map(SiteName.domains(of:)) ?? []
         case .app:     return flow.appKeys
         case .company: return flow.companyKey.map { [$0] } ?? []
         case .country: return flow.country.map { [$0] } ?? []

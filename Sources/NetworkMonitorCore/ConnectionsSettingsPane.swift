@@ -154,6 +154,7 @@ struct ConnectionsSettingsPane: View {
         case .app:     return "App"
         case .country: return "Country"
         case .server:  return "Server"
+        case .site:    return "Site"
         }
     }
 
@@ -163,6 +164,7 @@ struct ConnectionsSettingsPane: View {
         case .app:     return "app"
         case .country: return "globe"
         case .server:  return "point.3.connected.trianglepath.dotted"
+        case .site:    return "link"
         }
     }
 }
