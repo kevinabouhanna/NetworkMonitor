@@ -42,9 +42,9 @@ install:
 install-only:
 	@./Scripts/install.sh --no-login
 
-# Pull, verify, reinstall. This is the update mechanism until the app can
-# update itself. Tests run first so a bad pull is caught before it replaces a
-# working install.
+# Pull, verify, reinstall: updating a copy built from source. Releases update
+# themselves with Sparkle (#132). Tests run first so a bad pull is caught before
+# it replaces a working install.
 update:
 	@git pull --ff-only
 	@$(MAKE) test

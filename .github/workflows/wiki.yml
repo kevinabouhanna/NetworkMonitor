@@ -1,0 +1,55 @@
+name: Wiki
+
+# The wiki is a copy of docs/ and SECURITY.md (#177), rebuilt by
+# Scripts/wiki.py whenever they change on main, so it's never edited by hand
+# and never falls behind. Run it by hand from the Actions tab to rebuild it now.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "SECURITY.md"
+      - "Resources/README/**"
+      - "Scripts/wiki.py"
+      - ".github/workflows/wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write        # to push to the wiki, which is a repository of its own
+
+# One at a time, in order, so an older run can't push over a newer one.
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    # Python only: nothing here needs macOS.
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the wiki
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
+
+      - name: Build the pages
+        run: python3 -I Scripts/wiki.py wiki "$GITHUB_SHA"
+
+      # Every page's footer names the commit, so a run on a new commit always
+      # has something to push; a manual run on the same one may not.
+      - name: Publish
+        working-directory: wiki
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The wiki is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Copy docs/ at ${GITHUB_SHA::7}"
+          git push

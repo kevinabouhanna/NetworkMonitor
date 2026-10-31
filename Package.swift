@@ -2,7 +2,7 @@
 //
 // Tools version 5.9 is deliberate: it defaults to the Swift 5 language mode, so
 // the package builds without Swift 6's strict-concurrency annotations while
-// still compiling under the Swift 6.3 toolchain.
+// still compiling under a Swift 6 toolchain.
 import PackageDescription
 
 let package = Package(

@@ -1,8 +1,8 @@
 # Speed test
 
 <p align="center">
-  <img src="../Resources/README/speed-test.png" width="346"
-       alt="The popover after a speed test: 8.39 Mbps down and 19.1 Mbps up over Wi-Fi, using 55.0 MB; ping 43.5 ms, jitter 2.2 ms, ping while downloading 44.9 ms and while uploading 44.4 ms.">
+  <img src="../Resources/README/speed-test.png" width="320"
+       alt="The popover after a speed test: 2.09 MB/s down and 3.39 MB/s up over Wi-Fi, using 96.4 MB; ping 62.7 ms, jitter 11.0 ms, ping while downloading 57.4 ms and while uploading 54.6 ms.">
 </p>
 
 Click the **gauge** in the popover, choose **Test Internet Speed** from the right-click
