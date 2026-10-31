@@ -5,7 +5,7 @@
 <h1 align="center">NetworkMonitor</h1>
 
 <p align="center">
-  <b>Live network speed in your Mac's menu bar, and which apps used your data.</b>
+  <b>Live network speed in your Mac's menu bar, which apps used your data, and a firewall to block what they connect to.</b>
 </p>
 
 <p align="center">
