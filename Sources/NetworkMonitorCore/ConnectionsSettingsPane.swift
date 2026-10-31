@@ -168,7 +168,8 @@ struct ConnectionsSettingsPane: View {
                     } label: {
                         Label {
                             Text(rule.title)
-                            Text(Self.subjectName(rule.subject) + (rule.appTitle.map { " · for \($0)" } ?? ""))
+                            Text(Self.subjectName(rule.subject) + (rule.appTitle.map { " · for \($0)" } ?? "")
+                                 + (rule.lastsUntilQuit ? ", until it quits" : ""))
                         } icon: {
                             Image(systemName: Self.symbol(rule.subject)).foregroundStyle(.secondary)
                         }

@@ -188,12 +188,19 @@ allow it.
 
 - **Anywhere**, the default: everything connects except what you block.
 - **Ask Me** (#129): the first time an app connects to a company, it waits while a small
-  panel at the top right asks. **Block** and **Always Allow** become rules for that app and
-  company, listed in Settings ("Amazon · for Slack"); **Always Allow** also offers the app
-  anywhere. **Allow Once** lets it go and asks again in an hour. Every connection between the
-  same app and company waits on the one question, and with no answer in 30 seconds they go
-  ahead, and the panel says so. Nothing is asked about macOS or Apple's apps, or while
-  NetworkMonitor isn't running.
+  panel at the top right asks. On a host's network, such as Amazon's or Cloudflare's, where
+  the owner says nothing, it asks about the site instead (#199).
+  - **The panel names the site** (#199): *Figma wants to connect to api.segment.io*, then
+    whose it is, the country and the port. For an app that connects by address, such as
+    Chrome, the name comes from the connection's handshake, read before asking.
+  - **For:** the site (`segment.io` and every name under it) or the whole company.
+  - **Allow:** **Once** lets it go and asks again in an hour; **Until It Quits** lasts until
+    that app quits; **Always** makes a rule. **Block** makes a rule. Rules from answers are
+    for that app only and listed in Settings ("\*.segment.io · for Figma, until it quits").
+    The Allow button's menu also offers the app anywhere.
+  - Every connection between the same app and company or site waits on the one question,
+    and with no answer in 30 seconds they go ahead, and the panel says so. Nothing is asked
+    about macOS or Apple's apps, or while NetworkMonitor isn't running.
 - **Only Where I Allow**: every app is blocked until you allow it, apart from macOS and
   Apple's own apps, which can always connect unless you block them. It asks first, since
   that includes your browser, and the window then opens on Blocked, where you allow each app

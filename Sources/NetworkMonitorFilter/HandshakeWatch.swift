@@ -89,6 +89,7 @@ final class HandshakeWatch {
         case .done(let name):
             watches.removeValue(forKey: flow.identifier)
             lock.unlock()
+            if watch.decision.asks, let asked = ask(flow, watch, name: name) { return asked }
             return conclude(watch.report, decision: watch.decision, name: name) ? .allow() : .drop()
         }
     }
@@ -109,8 +110,33 @@ final class HandshakeWatch {
         }
         lock.unlock()
         log.debug("decided \(watch.report.address, privacy: .public) unnamed after \(Self.timeout) s")
-        let allows = conclude(watch.report, decision: watch.decision, name: nil)
+        // A question can't be held from here: like an unanswered one, it goes
+        // ahead (#199). Only a handshake that never completes gets here.
+        let allows = watch.decision.asks || conclude(watch.report, decision: watch.decision, name: nil)
+        if watch.decision.asks { AppLink.shared.report(watch.report) }
         provider?.update(watch.flow, using: allows ? .allow() : .drop(), for: .any)
+    }
+
+    /// Ask Me, now that the site has a name (#199): unless a rule decides it
+    /// by name, the app asks, and the flow's first bytes wait in the filter
+    /// for the answer. Nil when a rule decided it after all.
+    private func ask(_ flow: NEFilterFlow, _ watch: Watch, name: String?) -> NEFilterDataVerdict? {
+        guard let facts = watch.decision.facts, let appKey = watch.decision.appKey else { return nil }
+        var named = facts
+        if let name {
+            switch Firewall.shared.verdict(for: facts, named: name) {
+            case .allow, .block: return nil
+            case .ask: break
+            }
+            named.hostname = name
+        }
+        let company = name.map { Firewall.shared.company(named: $0, otherwise: watch.decision.company) }
+            ?? watch.decision.company
+        let report = FlowReport(address: watch.report.address, port: watch.report.port,
+                                hostname: name ?? watch.report.hostname, pid: watch.report.pid, time: watch.report.time)
+        // Named now, whatever the answer: the name goes to Connections.
+        AppLink.shared.report(report)
+        return Firewall.shared.askNamed(flow, appKey: appKey, facts: named, company: company, report: report)
     }
 
     /// The final word on a watched flow, and its one report: its name if it
