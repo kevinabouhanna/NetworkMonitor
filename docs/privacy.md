@@ -25,7 +25,7 @@ send traffic.
 
 ## What it sends
 
-Three things, and nothing else:
+Four things, and nothing else:
 
 - **The speed test, when you start it.** It runs `networkQuality`, the tool Apple ships
   with every Mac, against Apple's own test servers.
@@ -40,6 +40,14 @@ Three things, and nothing else:
     app, and each table's size and SHA-256 match. Anything less keeps the copy already
     there.
   - On by default. Switch it off in Settings › Connections › **Update them monthly**.
+
+- **Once a week, while you've switched them on, the ad, tracker and malware lists**
+  (#176), from this repository's `blocklists` release: a signed manifest and two
+  compressed lists, about 0.6 MB. The same file for everyone, signed with the same key as
+  the country data, never on a hotspot, and used only if the signature and each list's
+  size and SHA-256 match. Off until you switch the lists on; then Settings › Connections ›
+  **Update them weekly** switches the download off. The app ships with a copy, so the
+  lists work without it.
 
 - **Once a day, whether there's a newer version** (#132). Sparkle, the updater many Mac
   apps use, fetches the newest release's appcast from GitHub, a small file listing that

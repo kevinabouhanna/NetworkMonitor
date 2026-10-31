@@ -12,9 +12,10 @@ odd: most odd-looking things were the second or third attempt.
   permission. The welcome window offers the two that add something, Wi-Fi names (Location,
   #85) and website names (the content filter, #128), each said as what you get (#134). The
   only password ever asked for is optional, for Hotspot mode's helper.
-- **No network access of its own,** but three: a speed test you start; once a month the
-  country and network data, the same signed file for everyone (#121); and once a day a
-  check for a new version (#132). Neither of the last two runs by itself on a hotspot, and
+- **No network access of its own,** but four: a speed test you start; once a month the
+  country and network data, the same signed file for everyone (#121); once a week, while
+  they're switched on, the ad and malware lists, the same way (#176); and once a day a
+  check for a new version (#132). None of the last three runs by itself on a hotspot, and
   each has a switch to turn it off.
 - **Nothing to configure where the app can decide.** Sampling rates follow the power source;
   Hotspot mode is one switch with no list to maintain. A switch that needs configuring to
@@ -113,6 +114,7 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-31 | **History's chips sit at the end of the Apps · Networks · Sessions row**, not beside the heading (#192) | A chip is added by clicking a row in those lists, so it belongs beside them: at the heading it appeared far from the click, at the top of the pane |
 | 2026-10-31 | **Connections made by address are named from their handshake** (#196) | Only 15% of Chrome's servers and 7% of Figma's had a name: Chromium connects by address. The TLS ClientHello and QUIC's Initial packets carry the site's name for the network to read, so the filter reads that and nothing after it. It holds the first bytes rather than passing them piecemeal, which means the same whichever way the data verdict's offsets count, and it's what blocking by name will need (#197) |
 | 2026-10-31 | **Rules by site name** (#197) | An address rule stops working when a CDN moves the name, and a company rule on a host's network catches too much. A site rule covers a name and everything under it, between a server and an app in precedence. A nameless connection is decided again once its handshake names it, so the rule reaches Chrome too. The site offered is the registrable domain, from a short list of multi-label suffixes rather than the whole public suffix list: a rarer suffix offers a narrower site, never a wider one |
+| 2026-11-01 | **Ads, trackers and malware blocked by list, in every app** (#176) | Neither PureSnitch nor Snitch does it system-wide on a Mac: one needs apps pointed at its DNS proxy by hand, the other blocks a list's addresses for every app through `pf`, at most 5,000. The content filter matches names, its own or the handshake's (#196), after your rules. Lists are StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC0): tracker-only lists are nearly all GPL, so HaGeZi waits for a licence check. Stored as sorted 64-bit hashes, about 8 bytes a name; built and signed weekly by a workflow with the country data's key, refused if a list shrinks or catches a site people use every day. Off until switched on |
 
 ## Approaches turned down
 

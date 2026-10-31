@@ -145,6 +145,36 @@ and Settings › Connections lists every rule, each with a button to take it bac
 - **Blocking needs website names on.** Choosing Block while they're off starts turning
   them on, with the steps above the list.
 
+## Ads and trackers
+
+**Settings › Connections › Block ads and trackers** (#176) blocks, in every app, the sites on
+two lists:
+
+| List | What it holds | From | Licence |
+|---|---|---|---|
+| **Ads and trackers** | about 77,000 ad, tracking and analytics servers | StevenBlack's unified hosts | MIT |
+| **Malware and phishing** | about 1,900 servers spreading malware now | URLhaus, by malware-filter | CC0 |
+
+- **Your rules come first.** Always Allow on a site in Connections lets it through, and a
+  rule that blocks still blocks.
+- **A listed name covers every name under it,** down to its site: listing
+  `doubleclick.net` blocks `static.doubleclick.net`. A list can never block a whole suffix
+  such as `com`.
+- **It works for apps that connect by address too,** such as Chrome, through the name in
+  the connection's handshake (#196).
+- **Connections tags each listed server** ADS or MALWARE, whether the lists are on or
+  not, so the window shows what's tracking you either way. **Show: Blocked** lists what
+  they stopped.
+- **The popover** says how many they blocked today.
+- **What it can't block:** ads served from a site's own servers, like YouTube's, since
+  they can't be told apart from the site; empty boxes in a page where an ad would have
+  been; and anything without a name (another port, or not TLS or QUIC). It's not an ad
+  blocker for the browser.
+- **The lists stay current by themselves.** A workflow rebuilds them every Monday, refuses
+  a list that shrank or that catches a site people use every day, and signs them; the app
+  fetches them weekly while they're on, never on a hotspot (**Update them weekly**). It
+  ships with a copy, so they work offline.
+
 **Show: Blocked**, beside *Group by*, lists what was blocked instead of what was sent: the same
 period, grouping, search and map, counting connections rather than bytes. Right-click one to
 allow it.

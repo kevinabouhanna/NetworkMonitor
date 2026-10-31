@@ -4,9 +4,10 @@ NetworkMonitor is one menu bar process that runs `nettop` as a long-lived child.
 build signed with the Developer ID adds two parts macOS runs on its behalf, each allowed
 once by you: a **content filter** (a system extension) for Connections, blocking and
 Hotspot mode, and a **helper** (a launch daemon) for the system settings Hotspot mode
-changes. It goes online for three things only: a [speed test](speed-test.md) you
-start, the daily [update check](installing.md), and the
-[monthly country data](privacy.md#what-it-sends).
+changes. It goes online for four things only: a [speed test](speed-test.md) you
+start, the daily [update check](installing.md), the
+[monthly country data](privacy.md#what-it-sends), and the weekly ad and malware lists
+while they're on (#176).
 
 ## How data flows
 
@@ -456,7 +457,19 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    checked against `FilterIdentity.appRequirement`, aren't held back, though a rule can
    still block them.
 
-9. **Updating itself** (#132). Sparkle 2.10.0, an exact SwiftPM dependency, linked by
+9. **Ads, trackers and malware** (#176). `FirewallPolicy` carries the lists that are on;
+   `Blocklists` (in the same module) holds each list as sorted 64-bit FNV-1a hashes of its
+   names, looked up for the name and each domain above it down to its site (`SiteName`).
+   The filter adds the listed topics to each flow's facts, from its own name or the
+   handshake's, and `decide` blocks after the rules. The *Blocklists* workflow runs
+   `BlocklistBuilder` every Monday, checks the result with the test suite, and publishes it
+   signed with the country data's key as the `blocklists` release. `BlocklistUpdater`
+   fetches it weekly while the lists are on, and `FilterController.applyBlocklists` hands
+   the filter the newest copy as open files, like the country tables. The app ships one in
+   `Resources/Blocklists`. `ListBlockCount` counts what the lists blocked today from the
+   filter's reports.
+
+10. **Updating itself** (#132). Sparkle 2.10.0, an exact SwiftPM dependency, linked by
    `NetworkMonitorCore` and carried in `Contents/Frameworks` by every build (`bundle.sh`
    re-signs it inside out, without its XPC services, which only sandboxed apps need).
    Developer ID builds get `SUFeedURL` (`releases/latest/download/appcast.xml`) and
