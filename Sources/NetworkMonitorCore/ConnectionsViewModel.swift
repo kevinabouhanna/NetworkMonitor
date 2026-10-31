@@ -38,16 +38,18 @@ public final class ConnectionsViewModel: ObservableObject {
         }
     }
 
-    @Published public private(set) var period: HistoryPeriod
+    @Published public private(set) var period: HistoryPeriod {
+        didSet { refreshLive() }
+    }
     @Published public var grouping: ConnectionsGrouping = .companies {
         didSet { if grouping != oldValue { expanded.removeAll(); rebuild() } }
     }
-    /// Traffic, or the connections the filter blocked (#114). Live shows
-    /// traffic as it happens, so it's off while Blocked is shown.
+    /// Traffic, or the connections the filter blocked (#114). The map's
+    /// pulses are traffic as it happens, so they stop while Blocked is shown.
     @Published public var measure: ServerMeasure = .bytes {
         didSet {
             guard measure != oldValue else { return }
-            if measure == .blocked { isLive = false }
+            refreshLive()
             expanded.removeAll()
             reload()
         }
@@ -78,11 +80,24 @@ public final class ConnectionsViewModel: ObservableObject {
     }
     /// What the map shades, for the same narrowing as the list.
     @Published public private(set) var geography = ConnectionsGeography()
-    /// Countries a server answered from in the last `liveWindow`, while Live is on.
-    @Published public private(set) var liveCountries: [String: Date] = [:]
-    /// The map's Live switch. Calm by default: a summary of the period.
-    @Published public var isLive = false {
+    /// Countries a server answered from in the last `liveWindow`, while the
+    /// map is live.
+    public let live = LiveCountries()
+    /// Whether the map pulses to the countries answering right now (#182):
+    /// whenever it's on screen showing traffic for a period that includes
+    /// now. There's no switch, and nothing runs while nobody can see it.
+    @Published public private(set) var isLive = false {
         didSet { if isLive != oldValue { updateLive() } }
+    }
+    /// Maps on screen, counted: a change of layout can show the new map
+    /// before the old one goes.
+    private var mapsShown = 0 {
+        didSet { refreshLive() }
+    }
+    /// Whether any of the window can be seen: open, and not minimised,
+    /// covered or on another Space.
+    public var windowIsVisible = false {
+        didSet { refreshLive() }
     }
     /// Where the map's lines start: the Mac's Region setting, never Location.
     public let homeCountry: String? = Locale.current.region?.identifier
@@ -125,7 +140,7 @@ public final class ConnectionsViewModel: ObservableObject {
     public static let sectionPreview = 8
     public static let layoutKey = "connectionsLayout"
     public static let websiteNamesOfferClosedKey = "websiteNamesOfferClosed"
-    /// How long a country stays lit on the Live map after its last packet.
+    /// How long a country stays lit on the map after its last packet.
     public static let liveWindow: TimeInterval = 30
 
     private let monitor: MonitorViewModel
@@ -182,16 +197,19 @@ public final class ConnectionsViewModel: ObservableObject {
         reload()
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            guard let self, self.period.contains(Date()) else { return }
+            guard let self else { return }
+            // Past midnight, today is yesterday, and no longer live.
+            self.refreshLive()
+            guard self.period.contains(Date()) else { return }
             self.reload()
         }
+        windowIsVisible = true
     }
 
     public func windowDidClose() {
         refreshTimer?.invalidate()
         refreshTimer = nil
-        // Nothing is drawn while nobody can see it.
-        isLive = false
+        windowIsVisible = false
     }
 
     // MARK: Period
@@ -372,13 +390,22 @@ public final class ConnectionsViewModel: ObservableObject {
                                     filter: ConnectionsFilter(keys: selected.mapValues(\.key)), search: search)
     }
 
-    /// Follows the servers each sample reaches while Live is on, and nothing
-    /// otherwise. Anycast networks are left out, as they are from the shading.
+    public func mapDidAppear() { mapsShown += 1 }
+
+    public func mapDidDisappear() { mapsShown = max(0, mapsShown - 1) }
+
+    private func refreshLive() {
+        isLive = windowIsVisible && mapsShown > 0 && measure == .bytes && period.contains(Date())
+    }
+
+    /// Follows the servers each sample reaches while the map is live, and
+    /// nothing otherwise. Anycast networks are left out, as they are from the
+    /// shading.
     private func updateLive() {
         liveSubscription = nil
         livePrune?.invalidate()
         livePrune = nil
-        liveCountries = [:]
+        live.countries = [:]
         guard isLive else { return }
         liveSubscription = monitor.serverActivity
             .receive(on: naming)
@@ -394,12 +421,12 @@ public final class ConnectionsViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] countries in
                 let now = Date()
-                for country in countries { self?.liveCountries[country] = now }
+                for country in countries { self?.live.countries[country] = now }
             }
         livePrune = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             guard let self else { return }
             let cutoff = Date() - Self.liveWindow
-            self.liveCountries = self.liveCountries.filter { $0.value > cutoff }
+            self.live.countries = self.live.countries.filter { $0.value > cutoff }
         }
     }
 
@@ -439,4 +466,11 @@ public final class ConnectionsViewModel: ObservableObject {
         }
         return details
     }
+}
+
+/// The countries answering right now, with when each last did, for the map's
+/// pulses. Their own object, so a sample redraws the pulses and not the list
+/// or the countries (#182).
+public final class LiveCountries: ObservableObject {
+    @Published public fileprivate(set) var countries: [String: Date] = [:]
 }

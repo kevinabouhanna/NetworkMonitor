@@ -18,6 +18,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
     private let stepControl = NSSegmentedControl()
     private var searchField: NSSearchField?
     private var observation: AnyCancellable?
+    private var occlusion: AnyCancellable?
 
     private static let layoutItem = NSToolbarItem.Identifier("layout")
     private static let scaleItem = NSToolbarItem.Identifier("scale")
@@ -55,6 +56,13 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
             DispatchQueue.main.async { self?.refreshControls() }
         }
         refreshControls()
+        // The map pulses only while someone can see it (#182).
+        occlusion = NotificationCenter.default
+            .publisher(for: NSWindow.didChangeOcclusionStateNotification, object: window)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.model.windowIsVisible = self.window.occlusionState.contains(.visible)
+            }
     }
 
     public var isVisible: Bool { window.isVisible }

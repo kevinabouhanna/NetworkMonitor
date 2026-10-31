@@ -46,8 +46,10 @@ the list until you widen it.
   window to it.
 - **Narrow to a company, app or server**, and lines run from your country to where its
   data went. Your country comes from the Mac's Region setting, never from Location.
-- **Live** makes lines pulse to the countries your apps reach right now. The map redraws
-  on its own only while Live is on, and Live switches off when the window closes.
+- **Lines pulse to the countries your apps reach right now** whenever the map shows
+  traffic for a period that includes now, with no switch to turn on (#182). Only the
+  pulses redraw on their own, and nothing runs while the window is closed, minimised or
+  covered, while it shows Blocked or a past period, or while nothing is answering.
 - **Drag to move, pinch or use the buttons to zoom.** Places too small to see at the
   current zoom, and places drawn inside another country such as Réunion, show as a dot
   when something went there.
