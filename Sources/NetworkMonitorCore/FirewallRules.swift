@@ -29,9 +29,12 @@ public final class FirewallRules: ObservableObject {
     }
 
     private let defaults: UserDefaults
+    /// The team that signed an app key's program (#202).
+    private let teamOf: (String) -> String?
 
-    public init(defaults: UserDefaults = .standard) {
+    public init(defaults: UserDefaults = .standard, teamOf: @escaping (String) -> String? = AppMaker.team(forAppKey:)) {
         self.defaults = defaults
+        self.teamOf = teamOf
         rules = defaults.data(forKey: Self.rulesKey)
             .flatMap { try? JSONDecoder().decode([FirewallRule].self, from: $0) } ?? []
         mode = defaults.string(forKey: Self.modeKey).flatMap(FirewallMode.init) ?? .anywhere
@@ -101,8 +104,10 @@ public final class FirewallRules: ObservableObject {
         }
     }
 
-    /// Any rule, replacing one with the same subject, key and app.
+    /// Any rule, replacing one with the same subject, key and app. A rule
+    /// about an app remembers the team that signed it (#202).
     public func add(_ rule: FirewallRule) {
+        let rule = rule.team == nil ? rule.ruledApp.flatMap(teamOf).map(rule.signed(by:)) ?? rule : rule
         var updated = rules.filter { $0.id != rule.id }
         updated.insert(rule, at: 0)
         save(updated)
