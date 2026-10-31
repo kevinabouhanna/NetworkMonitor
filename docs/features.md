@@ -17,7 +17,8 @@ looks like the live rates.
 
 - **Click** it for the popover.
 - **Right-click** (or Control-click) it for **Test Internet Speed**, the last result,
-  **Usage History…** (⌘Y), **Settings…** (⌘,), **Uninstall NetworkMonitor…** and **Quit**.
+  **Connections…** (⌘K), **Usage History…** (⌘Y), **Settings…** (⌘,), **Check for
+  Updates…**, **Uninstall NetworkMonitor…** and **Quit**.
 
 ## The popover
 
@@ -79,8 +80,9 @@ network or every hotspot at once; export it as CSV. See [Usage History](usage-hi
 
 Which companies your apps send data to, from which apps, in which countries, and to which
 servers: grouped by company, app or country, narrowed by clicking, searched, read hour by
-hour on a timeline, and shaded on a world map with a Live view. Nothing pops up and nothing
-is looked up online. See [Connections](connections.md).
+hour on a timeline, and shaded on a world map with a Live view. Nothing is looked up
+online. Block a company, app, country or server, or have it ask the first time an app
+connects. See [Connections](connections.md).
 
 ## Speed test
 
@@ -100,11 +102,12 @@ height of the screen, where the pane scrolls instead. It reopens on the pane you
 
 | Pane | What's in it |
 |---|---|
-| **General** | Start at login · Show speeds in MB/s or Mbps · Menu bar colors: Download, Upload, the speed test's colours, Use Default Colors · Popover totals: Counting since, Sampling, Reset Now |
+| **General** | Start at login · Show speeds in MB/s or Mbps · Wi-Fi names, until they're on · Menu bar colors: Download, Upload, the speed test's colours, Use Default Colors · Popover totals: Counting since, Sampling, Reset Now |
 | **Speed Test** | Run a test right there · Show the test in the popover as a Card or Compact |
 | **History** | [Usage History](usage-history.md) |
+| **Connections** | What it is, and Open Connections… · Today's top companies · Website names, Turn On… or Turn Off · Let apps connect, and every rule you've made · Opens with List, Both or Map · Where the names come from, and Update them monthly |
 | **Hotspot** | Stop apps updating on hotspots · what it decided about the connection you're on · Paused on a hotspot, each app with how and its own switch · Can't be paused, each with why · Low Data Mode · what got through |
-| **About** | Version · website, release notes and source · Uninstall… |
+| **About** | Version · website, release notes and source · Check for updates automatically, Check Now · Uninstall… |
 
 While Settings is open, NetworkMonitor has a Dock icon and a menu, so ⌘W, ⌘, and ⌘Y work
 and ⌘-Tab can find it. It goes back to living in the menu bar when you close it.

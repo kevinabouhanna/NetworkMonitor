@@ -178,13 +178,13 @@ program of its own is counted by its own traffic.
 
 ## Three things worth knowing
 
-- **It's not a firewall.** For almost every app it changes the app's own setting for
-  checking automatically, so a manual **Check for Updates…** still works, which is the
-  point: it stops unattended downloads, not you. Canva, Figma and Chrome are the exception:
-  with the helper, their update servers can't be reached while you're on the hotspot, so a
-  manual check in those three waits until you leave. So are Electron apps whose update
-  folder is locked: their manual check fails until you leave. Nothing ever interrupts an update
-  already downloading.
+- **It's mostly not a firewall.** For almost every app it changes the app's own setting
+  for checking automatically, so a manual **Check for Updates…** still works, which is the
+  point: it stops unattended downloads, not you. The exceptions block instead, so a manual
+  check waits until you leave: with the helper, Canva's, Figma's and Chrome's update
+  servers; Electron apps whose update folder is locked; and, with website names on, every
+  app's updater program (#98), unless you **Always Allow** it in Connections. Nothing ever
+  interrupts an update already downloading.
 - **"Stops updating" includes security updates.** There's no reliable way to tell a
   security patch from a feature release, and pretending otherwise would be worse than
   saying so. Turn the switch off, or leave the hotspot, and everything resumes.
@@ -208,15 +208,15 @@ sequenceDiagram
     alt switch on and metered
         M->>J: record each prior value first
         M->>S: apply (preferences, config files)
-        M->>H: sudo -n helper suppress, constrain
+        M->>H: suppress, constrain (over XPC)
     else no longer metered, or switch off
         M->>S: revert from the journal
-        M->>H: sudo -n helper restore, unconstrain
+        M->>H: restore, unconstrain (over XPC)
         M->>J: clear records
     end
 ```
 
-**Policy and enforcement are separate.** `MeteringController` decides; four conformers
+**Policy and enforcement are separate.** `MeteringController` decides; five conformers
 of the `UpdateSuppressor` protocol (`discover`, `apply`, `revert`) carry it out:
 
 | Suppressor | Covers | Needs the helper |
@@ -227,8 +227,9 @@ of the `UpdateSuppressor` protocol (`discover`, `apply`, `revert`) carry it out:
 | `PrivilegedSuppressor` | macOS and App Store updates, managed policies, Claude Code's managed settings, `/etc/hosts` entries | yes |
 | `LowDataModeSuppressor` | interface flags | yes |
 
-A content-filter tier could be added later as one more conformer, without touching policy,
-journal or UI. It would need a Developer ID.
+Stopping every app's updater at the network (#98) isn't one of them. The content filter
+does it, from the rules and the hotspot state the app sends it, so it needs website names
+on; see [Connections › Blocking](connections.md#blocking).
 
 **It only acts on events:** launch, a network change, the switch, a per-app switch, an app
 quitting with a queued change, Settings opening, and the helper being installed. There's no
@@ -237,8 +238,8 @@ timer. Offline is ignored: a dropped connection neither lifts nor applies anythi
 **Detection** lives in `MeteredHeuristic.swift`. The verdict is an enum, not a Bool, so the
 UI can say *why*. The flags NetworkMonitor raised itself for Low Data Mode are masked out
 first; otherwise leaving a hotspot for home Wi-Fi on the same interface would judge home
-metered by our own flags and hold them forever. The code can store a per-network override
-(`meteredOverrides` in `usage.json`), but nothing in the app sets it yet.
+metered by our own flags and hold them forever. *This network* in Settings › Hotspot stores
+a per-network override (`meteredOverrides` in `usage.json`), which beats every signal (#109).
 
 **Writing other apps' settings:**
 
@@ -300,8 +301,9 @@ they keep the older way: installed through macOS's administrator dialog, running
 - the binary at `/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper`,
   owned by root (a password-free rule pointing at a binary you could rewrite would be a
   one-line route to root);
-- a sudoers rule, `/etc/sudoers.d/networkmonitor`, allowing exactly the five verbs above
-  for your account, validated with `visudo -c` first. Its name has no dot, because sudo
+- a sudoers rule, `/etc/sudoers.d/networkmonitor`, allowing exactly five of the verbs
+  above for your account, `status`, `suppress`, `restore`, `constrain` and `unconstrain`,
+  validated with `visudo -c` first. Its name has no dot, because sudo
   skips files whose names contain one;
 - a LaunchDaemon that runs `self-heal` at boot and every hour. It's the extra row in
   Login Items.
@@ -354,8 +356,9 @@ their only record is the app's journal. The helper's hourly check covers its own
 - **Updaters compiled into an app's own binary** (Tauri apps, for example) can't be found
   by their shape.
 - **Electron apps with an updater of their own**, neither Squirrel nor electron-updater,
-  are only slowed by Low Data Mode if they respect it, and most don't. A content filter
-  would cover them, but needs a Developer ID.
+  are only slowed by Low Data Mode if they respect it, and most don't. With website names
+  on, the content filter stops an updater that runs as a program of its own (#98), but not
+  one that downloads from inside the app itself.
 - **Sparkle apps that were open when you joined the hotspot** keep their setting until they
   quit, so one could still update; Settings marks them *paused once you quit it*.
 - **Claude Code in an organisation that manages it.** If your organisation sends Claude Code

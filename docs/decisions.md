@@ -12,9 +12,10 @@ odd: most odd-looking things were the second or third attempt.
   permission. The welcome window offers the two that add something, Wi-Fi names (Location,
   #85) and website names (the content filter, #128), each said as what you get (#134). The
   only password ever asked for is optional, for Hotspot mode's helper.
-- **No network access of its own,** but one: a speed test you start, and once a month the
-  country and network data, the same signed file for everyone, never on a hotspot, with a
-  switch to turn it off (#121).
+- **No network access of its own,** but three: a speed test you start; once a month the
+  country and network data, the same signed file for everyone (#121); and once a day a
+  check for a new version (#132). Neither of the last two runs by itself on a hotspot, and
+  each has a switch to turn it off.
 - **Nothing to configure where the app can decide.** Sampling rates follow the power source;
   Hotspot mode is one switch with no list to maintain. A switch that needs configuring to
   work has failed.
@@ -66,11 +67,11 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-23 | **Settings as toolbar panes**, following Apple's guidelines; Usage History moves in (#11) | One long, cramped column; features hidden behind unlabelled icons |
 | 2026-10-23 | **Battery**: nothing drawn while nobody can see the menu bar; a Low Power Mode profile (#22, #1) | What remained after the `nettop` fix was drawing the readout: 1.19% of a core on battery, now 0.47% with the screen off and 0.53% in Low Power Mode |
 | 2026-10-23 | Hotspot lists say how each app is paused, or why it can't be, in plain words (#40) | "Apps paused" read as happening already, and "electron-updater" or "Sparkle, sandboxed" explained nothing to someone new |
+| 2026-10-24 | **Menu bar colors** can be changed; a speed test's colours follow, kept clear of them (#45) | Colour is the only thing that tells a test's figures from the live rates, so a live colour that matched the test's would hide which is which |
 | 2026-10-24 | Settings is never taller than the screen; a taller pane scrolls (#46) | With both Hotspot lists open, the window ran off the bottom of the screen |
 | 2026-10-24 | Settings' toolbar takes clicks while a pane is still changing (#55), and the window keeps its centre when it does (#57) | `NSTabViewController` ignored those clicks: a tab clicked within about 0.3 s of the last did nothing. Allowing them let Auto Layout resize the window first, from its left edge, walking it 60 pt left per switch around History |
 | 2026-10-25 | Settings › Hotspot loads in the background, marks only changes that are really waiting for an app to quit, and gives a pane a scroll bar only while it scrolls (#65) | Opening it asked the helper twice on the main thread (about 260 ms) and rescanned the apps; *quit it to apply* showed whenever the app was open, on any network; a scroll bar that came and went left a wrapped line's height behind |
 | 2026-10-25 | Settings is one width, 720 pt, for every pane, and changes panes at once, with no crossfade (#61) | The crossfade ran about 0.7 s per switch and let a scroll bar flash on the way out of a taller pane; History at 768 pt and the rest at 648 pt made the window change width |
-| 2026-10-24 | **Menu bar colors** can be changed; a speed test's colours follow, kept clear of them (#45) | Colour is the only thing that tells a test's figures from the live rates, so a live colour that matched the test's would hide which is which |
 | 2026-10-25 | **The gateway's address is read from configd**, then `arp` (issue #70) | macOS 27 hides the ARP table from apps without Local Network permission, so every Wi-Fi network had become one. configd needs no permission, and asking for it would mean a prompt after every ad-hoc-signed update |
 | 2026-10-25 | **History's All / Wi-Fi / Hotspot switch** replaces Metered only, opens on Hotspot while you're on one, and app bars are split by network type (issue #70) | A day on Wi-Fi and a hotspot should read as two parts, everywhere in the pane. Hotspot is a kind of network, so it filters by kind and matches the chart's colours; Metered only was nearly the same set under another name |
 | 2026-10-25 | **Wi-Fi names, with Location, always on** (issue #85) | "Wi-Fi · 9493" told people nothing. macOS 27 shares the name only with Location, so the app asks a few seconds after launch, with no setting. The name is only a label: the router's address stays the identity, and a router's two band names are both kept |
@@ -128,7 +129,7 @@ Newest last. Links go to the commit or pull request.
 | A LaunchAgent for start at login | generic "exec" tile in Login Items without a Team ID |
 | Freezing the app list's order while open | big downloads sat under tiny apps |
 | A variable-height popover | re-anchored many times per animation and jumped |
-| A Network Extension content filter for Hotspot mode | blocking traffic is the wrong tool for stopping updates, and it needs a Developer ID |
+| A Network Extension content filter for Hotspot mode | blocking traffic is the wrong tool for stopping updates, and it needs a Developer ID. Reversed by #98, once the filter existed for Connections: it now stops the updaters no setting reaches |
 | Unloading updaters' LaunchAgents | puts the app in the business of managing background items; churns Login Items |
 | Blocking update hosts for every Electron app | breaks VS Code Remote-SSH and the Claude app |
 | Pausing (`SIGSTOP`) an update already downloading | the download belongs to a system daemon; servers time out; a stopped process gets stranded |

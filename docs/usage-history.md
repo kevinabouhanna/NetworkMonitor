@@ -124,7 +124,8 @@ deleted, and a new one started.
 
 **Schema** (`UsageHistory.swift`). One row per hour per session, and one per hour per
 session per app. An hour is the finest grain any view needs, and keeps a year to
-roughly a hundred thousand rows.
+roughly a hundred thousand rows. The servers each app talked to, for
+[Connections](connections.md), are kept the same way.
 
 | Table | Holds | Key |
 |---|---|---|
@@ -132,6 +133,10 @@ roughly a hundred thousand rows.
 | `apps` | app key, name, bundle path, whether it's System, parent app | `key` |
 | `traffic` | per hour and session: interface bytes, LAN bytes, attributed app bytes, each way | `(hour, session_id)` |
 | `app_traffic` | per hour, session and app: bytes in and out | `(hour, session_id, app_key)` |
+| `servers` | a server's address, and the name an app last reached it by (#128) | `id` |
+| `app_servers` | each app and server pair, once, with when it was first seen (#111) | `id` |
+| `server_traffic` | per hour, session and app and server: bytes in and out, and connections blocked (#114) | `(hour, session_id, app_server_id)` |
+| `updates` | each update that got through: the app, its version, the data it used, and the session it was first seen on (#96) | `(report, source, name)` |
 
 The raw figures are stored and the internet figure is derived when reading, with the
 same clamp the popover uses, so the formula lives in one place:
@@ -177,4 +182,6 @@ They use a temporary database and a UTC calendar.
   Those visits can't be split after the fact: nothing recorded when the switches happened.
 - The Day/Week/Month/Year choice is remembered while the app runs, not across launches.
 - Which day a week starts on follows your Mac's region settings.
-- The database has a schema version (`user_version = 1`) but no migrations yet.
+- The schema version (`user_version`) is still 1. The two columns added since, a server's
+  name (#128) and blocked connections (#114), are added to an older file when it opens,
+  if they're missing.

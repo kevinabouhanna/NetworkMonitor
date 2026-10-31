@@ -25,9 +25,16 @@ The ↓ ↑ readout appears in the menu bar. NetworkMonitor has no Dock icon and
 window of its own; everything starts from the readout. It registers itself to
 start at login, which you can turn off in **Settings › General**.
 
-A few seconds in, it asks to use your location. Click **Allow** to see networks by
-their Wi-Fi name: macOS shares the name only with Location permission, and it's used
-for nothing else. Refuse, and networks are named like *Wi-Fi · 3f2a*.
+The first time, a welcome window offers two things, both optional (#134):
+
+- **See which websites your apps visit**: a content filter that names the servers in
+  [Connections](connections.md#website-names), and makes blocking possible.
+- **Know your Wi-Fi networks by name**: macOS shares the name only with Location
+  permission, and it's used for nothing else. Without it, networks are named like
+  *Wi-Fi · 3f2a*.
+
+Neither is asked for again on its own. Skip either, and it has a **Turn On…** where it's
+used: website names in Settings › Connections, Wi-Fi names in Settings › General.
 
 ## Update
 
@@ -63,10 +70,11 @@ Right-click the menu bar readout and choose **Uninstall NetworkMonitor…**, or 
 
 1. removes the content filter, if you turned on website names: its settings at once, and
    the extension itself, which macOS may finish at the next restart;
-2. puts back every setting Hotspot mode changed, before removing anything;
-3. removes the helper, if it was installed (a helper from a build without a Developer ID
-   asks for your password);
-4. removes the login item and your usage history;
+2. removes the helper, if it was installed, which first puts back what it changed (a
+   helper from a build without a Developer ID asks for your password). If that fails or
+   you cancel, nothing else is touched;
+3. puts back the settings Hotspot mode changed without the helper;
+4. removes the login item, your usage history and your settings;
 5. moves the app to the Trash.
 
 **Dragging the app to the Trash is not the same.** The helper notices within an
