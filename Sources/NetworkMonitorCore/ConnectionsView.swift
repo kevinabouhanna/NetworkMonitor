@@ -196,7 +196,7 @@ public struct ConnectionsView: View {
         let isOpen = model.expanded.contains(group.id)
         ConnectionsRow(item: group.item, subtitle: subtitle(for: group.item),
                        icon: model.icon(for: group.item), fraction: fraction(group.item.total, of: largest),
-                       indent: 0, disclosure: isOpen, rule: firewall.rule(for: group.item)?.action,
+                       indent: 0, disclosure: isOpen, rule: firewall.rule(for: group.item),
                        listed: model.listed(group.item),
                        onToggleDisclosure: { model.toggle(group.id) },
                        onSelect: { model.toggle(group.id) },
@@ -225,7 +225,7 @@ public struct ConnectionsView: View {
         ForEach(shown) { item in
             ConnectionsRow(item: item, subtitle: subtitle(for: item), icon: model.icon(for: item),
                            fraction: fraction(item.total, of: largest), indent: 1, disclosure: nil,
-                           rule: firewall.rule(for: item)?.action, listed: model.listed(item),
+                           rule: firewall.rule(for: item), listed: model.listed(item),
                            onToggleDisclosure: {}, onSelect: { model.narrow(to: item, in: group.item) },
                            help: "Click to see only \(item.title)", format: model.format)
                 .contextMenu { ruleMenu(for: item) }
@@ -253,9 +253,21 @@ public struct ConnectionsView: View {
             let current = firewall.rule(for: item)
             ForEach(RuleAction.allCases, id: \.self) { action in
                 Toggle(Self.menuTitle(action, item.title), isOn: Binding(
-                    get: { current?.action == action },
+                    get: { current?.action == action && current?.network == nil },
                     set: { isOn in
                         if isOn { model.setRule(action, for: item) } else if let current { firewall.remove(current) }
+                    }))
+            }
+            // Only on the network the Mac is on (#200).
+            if let network = model.currentNetwork {
+                Toggle("Block “\(item.title)” on “\(network.name)”", isOn: Binding(
+                    get: { current?.action == .block && current?.network == network.id },
+                    set: { isOn in
+                        if isOn {
+                            model.setRule(.block, for: item, onThisNetwork: true)
+                        } else if let current {
+                            firewall.remove(current)
+                        }
                     }))
             }
             if let current {
@@ -283,6 +295,20 @@ public struct ConnectionsView: View {
                 }
             }
         }
+        // Only on the network the Mac is on (#200).
+        if let network = model.currentNetwork {
+            if scopes.count == 1 {
+                Toggle("Block “\(name)” on “\(network.name)”",
+                       isOn: siteBinding(.block, scopes[0], name, current, network: network))
+            } else {
+                Menu("Block on “\(network.name)”") {
+                    ForEach(scopes, id: \.self) { domain in
+                        Toggle(domain == name ? name : "All of *.\(domain)",
+                               isOn: siteBinding(.block, domain, name, current, network: network))
+                    }
+                }
+            }
+        }
         if let current {
             Divider()
             Button("Remove Rule") { firewall.remove(current) }
@@ -290,12 +316,15 @@ public struct ConnectionsView: View {
     }
 
     private func siteBinding(_ action: RuleAction, _ domain: String, _ name: String,
-                             _ current: FirewallRule?) -> Binding<Bool> {
+                             _ current: FirewallRule?, network: FirewallRules.CurrentNetwork? = nil) -> Binding<Bool> {
         Binding(
-            get: { current?.subject == .site && current?.key == domain && current?.action == action },
+            get: {
+                current?.subject == .site && current?.key == domain && current?.action == action
+                    && current?.network == network?.id
+            },
             set: { isOn in
                 if isOn {
-                    model.setSiteRule(action, domain: domain, forName: name)
+                    model.setSiteRule(action, domain: domain, forName: name, onThisNetwork: network != nil)
                 } else if let current {
                     firewall.remove(current)
                 }
@@ -380,9 +409,11 @@ private struct WebsiteNamesOffer: View {
 /// blocked on hotspots, green for always allowed.
 struct RuleBadge: View {
     let action: RuleAction
+    /// A rule for one network says which (#200).
+    var networkTitle: String? = nil
 
     var body: some View {
-        Text(action.badge.uppercased())
+        Text((networkTitle.map { "\(action.badge) on \($0)" } ?? action.badge).uppercased())
             .font(.system(size: 8, weight: .bold))
             .padding(.horizontal, 4).padding(.vertical, 1)
             .background(color.opacity(0.18), in: Capsule())
@@ -391,6 +422,7 @@ struct RuleBadge: View {
     }
 
     private var color: Color {
+        if networkTitle != nil { return .orange }
         switch action {
         case .block:           return .red
         case .blockOnHotspots: return .orange
@@ -425,7 +457,7 @@ private struct ConnectionsRow: View {
     /// nil for a row with nothing to open; otherwise whether it's open.
     let disclosure: Bool?
     /// The person's rule for it, if any (#114).
-    let rule: RuleAction?
+    let rule: FirewallRule?
     /// A named server on an ad, tracker or malware list (#176).
     let listed: BlocklistTopic?
     let onToggleDisclosure: () -> Void
@@ -470,7 +502,7 @@ private struct ConnectionsRow: View {
                             .help("A network that carries many companies' traffic")
                     }
                     if let listed { ListTag(topic: listed) }
-                    if let rule { RuleBadge(action: rule) }
+                    if let rule { RuleBadge(action: rule.action, networkTitle: rule.networkTitle) }
                 }
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)

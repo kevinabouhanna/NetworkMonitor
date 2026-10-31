@@ -125,10 +125,13 @@ public final class ConnectionsViewModel: ObservableObject {
     /// From a row's menu (#114). Rules are kept whether or not the filter is
     /// on; if it isn't, this is the moment to turn it on, so the offer above
     /// the list comes back to walk through it.
-    public func setRule(_ action: RuleAction, for item: ConnectionsItem) {
-        firewall.set(action, for: item)
+    public func setRule(_ action: RuleAction, for item: ConnectionsItem, onThisNetwork: Bool = false) {
+        firewall.set(action, for: item, network: onThisNetwork ? monitor.currentNetwork : nil)
         turnOnFilterForRules()
     }
+
+    /// The network the Mac is on, for "Block on …" (#200). Nil offline.
+    public var currentNetwork: FirewallRules.CurrentNetwork? { monitor.currentNetwork }
 
     /// The lists switched on (#176). Like a rule, they need the content
     /// filter: switching them on while it's off starts turning it on.
@@ -144,8 +147,8 @@ public final class ConnectionsViewModel: ObservableObject {
     }
 
     /// A rule for a site by name, from a server row that has one (#197).
-    public func setSiteRule(_ action: RuleAction, domain: String, forName name: String) {
-        firewall.setSite(action, domain: domain, forName: name)
+    public func setSiteRule(_ action: RuleAction, domain: String, forName name: String, onThisNetwork: Bool = false) {
+        firewall.setSite(action, domain: domain, forName: name, network: onThisNetwork ? monitor.currentNetwork : nil)
         turnOnFilterForRules()
     }
 

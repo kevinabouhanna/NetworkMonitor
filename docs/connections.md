@@ -128,6 +128,10 @@ and Settings › Connections lists every rule, each with a button to take it bac
   #197): Chrome's, for example. Its first bytes wait for that, and a name never found leaves
   it decided as it was without one.
 - **On Hotspots** means while the Mac is on a hotspot, as the popover judges it.
+- **On "this network"** (#200): the menu also offers **Block "…" on "Office Wi-Fi"**, for the
+  network the Mac is on. The rule applies only there, keyed by the router's identity as
+  Usage History tells networks apart, never by the Wi-Fi name; elsewhere, the next rule
+  decides. Its badge names the network, and a rule for everywhere replaces it.
 - **With Hotspot mode on, every app's updater waits on a hotspot** (#98): a program inside an
   app named like an updater (`opera_autoupdate`, Raycast's `Updater`, Sparkle's), Sparkle's
   downloader, or an updater of its own (GoogleUpdater, Microsoft AutoUpdate, Squirrel's

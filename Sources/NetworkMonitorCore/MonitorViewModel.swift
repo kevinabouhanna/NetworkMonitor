@@ -51,6 +51,18 @@ public final class MonitorViewModel: ObservableObject {
     @Published public private(set) var totalBytesIn: Int64 = 0
     @Published public private(set) var totalBytesOut: Int64 = 0
     @Published public private(set) var isExpensiveNetwork = false
+    /// The network the Mac is on, by its identity (#200): for rules that
+    /// apply to one network. Empty offline.
+    @Published public private(set) var networkID = ""
+
+    /// The network the Mac is on, named as Usage History names it, for
+    /// "Block on …" (#200). Nil offline.
+    public var currentNetwork: FirewallRules.CurrentNetwork? {
+        let network = store.currentNetwork
+        guard network.id != NetworkFingerprint.offline.id else { return nil }
+        return FirewallRules.CurrentNetwork(id: network.id,
+                                            name: store.displayLabel(for: network.id, defaultLabel: network.defaultLabel))
+    }
 
     /// Combined day total. The popover shows one number rather than a
     /// per-direction split; live rates are already in the menu bar.
@@ -217,12 +229,14 @@ public final class MonitorViewModel: ObservableObject {
         // change.
         firewallPolicy = Publishers.CombineLatest4(Publishers.CombineLatest3(firewall.$rules, firewall.$lists,
                                                                              firewall.$blocksEverything),
-                                                   firewall.$mode, $isExpensiveNetwork,
-                                                   metering.$isEnabled)
-            .sink { [weak self] rulesAndLists, mode, onHotspot, pausing in
+                                                   Publishers.CombineLatest(firewall.$mode, $networkID),
+                                                   $isExpensiveNetwork, metering.$isEnabled)
+            .sink { [weak self] rulesAndLists, modeAndNetwork, onHotspot, pausing in
+                let (mode, network) = modeAndNetwork
                 self?.filter.apply(FirewallPolicy(mode: mode, rules: rulesAndLists.0, onHotspot: onHotspot,
                                                   pausesUpdates: pausing && onHotspot, lists: rulesAndLists.1,
-                                                  blocksEverything: rulesAndLists.2))
+                                                  blocksEverything: rulesAndLists.2,
+                                                  network: network.isEmpty ? nil : network))
                 // Switched on with stale lists: fetch newer ones soon.
                 if !rulesAndLists.1.isEmpty { self?.blocklists.checkSoon() }
             }
@@ -589,6 +603,8 @@ public final class MonitorViewModel: ObservableObject {
         // USB tether or an unrecognised phone reads as metered in the popover
         // for the same reason it does to the suppressors.
         isExpensiveNetwork = metering.verdict.isMetered
+        let id = store.currentNetwork.id
+        if networkID != id { networkID = id }
         totalBytesIn = bucket.internetBytesIn
         totalBytesOut = bucket.internetBytesOut
         dayStart = store.dayStart
