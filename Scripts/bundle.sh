@@ -199,6 +199,9 @@ case "$SIGN_KIND" in
       # there: once in the bundle, not twice. The licence notice is in both.
       mkdir -p "${FILTER_BUNDLE}/Contents/Resources/Geo"
       cp Resources/Geo/README.md "${FILTER_BUNDLE}/Contents/Resources/Geo/README.md"
+      # And which month it is: without it the filter wouldn't use the tables
+      # until a newer month was downloaded (#209).
+      cp Resources/Geo/MONTH "${FILTER_BUNDLE}/Contents/Resources/Geo/MONTH"
       for table in countries.bin owners.bin; do
         mv "${APP}/Contents/Resources/Geo/${table}" "${FILTER_BUNDLE}/Contents/Resources/Geo/${table}"
         ln -s "../../Library/SystemExtensions/${FILTER_NAME}.systemextension/Contents/Resources/Geo/${table}" \

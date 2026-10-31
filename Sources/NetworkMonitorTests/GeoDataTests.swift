@@ -28,6 +28,21 @@ func runGeoDataTests() {
 
     Check.suite("Data refresh (#121) — which copy") {
 
+        // #209: the content filter's copy had its tables but not its MONTH,
+        // so it used no data at all until a newer month was downloaded.
+        Check.test("a shipped copy without its month is still used, until a download replaces it") {
+            let shipped = temporaryDirectory()
+            copy(in: shipped, month: "2026-10")
+            try? FileManager.default.removeItem(at: shipped.appendingPathComponent(GeoData.monthFile))
+            let none = temporaryDirectory().appendingPathComponent("missing")
+            Check.expectEqual(ServerDirectory.newest(shipped: shipped, downloaded: none)?.month, GeoData.unknownMonth)
+            let downloaded = temporaryDirectory()
+            copy(in: downloaded, month: "2026-11")
+            Check.expectEqual(ServerDirectory.newest(shipped: shipped, downloaded: downloaded)?.month, "2026-11")
+            Check.expectTrue(GeoData.isMonth(GeoData.unknownMonth))
+            Check.expectTrue("2026-11" > GeoData.unknownMonth, "any real month is newer")
+        }
+
         Check.test("the newest month wins, the shipped copy breaking a tie") {
             let shipped = temporaryDirectory(), downloaded = temporaryDirectory()
             defer { [shipped, downloaded].forEach { try? FileManager.default.removeItem(at: $0) } }

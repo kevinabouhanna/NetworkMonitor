@@ -100,6 +100,8 @@ jobs:
           case "$archs" in *arm64*x86_64*|*x86_64*arm64*) ;; *) exit 1 ;; esac
           test -f "$filter/Contents/embedded.provisionprofile"
           test -f "$filter/Contents/Resources/Geo/owners.bin"
+          test -f "$filter/Contents/Resources/Geo/countries.bin"
+          test -f "$filter/Contents/Resources/Geo/MONTH"   # #209
           test -L build/NetworkMonitor.app/Contents/Resources/Geo/owners.bin
 
       # What a downloader's Mac will check: the Developer ID, the Location
