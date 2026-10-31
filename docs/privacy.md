@@ -96,8 +96,8 @@ it every server your Mac talks to. The data is
   each connection as it opens, the process that opened it and the server's address and
   name, and tells NetworkMonitor, which keeps the name with that server in Usage History.
   It blocks only what you block (#114), never sees the contents of any traffic, and sends
-  nothing anywhere. macOS asks you twice to allow it; **Turn Off** in Settings switches it
-  off, and Uninstall removes it.
+  nothing anywhere. macOS asks you twice to allow it; System Settings › Network › Filters
+  switches it off, and Uninstall removes it.
 - **Nothing else, normally.** No Local Network, no Accessibility, no Full Disk Access.
 - **A helper, once, if you choose it.** Switching on Hotspot mode offers a small helper,
   which macOS lists under NetworkMonitor in System Settings › General › Login Items &

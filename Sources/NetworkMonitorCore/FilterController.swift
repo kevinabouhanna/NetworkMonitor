@@ -12,8 +12,9 @@ import SystemExtensions
 /// Nothing happens until someone turns it on, in the welcome window or
 /// Settings › Connections (#134). Then macOS asks twice: once to allow the
 /// system extension (in System Settings), once to allow the filter. From then
-/// on it runs in the background. Turned off, the extension stays installed but
-/// filters nothing; uninstalling NetworkMonitor removes it.
+/// on it runs in the background. Turned off, which is done in System Settings
+/// (#181), the extension stays installed but filters nothing; uninstalling
+/// NetworkMonitor removes it.
 public final class FilterController: NSObject, ObservableObject, OSSystemExtensionRequestDelegate,
                                      FilterAppInterface {
 
@@ -31,6 +32,11 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         case confirming
         case on
         case failed(String)
+
+        /// Whether it's offered, in the welcome window and where it's used:
+        /// until it's on, when there's nothing left to manage (#181), and
+        /// never in a build that can't have it.
+        public var isOffered: Bool { self != .unavailable && self != .on }
     }
 
     @Published public private(set) var state: State
@@ -154,21 +160,6 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
             forExtensionWithIdentifier: FilterIdentity.extensionIdentifier, queue: .main)
         request.delegate = self
         OSSystemExtensionManager.shared.submitRequest(request)
-    }
-
-    /// Filters nothing from now on. The extension stays installed, so turning
-    /// it back on asks nothing.
-    public func turnOff() {
-        let manager = NEFilterManager.shared()
-        manager.loadFromPreferences { [weak self] _ in
-            manager.isEnabled = false
-            manager.saveToPreferences { _ in
-                DispatchQueue.main.async {
-                    self?.disconnect()
-                    self?.state = Self.offState
-                }
-            }
-        }
     }
 
     /// For Uninstall: the filter's configuration and the extension both go.

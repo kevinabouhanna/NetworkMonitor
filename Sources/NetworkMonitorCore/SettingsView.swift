@@ -395,7 +395,7 @@ struct HotspotSettingsPane: View {
                     } footer: {
                         SettingsFootnote(SetupCopy.hotspotUpdatesOn)
                     }
-                } else if filter.state != .unavailable {
+                } else if filter.state.isOffered {
                     Section {
                         WebsiteNamesRow(filter: filter, symbol: "arrow.down.circle",
                                         title: SetupCopy.hotspotUpdatesTitle,

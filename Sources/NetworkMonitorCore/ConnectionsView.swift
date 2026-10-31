@@ -306,10 +306,7 @@ private struct WebsiteNamesOffer: View {
     let onClose: () -> Void
 
     var body: some View {
-        switch filter.state {
-        case .unavailable, .on:
-            EmptyView()
-        default:
+        if filter.state.isOffered {
             HStack(alignment: .top, spacing: 10) {
                 WebsiteNamesRow(filter: filter)
                 Button(action: onClose) {

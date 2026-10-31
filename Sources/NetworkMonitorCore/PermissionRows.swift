@@ -6,7 +6,8 @@ import SwiftUI
 // on: in the welcome window on first launch, and again where it's used, for
 // anyone who said "not now" and changes their mind. Website names are in
 // Settings › Connections and the Connections window, Wi-Fi names in
-// Settings › General.
+// Settings › General. Once on, neither is shown there: there's nothing to
+// manage (#181).
 
 /// The words, in one place, so every row says the same thing and a test can
 /// keep them plain.
@@ -108,11 +109,10 @@ struct OnBadge: View {
     }
 }
 
-/// Website names: the content filter (#128), in the person's terms.
+/// Website names: the content filter (#128), in the person's terms. Turned
+/// off in System Settings, not here (#181).
 struct WebsiteNamesRow: View {
     @ObservedObject var filter: FilterController
-    /// Settings offers to turn it off again. The welcome window only says it's on.
-    var offersTurnOff = false
     /// What it's offered as: website names, or, in Settings › Hotspot, a stop
     /// to every app's updates there (#98).
     var symbol = "globe"
@@ -140,10 +140,7 @@ struct WebsiteNamesRow: View {
         case .starting, .waitingForApproval, .confirming:
             ProgressView().controlSize(.small)
         case .on:
-            HStack(spacing: 12) {
-                OnBadge()
-                if offersTurnOff { Button("Turn Off") { filter.turnOff() } }
-            }
+            OnBadge()
         }
     }
 

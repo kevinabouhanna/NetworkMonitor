@@ -12,8 +12,7 @@ public enum Welcome {
     /// permissions are all given already has nothing to be welcomed to.
     public static func shouldShow(shown: Bool, filter: FilterController.State, wifi: WiFiNames.Access) -> Bool {
         guard !shown else { return false }
-        let offersWebsites = filter != .unavailable && filter != .on
-        return offersWebsites || wifi != .allowed
+        return filter.isOffered || wifi != .allowed
     }
 }
 
