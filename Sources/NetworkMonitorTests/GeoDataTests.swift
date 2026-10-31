@@ -53,9 +53,9 @@ func runGeoDataTests() {
         }
 
         Check.test("the month reads as a person would say it") {
-            Check.expectEqual(ConnectionsGlance.dataSource(month: "2026-10").hasPrefix("DB-IP Lite, "), true)
-            Check.expectTrue(ConnectionsGlance.dataSource(month: "2026-10").contains("2026"))
-            Check.expectEqual(ConnectionsGlance.dataSource(month: nil), "DB-IP Lite")
+            Check.expectEqual(GeoDataUpdater.dataSource(month: "2026-10").hasPrefix("DB-IP Lite, "), true)
+            Check.expectTrue(GeoDataUpdater.dataSource(month: "2026-10").contains("2026"))
+            Check.expectEqual(GeoDataUpdater.dataSource(month: nil), "DB-IP Lite")
         }
     }
 

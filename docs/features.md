@@ -99,13 +99,15 @@ Low Data Mode, and tells you which apps it can't stop. See [Hotspot mode](hotspo
 
 One window with a pane for each area. It's titled and sized after the pane, up to the
 height of the screen, where the pane scrolls instead. It reopens on the pane you used last.
+What a row means is behind an ⓘ beside it, which appears when you point at the row (#185,
+#189).
 
 | Pane | What's in it |
 |---|---|
 | **General** | Start at login · Show speeds in MB/s or Mbps · Wi-Fi names, until they're on · Menu bar colors: Download, Upload, the speed test's colours, Use Default Colors · Popover totals: Counting since, Sampling, Reset Now |
 | **Speed Test** | Run a test right there · Show the test in the popover as a Card or Compact |
 | **History** | [Usage History](usage-history.md) |
-| **Connections** | What it is, and Open Connections… · Today's top companies · Website names, Turn On… while they're off · Let apps connect, and every rule you've made · Opens with List, Both or Map · Where the names come from, and Update them monthly |
+| **Connections** | What it is, and Open Connections… · Website names, Turn On… while they're off · Let apps connect, and every rule you've made · Opens with List, Both or Map · Where the names come from, and Update them monthly |
 | **Hotspot** | Stop apps updating on hotspots · what it decided about the connection you're on · Paused on a hotspot, each app with its own switch and how behind an ⓘ · Can't be paused, each with why behind an ⓘ · Low Data Mode · what got through |
 | **About** | Version · website, release notes and source · Check for updates automatically, Check Now · Uninstall… |
 
