@@ -108,7 +108,7 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 | **General** | Start at login · Show speeds in MB/s or Mbps · Wi-Fi names, until they're on · Menu bar colors: Download, Upload, the speed test's colours, Use Default Colors · Popover totals: Counting since, Sampling, Reset Now |
 | **Speed Test** | Run a test right there · Show the test in the popover as a Card or Compact |
 | **History** | [Usage History](usage-history.md) |
-| **Connections** | What it is, and Open Connections… · Website names, Turn On… while they're off · Let apps connect, and every rule you've made · Ads and trackers: Block ads and trackers, each list, Blocked today, Update them weekly · Opens with List, Both or Map · Where the names come from, and Update them monthly |
+| **Connections** | What it is, and Open Connections… · Website names, Turn On… while they're off · Let apps connect, every rule you've made, Export… and Import… · Ads and trackers: Block ads and trackers, each list, Blocked today, Update them weekly · Opens with List, Both or Map · Where the names come from, and Update them monthly |
 | **Hotspot** | Stop apps updating on hotspots · what it decided about the connection you're on · Paused on a hotspot, each app with its own switch and how behind an ⓘ · Can't be paused, each with why behind an ⓘ · Low Data Mode · what got through |
 | **About** | Version · website, release notes and source · Check for updates automatically, Check Now · Uninstall… |
 

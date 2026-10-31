@@ -2,6 +2,7 @@ import AppKit
 import FirewallPolicy
 import ServerDirectory
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Settings › Connections (#126): where Connections is found, like every other
 /// feature. What it is, website names while they're off, the rules, which
@@ -176,12 +177,49 @@ struct ConnectionsSettingsPane: View {
                     }
                 }
             }
+            // To another Mac, or a backup (#201).
+            LabeledContent("Rules") {
+                HStack(spacing: 8) {
+                    Button("Export…", action: exportRules).disabled(firewall.rules.isEmpty)
+                    Button("Import…", action: importRules)
+                }
+            }
         } header: {
             Text("Blocking")
         } footer: {
             SettingsFootnote(footnote)
         }
     }
+
+    private func exportRules() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "NetworkMonitor Rules.json"
+        panel.allowedContentTypes = [.json]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try firewall.exportData().write(to: url, options: .atomic)
+        } catch {
+            NSAlert(error: error).runModal()
+        }
+    }
+
+    private func importRules() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let alert = NSAlert()
+        do {
+            let result = try firewall.importRules(from: Data(contentsOf: url))
+            alert.messageText = FirewallRules.importSummary(added: result.added, alreadyHere: result.alreadyHere)
+            if result.added > 0, filter.state == .off { filter.turnOn() }
+        } catch {
+            alert.messageText = "That file has no NetworkMonitor rules in it."
+            alert.informativeText = "Choose a file made with Export… in Settings › Connections."
+        }
+        alert.runModal()
+    }
+
 
     private var footnote: String {
         let mode: String
