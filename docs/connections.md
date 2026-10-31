@@ -101,8 +101,14 @@ Servers list shows names, with the address underneath.
 - **Once it's on, Settings says nothing about it** (#181). It's switched off in System
   Settings › Network › Filters, and then Settings › Connections offers **Turn On…** again.
   Uninstall removes it.
-- **A name is only known when the app connected by one.** A program that connects to a
-  bare address still reads by its network's owner.
+- **Apps that connect by address are named from the handshake** (#196). Chrome, Figma
+  and other Chromium apps look addresses up themselves, often over encrypted DNS, so the
+  filter gets no name from them. For those connections to port 443 it reads the site's
+  name from the opening handshake, TLS's or QUIC's, which is sent for the network to read.
+  Only that name: nothing after it, and nothing of a connection that already has a name.
+- **What still reads by its network's owner:** a connection on another port, one that
+  doesn't use TLS or QUIC, and a site that hides its name with Encrypted Client Hello,
+  which shows its provider's public name instead, such as `cloudflare-ech.com`.
 
 ## Blocking
 

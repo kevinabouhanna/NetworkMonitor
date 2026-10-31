@@ -70,6 +70,17 @@ public struct FlowReport: Codable, Equatable {
         self.appKey = appKey
     }
 
+    /// The name this report gives its server, if it gives one. A DNS lookup's
+    /// flow carries the name being looked up, which would name the resolver
+    /// (1.1.1.1 read as *developer.apple.com*), so lookups name nothing (#196).
+    public var serverName: String? {
+        guard let hostname, !hostname.isEmpty, !Self.lookupPorts.contains(port) else { return nil }
+        return hostname
+    }
+
+    /// DNS, and DNS over TLS.
+    public static let lookupPorts: Set<Int> = [53, 853]
+
     /// Reports travel as JSON in a `Data`, which XPC carries without a
     /// secure-coding class for each field.
     public static func encode(_ reports: [FlowReport]) -> Data {

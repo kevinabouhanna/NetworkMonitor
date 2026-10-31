@@ -74,11 +74,19 @@ let package = Package(
             dependencies: ["HostsFile"],
             path: "Sources/FirewallPolicy"
         ),
+        // The site a connection is for, read from its opening handshake (#196):
+        // TLS's server_name, and QUIC's, from Initial packets anyone can
+        // decrypt. Pure Foundation and the system's crypto, for the filter
+        // and the tests.
+        .target(
+            name: "HandshakeName",
+            path: "Sources/HandshakeName"
+        ),
         // The content filter, a Network Extension system extension. bundle.sh
         // puts it in the app only for Developer ID builds, with its profile.
         .executableTarget(
             name: "NetworkMonitorFilter",
-            dependencies: ["FilterProtocol", "FirewallPolicy", "ServerDirectory"],
+            dependencies: ["FilterProtocol", "FirewallPolicy", "ServerDirectory", "HandshakeName"],
             path: "Sources/NetworkMonitorFilter",
             linkerSettings: [.linkedFramework("NetworkExtension")]
         ),
@@ -102,7 +110,7 @@ let package = Package(
         .executableTarget(
             name: "NetworkMonitorTests",
             dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory", "FilterProtocol",
-                           "FirewallPolicy"],
+                           "FirewallPolicy", "HandshakeName"],
             path: "Sources/NetworkMonitorTests"
         ),
     ]

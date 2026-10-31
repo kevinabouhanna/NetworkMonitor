@@ -199,7 +199,7 @@ public final class MonitorViewModel: ObservableObject {
         filterNames = filter.flows.sink { [weak self] flows in
             guard let history = self?.store.history else { return }
             history.noteServerNames(flows.compactMap { flow in
-                flow.hostname.map { (FirewallPolicy.serverAddress(flow.address), $0) }
+                flow.serverName.map { (FirewallPolicy.serverAddress(flow.address), $0) }
             })
             history.recordBlocked(flows.compactMap { flow in
                 guard flow.blockedBy != nil, let key = flow.appKey else { return nil }
