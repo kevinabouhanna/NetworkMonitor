@@ -14,6 +14,12 @@ public struct MenuBarTints: Equatable {
     /// The live rates' colours until someone changes them.
     public static let live = MenuBarTints(down: MenuBarTitle.downTint, up: MenuBarTitle.upTint)
 
+    /// While Block Everything is on (#198): red, so it's never left on by
+    /// mistake, whatever colours were chosen.
+    public static let blockingEverything = MenuBarTints(
+        down: NSColor(srgbRed: 1.0, green: 0.36, blue: 0.33, alpha: 1),
+        up: NSColor(srgbRed: 1.0, green: 0.62, blue: 0.6, alpha: 1))
+
     /// What a speed test can use instead, in order of preference. Cyan first,
     /// the test's colour before the live colours could be changed, so nobody
     /// who keeps the defaults sees anything new. Each pair is a strong colour

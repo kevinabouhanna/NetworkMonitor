@@ -67,7 +67,7 @@ Right-click the menu bar readout and choose **Uninstall NetworkMonitor…** (or 
 ## 🖱️ Using it
 
 - **Click** the readout for this connection's total and the apps behind it. The 🌐 there opens Connections.
-- **Right-click** it for the speed test, Connections, Usage History, Settings, Check for Updates, Uninstall and Quit.
+- **Right-click** it for the speed test, Block Everything, Connections, Usage History, Settings, Check for Updates, Uninstall and Quit.
 - **Settings** has a pane each for General, Speed Test, History, Connections, Hotspot and About.
 
 ## 📚 Learn more

@@ -215,12 +215,14 @@ public final class MonitorViewModel: ObservableObject {
         // hotspots", and whether Hotspot mode pauses updates here (#98). The
         // values come from the publishers: they fire before the properties
         // change.
-        firewallPolicy = Publishers.CombineLatest4(Publishers.CombineLatest(firewall.$rules, firewall.$lists),
+        firewallPolicy = Publishers.CombineLatest4(Publishers.CombineLatest3(firewall.$rules, firewall.$lists,
+                                                                             firewall.$blocksEverything),
                                                    firewall.$mode, $isExpensiveNetwork,
                                                    metering.$isEnabled)
             .sink { [weak self] rulesAndLists, mode, onHotspot, pausing in
                 self?.filter.apply(FirewallPolicy(mode: mode, rules: rulesAndLists.0, onHotspot: onHotspot,
-                                                  pausesUpdates: pausing && onHotspot, lists: rulesAndLists.1))
+                                                  pausesUpdates: pausing && onHotspot, lists: rulesAndLists.1,
+                                                  blocksEverything: rulesAndLists.2))
                 // Switched on with stale lists: fetch newer ones soon.
                 if !rulesAndLists.1.isEmpty { self?.blocklists.checkSoon() }
             }
@@ -665,7 +667,18 @@ public final class MonitorViewModel: ObservableObject {
             return MenuBarTitle.speedTestImage(downBits: reading.down, upBits: reading.up,
                                                unit: speedTest.unit, tints: menuBarColors.test)
         }
-        return MenuBarTitle.image(down: downBytesPerSecond, up: upBytesPerSecond,
-                                  unit: speedTest.unit, tints: menuBarColors.live)
+        return MenuBarTitle.image(down: downBytesPerSecond, up: upBytesPerSecond, unit: speedTest.unit,
+                                  tints: firewall.blocksEverything ? .blockingEverything : menuBarColors.live)
+    }
+
+    /// Block Everything (#198). Like any rule it needs the content filter:
+    /// turning it on while that's off starts turning it on.
+    public func setBlocksEverything(_ on: Bool) {
+        firewall.blocksEverything = on
+        guard on else { return }
+        switch filter.state {
+        case .off, .failed: filter.turnOn()
+        default: break
+        }
     }
 }

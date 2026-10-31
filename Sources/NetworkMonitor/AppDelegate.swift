@@ -565,6 +565,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             menu.addItem(.separator())
         }
 
+        // A way out (#198): every app's new connections stop until it's
+        // turned off again. Only where the content filter can enforce it.
+        if model.filter.state != .unavailable {
+            let item = menu.addItem(withTitle: "Block Everything",
+                                    action: #selector(toggleBlockEverything), keyEquivalent: "")
+            item.state = model.firewall.blocksEverything ? .on : .off
+            item.toolTip = "Stops every app's new connections, apart from what's needed to turn this off"
+            menu.addItem(.separator())
+        }
+
         menu.addItem(withTitle: "Connections…",
                      action: #selector(showConnections), keyEquivalent: "k")
         menu.addItem(withTitle: "Usage History…",
@@ -620,6 +630,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if popover.isShown { closePopover() }
         NSApp.activate(ignoringOtherApps: true)
         model.updates.checkForUpdates()
+    }
+
+    @objc private func toggleBlockEverything() {
+        model.setBlocksEverything(!model.firewall.blocksEverything)
     }
 
     @objc private func toggleSpeedTest() {

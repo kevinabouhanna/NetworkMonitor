@@ -13,6 +13,8 @@ public struct MenuBarPopoverView: View {
     @ObservedObject var metering: MeteringController
     /// What the ad, tracker and malware lists blocked today (#176).
     @ObservedObject var listBlocks: ListBlockCount
+    /// Whether Block Everything is on (#198).
+    @ObservedObject var firewall: FirewallRules
     var onSettings: () -> Void
     var onHistory: () -> Void
     var onConnections: () -> Void
@@ -23,6 +25,7 @@ public struct MenuBarPopoverView: View {
         self.speedTest = model.speedTest
         self.metering = model.metering
         self.listBlocks = model.listBlocks
+        self.firewall = model.firewall
         self.onSettings = onSettings
         self.onHistory = onHistory
         self.onConnections = onConnections
@@ -169,6 +172,18 @@ public struct MenuBarPopoverView: View {
                     .foregroundStyle(.orange)
                     .help("Downloaded over this connection anyway. Settings › Hotspot "
                           + "lists what NetworkMonitor can't stop.")
+                }
+                if firewall.blocksEverything {
+                    HStack(spacing: 6) {
+                        Image(systemName: "hand.raised.fill")
+                        Text("Everything is blocked")
+                        Button("Turn Off") { model.setBlocksEverything(false) }
+                            .buttonStyle(.link)
+                    }
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.red)
+                    .help("Block Everything is on: every app's new connections stop, apart from looking up "
+                          + "names, the clock and your own network")
                 }
                 if listBlocks.today > 0 {
                     HStack(spacing: 4) {
