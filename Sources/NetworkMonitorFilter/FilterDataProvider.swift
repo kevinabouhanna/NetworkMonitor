@@ -1,3 +1,4 @@
+import Darwin
 import FilterProtocol
 import Foundation
 import NetworkExtension
@@ -36,18 +37,30 @@ final class FilterDataProvider: NEFilterDataProvider {
         guard let socket = flow as? NEFilterSocketFlow,
               let remote = socket.remoteEndpoint as? NWHostEndpoint else { return .allow() }
         let port = Int(remote.port) ?? 0
-        let report = FlowReport(address: remote.hostname, port: port, hostname: socket.remoteHostname,
-                                pid: FlowReport.pid(fromAuditToken: flow.sourceAppAuditToken), time: Date())
+        let pid = FlowReport.pid(fromAuditToken: flow.sourceAppAuditToken)
+        // The system resolver's flows carry the name being looked up, not the
+        // server's: 1.1.1.1 read as whatever was last resolved (#196).
+        let fromResolver = Self.isResolver(pid)
+        let hostname = fromResolver ? nil : socket.remoteHostname
+        let report = FlowReport(address: remote.hostname, port: port, hostname: hostname, pid: pid, time: Date())
         let decision = Firewall.shared.decide(socket, address: remote.hostname, port: port, report: report)
         AppLink.shared.report(FlowReport(address: report.address, port: port, hostname: report.hostname,
                                          pid: report.pid, time: report.time, blockedBy: decision.blockedBy,
                                          appKey: decision.appKey))
         // Allowed and nameless: read the name from its handshake (#196).
-        if decision.allows,
+        if decision.allows, !fromResolver,
            let transport = HandshakeWatch.transport(of: socket, address: remote.hostname, port: port) {
             return HandshakeWatch.shared.watch(socket, transport: transport, report: report)
         }
         return decision.verdict
+    }
+
+    /// macOS's DNS resolver, by its process.
+    private static func isResolver(_ pid: Int32) -> Bool {
+        guard pid > 0 else { return false }
+        var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+        guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return false }
+        return String(cString: buffer) == "/usr/sbin/mDNSResponder"
     }
 
     // Data is asked for only by `HandshakeWatch`, and only outbound (#196).

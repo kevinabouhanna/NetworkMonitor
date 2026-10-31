@@ -401,8 +401,9 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    is passed until the name is read or known to be missing, so each look starts at the
    flow's first byte however the offsets are counted; then one verdict lets the whole flow
    go, and after 2 seconds `update(_:using:for:)` lets it go regardless. The name arrives
-   as a second `FlowReport`. A report for port 53 or 853 names nothing, since macOS's
-   resolver reports the name it's looking up on its flow to the DNS server. The contract between the two lives in
+   as a second `FlowReport`. The resolver's own flows (`mDNSResponder`) carry the name
+   being looked up, not the server's, so they're reported without one, and the app takes
+   no name from port 53 or 853 either. The contract between the two lives in
    `FilterProtocol`, Foundation only. It's offered, never switched on unasked: in the
    welcome window (`WelcomeWindowController`) on first launch, and by `WebsiteNamesRow`
    in Settings › Connections and the Connections window (#134). `FilterController`
