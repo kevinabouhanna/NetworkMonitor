@@ -32,8 +32,8 @@ not a window of its own, so nothing exists twice.
 - **Apps, Networks and Sessions.** Apps are grouped exactly as in the popover. A
   session is one visit to a network.
 - **The lists are the filters.** Click a row to see only that app, network or session,
-  and the chart and totals follow; click it again, or its chip by the heading, to
-  undo. Filters combine, with each other and with the switch.
+  and the chart and totals follow; click it again, or its chip at the end of the lists'
+  row (#192), to undo. Filters combine, with each other and with the switch.
 - **Name a network** by right-clicking it under Networks. The name is used in History
   and in exports, for every past visit too.
 - **Keep history for** a month, three months, a year, or forever (the default).
