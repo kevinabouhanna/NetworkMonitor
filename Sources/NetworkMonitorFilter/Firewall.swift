@@ -107,8 +107,10 @@ final class Firewall {
         let verdict: NEFilterNewFlowVerdict
         var blockedBy: String?
         var appKey: String?
+        /// Allowed outright: neither blocked nor held for Ask Me.
+        var allows = false
 
-        static let allow = Decision(verdict: .allow())
+        static let allow = Decision(verdict: .allow(), allows: true)
     }
 
     func decide(_ flow: NEFilterSocketFlow, address: String, port: Int, report: FlowReport) -> Decision {

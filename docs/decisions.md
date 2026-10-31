@@ -111,6 +111,7 @@ Newest last. Links go to the commit or pull request.
 | 2026-10-31 | **Settings › Hotspot's lists are one line per app, with how or why behind an ⓘ** (#185) | A second line under every app, and a line per app under each tier, made 13 rows a wall of text where no switch was plainly whose. How an app is paused, or why it can't be, is asked about now and then, so it waits behind the ⓘ. What needs attention stays in view: *updated anyway*, *paused once you quit it*, and *Paused once you allow the helper below* |
 | 2026-10-31 | **Settings › General explains its rows behind an ⓘ, and Settings › Connections drops Today and the Map row** (#189) | A paragraph under every section was more to read than to use, as in Hotspot (#185). Today's companies are what the Connections window opens on, one click away, and which outlines the map is drawn from is nothing to choose or act on. DB-IP's credit stays: its licence asks for it |
 | 2026-10-31 | **History's chips sit at the end of the Apps · Networks · Sessions row**, not beside the heading (#192) | A chip is added by clicking a row in those lists, so it belongs beside them: at the heading it appeared far from the click, at the top of the pane |
+| 2026-10-31 | **Connections made by address are named from their handshake** (#196) | Only 15% of Chrome's servers and 7% of Figma's had a name: Chromium connects by address. The TLS ClientHello and QUIC's Initial packets carry the site's name for the network to read, so the filter reads that and nothing after it. It holds the first bytes rather than passing them piecemeal, which means the same whichever way the data verdict's offsets count, and it's what blocking by name will need (#197) |
 
 ## Approaches turned down
 
@@ -154,5 +155,6 @@ Newest last. Links go to the commit or pull request.
 | `@testable import` | compiled in debug but broke release builds |
 | Reverse DNS to name servers | Sends a query for every address, so the monitor would make traffic, and the answers are often meaningless (`1e100.net`) |
 | A geolocation service online | Tells a third party every server the Mac talks to |
+| Reading DNS replies in the content filter to name servers | With the Mac's DNS at 1.1.1.1 or 8.8.8.8, Chrome, Figma and Teams look names up over HTTPS, so the replies never show them; and a filter doing it has been reported to deadlock `mDNSResponder` in the kernel (#196) |
 | Downloading DB-IP's data at build time | Old months are removed, so builds would break and old tags couldn't be rebuilt |
 | Map tiles from Apple Maps or OpenStreetMap | Every pan and zoom would tell a map service where you're looking; outlines drawn locally need nothing |

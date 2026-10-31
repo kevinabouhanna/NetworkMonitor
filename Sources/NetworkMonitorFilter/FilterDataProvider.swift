@@ -11,8 +11,10 @@ import NetworkExtension
 final class FilterDataProvider: NEFilterDataProvider {
 
     override func startFilter(completionHandler: @escaping (Error?) -> Void) {
-        // Ask Me resumes held flows through the provider (#129).
+        // Ask Me resumes held flows through the provider (#129), and a
+        // handshake that never completes is let go through it (#196).
         Firewall.shared.provider = self
+        HandshakeWatch.shared.provider = self
         // Every outbound flow, so each one passes through `handleNewFlow`.
         let everything = NENetworkRule(remoteNetwork: nil, remotePrefix: 0, localNetwork: nil,
                                        localPrefix: 0, protocol: .any, direction: .outbound)
@@ -40,6 +42,33 @@ final class FilterDataProvider: NEFilterDataProvider {
         AppLink.shared.report(FlowReport(address: report.address, port: port, hostname: report.hostname,
                                          pid: report.pid, time: report.time, blockedBy: decision.blockedBy,
                                          appKey: decision.appKey))
+        // Allowed and nameless: read the name from its handshake (#196).
+        if decision.allows,
+           let transport = HandshakeWatch.transport(of: socket, address: remote.hostname, port: port) {
+            return HandshakeWatch.shared.watch(socket, transport: transport, report: report)
+        }
         return decision.verdict
+    }
+
+    // Data is asked for only by `HandshakeWatch`, and only outbound (#196).
+
+    override func handleOutboundData(from flow: NEFilterFlow, readBytesStartOffset offset: Int,
+                                     readBytes: Data) -> NEFilterDataVerdict {
+        HandshakeWatch.shared.read(flow, offset: offset, bytes: readBytes)
+    }
+
+    override func handleOutboundDataComplete(for flow: NEFilterFlow) -> NEFilterDataVerdict {
+        HandshakeWatch.shared.finished(flow)
+        return .allow()
+    }
+
+    override func handleInboundData(from flow: NEFilterFlow, readBytesStartOffset offset: Int,
+                                    readBytes: Data) -> NEFilterDataVerdict {
+        .allow()
+    }
+
+    override func handleInboundDataComplete(for flow: NEFilterFlow) -> NEFilterDataVerdict {
+        HandshakeWatch.shared.finished(flow)
+        return .allow()
     }
 }

@@ -95,8 +95,10 @@ it every server your Mac talks to. The data is
   Settings › Connections. It's the part of macOS made for apps like this one: it sees
   each connection as it opens, the process that opened it and the server's address and
   name, and tells NetworkMonitor, which keeps the name with that server in Usage History.
-  It blocks only what you block (#114), never sees the contents of any traffic, and sends
-  nothing anywhere. macOS asks you twice to allow it; System Settings › Network › Filters
+  When an app connects by address, as Chrome does, it reads the site's name from the
+  connection's opening handshake, where it's sent for the network to read, and nothing
+  after it (#196). It blocks only what you block (#114), never sees the contents of any
+  traffic, and sends nothing anywhere. macOS asks you twice to allow it; System Settings › Network › Filters
   switches it off, and Uninstall removes it.
 - **Nothing else, normally.** No Local Network, no Accessibility, no Full Disk Access.
 - **A helper, once, if you choose it.** Switching on Hotspot mode offers a small helper,
