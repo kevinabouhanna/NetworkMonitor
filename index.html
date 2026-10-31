@@ -383,7 +383,7 @@ footer a { color: var(--text-2); }
         <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download for Mac</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
-      <p class="hero-meta reveal d3"><span>Version 1.18.2</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
+      <p class="hero-meta reveal d3"><span>Version 1.19.1</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
       <div class="featured reveal d3">
         <a href="https://www.trymacapps.com" target="_blank" rel="noopener">
           <img
@@ -614,15 +614,23 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>Website names, with your OK.</h3>
-          <p>On its own, a server is only an address, and anything on a cloud reads as <em>Hosted on Amazon</em>. Allow the part of macOS made for apps like this one, and Slack shows up as slack.com instead. It’s offered when NetworkMonitor first opens, it’s optional, and once it’s on there’s nothing to manage.</p>
+          <p>On its own, a server is only an address, and anything on a cloud reads as <em>Hosted on Amazon</em>. Allow the part of macOS made for apps like this one, and Slack shows up as slack.com instead, and Chrome’s servers by their names too. It’s offered when NetworkMonitor first opens, it’s optional, and once it’s on there’s nothing to manage.</p>
         </div>
         <div class="reveal">
           <h3>Block what you choose.</h3>
-          <p>Right-click a company, app, country or server: <b>Block</b>, <b>Block on Hotspots</b> or <b>Always Allow</b>. The narrowest rule wins, so blocking Meta while allowing WhatsApp does what you’d expect. Settings lists every rule, and <b>Show: Blocked</b> lists what was stopped.</p>
+          <p>Right-click a company, app, country or server: <b>Block</b>, <b>Block on Hotspots</b> or <b>Always Allow</b>. A server with a name is ruled by name, or its whole site, <em>*.doubleclick.net</em>. The narrowest rule wins, so blocking Meta while allowing WhatsApp does what you’d expect. Settings lists every rule, and <b>Show: Blocked</b> lists what was stopped.</p>
         </div>
         <div class="reveal">
           <h3>Or have it ask.</h3>
           <p>Choose <b>Ask Me</b> and a small panel asks the first time an app reaches a company: Block, Allow Once or Always Allow. Unanswered in 30 seconds, it goes ahead. Or <b>Only Where I Allow</b>. The local network, looking up names and the clock are never blocked, and macOS is never asked about.</p>
+        </div>
+        <div class="reveal">
+          <h3>Ads and trackers, gone.</h3>
+          <p>One switch in Settings blocks the sites on two lists, in every app, Chrome included: StevenBlack’s ad and tracker hosts and URLhaus’s malware. Your own rules come first, the lists update every week, and Connections tags the servers they hold, whether they’re on or not. Ads served from a site’s own servers, like YouTube’s, aren’t separate sites, so they stay.</p>
+        </div>
+        <div class="reveal">
+          <h3>One switch to stop it all.</h3>
+          <p><b>Block Everything</b>, in the menu bar’s right-click menu, stops every app’s connections until you turn it off, on a hotspot when a big download starts or whenever something looks wrong. Looking up names and your own network keep working, and the readout turns red so it’s never left on by mistake.</p>
         </div>
       </div>
 
@@ -630,7 +638,7 @@ footer a { color: var(--text-2); }
 
       <div class="fine reveal">
         <p style="margin:0"><b>Named on your Mac.</b>Countries and network owners come from DB-IP’s free data, shipped inside the app. Nothing is looked up online: asking a service about each address would tell it every server your Mac talks to.</p>
-        <p style="margin:0"><b>Where, never what.</b>It sees which server each connection goes to and the name the app used for it, never what’s inside. If it stops, nothing is cut off.</p>
+        <p style="margin:0"><b>Where, never what.</b>It sees which server each connection goes to and the site’s name, from the app or the connection’s opening handshake, never what’s inside. If it stops, nothing is cut off.</p>
       </div>
     </div>
   </section>
@@ -702,8 +710,8 @@ footer a { color: var(--text-2); }
                  alt="The Speed Test pane: Test your internet speed, with a Test Now button. A note says it runs macOS's built-in networkQuality only when you start it, download first, then upload, typically using 50 to 500 MB. Show the test in the popover as Card or Compact, with Card chosen.">
             <img class="prefs-shot" data-shot="history" data-w="720" data-h="785" src="assets/settings/history.png" width="1440" height="1570" loading="lazy" aria-hidden="true"
                  alt="The History pane on Today, with Day, Week, Month and Year, a ‹ Today › stepper, and All, Wi‑Fi and Hotspot. 1.5 GB used, all over Wi‑Fi, in a bar chart by the hour that peaks at about 740 MB at noon. Below it, Apps, biggest first: Software Update 522.3 MB, Google Chrome 320.5 MB, iTerm2 166.6 MB, Slack 133.8 MB, Xcode 86.4 MB, WhatsApp 76.5 MB and GoogleUpdater 38.9 MB. Networks and Sessions are the other two lists. Keep history for Forever, with Clear History… and Export CSV… buttons.">
-            <img class="prefs-shot" data-shot="connections" data-w="720" data-h="580" src="assets/settings/connections.png" width="1440" height="1160" loading="lazy" aria-hidden="true"
-                 alt="The Connections pane. Which companies, countries and servers your apps talk to, on a list and a world map, with an Open Connections… button. Under Blocking, Let apps connect offers Anywhere, Ask Me and Only Where I Allow, with Anywhere chosen; right-click a company, app, country or server in Connections to block it, or to always allow it. Opens with List, Both or Map, with Both chosen. Countries and networks: DB-IP Lite, October 2026, Update them monthly, switched on, and Kept as long as Usage History.">
+            <img class="prefs-shot" data-shot="connections" data-w="720" data-h="844" src="assets/settings/connections.png" width="1440" height="1688" loading="lazy" aria-hidden="true"
+                 alt="The Connections pane. Which companies, countries and servers your apps talk to, on a list and a world map, with an Open Connections… button. Under Blocking, Let apps connect offers Anywhere, Ask Me and Only Where I Allow, with Anywhere chosen; right-click a company, app, country or server in Connections to block it, or to always allow it. Under Ads and trackers, Block ads and trackers is on, with two lists, each switched on: ADS, Ads and trackers, StevenBlack, 76,736 sites; MALWARE, Malware and phishing, URLhaus by malware-filter, 1,892 sites. Blocked today 0, and Update them weekly on, with lists from 31 Oct 2026. Opens with List, Both or Map, with Both chosen. Countries and networks: DB-IP Lite, October 2026, Update them monthly, switched on, and Kept as long as Usage History.">
             <img class="prefs-shot" data-shot="hotspot" data-w="720" data-h="704" src="assets/settings/hotspot.png" width="1440" height="1408" loading="lazy" aria-hidden="true"
                  alt="The Hotspot pane. Stop apps updating on hotspots is on, and right now this doesn't look like a hotspot. This network is set to Detect automatically, with Is a hotspot and Isn't a hotspot to choose from. Paused on a hotspot (13) and Can't be paused (3) are both closed. Every app's updater: Stopped on hotspots. Got through on your last metered connection, in orange as both were paused: Slack downloaded an update anyway, up to 271.6 MB, and Google Chrome downloaded an update anyway, 265.6 MB.">
             <img class="prefs-shot" data-shot="hotspot-apps" data-w="720" data-h="870" src="assets/settings/hotspot-apps.png" width="1440" height="1740" loading="lazy" aria-hidden="true"
@@ -711,7 +719,7 @@ footer a { color: var(--text-2); }
             <img class="prefs-shot" data-shot="hotspot-uncovered" data-w="720" data-h="798" src="assets/settings/hotspot-uncovered.png" width="1440" height="1596" loading="lazy" aria-hidden="true"
                  alt="The Hotspot pane with Can't be paused (3) open, one line per app: OmniDiskSweeper, Opera and Raycast, with why behind an ⓘ that appears when you point at the row. Every app's updater: Stopped on hotspots, including ones listed as can't be paused when they update with a program of their own. Got through on your last metered connection, in orange: Slack downloaded an update anyway, up to 271.6 MB, and Google Chrome downloaded an update anyway, 265.6 MB.">
             <img class="prefs-shot" data-shot="about" data-w="720" data-h="710" src="assets/settings/about.png" width="1440" height="1420" loading="lazy" aria-hidden="true"
-                 alt="The About pane: the NetworkMonitor icon, Version 1.18.2 (112), and Live network speed in your menu bar, and which app used your data. Links to the website, the release notes and the source code on GitHub. Free and open source, under the MIT licence. Check for updates automatically is on, with a Check Now button: once a day it asks GitHub whether there's a newer version, never on a hotspot, and an update installs only when you say so, and only if it's signed by NetworkMonitor. Remove NetworkMonitor, with an Uninstall… button.">
+                 alt="The About pane: the NetworkMonitor icon, Version 1.19.1 (117), and Live network speed in your menu bar, and which app used your data. Links to the website, the release notes and the source code on GitHub. Free and open source, under the MIT licence. Check for updates automatically is on, with a Check Now button: once a day it asks GitHub whether there's a newer version, never on a hotspot, and an update installs only when you say so, and only if it's signed by NetworkMonitor. Remove NetworkMonitor, with an Uninstall… button.">
             <button class="prefs-row" type="button" aria-expanded="false" data-row="apps" style="--x:-340;--y:274;--w:680;--h:44" hidden>Paused on a hotspot</button>
             <button class="prefs-row" type="button" aria-expanded="false" data-row="uncovered" style="--x:-340;--y:372;--w:680;--h:44" hidden>Can’t be paused</button>
             <a class="prefs-link" href="#top" style="--x:150;--y:319;--w:182;--h:30" hidden>Website</a>
@@ -748,7 +756,7 @@ footer a { color: var(--text-2); }
       <p class="lead reveal d2" style="max-width:640px;margin-inline:auto">NetworkMonitor counts how much, and where it went, never what. <strong>Nothing about your traffic ever leaves your Mac.</strong></p>
       <div class="privacy-grid">
         <div class="reveal"><h3>Two permissions, both optional.</h3><p>Location, only because macOS shares a Wi‑Fi network’s name no other way; it never looks up where you are. And website names, to see and block where apps connect. Both are offered when it first opens, and each can be turned on later. Hotspot mode’s helper is one switch in System Settings, not a password.</p></div>
-        <div class="reveal d1"><h3>Two small downloads, both yours to switch off.</h3><p>Once a month, the new country and network data, the same file for everyone; once a day, whether there’s a newer version. Both come from GitHub, never on a hotspot, and say nothing about your traffic. Beyond those, only a speed test you start. No analytics, no telemetry, no account.</p></div>
+        <div class="reveal d1"><h3>Three small downloads, all yours to switch off.</h3><p>Once a month, the new country and network data, the same file for everyone; once a week, while you’ve switched them on, the ad and malware lists; once a day, whether there’s a newer version. All come from GitHub, signed, never on a hotspot, and say nothing about your traffic. Beyond those, only a speed test you start. No analytics, no telemetry, no account.</p></div>
         <div class="reveal d2"><h3>Stays on your Mac.</h3><p>Your usage, and the servers your apps reached, live in local files on your Mac that you can delete at any time. Countries and companies are named from data inside the app.</p></div>
         <div class="reveal d3"><h3>Open source.</h3><p>MIT licensed. <a href="https://github.com/kevinabouhanna/NetworkMonitor">Read every line</a> before you run it.</p></div>
       </div>
@@ -768,7 +776,7 @@ footer a { color: var(--text-2); }
           <p>The usual Mac way: open the disk image and drag NetworkMonitor into <strong>Applications</strong>.</p>
           <div class="get">
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download NetworkMonitor.dmg</a>
-            <span class="meta">Version 1.18.2 · 11.2 MB · Universal</span>
+            <span class="meta">Version 1.19.1 · 12.2 MB · Universal</span>
           </div>
           <figure class="dmg-shot" style="margin-bottom:0">
             <img src="assets/dmg-window.png" width="1424" height="1104" loading="lazy"
@@ -785,7 +793,7 @@ footer a { color: var(--text-2); }
       </div>
 
       <div class="ctas reveal">
-        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.18.2">What’s in version 1.18.2</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.19.1">What’s in version 1.19.1</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/wiki">Documentation</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
