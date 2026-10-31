@@ -106,7 +106,7 @@ height of the screen, where the pane scrolls instead. It reopens on the pane you
 | **Speed Test** | Run a test right there · Show the test in the popover as a Card or Compact |
 | **History** | [Usage History](usage-history.md) |
 | **Connections** | What it is, and Open Connections… · Today's top companies · Website names, Turn On… while they're off · Let apps connect, and every rule you've made · Opens with List, Both or Map · Where the names come from, and Update them monthly |
-| **Hotspot** | Stop apps updating on hotspots · what it decided about the connection you're on · Paused on a hotspot, each app with its own switch and how behind an ⓘ · Can't be paused, each with why · Low Data Mode · what got through |
+| **Hotspot** | Stop apps updating on hotspots · what it decided about the connection you're on · Paused on a hotspot, each app with its own switch and how behind an ⓘ · Can't be paused, each with why behind an ⓘ · Low Data Mode · what got through |
 | **About** | Version · website, release notes and source · Check for updates automatically, Check Now · Uninstall… |
 
 While Settings is open, NetworkMonitor has a Dock icon and a menu, so ⌘W, ⌘, and ⌘Y work

@@ -22,7 +22,7 @@ is off, and only the traffic counting runs. When you switch it on:
 3. **Settings › Hotspot shows two lists:**
    - **Paused on a hotspot:** every app it can pause, one line each with a switch to leave
      it alone. How it's paused is behind an ⓘ beside the name.
-   - **Can't be paused:** every app it can't, each with the reason.
+   - **Can't be paused:** every app it can't, with the reason behind the same ⓘ.
 4. **Nothing changes until you join a hotspot.** Then everything on the first list is
    paused, and it's all put back when you leave.
 
