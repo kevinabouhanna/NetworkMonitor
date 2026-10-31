@@ -11,6 +11,8 @@ public struct MenuBarPopoverView: View {
     /// network change, a setting, or a new sighting — and assigns only on
     /// change, so watching it does not re-measure the popover on every sample.
     @ObservedObject var metering: MeteringController
+    /// What the ad, tracker and malware lists blocked today (#176).
+    @ObservedObject var listBlocks: ListBlockCount
     var onSettings: () -> Void
     var onHistory: () -> Void
     var onConnections: () -> Void
@@ -20,6 +22,7 @@ public struct MenuBarPopoverView: View {
         self.model = model
         self.speedTest = model.speedTest
         self.metering = model.metering
+        self.listBlocks = model.listBlocks
         self.onSettings = onSettings
         self.onHistory = onHistory
         self.onConnections = onConnections
@@ -166,6 +169,16 @@ public struct MenuBarPopoverView: View {
                     .foregroundStyle(.orange)
                     .help("Downloaded over this connection anyway. Settings › Hotspot "
                           + "lists what NetworkMonitor can't stop.")
+                }
+                if listBlocks.today > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "shield.lefthalf.filled")
+                        Text("\(listBlocks.today.formatted()) ads and trackers blocked today")
+                            .lineLimit(1)
+                    }
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .help("Blocked by the lists in Settings › Connections")
                 }
                 if let failure = model.perAppFailure {
                     // Grey, not orange: the total above is still right. Only the

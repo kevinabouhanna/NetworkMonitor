@@ -75,6 +75,10 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
         Firewall.shared.applyGeoData(countries: countries, owners: owners, month: month)
     }
 
+    func applyBlocklists(_ ads: FileHandle, _ malware: FileHandle, _ version: String) {
+        Firewall.shared.applyBlocklists([.ads: ads, .malware: malware], version: version)
+    }
+
     func answer(_ id: String, _ answer: String) {
         Firewall.shared.answer(id, FlowAnswer(rawValue: answer) ?? .allowOnce)
     }

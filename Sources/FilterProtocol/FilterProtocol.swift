@@ -165,4 +165,7 @@ public enum FlowAnswer: String, Codable {
     /// A newer month of the country and owner tables (#121), as open files:
     /// the filter keeps its own copy, and uses it from then on.
     func applyGeoData(_ countries: FileHandle, _ owners: FileHandle, _ month: String)
+    /// The ad, tracker and malware lists (#176), as open files, and the date
+    /// they were built: the filter keeps its own copy, used from then on.
+    func applyBlocklists(_ ads: FileHandle, _ malware: FileHandle, _ version: String)
 }

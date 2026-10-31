@@ -81,6 +81,9 @@ public final class MonitorViewModel: ObservableObject {
     public let firewall = FirewallRules()
     /// The monthly refresh of the country and owner data (#121).
     public let geoData = GeoDataUpdater()
+    /// The ad, tracker and malware lists (#176), and what they blocked today.
+    public let blocklists = BlocklistUpdater()
+    public let listBlocks = ListBlockCount()
     /// Updating NetworkMonitor itself (#132).
     public let updates = UpdateController()
     private var firewallPolicy: AnyCancellable?
@@ -197,6 +200,7 @@ public final class MonitorViewModel: ObservableObject {
         // What the filter saw names the servers nettop only gives addresses for,
         // and what it blocked is counted beside them (#114).
         filterNames = filter.flows.sink { [weak self] flows in
+            self?.listBlocks.add(flows.filter { $0.blockedBy?.hasPrefix(BlockReason.listPrefix) == true }.count)
             guard let history = self?.store.history else { return }
             history.noteServerNames(flows.compactMap { flow in
                 flow.serverName.map { (FirewallPolicy.serverAddress(flow.address), $0) }
@@ -211,11 +215,14 @@ public final class MonitorViewModel: ObservableObject {
         // hotspots", and whether Hotspot mode pauses updates here (#98). The
         // values come from the publishers: they fire before the properties
         // change.
-        firewallPolicy = Publishers.CombineLatest4(firewall.$rules, firewall.$mode, $isExpensiveNetwork,
+        firewallPolicy = Publishers.CombineLatest4(Publishers.CombineLatest(firewall.$rules, firewall.$lists),
+                                                   firewall.$mode, $isExpensiveNetwork,
                                                    metering.$isEnabled)
-            .sink { [weak self] rules, mode, onHotspot, pausing in
-                self?.filter.apply(FirewallPolicy(mode: mode, rules: rules, onHotspot: onHotspot,
-                                                  pausesUpdates: pausing && onHotspot))
+            .sink { [weak self] rulesAndLists, mode, onHotspot, pausing in
+                self?.filter.apply(FirewallPolicy(mode: mode, rules: rulesAndLists.0, onHotspot: onHotspot,
+                                                  pausesUpdates: pausing && onHotspot, lists: rulesAndLists.1))
+                // Switched on with stale lists: fetch newer ones soon.
+                if !rulesAndLists.1.isEmpty { self?.blocklists.checkSoon() }
             }
 
         // Never on a hotspot, a metered connection or in Low Data Mode, as the
@@ -231,6 +238,17 @@ public final class MonitorViewModel: ObservableObject {
             filter.applyGeoData(at: GeoDataUpdater.downloadedDirectory, month: month)
         }
         geoData.start()
+
+        // The lists (#176): the newest copy to the filter now, and newer ones
+        // as they come. Fetched only while they're switched on, and like the
+        // country data, never on a hotspot.
+        blocklists.isWanted = { [weak self] in !(self?.firewall.lists.isEmpty ?? true) }
+        blocklists.mayDownload = geoData.mayDownload
+        blocklists.onUpdate = { [weak self] directory, version in self?.filter.applyBlocklists(at: directory, version: version) }
+        if let newest = BlocklistUpdater.newest() {
+            filter.applyBlocklists(at: newest.directory, version: newest.lists.version)
+        }
+        blocklists.start()
         updates.isMetered = { [weak self] in self?.metering.verdict.isMetered ?? false }
         updates.start()
 

@@ -1,0 +1,58 @@
+name: Blocklists
+
+# The ad, tracker and malware lists, every week (#176). Downloads each source,
+# refuses one that comes back far smaller than it should, checks that none of
+# the sites people use every day is on them (the test suite's own list), and
+# publishes them signed as the `blocklists` release, which the app downloads
+# once a week while the lists are switched on. Run it by hand from the Actions
+# tab to publish today's now.
+on:
+  schedule:
+    - cron: "0 5 * * 1"   # Mondays, 05:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write        # to update the `blocklists` release
+
+jobs:
+  refresh:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Into the checkout's Resources/Blocklists, which isn't committed back:
+      # the app's own copy changes with a release, in a pull request of its own.
+      - name: Download and build this week's lists
+        run: ./Scripts/swiftpm.sh run -c release BlocklistBuilder build Resources/Blocklists
+
+      # The suite reads Resources/Blocklists: if this week's lists caught a
+      # site people use every day, it fails here and nothing is published.
+      - name: Check them
+        run: make test
+
+      # Compressed, with a manifest of each table's size and SHA-256, signed
+      # with the country data's key (#121), whose public half is in the app.
+      - name: Package and sign
+        env:
+          GEODATA_SIGNING_KEY: ${{ secrets.GEODATA_SIGNING_KEY }}
+        run: |
+          test -n "$GEODATA_SIGNING_KEY" || { echo "GEODATA_SIGNING_KEY is not set" >&2; exit 1; }
+          ./Scripts/swiftpm.sh run -c release BlocklistBuilder package Resources/Blocklists blocklists
+
+      # A release that is never "latest", so the website's download link keeps
+      # pointing at the app. Each week replaces the last week's files.
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view blocklists >/dev/null 2>&1; then
+            gh release create blocklists --title "Ad, tracker and malware lists" --prerelease --latest=false \
+              --notes "StevenBlack's unified hosts (MIT) and URLhaus by malware-filter (CC0), converted for NetworkMonitor and signed. Refreshed every week by the Blocklists workflow; the app downloads them once a week while the lists are switched on. Sources and counts are in SOURCES.md."
+          fi
+          # The tables first and the manifest last, so a manifest never names
+          # files that aren't up yet.
+          gh release upload blocklists blocklists/*.lzfse blocklists/SOURCES.md --clobber
+          gh release upload blocklists blocklists/manifest.json blocklists/manifest.json.sig --clobber
+          gh release edit blocklists --prerelease --latest=false \
+            --title "Ad, tracker and malware lists, $(jq -r .version blocklists/manifest.json)"

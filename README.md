@@ -32,12 +32,13 @@
 - ⚡ **Live speed** in the menu bar, download and upload, in MB/s or Mbps, in colours you choose.
 - 📊 **Which apps used your data** on this connection, biggest first.
 - 🌐 **Connections:** which companies, countries and servers each app talks to, on a list and a world map, without looking anything up online. Block any of them, or have it ask.
+- 🛡️ **Block ads, trackers and malware** in every app, Chrome included, with one switch.
 - 🏠 **Internet only.** AirPlay, Time Machine and other home-network traffic don't count.
 - 📱 **Hotspot mode** pauses app updates on a mobile hotspot, and resumes them when you leave.
 - 🗓️ **Usage History** by day, week, month or year, per app and per network.
 - 🚀 **Speed test** on demand, using the one built into macOS.
 - 🔋 **Light on battery:** about 1% of one CPU core, less in Low Power Mode.
-- 🔒 **Private:** no telemetry, no account. Its own network access is a monthly download of country and network data and a daily update check, both from GitHub, and both can be switched off.
+- 🔒 **Private:** no telemetry, no account. Its own network access is a monthly download of country and network data, a weekly one of the ad and malware lists while they're on, and a daily update check, all from GitHub, and all can be switched off.
 
 ## 📦 Install
 

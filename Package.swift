@@ -97,6 +97,14 @@ let package = Package(
             dependencies: ["ServerDirectory"],
             path: "Sources/GeoDataBuilder"
         ),
+        // Builds the ad, tracker and malware lists from their sources and
+        // signs them for the weekly refresh (#176). Run by the Blocklists
+        // workflow; never part of the app.
+        .executableTarget(
+            name: "BlocklistBuilder",
+            dependencies: ["FirewallPolicy"],
+            path: "Sources/BlocklistBuilder"
+        ),
         // Converts Natural Earth's countries into Resources/Geo/world.bin, the
         // Connections map. Run by Scripts/mapdata.sh; never part of the app.
         .executableTarget(

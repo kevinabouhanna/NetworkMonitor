@@ -23,6 +23,8 @@ final class Firewall {
     /// a newer month the app sent since (#121).
     private var directory: ServerDirectory?
     private var directoryMonth: String?
+    /// The ad, tracker and malware lists (#176), as the app last sent them.
+    private var blocklists: Blocklists?
     /// Per audit token, which names one run of one process.
     private var identities: [Data: Identity] = [:]
     private static let identityLimit = 4096
@@ -45,6 +47,7 @@ final class Firewall {
             directory = newest.directory
             directoryMonth = newest.month
         }
+        blocklists = Blocklists(directory: Self.listsURL)
     }
 
     /// In the extension's own container. It runs as root, so this is root's.
@@ -54,6 +57,47 @@ final class Firewall {
     }
     private static var storeURL: URL { supportURL.appendingPathComponent("policy.json") }
     private static var geoURL: URL { supportURL.appendingPathComponent("Geo", isDirectory: true) }
+    private static var listsURL: URL { supportURL.appendingPathComponent("Blocklists", isDirectory: true) }
+
+    /// The lists from the app (#176): kept in the container so they apply
+    /// from launch, and used if they open and aren't older than what's here.
+    func applyBlocklists(_ files: [BlocklistTopic: FileHandle], version: String) {
+        defer { files.values.forEach { try? $0.close() } }
+        lock.lock()
+        let current = blocklists?.version
+        lock.unlock()
+        guard Blocklists.isVersion(version), current.map({ version >= $0 }) ?? true,
+              Set(files.keys) == Set(BlocklistTopic.allCases) else { return }
+        do {
+            var tables: [BlocklistTopic: BlocklistTable] = [:]
+            var data: [BlocklistTopic: Data] = [:]
+            for (topic, handle) in files {
+                let bytes = try handle.readToEnd() ?? Data()
+                tables[topic] = try BlocklistTable(data: bytes)
+                data[topic] = bytes
+            }
+            let manager = FileManager.default
+            try? manager.removeItem(at: Self.listsURL)
+            try manager.createDirectory(at: Self.listsURL, withIntermediateDirectories: true)
+            for (topic, bytes) in data { try bytes.write(to: Self.listsURL.appendingPathComponent(topic.fileName)) }
+            try Data((version + "\n").utf8).write(to: Self.listsURL.appendingPathComponent(Blocklists.versionFile))
+            lock.lock()
+            blocklists = Blocklists(tables: tables, version: version)
+            lock.unlock()
+            log.notice("lists from \(version, privacy: .public)")
+        } catch {
+            log.error("couldn't use the lists from \(version, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// The switched-on lists holding a name.
+    private func listed(_ name: String?, in policy: FirewallPolicy) -> Set<BlocklistTopic> {
+        guard let name, !policy.lists.isEmpty else { return [] }
+        lock.lock()
+        let lists = blocklists
+        lock.unlock()
+        return lists?.topics(listing: name).intersection(policy.lists) ?? []
+    }
 
     /// A newer month from the app. Kept only if it's newer than what's in
     /// use and the tables open; the app checked its signature already.
@@ -145,7 +189,8 @@ final class Firewall {
         let facts = FlowFacts(appKeys: identity.appKeys, companyKey: company?.key, country: info?.country,
                               address: address, port: port, isApple: identity.isApple,
                               executablePaths: identity.paths, hostname: flow.remoteHostname,
-                              isNetworkMonitor: identity.isNetworkMonitor)
+                              isNetworkMonitor: identity.isNetworkMonitor,
+                              listedIn: listed(flow.remoteHostname, in: policy))
         let verdict = policy.decide(facts)
         if case .block(let reason) = verdict {
             // Debug level: kept only while someone streams the log.
@@ -162,10 +207,12 @@ final class Firewall {
     /// one from its handshake (#197): a site rule can match it now, and its
     /// company is the name's rather than the network owner's.
     func verdict(for facts: FlowFacts, named name: String) -> Verdict {
+        let policy = current
         var named = facts
         named.hostname = name
+        named.listedIn = listed(name, in: policy)
         if let company = Company.named(byHostname: name) { named.companyKey = company.key }
-        return current.decide(named)
+        return policy.decide(named)
     }
 
     // MARK: Ask Me (#129)

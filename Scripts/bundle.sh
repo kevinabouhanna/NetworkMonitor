@@ -128,6 +128,8 @@ cp Resources/AppIcon.icns "${APP}/Contents/Resources/AppIcon.icns"
 # which CC BY 4.0 asks to travel with the data. Committed too: see
 # Scripts/geodata.sh for why it can't be downloaded at build time.
 cp -R Resources/Geo "${APP}/Contents/Resources/Geo"
+# The ad, tracker and malware lists (#176), until a newer week is downloaded.
+cp -R Resources/Blocklists "${APP}/Contents/Resources/Blocklists"
 printf 'APPL????' > "${APP}/Contents/PkgInfo"
 
 # Sparkle (#132), which the app links, so every build carries it. Its two XPC

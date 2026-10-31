@@ -130,6 +130,19 @@ public final class ConnectionsViewModel: ObservableObject {
         turnOnFilterForRules()
     }
 
+    /// The lists switched on (#176). Like a rule, they need the content
+    /// filter: switching them on while it's off starts turning it on.
+    public func setLists(_ lists: Set<BlocklistTopic>) {
+        firewall.lists = lists
+        if !lists.isEmpty { turnOnFilterForRules() }
+    }
+
+    /// The list holding a named server, for its tag (#176).
+    public func listed(_ item: ConnectionsItem) -> BlocklistTopic? {
+        guard let name = FirewallRules.serverName(of: item) else { return nil }
+        return monitor.blocklists.lists?.topics(listing: name).sorted().first
+    }
+
     /// A rule for a site by name, from a server row that has one (#197).
     public func setSiteRule(_ action: RuleAction, domain: String, forName name: String) {
         firewall.setSite(action, domain: domain, forName: name)
