@@ -69,9 +69,11 @@ public final class FirewallRules: ObservableObject {
 
     /// A rule for a site: `domain` and every name under it (#197). The whole
     /// site reads `*.wp.com`; one name reads as itself.
-    public func setSite(_ action: RuleAction, domain: String, forName name: String) {
+    public func setSite(_ action: RuleAction, domain: String, forName name: String,
+                        network: CurrentNetwork? = nil) {
         let title = domain == name ? domain : "*.\(domain)"
-        add(FirewallRule(subject: .site, key: domain, title: title, action: action))
+        add(FirewallRule(subject: .site, key: domain, title: title, action: action,
+                         network: network?.id, networkTitle: network?.name))
     }
 
     /// Whether a row can have a rule: not "Unknown", and not "Other servers",
@@ -80,10 +82,23 @@ public final class FirewallRules: ObservableObject {
         item.key != ConnectionsReport.unknownKey && item.key != ConnectionsReport.otherKey
     }
 
-    /// One rule per row: a new one replaces the old.
-    public func set(_ action: RuleAction, for item: ConnectionsItem) {
+    /// One rule per row: a new one replaces the old. With `network`, it
+    /// applies only there (#200).
+    public func set(_ action: RuleAction, for item: ConnectionsItem, network: CurrentNetwork? = nil) {
         guard Self.canHaveRule(item), let subject = Self.subject(of: item) else { return }
-        add(FirewallRule(subject: subject, key: item.key, title: item.title, action: action))
+        add(FirewallRule(subject: subject, key: item.key, title: item.title, action: action,
+                         network: network?.id, networkTitle: network?.name))
+    }
+
+    /// The network a rule can be made for (#200): its identity and its name.
+    public struct CurrentNetwork: Equatable {
+        public let id: String
+        public let name: String
+
+        public init(id: String, name: String) {
+            self.id = id
+            self.name = name
+        }
     }
 
     /// Any rule, replacing one with the same subject, key and app.

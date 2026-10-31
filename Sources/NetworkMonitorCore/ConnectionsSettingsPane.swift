@@ -158,7 +158,7 @@ struct ConnectionsSettingsPane: View {
                 ForEach(firewall.rules) { rule in
                     LabeledContent {
                         HStack(spacing: 10) {
-                            RuleBadge(action: rule.action)
+                            RuleBadge(action: rule.action, networkTitle: rule.networkTitle)
                             Button { firewall.remove(rule) } label: {
                                 Image(systemName: "minus.circle")
                             }

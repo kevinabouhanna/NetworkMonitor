@@ -37,13 +37,18 @@ public struct FirewallRule: Codable, Hashable, Identifiable {
     /// The app takes it back when the app quits; to the filter it's a rule
     /// like any other. Nil, not false, so rules made before it read the same.
     public let untilQuit: Bool?
+    /// Only on one network (#200), by the router's identity as Usage History
+    /// keys networks, never its Wi-Fi name; and what it was called.
+    public let network: String?
+    public let networkTitle: String?
 
     public var id: String { "\(subject.rawValue):\(key)" + (appKey.map { "@\($0)" } ?? "") }
 
     public var lastsUntilQuit: Bool { untilQuit == true }
 
     public init(subject: RuleSubject, key: String, title: String, action: RuleAction,
-                appKey: String? = nil, appTitle: String? = nil, untilQuit: Bool = false) {
+                appKey: String? = nil, appTitle: String? = nil, untilQuit: Bool = false,
+                network: String? = nil, networkTitle: String? = nil) {
         self.subject = subject
         self.key = key
         self.title = title
@@ -51,6 +56,8 @@ public struct FirewallRule: Codable, Hashable, Identifiable {
         self.appKey = appKey
         self.appTitle = appTitle
         self.untilQuit = untilQuit ? true : nil
+        self.network = network
+        self.networkTitle = network == nil ? nil : networkTitle
     }
 }
 
@@ -164,19 +171,23 @@ public struct FirewallPolicy: Codable, Equatable {
     /// Block Everything (#198): every new connection is blocked but the
     /// essentials and NetworkMonitor itself, whatever the rules say.
     public var blocksEverything: Bool
+    /// The network the Mac is on (#200), as rules for one network name it.
+    public var network: String?
 
     public init(mode: FirewallMode = .anywhere, rules: [FirewallRule] = [], onHotspot: Bool = false,
-                pausesUpdates: Bool = false, lists: Set<BlocklistTopic> = [], blocksEverything: Bool = false) {
+                pausesUpdates: Bool = false, lists: Set<BlocklistTopic> = [], blocksEverything: Bool = false,
+                network: String? = nil) {
         self.mode = mode
         self.rules = rules
         self.onHotspot = onHotspot
         self.pausesUpdates = pausesUpdates
         self.lists = lists
         self.blocksEverything = blocksEverything
+        self.network = network
     }
 
     private enum CodingKeys: String, CodingKey {
-        case mode, rules, onHotspot, pausesUpdates, lists, blocksEverything
+        case mode, rules, onHotspot, pausesUpdates, lists, blocksEverything, network
     }
 
     /// A policy saved before a field existed reads it as off, so a filter
@@ -189,6 +200,7 @@ public struct FirewallPolicy: Codable, Equatable {
         pausesUpdates = try container.decodeIfPresent(Bool.self, forKey: .pausesUpdates) ?? false
         lists = try container.decodeIfPresent(Set<BlocklistTopic>.self, forKey: .lists) ?? []
         blocksEverything = try container.decodeIfPresent(Bool.self, forKey: .blocksEverything) ?? false
+        network = try container.decodeIfPresent(String.self, forKey: .network)
     }
 
     /// Anything to decide at all. Without it, the filter looks nothing up.
@@ -217,6 +229,8 @@ public struct FirewallPolicy: Codable, Equatable {
                 for key in Self.keys(of: flow, subject) {
                     for scope in scopes {
                         guard let rule = index["\(subject.rawValue):\(key)\(scope)"] else { continue }
+                        // A rule for one network says nothing anywhere else (#200).
+                        if let only = rule.network, only != network { continue }
                         switch rule.action {
                         case .allow:           return .allow(.rule(rule))
                         case .block:           return .block(.rule(rule))
