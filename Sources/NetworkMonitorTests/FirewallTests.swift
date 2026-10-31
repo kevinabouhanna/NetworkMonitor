@@ -42,15 +42,18 @@ func runFirewallTests() {
         // Most specific first: server, app, company, country. Every pair, both
         // ways round, so the narrower rule wins whichever way it points.
         Check.test("the more specific rule wins, in every pair") {
-            let keys: [RuleSubject: String] = [.server: "157.240.1.35", .app: "/Applications/Google Chrome.app",
-                                               .company: "Meta", .country: "IE"]
+            let keys: [RuleSubject: String] = [.server: "157.240.1.35", .site: "facebook.com",
+                                               .app: "/Applications/Google Chrome.app", .company: "Meta",
+                                               .country: "IE"]
+            var named = chromeToMeta
+            named.hostname = "edge-mqtt.facebook.com"
             let order = FirewallPolicy.precedence
             for (i, narrow) in order.enumerated() {
                 for wide in order[(i + 1)...] {
                     for (narrowAction, wideAction) in [(RuleAction.allow, RuleAction.block), (.block, .allow)] {
                         let narrowRule = rule(narrow, keys[narrow]!, narrowAction)
                         let wideRule = rule(wide, keys[wide]!, wideAction)
-                        let verdict = FirewallPolicy(rules: [wideRule, narrowRule]).decide(chromeToMeta)
+                        let verdict = FirewallPolicy(rules: [wideRule, narrowRule]).decide(named)
                         let expected: Verdict = narrowAction == .allow ? .allow(.rule(narrowRule)) : .block(.rule(narrowRule))
                         Check.expectEqual(verdict, expected, "\(narrow) \(narrowAction) over \(wide) \(wideAction)")
                     }

@@ -109,6 +109,9 @@ final class Firewall {
         var appKey: String?
         /// Allowed outright: neither blocked nor held for Ask Me.
         var allows = false
+        /// What the rules were asked, for deciding again once a nameless
+        /// connection's handshake names it (#197). Nil with nothing to decide.
+        var facts: FlowFacts?
 
         static let allow = Decision(verdict: .allow(), allows: true)
     }
@@ -117,9 +120,9 @@ final class Firewall {
         let (verdict, appKey, facts, company) = self.verdict(for: flow, address: address, port: port)
         switch verdict {
         case .allow:
-            return .allow
+            return Decision(verdict: .allow(), appKey: appKey, allows: true, facts: facts)
         case .block(let reason):
-            return Decision(verdict: .drop(), blockedBy: reason.id, appKey: appKey)
+            return Decision(verdict: .drop(), blockedBy: reason.id, appKey: appKey, facts: facts)
         case .ask:
             guard let appKey, let facts else { return .allow }
             return ask(flow, appKey: appKey, facts: facts, company: company, report: report)
@@ -153,6 +156,16 @@ final class Firewall {
                 """)
         }
         return (verdict, identity.primaryKey, facts, company)
+    }
+
+    /// The rules' answer once a connection that arrived without a name has
+    /// one from its handshake (#197): a site rule can match it now, and its
+    /// company is the name's rather than the network owner's.
+    func verdict(for facts: FlowFacts, named name: String) -> Verdict {
+        var named = facts
+        named.hostname = name
+        if let company = Company.named(byHostname: name) { named.companyKey = company.key }
+        return current.decide(named)
     }
 
     // MARK: Ask Me (#129)

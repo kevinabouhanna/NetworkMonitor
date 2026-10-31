@@ -26,10 +26,38 @@ public final class FirewallRules: ObservableObject {
     }
 
     /// The rule for every app on a row. Rules for one app, made by answering
-    /// Ask Me, are listed in Settings.
+    /// Ask Me, are listed in Settings. A server with a name follows the
+    /// narrowest site rule covering it (#197), then a rule for its address.
     public func rule(for item: ConnectionsItem) -> FirewallRule? {
+        if let name = Self.serverName(of: item) {
+            for domain in SiteName.domains(of: name) {
+                if let rule = rules.first(where: { $0.subject == .site && $0.key == domain && $0.appKey == nil }) {
+                    return rule
+                }
+            }
+        }
         guard let subject = Self.subject(of: item) else { return nil }
         return rules.first { $0.subject == subject && $0.key == item.key && $0.appKey == nil }
+    }
+
+    /// A server row's name, when the filter saw one (#197).
+    public static func serverName(of item: ConnectionsItem) -> String? {
+        guard item.dimension == .server, item.title != item.key else { return nil }
+        return SiteName.normalized(item.title)
+    }
+
+    /// What a server named `name` can have a rule on: the name itself, and
+    /// its whole site when that's wider. `stats.wp.com` offers `wp.com` too.
+    public static func siteScopes(for name: String) -> [String] {
+        let site = SiteName.site(of: name)
+        return site == name ? [name] : [name, site]
+    }
+
+    /// A rule for a site: `domain` and every name under it (#197). The whole
+    /// site reads `*.wp.com`; one name reads as itself.
+    public func setSite(_ action: RuleAction, domain: String, forName name: String) {
+        let title = domain == name ? domain : "*.\(domain)"
+        add(FirewallRule(subject: .site, key: domain, title: title, action: action))
     }
 
     /// Whether a row can have a rule: not "Unknown", and not "Other servers",

@@ -116,9 +116,17 @@ Right-click a company, app, country or server in the Connections window and choo
 **Block**, **Block on Hotspots** or **Always Allow** (#114). The row says so beside its name,
 and Settings › Connections lists every rule, each with a button to take it back.
 
-- **The narrowest rule wins:** a server, then an app, then a company, then a country. So
-  *Block Meta* with *Always Allow WhatsApp* lets WhatsApp through, and *Block United States*
-  with *Always Allow Apple* lets Apple's servers there through.
+- **A server with a name is ruled by name** (#197), since a CDN moves a name from address to
+  address. Each choice opens onto the name itself or its whole site: *stats.wp.com*, or
+  *All of \*.wp.com*. A rule for a name covers every name under it too. A server without a
+  name is ruled by its address, as before.
+- **The narrowest rule wins:** a server's address, then a site (the longer name first), then
+  an app, then a company, then a country. So *Block Meta* with *Always Allow WhatsApp* lets
+  WhatsApp through, *Block United States* with *Always Allow Apple* lets Apple's servers there
+  through, and *Block Google* with *Always Allow \*.youtube.com* lets YouTube through.
+- **A connection that opens without a name is decided once its handshake names it** (#196,
+  #197): Chrome's, for example. Its first bytes wait for that, and a name never found leaves
+  it decided as it was without one.
 - **On Hotspots** means while the Mac is on a hotspot, as the popover judges it.
 - **With Hotspot mode on, every app's updater waits on a hotspot** (#98): a program inside an
   app named like an updater (`opera_autoupdate`, Raycast's `Updater`, Sparkle's), Sparkle's

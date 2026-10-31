@@ -6,13 +6,14 @@ import NetworkExtension
 import os
 
 /// Names a connection that arrived without one (#196), from the site name in
-/// its opening handshake.
+/// its opening handshake, and decides it again with that name (#197).
 ///
-/// Only a new, allowed connection to port 443 with no name of its own is
-/// watched. Its first outbound bytes are held while they're read, nothing is
-/// passed on piecemeal, and then the whole flow is let go with one verdict.
-/// Whatever happens, it's let go: on the name, on finding there isn't one, on
-/// the flow closing, and after `timeout` if the handshake never completes.
+/// Only a new connection to port 443 with no name of its own, and not held
+/// for Ask Me, is watched. Its first outbound bytes are held while they're
+/// read, nothing is passed on piecemeal, and then one verdict decides the
+/// whole flow: the rules' answer with the name, or without one, the answer it
+/// had when it opened. That's also what happens after `timeout` if the
+/// handshake never completes, and an allowed flow is never held longer.
 final class HandshakeWatch {
 
     static let shared = HandshakeWatch()
@@ -30,6 +31,8 @@ final class HandshakeWatch {
         var reader: HandshakeReader
         let flow: NEFilterSocketFlow
         let report: FlowReport
+        /// The decision without a name, and what it was decided on.
+        let decision: Firewall.Decision
     }
 
     private let lock = NSLock()
@@ -46,17 +49,19 @@ final class HandshakeWatch {
         }
     }
 
-    /// Starts watching an allowed flow: the verdict asks to see its first
-    /// outbound bytes, and nothing inbound.
+    /// Starts watching a flow: the verdict asks to see its first outbound
+    /// bytes, and nothing inbound. Past `limit`, the flow gets its decision
+    /// without a name, as before #196.
     func watch(_ flow: NEFilterSocketFlow, transport: HandshakeReader.Transport,
-               report: FlowReport) -> NEFilterNewFlowVerdict {
+               report: FlowReport, decision: Firewall.Decision) -> NEFilterNewFlowVerdict {
         let id = flow.identifier
         lock.lock()
         guard watches.count < Self.limit else {
             lock.unlock()
-            return .allow()
+            _ = conclude(report, decision: decision, name: nil)
+            return decision.verdict
         }
-        watches[id] = Watch(reader: HandshakeReader(transport), flow: flow, report: report)
+        watches[id] = Watch(reader: HandshakeReader(transport), flow: flow, report: report, decision: decision)
         lock.unlock()
         DispatchQueue.global().asyncAfter(deadline: .now() + Self.timeout) { [weak self] in
             self?.expire(id)
@@ -84,8 +89,7 @@ final class HandshakeWatch {
         case .done(let name):
             watches.removeValue(forKey: flow.identifier)
             lock.unlock()
-            if let name { named(watch.report, name) }
-            return .allow()
+            return conclude(watch.report, decision: watch.decision, name: name) ? .allow() : .drop()
         }
     }
 
@@ -96,7 +100,7 @@ final class HandshakeWatch {
         lock.unlock()
     }
 
-    /// A flow still held after `timeout`: let it go unnamed.
+    /// A flow still held after `timeout`: decided without a name.
     private func expire(_ id: UUID) {
         lock.lock()
         guard let watch = watches.removeValue(forKey: id) else {
@@ -104,13 +108,26 @@ final class HandshakeWatch {
             return
         }
         lock.unlock()
-        log.debug("let \(watch.report.address, privacy: .public) go unnamed after \(Self.timeout) s")
-        provider?.update(watch.flow, using: .allow(), for: .any)
+        log.debug("decided \(watch.report.address, privacy: .public) unnamed after \(Self.timeout) s")
+        let allows = conclude(watch.report, decision: watch.decision, name: nil)
+        provider?.update(watch.flow, using: allows ? .allow() : .drop(), for: .any)
     }
 
-    /// Reported as a connection with a name, the way one the app named is.
-    private func named(_ report: FlowReport, _ name: String) {
-        AppLink.shared.report(FlowReport(address: report.address, port: report.port, hostname: name,
-                                         pid: report.pid, time: Date()))
+    /// The final word on a watched flow, and its one report: its name if it
+    /// has one, and what blocked it if anything did. True to let it through.
+    private func conclude(_ report: FlowReport, decision: Firewall.Decision, name: String?) -> Bool {
+        var blockedBy = decision.blockedBy
+        if let name, let facts = decision.facts {
+            switch Firewall.shared.verdict(for: facts, named: name) {
+            case .allow:             blockedBy = nil
+            case .block(let reason): blockedBy = reason.id
+            // Nothing decided it by name: it stays as it was decided.
+            case .ask:               break
+            }
+        }
+        AppLink.shared.report(FlowReport(address: report.address, port: report.port, hostname: name ?? report.hostname,
+                                         pid: report.pid, time: report.time, blockedBy: blockedBy,
+                                         appKey: blockedBy == nil ? nil : decision.appKey))
+        return blockedBy == nil
     }
 }
