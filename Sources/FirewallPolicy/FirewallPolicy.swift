@@ -41,6 +41,11 @@ public struct FirewallRule: Codable, Hashable, Identifiable {
     /// keys networks, never its Wi-Fi name; and what it was called.
     public let network: String?
     public let networkTitle: String?
+    /// For a rule about an app, the team that signed it when the rule was
+    /// made (#202). A program at that path signed by anyone else isn't the
+    /// app the rule was made for, so the rule doesn't apply to it. Nil for
+    /// apps with no team: Apple's own, ad-hoc and self-signed ones.
+    public let team: String?
 
     public var id: String { "\(subject.rawValue):\(key)" + (appKey.map { "@\($0)" } ?? "") }
 
@@ -48,7 +53,7 @@ public struct FirewallRule: Codable, Hashable, Identifiable {
 
     public init(subject: RuleSubject, key: String, title: String, action: RuleAction,
                 appKey: String? = nil, appTitle: String? = nil, untilQuit: Bool = false,
-                network: String? = nil, networkTitle: String? = nil) {
+                network: String? = nil, networkTitle: String? = nil, team: String? = nil) {
         self.subject = subject
         self.key = key
         self.title = title
@@ -58,6 +63,17 @@ public struct FirewallRule: Codable, Hashable, Identifiable {
         self.untilQuit = untilQuit ? true : nil
         self.network = network
         self.networkTitle = network == nil ? nil : networkTitle
+        self.team = team
+    }
+
+    /// The app this rule is about, if it's about one: its subject, or the
+    /// one app it's for.
+    public var ruledApp: String? { appKey ?? (subject == .app ? key : nil) }
+
+    /// The same rule, signed for by `team`.
+    public func signed(by team: String?) -> FirewallRule {
+        FirewallRule(subject: subject, key: key, title: title, action: action, appKey: appKey, appTitle: appTitle,
+                     untilQuit: lastsUntilQuit, network: network, networkTitle: networkTitle, team: team)
     }
 }
 
@@ -93,10 +109,13 @@ public struct FlowFacts: Equatable {
     public var isNetworkMonitor: Bool
     /// The lists holding its name (#176), as the filter looked them up.
     public var listedIn: Set<BlocklistTopic>
+    /// The team that signed each of its app keys' programs (#202). An app
+    /// key with no entry has no team, or one that couldn't be read.
+    public var teams: [String: String]
 
     public init(appKeys: [String], companyKey: String?, country: String?, address: String, port: Int,
                 isApple: Bool, executablePaths: [String] = [], hostname: String? = nil,
-                isNetworkMonitor: Bool = false, listedIn: Set<BlocklistTopic> = []) {
+                isNetworkMonitor: Bool = false, listedIn: Set<BlocklistTopic> = [], teams: [String: String] = [:]) {
         self.appKeys = appKeys
         self.companyKey = companyKey
         self.country = country
@@ -107,6 +126,7 @@ public struct FlowFacts: Equatable {
         self.hostname = hostname
         self.isNetworkMonitor = isNetworkMonitor
         self.listedIn = listedIn
+        self.teams = teams
     }
 }
 
@@ -231,6 +251,9 @@ public struct FirewallPolicy: Codable, Equatable {
                         guard let rule = index["\(subject.rawValue):\(key)\(scope)"] else { continue }
                         // A rule for one network says nothing anywhere else (#200).
                         if let only = rule.network, only != network { continue }
+                        // Nor a rule for an app about a program at its path signed
+                        // by someone else (#202).
+                        if let team = rule.team, let app = rule.ruledApp, flow.teams[app] != team { continue }
                         switch rule.action {
                         case .allow:           return .allow(.rule(rule))
                         case .block:           return .block(.rule(rule))

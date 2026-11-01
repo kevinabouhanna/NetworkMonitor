@@ -39,6 +39,8 @@ final class Firewall {
         let paths: [String]
         /// NetworkMonitor itself, signed by its team (#121).
         let isNetworkMonitor: Bool
+        /// The team behind each app key (#202).
+        let teams: [String: String]
     }
 
     private init() {
@@ -220,7 +222,7 @@ final class Firewall {
                               address: address, port: port, isApple: identity.isApple,
                               executablePaths: identity.paths, hostname: flow.remoteHostname,
                               isNetworkMonitor: identity.isNetworkMonitor,
-                              listedIn: listed(flow.remoteHostname, in: policy))
+                              listedIn: listed(flow.remoteHostname, in: policy), teams: identity.teams)
         let verdict = policy.decide(facts)
         if case .block(let reason) = verdict {
             // Debug level: kept only while someone streams the log.
@@ -362,9 +364,12 @@ final class Firewall {
         for key in processKeys + appTokenKeys where !keys.contains(key) { keys.append(key) }
         var paths: [String] = []
         for path in [processPath, appPath].compactMap({ $0 }) where !paths.contains(path) { paths.append(path) }
+        var teams: [String: String] = [:]
+        for token in [app, process].compactMap({ $0 }) { teams.merge(self.teams(of: token)) { first, _ in first } }
         let identity = Identity(appKeys: keys, primaryKey: appTokenKeys.first ?? processKeys.first,
                                 isApple: (app ?? process).map(Self.isSignedByApple) ?? false, paths: paths,
-                                isNetworkMonitor: (app ?? process).map(Self.isNetworkMonitor) ?? false)
+                                isNetworkMonitor: (app ?? process).map(Self.isNetworkMonitor) ?? false,
+                                teams: teams)
 
         lock.lock()
         if identities.count >= Self.identityLimit { identities.removeAll() }
@@ -427,6 +432,54 @@ final class Firewall {
             }
         }
         return nil
+    }
+
+    // MARK: Who signed it (#202)
+
+    /// The team behind each of a token's app keys: the program's own for the
+    /// keys that are it, and for the app above it that adopted it, that app's.
+    private func teams(of token: Data) -> [String: String] {
+        let own = Self.team(token)
+        let path = Self.path(token)
+        var teams: [String: String] = [:]
+        for key in appKeys(token) {
+            let isAbove = key.hasSuffix(".app") && !(path.map { $0 == key || $0.hasPrefix(key + "/") } ?? false)
+            if let team = isAbove ? Self.team(atPath: key) : own { teams[key] = team }
+        }
+        return teams
+    }
+
+    private static func team(_ token: Data) -> String? {
+        guard let code = guestCode(token) else { return nil }
+        var staticCode: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return nil }
+        return team(of: staticCode)
+    }
+
+    private static let teamLock = NSLock()
+    private static var teamsByPath: [String: String?] = [:]
+
+    private static func team(atPath path: String) -> String? {
+        teamLock.lock()
+        if let cached = teamsByPath[path] { teamLock.unlock(); return cached }
+        teamLock.unlock()
+        var code: SecStaticCode?
+        let team = SecStaticCodeCreateWithPath(URL(fileURLWithPath: path) as CFURL, [], &code) == errSecSuccess
+            ? code.flatMap(team(of:)) : nil
+        teamLock.lock()
+        if teamsByPath.count > 512 { teamsByPath.removeAll() }
+        teamsByPath[path] = team
+        teamLock.unlock()
+        return team
+    }
+
+    private static func team(of code: SecStaticCode) -> String? {
+        var information: CFDictionary?
+        guard SecCodeCopySigningInformation(code, SecCSFlags(rawValue: kSecCSSigningInformation),
+                                            &information) == errSecSuccess,
+              let dictionary = information as? [String: Any]
+        else { return nil }
+        return dictionary[kSecCodeInfoTeamIdentifier as String] as? String
     }
 
     // MARK: Apple's own

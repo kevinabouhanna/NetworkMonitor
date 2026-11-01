@@ -1,3 +1,4 @@
+import FirewallPolicy
 import Foundation
 import Security
 
@@ -15,6 +16,35 @@ public enum AppMaker {
 
     private static var cache: [String: String?] = [:]
     private static let lock = NSLock()
+
+    private static var teams: [String: String?] = [:]
+
+    /// The team that signed the program an app key names (#202): the bundle,
+    /// or for a program an app started, that program. Nil for Apple's own,
+    /// ad-hoc and self-signed code, which have none.
+    public static func team(forAppKey key: String) -> String? {
+        let path = key.split(separator: AppKey.separator).last.map(String.init) ?? key
+        lock.lock()
+        if let cached = teams[path] {
+            lock.unlock()
+            return cached
+        }
+        lock.unlock()
+        var team: String?
+        var code: SecStaticCode?
+        if SecStaticCodeCreateWithPath(URL(fileURLWithPath: path) as CFURL, [], &code) == errSecSuccess, let code {
+            var information: CFDictionary?
+            if SecCodeCopySigningInformation(code, SecCSFlags(rawValue: kSecCSSigningInformation),
+                                             &information) == errSecSuccess,
+               let dictionary = information as? [String: Any] {
+                team = dictionary[kSecCodeInfoTeamIdentifier as String] as? String
+            }
+        }
+        lock.lock()
+        teams[path] = team
+        lock.unlock()
+        return team
+    }
 
     /// The maker of the bundle at `path`, or nil when its signature doesn't say:
     /// an ad-hoc or self-signed app, or a Mac App Store one, whose certificate
