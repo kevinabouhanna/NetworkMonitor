@@ -83,9 +83,9 @@ a:hover { text-decoration: underline; }
 .brand { display: flex; align-items: center; gap: 9px; color: var(--text); font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
 .brand:hover { text-decoration: none; }
 .brand img { width: 24px; height: 24px; }
-.nav-links { display: flex; align-items: center; gap: 26px; font-size: 12px; letter-spacing: -.01em; }
-.nav-links a:not(.pill) { color: var(--text-2); }
-.nav-links a:not(.pill):hover { color: var(--text); text-decoration: none; }
+.nav-links { display: flex; align-items: center; gap: 26px; margin-left: auto; font-size: 12px; letter-spacing: -.01em; }
+.nav-links a, .nav-drop-btn { color: var(--text-2); white-space: nowrap; }
+.nav-links a:hover, .nav-drop-btn:hover, .nav-drop-btn[aria-expanded="true"] { color: var(--text); text-decoration: none; }
 .pill {
   display: inline-block;
   background: var(--green); color: #000;
@@ -93,10 +93,67 @@ a:hover { text-decoration: underline; }
   padding: 4px 12px; border-radius: 980px;
 }
 .pill:hover { text-decoration: none; filter: brightness(1.08); }
-.nav-links a { white-space: nowrap; }
-@media (max-width: 960px) { .nav-links { gap: 16px; } }
-@media (max-width: 860px) { .nav-links a[href="#problem"], .nav-links a[href="#settings"] { display: none; } }
-@media (max-width: 734px) { .nav-links a:not(.pill) { display: none; } }
+.nav .pill { margin-left: 10px; font-size: 12px; letter-spacing: -.01em; white-space: nowrap; }
+.nav-drop { position: relative; }
+.nav-drop-btn, .nav-toggle { appearance: none; background: none; border: 0; padding: 0; font: inherit; letter-spacing: inherit; cursor: pointer; }
+.nav-drop-btn { display: inline-flex; align-items: center; gap: 4px; }
+.nav-drop-btn svg { width: 8px; height: 8px; transition: transform .2s var(--ease); }
+.nav-drop-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+/* Solid, not blurred: a child of the nav's backdrop-filter can't blur the page. */
+.nav-sub {
+  position: absolute; top: calc(100% + 20px); left: 50%; min-width: 164px; padding: 6px;
+  background: #1c1c1e; border: 1px solid var(--hair); border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .55);
+  visibility: hidden; opacity: 0; transform: translate(-50%, -4px);
+  transition: opacity .14s var(--ease), transform .14s var(--ease), visibility .14s;
+}
+/* Bridges the gap under the button, so a mouse crossing it stays inside. */
+.nav-sub::before { content: ""; position: absolute; left: 0; right: 0; top: -22px; height: 22px; }
+.nav-drop-btn[aria-expanded="true"] + .nav-sub,
+html:not(.js) .nav-drop:hover .nav-sub,
+html:not(.js) .nav-drop:focus-within .nav-sub { visibility: visible; opacity: 1; transform: translate(-50%, 0); }
+.nav-sub a { display: block; padding: 7px 10px; border-radius: 7px; font-size: 13px; }
+.nav-sub a:hover { background: rgba(255, 255, 255, .08); }
+.nav-toggle { display: none; color: var(--text); }
+.nav-toggle svg { width: 18px; height: 18px; }
+.nav-toggle path { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; transform-box: view-box; transform-origin: center; transition: transform .2s var(--ease); }
+.nav.open .bar-top { transform: rotate(45deg) translateY(3px); }
+.nav.open .bar-bottom { transform: rotate(-45deg) translateY(-3px); }
+@media (max-width: 734px) {
+  .nav .wrap { gap: 10px; }
+  .brand { margin-right: auto; }
+  .nav .pill { order: 2; margin-left: 0; }
+  .js .nav-toggle { display: inline-flex; order: 3; align-items: center; justify-content: center; width: 44px; height: 44px; margin-right: -13px; }
+  html:not(.js) .nav-links { display: none; }
+  .nav-links {
+    position: absolute; top: calc(100% + 1px); left: 0; right: 0; margin: 0;
+    flex-direction: column; align-items: stretch; gap: 0;
+    padding: 4px var(--gutter) 12px;
+    max-height: calc(100vh - 53px); max-height: calc(100dvh - 53px); overflow-y: auto; overscroll-behavior: contain;
+    background: #161617; border-bottom: 1px solid var(--hair);
+    font-size: 17px; letter-spacing: 0;
+    visibility: hidden; opacity: 0; transform: translateY(-6px);
+    transition: opacity .16s var(--ease), transform .16s var(--ease), visibility .16s;
+  }
+  .nav.open .nav-links { visibility: visible; opacity: 1; transform: none; }
+  .nav-links > a, .nav-drop-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 46px; color: var(--text); }
+  .nav-links > a + a, .nav-drop + a { border-top: 1px solid var(--hair); }
+  .nav-drop { border-top: 1px solid var(--hair); }
+  .nav-drop-btn svg { width: 11px; height: 11px; color: var(--text-2); }
+  .nav-sub, .nav-drop-btn[aria-expanded="true"] + .nav-sub {
+    position: static; min-width: 0; padding: 0 0 8px; background: none; border: 0; border-radius: 0; box-shadow: none;
+    visibility: inherit; opacity: 1; transform: none; transition: none;
+  }
+  .nav-sub { display: none; }
+  .nav-drop-btn[aria-expanded="true"] + .nav-sub { display: block; }
+  .nav-sub::before { display: none; }
+  .nav-sub a { display: flex; align-items: center; min-height: 44px; padding: 0 0 0 14px; font-size: 16px; border-radius: 0; }
+  .nav-sub a:hover { background: none; }
+}
+@media (max-width: 374px) { .nav .brand img { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .nav-links, .nav-sub, .nav-drop-btn svg, .nav-toggle path { transition: none; }
+}
 
 /* ---------- Type ---------- */
 .eyebrow { color: var(--green); font-size: 21px; line-height: 1.2; font-weight: 600; letter-spacing: .004em; margin: 0 0 14px; }
@@ -364,17 +421,29 @@ footer a { color: var(--text-2); }
 <nav class="nav" aria-label="NetworkMonitor">
   <div class="wrap">
     <a class="brand" href="#top"><img src="assets/favicon-64.png" alt="" width="24" height="24">NetworkMonitor</a>
-    <div class="nav-links">
+    <button class="nav-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><path class="bar-top" d="M2 6h14"/><path class="bar-bottom" d="M2 12h14"/></svg>
+    </button>
+    <div class="nav-links" id="nav-links">
       <a href="#problem">The problem</a>
-      <a href="#features">Features</a>
-      <a href="#hotspots">Hotspots</a>
-      <a href="#connections">Connections</a>
-      <a href="#ad-blocker">Ad blocker</a>
-      <a href="#settings">Settings</a>
+      <div class="nav-drop">
+        <button class="nav-drop-btn" type="button" aria-expanded="false" aria-controls="nav-features">Features
+          <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="nav-sub" id="nav-features">
+          <a href="#features">Menu bar</a>
+          <a href="#apps">App usage</a>
+          <a href="#hotspots">Hotspots</a>
+          <a href="#connections">Connections</a>
+          <a href="#ad-blocker">Ad blocker</a>
+          <a href="#speed-test">Speed test</a>
+          <a href="#settings">Settings</a>
+        </div>
+      </div>
       <a href="#privacy">Privacy</a>
       <a href="#install">Install</a>
-      <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download</a>
     </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download</a>
   </div>
 </nav>
 
@@ -510,7 +579,7 @@ footer a { color: var(--text-2); }
     </div>
   </section>
 
-  <section class="pad divider center" style="padding-top:clamp(80px,11vw,130px)">
+  <section id="apps" class="pad divider center" style="padding-top:clamp(80px,11vw,130px)">
     <div class="wrap">
       <p class="eyebrow reveal">One click</p>
       <h2 class="h2 reveal d1">It’s live.<br>Not a snapshot.</h2>
@@ -1062,6 +1131,57 @@ footer a { color: var(--text-2); }
       }, 150);
     });
   });
+
+  // The top nav. Features opens on hover with a mouse, and on a click, tap or
+  // the keyboard. On a phone, the menu button opens everything, with the
+  // features showing, so any section is one tap away.
+  const nav = document.querySelector('.nav');
+  const menuButton = nav.querySelector('.nav-toggle');
+  const features = nav.querySelector('.nav-drop');
+  const featuresButton = nav.querySelector('.nav-drop-btn');
+  const phone = matchMedia('(max-width: 734px)');
+  let pointer = '';
+  let closing;
+  const featuresOpen = () => featuresButton.getAttribute('aria-expanded') === 'true';
+  const menuOpen = () => nav.classList.contains('open');
+  const showFeatures = open => {
+    clearTimeout(closing);
+    featuresButton.setAttribute('aria-expanded', open);
+  };
+  const showMenu = open => {
+    nav.classList.toggle('open', open);
+    menuButton.setAttribute('aria-expanded', open);
+    showFeatures(open);
+  };
+  addEventListener('pointerdown', event => { pointer = event.pointerType; }, { passive: true });
+  features.addEventListener('pointerenter', event => {
+    if (event.pointerType === 'mouse' && !phone.matches) showFeatures(true);
+  });
+  features.addEventListener('pointerleave', event => {
+    if (event.pointerType === 'mouse' && !phone.matches) closing = setTimeout(() => showFeatures(false), 200);
+  });
+  featuresButton.addEventListener('click', event => {
+    // A mouse already opened it by hovering, so its click mustn't shut it.
+    const hovered = event.detail > 0 && pointer === 'mouse' && !phone.matches;
+    showFeatures(hovered || !featuresOpen());
+  });
+  features.addEventListener('focusout', event => {
+    if (!phone.matches && !features.contains(event.relatedTarget) && !features.matches(':hover')) showFeatures(false);
+  });
+  menuButton.addEventListener('click', () => showMenu(!menuOpen()));
+  nav.querySelectorAll('.nav-links a').forEach(link => {
+    link.addEventListener('click', () => showMenu(false));
+  });
+  document.addEventListener('click', event => {
+    if (!(phone.matches ? nav : features).contains(event.target)) showMenu(false);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !(menuOpen() || featuresOpen())) return;
+    const opener = menuOpen() ? menuButton : featuresButton;
+    showMenu(false);
+    opener.focus();
+  });
+  phone.addEventListener('change', () => showMenu(false));
 })();
 </script>
 </body>
