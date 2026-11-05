@@ -93,6 +93,9 @@ a:hover { text-decoration: underline; }
   padding: 4px 12px; border-radius: 980px;
 }
 .pill:hover { text-decoration: none; filter: brightness(1.08); }
+.nav-links a { white-space: nowrap; }
+@media (max-width: 960px) { .nav-links { gap: 16px; } }
+@media (max-width: 860px) { .nav-links a[href="#problem"], .nav-links a[href="#settings"] { display: none; } }
 @media (max-width: 734px) { .nav-links a:not(.pill) { display: none; } }
 
 /* ---------- Type ---------- */
@@ -244,11 +247,14 @@ section { position: relative; }
 /* The Connections window, at the size it opens, shadowed as Settings is. */
 .connections-shot { margin: clamp(48px, 7vw, 80px) auto clamp(56px, 8vw, 96px); width: min(1120px, 100%); }
 .connections-shot img { width: 100%; height: auto; filter: drop-shadow(0 28px 48px rgba(0, 0, 0, .55)); }
+.ad-blocker-shot { margin: clamp(48px, 7vw, 80px) auto 0; width: min(703px, 100%); }
+.ad-blocker-shot img { width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--hair); box-shadow: 0 28px 48px rgba(0, 0, 0, .55); }
 .facts { display: grid; gap: 34px; }
 .facts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 44px clamp(32px, 6vw, 72px); margin-top: 80px; }
 .see-pane { margin: 56px 0 0; text-align: center; }
 .facts h3 { font-size: 21px; line-height: 1.24; font-weight: 600; margin: 0 0 8px; }
 .facts p { margin: 0; color: var(--text-2); font-size: 16px; }
+.facts p.more-line { margin-top: 10px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .chip {
   font-size: 13px; letter-spacing: -.01em; color: var(--text);
@@ -363,6 +369,7 @@ footer a { color: var(--text-2); }
       <a href="#features">Features</a>
       <a href="#hotspots">Hotspots</a>
       <a href="#connections">Connections</a>
+      <a href="#ad-blocker">Ad blocker</a>
       <a href="#settings">Settings</a>
       <a href="#privacy">Privacy</a>
       <a href="#install">Install</a>
@@ -625,12 +632,13 @@ footer a { color: var(--text-2); }
           <p>Choose <b>Ask Me</b> and a small panel asks the first time an app reaches a company, naming the site: <em>Figma wants to connect to api.segment.io</em>. Answer for that site or the whole company, and allow it once, until the app quits, or always. Unanswered in 30 seconds, it goes ahead. Or <b>Only Where I Allow</b>. The local network, looking up names and the clock are never blocked, and macOS is never asked about.</p>
         </div>
         <div class="reveal">
-          <h3>Ads and trackers, gone.</h3>
-          <p>One switch in Settings blocks the sites on two lists, in every app, Chrome included: StevenBlack’s ad and tracker hosts and URLhaus’s malware. Your own rules come first, the lists update every week, and Connections tags the servers they hold, whether they’re on or not. Ads served from a site’s own servers, like YouTube’s, aren’t separate sites, so they stay.</p>
-        </div>
-        <div class="reveal">
           <h3>One switch to stop it all.</h3>
           <p><b>Block Everything</b>, in the menu bar’s right-click menu, stops every app’s connections until you turn it off, on a hotspot when a big download starts or whenever something looks wrong. Looking up names and your own network keep working, and the readout turns red so it’s never left on by mistake.</p>
+        </div>
+        <div class="reveal">
+          <h3>Ads and trackers, too.</h3>
+          <p>One switch blocks them in every app, and the servers they use are tagged here either way.</p>
+          <p class="more-line"><a class="more" href="#ad-blocker">See the ad blocker</a></p>
         </div>
       </div>
 
@@ -639,6 +647,49 @@ footer a { color: var(--text-2); }
       <div class="fine reveal">
         <p style="margin:0"><b>Named on your Mac.</b>Countries and network owners come from DB-IP’s free data, shipped inside the app. Nothing is looked up online: asking a service about each address would tell it every server your Mac talks to.</p>
         <p style="margin:0"><b>Where, never what.</b>It sees which server each connection goes to and the site’s name, from the app or the connection’s opening handshake, never what’s inside. If it stops, nothing is cut off.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ad blocker -->
+  <section id="ad-blocker" class="pad raised">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow reveal">Ad blocker</p>
+        <h2 class="h2 reveal d1">Ads and trackers.<br><span class="grad">Gone, in every app.</span></h2>
+        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">One switch blocks about 77,000 ad and tracking servers, and about 1,900 spreading malware right now, in <strong>every app on your Mac</strong>, not just your browser.</p>
+      </div>
+
+      <figure class="ad-blocker-shot reveal">
+        <img src="assets/ad-blocker.png" width="1406" height="500" loading="lazy"
+             alt="The Ads and trackers section of Settings › Connections. Block ads and trackers is on, with two lists, each switched on: ADS, Ads and trackers, StevenBlack, 76,736 sites; MALWARE, Malware and phishing, URLhaus by malware-filter, 1,892 sites. Blocked today 27, and Update them weekly on. Lists from 31 Oct 2026: StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC0).">
+      </figure>
+
+      <div class="facts two">
+        <div class="reveal">
+          <h3>Every app, Chrome included.</h3>
+          <p>A browser extension only sees the browser. This works through the part of macOS made for filtering connections, so it stops what all your apps send to those servers. Chrome connects by address, so it’s matched by the site’s name in the connection’s opening handshake.</p>
+        </div>
+        <div class="reveal">
+          <h3>Yours to control.</h3>
+          <p>It’s off until you turn it on in Settings › Connections, and macOS asks you to allow the filter the first time. Each list has its own switch. Your own rules come first: if a list stops something you need, right-click it in Connections and allow it.</p>
+        </div>
+        <div class="reveal">
+          <h3>See what it stopped.</h3>
+          <p>Connections tags each listed server <b>ADS</b> or <b>MALWARE</b>, whether the lists are on or not, so you can see what’s tracking you before you decide. <b>Show: Blocked</b> lists what they stopped, and the popover says how many today.</p>
+        </div>
+        <div class="reveal">
+          <h3>Current by itself.</h3>
+          <p>The lists are rebuilt every Monday, and the app downloads them once a week while they’re on: the same signed file for everyone, never on a hotspot. A copy ships in the app, so they work offline. The matching happens on your Mac, so nobody is told where your apps connect.</p>
+        </div>
+      </div>
+
+      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="connections">See the Connections pane</a></p>
+
+      <div class="fine reveal">
+        <p style="margin:0"><b>What it can’t block.</b>Ads served from a site’s own servers, like YouTube’s, can’t be told apart from the site, so they stay. So does anything without a name: another port, or a connection that isn’t TLS or QUIC.</p>
+        <p style="margin:0"><b>Not a browser ad blocker.</b>It stops connections rather than cleaning pages, so an empty box can sit where an ad would have been. Keep your browser’s blocker if you use one.</p>
+        <p style="margin:0"><b>The lists.</b>StevenBlack’s unified hosts (MIT), and URLhaus by malware-filter (CC0).</p>
       </div>
     </div>
   </section>
@@ -711,7 +762,7 @@ footer a { color: var(--text-2); }
             <img class="prefs-shot" data-shot="history" data-w="720" data-h="785" src="assets/settings/history.png" width="1440" height="1570" loading="lazy" aria-hidden="true"
                  alt="The History pane on Today, with Day, Week, Month and Year, a ‹ Today › stepper, and All, Wi‑Fi and Hotspot. 1.5 GB used, all over Wi‑Fi, in a bar chart by the hour that peaks at about 740 MB at noon. Below it, Apps, biggest first: Software Update 522.3 MB, Google Chrome 320.5 MB, iTerm2 166.6 MB, Slack 133.8 MB, Xcode 86.4 MB, WhatsApp 76.5 MB and GoogleUpdater 38.9 MB. Networks and Sessions are the other two lists. Keep history for Forever, with Clear History… and Export CSV… buttons.">
             <img class="prefs-shot" data-shot="connections" data-w="720" data-h="870" src="assets/settings/connections.png" width="1440" height="1740" loading="lazy" aria-hidden="true"
-                 alt="The Connections pane. Which companies, countries and servers your apps talk to, on a list and a world map, with an Open Connections… button. Under Blocking, Let apps connect offers Anywhere, Ask Me and Only Where I Allow, with Anywhere chosen; right-click a company, app, country or server in Connections to block it, or to always allow it. Rules, with Export… and Import… buttons. Under Ads and trackers, Block ads and trackers is on, with two lists, each switched on: ADS, Ads and trackers, StevenBlack, 76,736 sites; MALWARE, Malware and phishing, URLhaus by malware-filter, 1,892 sites. Blocked today 0, and Update them weekly on, with lists from 31 Oct 2026. Opens with List, Both or Map, with Both chosen. Countries and networks: DB-IP Lite, October 2026, Update them monthly, switched on, and Kept as long as Usage History.">
+                 alt="The Connections pane. Which companies, countries and servers your apps talk to, on a list and a world map, with an Open Connections… button. Under Blocking, Let apps connect offers Anywhere, Ask Me and Only Where I Allow, with Anywhere chosen; right-click a company, app, country or server in Connections to block it, or to always allow it. Rules, with Export… and Import… buttons. Under Ads and trackers, Block ads and trackers is on, with two lists, each switched on: ADS, Ads and trackers, StevenBlack, 76,736 sites; MALWARE, Malware and phishing, URLhaus by malware-filter, 1,892 sites. Blocked today 27, and Update them weekly on, with lists from 31 Oct 2026. Opens with List, Both or Map, with Both chosen. Countries and networks: DB-IP Lite, November 2026, Update them monthly, switched on, and Kept as long as Usage History.">
             <img class="prefs-shot" data-shot="hotspot" data-w="720" data-h="704" src="assets/settings/hotspot.png" width="1440" height="1408" loading="lazy" aria-hidden="true"
                  alt="The Hotspot pane. Stop apps updating on hotspots is on, and right now this doesn't look like a hotspot. This network is set to Detect automatically, with Is a hotspot and Isn't a hotspot to choose from. Paused on a hotspot (13) and Can't be paused (3) are both closed. Every app's updater: Stopped on hotspots. Got through on your last metered connection, in orange as both were paused: Slack downloaded an update anyway, up to 271.6 MB, and Google Chrome downloaded an update anyway, 265.6 MB.">
             <img class="prefs-shot" data-shot="hotspot-apps" data-w="720" data-h="870" src="assets/settings/hotspot-apps.png" width="1440" height="1740" loading="lazy" aria-hidden="true"
