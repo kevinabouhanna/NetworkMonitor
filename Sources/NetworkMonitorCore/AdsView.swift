@@ -1,4 +1,5 @@
 import Charts
+import UniformTypeIdentifiers
 import FirewallPolicy
 import SwiftUI
 
@@ -12,7 +13,9 @@ struct AdsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if !model.isOn {
+            if model.tab == .log {
+                AdsLogView(model: model)
+            } else if !model.isOn {
                 off
             } else {
                 header
@@ -216,4 +219,173 @@ enum AdsMetrics {
     static let minHeight: CGFloat = 480
     static let chartHeight: CGFloat = 120
     static let rowBarWidth: CGFloat = 90
+    static let logTime: CGFloat = 76
+    static let logApp: CGFloat = 170
+    static let logDecision: CGFloat = 76
+    static let logWhy: CGFloat = 210
+}
+
+// MARK: - Log (#252)
+
+/// Every connection the filter decided, newest first, with what decided it,
+/// and a rule from any row.
+struct AdsLogView: View {
+    @ObservedObject var model: AdsViewModel
+
+    var body: some View {
+        let entries = model.logEntries
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Picker("Show", selection: $model.logShow) {
+                    ForEach(AdsLog.Show.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                TextField("Search apps, sites and addresses", text: $model.logSearch)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 260)
+                Spacer(minLength: 8)
+                Button(model.logIsPaused ? "Resume" : "Pause") { model.toggleLogPause() }
+                    .help(model.logIsPaused ? "Show new connections again" : "Stop the list moving while you read it")
+                Button("Clear") { model.clearLog() }
+                Button("Export…") { export() }
+                    .help("Save what's shown as a text file")
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            Divider()
+            AdsLogHeader()
+            Divider()
+            if entries.isEmpty {
+                VStack(spacing: 6) {
+                    Text(model.logIsPaused ? "Paused" : "Nothing yet")
+                        .font(.system(size: 14, weight: .medium))
+                    Text("Each connection your apps open shows here as it's decided, while NetworkMonitor runs.")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(entries) { entry in
+                            AdsLogRow(entry: entry, reason: model.reason(for: entry),
+                                      icon: model.icon(forBundle: entry.bundlePath))
+                                .contextMenu { menu(for: entry) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func menu(for entry: AdsLogEntry) -> some View {
+        if let name = entry.name {
+            ForEach(FirewallRules.siteScopes(for: name), id: \.self) { domain in
+                let label = domain == name ? domain : "*.\(domain)"
+                Section(label) {
+                    Button("Allow \(label)") { model.setSite(.allow, domain: domain, name: name, in: nil) }
+                    Button("Block \(label)") { model.setSite(.block, domain: domain, name: name, in: nil) }
+                    if entry.appKey != nil {
+                        Button("Allow \(label) in \(entry.appName)") {
+                            model.setSite(.allow, domain: domain, name: name, in: entry)
+                        }
+                        Button("Block \(label) in \(entry.appName)") {
+                            model.setSite(.block, domain: domain, name: name, in: entry)
+                        }
+                    }
+                    let keys: [String?] = entry.appKey.map { [nil, $0] } ?? [nil]
+                    ForEach(keys.indices, id: \.self) { index in
+                        if let rule = model.rule(forDomain: domain, appKey: keys[index]) {
+                            Button("Remove Your Rule: \(rule.title)"
+                                   + (rule.appTitle.map { " in \($0)" } ?? "")) { model.remove(rule) }
+                        }
+                    }
+                }
+            }
+            Divider()
+            Button("Copy Name") { copy(name) }
+        }
+        Button("Copy Address") { copy(entry.address) }
+    }
+
+    private func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    private func export() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "NetworkMonitor log.txt"
+        panel.allowedContentTypes = [.plainText]
+        let text = model.logText()
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? Data(text.utf8).write(to: url, options: .atomic)
+    }
+}
+
+private struct AdsLogHeader: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            Text("Time").frame(width: AdsMetrics.logTime, alignment: .leading)
+            Text("App").frame(width: AdsMetrics.logApp, alignment: .leading)
+            Text("Site").frame(maxWidth: .infinity, alignment: .leading)
+            Text("Decision").frame(width: AdsMetrics.logDecision, alignment: .leading)
+            Text("Why").frame(width: AdsMetrics.logWhy, alignment: .leading)
+        }
+        .font(.system(size: 11, weight: .semibold))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 6)
+    }
+}
+
+private struct AdsLogRow: View {
+    let entry: AdsLogEntry
+    let reason: String
+    let icon: NSImage?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(entry.time.formatted(date: .omitted, time: .standard))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .frame(width: AdsMetrics.logTime, alignment: .leading)
+            HStack(spacing: 6) {
+                if let icon { Image(nsImage: icon).resizable().frame(width: 16, height: 16) }
+                Text(entry.appName).lineLimit(1).truncationMode(.tail)
+            }
+            .frame(width: AdsMetrics.logApp, alignment: .leading)
+            HStack(spacing: 6) {
+                if let name = entry.name {
+                    Text(name).lineLimit(1).truncationMode(.middle)
+                } else {
+                    Text(entry.address).lineLimit(1).foregroundStyle(.secondary)
+                    Text("NO NAME")
+                        .font(.system(size: 8, weight: .bold))
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(Color.secondary.opacity(0.18), in: Capsule())
+                        .foregroundStyle(.secondary)
+                        .help("Its site couldn't be read, so no list can match it. The app connected by address, "
+                              + "and the start of the connection didn't name the site, or named only the "
+                              + "service in front of it.")
+                }
+                ForEach(entry.lists, id: \.self) { list in
+                    if let topic = BlocklistTopic(rawValue: list) { ListTag(topic: topic) }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(entry.isBlocked ? "Blocked" : "Let through")
+                .foregroundStyle(entry.isBlocked ? Color.red : Color.secondary)
+                .frame(width: AdsMetrics.logDecision, alignment: .leading)
+            Text(reason).lineLimit(1).truncationMode(.tail).foregroundStyle(.secondary)
+                .frame(width: AdsMetrics.logWhy, alignment: .leading)
+                .help(reason)
+        }
+        .font(.system(size: 12))
+        .padding(.horizontal, 20)
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .help(entry.name.map { "\($0) · \(entry.address):\(entry.port)" } ?? "\(entry.address):\(entry.port)")
+    }
 }

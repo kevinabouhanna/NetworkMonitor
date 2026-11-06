@@ -205,7 +205,16 @@ in the right-click menu, Settings › Connections, or ⌘B while a window is ope
 - **Pause:** for an hour or until tomorrow, in every app. The lists stay chosen, the filter
   is sent none until then, and the popover says it's paused. Kept across a relaunch.
 
-It reads `list_blocks` in History (#250), so it starts from when that was added, is kept as
+**Log** (#252), beside Overview in the toolbar: every connection the filter decides, live,
+newest first, with the time, the app, the site (or its address, marked **No Name** when
+nothing named it), Blocked or Let through, and why in plain words (*On the ads and trackers
+list*, *Your rule: \*.example.com in Slack*, *Let through, though it's on a list*). Show
+All, Blocked, On a List or No Name, and search. Right-click a row to allow or block its site,
+or the whole site, in every app or only that one, or to remove a rule you made. **Pause**
+holds the list still, **Clear** empties it, and **Export…** saves what's shown as text. It
+keeps the last 5,000 in memory only; lookups aren't listed.
+
+The overview reads `list_blocks` in History (#250), so it starts from when that was added, is kept as
 long as History, and Clear History clears it.
 
 **Show: Blocked**, beside *Group by*, lists what was blocked instead of what was sent: the same

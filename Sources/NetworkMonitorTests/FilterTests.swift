@@ -290,6 +290,57 @@ func runFilterTests() {
             rules.pauseLists(until: Date().addingTimeInterval(-1))
             Check.expectNil(rules.listsPausedUntil, "a time already past isn't a pause")
         }
+
+        // #252: the live log.
+        func logged(_ name: String?, blockedBy: String? = nil, lists: [String] = [], app: String = "Google Chrome")
+            -> (time: Date, appKey: String?, appName: String, bundlePath: String?, address: String, port: Int,
+                name: String?, blockedBy: String?, lists: [String]) {
+            (now, "/Applications/\(app).app", app, nil, "142.250.74.66", 443, name, blockedBy, lists)
+        }
+
+        Check.test("the log keeps the newest first, and only so many") {
+            let log = AdsLog(limit: 3)
+            log.append([logged("a.example"), logged("b.example")])
+            log.append([logged("c.example"), logged("d.example")])
+            Check.expectEqual(log.entries.map(\.name), ["d.example", "c.example", "b.example"])
+            log.clear()
+            Check.expectEqual(log.entries, [])
+        }
+
+        Check.test("the log narrows to blocked, listed or unnamed, and searches") {
+            let log = AdsLog()
+            log.append([logged("www.google.com"),
+                        logged("pagead2.googlesyndication.com", blockedBy: "list:ads", lists: ["ads"]),
+                        logged("stats.example", lists: ["ads"], app: "Slack"),
+                        logged(nil)])
+            let reason: (AdsLogEntry) -> String = { AdsLog.reason(for: $0, rules: []) }
+            func names(_ show: AdsLog.Show, _ search: String = "") -> [String] {
+                AdsLog.filtered(log.entries, show: show, search: search, reason: reason).map { $0.name ?? "-" }
+            }
+            Check.expectEqual(names(.blocked), ["pagead2.googlesyndication.com"])
+            Check.expectEqual(names(.listed), ["stats.example", "pagead2.googlesyndication.com"])
+            Check.expectEqual(names(.unnamed), ["-"])
+            Check.expectEqual(names(.all, "slack"), ["stats.example"])
+            Check.expectEqual(names(.all, "ads and trackers"), ["pagead2.googlesyndication.com"], "by its reason")
+        }
+
+        Check.test("the log says why, in plain words") {
+            let entry = { (blockedBy: String?, lists: [String]) in
+                AdsLogEntry(id: 0, time: now, appKey: nil, appName: "Chrome", bundlePath: nil, address: "1.2.3.4",
+                            port: 443, name: "ads.example", blockedBy: blockedBy, lists: lists)
+            }
+            let rule = FirewallRule(subject: .site, key: "example.com", title: "*.example.com", action: .block,
+                                    appKey: "/Applications/Slack.app", appTitle: "Slack")
+            Check.expectEqual(AdsLog.reason(for: entry(nil, []), rules: []), "Let through")
+            Check.expectEqual(AdsLog.reason(for: entry(nil, ["ads"]), rules: []), "Let through, though it's on a list")
+            Check.expectEqual(AdsLog.reason(for: entry("list:ads", ["ads"]), rules: []), "On the ads and trackers list")
+            Check.expectEqual(AdsLog.reason(for: entry(rule.id, []), rules: [rule]), "Your rule: *.example.com in Slack")
+            Check.expectEqual(AdsLog.reason(for: entry("mode", []), rules: []), "Only where you allow")
+
+            let text = AdsLog.text([entry("list:ads", ["ads"])], reason: { AdsLog.reason(for: $0, rules: []) })
+            Check.expectTrue(text.contains("\tads.example\t1.2.3.4\t443\tblocked\tOn the ads and trackers list\tads"),
+                             text)
+        }
     }
 }
 

@@ -9,10 +9,12 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     public let window: NSWindow
     private let model: AdsViewModel
+    private let tabControl = NSSegmentedControl()
     private let scaleControl = NSSegmentedControl()
     private let stepControl = NSSegmentedControl()
     private var observation: AnyCancellable?
 
+    private static let tabItem = NSToolbarItem.Identifier("tab")
     private static let scaleItem = NSToolbarItem.Identifier("scale")
     private static let stepItem = NSToolbarItem.Identifier("step")
 
@@ -52,6 +54,15 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     public func windowWillClose() { model.windowDidClose() }
 
     private func configureControls() {
+        let tabs = AdsViewModel.Tab.allCases
+        tabControl.segmentCount = tabs.count
+        tabControl.trackingMode = .selectOne
+        for (index, tab) in tabs.enumerated() {
+            tabControl.setLabel(tab.label, forSegment: index)
+        }
+        tabControl.target = self
+        tabControl.action = #selector(tabChosen)
+
         let scales = HistoryScale.allCases
         scaleControl.segmentCount = scales.count
         scaleControl.trackingMode = .selectOne
@@ -77,9 +88,18 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     }
 
     private func refreshControls() {
+        tabControl.selectedSegment = AdsViewModel.Tab.allCases.firstIndex(of: model.tab) ?? 0
+        // The log is the present, live: no period.
+        let overview = model.tab == .overview
+        scaleControl.isEnabled = overview
         scaleControl.selectedSegment = HistoryScale.allCases.firstIndex(of: model.scale) ?? 0
-        stepControl.setEnabled(model.canStepBack, forSegment: 0)
-        stepControl.setEnabled(model.canStepForward, forSegment: 2)
+        stepControl.setEnabled(overview && model.canStepBack, forSegment: 0)
+        stepControl.setEnabled(overview, forSegment: 1)
+        stepControl.setEnabled(overview && model.canStepForward, forSegment: 2)
+    }
+
+    @objc private func tabChosen(_ sender: NSSegmentedControl) {
+        model.tab = AdsViewModel.Tab.allCases[sender.selectedSegment]
     }
 
     @objc private func scaleChosen(_ sender: NSSegmentedControl) {
@@ -97,7 +117,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     // MARK: NSToolbarDelegate
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem]
+        [Self.tabItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -108,6 +128,10 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
                         willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         let item = NSToolbarItem(itemIdentifier: identifier)
         switch identifier {
+        case Self.tabItem:
+            item.view = tabControl
+            item.label = "View"
+            item.toolTip = "What was blocked, or every connection as it's decided"
         case Self.scaleItem:
             item.view = scaleControl
             item.label = "Period"
