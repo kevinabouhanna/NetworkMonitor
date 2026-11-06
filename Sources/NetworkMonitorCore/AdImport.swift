@@ -36,6 +36,10 @@ public struct AdImport: Identifiable, Equatable {
     public var alreadyHere = 0
     /// Lists to switch on, from the lists it had on.
     public var lists: Set<BlocklistTopic> = []
+    /// Lists it had on that NetworkMonitor offers to download (#254), by id.
+    public var downloadedLists: [String] = []
+    /// Lists it had added by address, to add the same way (#254).
+    public var addedLists: [URL] = []
     /// Lists it had on that NetworkMonitor doesn't offer (yet).
     public var listsNotHere: [String] = []
     /// Rules that hide or change parts of a page: for the browser extension.
@@ -55,11 +59,12 @@ public struct AdImport: Identifiable, Equatable {
     public static func == (lhs: AdImport, rhs: AdImport) -> Bool {
         lhs.source == rhs.source && lhs.rules == rhs.rules && lhs.alreadyHere == rhs.alreadyHere
             && lhs.lists == rhs.lists && lhs.listsNotHere == rhs.listsNotHere
+            && lhs.downloadedLists == rhs.downloadedLists && lhs.addedLists == rhs.addedLists
             && lhs.forExtension == rhs.forExtension && lhs.forEnhanced == rhs.forEnhanced
             && lhs.skipped == rhs.skipped && lhs.hasTrustedSites == rhs.hasTrustedSites
     }
 
-    public var isEmpty: Bool { rules.isEmpty && lists.isEmpty }
+    public var isEmpty: Bool { rules.isEmpty && lists.isEmpty && downloadedLists.isEmpty && addedLists.isEmpty }
 
     // MARK: Reading
 
@@ -100,7 +105,10 @@ public struct AdImport: Identifiable, Equatable {
         result.addTrusted(trusted, existing: existing)
         if let lists = json["selectedFilterLists"] as? [String] {
             // `user-filters` is My filters, read below.
-            for list in lists where !list.hasPrefix("user-") { result.addList(named: list, topic: uBlockTopic(list)) }
+            for list in lists where !list.hasPrefix("user-") {
+                result.addList(named: list, topic: uBlockTopic(list), catalogue: uBlockCatalogue[list.lowercased()],
+                               url: list.hasPrefix("https://") ? URL(string: list) : nil)
+            }
         }
         if let filters = json["userFilters"] as? String {
             result.add(lines: filters, existing: existing, findApp: findApp)
@@ -117,11 +125,13 @@ public struct AdImport: Identifiable, Equatable {
             result.addTrusted(allow["domains"] as? [String] ?? [], existing: existing)
         }
         for id in filters["enabled-filters"] as? [Int] ?? [] {
-            result.addList(named: adGuardNames[id] ?? "AdGuard filter \(id)", topic: adGuardTopics[id])
+            result.addList(named: adGuardNames[id] ?? "AdGuard filter \(id)", topic: adGuardTopics[id],
+                           catalogue: adGuardCatalogue[id])
         }
         for custom in filters["custom-filters"] as? [[String: Any]] ?? [] where custom["enabled"] as? Bool ?? true {
-            result.addList(named: custom["title"] as? String ?? custom["customUrl"] as? String ?? "A custom list",
-                           topic: nil)
+            let address = custom["customUrl"] as? String
+            result.addList(named: custom["title"] as? String ?? address ?? "A custom list", topic: nil,
+                           url: address.flatMap { $0.hasPrefix("https://") ? URL(string: $0) : nil })
         }
         if let user = filters["user-filter"] as? [String: Any], user["enabled"] as? Bool ?? true {
             let disabled = Set((user["disabled-rules"] as? String ?? "").components(separatedBy: "\n"))
@@ -257,9 +267,23 @@ public struct AdImport: Identifiable, Equatable {
         }
     }
 
-    private mutating func addList(named name: String, topic: BlocklistTopic?) {
-        if let topic { lists.insert(topic) } else if !name.isEmpty { listsNotHere.append(name) }
+    private mutating func addList(named name: String, topic: BlocklistTopic?, catalogue: String? = nil,
+                                  url: URL? = nil) {
+        if let catalogue, !downloadedLists.contains(catalogue) { downloadedLists.append(catalogue) }
+        if let url {
+            if let known = ListCatalogue.all.first(where: { $0.url == url }) {
+                if !downloadedLists.contains(known.id) { downloadedLists.append(known.id) }
+            } else if !addedLists.contains(url) {
+                addedLists.append(url)
+            }
+            return
+        }
+        if let topic { lists.insert(topic) } else if catalogue == nil, !name.isEmpty { listsNotHere.append(name) }
     }
+
+    /// Lists both offer, by uBlock Origin's id and AdGuard's number (#254).
+    static let uBlockCatalogue: [String: String] = ["plowe-0": "peter-lowe", "easyprivacy": "easylist-privacy"]
+    static let adGuardCatalogue: [Int: String] = [15: "adguard-dns", 118: "easylist-privacy"]
 
     // MARK: Lists, by what they're for
 
@@ -285,6 +309,7 @@ public struct AdImport: Identifiable, Equatable {
         4: "AdGuard Social Media filter", 5: "AdGuard Experimental filter", 6: "AdGuard German filter",
         7: "AdGuard Japanese filter", 8: "AdGuard Dutch filter", 9: "AdGuard Spanish/Portuguese filter",
         10: "AdGuard Useful Ads filter", 11: "AdGuard Mobile Ads filter", 13: "AdGuard Turkish filter",
+        15: "AdGuard DNS filter",
         14: "AdGuard Annoyances filter", 16: "AdGuard French filter", 17: "AdGuard URL Tracking filter",
         18: "AdGuard Cookie Notices filter", 19: "AdGuard Popups filter", 20: "AdGuard Mobile App Banners filter",
         21: "AdGuard Other Annoyances filter", 22: "AdGuard Widgets filter", 101: "EasyList",
@@ -327,8 +352,15 @@ public struct AdImport: Identifiable, Equatable {
         if never > 0 { lines.append("\(Self.count(never, "site")) never blocked") }
         if always > 0 { lines.append("\(Self.count(always, "site")) always blocked") }
         if apps > 0 { lines.append("\(Self.count(apps, "app")) not filtered") }
-        if !lists.isEmpty {
-            lines.append("Switch on " + lists.sorted { $0.rawValue < $1.rawValue }.map(\.title).joined(separator: " and "))
+        let titles = lists.sorted { $0.rawValue < $1.rawValue }.map(\.title)
+            + downloadedLists.compactMap { ListCatalogue.source($0)?.title }
+        if !titles.isEmpty {
+            let last = titles.count > 1 ? " and " + titles[titles.count - 1] : ""
+            lines.append("Switch on " + titles.dropLast(titles.count > 1 ? 1 : 0).joined(separator: ", ") + last)
+        }
+        if !addedLists.isEmpty {
+            lines.append("Add \(Self.count(addedLists.count, "list")) by address: "
+                         + (AdsReport.listed(addedLists.compactMap(\.host), shown: 2) ?? ""))
         }
         if alreadyHere > 0 { lines.append("\(Self.count(alreadyHere, "rule")) already here") }
         return lines

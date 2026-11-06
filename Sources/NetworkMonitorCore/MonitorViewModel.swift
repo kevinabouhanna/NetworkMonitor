@@ -103,6 +103,8 @@ public final class MonitorViewModel: ObservableObject {
     /// The ad, tracker and malware lists (#176), and what they blocked today.
     public let blocklists = BlocklistUpdater()
     public let listBlocks = ListBlockCount()
+    /// Lists downloaded on this Mac (#254).
+    public let listLibrary = ListLibrary()
     /// Each decision the filter reported, for the Ads window's log (#252).
     public let adsLog = AdsLog()
     /// Updating NetworkMonitor itself (#132).
@@ -251,26 +253,33 @@ public final class MonitorViewModel: ObservableObject {
         // hotspots", and whether Hotspot mode pauses updates here (#98). The
         // values come from the publishers: they fire before the properties
         // change.
-        firewallPolicy = Publishers.CombineLatest4(Publishers.CombineLatest4(firewall.$rules, firewall.$lists,
-                                                                             firewall.$blocksEverything,
-                                                                             firewall.$listsPausedUntil),
-                                                   Publishers.CombineLatest4(firewall.$mode, $networkID,
-                                                                             firewall.$adRules,
-                                                                             firewall.$listsPausedNetworks),
-                                                   $isExpensiveNetwork, metering.$isEnabled)
-            .sink { [weak self] rulesAndLists, modeAndNetwork, onHotspot, pausing in
+        firewallPolicy = Publishers.CombineLatest(
+            Publishers.CombineLatest4(Publishers.CombineLatest4(firewall.$rules, firewall.$lists,
+                                                                firewall.$blocksEverything,
+                                                                firewall.$listsPausedUntil),
+                                      Publishers.CombineLatest4(firewall.$mode, $networkID,
+                                                                firewall.$adRules,
+                                                                firewall.$listsPausedNetworks),
+                                      $isExpensiveNetwork, metering.$isEnabled),
+            listLibrary.$ready)
+            .sink { [weak self] state, downloaded in
+                let (rulesAndLists, modeAndNetwork, onHotspot, pausing) = state
                 let (mode, network, adRules, pausedNetworks) = modeAndNetwork
+                // None while ad blocking is paused (#251), and on a network
+                // where it's off (#253).
+                let lists = FirewallRules.activeLists(rulesAndLists.1, pausedUntil: rulesAndLists.3,
+                                                      network: network, pausedNetworks: Set(pausedNetworks.keys))
                 self?.filter.apply(FirewallPolicy(mode: mode, rules: rulesAndLists.0, onHotspot: onHotspot,
-                                                  pausesUpdates: pausing && onHotspot,
-                                                  // None while ad blocking is paused (#251).
-                                                  // And on a network where it's off (#253).
-                                                  lists: FirewallRules.activeLists(
-                                                      rulesAndLists.1, pausedUntil: rulesAndLists.3,
-                                                      network: network, pausedNetworks: Set(pausedNetworks.keys)),
+                                                  pausesUpdates: pausing && onHotspot, lists: lists,
                                                   blocksEverything: rulesAndLists.2,
-                                                  network: network.isEmpty ? nil : network, adRules: adRules))
+                                                  network: network.isEmpty ? nil : network, adRules: adRules,
+                                                  // Only alongside a shipped list (#254).
+                                                  downloadedLists: lists.isEmpty ? [] : downloaded))
                 // Switched on with stale lists: fetch newer ones soon.
-                if !rulesAndLists.1.isEmpty { self?.blocklists.checkSoon() }
+                if !rulesAndLists.1.isEmpty {
+                    self?.blocklists.checkSoon()
+                    self?.listLibrary.checkIfDue()
+                }
             }
 
         // Never on a hotspot, a metered connection or in Low Data Mode, as the
@@ -297,6 +306,12 @@ public final class MonitorViewModel: ObservableObject {
             filter.applyBlocklists(at: newest.directory, version: newest.lists.version)
         }
         blocklists.start()
+        // Lists downloaded on the Mac (#254), on the same terms.
+        listLibrary.isWanted = blocklists.isWanted
+        listLibrary.mayDownload = geoData.mayDownload
+        listLibrary.onChange = { [weak self] file, version in self?.filter.applyDownloadedLists(at: file, version: version) }
+        if let bundle = listLibrary.currentBundle { filter.applyDownloadedLists(at: bundle, version: "kept") }
+        listLibrary.start()
         updates.isMetered = { [weak self] in self?.metering.verdict.isMetered ?? false }
         updates.start()
 
@@ -528,7 +543,8 @@ public final class MonitorViewModel: ObservableObject {
             guard !FlowReport.lookupPorts.contains(flow.port) else { return nil }
             let identity = identity(of: flow)
             let name = flow.serverName
-            let listed = name.flatMap { lists?.topics(listing: $0) }?.sorted().map(\.rawValue) ?? []
+            let listed = (name.flatMap { lists?.topics(listing: $0) }?.sorted().map(\.rawValue) ?? [])
+                + (name.map(self.listLibrary.listed) ?? [])
             return (flow.time, identity?.key, identity?.displayName ?? "Process \(flow.pid)", identity?.bundlePath,
                     FirewallPolicy.serverAddress(flow.address), flow.port, name, flow.blockedBy, listed)
         })

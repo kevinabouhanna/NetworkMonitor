@@ -17,6 +17,8 @@ struct AdsView: View {
                 AdsLogView(model: model)
             } else if model.tab == .rules {
                 AdsRulesView(model: model)
+            } else if model.tab == .lists {
+                AdsListsView(model: model)
             } else if !model.isOn {
                 off
             } else {
@@ -112,7 +114,7 @@ struct AdsView: View {
         }
     }
 
-    static let explanation = "Connections to sites on the lists you chose in Settings › Connections, stopped "
+    static let explanation = "Connections to sites on the lists you chose in the Lists tab, stopped "
         + "before they started, in every app. NetworkMonitor reads only each connection's site name, from the "
         + "app or from the opening of a secure connection, never what's sent. Ads served from a site's own "
         + "servers, like YouTube's, can't be told apart from the site by name."
@@ -420,6 +422,176 @@ private struct AdsLogRow: View {
         .padding(.vertical, 4)
         .contentShape(Rectangle())
         .help(entry.name.map { "\($0) · \(entry.address):\(entry.port)" } ?? "\(entry.address):\(entry.port)")
+    }
+}
+
+// MARK: - Lists (#254)
+
+/// Which lists block: the two that ship with the app, the catalogue's, and
+/// any added by address, each with what it blocked in the period.
+struct AdsListsView: View {
+    @ObservedObject var model: AdsViewModel
+    /// Not `@State`; see `SettingsPaneState`.
+    @StateObject private var info = RowInfoState()
+
+    var body: some View {
+        VStack(spacing: 0) {
+            form
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    group("Built in", note: "Updated weekly by NetworkMonitor, and signed.") {
+                        ForEach(BlocklistTopic.allCases.sorted { $0.rawValue < $1.rawValue }, id: \.self) { topic in
+                            shippedRow(topic)
+                        }
+                    }
+                    ForEach(model.listGroups, id: \.topic) { group in
+                        self.group(group.topic.title, note: note(for: group.topic)) {
+                            ForEach(group.lists) { list in row(list) }
+                        }
+                    }
+                }
+                .padding(20)
+            }
+            if !model.isOn {
+                Divider()
+                Text("Lists block only while ad blocking is on: switch on a built-in list.")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+            }
+        }
+    }
+
+    private var form: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                // Verbatim: a key would show the address as a link.
+                TextField(text: $model.newListURL) { Text(verbatim: "A list's address, like https://example.com/hosts.txt") }
+                    .textFieldStyle(.roundedBorder)
+                    .frame(minWidth: 300)
+                    .onSubmit { model.addList() }
+                Button("Add List") { model.addList() }
+                RowInfoButton(help: Self.explanation, state: info) { Text(Self.explanation) }
+                Spacer(minLength: 0)
+            }
+            if let error = model.listError {
+                Text(error).font(.system(size: 11)).foregroundStyle(.red)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+        .onHover { info.isHovering = $0 }
+        .onChange(of: model.newListURL) { _ in model.clearListError() }
+    }
+
+    static let explanation = "A list names sites to block, and covers every name under each: listing "
+        + "example.com blocks ads.example.com. NetworkMonitor downloads each list you switch on from its "
+        + "makers, weekly, never on a hotspot or a metered connection, and keeps the last good copy. It reads "
+        + "hosts files, plain lists of names, and Adblock rules about whole sites (||example.com^, with @@ "
+        + "exceptions). Rules about parts of pages are for the Chrome extension. More lists catch more, and "
+        + "now and then a site that needs one of its names: the counts show which list blocked what."
+
+    private func note(for topic: ListTopic) -> String {
+        switch topic {
+        case .ads:          return "Pick one or two: more lists catch more, and break more."
+        case .trackers:     return "Sites that follow you from page to page."
+        case .annoyances:   return "Cookie notices and other parts of pages are for the Chrome extension."
+        case .malware:      return "On top of the built-in malware list."
+        case .encryptedDNS: return "Can stop Private Relay and browsers' own secure DNS."
+        case .added:        return "Downloaded from the address you gave."
+        }
+    }
+
+    @ViewBuilder private func group<Content: View>(_ title: String, note: String,
+                                                   @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                Text(note).font(.system(size: 11)).foregroundStyle(.tertiary)
+            }
+            .padding(.bottom, 2)
+            content()
+        }
+    }
+
+    private func shippedRow(_ topic: BlocklistTopic) -> some View {
+        HStack(spacing: 10) {
+            Toggle("", isOn: Binding(get: { model.isShippedOn(topic) }, set: { model.setShipped(topic, $0) }))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(topic.title)
+                    ListTag(topic: topic)
+                }
+                Text("\(topic.source), \(model.shippedDetail(topic))")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            blocked(model.blocked(byList: topic.rawValue))
+        }
+        .font(.system(size: 13))
+        .padding(.vertical, 3)
+        .help("\(topic.source), \(topic.licence) licence")
+    }
+
+    private func row(_ list: ListSource) -> some View {
+        let detail = model.listDetail(list.id)
+        return HStack(spacing: 10) {
+            Toggle("", isOn: Binding(get: { model.library.isEnabled(list.id) }, set: { model.setList(list.id, $0) }))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(list.title).lineLimit(1).truncationMode(.middle)
+                Text(list.isAdded ? list.url.absoluteString : list.about)
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .lineLimit(2).truncationMode(.middle)
+                if !detail.text.isEmpty {
+                    Text(detail.text)
+                        .font(.system(size: 11))
+                        .foregroundStyle(detail.isProblem ? Color.orange : Color.secondary)
+                        .lineLimit(2)
+                }
+            }
+            Spacer(minLength: 8)
+            if model.library.isEnabled(list.id) { blocked(model.blocked(byList: list.id)) }
+            if list.isAdded {
+                Button {
+                    model.library.remove(list.id)
+                } label: {
+                    Image(systemName: "minus.circle")
+                }
+                .buttonStyle(.borderless)
+                .help("Remove this list")
+            }
+        }
+        .font(.system(size: 13))
+        .padding(.vertical, 3)
+        .contentShape(Rectangle())
+        .help("\(list.source), \(list.licence == "Its own terms" ? "on its own terms" : list.licence + " licence")")
+        .contextMenu {
+            if model.library.isEnabled(list.id) {
+                Button("Update Now") { model.library.download(list.id) }
+            }
+            Button("Copy Address") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(list.url.absoluteString, forType: .string)
+            }
+            if list.isAdded {
+                Divider()
+                Button("Remove") { model.library.remove(list.id) }
+            }
+        }
+    }
+
+    private func blocked(_ count: Int64) -> some View {
+        Text(count > 0 ? "\(count.formatted()) blocked" : "")
+            .font(.system(size: 12)).monospacedDigit().foregroundStyle(.secondary)
     }
 }
 

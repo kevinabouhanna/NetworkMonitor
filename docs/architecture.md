@@ -476,6 +476,18 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    `Resources/Blocklists`. `ListBlockCount` counts what the lists blocked today from the
    filter's reports.
 
+   **Downloaded lists** (#254). `ListLibrary` keeps the lists the app downloads on the Mac
+   from their makers: `ListCatalogue`'s and any added by `https://` address
+   (`ListSource.id(forURL:)` names one `url-…`). `BlocklistParser.read` turns a hosts file, a
+   list of names or site-wide Adblock rules into names and exceptions; a `DownloadedList`
+   holds both as `BlocklistTable`s, and the most specific name decides, so `@@||cdn.site^`
+   carves out of `||site^`. Each is kept in `Application Support/NetworkMonitor/Lists`, and
+   those switched on are written to one `Enabled.nmdl` file (`DownloadedList.encode`) that
+   `FilterController.applyDownloadedLists` hands the filter as one open file; the filter keeps
+   it in its container. `FirewallPolicy.downloadedLists` names those in use, only while a
+   built-in list is, and `decide` blocks with `.downloadedList(id)` after the built-in ones,
+   reported as `list:<id>`.
+
 10. **Updating itself** (#132). Sparkle 2.10.0, an exact SwiftPM dependency, linked by
    `NetworkMonitorCore` and carried in `Contents/Frameworks` by every build (`bundle.sh`
    re-signs it inside out, without its XPC services, which only sandboxed apps need).

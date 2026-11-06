@@ -172,4 +172,8 @@ public enum FlowAnswer: String, Codable {
     /// The ad, tracker and malware lists (#176), as open files, and the date
     /// they were built: the filter keeps its own copy, used from then on.
     func applyBlocklists(_ ads: FileHandle, _ malware: FileHandle, _ version: String)
+    /// The lists downloaded on the Mac that are switched on (#254), as one
+    /// open file in `DownloadedList`'s format: the filter keeps its own copy,
+    /// and uses it in place of the last.
+    func applyDownloadedLists(_ lists: FileHandle, _ version: String)
 }

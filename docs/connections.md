@@ -218,7 +218,38 @@ remove a rule you made. **Pause**
 holds the list still, **Clear** empties it, and **Export…** saves what's shown as text. It
 keeps the last 5,000 in memory only; lookups aren't listed.
 
-**Rules** (#253), the third tab: your own say over what the lists do.
+**Lists** (#254), the third tab: which lists block, and what each blocked in the period.
+
+- **Built in:** the two above, switched on and off here as in Settings.
+- **More lists**, downloaded on the Mac from where their makers publish them, by topic:
+
+  | Topic | Lists |
+  |---|---|
+  | More ad and tracker lists | HaGeZi Light, Normal and Pro; OISD Small and Big; AdGuard DNS filter; Peter Lowe's list |
+  | Trackers | EasyPrivacy, as Firebog extracts it |
+  | Pop-ups | HaGeZi Pop-up Ads |
+  | Malware and phishing | HaGeZi Threat Intelligence |
+  | Encrypted DNS | HaGeZi Encrypted DNS (also stops Private Relay and browsers' own secure DNS) |
+
+  Hover a list for who keeps it and its licence. They're downloaded rather than shipped, so
+  the GPL ones are fine to offer; the signed `blocklists` release keeps only lists we may
+  republish.
+- **Add List** takes any list's `https://` address: a hosts file, a plain list of names, or
+  Adblock rules about whole sites (`||site^`, with `$important`; `@@||site^` and `$badfilter`
+  are exceptions). Rules about parts of pages are skipped; a list with nothing else is refused.
+  It's named from its `Title:` line, or its site.
+- **Each switched-on list is downloaded weekly** while ad blocking is on, never on a hotspot,
+  a metered connection or in Low Data Mode, and the last good copy is kept. A row says how
+  many sites it has and when it was updated, or why it isn't there. Right-click for **Update
+  Now**, **Copy Address**, or **Remove** for one you added.
+- **They block only alongside a built-in list**, after it: a site on StevenBlack's list counts
+  as *Ads and trackers*. The Overview and the Log name the list that blocked each connection,
+  so one that blocks too much can be found and switched off.
+- **Import…** on the Rules tab switches on the lists a uBlock Origin backup or AdGuard's
+  settings had that are here (Peter Lowe's, EasyPrivacy, AdGuard DNS filter), and adds the
+  ones they had by address.
+
+**Rules** (#253), the fourth tab: your own say over what the lists do.
 
 - **Never block** a site, and every name under it: it goes through though a list has it.
 - **Always block** a site that no list has.
@@ -237,8 +268,9 @@ keeps the last 5,000 in memory only; lookups aren't listed.
   - Trusted sites and the allowlist become *never block*. There they mean "block nothing on this
     site's pages"; here, connections to the site itself go through, since the filter can't tell
     which page asked.
-  - The lists it had on switch on the ones NetworkMonitor has (ads and trackers, malware); the
-    rest are named as not offered yet.
+  - The lists it had on switch on the ones NetworkMonitor has (ads and trackers, malware, and
+    those on the Lists tab), lists it had added by address are added the same way (#254), and
+    the rest are named as not offered yet.
   - Rules that hide parts of a page (`##`, scriptlets) are counted as waiting for the browser
     extension (#257); rules about part of a site (a path, `$third-party`, `$domain=`) as waiting
     for Enhanced ad blocking (#256); anything else is listed with why it can't be used.

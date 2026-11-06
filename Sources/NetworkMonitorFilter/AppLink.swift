@@ -79,6 +79,10 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
         Firewall.shared.applyBlocklists([.ads: ads, .malware: malware], version: version)
     }
 
+    func applyDownloadedLists(_ lists: FileHandle, _ version: String) {
+        Firewall.shared.applyDownloadedLists(lists, version: version)
+    }
+
     func answer(_ id: String, _ answer: String) {
         Firewall.shared.answer(id, FlowAnswer(rawValue: answer) ?? .allowOnce)
     }

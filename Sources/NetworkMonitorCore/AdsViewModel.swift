@@ -93,7 +93,7 @@ public struct AdsReport: Equatable {
     /// A list's name as people read it.
     public static func title(ofList id: String) -> String {
         if id == BlockReason.ownList { return "Your Rules" }
-        return BlocklistTopic(rawValue: id)?.title ?? id
+        return BlocklistTopic(rawValue: id)?.title ?? ListLibrary.title(of: id) ?? id
     }
 }
 
@@ -108,18 +108,23 @@ public final class AdsViewModel: ObservableObject {
         public var id: Date { interval.start }
     }
 
-    /// Overview, the log (#252) or your rules (#253), from the window's toolbar.
+    /// Overview, the log (#252), the lists (#254) or your rules (#253), from
+    /// the window's toolbar.
     public enum Tab: String, CaseIterable, Identifiable {
-        case overview, log, rules
+        case overview, log, lists, rules
 
         public var id: String { rawValue }
         public var label: String {
             switch self {
             case .overview: return "Overview"
             case .log:      return "Log"
+            case .lists:    return "Lists"
             case .rules:    return "Rules"
             }
         }
+
+        /// Whether the toolbar's period applies.
+        public var hasPeriod: Bool { self == .overview || self == .lists }
     }
 
     /// An app a rule can be for: its key and its name.
@@ -155,6 +160,7 @@ public final class AdsViewModel: ObservableObject {
     private var refreshTimer: Timer?
     private var icons: [String: NSImage] = [:]
     private var changes: AnyCancellable?
+    private var libraryChanges: AnyCancellable?
     private var logChanges: AnyCancellable?
 
     public init(monitor: MonitorViewModel, calendar: Calendar = .current) {
@@ -163,6 +169,9 @@ public final class AdsViewModel: ObservableObject {
         period = HistoryPeriod(scale: .day, containing: Date(), calendar: calendar)
         // The switch, the lists and pausing show at once.
         changes = monitor.firewall.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.objectWillChange.send() }
+        }
+        libraryChanges = monitor.listLibrary.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { self?.objectWillChange.send() }
         }
         // At most twice a second, and only while the log is what's shown.
@@ -325,6 +334,8 @@ public final class AdsViewModel: ObservableObject {
     public func applyImport() {
         guard let preview = importPreview else { return }
         firewall.add(preview.rules)
+        for id in preview.downloadedLists { library.setEnabled(id, true) }
+        for url in preview.addedLists { library.add(url.absoluteString) }
         if !preview.lists.isSubset(of: firewall.lists) {
             firewall.lists.formUnion(preview.lists)
             switch monitor.filter.state {
@@ -379,6 +390,89 @@ public final class AdsViewModel: ObservableObject {
         }
         return seen.map { RuleApp(key: $0.key, name: $0.value) }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    // MARK: Lists (#254)
+
+    /// The Lists tab's form: a list's address.
+    @Published public var newListURL = ""
+    @Published public private(set) var listError: String?
+
+    public var library: ListLibrary { monitor.listLibrary }
+
+    /// The catalogue's lists and the added ones, by topic, in the topics' order.
+    public var listGroups: [(topic: ListTopic, lists: [ListSource])] {
+        let all = library.all
+        return ListTopic.allCases.compactMap { topic in
+            let lists = all.filter { $0.topic == topic }
+            return lists.isEmpty ? nil : (topic, lists)
+        }
+    }
+
+    /// What a list blocked in the period.
+    public func blocked(byList id: String) -> Int64 {
+        report.lists.first { $0.list == id }?.count ?? 0
+    }
+
+    public func isShippedOn(_ topic: BlocklistTopic) -> Bool { firewall.lists.contains(topic) }
+
+    public func setShipped(_ topic: BlocklistTopic, _ on: Bool) {
+        if on {
+            firewall.lists.insert(topic)
+            switch monitor.filter.state {
+            case .off, .failed: monitor.filter.turnOn()
+            default: break
+            }
+        } else {
+            firewall.lists.remove(topic)
+        }
+    }
+
+    /// A shipped list's size and date, as "85,312 sites, from 31 Oct".
+    public func shippedDetail(_ topic: BlocklistTopic) -> String {
+        let lists = monitor.blocklists.lists
+        let count = lists?.tables[topic]?.count ?? 0
+        let date = BlocklistUpdater.displayDate(lists?.version).map { ", from \($0)" } ?? ""
+        return "\(count.formatted()) sites\(date)"
+    }
+
+    public func setList(_ id: String, _ on: Bool) {
+        library.setEnabled(id, on)
+    }
+
+    /// From the form: false, with a reason shown, when it isn't one.
+    @discardableResult
+    public func addList() -> Bool {
+        switch library.add(newListURL) {
+        case .success:
+            newListURL = ""
+            listError = nil
+            return true
+        case .failure(.notAnAddress):
+            listError = newListURL.trimmingCharacters(in: .whitespaces).isEmpty
+                ? "Paste a list's address first, starting https://."
+                : "That isn't a list's address. It needs to start https://."
+        case .failure(.alreadyThere(let title)):
+            listError = "That list is here already, as \(title)."
+        }
+        return false
+    }
+
+    public func clearListError() {
+        if listError != nil { listError = nil }
+    }
+
+    /// "219,320 sites, updated 6 Nov", what's under way, or why it isn't there.
+    public func listDetail(_ id: String) -> (text: String, isProblem: Bool) {
+        if library.downloading.contains(id) { return ("Downloading…", false) }
+        let status = library.status[id]
+        if let updated = status?.updated, let names = status?.names {
+            let date = updated.formatted(.dateTime.day().month(.abbreviated))
+            if let error = status?.error { return ("\(names.formatted()) sites, from \(date). \(error)", true) }
+            return ("\(names.formatted()) sites, updated \(date)", false)
+        }
+        if let error = status?.error { return (error, true) }
+        return library.isEnabled(id) ? ("Not downloaded yet", false) : ("", false)
     }
 
     public var firewall: FirewallRules { monitor.firewall }

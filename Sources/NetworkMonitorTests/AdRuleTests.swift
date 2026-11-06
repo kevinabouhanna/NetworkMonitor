@@ -205,7 +205,14 @@ func runAdRuleTests() {
                                              AdRule(kind: .alwaysBlock, site: "taboola.com")])
             Check.expectTrue(result.hasTrustedSites)
             Check.expectEqual(result.lists, [.ads, .malware])
-            Check.expectEqual(result.listsNotHere, ["https://example.org/my-list.txt", "DEU-0"])
+            Check.expectEqual(result.listsNotHere, ["DEU-0"])
+            // #254: the lists both offer are switched on, and one added by
+            // address is added the same way.
+            Check.expectEqual(result.downloadedLists, ["easylist-privacy"])
+            Check.expectEqual(result.addedLists, [URL(string: "https://example.org/my-list.txt")!])
+            Check.expectTrue(result.summary.contains("Switch on Ads and trackers, Malware and phishing and EasyPrivacy"),
+                             "\(result.summary)")
+            Check.expectTrue(result.summary.contains("Add 1 list by address: example.org"), "\(result.summary)")
             Check.expectEqual(result.forExtension, ["example.com##.ad"])
             Check.expectEqual(result.skipped.map(\.line), ["/regex/"])
         }
@@ -214,7 +221,7 @@ func runAdRuleTests() {
             let settings: [String: Any] = [
                 "protocol-version": "2.0",
                 "filters": [
-                    "enabled-filters": [2, 3, 224],
+                    "enabled-filters": [2, 3, 15, 224],
                     "custom-filters": [["customUrl": "https://example.org/list.txt", "title": "My list",
                                         "enabled": true]],
                     "user-filter": ["rules": "||outbrain.com^\n||disabled.example^", "enabled": true,
@@ -228,7 +235,9 @@ func runAdRuleTests() {
             Check.expectEqual(result.rules, [AdRule(kind: .neverBlock, site: "shop.example.com"),
                                              AdRule(kind: .alwaysBlock, site: "outbrain.com")])
             Check.expectEqual(result.lists, [.ads])
-            Check.expectEqual(result.listsNotHere, ["AdGuard Chinese filter", "My list"])
+            Check.expectEqual(result.listsNotHere, ["AdGuard Chinese filter"])
+            Check.expectEqual(result.downloadedLists, ["adguard-dns"])
+            Check.expectEqual(result.addedLists, [URL(string: "https://example.org/list.txt")!])
         }
 
         Check.test("exported rules read back the same") {
