@@ -266,6 +266,27 @@ public struct ServerUsage: Equatable {
     }
 }
 
+/// What the ad, tracker and malware lists blocked (#250): one app's
+/// connections to one site, stopped by one list, over a span.
+public struct ListBlock: Equatable {
+    public let appKey: String
+    public let appName: String
+    /// The connection's name, such as `pagead2.googlesyndication.com`.
+    public let name: String
+    /// The list, by its id: a `BlocklistTopic`'s raw value for the built-in
+    /// ones, such as `ads`.
+    public let list: String
+    public let count: Int64
+
+    public init(appKey: String, appName: String, name: String, list: String, count: Int64) {
+        self.appKey = appKey
+        self.appName = appName
+        self.name = name
+        self.list = list
+        self.count = count
+    }
+}
+
 public final class UsageHistory {
 
     /// A silence this long, typically a sleep, makes the next traffic a new
@@ -381,6 +402,18 @@ public final class UsageHistory {
 
     /// Connections the content filter blocked (#114), one entry each, by the
     /// app they were for. Counted per hour beside the servers' bytes.
+    /// Connections a list blocked (#250), by app, name and list. Kept apart
+    /// from the servers' rows, which have no list, for the Ads window.
+    public func recordListBlocks(_ blocks: [(identity: AppIdentity, name: String, list: String)], now: Date = Date()) {
+        guard !blocks.isEmpty, let slot = slot(at: now) else { return }
+        var counts = pending.listBlocks[slot, default: [:]]
+        for block in blocks {
+            counts[ListBlockKey(appKey: block.identity.key, name: block.name, list: block.list), default: 0] += 1
+            pending.identities[block.identity.key] = block.identity
+        }
+        pending.listBlocks[slot] = counts
+    }
+
     public func recordBlocked(_ attempts: [(identity: AppIdentity, address: String)], now: Date = Date()) {
         guard !attempts.isEmpty, let slot = slot(at: now) else { return }
         var blocked = pending.blocked[slot, default: [:]]
@@ -625,6 +658,19 @@ public final class UsageHistory {
                     }
                 }
 
+                let listBlocks = try database.prepare("""
+                    INSERT INTO list_blocks (hour, session_id, app_key, name, list, count)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                    ON CONFLICT(hour, session_id, app_key, name, list) DO UPDATE SET
+                        count = count + excluded.count
+                    """)
+                for (slot, blocks) in batch.listBlocks {
+                    for (key, count) in blocks {
+                        try listBlocks.run([.int(slot.hour), .int(slot.session), .text(key.appKey),
+                                            .text(key.name), .text(key.list), .int(count)])
+                    }
+                }
+
                 // After the sessions, so a visit opened since the last flush
                 // is there to be found. The visit and the time are the first
                 // seen; later scans only bring the figures up to date.
@@ -755,11 +801,13 @@ public final class UsageHistory {
                     try database.prepare("DELETE FROM app_traffic WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM server_traffic WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM server_names WHERE hour < ?1").run([.int(hour)])
+                    try database.prepare("DELETE FROM list_blocks WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM sessions WHERE ended_at < ?1 AND id != ?2")
                         .run([.real(cutoff.timeIntervalSince1970), .int(keep)])
                     try database.execute("DELETE FROM updates WHERE session_id NOT IN (SELECT id FROM sessions)")
                     try database.execute("""
                         DELETE FROM apps WHERE key NOT IN (SELECT DISTINCT app_key FROM app_traffic)
+                          AND key NOT IN (SELECT DISTINCT app_key FROM list_blocks)
                         """)
                     try database.execute("""
                         DELETE FROM app_servers
@@ -793,7 +841,7 @@ public final class UsageHistory {
         queue.sync {
             do {
                 try database.transaction {
-                    for table in ["server_names", "server_traffic", "app_servers", "servers",
+                    for table in ["list_blocks", "server_names", "server_traffic", "app_servers", "servers",
                                   "app_traffic", "traffic", "updates", "sessions", "apps"] {
                         try database.execute("DELETE FROM \(table)")
                     }
@@ -847,6 +895,42 @@ public final class UsageHistory {
         guard let database else { return [] }
         flush()
         return queue.sync { Self.queryServers(database, from: start, to: end, filter: filter, measure: measure) }
+    }
+
+    /// What the lists blocked in a span (#250), by app, name and list, most
+    /// first. Synchronous, after writing what's pending.
+    public func listBlocks(from start: Date, to end: Date) -> [ListBlock] {
+        guard let database else { return [] }
+        flush()
+        return queue.sync {
+            do {
+                let query = try database.prepare("""
+                    SELECT b.app_key, p.name, b.name, b.list, SUM(b.count)
+                    FROM list_blocks b
+                    LEFT JOIN apps p ON p.key = b.app_key
+                    WHERE b.hour >= ?1 AND b.hour < ?2
+                    GROUP BY b.app_key, b.name, b.list
+                    ORDER BY SUM(b.count) DESC, b.name
+                    """)
+                query.bind([.int(Int64(start.timeIntervalSince1970)), .int(Int64(end.timeIntervalSince1970))])
+                var rows: [ListBlock] = []
+                while try query.step() {
+                    let key = query.string(0) ?? ""
+                    rows.append(ListBlock(appKey: key, appName: query.string(1) ?? (key as NSString).lastPathComponent,
+                                          name: query.string(2) ?? "", list: query.string(3) ?? "",
+                                          count: query.int64(4)))
+                }
+                return rows
+            } catch {
+                NSLog("NetworkMonitor: reading list blocks failed: \(error)")
+                return []
+            }
+        }
+    }
+
+    /// How many connections the lists blocked in a span (#250).
+    public func listBlockCount(from start: Date, to end: Date) -> Int64 {
+        listBlocks(from: start, to: end).reduce(0) { $0 + $1.count }
     }
 
     /// Bytes to and from servers, hour by hour, for the Connections window's
@@ -1458,6 +1542,17 @@ public final class UsageHistory {
                 PRIMARY KEY (hour, session_id, app_server_id, name)
             ) WITHOUT ROWID;
             CREATE INDEX IF NOT EXISTS server_names_by_server ON server_names (app_server_id);
+            -- What the ad, tracker and malware lists blocked (#250): per hour,
+            -- session, app, the connection's name and the list.
+            CREATE TABLE IF NOT EXISTS list_blocks (
+                hour INTEGER NOT NULL,
+                session_id INTEGER NOT NULL,
+                app_key TEXT NOT NULL,
+                name TEXT NOT NULL,
+                list TEXT NOT NULL,
+                count INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (hour, session_id, app_key, name, list)
+            ) WITHOUT ROWID;
             -- Updates that got through on a metered connection (#96), once per
             -- report: the watch's list for one connection, which can span
             -- several sessions. Kept with the session it was first seen on.
@@ -1565,6 +1660,12 @@ public final class UsageHistory {
         let name: String
     }
 
+    private struct ListBlockKey: Hashable {
+        let appKey: String
+        let name: String
+        let list: String
+    }
+
     private struct NameCounts {
         var allowed: Int64 = 0
         var blocked: Int64 = 0
@@ -1578,12 +1679,14 @@ public final class UsageHistory {
         var blocked: [Slot: [ServerKey: Int64]] = [:]
         /// Names from the content filter, by app and address (#247).
         var names: [Slot: [NameKey: NameCounts]] = [:]
+        /// What the lists blocked (#250).
+        var listBlocks: [Slot: [ListBlockKey: Int64]] = [:]
         var identities: [String: AppIdentity] = [:]
         var sessions: [Int64: SessionRow] = [:]
         var updates: [String: UpdateRow] = [:]
 
         var isEmpty: Bool {
-            traffic.isEmpty && apps.isEmpty && servers.isEmpty && blocked.isEmpty && names.isEmpty
+            traffic.isEmpty && apps.isEmpty && servers.isEmpty && blocked.isEmpty && names.isEmpty && listBlocks.isEmpty
                 && identities.isEmpty && sessions.isEmpty && updates.isEmpty
         }
     }

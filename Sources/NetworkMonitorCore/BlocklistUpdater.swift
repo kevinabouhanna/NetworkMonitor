@@ -237,6 +237,15 @@ public final class ListBlockCount: ObservableObject {
         today = sameDay == true ? defaults.integer(forKey: Self.countKey) : 0
     }
 
+    /// Today's count as History recorded it (#250), so it holds after a
+    /// relaunch, even one that lost the last few seconds' reports.
+    public func seed(_ recorded: Int, now: Date = Date()) {
+        add(0, now: now)
+        guard recorded > today else { return }
+        today = recorded
+        defaults.set(today, forKey: Self.countKey)
+    }
+
     public func add(_ count: Int, now: Date = Date()) {
         let day = defaults.object(forKey: Self.dayKey) as? Date
         if day.map({ !calendar.isDate($0, inSameDayAs: now) }) ?? true {
