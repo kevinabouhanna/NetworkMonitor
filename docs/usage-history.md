@@ -133,9 +133,10 @@ roughly a hundred thousand rows. The servers each app talked to, for
 | `apps` | app key, name, bundle path, whether it's System, parent app | `key` |
 | `traffic` | per hour and session: interface bytes, LAN bytes, attributed app bytes, each way | `(hour, session_id)` |
 | `app_traffic` | per hour, session and app: bytes in and out | `(hour, session_id, app_key)` |
-| `servers` | a server's address, and the name an app last reached it by (#128) | `id` |
+| `servers` | a server's address; its `name` column is only read for rows from before #247 | `id` |
 | `app_servers` | each app and server pair, once, with when it was first seen (#111) | `id` |
 | `server_traffic` | per hour, session and app and server: bytes in and out, and connections blocked (#114) | `(hour, session_id, app_server_id)` |
+| `server_names` | per hour, session and app and server: each name the app reached it by, and how many of those connections went through or were blocked (#247) | `(hour, session_id, app_server_id, name)` |
 | `updates` | each update that got through: the app, its version, the data it used, and the session it was first seen on (#96) | `(report, source, name)` |
 
 The raw figures are stored and the internet figure is derived when reading, with the

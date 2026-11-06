@@ -3,6 +3,7 @@ import Foundation
 import NetworkExtension
 import NetworkMonitorCore
 import ServerDirectory
+import SQLite3
 import SystemExtensions
 
 func runFilterTests() {
@@ -96,29 +97,110 @@ func runFilterTests() {
 
     Check.suite("Content filter — names in Usage History") {
 
-        Check.test("a name the filter saw is stored with its server and read back") {
+        let calendar: Calendar = {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "UTC")!
+            return calendar
+        }()
+        let now = Date(timeIntervalSince1970: 1_792_573_800)
+        let day = HistoryPeriod(scale: .day, containing: now, calendar: calendar)
+        func app(_ key: String) -> AppIdentity {
+            AppIdentity(key: key, displayName: key, bundlePath: nil, isSystem: false)
+        }
+        func seen(_ key: String, _ address: String, _ name: String, blocked: Bool = false) -> UsageHistory.NameSighting {
+            UsageHistory.NameSighting(identity: app(key), address: address, name: name, blocked: blocked)
+        }
+        func withHistory(_ body: (UsageHistory, URL) -> Void) {
             let url = URL(fileURLWithPath: NSTemporaryDirectory())
                 .appendingPathComponent("filter-names-\(UUID().uuidString).sqlite")
             defer { for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: url.path + suffix) } }
-            var calendar = Calendar(identifier: .gregorian)
-            calendar.timeZone = TimeZone(identifier: "UTC")!
-            let now = Date(timeIntervalSince1970: 1_792_573_800)
             let history = UsageHistory(databaseURL: url, calendar: calendar)
             history.join(NetworkFingerprint(id: "A", kind: .wifi, gatewayMAC: "A", defaultLabel: "A",
                                             isExpensive: false, isConstrained: false),
                          label: "A", switched: false, now: now)
-            let slack = AppIdentity(key: "Slack", displayName: "Slack", bundlePath: nil, isSystem: false)
-            history.noteServerNames([("3.65.102.105", "wss-primary.slack.com")])
-            history.recordApps([(slack, 10, 0)],
-                               servers: ["Slack": ["3.65.102.105": ByteCounts(bytesIn: 10, bytesOut: 0)]], now: now)
-            let day = HistoryPeriod(scale: .day, containing: now, calendar: calendar)
-            Check.expectEqual(history.servers(in: day).first?.name, "wss-primary.slack.com")
+            body(history, url)
+        }
+        func bytes(_ history: UsageHistory, _ key: String, _ address: String, _ count: Int64 = 10) {
+            history.recordApps([(app(key), count, 0)],
+                               servers: [key: [address: ByteCounts(bytesIn: count, bytesOut: 0)]], now: now)
+        }
 
-            // A later name for the same address wins; reopening keeps it.
-            history.noteServerNames([("3.65.102.105", "app.slack.com")])
-            history.flush(now: now)
-            let reopened = UsageHistory(databaseURL: url, calendar: calendar)
-            Check.expectEqual(reopened.servers(in: day).first?.name, "app.slack.com")
+        Check.test("a name the filter saw is stored with its app and server, and read back") {
+            withHistory { history, url in
+                history.recordServerNames([seen("Slack", "3.65.102.105", "wss-primary.slack.com")], now: now)
+                bytes(history, "Slack", "3.65.102.105")
+                Check.expectEqual(history.servers(in: day).first?.name, "wss-primary.slack.com")
+
+                history.flush(now: now)
+                let reopened = UsageHistory(databaseURL: url, calendar: calendar)
+                Check.expectEqual(reopened.servers(in: day).first?.name, "wss-primary.slack.com")
+            }
+        }
+
+        // #247: a CDN address showed an updater's 23 MB under an ad SDK's name,
+        // because another app had last reached it by that name.
+        Check.test("two apps reaching one address by different names each keep their own") {
+            withHistory { history, _ in
+                history.recordServerNames([seen("Chrome", "18.66.1.1", "sdk-api-v1.singular.net", blocked: true),
+                                           seen("Updater", "18.66.1.1", "download.example.com")], now: now)
+                bytes(history, "Updater", "18.66.1.1", 23_000_000)
+                bytes(history, "Teams", "18.66.1.1")
+                let rows = Dictionary(uniqueKeysWithValues: history.servers(in: day).map { ($0.appKey, $0) })
+                Check.expectEqual(rows["Updater"]?.name, "download.example.com")
+                Check.expectNil(rows["Teams"]?.name, "Teams named nothing there, so it shows the address")
+            }
+        }
+
+        Check.test("a name that was only blocked never labels traffic, and Blocked shows it") {
+            withHistory { history, _ in
+                history.recordServerNames([seen("Chrome", "142.250.74.66", "www.google.com"),
+                                           seen("Chrome", "142.250.74.66", "pagead2.googlesyndication.com",
+                                                blocked: true)], now: now)
+                history.recordBlocked([(app("Chrome"), "142.250.74.66")], now: now)
+                bytes(history, "Chrome", "142.250.74.66")
+                let traffic = history.servers(in: day).first
+                Check.expectEqual(traffic?.name, "www.google.com")
+                Check.expectEqual(traffic?.otherNames, [])
+                let blocked = history.servers(from: day.start, to: day.end, measure: .blocked).first
+                Check.expectEqual(blocked?.name, "pagead2.googlesyndication.com")
+            }
+        }
+
+        Check.test("several names: the busiest is the title, the rest are listed and searchable") {
+            withHistory { history, _ in
+                history.recordServerNames([seen("Chrome", "142.250.74.66", "fonts.gstatic.com"),
+                                           seen("Chrome", "142.250.74.66", "www.google.com"),
+                                           seen("Chrome", "142.250.74.66", "www.google.com"),
+                                           seen("Chrome", "142.250.74.66", "apis.google.com")], now: now)
+                bytes(history, "Chrome", "142.250.74.66")
+                let row = history.servers(in: day).first
+                Check.expectEqual(row?.name, "www.google.com")
+                Check.expectEqual(row?.otherNames, ["apis.google.com", "fonts.gstatic.com"])
+
+                guard let row else { return }
+                let groups = ConnectionsReport.groups([Connection(usage: row, country: nil, owner: nil)], by: .apps)
+                let server = groups.first?.sections.first { $0.dimension == .server }?.items.first
+                Check.expectTrue(server?.subtitle?.hasPrefix("Also apis.google.com and 1 more") ?? false,
+                                 server?.subtitle ?? "no subtitle")
+                Check.expectEqual(ConnectionsReport.groups([Connection(usage: row, country: nil, owner: nil)],
+                                                           by: .apps, search: "gstatic").count, 1)
+            }
+        }
+
+        Check.test("a row from before names were kept per app keeps its old name") {
+            withHistory { history, url in
+                bytes(history, "Slack", "3.65.102.105")
+                history.flush(now: now)
+                var database: OpaquePointer?
+                sqlite3_open(url.path, &database)
+                sqlite3_exec(database, "UPDATE servers SET name = 'app.slack.com'", nil, nil, nil)
+                sqlite3_close(database)
+                Check.expectEqual(history.servers(in: day).first?.name, "app.slack.com")
+
+                // Once the app has a name of its own there, the old one is gone.
+                history.recordServerNames([seen("Slack", "3.65.102.105", "wss-primary.slack.com")], now: now)
+                Check.expectEqual(history.servers(in: day).first?.name, "wss-primary.slack.com")
+            }
         }
     }
 }

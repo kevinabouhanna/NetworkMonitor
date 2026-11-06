@@ -226,11 +226,18 @@ public enum ConnectionsReport {
             }
             let place = connection.country.map { countryName($0, locale: locale) }
             let owner = connection.owner.map { "\($0.registeredName) · AS\($0.asn)" }
-            // By name when the filter saw one, with the address underneath.
+            // By name when the filter saw one, with the address underneath,
+            // and any other names the app used for it (#247).
             let address = connection.usage.name == nil ? nil : connection.usage.address
+            let others = connection.usage.otherNames
+            let also: String? = switch others.count {
+            case 0: nil
+            case 1: "Also \(others[0])"
+            default: "Also \(others[0]) and \(others.count - 1) more"
+            }
             return ConnectionsItem(dimension: dimension, key: key,
                                    title: connection.usage.name ?? connection.usage.address,
-                                   subtitle: [address, owner, place].compactMap { $0 }.joined(separator: " · "),
+                                   subtitle: [also, address, owner, place].compactMap { $0 }.joined(separator: " · "),
                                    isHost: false, symbol: nil, bundlePath: nil)
         }
     }
@@ -349,6 +356,7 @@ public enum ConnectionsReport {
     static func matches(_ connection: Connection, _ query: String, locale: Locale) -> Bool {
         var fields = [connection.usage.appName, connection.usage.address]
         if let name = connection.usage.name { fields.append(name) }
+        fields += connection.usage.otherNames
         if let company = connection.company { fields.append(company.name) }
         if let parent = connection.usage.parentName { fields.append(parent) }
         if let owner = connection.owner {

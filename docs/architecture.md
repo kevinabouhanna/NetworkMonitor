@@ -435,6 +435,12 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    `server_traffic.blocked`, beside the bytes, so Connections shows it through the same
    queries (`ServerMeasure`).
 
+   **Names** (#247) are kept per app and address in `server_names`, never for an address
+   alone: a CDN or a Google front end answers for many sites at one address, so another
+   app's name for it would mislabel this app's bytes. An allowed connection's name counts
+   for traffic and a blocked one's for Blocked, so a blocked name never titles bytes. The
+   app is the blocked report's key, or else the process, while it runs, as nettop sees it.
+
    **Ask Me** (#129): a flow nothing decided gets `NEFilterNewFlowVerdict.pause()`, and the
    filter sends the app a `FlowQuestion` over XPC, one per app and company, holding every
    flow between them on it. The answer comes back as a `FlowAnswer` and the filter resumes
