@@ -25,6 +25,8 @@ final class Firewall {
     private var directoryMonth: String?
     /// The ad, tracker and malware lists (#176), as the app last sent them.
     private var blocklists: Blocklists?
+    /// The lists downloaded on the Mac (#254), as the app last sent them.
+    private var downloaded: [String: DownloadedList] = [:]
     /// Per audit token, which names one run of one process.
     private var identities: [Data: Identity] = [:]
     private static let identityLimit = 4096
@@ -50,6 +52,9 @@ final class Firewall {
             directoryMonth = newest.month
         }
         blocklists = Blocklists(directory: Self.listsURL)
+        if let data = try? Data(contentsOf: Self.downloadedURL), let lists = try? DownloadedList.decode(data) {
+            downloaded = Dictionary(lists.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        }
     }
 
     /// In the extension's own container. It runs as root, so this is root's.
@@ -60,6 +65,33 @@ final class Firewall {
     private static var storeURL: URL { supportURL.appendingPathComponent("policy.json") }
     private static var geoURL: URL { supportURL.appendingPathComponent("Geo", isDirectory: true) }
     private static var listsURL: URL { supportURL.appendingPathComponent("Blocklists", isDirectory: true) }
+    private static var downloadedURL: URL { supportURL.appendingPathComponent("DownloadedLists.nmdl") }
+
+    /// The downloaded lists from the app (#254), all of them at once: kept
+    /// in the container so they apply from launch.
+    func applyDownloadedLists(_ file: FileHandle, version: String) {
+        defer { try? file.close() }
+        do {
+            let data = try file.readToEnd() ?? Data()
+            let lists = try DownloadedList.decode(data)
+            try data.write(to: Self.downloadedURL, options: .atomic)
+            lock.lock()
+            downloaded = Dictionary(lists.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+            lock.unlock()
+            log.notice("downloaded lists \(version, privacy: .public): \(lists.map(\.id).joined(separator: ", "), privacy: .public)")
+        } catch {
+            log.error("couldn't use the downloaded lists \(version, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// The switched-on downloaded lists holding a name, in the policy's order.
+    private func listedDownloaded(_ name: String?, in policy: FirewallPolicy) -> [String] {
+        guard let name, !policy.lists.isEmpty, !policy.downloadedLists.isEmpty else { return [] }
+        lock.lock()
+        let downloaded = self.downloaded
+        lock.unlock()
+        return policy.downloadedLists.filter { downloaded[$0]?.lists(name) == true }
+    }
 
     /// The lists from the app (#176): kept in the container so they apply
     /// from launch, and used if they open and aren't older than what's here.
@@ -222,7 +254,9 @@ final class Firewall {
                               address: address, port: port, isApple: identity.isApple,
                               executablePaths: identity.paths, hostname: flow.remoteHostname,
                               isNetworkMonitor: identity.isNetworkMonitor,
-                              listedIn: listed(flow.remoteHostname, in: policy), teams: identity.teams)
+                              listedIn: listed(flow.remoteHostname, in: policy),
+                              listedInDownloaded: listedDownloaded(flow.remoteHostname, in: policy),
+                              teams: identity.teams)
         let verdict = policy.decide(facts)
         if case .block(let reason) = verdict {
             // Debug level: kept only while someone streams the log.
@@ -243,6 +277,7 @@ final class Firewall {
         var named = facts
         named.hostname = name
         named.listedIn = listed(name, in: policy)
+        named.listedInDownloaded = listedDownloaded(name, in: policy)
         if let company = Company.named(byHostname: name) { named.companyKey = company.key }
         return policy.decide(named)
     }

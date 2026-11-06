@@ -109,13 +109,16 @@ public struct FlowFacts: Equatable {
     public var isNetworkMonitor: Bool
     /// The lists holding its name (#176), as the filter looked them up.
     public var listedIn: Set<BlocklistTopic>
+    /// The downloaded lists holding it (#254), by id.
+    public var listedInDownloaded: [String]
     /// The team that signed each of its app keys' programs (#202). An app
     /// key with no entry has no team, or one that couldn't be read.
     public var teams: [String: String]
 
     public init(appKeys: [String], companyKey: String?, country: String?, address: String, port: Int,
                 isApple: Bool, executablePaths: [String] = [], hostname: String? = nil,
-                isNetworkMonitor: Bool = false, listedIn: Set<BlocklistTopic> = [], teams: [String: String] = [:]) {
+                isNetworkMonitor: Bool = false, listedIn: Set<BlocklistTopic> = [], listedInDownloaded: [String] = [],
+                teams: [String: String] = [:]) {
         self.appKeys = appKeys
         self.companyKey = companyKey
         self.country = country
@@ -126,6 +129,7 @@ public struct FlowFacts: Equatable {
         self.hostname = hostname
         self.isNetworkMonitor = isNetworkMonitor
         self.listedIn = listedIn
+        self.listedInDownloaded = listedInDownloaded
         self.teams = teams
     }
 }
@@ -150,6 +154,8 @@ public enum BlockReason: Equatable {
     case updatesOnHotspot
     /// On a list that's switched on (#176).
     case list(BlocklistTopic)
+    /// On a list downloaded on this Mac that's switched on (#254), by its id.
+    case downloadedList(String)
     /// Block Everything is on (#198).
     case everything
     /// The person's own *always block* (#253), counted with the lists.
@@ -162,6 +168,7 @@ public enum BlockReason: Equatable {
         case .mode:             return "mode"
         case .updatesOnHotspot: return "hotspot-updates"
         case .list(let topic):  return Self.listPrefix + topic.rawValue
+        case .downloadedList(let id): return Self.listPrefix + id
         case .everything:       return "everything"
         case .adRule(let rule): return Self.listPrefix + Self.ownList + ":" + rule.id
         }
@@ -216,10 +223,13 @@ public struct FirewallPolicy: Codable, Equatable {
     /// The person's own ad-blocking rules (#253). They change only what the
     /// lists do, so they count only while a list is on.
     public var adRules: [AdRule]
+    /// The downloaded lists switched on (#254), by id, in the order they're
+    /// named when one blocks. They apply only while a shipped list is on.
+    public var downloadedLists: [String]
 
     public init(mode: FirewallMode = .anywhere, rules: [FirewallRule] = [], onHotspot: Bool = false,
                 pausesUpdates: Bool = false, lists: Set<BlocklistTopic> = [], blocksEverything: Bool = false,
-                network: String? = nil, adRules: [AdRule] = []) {
+                network: String? = nil, adRules: [AdRule] = [], downloadedLists: [String] = []) {
         self.mode = mode
         self.rules = rules
         self.onHotspot = onHotspot
@@ -228,10 +238,11 @@ public struct FirewallPolicy: Codable, Equatable {
         self.blocksEverything = blocksEverything
         self.network = network
         self.adRules = adRules
+        self.downloadedLists = downloadedLists
     }
 
     private enum CodingKeys: String, CodingKey {
-        case mode, rules, onHotspot, pausesUpdates, lists, blocksEverything, network, adRules
+        case mode, rules, onHotspot, pausesUpdates, lists, blocksEverything, network, adRules, downloadedLists
     }
 
     /// A policy saved before a field existed reads it as off, so a filter
@@ -246,6 +257,7 @@ public struct FirewallPolicy: Codable, Equatable {
         blocksEverything = try container.decodeIfPresent(Bool.self, forKey: .blocksEverything) ?? false
         network = try container.decodeIfPresent(String.self, forKey: .network)
         adRules = try container.decodeIfPresent([AdRule].self, forKey: .adRules) ?? []
+        downloadedLists = try container.decodeIfPresent([String].self, forKey: .downloadedLists) ?? []
     }
 
     /// Anything to decide at all. Without it, the filter looks nothing up.
@@ -296,6 +308,9 @@ public struct FirewallPolicy: Codable, Equatable {
             if let adRule, adRule.kind == .alwaysBlock { return .block(.adRule(adRule)) }
             if adRule == nil, let topic = flow.listedIn.intersection(lists).sorted().first {
                 return .block(.list(topic))
+            }
+            if adRule == nil, let id = downloadedLists.first(where: flow.listedInDownloaded.contains) {
+                return .block(.downloadedList(id))
             }
         }
         // Always Allow lets an updater through too. macOS and Apple's apps

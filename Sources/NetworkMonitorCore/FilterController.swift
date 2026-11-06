@@ -66,6 +66,8 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     private var geoData: (directory: URL, month: String)?
     /// The newest lists (#176), for the filter to keep its own copy of.
     private var blocklists: (directory: URL, version: String)?
+    /// The downloaded lists in use (#254), in one file.
+    private var downloadedLists: (file: URL, version: String)?
     private var removing = false
     /// Set while the launch's request brings the running filter up to this
     /// build's (#136).
@@ -490,7 +492,9 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         connection.interruptionHandler = { [weak self, weak connection] in
             Self.log.notice("connection to the filter interrupted; reopening it")
             (connection?.remoteObjectProxyWithErrorHandler { _ in } as? FilterExtensionInterface)?.register { _ in }
-            DispatchQueue.main.async { self?.sendPolicy(); self?.sendGeoData(); self?.sendBlocklists() }
+            DispatchQueue.main.async {
+                self?.sendPolicy(); self?.sendGeoData(); self?.sendBlocklists(); self?.sendDownloadedLists()
+            }
         }
         connection.resume()
         self.connection = connection
@@ -499,6 +503,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         sendPolicy()
         sendGeoData()
         sendBlocklists()
+        sendDownloadedLists()
     }
 
     // MARK: The rules
@@ -546,6 +551,21 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
                   BlocklistTopic.malware.fileName))
         else { return }
         proxy.applyBlocklists(ads, malware, blocklists.version)
+    }
+
+    /// The downloaded lists in use changed (#254): the filter gets them as
+    /// one open file.
+    public func applyDownloadedLists(at file: URL, version: String) {
+        downloadedLists = (file, version)
+        sendDownloadedLists()
+    }
+
+    private func sendDownloadedLists() {
+        guard let downloadedLists, let proxy = connection?.remoteObjectProxyWithErrorHandler({ _ in })
+                as? FilterExtensionInterface,
+              let handle = try? FileHandle(forReadingFrom: downloadedLists.file)
+        else { return }
+        proxy.applyDownloadedLists(handle, downloadedLists.version)
     }
 
     private func disconnect() {

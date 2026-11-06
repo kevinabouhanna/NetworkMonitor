@@ -124,6 +124,8 @@ public final class AdsLog: ObservableObject {
             return adRules.first { $0.id == id }.map { "Your rule: \($0.summary.lowercasedFirst)" } ?? "Your rule"
         }
         if let list = BlockReason.list(inReport: blockedBy) {
+            // A downloaded list goes by its own name (#254).
+            if let title = ListLibrary.title(of: list) { return "On \(title)" }
             return "On the \(AdsReport.title(ofList: list).lowercased()) list"
         }
         switch blockedBy {

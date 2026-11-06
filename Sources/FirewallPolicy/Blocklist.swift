@@ -192,41 +192,204 @@ public struct Blocklists {
 }
 
 /// Reading a published list: hosts files (`0.0.0.0 ads.example.com`), plain
-/// lists of names, and Adblock-style domain rules (`||ads.example.com^`).
+/// lists of names, and Adblock-style domain rules (`||ads.example.com^`, with
+/// `@@||site^` exceptions, #254).
 public enum BlocklistParser {
 
-    public static func names(in text: String) -> [String] {
-        var names: [String] = []
+    public struct Parsed: Equatable {
+        /// The names it blocks, each covering the names under it.
+        public var names: [String] = []
+        /// The names it lets through, under one it blocks: `@@||site^`, or a
+        /// rule cancelled with `$badfilter`.
+        public var exceptions: [String] = []
+        /// From its header, `# Title: …` or `! Title: …`.
+        public var title: String?
+        /// Lines it had that say more than a name: a path, a pattern, or a
+        /// rule for one kind of request. A list of nothing else isn't a list
+        /// of sites.
+        public var skipped = 0
+    }
+
+    public static func names(in text: String) -> [String] { read(text).names }
+
+    public static func read(_ text: String) -> Parsed {
+        var parsed = Parsed()
         for raw in text.split(whereSeparator: \.isNewline) {
-            let line = raw.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false).first ?? ""
-            let fields = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
-            guard let first = fields.first, !first.hasPrefix("!"), !first.hasPrefix("[") else { continue }
-            var candidates: [Substring]
-            if ["0.0.0.0", "127.0.0.1", "::", "::1"].contains(first) {
-                candidates = Array(fields.dropFirst())
-            } else {
-                candidates = [first]
+            let trimmed = raw.trimmingCharacters(in: .whitespaces)
+            guard let lead = trimmed.first else { continue }
+            if lead == "#" || lead == "!" {
+                if parsed.title == nil { parsed.title = title(inComment: trimmed) }
+                continue
             }
-            for var candidate in candidates {
-                if candidate.hasPrefix("||") {
-                    candidate = candidate.dropFirst(2)
-                    guard let end = candidate.firstIndex(of: "^") else { continue }
-                    guard candidate.index(after: end) == candidate.endIndex else { continue }
-                    candidate = candidate[..<end]
+            if lead == "[" { continue }
+            // A trailing comment needs a space before it: `site##.ad` hides
+            // part of a page, and isn't the site.
+            var line = Substring(trimmed)
+            if let comment = line.range(of: " #") ?? line.range(of: "\t#") { line = line[..<comment.lowerBound] }
+            guard !line.contains("#") else { parsed.skipped += 1; continue }
+            let fields = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
+            guard let first = fields.first else { continue }
+            if ["0.0.0.0", "127.0.0.1", "::", "::1"].contains(first) {
+                for field in fields.dropFirst() {
+                    if let name = name(field) { parsed.names.append(name) }
                 }
-                guard let name = SiteName.normalized(String(candidate)), !ignored.contains(name),
-                      name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" || $0 == "_" }),
-                      name.unicodeScalars.allSatisfy(\.isASCII)
-                else { continue }
-                names.append(name)
+                continue
+            }
+            guard fields.count == 1 else { parsed.skipped += 1; continue }
+            if first.hasPrefix("||") || first.hasPrefix("@@||") {
+                switch rule(first) {
+                case .block(let name)?:     parsed.names.append(name)
+                case .exception(let name)?: parsed.exceptions.append(name)
+                case nil:                   parsed.skipped += 1
+                }
+            } else if let name = name(first) {
+                parsed.names.append(name)
+            } else {
+                parsed.skipped += 1
             }
         }
-        return names
+        return parsed
+    }
+
+    private enum Rule { case block(String), exception(String) }
+
+    /// Options that keep a rule about the whole site: `$important` only
+    /// raises it over exceptions, and DNS blockers treat the rest so.
+    static let siteWideOptions: Set<String> = ["important", "all", "document", "doc", "popup"]
+
+    private static func rule(_ text: Substring) -> Rule? {
+        var text = text
+        let isException = text.hasPrefix("@@")
+        if isException { text = text.dropFirst(2) }
+        text = text.dropFirst(2)
+        var options: [Substring] = []
+        if let dollar = text.firstIndex(of: "$") {
+            options = text[text.index(after: dollar)...].split(separator: ",")
+            text = text[..<dollar]
+        }
+        if text.hasSuffix("^|") { text = text.dropLast() }
+        guard text.hasSuffix("^"), let name = name(text.dropLast()) else { return nil }
+        // `$badfilter` cancels the same rule without it.
+        let cancels = options.contains("badfilter")
+        guard options.allSatisfy({ $0 == "badfilter" || siteWideOptions.contains(String($0)) }) else { return nil }
+        if cancels { return isException ? nil : .exception(name) }
+        return isException ? .exception(name) : .block(name)
+    }
+
+    private static func name(_ candidate: Substring) -> String? {
+        guard let name = SiteName.normalized(String(candidate)), !ignored.contains(name),
+              name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" || $0 == "_" }),
+              name.unicodeScalars.allSatisfy(\.isASCII)
+        else { return nil }
+        return name
+    }
+
+    private static func title(inComment line: String) -> String? {
+        let body = line.drop(while: { $0 == "#" || $0 == "!" || $0 == " " })
+        guard body.lowercased().hasPrefix("title:") else { return nil }
+        let title = body.dropFirst(6).trimmingCharacters(in: .whitespaces)
+        return title.isEmpty ? nil : String(title.prefix(80))
     }
 
     /// Lines hosts files carry for the machine itself.
     static let ignored: Set<String> = ["localhost.localdomain", "local", "broadcasthost", "ip6-localhost",
                                        "ip6-loopback", "0.0.0.0"]
+}
+
+/// A list downloaded on this Mac from its source (#254), rather than in the
+/// signed `blocklists` release: what it blocks, and its exceptions, each
+/// covering the names under it. The most specific name decides, so
+/// `@@||cdn.example.com^` lets `img.cdn.example.com` through while
+/// `||example.com^` still blocks `ads.example.com`.
+public struct DownloadedList: Equatable {
+    /// `hagezi-pro`, or `url-…` for one added by its address.
+    public let id: String
+    public let blocks: BlocklistTable
+    public let exceptions: BlocklistTable
+
+    public init(id: String, blocks: BlocklistTable, exceptions: BlocklistTable = BlocklistTable(names: [String]())) {
+        self.id = id
+        self.blocks = blocks
+        self.exceptions = exceptions
+    }
+
+    public init(id: String, parsed: BlocklistParser.Parsed) {
+        self.init(id: id, blocks: BlocklistTable(names: parsed.names),
+                  exceptions: BlocklistTable(names: parsed.exceptions))
+    }
+
+    public func lists(_ name: String) -> Bool {
+        for domain in SiteName.domains(of: name) {
+            let hash = BlocklistTable.hash(domain)
+            if exceptions.contains(hash: hash) { return false }
+            if blocks.contains(hash: hash) { return true }
+        }
+        return false
+    }
+
+    // MARK: On disk and on the way to the filter
+
+    static let magic = Array("NMDL".utf8)
+    static let version: UInt8 = 1
+
+    public enum FormatError: Error { case notLists }
+
+    /// Several lists in one file, as the app hands them to the filter: "NMDL",
+    /// a version, three zero bytes, a 32-bit count, then each list's id
+    /// (16-bit length, UTF-8), and its two tables (32-bit length, then the
+    /// table), little-endian.
+    public static func encode(_ lists: [DownloadedList]) -> Data {
+        var data = Data(magic + [version, 0, 0, 0])
+        append(UInt32(lists.count), to: &data)
+        for list in lists {
+            let id = Data(list.id.utf8)
+            data.append(contentsOf: (0..<2).map { UInt8(truncatingIfNeeded: id.count >> (8 * $0)) })
+            data.append(id)
+            for table in [list.blocks, list.exceptions] {
+                let bytes = table.encoded()
+                append(UInt32(bytes.count), to: &data)
+                data.append(bytes)
+            }
+        }
+        return data
+    }
+
+    public static func decode(_ data: Data) throws -> [DownloadedList] {
+        let bytes = [UInt8](data)
+        var offset = 0
+        func take(_ count: Int) throws -> ArraySlice<UInt8> {
+            guard count >= 0, offset + count <= bytes.count else { throw FormatError.notLists }
+            defer { offset += count }
+            return bytes[offset..<offset + count]
+        }
+        func number(_ width: Int) throws -> Int {
+            Int(try take(width).enumerated().reduce(UInt64(0)) { $0 | UInt64($1.element) << (8 * UInt64($1.offset)) })
+        }
+        guard Array(try take(4)) == magic, try take(4).first == version else { throw FormatError.notLists }
+        let count = try number(4)
+        var lists: [DownloadedList] = []
+        for _ in 0..<count {
+            guard let id = String(bytes: try take(try number(2)), encoding: .utf8), isID(id) else {
+                throw FormatError.notLists
+            }
+            let blocks = try BlocklistTable(data: Data(try take(try number(4))))
+            let exceptions = try BlocklistTable(data: Data(try take(try number(4))))
+            lists.append(DownloadedList(id: id, blocks: blocks, exceptions: exceptions))
+        }
+        guard offset == bytes.count else { throw FormatError.notLists }
+        return lists
+    }
+
+    private static func append(_ value: UInt32, to data: inout Data) {
+        data.append(contentsOf: (0..<4).map { UInt8(truncatingIfNeeded: value >> (8 * $0)) })
+    }
+
+    /// Lowercase letters, digits and dashes: safe as a file name, and never
+    /// one of the shipped lists' or `mine`, which have no dash.
+    public static func isID(_ id: String) -> Bool {
+        id.contains("-") && id.count <= 64
+            && id.allSatisfy { ($0.isLetter && $0.isLowercase && $0.isASCII) || $0.isNumber || $0 == "-" }
+    }
 }
 
 /// What a week's lists are made of, signed as a whole: each table's name, the

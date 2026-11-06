@@ -91,8 +91,9 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     private func refreshControls() {
         tabControl.selectedSegment = AdsViewModel.Tab.allCases.firstIndex(of: model.tab) ?? 0
-        // The log is the present, live, and rules have no period.
-        let overview = model.tab == .overview
+        // The log is the present, live, and rules have no period. The lists
+        // count their blocks in it (#254).
+        let overview = model.tab.hasPeriod
         scaleControl.isEnabled = overview
         // Nothing chosen while it doesn't apply, which a disabled control
         // alone doesn't show.
