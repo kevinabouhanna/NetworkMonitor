@@ -107,6 +107,20 @@ public final class AdsViewModel: ObservableObject {
         public var id: Date { interval.start }
     }
 
+    /// Overview or the log (#252), from the window's toolbar.
+    public enum Tab: String, CaseIterable, Identifiable {
+        case overview, log
+
+        public var id: String { rawValue }
+        public var label: String { self == .overview ? "Overview" : "Log" }
+    }
+
+    @Published public var tab: Tab = .overview
+    @Published public var logShow: AdsLog.Show = .all
+    @Published public var logSearch = ""
+    /// What the log showed when it was paused; nil while it's live.
+    @Published public private(set) var frozenLog: [AdsLogEntry]?
+
     @Published public private(set) var period: HistoryPeriod
     @Published public private(set) var report = AdsReport()
     @Published public private(set) var bins: [Bin] = []
@@ -117,6 +131,7 @@ public final class AdsViewModel: ObservableObject {
     private var refreshTimer: Timer?
     private var icons: [String: NSImage] = [:]
     private var changes: AnyCancellable?
+    private var logChanges: AnyCancellable?
 
     public init(monitor: MonitorViewModel, calendar: Calendar = .current) {
         self.monitor = monitor
@@ -126,6 +141,67 @@ public final class AdsViewModel: ObservableObject {
         changes = monitor.firewall.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { self?.objectWillChange.send() }
         }
+        // At most twice a second, and only while the log is what's shown.
+        logChanges = monitor.adsLog.objectWillChange
+            .throttle(for: .milliseconds(500), scheduler: RunLoop.main, latest: true)
+            .sink { [weak self] _ in
+                guard let self, self.tab == .log, self.frozenLog == nil else { return }
+                self.objectWillChange.send()
+            }
+    }
+
+    // MARK: Log (#252)
+
+    public var logEntries: [AdsLogEntry] {
+        AdsLog.filtered(frozenLog ?? monitor.adsLog.entries, show: logShow, search: logSearch, reason: reason(for:))
+    }
+
+    public var logIsPaused: Bool { frozenLog != nil }
+
+    public func reason(for entry: AdsLogEntry) -> String {
+        AdsLog.reason(for: entry, rules: firewall.rules)
+    }
+
+    public func toggleLogPause() {
+        frozenLog = frozenLog == nil ? monitor.adsLog.entries : nil
+    }
+
+    public func clearLog() {
+        monitor.adsLog.clear()
+        if frozenLog != nil { frozenLog = [] }
+    }
+
+    public func logText() -> String {
+        AdsLog.text(logEntries, reason: reason(for:))
+    }
+
+    /// A rule for a site from a row: every app, or only the row's app.
+    public func setSite(_ action: RuleAction, domain: String, name: String, in entry: AdsLogEntry?) {
+        if let entry, let key = entry.appKey {
+            firewall.add(FirewallRule(subject: .site, key: domain, title: domain == name ? domain : "*.\(domain)",
+                                      action: action, appKey: key, appTitle: entry.appName))
+        } else {
+            firewall.setSite(action, domain: domain, forName: name)
+        }
+        objectWillChange.send()
+    }
+
+    /// The rule already made for a site, for every app or one, if any.
+    public func rule(forDomain domain: String, appKey: String?) -> FirewallRule? {
+        firewall.rules.first { $0.subject == .site && $0.key == domain && $0.appKey == appKey }
+    }
+
+    public func remove(_ rule: FirewallRule) {
+        firewall.remove(rule)
+        objectWillChange.send()
+    }
+
+    public func icon(forBundle path: String?) -> NSImage? {
+        guard let path else { return nil }
+        if let icon = icons[path] { return icon }
+        let icon = NSWorkspace.shared.icon(forFile: path)
+        icons[path] = icon
+        return icon
     }
 
     public var firewall: FirewallRules { monitor.firewall }
@@ -213,11 +289,5 @@ public final class AdsViewModel: ObservableObject {
 
     public func resume() { firewall.pauseLists(until: nil) }
 
-    public func icon(for item: AdsItem) -> NSImage? {
-        guard let path = item.bundlePath else { return nil }
-        if let icon = icons[path] { return icon }
-        let icon = NSWorkspace.shared.icon(forFile: path)
-        icons[path] = icon
-        return icon
-    }
+    public func icon(for item: AdsItem) -> NSImage? { icon(forBundle: item.bundlePath) }
 }

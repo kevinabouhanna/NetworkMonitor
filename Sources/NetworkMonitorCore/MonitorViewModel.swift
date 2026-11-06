@@ -97,6 +97,8 @@ public final class MonitorViewModel: ObservableObject {
     /// The ad, tracker and malware lists (#176), and what they blocked today.
     public let blocklists = BlocklistUpdater()
     public let listBlocks = ListBlockCount()
+    /// Each decision the filter reported, for the Ads window's log (#252).
+    public let adsLog = AdsLog()
     /// Updating NetworkMonitor itself (#132).
     public let updates = UpdateController()
     private var firewallPolicy: AnyCancellable?
@@ -219,7 +221,9 @@ public final class MonitorViewModel: ObservableObject {
         }
         filterNames = filter.flows.sink { [weak self] flows in
             self?.listBlocks.add(flows.filter { $0.blockedBy?.hasPrefix(BlockReason.listPrefix) == true }.count)
-            guard let self, let history = self.store.history else { return }
+            guard let self else { return }
+            self.log(flows)
+            guard let history = self.store.history else { return }
             history.recordServerNames(flows.compactMap { flow in
                 guard let name = flow.serverName, let identity = self.identity(of: flow) else { return nil }
                 return UsageHistory.NameSighting(identity: identity, address: FirewallPolicy.serverAddress(flow.address),
@@ -504,6 +508,20 @@ public final class MonitorViewModel: ObservableObject {
                 if !self.uninstalled { self.store.save() }
             }
         }
+    }
+
+    /// The filter's decisions, for the Ads window's log (#252). Lookups name
+    /// a resolver, not a site, so they're left out.
+    private func log(_ flows: [FlowReport]) {
+        let lists = blocklists.lists
+        adsLog.append(flows.compactMap { flow in
+            guard !FlowReport.lookupPorts.contains(flow.port) else { return nil }
+            let identity = identity(of: flow)
+            let name = flow.serverName
+            let listed = name.flatMap { lists?.topics(listing: $0) }?.sorted().map(\.rawValue) ?? []
+            return (flow.time, identity?.key, identity?.displayName ?? "Process \(flow.pid)", identity?.bundlePath,
+                    FirewallPolicy.serverAddress(flow.address), flow.port, name, flow.blockedBy, listed)
+        })
     }
 
     /// The app a connection the filter reported belongs to, keyed as nettop's
