@@ -185,6 +185,8 @@ struct WiFiNamesRow: View {
                 SetupSteps(steps: [SetupCopy.wifiStep])
             }
         }
+        // Switched on in System Settings while NetworkMonitor was open.
+        .onAppear { wifiNames.refresh() }
     }
 
     static func openSystemSettings() {

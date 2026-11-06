@@ -38,6 +38,13 @@ public final class WiFiNames: NSObject, ObservableObject, CLLocationManagerDeleg
         manager = CLLocationManager()
         status = manager.authorizationStatus
         super.init()
+        // Right away, not in `start()`. The status read above is taken before
+        // locationd has registered the app, so it says `.notDetermined` even
+        // when Location was allowed long ago. The real answer arrives a few
+        // milliseconds later as a delegate call, and only to a delegate that's
+        // already set: set later, it never comes, and the app went on asking
+        // for a permission it already had, with macOS ignoring the request.
+        manager.delegate = self
         updateReadable()
     }
 
@@ -53,17 +60,33 @@ public final class WiFiNames: NSObject, ObservableObject, CLLocationManagerDeleg
     }
 
     public func start() {
-        manager.delegate = self
+        refresh()
+    }
+
+    /// Reads the answer again, in case it changed without a delegate call.
+    public func refresh() {
+        let current = manager.authorizationStatus
+        guard current != status else { return }
+        status = current
+        updateReadable()
+        onChange?()
     }
 
     /// macOS's question, if it hasn't been answered. Once it has, only System
     /// Settings can change the answer: `ask()` returns false, and the caller
-    /// opens it.
+    /// opens it. Already allowed, there's nothing to ask, and it returns true.
     @discardableResult
     public func ask() -> Bool {
-        guard status == .notDetermined else { return false }
-        manager.requestAlwaysAuthorization()
-        return true
+        refresh()
+        switch access {
+        case .allowed:
+            return true
+        case .asking:
+            manager.requestAlwaysAuthorization()
+            return true
+        case .denied:
+            return false
+        }
     }
 
     public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
