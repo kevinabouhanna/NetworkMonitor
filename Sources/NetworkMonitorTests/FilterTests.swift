@@ -108,6 +108,51 @@ func runFilterTests() {
         }
     }
 
+    Check.suite("Content filter — the network after an update (#278)") {
+
+        Check.test("three unanswered checks in a row switch the filter off and on") {
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            var check = UpdateGuard(now: start)
+            Check.expectEqual(check.checked(false, at: start.addingTimeInterval(5)), .keepChecking)
+            Check.expectEqual(check.checked(false, at: start.addingTimeInterval(10)), .keepChecking)
+            Check.expectEqual(check.checked(false, at: start.addingTimeInterval(15)), .restart)
+        }
+
+        Check.test("an answer in between starts the count over") {
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            var check = UpdateGuard(now: start)
+            Check.expectEqual(check.checked(false, at: start.addingTimeInterval(5)), .keepChecking)
+            Check.expectEqual(check.checked(false, at: start.addingTimeInterval(10)), .keepChecking)
+            Check.expectEqual(check.checked(true, at: start.addingTimeInterval(15)), .keepChecking)
+            Check.expectEqual(check.checked(false, at: start.addingTimeInterval(20)), .keepChecking)
+            Check.expectEqual(check.checked(false, at: start.addingTimeInterval(25)), .keepChecking)
+        }
+
+        Check.test("no network to ask counts for nothing, and two quiet minutes end it") {
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            var check = UpdateGuard(now: start)
+            Check.expectEqual(check.checked(false, at: start.addingTimeInterval(5)), .keepChecking)
+            Check.expectEqual(check.checked(false, at: start.addingTimeInterval(10)), .keepChecking)
+            Check.expectEqual(check.checked(nil, at: start.addingTimeInterval(15)), .keepChecking)
+            Check.expectEqual(check.checked(true, at: start.addingTimeInterval(119)), .keepChecking)
+            Check.expectEqual(check.checked(true, at: start.addingTimeInterval(120)), .done)
+        }
+
+        Check.test("asks the router route names, but not a VPN's interface") {
+            let route = """
+                   route to: default
+                destination: default
+                       mask: default
+                    gateway: 192.168.1.1
+                  interface: en7
+                      flags: <UP,GATEWAY,DONE,STATIC,PRCLONING,GLOBAL>
+                """
+            Check.expectEqual(UpdateGuard.gateway(fromRouteOutput: route), "192.168.1.1")
+            Check.expectEqual(UpdateGuard.gateway(fromRouteOutput: "    gateway: utun4\n  interface: utun4"), nil)
+            Check.expectEqual(UpdateGuard.gateway(fromRouteOutput: "route: writing to routing socket: not in table"), nil)
+        }
+    }
+
     Check.suite("Content filter — companies from server names") {
 
         func company(_ hostname: String) -> Company? { Company.named(byHostname: hostname) }
