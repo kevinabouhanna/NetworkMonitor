@@ -131,6 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// the same build, and a few seconds in so the menu bar item is there to
     /// say whose dialog it is. Declined, Settings keeps an Allow button.
     private func offerHelperUpdateIfNeeded() {
+        model.metering.repairHelperIfNeeded()
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
             self?.model.metering.ensureHelper(userAsked: false)
         }

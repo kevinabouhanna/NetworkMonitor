@@ -93,6 +93,13 @@ public enum HelperService {
     /// answer in time. Synchronous, as `sudo` was, with a limit, so a wedged
     /// daemon can't freeze the menu bar.
     public static func invoke(_ verb: String, timeout: TimeInterval = 20) -> String? {
+        guard let reply = call(verb, timeout: timeout), reply.status == 0 else { return nil }
+        return reply.text
+    }
+
+    /// One verb's exit status and what it printed, or nil when nothing
+    /// answered: not allowed yet, refused, or not started in time.
+    static func call(_ verb: String, timeout: TimeInterval) -> (status: Int32, text: String)? {
         let connection = NSXPCConnection(machServiceName: HelperDaemon.machServiceName, options: .privileged)
         connection.setCodeSigningRequirement(HelperDaemon.helperRequirement)
         connection.remoteObjectInterface = NSXPCInterface(with: HelperXPCInterface.self)
@@ -101,17 +108,75 @@ public enum HelperService {
 
         let answered = DispatchSemaphore(value: 0)
         let lock = NSLock()
-        var output: String?
+        var reply: (status: Int32, text: String)?
         let proxy = connection.remoteObjectProxyWithErrorHandler { _ in answered.signal() } as? HelperXPCInterface
         proxy?.run(verb) { status, text in
             lock.lock()
-            if status == 0 { output = text }
+            reply = (status, text)
             lock.unlock()
             answered.signal()
         }
         guard proxy != nil, answered.wait(timeout: .now() + timeout) == .success else { return nil }
         lock.lock()
         defer { lock.unlock() }
-        return output
+        return reply
+    }
+
+    // MARK: Switched on, but not starting
+
+    /// Whether launchd starts the daemon when asked: any answer counts, even a
+    /// verb that failed. Started on demand, it answers in well under a second;
+    /// launchd retries a failed start every 10 seconds, so 5 is a clear no.
+    public static func answers(timeout: TimeInterval = 5) -> Bool {
+        call("status", timeout: timeout) != nil
+    }
+
+    public enum Repair: Equatable {
+        /// Not switched on, or it answers: nothing to do.
+        case notNeeded
+        case repaired
+        /// Registered again, and macOS wants it allowed again.
+        case waitingForApproval
+        case failed
+    }
+
+    /// Registers the daemon again when macOS says it's on but launchd can't
+    /// start it (#238).
+    ///
+    /// The registration names the app that made it, and launchd finds the
+    /// program through it. Replace the app with a copy that has no daemon, and
+    /// then with one that has, and macOS keeps reporting it enabled while
+    /// launchd fails every start with "Invalid or missing Program". The app
+    /// trusted "enabled", so it never registered again, and the daemon's first
+    /// start, which removes the `sudo` helper and lists its self-heal job under
+    /// NetworkMonitor, never came.
+    ///
+    /// Registering from this copy hands launchd a program it can find: first as
+    /// it is, which keeps the approval, and only then unregistered and
+    /// registered, which may ask for it again. Blocks for seconds while it
+    /// waits for answers, so call it off the main thread.
+    public static func repairIfNotStarting() -> Repair {
+        repair(status: { status },
+               answers: { answers() },
+               registerAgain: { forget(); try? service.register(); forget() },
+               unregister: unregister,
+               register: register)
+    }
+
+    /// The steps, in order, with each one handed in, so the order is tested.
+    public static func repair(status: () -> Status,
+                              answers: () -> Bool,
+                              registerAgain: () -> Void,
+                              unregister: () -> Void,
+                              register: () -> HelperInstaller.Outcome) -> Repair {
+        guard status() == .enabled, !answers() else { return .notNeeded }
+        registerAgain()
+        if status() == .enabled, answers() { return .repaired }
+        unregister()
+        switch register() {
+        case .done:               return answers() ? .repaired : .failed
+        case .waitingForApproval: return .waitingForApproval
+        case .cancelled, .failed: return .failed
+        }
     }
 }

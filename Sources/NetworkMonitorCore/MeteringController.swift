@@ -285,6 +285,31 @@ public final class MeteringController: ObservableObject {
         return outcome
     }
 
+    /// The app build that last checked the daemon starts.
+    public static let helperCheckedKey = "helperCheckedForBuild"
+
+    /// Once per build, at launch: if macOS says the daemon is on but it doesn't
+    /// answer, register it again (#238). An update is what replaces the app, so
+    /// the first launch of each build is when to look, and a daemon that
+    /// answers is left alone. Off the main thread: a daemon that can't start
+    /// takes seconds to say so.
+    public func repairHelperIfNeeded() {
+        guard HelperService.status == .enabled else { return }
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+        guard defaults.string(forKey: Self.helperCheckedKey) != build else { return }
+        defaults.set(build, forKey: Self.helperCheckedKey)
+        DispatchQueue.global(qos: .utility).async {
+            let repair = HelperService.repairIfNotStarting()
+            guard repair != .notNeeded else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                // Re-asserted with a helper that answers, as after an install.
+                self.refresh()
+                if repair == .waitingForApproval { self.watchForApproval() }
+            }
+        }
+    }
+
     private func refreshHelperState() {
         let state = HelperInstaller.state()
         if state != helperState { helperState = state }

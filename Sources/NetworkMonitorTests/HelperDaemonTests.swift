@@ -47,6 +47,50 @@ func runHelperDaemonTests() {
             Check.expectTrue(HelperDaemon.helperRequirement.contains(#""com.kevinabouhanna.NetworkMonitor.helper""#))
         }
 
+        // #238: switched on in System Settings, but launchd can't start it.
+        Check.test("a daemon that answers, or isn't switched on, is never registered again") {
+            for (status, answering) in [(HelperService.Status.enabled, true), (.waitingForApproval, false),
+                                        (.notRegistered, false), (.unavailable, false)] {
+                var steps: [String] = []
+                let repair = HelperService.repair(status: { status }, answers: { answering },
+                                                  registerAgain: { steps.append("again") },
+                                                  unregister: { steps.append("unregister") },
+                                                  register: { steps.append("register"); return .done })
+                Check.expectEqual(repair, .notNeeded, "\(status)")
+                Check.expectEqual(steps, [], "\(status)")
+            }
+        }
+
+        Check.test("one that doesn't answer is registered again as it is first, which keeps the approval") {
+            var steps: [String] = []
+            var answering = false
+            let repair = HelperService.repair(status: { .enabled }, answers: { answering },
+                                              registerAgain: { steps.append("again"); answering = true },
+                                              unregister: { steps.append("unregister") },
+                                              register: { steps.append("register"); return .done })
+            Check.expectEqual(repair, .repaired)
+            Check.expectEqual(steps, ["again"])
+        }
+
+        Check.test("and only then unregistered and registered, saying if macOS wants it allowed again") {
+            let cases: [(HelperInstaller.Outcome, Bool, HelperService.Repair)] = [
+                (.done, true, .repaired), (.done, false, .failed),
+                (.waitingForApproval, false, .waitingForApproval), (.failed("no"), false, .failed),
+            ]
+            for (outcome, answersAfter, expected) in cases {
+                var steps: [String] = []
+                var registered = false
+                let repair = HelperService.repair(status: { .enabled },
+                                                  answers: { registered && answersAfter },
+                                                  registerAgain: { steps.append("again") },
+                                                  unregister: { steps.append("unregister") },
+                                                  register: { steps.append("register"); registered = true
+                                                              return outcome })
+                Check.expectEqual(repair, expected, "\(outcome)")
+                Check.expectEqual(steps, ["again", "unregister", "register"], "\(outcome)")
+            }
+        }
+
         // The plist is what launchd reads, and nothing else checks it agrees.
         Check.test("the shipped plist names the daemon as both sides do") {
             let url = URL(fileURLWithPath: #filePath)

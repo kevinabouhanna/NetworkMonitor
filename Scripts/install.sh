@@ -48,6 +48,25 @@ sleep 1
 echo "==> Building"
 ./Scripts/bundle.sh >/dev/null
 
+# Without the signing keys this build is ad-hoc. Put over a Developer ID copy,
+# it drops the helper daemon, the content filter and the update feed, and
+# macOS sees the app change developer: the daemon stops starting, Hotspot mode
+# asks again and falls back to a password and a second Login Items row (#238).
+# Install the release's disk image instead, or let Sparkle update it.
+team_of() { codesign -dv "$1" 2>&1 | sed -n 's/^TeamIdentifier=//p'; }
+installed_team=$(team_of "$DEST" 2>/dev/null || true)
+built_team=$(team_of "build/${APP_NAME}.app")
+if [ -n "$installed_team" ] && [ "$installed_team" != "not set" ] \
+   && [ "$built_team" != "$installed_team" ] && [ "${ALLOW_UNSIGNED:-0}" != 1 ]; then
+  case "$built_team" in ""|"not set") built_team="no team (ad-hoc)" ;; *) built_team="team ${built_team}" ;; esac
+  echo "    The copy in /Applications is signed by team ${installed_team}; this build by" >&2
+  echo "    ${built_team}. Installing it would replace the notarized app." >&2
+  echo "    The signing keys go in ~/.config/networkmonitor-signing/. Otherwise install the" >&2
+  echo "    release's NetworkMonitor.dmg, or run with ALLOW_UNSIGNED=1 to do it anyway." >&2
+  open "$DEST"
+  exit 1
+fi
+
 if [ -d "build/${APP_NAME}.app/Contents/Library/SystemExtensions" ]; then
   echo "==> Notarizing, so macOS will run its content filter"
   if ! ./Scripts/notarize.sh "build/${APP_NAME}.app" | sed 's/^/    /'; then
