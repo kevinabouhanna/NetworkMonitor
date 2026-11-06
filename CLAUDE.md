@@ -1,53 +1,35 @@
 # NetworkMonitor
 
-## Workflow: issue → pull request → merge → release → install
+## Workflow
 
-Nothing changes without all of these, in this order: open an issue, open a pull
-request that closes it, merge it, check the issue is closed, release, and update
-the app on this Mac.
+`~/.claude/CLAUDE.md` has the workflow: issue → pull request → merge → install, carried
+through without asking. What's particular to NetworkMonitor:
 
-**Don't stop to ask before a routine step.** When something is requested, carry
-it all the way through to the installed app: opening issues and pull requests,
-merging once CI is green, closing issues, writing release notes, tagging a
-release, updating the website and installing. Ask first only for something
-high-risk:
-- anything that can't be undone, such as deleting branches others use,
-  rewriting history or force-pushing;
-- changing signing keys, certificates or repository secrets;
-- anything that could lose the person's settings, rules or usage history;
-- a step that failed in a way you don't understand.
-
-1. **An issue.** Every change starts from an issue that says what and why. If none
-   exists, open one first. Keep its description current: it is the record of
-   what was decided.
-2. **A pull request from a branch, attached to the issue.**
-   - Name the branch after the issue, e.g. `settings-v2-9`.
-   - Put `Closes #N` in the PR description, so merging closes the issue and moves
-     it to Done on the NetworkMonitor project board.
-   - **Never push to `main` directly.**
-3. **Merge it** once CI (`build-and-test`, `universal`) is green. Squash-merge.
-4. **Close the issue.** `Closes #N` does it on merge; check, and close it by hand
-   if it's still open.
-5. **Release it and update the app on this Mac.**
-   - Write its What's new in `ReleaseNotes/X.Y.Z.md`, merged with a pull
-     request before tagging: short bullets, each a bold lead and the issue,
-     with no `]]>`. The Release workflow fails without it, and puts it both in
-     the update window and in the release notes.
-   - Tag `vX.Y.Z` on `main` and push the tag. The Release workflow builds,
-     tests and publishes `NetworkMonitor.dmg` and the appcast Sparkle reads.
-   - Update the installed app: `make install` from the tag when the signing
-     keys are on this Mac (`~/.config/networkmonitor-signing/`); otherwise
-     through Sparkle, once the release is published, so the installed app
-     updates itself to the notarized build.
-   - Bring the website (`gh-pages` branch) up to date:
-     - the hero's version
-     - the download line's version and DMG size, in 1024-based MB
-     - the "What's in version" link
-     - any copy the change affects
-     - the About pane in the Settings section (`assets/settings/about.png`),
-       which shows the version, so it changes with every release
-     - screenshots of anything that looks different, retaken from the real app,
-       never mocked up
+- **Releasing is routine here.** Carry each change on to a release, the installed app and
+  the website without asking.
+- Branches are named after the issue, e.g. `settings-v2-9`. `Closes #N` also moves the
+  issue to Done on the NetworkMonitor project board.
+- CI checks: `build-and-test`, `universal`.
+- **Release it and update the app on this Mac.**
+  - Write its What's new in `ReleaseNotes/X.Y.Z.md`, merged with a pull
+    request before tagging: short bullets, each a bold lead and the issue,
+    with no `]]>`. The Release workflow fails without it, and puts it both in
+    the update window and in the release notes.
+  - Tag `vX.Y.Z` on `main` and push the tag. The Release workflow builds,
+    tests and publishes `NetworkMonitor.dmg` and the appcast Sparkle reads.
+  - Update the installed app: `make install` from the tag when the signing
+    keys are on this Mac (`~/.config/networkmonitor-signing/`); otherwise
+    through Sparkle, once the release is published, so the installed app
+    updates itself to the notarized build.
+  - Bring the website (`gh-pages` branch) up to date:
+    - the hero's version
+    - the download line's version and DMG size, in 1024-based MB
+    - the "What's in version" link
+    - any copy the change affects
+    - the About pane in the Settings section (`assets/settings/about.png`),
+      which shows the version, so it changes with every release
+    - screenshots of anything that looks different, retaken from the real app,
+      never mocked up
 
 ## The website
 
