@@ -500,7 +500,6 @@ struct AdsListsView: View {
         case .trackers:     return "Sites that follow you from page to page."
         case .annoyances:   return "Cookie notices and other parts of pages are for the Chrome extension."
         case .malware:      return "On top of the built-in malware list."
-        case .encryptedDNS: return "Can stop Private Relay and browsers' own secure DNS."
         case .added:        return "Downloaded from the address you gave."
         }
     }

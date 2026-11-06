@@ -72,6 +72,8 @@ func runListLibraryTests() {
             Check.expectFalse(DownloadedList.isID("Big-List"))
             for source in ListCatalogue.all { Check.expectTrue(DownloadedList.isID(source.id), source.id) }
             Check.expectEqual(Set(ListCatalogue.all.map(\.id)).count, ListCatalogue.all.count)
+            // #287: nothing that would stop encrypted DNS.
+            Check.expectFalse(ListCatalogue.all.contains { $0.url.absoluteString.contains("doh") })
         }
     }
 

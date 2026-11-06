@@ -4,7 +4,7 @@ import Foundation
 
 /// What a downloaded list is about (#254), as the Lists tab groups them.
 public enum ListTopic: String, Codable, CaseIterable {
-    case ads, trackers, annoyances, malware, encryptedDNS, added
+    case ads, trackers, annoyances, malware, added
 
     public var title: String {
         switch self {
@@ -12,7 +12,6 @@ public enum ListTopic: String, Codable, CaseIterable {
         case .trackers:     return "Trackers"
         case .annoyances:   return "Pop-ups"
         case .malware:      return "Malware and phishing"
-        case .encryptedDNS: return "Encrypted DNS"
         case .added:        return "Added by you"
         }
     }
@@ -59,6 +58,8 @@ public enum ListCatalogue {
         URL(string: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/\(file)-onlydomains.txt")!
     }
 
+    /// No list that blocks encrypted DNS: it would stop Private Relay and
+    /// browsers' own, and let the internet provider see the sites (#246, #287).
     public static let all: [ListSource] = [
         ListSource(id: "hagezi-light", title: "HaGeZi Light", topic: .ads, source: "HaGeZi", licence: "GPL-3.0",
                    url: hagezi("light"),
@@ -93,10 +94,6 @@ public enum ListCatalogue {
         ListSource(id: "hagezi-threats", title: "HaGeZi Threat Intelligence", topic: .malware, source: "HaGeZi",
                    licence: "GPL-3.0", url: hagezi("tif.mini"),
                    about: "Malware, phishing, scams and cryptojacking sites, seen recently."),
-        ListSource(id: "hagezi-doh", title: "HaGeZi Encrypted DNS", topic: .encryptedDNS, source: "HaGeZi",
-                   licence: "GPL-3.0", url: hagezi("doh"),
-                   about: "Encrypted DNS services, which let an app look names up around the lists. "
-                       + "Also stops Private Relay's and browsers' own encrypted DNS."),
     ]
 
     public static func source(_ id: String) -> ListSource? { all.first { $0.id == id } }
