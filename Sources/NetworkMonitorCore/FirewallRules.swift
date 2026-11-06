@@ -29,6 +29,13 @@ public final class FirewallRules: ObservableObject {
     public static let adRulesKey = "adRules"
 
     public static let listsPausedKey = "blocklistsPausedUntil"
+
+    /// Networks where ad blocking is off (#253), by identity, with their
+    /// names: a work network that needs a listed site, say.
+    @Published public private(set) var listsPausedNetworks: [String: String] {
+        didSet { defaults.set(listsPausedNetworks, forKey: Self.listsPausedNetworksKey) }
+    }
+    public static let listsPausedNetworksKey = "blocklistsPausedNetworks"
     public static let rulesKey = "firewallRules"
     public static let modeKey = "firewallMode"
     public static let listsKey = "blocklists"
@@ -55,14 +62,30 @@ public final class FirewallRules: ObservableObject {
         adRules = defaults.data(forKey: Self.adRulesKey)
             .flatMap { try? JSONDecoder().decode([AdRule].self, from: $0) } ?? []
         listsPausedUntil = (defaults.object(forKey: Self.listsPausedKey) as? Date).flatMap { $0 > Date() ? $0 : nil }
+        listsPausedNetworks = defaults.dictionary(forKey: Self.listsPausedNetworksKey) as? [String: String] ?? [:]
         scheduleResume()
     }
 
-    /// The lists the filter is sent: none while paused.
-    public static func activeLists(_ lists: Set<BlocklistTopic>, pausedUntil: Date?, now: Date = Date())
-        -> Set<BlocklistTopic> {
+    /// The lists the filter is sent: none while paused, or on a network
+    /// where ad blocking is off.
+    public static func activeLists(_ lists: Set<BlocklistTopic>, pausedUntil: Date?, network: String? = nil,
+                                   pausedNetworks: Set<String> = [], now: Date = Date()) -> Set<BlocklistTopic> {
+        if let network, pausedNetworks.contains(network) { return [] }
         guard let pausedUntil, pausedUntil > now else { return lists }
         return []
+    }
+
+    /// Ad blocking off, or on again, wherever the Mac is on `network`.
+    public func pauseLists(on network: CurrentNetwork, _ paused: Bool) {
+        var updated = listsPausedNetworks
+        updated[network.id] = paused ? network.name : nil
+        listsPausedNetworks = updated
+    }
+
+    public func resumeLists(onNetwork id: String) {
+        var updated = listsPausedNetworks
+        updated[id] = nil
+        listsPausedNetworks = updated
     }
 
     /// Pauses ad blocking until `date`, or resumes it with nil.
@@ -90,6 +113,17 @@ public final class FirewallRules: ObservableObject {
         guard rule.isValid else { return }
         var updated = adRules.filter { !($0.site == rule.site && $0.appKey == rule.appKey) }
         updated.insert(rule, at: 0)
+        saveAdRules(updated)
+    }
+
+    /// Several at once, as an import brings them, saved and sent once. The
+    /// last for a site and app wins.
+    public func add(_ rules: [AdRule]) {
+        var updated = adRules
+        for rule in rules where rule.isValid {
+            updated.removeAll { $0.site == rule.site && $0.appKey == rule.appKey }
+            updated.insert(rule, at: 0)
+        }
         saveAdRules(updated)
     }
 

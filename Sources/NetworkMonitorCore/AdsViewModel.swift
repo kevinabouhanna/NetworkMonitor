@@ -282,6 +282,85 @@ public final class AdsViewModel: ObservableObject {
         objectWillChange.send()
     }
 
+    // MARK: Bringing rules over (#253)
+
+    /// The import sheet: pasted text, then what it would bring.
+    @Published public var isImporting = false
+    @Published public var importText = ""
+    @Published public private(set) var importPreview: AdImport?
+    @Published public private(set) var importError: String?
+
+    public func beginImport() {
+        importText = ""
+        importPreview = nil
+        importError = nil
+        isImporting = true
+    }
+
+    public func cancelImport() {
+        isImporting = false
+        importPreview = nil
+        importError = nil
+    }
+
+    /// Back from the summary to the text.
+    public func editImport() {
+        importPreview = nil
+    }
+
+    /// A file, or what was pasted: read, and shown before anything changes.
+    public func readImport(_ data: Data) {
+        do {
+            importPreview = try AdImport.read(data, existing: adRules, findApp: Self.findApp)
+            importError = nil
+        } catch {
+            importPreview = nil
+            importError = "That isn't a uBlock Origin backup, AdGuard's settings, or rules NetworkMonitor can read."
+        }
+    }
+
+    public func readImportText() { readImport(Data(importText.utf8)) }
+
+    /// Adds what was read, and switches on the lists it had on.
+    public func applyImport() {
+        guard let preview = importPreview else { return }
+        firewall.add(preview.rules)
+        if !preview.lists.isSubset(of: firewall.lists) {
+            firewall.lists.formUnion(preview.lists)
+            switch monitor.filter.state {
+            case .off, .failed: monitor.filter.turnOn()
+            default: break
+            }
+        }
+        cancelImport()
+        objectWillChange.send()
+    }
+
+    /// Your rules as Adblock syntax.
+    public func exportText() -> String {
+        AdImport.export(adRules) { Bundle(path: $0)?.bundleIdentifier }
+    }
+
+    /// An app named by a rule: a path, a bundle ID, or a name in
+    /// Applications.
+    public static func findApp(_ name: String) -> (key: String, name: String)? {
+        let manager = FileManager.default
+        var url: URL?
+        if name.hasPrefix("/") {
+            url = URL(fileURLWithPath: name)
+        } else if let found = NSWorkspace.shared.urlForApplication(withBundleIdentifier: name) {
+            url = found
+        } else {
+            let bare = name.hasSuffix(".app") ? String(name.dropLast(4)) : name
+            url = ["/Applications", "/System/Applications", NSHomeDirectory() + "/Applications"]
+                .map { URL(fileURLWithPath: $0).appendingPathComponent(bare + ".app") }
+                .first { manager.fileExists(atPath: $0.path) }
+        }
+        guard let url, manager.fileExists(atPath: url.path) else { return nil }
+        let app = ruleApp(at: url)
+        return (app.key, app.name)
+    }
+
     /// Your rules about a log row's site or app.
     public func adRules(for entry: AdsLogEntry) -> [AdRule] {
         let domains = Set(entry.name.map(SiteName.domains(of:)) ?? [])
@@ -386,6 +465,29 @@ public final class AdsViewModel: ObservableObject {
     }
 
     public func resume() { firewall.pauseLists(until: nil) }
+
+    // MARK: Off on a network (#253)
+
+    /// The network the Mac is on, for "On This Network".
+    public var currentNetwork: FirewallRules.CurrentNetwork? { monitor.currentNetwork }
+
+    /// Ad blocking is off on the network the Mac is on: its name.
+    public var pausedHere: String? { monitor.adsPausedHere }
+
+    /// Networks where ad blocking is off, by name.
+    public var pausedNetworks: [(id: String, name: String)] {
+        firewall.listsPausedNetworks.map { ($0.key, $0.value) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    public func pauseOnThisNetwork() {
+        guard let network = currentNetwork else { return }
+        firewall.pauseLists(on: network, true)
+    }
+
+    public func resumeOnNetwork(_ id: String) {
+        firewall.resumeLists(onNetwork: id)
+    }
 
     public func icon(for item: AdsItem) -> NSImage? { icon(forBundle: item.bundlePath) }
 }

@@ -89,10 +89,22 @@ struct AdsView: View {
                     .foregroundStyle(.orange)
                 Button("Resume") { model.resume() }
             }
+        } else if let network = model.pausedHere, let id = model.currentNetwork?.id {
+            HStack(spacing: 8) {
+                Text("Off on \(network)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.orange)
+                    .lineLimit(1)
+                Button("Turn On Here") { model.resumeOnNetwork(id) }
+            }
         } else {
             Menu("Pause") {
                 Button("For 1 Hour") { model.pause(for: 3600) }
                 Button("Until Tomorrow") { model.pauseUntilTomorrow() }
+                if let network = model.currentNetwork {
+                    Divider()
+                    Button("Whenever on \(network.name)") { model.pauseOnThisNetwork() }
+                }
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
@@ -424,7 +436,7 @@ struct AdsRulesView: View {
         VStack(spacing: 0) {
             form
             Divider()
-            if model.adRules.isEmpty {
+            if model.adRules.isEmpty && model.pausedNetworks.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "list.bullet.rectangle").font(.system(size: 28)).foregroundStyle(.secondary)
                     Text("No rules yet").font(.system(size: 14, weight: .medium))
@@ -441,6 +453,7 @@ struct AdsRulesView: View {
                                 note: "Blocked even when no list has them.")
                         section("Apps not filtered", rules: model.unfilteredApps,
                                 note: "The lists leave these apps' connections alone.")
+                        networks
                     }
                     .padding(20)
                 }
@@ -450,6 +463,11 @@ struct AdsRulesView: View {
                 Button("Don't Filter an App…") { chooseApp() }
                     .help("Choose an app whose connections the lists should leave alone, such as a bank's app that breaks")
                 Spacer()
+                Button("Import…") { model.beginImport() }
+                    .help("Bring rules over from uBlock Origin, AdGuard, or a list of rules")
+                Button("Export…") { export() }
+                    .disabled(model.adRules.isEmpty)
+                    .help("Save your rules in the format uBlock Origin and AdGuard read")
                 if !model.isOn {
                     Text("Rules apply while ad blocking is on.").font(.system(size: 12)).foregroundStyle(.secondary)
                 }
@@ -491,6 +509,7 @@ struct AdsRulesView: View {
         .contentShape(Rectangle())
         .onHover { info.isHovering = $0 }
         .onChange(of: model.newSite) { _ in model.clearRuleError() }
+        .sheet(isPresented: $model.isImporting) { AdsImportSheet(model: model) }
     }
 
     static let explanation = "A rule covers the site and every name under it: example.com covers ads.example.com. "
@@ -507,6 +526,39 @@ struct AdsRulesView: View {
                 }
                 .padding(.bottom, 2)
                 ForEach(rules) { rule in row(rule) }
+            }
+        }
+    }
+
+    @ViewBuilder private var networks: some View {
+        let networks = model.pausedNetworks
+        if !networks.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Networks").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    Text("Ad blocking is off whenever the Mac is on these.")
+                        .font(.system(size: 11)).foregroundStyle(.tertiary)
+                }
+                .padding(.bottom, 2)
+                ForEach(networks, id: \.id) { network in
+                    HStack(spacing: 10) {
+                        Image(systemName: "wifi").foregroundStyle(.secondary).frame(width: 18, height: 18)
+                        Text(network.name).lineLimit(1)
+                        if network.id == model.currentNetwork?.id {
+                            Text("the network you're on").foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 8)
+                        Button {
+                            model.resumeOnNetwork(network.id)
+                        } label: {
+                            Image(systemName: "minus.circle")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Block ads on this network again")
+                    }
+                    .font(.system(size: 13))
+                    .padding(.vertical, 3)
+                }
             }
         }
     }
@@ -553,6 +605,15 @@ struct AdsRulesView: View {
         if let app = Self.pickApp() { model.dontFilter(app) }
     }
 
+    private func export() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "NetworkMonitor ad rules.txt"
+        panel.allowedContentTypes = [.plainText]
+        let text = model.exportText()
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? Data(text.utf8).write(to: url, options: .atomic)
+    }
+
     static func pickApp() -> AdsViewModel.RuleApp? {
         let panel = NSOpenPanel()
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
@@ -561,5 +622,94 @@ struct AdsRulesView: View {
         panel.prompt = "Choose"
         guard panel.runModal() == .OK, let url = panel.url else { return nil }
         return AdsViewModel.ruleApp(at: url)
+    }
+}
+
+/// Bringing rules over (#253): paste or choose a file, then see what it
+/// brings before anything changes.
+private struct AdsImportSheet: View {
+    @ObservedObject var model: AdsViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let preview = model.importPreview {
+                summary(preview)
+            } else {
+                entry
+            }
+        }
+        .padding(20)
+        .frame(width: 520)
+    }
+
+    private var entry: some View {
+        Group {
+            Text("Bring Rules Over").font(.system(size: 15, weight: .semibold))
+            Text("Choose uBlock Origin's backup (its Settings › Back up to file), AdGuard's exported settings, "
+                 + "or a file of rules. Or paste rules below, one a line.")
+                .font(.system(size: 12)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            TextEditor(text: $model.importText)
+                .font(.system(size: 12, design: .monospaced))
+                .frame(height: 160)
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.3)))
+            if let error = model.importError {
+                Text(error).font(.system(size: 11)).foregroundStyle(.red)
+            }
+            HStack {
+                Button("Choose File…") { chooseFile() }
+                Spacer()
+                Button("Cancel") { model.cancelImport() }.keyboardShortcut(.cancelAction)
+                Button("Continue") { model.readImportText() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(model.importText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+    }
+
+    private func summary(_ preview: AdImport) -> some View {
+        Group {
+            Text("From \(preview.source)").font(.system(size: 15, weight: .semibold))
+            if preview.summary.isEmpty {
+                Text("Nothing new to bring over.").font(.system(size: 13))
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(preview.summary, id: \.self) { Text("• " + $0) }
+                }
+                .font(.system(size: 13))
+            }
+            if preview.hasTrustedSites {
+                Text("Trusted sites become never blocked: connections to the site itself go through. Ads its pages "
+                     + "load from other sites are still blocked, since the filter can't tell which page asked.")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if !preview.leftOut.isEmpty {
+                Text("Left out").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    .padding(.top, 4)
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(preview.leftOut, id: \.self) { Text("• " + $0) }
+                }
+                .font(.system(size: 12)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            HStack {
+                Button("Back") { model.editImport() }
+                Spacer()
+                Button("Cancel") { model.cancelImport() }.keyboardShortcut(.cancelAction)
+                Button("Import") { model.applyImport() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(preview.isEmpty)
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    private func chooseFile() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json, .plainText, .text, .data]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) else { return }
+        model.readImport(data)
     }
 }

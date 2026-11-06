@@ -204,6 +204,9 @@ in the right-click menu, Settings › Connections, or ⌘B while a window is ope
   the names under it that were blocked; and **Apps**, with the sites each tried most.
 - **Pause:** for an hour or until tomorrow, in every app. The lists stay chosen, the filter
   is sent none until then, and the popover says it's paused. Kept across a relaunch.
+  **Whenever on** *this network* (#253) turns ad blocking off on the network the Mac is on,
+  by the router's identity as History knows it, every time it's there; the Rules tab lists
+  those networks, and **Turn On Here** undoes it.
 
 **Log** (#252), beside Overview in the toolbar: every connection the filter decides, live,
 newest first, with the time, the app, the site (or its address, marked **No Name** when
@@ -224,6 +227,23 @@ keeps the last 5,000 in memory only; lookups aren't listed.
 - Type a site, or paste an address or a rule (`https://ads.example.com/x`, `*.example.com`,
   `||example.com^`): the name is read out of it. Return makes it *never block*.
 - Right-click a site in the Overview to never block it, or an app to stop filtering it.
+- **Import…** brings rules over from **uBlock Origin** (its backup file: trusted sites, My
+  filters, and the lists it had on), **AdGuard** (its exported settings: the allowlist, user
+  rules and its filters), or rules in Adblock syntax, chosen as a file or pasted. A summary
+  comes first, and nothing changes until you accept it:
+  - `||site^` is *always block*, `@@||site^` *never block*, `$app=` (a bundle ID, an app's name
+    or path) makes it one app's, and `@@*$app=…` is *don't filter*. Hosts-file lines and bare
+    names are *always block*.
+  - Trusted sites and the allowlist become *never block*. There they mean "block nothing on this
+    site's pages"; here, connections to the site itself go through, since the filter can't tell
+    which page asked.
+  - The lists it had on switch on the ones NetworkMonitor has (ads and trackers, malware); the
+    rest are named as not offered yet.
+  - Rules that hide parts of a page (`##`, scriptlets) are counted as waiting for the browser
+    extension (#257); rules about part of a site (a path, `$third-party`, `$domain=`) as waiting
+    for Enhanced ad blocking (#256); anything else is listed with why it can't be used.
+- **Export…** saves your rules in the same syntax, which uBlock Origin's My filters and
+  AdGuard's user rules take, and Import reads back.
 
 They change only what the lists do, and only while ad blocking is on: a firewall rule in
 Connections still comes first, and *never block* lets nothing through that your rules or

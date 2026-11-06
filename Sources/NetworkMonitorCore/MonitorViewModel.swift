@@ -65,6 +65,12 @@ public final class MonitorViewModel: ObservableObject {
                                             name: store.displayLabel(for: network.id, defaultLabel: network.defaultLabel))
     }
 
+    /// Ad blocking is off on the network the Mac is on (#253): its name.
+    public var adsPausedHere: String? {
+        guard !networkID.isEmpty else { return nil }
+        return firewall.listsPausedNetworks[networkID]
+    }
+
     /// Combined day total. The popover shows one number rather than a
     /// per-direction split; live rates are already in the menu bar.
     public var totalBytes: Int64 { totalBytesIn + totalBytesOut }
@@ -248,16 +254,19 @@ public final class MonitorViewModel: ObservableObject {
         firewallPolicy = Publishers.CombineLatest4(Publishers.CombineLatest4(firewall.$rules, firewall.$lists,
                                                                              firewall.$blocksEverything,
                                                                              firewall.$listsPausedUntil),
-                                                   Publishers.CombineLatest3(firewall.$mode, $networkID,
-                                                                             firewall.$adRules),
+                                                   Publishers.CombineLatest4(firewall.$mode, $networkID,
+                                                                             firewall.$adRules,
+                                                                             firewall.$listsPausedNetworks),
                                                    $isExpensiveNetwork, metering.$isEnabled)
             .sink { [weak self] rulesAndLists, modeAndNetwork, onHotspot, pausing in
-                let (mode, network, adRules) = modeAndNetwork
+                let (mode, network, adRules, pausedNetworks) = modeAndNetwork
                 self?.filter.apply(FirewallPolicy(mode: mode, rules: rulesAndLists.0, onHotspot: onHotspot,
                                                   pausesUpdates: pausing && onHotspot,
                                                   // None while ad blocking is paused (#251).
-                                                  lists: FirewallRules.activeLists(rulesAndLists.1,
-                                                                                   pausedUntil: rulesAndLists.3),
+                                                  // And on a network where it's off (#253).
+                                                  lists: FirewallRules.activeLists(
+                                                      rulesAndLists.1, pausedUntil: rulesAndLists.3,
+                                                      network: network, pausedNetworks: Set(pausedNetworks.keys)),
                                                   blocksEverything: rulesAndLists.2,
                                                   network: network.isEmpty ? nil : network, adRules: adRules))
                 // Switched on with stale lists: fetch newer ones soon.
