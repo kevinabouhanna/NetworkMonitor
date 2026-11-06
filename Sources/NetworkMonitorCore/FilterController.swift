@@ -3,6 +3,7 @@ import FilterProtocol
 import FirewallPolicy
 import Foundation
 import NetworkExtension
+import os
 import SystemExtensions
 
 /// The app's side of the content filter (#128): installing the system
@@ -39,7 +40,13 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         public var isOffered: Bool { self != .unavailable && self != .on }
     }
 
-    @Published public private(set) var state: State
+    @Published public private(set) var state: State {
+        didSet {
+            guard state != oldValue else { return }
+            Self.log.notice("filter \(String(describing: oldValue), privacy: .public) → \(String(describing: self.state), privacy: .public)")
+            state == .on ? startWatching() : stopWatching()
+        }
+    }
     /// False until `resume()` has found out whether the filter was left on,
     /// so the welcome window doesn't offer what's already there.
     @Published public private(set) var hasResolved: Bool
@@ -63,6 +70,13 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     /// Set while the launch's request brings the running filter up to this
     /// build's (#136).
     private var updating = false
+    /// Set while the watchdog switches the filter off and on (#272), so that
+    /// isn't taken for the person doing it in System Settings.
+    private var restarting = false
+    private var watchdog = FilterWatchdog()
+    private var watchTimer: Timer?
+
+    static let log = Logger(subsystem: "com.kevinabouhanna.NetworkMonitor", category: "filter")
 
     /// The filter is in the app only when it was signed with the Developer ID
     /// and its profiles; see `Scripts/bundle.sh`.
@@ -124,11 +138,11 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     /// Only between on and off: while it's being turned on, the change is
     /// the app's own.
     private func followConfiguration() {
-        guard state == .on || state == .off else { return }
+        guard !restarting, state == .on || state == .off else { return }
         let manager = NEFilterManager.shared()
         manager.loadFromPreferences { [weak self] _ in
             DispatchQueue.main.async {
-                guard let self, self.state == .on || self.state == .off else { return }
+                guard let self, !self.restarting, self.state == .on || self.state == .off else { return }
                 if manager.isEnabled, self.state == .off {
                     self.state = .on
                     self.connect()
@@ -280,6 +294,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
 
     private func connect() {
         guard connection == nil else { return }
+        Self.log.notice("connecting to \(Self.machServiceName, privacy: .public)")
         let connection = NSXPCConnection(machServiceName: Self.machServiceName, options: [])
         connection.setCodeSigningRequirement(FilterIdentity.extensionRequirement)
         connection.remoteObjectInterface = NSXPCInterface(with: FilterExtensionInterface.self)
@@ -287,19 +302,24 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         connection.exportedObject = self
         // The filter restarts with each new version, and when macOS stops it.
         // While it's meant to be on, keep trying to reach it.
-        connection.invalidationHandler = { [weak self] in
+        connection.invalidationHandler = { [weak self, weak connection] in
             DispatchQueue.main.async {
                 guard let self else { return }
+                Self.log.notice("connection to the filter invalidated")
+                // Replaced already, by the watchdog's reconnecting (#272).
+                if let current = self.connection, current !== connection { return }
                 self.connection = nil
                 guard self.state == .on else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
-                    if self?.state == .on { self?.connect() }
+                    guard let self, self.state == .on, !self.restarting else { return }
+                    self.connect()
                 }
             }
         }
         // The filter restarted under the same connection: open it again, and
         // hand over the rules.
         connection.interruptionHandler = { [weak self, weak connection] in
+            Self.log.notice("connection to the filter interrupted; reopening it")
             (connection?.remoteObjectProxyWithErrorHandler { _ in } as? FilterExtensionInterface)?.register { _ in }
             DispatchQueue.main.async { self?.sendPolicy(); self?.sendGeoData(); self?.sendBlocklists() }
         }
@@ -365,9 +385,79 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     }
 
     public func flowsSeen(_ reports: Data) {
-        let flows = FlowReport.decode(reports)
-        guard !flows.isEmpty else { return }
-        DispatchQueue.main.async { self.flows.send(flows) }
+        let all = FlowReport.decode(reports)
+        // The watchdog's test connections are the app's own, not the person's.
+        let flows = all.filter { !FilterWatchdog.isProbe(address: $0.address, port: $0.port, pid: $0.pid) }
+        DispatchQueue.main.async {
+            self.watchdog.heard()
+            if !flows.isEmpty { self.flows.send(flows) }
+        }
+    }
+
+    // MARK: The watchdog (#272)
+
+    private func startWatching() {
+        watchdog = FilterWatchdog()
+        watchTimer?.invalidate()
+        watchTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.watch() }
+        watchTimer?.tolerance = 2
+    }
+
+    private func stopWatching() {
+        watchTimer?.invalidate()
+        watchTimer = nil
+    }
+
+    private func watch() {
+        guard state == .on, !restarting else { return }
+        switch watchdog.tick() {
+        case .none:
+            break
+        case .probe:
+            Self.log.notice("nothing heard from the filter for \(Int(FilterWatchdog.quiet))s; testing it")
+            if !FilterWatchdog.startProbe() {
+                Self.log.notice("the test connection couldn't start; no network to test on")
+                watchdog.probeCouldNotStart()
+            }
+        case .reconnect:
+            Self.log.error("the filter didn't report the test connection; reconnecting")
+            disconnect()
+            connect()
+            if !FilterWatchdog.startProbe() { watchdog.probeCouldNotStart() }
+        case .restart:
+            Self.log.error("the filter is still silent; switching it off and on")
+            restartFilter()
+        }
+    }
+
+    /// Off and on again: macOS starts a new filter session, and with it
+    /// hands the filter connections again.
+    private func restartFilter() {
+        restarting = true
+        disconnect()
+        let manager = NEFilterManager.shared()
+        let finish: (Error?) -> Void = { [weak self] error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.restarting = false
+                if let error {
+                    Self.log.error("restarting the filter failed: \(error.localizedDescription, privacy: .public)")
+                } else {
+                    Self.log.notice("filter restarted")
+                }
+                self.watchdog.heard()
+                if self.state == .on { self.connect() }
+            }
+        }
+        manager.loadFromPreferences { error in
+            guard error == nil, manager.isEnabled else { finish(error); return }
+            manager.isEnabled = false
+            manager.saveToPreferences { error in
+                guard error == nil else { finish(error); return }
+                manager.isEnabled = true
+                manager.saveToPreferences { error in finish(error) }
+            }
+        }
     }
 
     public func ask(_ question: Data) {
