@@ -93,6 +93,17 @@ public final class FirewallRules: ObservableObject {
         saveAdRules(updated)
     }
 
+    /// Several at once, as an import brings them, saved and sent once. The
+    /// last for a site and app wins.
+    public func add(_ rules: [AdRule]) {
+        var updated = adRules
+        for rule in rules where rule.isValid {
+            updated.removeAll { $0.site == rule.site && $0.appKey == rule.appKey }
+            updated.insert(rule, at: 0)
+        }
+        saveAdRules(updated)
+    }
+
     public func remove(_ rule: AdRule) {
         saveAdRules(adRules.filter { $0.id != rule.id })
     }

@@ -113,4 +113,111 @@ func runAdRuleTests() {
             Check.expectEqual(AdsReport.title(ofList: "mine"), "Your Rules")
         }
     }
+
+    Check.suite("Ad blocking — bringing rules over (#253)") {
+        let apps: [String: (key: String, name: String)] = [
+            "com.google.Chrome": (chrome, "Google Chrome"), "Slack": ("/Applications/Slack.app", "Slack"),
+        ]
+        let findApp: AdImport.AppFinder = { apps[$0] }
+
+        Check.test("Adblock lines: whole sites come over, the rest is counted and kept for later") {
+            let text = """
+                ! My filters
+                [Adblock Plus 2.0]
+                ||taboola.com^
+                @@||ads.linkedin.com^$important
+                @@||googleadservices.com^$app=com.google.Chrome
+                @@*$app=Slack
+                ||outbrain.com^$third-party
+                ||example.com/ads/*
+                /banner[0-9]+/
+                example.org##.ad-banner
+                ##.sponsored
+                youtube.com##+js(set, ytInitialPlayerResponse.adPlacements, undefined)
+                @@||news.example^$elemhide
+                ||tracker.example.net^$app=Missing
+                0.0.0.0 hosts.example.com
+                # a hosts comment
+                plain.example.io
+                """
+            let result = try! AdImport.read(Data(text.utf8), existing: [], findApp: findApp)
+            Check.expectEqual(result.source, "a list of rules")
+            Check.expectEqual(result.rules, [
+                AdRule(kind: .alwaysBlock, site: "taboola.com"),
+                AdRule(kind: .neverBlock, site: "ads.linkedin.com"),
+                AdRule(kind: .neverBlock, site: "googleadservices.com", appKey: chrome, appTitle: "Google Chrome"),
+                AdRule(kind: .neverBlock, site: nil, appKey: "/Applications/Slack.app", appTitle: "Slack"),
+                AdRule(kind: .alwaysBlock, site: "hosts.example.com"),
+                AdRule(kind: .alwaysBlock, site: "plain.example.io"),
+            ])
+            Check.expectEqual(result.forEnhanced, ["||outbrain.com^$third-party", "||example.com/ads/*",
+                                                   "/banner[0-9]+/"])
+            Check.expectEqual(result.forExtension.count, 4)
+            Check.expectEqual(result.skipped, [AdImport.Skipped(line: "||tracker.example.net^$app=Missing",
+                                                                why: "Missing isn't on this Mac")])
+            Check.expectEqual(result.summary, ["2 sites never blocked", "3 sites always blocked", "1 app not filtered"])
+        }
+
+        Check.test("what's here already is counted, and nothing is read from what isn't rules") {
+            let here = [AdRule(kind: .alwaysBlock, site: "taboola.com")]
+            let result = try! AdImport.read(Data("||taboola.com^\n||outbrain.com^".utf8), existing: here,
+                                            findApp: findApp)
+            Check.expectEqual(result.rules, [AdRule(kind: .alwaysBlock, site: "outbrain.com")])
+            Check.expectEqual(result.alreadyHere, 1)
+            Check.expectTrue((try? AdImport.read(Data("! only a comment".utf8), existing: [], findApp: findApp)) == nil)
+            Check.expectTrue((try? AdImport.read(Data("{\"something\": 1}".utf8), existing: [], findApp: findApp)) == nil)
+        }
+
+        Check.test("a uBlock Origin backup: trusted sites, my filters and the lists it had on") {
+            let backup: [String: Any] = [
+                "timeStamp": 1_790_000_000_000, "version": "1.60.0",
+                "whitelist": ["about-scheme", "chrome-extension-scheme", "bank.example.com", "/regex/"],
+                "selectedFilterLists": ["user-filters", "ublock-filters", "easylist", "easyprivacy", "urlhaus-1",
+                                        "https://example.org/my-list.txt", "DEU-0"],
+                "userFilters": "||taboola.com^\nexample.com##.ad",
+            ]
+            let data = try! JSONSerialization.data(withJSONObject: backup)
+            let result = try! AdImport.read(data, existing: [], findApp: findApp)
+            Check.expectEqual(result.source, "uBlock Origin backup")
+            Check.expectEqual(result.rules, [AdRule(kind: .neverBlock, site: "bank.example.com"),
+                                             AdRule(kind: .alwaysBlock, site: "taboola.com")])
+            Check.expectTrue(result.hasTrustedSites)
+            Check.expectEqual(result.lists, [.ads, .malware])
+            Check.expectEqual(result.listsNotHere, ["https://example.org/my-list.txt", "DEU-0"])
+            Check.expectEqual(result.forExtension, ["example.com##.ad"])
+            Check.expectEqual(result.skipped.map(\.line), ["/regex/"])
+        }
+
+        Check.test("AdGuard's settings: the allowlist, user rules and its filters") {
+            let settings: [String: Any] = [
+                "protocol-version": "2.0",
+                "filters": [
+                    "enabled-filters": [2, 3, 224],
+                    "custom-filters": [["customUrl": "https://example.org/list.txt", "title": "My list",
+                                        "enabled": true]],
+                    "user-filter": ["rules": "||outbrain.com^\n||disabled.example^", "enabled": true,
+                                    "disabled-rules": "||disabled.example^"],
+                    "whitelist": ["enabled": true, "inverted": false, "domains": ["shop.example.com"]],
+                ],
+            ]
+            let data = try! JSONSerialization.data(withJSONObject: settings)
+            let result = try! AdImport.read(data, existing: [], findApp: findApp)
+            Check.expectEqual(result.source, "AdGuard settings")
+            Check.expectEqual(result.rules, [AdRule(kind: .neverBlock, site: "shop.example.com"),
+                                             AdRule(kind: .alwaysBlock, site: "outbrain.com")])
+            Check.expectEqual(result.lists, [.ads])
+            Check.expectEqual(result.listsNotHere, ["AdGuard Chinese filter", "My list"])
+        }
+
+        Check.test("exported rules read back the same") {
+            let rules = [AdRule(kind: .alwaysBlock, site: "taboola.com"),
+                         AdRule(kind: .neverBlock, site: "googleadservices.com", appKey: chrome, appTitle: "Google Chrome"),
+                         AdRule(kind: .neverBlock, site: nil, appKey: "/Applications/Slack.app", appTitle: "Slack")]
+            let text = AdImport.export(rules) { $0 == chrome ? "com.google.Chrome" : nil }
+            Check.expectTrue(text.contains("@@||googleadservices.com^$app=com.google.Chrome"))
+            let back = try! AdImport.read(Data(text.utf8), existing: [],
+                                          findApp: { apps[$0] ?? ($0 == "/Applications/Slack.app" ? ($0, "Slack") : nil) })
+            Check.expectEqual(back.rules, rules)
+        }
+    }
 }
