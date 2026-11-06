@@ -80,6 +80,7 @@ public final class SettingsWindowController: NSObject {
 
     public init(model: MonitorViewModel, history: HistoryViewModel,
                 connections: ConnectionsViewModel, onOpenConnections: @escaping () -> Void,
+                onOpenAds: @escaping () -> Void = {},
                 onUninstall: @escaping () -> Void, defaults: UserDefaults = .standard) {
         self.history = history
         self.defaults = defaults
@@ -103,7 +104,8 @@ public final class SettingsWindowController: NSObject {
                                                              geoData: model.geoData,
                                                              blocklists: model.blocklists,
                                                              listBlocks: model.listBlocks,
-                                                             onOpen: onOpenConnections),
+                                                             onOpen: onOpenConnections,
+                                                             onOpenAds: onOpenAds),
                                      width: SettingsMetrics.paneWidth)
             case .hotspot:   host = Self.paneHost(HotspotSettingsPane(metering: model.metering, state: state, filter: model.filter), width: SettingsMetrics.paneWidth)
             case .about:     host = Self.paneHost(AboutSettingsPane(updates: model.updates, onUninstall: onUninstall), width: SettingsMetrics.paneWidth)

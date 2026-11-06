@@ -16,6 +16,7 @@ struct ConnectionsSettingsPane: View {
     @ObservedObject var blocklists: BlocklistUpdater
     @ObservedObject var listBlocks: ListBlockCount
     let onOpen: () -> Void
+    var onOpenAds: () -> Void = {}
 
     var body: some View {
         Form {
@@ -105,7 +106,11 @@ struct ConnectionsSettingsPane: View {
                     }
                 }
                 LabeledContent("Blocked today") {
-                    Text(listBlocks.today.formatted()).foregroundStyle(.secondary).monospacedDigit()
+                    HStack(spacing: 10) {
+                        Text(listBlocks.today.formatted()).foregroundStyle(.secondary).monospacedDigit()
+                        Button("Open Ads and Trackers…", action: onOpenAds)
+                            .help("What was blocked, when and in which app. Also ⌘B")
+                    }
                 }
                 ExplainedRow("Update them weekly", Self.updatesExplanation) {
                     Toggle("Update them weekly", isOn: $blocklists.isEnabled)

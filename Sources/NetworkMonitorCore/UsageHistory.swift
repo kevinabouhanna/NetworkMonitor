@@ -933,6 +933,40 @@ public final class UsageHistory {
         listBlocks(from: start, to: end).reduce(0) { $0 + $1.count }
     }
 
+    /// What the lists blocked, hour by hour, for the Ads window's chart (#251).
+    /// Hours with none are left out.
+    public func listBlockHours(from start: Date, to end: Date) -> [(hour: Date, count: Int64)] {
+        guard let database else { return [] }
+        flush()
+        return queue.sync {
+            do {
+                let query = try database.prepare("""
+                    SELECT hour, SUM(count) FROM list_blocks
+                    WHERE hour >= ?1 AND hour < ?2
+                    GROUP BY hour ORDER BY hour
+                    """)
+                query.bind([.int(Int64(start.timeIntervalSince1970)), .int(Int64(end.timeIntervalSince1970))])
+                var hours: [(hour: Date, count: Int64)] = []
+                while try query.step() {
+                    hours.append((Date(timeIntervalSince1970: TimeInterval(query.int64(0))), query.int64(1)))
+                }
+                return hours
+            } catch {
+                NSLog("NetworkMonitor: reading list block hours failed: \(error)")
+                return []
+            }
+        }
+    }
+
+    /// The first hour anything was blocked by a list, or nil.
+    public func listBlocksSince() -> Date? {
+        guard let database else { return nil }
+        return queue.sync {
+            (try? database.scalar("SELECT MIN(hour) FROM list_blocks"))
+                .map { Date(timeIntervalSince1970: TimeInterval($0)) }
+        }
+    }
+
     /// Bytes to and from servers, hour by hour, for the Connections window's
     /// timeline. Hours with none are left out.
     public func serverHours(from start: Date, to end: Date, filter: HistoryFilter = HistoryFilter(),
@@ -1436,6 +1470,12 @@ public final class UsageHistory {
     // MARK: Opening
 
     private static func defaultURL() -> URL {
+        // `-historyDatabase <path>`, for a development build's screenshots
+        // and checks against test data (#251). Launch arguments only.
+        if let path = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)["historyDatabase"]
+            as? String, !path.isEmpty {
+            return URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+        }
         let support = FileManager.default.urls(for: .applicationSupportDirectory,
                                                in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())

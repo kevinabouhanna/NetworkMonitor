@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             model: model, history: HistoryViewModel(monitor: model),
             connections: connectionsModel,
             onOpenConnections: { [weak self] in self?.showConnections() },
+            onOpenAds: { [weak self] in self?.showAds() },
             onUninstall: { [weak self] in self?.uninstall() })
         controller.window.delegate = self
         controller.highestTop = { [weak self] screen in
@@ -43,6 +44,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         connectionsController = controller
         return controller
     }
+    /// What the ad, tracker and malware lists blocked (#251). Created on first use.
+    private var adsController: AdsWindowController?
+    private var ads: AdsWindowController {
+        if let adsController { return adsController }
+        let controller = AdsWindowController(model: AdsViewModel(monitor: model))
+        controller.window.delegate = self
+        adsController = controller
+        return controller
+    }
     /// Ask Me's questions (#129), in a panel of their own.
     private var askController: AskController?
     /// The welcome window (#134), on first launch. Created when shown.
@@ -51,7 +61,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Settings, Connections and the welcome window, whichever exist, without
     /// creating any to find out.
     private var ourWindows: [NSWindow] {
-        [settingsController?.window, connectionsController?.window, welcomeController?.window].compactMap { $0 }
+        [settingsController?.window, connectionsController?.window, adsController?.window,
+         welcomeController?.window].compactMap { $0 }
     }
     /// Those that are open, front to back.
     private var openWindows: [NSWindow] {
@@ -119,6 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         let arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
         switch arguments["open"] as? String {
         case "connections": showConnections()
+        case "ads":         showAds()
         case "welcome":     showWelcome()
         case "settings":    show(pane: (arguments["pane"] as? String).flatMap(SettingsPane.init))
         default:            break
@@ -200,7 +212,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             model: model,
             onSettings: { [weak self] in self?.showSettings() },
             onHistory: { [weak self] in self?.showHistory() },
-            onConnections: { [weak self] in self?.showConnections() })
+            onConnections: { [weak self] in self?.showConnections() },
+            onAds: { [weak self] in self?.showAds() })
         let host = NSHostingController(rootView: root)
         // Keeps `preferredContentSize` in step with what SwiftUI lays out.
         //
@@ -541,7 +554,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// nothing else brings the window forward.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         guard let frontmost = openWindows.first else { return true }
-        if frontmost === connectionsController?.window { showConnections() } else { showSettings() }
+        if frontmost === connectionsController?.window {
+            showConnections()
+        } else if frontmost === adsController?.window {
+            showAds()
+        } else {
+            showSettings()
+        }
         return false
     }
 
@@ -604,6 +623,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
         menu.addItem(withTitle: "Connections…",
                      action: #selector(showConnections), keyEquivalent: "k")
+        menu.addItem(withTitle: "Ads and Trackers…",
+                     action: #selector(showAds), keyEquivalent: "b")
         menu.addItem(withTitle: "Usage History…",
                      action: #selector(showHistory), keyEquivalent: "y")
         menu.addItem(withTitle: "Settings…",
@@ -743,6 +764,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         DispatchQueue.main.async { [weak self] in self?.connections.window.makeFirstResponder(nil) }
     }
 
+    /// The Ads and Trackers window (#251): from the popover's line of ads
+    /// blocked today, Ads and Trackers… in the right-click menu, Settings ›
+    /// Connections, and ⌘B while a window is open.
+    @objc private func showAds() {
+        if popover.isShown { closePopover() }
+        let wasVisible = ads.isVisible
+        present(ads.window, reposition: !wasVisible)
+        guard !wasVisible else { return }
+        ads.windowDidShow()
+        DispatchQueue.main.async { [weak self] in self?.ads.window.makeFirstResponder(nil) }
+    }
+
     private func show(pane: SettingsPane?) {
         if popover.isShown { closePopover() }
         let wasVisible = settings.isVisible
@@ -796,6 +829,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         guard let closing = notification.object as? NSWindow else { return }
         if closing === settingsController?.window { settingsController?.windowWillClose() }
         if closing === connectionsController?.window { connectionsController?.windowWillClose() }
+        if closing === adsController?.window { adsController?.windowWillClose() }
         // Still a regular app while another window is open.
         let stillOpen = ourWindows.contains { $0 !== closing && $0.isVisible }
         guard !stillOpen else { return }
@@ -844,6 +878,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         windowMenu.addItem(.separator())
         windowMenu.addItem(withTitle: "Connections",
                            action: #selector(showConnections), keyEquivalent: "k").target = self
+        windowMenu.addItem(withTitle: "Ads and Trackers",
+                           action: #selector(showAds), keyEquivalent: "b").target = self
         windowMenu.addItem(withTitle: "Usage History",
                            action: #selector(showHistory), keyEquivalent: "y").target = self
 

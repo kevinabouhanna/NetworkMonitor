@@ -18,9 +18,11 @@ public struct MenuBarPopoverView: View {
     var onSettings: () -> Void
     var onHistory: () -> Void
     var onConnections: () -> Void
+    var onAds: () -> Void
 
     public init(model: MonitorViewModel, onSettings: @escaping () -> Void,
-                onHistory: @escaping () -> Void, onConnections: @escaping () -> Void) {
+                onHistory: @escaping () -> Void, onConnections: @escaping () -> Void,
+                onAds: @escaping () -> Void = {}) {
         self.model = model
         self.speedTest = model.speedTest
         self.metering = model.metering
@@ -29,6 +31,7 @@ public struct MenuBarPopoverView: View {
         self.onSettings = onSettings
         self.onHistory = onHistory
         self.onConnections = onConnections
+        self.onAds = onAds
     }
 
     /// One line under the total, while metered, when an update came through
@@ -185,15 +188,30 @@ public struct MenuBarPopoverView: View {
                     .help("Block Everything is on: every app's new connections stop, apart from looking up "
                           + "names, the clock and your own network")
                 }
-                if listBlocks.today > 0 {
-                    HStack(spacing: 4) {
-                        Image(systemName: "shield.lefthalf.filled")
-                        Text("\(listBlocks.today.formatted()) ads and trackers blocked today")
-                            .lineLimit(1)
+                if let until = firewall.listsPausedUntil {
+                    Button(action: onAds) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "shield.slash")
+                            Text("Ad blocking paused until \(until.formatted(date: .omitted, time: .shortened))")
+                                .lineLimit(1)
+                        }
                     }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.orange)
+                    .help("Open Ads and Trackers to resume")
+                } else if listBlocks.today > 0 {
+                    Button(action: onAds) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "shield.lefthalf.filled")
+                            Text("\(listBlocks.today.formatted()) ads and trackers blocked today")
+                                .lineLimit(1)
+                        }
+                    }
+                    .buttonStyle(.plain)
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
-                    .help("Blocked by the lists in Settings › Connections")
+                    .help("See what was blocked, and where")
                 }
                 if let failure = model.perAppFailure {
                     // Grey, not orange: the total above is still right. Only the
