@@ -229,9 +229,10 @@ keeps the last 5,000 in memory only; lookups aren't listed.
   | Trackers | EasyPrivacy, as Firebog extracts it |
   | Pop-ups | HaGeZi Pop-up Ads |
   | Malware and phishing | HaGeZi Threat Intelligence |
-  | Encrypted DNS | HaGeZi Encrypted DNS (also stops Private Relay and browsers' own secure DNS) |
 
-  Hover a list for who keeps it and its licence. They're downloaded rather than shipped, so
+  No list that blocks encrypted DNS is offered: it would stop Private Relay and browsers' own,
+  and let the internet provider see the sites (#246, #287). Hover a list for who keeps it and
+  its licence. They're downloaded rather than shipped, so
   the GPL ones are fine to offer; the signed `blocklists` release keeps only lists we may
   republish.
 - **Add List** takes any list's `https://` address: a hosts file, a plain list of names, or
