@@ -204,6 +204,9 @@ in the right-click menu, Settings › Connections, or ⌘B while a window is ope
   the names under it that were blocked; and **Apps**, with the sites each tried most.
 - **Pause:** for an hour or until tomorrow, in every app. The lists stay chosen, the filter
   is sent none until then, and the popover says it's paused. Kept across a relaunch.
+  **Whenever on** *this network* (#253) turns ad blocking off on the network the Mac is on,
+  by the router's identity as History knows it, every time it's there; the Rules tab lists
+  those networks, and **Turn On Here** undoes it.
 
 **Log** (#252), beside Overview in the toolbar: every connection the filter decides, live,
 newest first, with the time, the app, the site (or its address, marked **No Name** when

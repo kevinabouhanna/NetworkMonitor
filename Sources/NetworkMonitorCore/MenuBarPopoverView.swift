@@ -34,6 +34,15 @@ public struct MenuBarPopoverView: View {
         self.onAds = onAds
     }
 
+    /// Ad blocking paused for a while (#251), or off on this network (#253).
+    private var adsPausedText: String? {
+        if let until = firewall.listsPausedUntil {
+            return "Ad blocking paused until \(until.formatted(date: .omitted, time: .shortened))"
+        }
+        guard !firewall.lists.isEmpty, let network = model.adsPausedHere else { return nil }
+        return "Ad blocking off on \(network)"
+    }
+
     /// One line under the total, while metered, when an update came through
     /// anyway: the popover is where someone on a hotspot actually looks, and
     /// Settings is not.
@@ -188,12 +197,11 @@ public struct MenuBarPopoverView: View {
                     .help("Block Everything is on: every app's new connections stop, apart from looking up "
                           + "names, the clock and your own network")
                 }
-                if let until = firewall.listsPausedUntil {
+                if let paused = adsPausedText {
                     Button(action: onAds) {
                         HStack(spacing: 4) {
                             Image(systemName: "shield.slash")
-                            Text("Ad blocking paused until \(until.formatted(date: .omitted, time: .shortened))")
-                                .lineLimit(1)
+                            Text(paused).lineLimit(1)
                         }
                     }
                     .buttonStyle(.plain)

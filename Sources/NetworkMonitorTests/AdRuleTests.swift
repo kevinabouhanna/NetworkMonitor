@@ -114,6 +114,28 @@ func runAdRuleTests() {
         }
     }
 
+    Check.suite("Ad blocking — off on a network (#253)") {
+
+        Check.test("no lists are sent on a network where it's off, and it's kept") {
+            let suite = "ad-networks-\(UUID().uuidString)"
+            let firewall = FirewallRules(defaults: UserDefaults(suiteName: suite)!)
+            firewall.lists = [.ads]
+            firewall.pauseLists(on: .init(id: "router-1", name: "Office"), true)
+            Check.expectEqual(firewall.listsPausedNetworks, ["router-1": "Office"])
+            let paused = Set(firewall.listsPausedNetworks.keys)
+            Check.expectEqual(FirewallRules.activeLists(firewall.lists, pausedUntil: nil, network: "router-1",
+                                                        pausedNetworks: paused), [])
+            Check.expectEqual(FirewallRules.activeLists(firewall.lists, pausedUntil: nil, network: "home",
+                                                        pausedNetworks: paused), [.ads])
+            Check.expectEqual(FirewallRules.activeLists(firewall.lists, pausedUntil: nil, network: nil,
+                                                        pausedNetworks: paused), [.ads])
+            Check.expectEqual(FirewallRules(defaults: UserDefaults(suiteName: suite)!).listsPausedNetworks,
+                              ["router-1": "Office"])
+            firewall.resumeLists(onNetwork: "router-1")
+            Check.expectEqual(firewall.listsPausedNetworks, [:])
+        }
+    }
+
     Check.suite("Ad blocking — bringing rules over (#253)") {
         let apps: [String: (key: String, name: String)] = [
             "com.google.Chrome": (chrome, "Google Chrome"), "Slack": ("/Applications/Slack.app", "Slack"),

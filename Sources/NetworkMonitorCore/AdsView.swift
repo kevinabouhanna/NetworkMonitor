@@ -89,10 +89,22 @@ struct AdsView: View {
                     .foregroundStyle(.orange)
                 Button("Resume") { model.resume() }
             }
+        } else if let network = model.pausedHere, let id = model.currentNetwork?.id {
+            HStack(spacing: 8) {
+                Text("Off on \(network)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.orange)
+                    .lineLimit(1)
+                Button("Turn On Here") { model.resumeOnNetwork(id) }
+            }
         } else {
             Menu("Pause") {
                 Button("For 1 Hour") { model.pause(for: 3600) }
                 Button("Until Tomorrow") { model.pauseUntilTomorrow() }
+                if let network = model.currentNetwork {
+                    Divider()
+                    Button("Whenever on \(network.name)") { model.pauseOnThisNetwork() }
+                }
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
@@ -424,7 +436,7 @@ struct AdsRulesView: View {
         VStack(spacing: 0) {
             form
             Divider()
-            if model.adRules.isEmpty {
+            if model.adRules.isEmpty && model.pausedNetworks.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "list.bullet.rectangle").font(.system(size: 28)).foregroundStyle(.secondary)
                     Text("No rules yet").font(.system(size: 14, weight: .medium))
@@ -441,6 +453,7 @@ struct AdsRulesView: View {
                                 note: "Blocked even when no list has them.")
                         section("Apps not filtered", rules: model.unfilteredApps,
                                 note: "The lists leave these apps' connections alone.")
+                        networks
                     }
                     .padding(20)
                 }
@@ -513,6 +526,39 @@ struct AdsRulesView: View {
                 }
                 .padding(.bottom, 2)
                 ForEach(rules) { rule in row(rule) }
+            }
+        }
+    }
+
+    @ViewBuilder private var networks: some View {
+        let networks = model.pausedNetworks
+        if !networks.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Networks").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    Text("Ad blocking is off whenever the Mac is on these.")
+                        .font(.system(size: 11)).foregroundStyle(.tertiary)
+                }
+                .padding(.bottom, 2)
+                ForEach(networks, id: \.id) { network in
+                    HStack(spacing: 10) {
+                        Image(systemName: "wifi").foregroundStyle(.secondary).frame(width: 18, height: 18)
+                        Text(network.name).lineLimit(1)
+                        if network.id == model.currentNetwork?.id {
+                            Text("the network you're on").foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 8)
+                        Button {
+                            model.resumeOnNetwork(network.id)
+                        } label: {
+                            Image(systemName: "minus.circle")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Block ads on this network again")
+                    }
+                    .font(.system(size: 13))
+                    .padding(.vertical, 3)
+                }
             }
         }
     }

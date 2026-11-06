@@ -466,5 +466,28 @@ public final class AdsViewModel: ObservableObject {
 
     public func resume() { firewall.pauseLists(until: nil) }
 
+    // MARK: Off on a network (#253)
+
+    /// The network the Mac is on, for "On This Network".
+    public var currentNetwork: FirewallRules.CurrentNetwork? { monitor.currentNetwork }
+
+    /// Ad blocking is off on the network the Mac is on: its name.
+    public var pausedHere: String? { monitor.adsPausedHere }
+
+    /// Networks where ad blocking is off, by name.
+    public var pausedNetworks: [(id: String, name: String)] {
+        firewall.listsPausedNetworks.map { ($0.key, $0.value) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    public func pauseOnThisNetwork() {
+        guard let network = currentNetwork else { return }
+        firewall.pauseLists(on: network, true)
+    }
+
+    public func resumeOnNetwork(_ id: String) {
+        firewall.resumeLists(onNetwork: id)
+    }
+
     public func icon(for item: AdsItem) -> NSImage? { icon(forBundle: item.bundlePath) }
 }
