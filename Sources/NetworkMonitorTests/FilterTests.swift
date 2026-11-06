@@ -44,6 +44,70 @@ func runFilterTests() {
         }
     }
 
+    Check.suite("Content filter — noticing it has gone quiet (#272)") {
+
+        Check.test("tests only after two quiet minutes, and not while reports come") {
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            var watchdog = FilterWatchdog(now: start)
+            Check.expectEqual(watchdog.tick(at: start.addingTimeInterval(119)), .none)
+            watchdog.heard(at: start.addingTimeInterval(100))
+            Check.expectEqual(watchdog.tick(at: start.addingTimeInterval(200)), .none)
+            Check.expectEqual(watchdog.tick(at: start.addingTimeInterval(220)), .probe)
+        }
+
+        Check.test("a report after the test ends it") {
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            var watchdog = FilterWatchdog(now: start)
+            Check.expectEqual(watchdog.tick(at: start.addingTimeInterval(120)), .probe)
+            watchdog.heard(at: start.addingTimeInterval(121))
+            Check.expectEqual(watchdog.tick(at: start.addingTimeInterval(140)), .none)
+            Check.expectEqual(watchdog.tick(at: start.addingTimeInterval(240)), .none)
+            Check.expectEqual(watchdog.tick(at: start.addingTimeInterval(241)), .probe)
+        }
+
+        Check.test("silence: reconnect, then restart, then not again for 15 minutes") {
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            var watchdog = FilterWatchdog(now: start)
+            var now = start.addingTimeInterval(120)
+            Check.expectEqual(watchdog.tick(at: now), .probe)
+            Check.expectEqual(watchdog.tick(at: now.addingTimeInterval(5)), .none)
+            now += 10
+            Check.expectEqual(watchdog.tick(at: now), .reconnect)
+            now += 10
+            Check.expectEqual(watchdog.tick(at: now), .restart)
+            // Still silent after the restart: tests and reconnects, but the
+            // next restart waits.
+            now += 120
+            Check.expectEqual(watchdog.tick(at: now), .probe)
+            now += 10
+            Check.expectEqual(watchdog.tick(at: now), .reconnect)
+            now += 10
+            Check.expectEqual(watchdog.tick(at: now), .none)
+            now += 15 * 60
+            Check.expectEqual(watchdog.tick(at: now), .probe)
+            now += 10
+            Check.expectEqual(watchdog.tick(at: now), .reconnect)
+            now += 10
+            Check.expectEqual(watchdog.tick(at: now), .restart)
+        }
+
+        Check.test("a test that can't start, with no network, counts for nothing") {
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            var watchdog = FilterWatchdog(now: start)
+            Check.expectEqual(watchdog.tick(at: start.addingTimeInterval(120)), .probe)
+            watchdog.probeCouldNotStart(at: start.addingTimeInterval(120))
+            Check.expectEqual(watchdog.tick(at: start.addingTimeInterval(135)), .none)
+            Check.expectEqual(watchdog.tick(at: start.addingTimeInterval(240)), .probe)
+        }
+
+        Check.test("the test connection is the app's own, never the person's") {
+            Check.expectTrue(FilterWatchdog.isProbe(address: "192.0.2.1", port: 9, pid: getpid()))
+            Check.expectFalse(FilterWatchdog.isProbe(address: "192.0.2.1", port: 9, pid: 1))
+            Check.expectFalse(FilterWatchdog.isProbe(address: "192.0.2.1", port: 443, pid: getpid()))
+            Check.expectFalse(FilterWatchdog.isProbe(address: "1.1.1.1", port: 9, pid: getpid()))
+        }
+    }
+
     Check.suite("Content filter — companies from server names") {
 
         func company(_ hostname: String) -> Company? { Company.named(byHostname: hostname) }

@@ -507,6 +507,7 @@ down with it.
 | `nettop` exits, can't start, stalls or can't be read | Restarted, backing off to 30 s. The popover says per-app figures are paused; the total carries on, since it never depends on `nettop` |
 | `history.sqlite` can't be opened | Usage History is off, and everything else runs. Servers are written in a transaction of their own, so a failure there costs History none of its figures |
 | The content filter isn't allowed, or this build has none | Connections, blocking and stopping every app's updater say so in setup and Settings, with a way to turn it on. The rest works without it |
+| The content filter goes quiet while it's on (#272) | After two minutes with no report, the app makes a test connection to 192.0.2.1 (a documentation-only address nothing answers), which a working filter reports at once. No report within 10 s: it reconnects and tests again; still nothing: it switches the filter off and on, at most every 15 minutes. Test connections are kept out of the log and History |
 | The helper isn't allowed | Hotspot mode pauses what needs no helper. Settings lists the rest as paused once you allow it |
 | NetworkMonitor quits or crashes on a hotspot | Every change Hotspot mode made is in its journal, put back at the next launch before anything is decided afresh. If the app is gone, the helper's hourly self-heal job puts back what it changed |
 | The monthly data or an update can't be fetched, or doesn't check out | Nothing changes: the copy in use stays, and the next check is the next day |
@@ -523,6 +524,10 @@ down with it.
 - **`--metering-report`** prints Hotspot mode's state without changing anything: the
   verdict, what's paused, the helper's status.
 - **Console** has every failure the app logs, prefixed `NetworkMonitor:`.
+- **The filter's connection** logs each step under the subsystem
+  `com.kevinabouhanna.NetworkMonitor`, category `filter`: its state, connecting, losing
+  the connection, and the watchdog's tests, reconnects and restarts.
+  `log show --last 1h --predicate 'subsystem == "com.kevinabouhanna.NetworkMonitor"'`
 - **Launch arguments** point a development build at local test data, open a window, or
   pick a power profile: see [development](development.md#launch-arguments).
 
