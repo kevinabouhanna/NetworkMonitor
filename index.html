@@ -459,7 +459,7 @@ footer a { color: var(--text-2); }
         <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download for Mac</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
-      <p class="hero-meta reveal d3"><span>Version 1.22.1</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
+      <p class="hero-meta reveal d3"><span>Version 1.23.0</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
       <div class="featured reveal d3">
         <a href="https://www.trymacapps.com" target="_blank" rel="noopener">
           <img
@@ -741,15 +741,15 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>Yours to control.</h3>
-          <p>It’s off until you turn it on in Settings › Connections, and macOS asks you to allow the filter the first time. Each list has its own switch, and you can pause it all for an hour, or turn it off on a network that needs a listed site. Your own rules have the last word: never block a site, always block one no list has, everywhere or in one app, or leave an app alone entirely. Coming from uBlock Origin or AdGuard? Import its backup or your rules, see what comes over first, and export yours in the same format.</p>
+          <p>It’s off until you turn it on in Settings › Connections, and macOS asks you to allow the filter the first time. Each list has its own switch, and its <b>Lists</b> tab offers more by topic, HaGeZi, OISD, AdGuard’s and others, or takes any list by its address. You can pause it all for an hour, or turn it off on a network that needs a listed site. Your own rules have the last word: never block a site, always block one no list has, everywhere or in one app, or leave an app alone entirely. Coming from uBlock Origin or AdGuard? Import its backup or your rules, see what comes over first, and export yours in the same format.</p>
         </div>
         <div class="reveal">
           <h3>See what it stopped.</h3>
-          <p><b>Ads and Trackers</b> has a window of its own: how many were blocked in a day, week, month or year, over time, and the sites and apps most blocked. Its <b>Log</b> shows every connection as it’s decided, and why. The popover says how many today, and Connections tags each listed server <b>ADS</b> or <b>MALWARE</b>.</p>
+          <p><b>Ads and Trackers</b> has a window of its own: how many were blocked in a day, week, month or year, over time, and the sites and apps most blocked. Its <b>Log</b> shows every connection as it’s decided, and why, and each list says what it blocked, so one that blocks too much is easy to find. The popover says how many today, and Connections tags each listed server <b>ADS</b> or <b>MALWARE</b>.</p>
         </div>
         <div class="reveal">
           <h3>Current by itself.</h3>
-          <p>The lists are rebuilt every Monday, and the app downloads them once a week while they’re on: the same signed file for everyone, never on a hotspot. A copy ships in the app, so they work offline. The matching happens on your Mac, so nobody is told where your apps connect.</p>
+          <p>The lists are rebuilt every Monday, and the app downloads them once a week while they’re on: the same signed file for everyone, never on a hotspot. A copy ships in the app, so they work offline. Lists you add come from their makers, weekly, on the same terms. The matching happens on your Mac, so nobody is told where your apps connect.</p>
         </div>
       </div>
 
@@ -758,7 +758,7 @@ footer a { color: var(--text-2); }
       <div class="fine reveal">
         <p style="margin:0"><b>What it can’t block.</b>Ads served from a site’s own servers, like YouTube’s, can’t be told apart from the site, so they stay. So does anything without a name: another port, or a connection that isn’t TLS or QUIC.</p>
         <p style="margin:0"><b>Not a browser ad blocker.</b>It stops connections rather than cleaning pages, so an empty box can sit where an ad would have been. Keep your browser’s blocker if you use one.</p>
-        <p style="margin:0"><b>The lists.</b>StevenBlack’s unified hosts (MIT), and URLhaus by malware-filter (CC0).</p>
+        <p style="margin:0"><b>The lists.</b>Built in: StevenBlack’s unified hosts (MIT), and URLhaus by malware-filter (CC0). Any others you pick are downloaded from their makers, under their own licences.</p>
       </div>
     </div>
   </section>
@@ -839,7 +839,7 @@ footer a { color: var(--text-2); }
             <img class="prefs-shot" data-shot="hotspot-uncovered" data-w="720" data-h="798" src="assets/settings/hotspot-uncovered.png" width="1440" height="1596" loading="lazy" aria-hidden="true"
                  alt="The Hotspot pane with Can't be paused (3) open, one line per app: OmniDiskSweeper, Opera and Raycast, with why behind an ⓘ that appears when you point at the row. Every app's updater: Stopped on hotspots, including ones listed as can't be paused when they update with a program of their own. Got through on your last metered connection, in orange: Slack downloaded an update anyway, up to 271.6 MB, and Google Chrome downloaded an update anyway, 265.6 MB.">
             <img class="prefs-shot" data-shot="about" data-w="720" data-h="710" src="assets/settings/about.png" width="1440" height="1420" loading="lazy" aria-hidden="true"
-                 alt="The About pane: the NetworkMonitor icon, Version 1.22.1 (142), and Live network speed in your menu bar, and which app used your data. Links to the website, the release notes and the source code on GitHub. Free and open source, under the MIT licence. Check for updates automatically is on, with a Check Now button: once a day it asks GitHub whether there's a newer version, never on a hotspot, and an update installs only when you say so, and only if it's signed by NetworkMonitor. Remove NetworkMonitor, with an Uninstall… button.">
+                 alt="The About pane: the NetworkMonitor icon, Version 1.23.0 (143), and Live network speed in your menu bar, and which app used your data. Links to the website, the release notes and the source code on GitHub. Free and open source, under the MIT licence. Check for updates automatically is on, with a Check Now button: once a day it asks GitHub whether there's a newer version, never on a hotspot, and an update installs only when you say so, and only if it's signed by NetworkMonitor. Remove NetworkMonitor, with an Uninstall… button.">
             <button class="prefs-row" type="button" aria-expanded="false" data-row="apps" style="--x:-340;--y:274;--w:680;--h:44" hidden>Paused on a hotspot</button>
             <button class="prefs-row" type="button" aria-expanded="false" data-row="uncovered" style="--x:-340;--y:372;--w:680;--h:44" hidden>Can’t be paused</button>
             <a class="prefs-link" href="#top" style="--x:150;--y:319;--w:182;--h:30" hidden>Website</a>
@@ -876,7 +876,7 @@ footer a { color: var(--text-2); }
       <p class="lead reveal d2" style="max-width:640px;margin-inline:auto">NetworkMonitor counts how much, and where it went, never what. <strong>Nothing about your traffic ever leaves your Mac.</strong></p>
       <div class="privacy-grid">
         <div class="reveal"><h3>Two permissions, both optional.</h3><p>Location, only because macOS shares a Wi‑Fi network’s name no other way; it never looks up where you are. And website names, to see and block where apps connect. Both are offered when it first opens, and each can be turned on later. Hotspot mode’s helper is one switch in System Settings, not a password.</p></div>
-        <div class="reveal d1"><h3>Three small downloads, all yours to switch off.</h3><p>Once a month, the new country and network data, the same file for everyone; once a week, while you’ve switched them on, the ad and malware lists; once a day, whether there’s a newer version. All come from GitHub, signed, never on a hotspot, and say nothing about your traffic. Beyond those, only a speed test you start. No analytics, no telemetry, no account.</p></div>
+        <div class="reveal d1"><h3>Three small downloads, all yours to switch off.</h3><p>Once a month, the new country and network data, the same file for everyone; once a week, while you’ve switched them on, the ad and malware lists, and any more you pick, from where their makers publish them; once a day, whether there’s a newer version. Ours come from GitHub, signed. None happen on a hotspot, and none say anything about your traffic. Beyond those, only a speed test you start. No analytics, no telemetry, no account.</p></div>
         <div class="reveal d2"><h3>Stays on your Mac.</h3><p>Your usage, and the servers your apps reached, live in local files on your Mac that you can delete at any time. Countries and companies are named from data inside the app.</p></div>
         <div class="reveal d3"><h3>Open source.</h3><p>MIT licensed. <a href="https://github.com/kevinabouhanna/NetworkMonitor">Read every line</a> before you run it.</p></div>
       </div>
@@ -896,7 +896,7 @@ footer a { color: var(--text-2); }
           <p>The usual Mac way: open the disk image and drag NetworkMonitor into <strong>Applications</strong>.</p>
           <div class="get">
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download NetworkMonitor.dmg</a>
-            <span class="meta">Version 1.22.1 · 13.0 MB · Universal</span>
+            <span class="meta">Version 1.23.0 · 13.3 MB · Universal</span>
           </div>
           <figure class="dmg-shot" style="margin-bottom:0">
             <img src="assets/dmg-window.png" width="1424" height="1104" loading="lazy"
@@ -913,7 +913,7 @@ footer a { color: var(--text-2); }
       </div>
 
       <div class="ctas reveal">
-        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.22.1">What’s in version 1.22.1</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.23.0">What’s in version 1.23.0</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/wiki">Documentation</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
