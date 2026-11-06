@@ -304,6 +304,15 @@ quits when idle, so an updated app's helper is the one that answers. On first st
   copy is what still puts everything back. The job is listed under NetworkMonitor too
   (`AssociatedBundleIdentifiers`).
 
+**If it's on but won't start** (#238). macOS can go on reporting the daemon switched on
+while launchd can't start it (`spawn failed … Invalid or missing Program`), after the
+app has been replaced by a copy without a Developer ID and then by one with it. So on
+the first launch of each build, if macOS says it's on but it doesn't answer, the app
+registers it again: first as it is, which keeps your approval, and only if that doesn't
+work, unregistered and registered, which may ask for it once more. A daemon that answers
+is left alone. `make install` refuses to put a build without the Developer ID over one
+with it, which is how this happened.
+
 **Builds without a Developer ID**, built from source, have no team to check callers by, so
 they keep the older way: installed through macOS's administrator dialog, running the
 `helper-setup.sh` inside the bundle. It installs:

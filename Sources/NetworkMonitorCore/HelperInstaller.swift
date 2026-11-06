@@ -84,8 +84,16 @@ public enum HelperInstaller {
 
     /// Asks the installed helper its version. One `sudo -n status`; call it when
     /// something is about to be decided, not from a view's body.
+    ///
+    /// With the daemon, macOS's answer decides and the version isn't asked: it
+    /// came with this app. Asking anyway cost the main thread the full timeout
+    /// whenever the daemon couldn't start (#238).
     public static func state() -> State {
-        state(status: PrivilegedSuppressor.isInstalled ? PrivilegedSuppressor.invoke("status") : nil)
+        let daemon = HelperService.status
+        guard daemon == .unavailable else {
+            return state(daemon: daemon, legacyInstalled: legacyInstalled, status: nil)
+        }
+        return state(status: PrivilegedSuppressor.isInstalled ? PrivilegedSuppressor.invoke("status") : nil)
     }
 
     /// The same, from a `status` answer already in hand; `nil` is no answer.
