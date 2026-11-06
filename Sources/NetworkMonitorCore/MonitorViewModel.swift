@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import FilterProtocol
 import FirewallPolicy
 import ServerDirectory
 import Foundation
@@ -213,9 +214,11 @@ public final class MonitorViewModel: ObservableObject {
         // and what it blocked is counted beside them (#114).
         filterNames = filter.flows.sink { [weak self] flows in
             self?.listBlocks.add(flows.filter { $0.blockedBy?.hasPrefix(BlockReason.listPrefix) == true }.count)
-            guard let history = self?.store.history else { return }
-            history.noteServerNames(flows.compactMap { flow in
-                flow.serverName.map { (FirewallPolicy.serverAddress(flow.address), $0) }
+            guard let self, let history = self.store.history else { return }
+            history.recordServerNames(flows.compactMap { flow in
+                guard let name = flow.serverName, let identity = self.identity(of: flow) else { return nil }
+                return UsageHistory.NameSighting(identity: identity, address: FirewallPolicy.serverAddress(flow.address),
+                                                 name: name, blocked: flow.blockedBy != nil)
             })
             history.recordBlocked(flows.compactMap { flow in
                 guard flow.blockedBy != nil, let key = flow.appKey else { return nil }
@@ -486,6 +489,15 @@ public final class MonitorViewModel: ObservableObject {
                 if !self.uninstalled { self.store.save() }
             }
         }
+    }
+
+    /// The app a connection the filter reported belongs to, keyed as nettop's
+    /// bytes are, so its name lands beside them (#247). A blocked one says;
+    /// for the rest, the process, while it's still running.
+    private func identity(of flow: FlowReport) -> AppIdentity? {
+        if let key = flow.appKey { return AppIdentityResolver.identity(forKey: key) }
+        guard flow.pid > 0, AppIdentityResolver.executablePath(pid: flow.pid) != nil else { return nil }
+        return identityResolver.identity(pid: flow.pid, fallbackName: "")
     }
 
     // MARK: nettop sampling

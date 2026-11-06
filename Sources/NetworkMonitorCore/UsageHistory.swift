@@ -239,14 +239,19 @@ public struct ServerUsage: Equatable {
     public let isSystem: Bool
     /// The app that launched it, for a process with no bundle of its own.
     public let parentName: String?
-    /// The name the content filter saw it connected by, such as `api.slack.com`.
+    /// The name the content filter saw this app use for it, such as
+    /// `api.slack.com`: the busiest, for the measure read.
     public let name: String?
+    /// Any other names this app used for the same address, busiest first. A
+    /// CDN or a Google front end answers for many sites at one address (#247).
+    public let otherNames: [String]
 
     public var total: Int64 { bytesIn + bytesOut }
 
     public init(appKey: String, address: String, bytesIn: Int64, bytesOut: Int64,
                 firstSeen: Date, appName: String, bundlePath: String? = nil,
-                isSystem: Bool = false, parentName: String? = nil, name: String? = nil) {
+                isSystem: Bool = false, parentName: String? = nil, name: String? = nil,
+                otherNames: [String] = []) {
         self.appKey = appKey
         self.address = address
         self.bytesIn = bytesIn
@@ -257,6 +262,7 @@ public struct ServerUsage: Equatable {
         self.isSystem = isSystem
         self.parentName = parentName
         self.name = name
+        self.otherNames = otherNames
     }
 }
 
@@ -341,11 +347,36 @@ public final class UsageHistory {
         pending.traffic[slot, default: Traffic()].add(interfaceIn: bytesIn, interfaceOut: bytesOut)
     }
 
-    /// Server names the content filter saw, by address. Written with the next
-    /// flush; the latest name for an address wins.
-    public func noteServerNames(_ names: [(address: String, name: String)]) {
-        guard database != nil else { return }
-        for (address, name) in names { pending.names[address] = name }
+    /// A connection the content filter saw by name: which app, which address,
+    /// the name, and whether it was blocked. Counted per hour for that app and
+    /// address, never for the address alone: one address serves many sites,
+    /// and one app's name for it says nothing about another's traffic (#247).
+    public struct NameSighting {
+        public let identity: AppIdentity
+        public let address: String
+        public let name: String
+        public let blocked: Bool
+
+        public init(identity: AppIdentity, address: String, name: String, blocked: Bool) {
+            self.identity = identity
+            self.address = address
+            self.name = name
+            self.blocked = blocked
+        }
+    }
+
+    public func recordServerNames(_ sightings: [NameSighting], now: Date = Date()) {
+        guard !sightings.isEmpty, let slot = slot(at: now) else { return }
+        var names = pending.names[slot, default: [:]]
+        for sighting in sightings {
+            let key = NameKey(server: ServerKey(appKey: sighting.identity.key, address: sighting.address),
+                              name: sighting.name)
+            var counts = names[key, default: NameCounts()]
+            if sighting.blocked { counts.blocked += 1 } else { counts.allowed += 1 }
+            names[key] = counts
+            pending.identities[sighting.identity.key] = sighting.identity
+        }
+        pending.names[slot] = names
     }
 
     /// Connections the content filter blocked (#114), one entry each, by the
@@ -629,15 +660,6 @@ public final class UsageHistory {
         guard !batch.servers.isEmpty || !batch.blocked.isEmpty || !batch.names.isEmpty else { return }
         do {
             try database.transaction {
-                // Names first, so the servers written below keep theirs.
-                let named = try database.prepare("""
-                    INSERT INTO servers (address, name) VALUES (?1, ?2)
-                    ON CONFLICT(address) DO UPDATE SET name = excluded.name
-                    """)
-                for (address, name) in batch.names {
-                    try named.run([.text(address), .text(name)])
-                }
-
                 // Three small upserts per app and server, each on an index. A
                 // flush carries at most a few hundred, so resolving ids in SQL
                 // costs less than keeping a cache of them in sync. `MIN`, because
@@ -691,6 +713,27 @@ public final class UsageHistory {
                                          .text(key.appKey), .text(key.address), .int(count)])
                     }
                 }
+
+                let named = try database.prepare("""
+                    INSERT INTO server_names (hour, session_id, app_server_id, name, allowed, blocked)
+                    VALUES (?1, ?2,
+                            (SELECT a.id FROM app_servers a JOIN servers v ON v.id = a.server_id
+                             WHERE a.app_key = ?3 AND v.address = ?4),
+                            ?5, ?6, ?7)
+                    ON CONFLICT(hour, session_id, app_server_id, name) DO UPDATE SET
+                        allowed = allowed + excluded.allowed,
+                        blocked = blocked + excluded.blocked
+                    """)
+                for (slot, names) in batch.names {
+                    for (key, counts) in names {
+                        try server.run([.text(key.server.address)])
+                        try appServer.run([.text(key.server.appKey), .text(key.server.address),
+                                           .real(TimeInterval(slot.hour))])
+                        try named.run([.int(slot.hour), .int(slot.session),
+                                       .text(key.server.appKey), .text(key.server.address),
+                                       .text(key.name), .int(counts.allowed), .int(counts.blocked)])
+                    }
+                }
             }
         } catch {
             NSLog("NetworkMonitor: writing servers failed: \(error)")
@@ -711,6 +754,7 @@ public final class UsageHistory {
                     try database.prepare("DELETE FROM traffic WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM app_traffic WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM server_traffic WHERE hour < ?1").run([.int(hour)])
+                    try database.prepare("DELETE FROM server_names WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM sessions WHERE ended_at < ?1 AND id != ?2")
                         .run([.real(cutoff.timeIntervalSince1970), .int(keep)])
                     try database.execute("DELETE FROM updates WHERE session_id NOT IN (SELECT id FROM sessions)")
@@ -720,6 +764,7 @@ public final class UsageHistory {
                     try database.execute("""
                         DELETE FROM app_servers
                         WHERE id NOT IN (SELECT DISTINCT app_server_id FROM server_traffic)
+                          AND id NOT IN (SELECT DISTINCT app_server_id FROM server_names)
                         """)
                     try database.execute("""
                         DELETE FROM servers WHERE id NOT IN (SELECT DISTINCT server_id FROM app_servers)
@@ -748,7 +793,7 @@ public final class UsageHistory {
         queue.sync {
             do {
                 try database.transaction {
-                    for table in ["server_traffic", "app_servers", "servers",
+                    for table in ["server_names", "server_traffic", "app_servers", "servers",
                                   "app_traffic", "traffic", "updates", "sessions", "apps"] {
                         try database.execute("DELETE FROM \(table)")
                     }
@@ -856,9 +901,14 @@ public final class UsageHistory {
             // HAVING leaves out servers with none of the measure: one that was
             // only ever blocked moved no bytes, and one that moved bytes was
             // never blocked.
+            // `v.name` is the address's last name from any app, all there was
+            // before #247: used only for a row with no names of its own, ever.
             let query = try database.prepare("""
                 SELECT a.app_key, v.address, \(inSQL), \(outSQL), a.first_seen,
-                       p.name, p.bundle_path, p.is_system, p.parent_name, v.name
+                       p.name, p.bundle_path, p.is_system, p.parent_name,
+                       CASE WHEN EXISTS (SELECT 1 FROM server_names n WHERE n.app_server_id = t.app_server_id)
+                            THEN NULL ELSE v.name END,
+                       t.app_server_id
                 FROM server_traffic t
                 JOIN app_servers a ON a.id = t.app_server_id
                 JOIN servers v ON v.id = a.server_id
@@ -871,22 +921,52 @@ public final class UsageHistory {
                 """)
             query.bind([.int(Int64(start.timeIntervalSince1970)),
                         .int(Int64(end.timeIntervalSince1970))] + values)
+            let names = try queryNames(database, from: start, to: end, filter: filter, measure: measure)
             var rows: [ServerUsage] = []
             while try query.step() {
                 let key = query.string(0) ?? ""
+                let own = names[query.int64(10)] ?? []
                 rows.append(ServerUsage(
                     appKey: key, address: query.string(1) ?? "",
                     bytesIn: query.int64(2), bytesOut: query.int64(3),
                     firstSeen: Date(timeIntervalSince1970: query.double(4)),
                     appName: query.string(5) ?? (key as NSString).lastPathComponent,
                     bundlePath: query.string(6), isSystem: query.int64(7) != 0,
-                    parentName: query.string(8), name: query.string(9)))
+                    parentName: query.string(8), name: own.first ?? query.string(9),
+                    otherNames: Array(own.dropFirst())))
             }
             return rows
         } catch {
             NSLog("NetworkMonitor: reading servers failed: \(error)")
             return []
         }
+    }
+
+    /// Each app and address's names in the span, busiest first: the names it
+    /// was let through to, for traffic, or the names blocked, for Blocked. So
+    /// a name that was only ever blocked never labels bytes (#247).
+    private static func queryNames(_ database: SQLiteDatabase, from start: Date, to end: Date,
+                                   filter: HistoryFilter, measure: ServerMeasure) throws -> [Int64: [String]] {
+        let (whereSQL, values) = conditions(filter, hourColumn: "n.hour", appTable: "a")
+        let count = measure == .bytes ? "SUM(n.allowed)" : "SUM(n.blocked)"
+        let query = try database.prepare("""
+            SELECT n.app_server_id, n.name, \(count)
+            FROM server_names n
+            JOIN app_servers a ON a.id = n.app_server_id
+            JOIN sessions s ON s.id = n.session_id
+            LEFT JOIN apps p ON p.key = a.app_key
+            WHERE \(whereSQL)
+            GROUP BY n.app_server_id, n.name
+            HAVING \(count) > 0
+            ORDER BY n.app_server_id, \(count) DESC, n.name
+            """)
+        query.bind([.int(Int64(start.timeIntervalSince1970)), .int(Int64(end.timeIntervalSince1970))] + values)
+        var names: [Int64: [String]] = [:]
+        while try query.step() {
+            guard let name = query.string(1) else { continue }
+            names[query.int64(0), default: []].append(name)
+        }
+        return names
     }
 
     private static func queryServerHours(_ database: SQLiteDatabase, from start: Date, to end: Date,
@@ -1365,6 +1445,19 @@ public final class UsageHistory {
                 blocked INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (hour, session_id, app_server_id)
             ) WITHOUT ROWID;
+            -- The names each app used for an address, and how many of those
+            -- connections went through or were blocked (#247). An address
+            -- alone can't be named: a CDN answers for many sites at one.
+            CREATE TABLE IF NOT EXISTS server_names (
+                hour INTEGER NOT NULL,
+                session_id INTEGER NOT NULL,
+                app_server_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                allowed INTEGER NOT NULL DEFAULT 0,
+                blocked INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (hour, session_id, app_server_id, name)
+            ) WITHOUT ROWID;
+            CREATE INDEX IF NOT EXISTS server_names_by_server ON server_names (app_server_id);
             -- Updates that got through on a metered connection (#96), once per
             -- report: the watch's list for one connection, which can span
             -- several sessions. Kept with the session it was first seen on.
@@ -1467,14 +1560,24 @@ public final class UsageHistory {
         let address: String
     }
 
+    private struct NameKey: Hashable {
+        let server: ServerKey
+        let name: String
+    }
+
+    private struct NameCounts {
+        var allowed: Int64 = 0
+        var blocked: Int64 = 0
+    }
+
     private struct Pending {
         var traffic: [Slot: Traffic] = [:]
         var apps: [Slot: [String: (bytesIn: Int64, bytesOut: Int64)]] = [:]
         var servers: [Slot: [ServerKey: ByteCounts]] = [:]
         /// Connections the content filter blocked, counted.
         var blocked: [Slot: [ServerKey: Int64]] = [:]
-        /// Server names from the content filter, by address.
-        var names: [String: String] = [:]
+        /// Names from the content filter, by app and address (#247).
+        var names: [Slot: [NameKey: NameCounts]] = [:]
         var identities: [String: AppIdentity] = [:]
         var sessions: [Int64: SessionRow] = [:]
         var updates: [String: UpdateRow] = [:]
