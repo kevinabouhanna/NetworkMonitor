@@ -17,6 +17,14 @@ public final class FirewallRules: ObservableObject {
         didSet { defaults.set(lists.map(\.rawValue).sorted(), forKey: Self.listsKey) }
     }
 
+    /// Ad blocking paused (#251): the lists stay chosen, and the filter is
+    /// sent none until then. Nil when it isn't paused.
+    @Published public private(set) var listsPausedUntil: Date? {
+        didSet { defaults.set(listsPausedUntil, forKey: Self.listsPausedKey) }
+    }
+    private var resumeTimer: Timer?
+
+    public static let listsPausedKey = "blocklistsPausedUntil"
     public static let rulesKey = "firewallRules"
     public static let modeKey = "firewallMode"
     public static let listsKey = "blocklists"
@@ -40,6 +48,32 @@ public final class FirewallRules: ObservableObject {
         mode = defaults.string(forKey: Self.modeKey).flatMap(FirewallMode.init) ?? .anywhere
         lists = Set((defaults.stringArray(forKey: Self.listsKey) ?? []).compactMap(BlocklistTopic.init))
         blocksEverything = defaults.bool(forKey: Self.blocksEverythingKey)
+        listsPausedUntil = (defaults.object(forKey: Self.listsPausedKey) as? Date).flatMap { $0 > Date() ? $0 : nil }
+        scheduleResume()
+    }
+
+    /// The lists the filter is sent: none while paused.
+    public static func activeLists(_ lists: Set<BlocklistTopic>, pausedUntil: Date?, now: Date = Date())
+        -> Set<BlocklistTopic> {
+        guard let pausedUntil, pausedUntil > now else { return lists }
+        return []
+    }
+
+    /// Pauses ad blocking until `date`, or resumes it with nil.
+    public func pauseLists(until date: Date?) {
+        listsPausedUntil = date.flatMap { $0 > Date() ? $0 : nil }
+        scheduleResume()
+    }
+
+    private func scheduleResume() {
+        resumeTimer?.invalidate()
+        resumeTimer = nil
+        guard let until = listsPausedUntil else { return }
+        let timer = Timer(fire: until, interval: 0, repeats: false) { [weak self] _ in
+            self?.pauseLists(until: nil)
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        resumeTimer = timer
     }
 
     /// The rule for every app on a row. Rules for one app, made by answering

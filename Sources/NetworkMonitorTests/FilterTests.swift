@@ -1,4 +1,5 @@
 import FilterProtocol
+import FirewallPolicy
 import Foundation
 import NetworkExtension
 import NetworkMonitorCore
@@ -237,6 +238,57 @@ func runFilterTests() {
             Check.expectEqual(count.today, 10, "never lower than what was counted live")
             count.seed(2, now: now.addingTimeInterval(86_400))
             Check.expectEqual(count.today, 2, "a new day")
+        }
+
+        // #251: the Ads and Trackers window.
+        Check.test("the Ads window groups blocks by site and by app, most first") {
+            let report = AdsReport([
+                ListBlock(appKey: "/Applications/Google Chrome.app", appName: "Google Chrome",
+                          name: "pagead2.googlesyndication.com", list: "ads", count: 6),
+                ListBlock(appKey: "/Applications/Google Chrome.app", appName: "Google Chrome",
+                          name: "googleads.g.doubleclick.net", list: "ads", count: 3),
+                ListBlock(appKey: "/Applications/Google Chrome.app", appName: "Google Chrome",
+                          name: "ad.doubleclick.net", list: "ads", count: 2),
+                ListBlock(appKey: "/Applications/Slack.app", appName: "Slack",
+                          name: "evil.example", list: "malware", count: 1),
+            ])
+            Check.expectEqual(report.total, 12)
+            Check.expectEqual(report.lists.map(\.list), ["ads", "malware"])
+            Check.expectEqual(report.lists.map(\.count), [11, 1])
+            Check.expectEqual(report.sites.map(\.title), ["googlesyndication.com", "doubleclick.net", "evil.example"])
+            Check.expectEqual(report.sites[1].count, 5)
+            Check.expectEqual(report.sites[1].detail, "googleads.g.doubleclick.net, ad.doubleclick.net")
+            Check.expectEqual(report.apps.map(\.title), ["Google Chrome", "Slack"])
+            Check.expectEqual(report.apps[0].detail, "googlesyndication.com, doubleclick.net")
+            Check.expectEqual(report.apps[1].lists, ["malware"])
+            Check.expectEqual(AdsReport.listed(["a", "b", "c", "d"]), "a, b and 2 more")
+        }
+
+        Check.test("the Ads chart puts each hour's blocks in its bar") {
+            let hour = day.start.addingTimeInterval(3 * 3600)
+            let bins = AdsViewModel.chart(for: day, hours: [(hour, 4), (hour.addingTimeInterval(3600), 2)],
+                                          calendar: calendar)
+            Check.expectEqual(bins.count, 24)
+            Check.expectEqual(bins[3].count, 4)
+            Check.expectEqual(bins[4].count, 2)
+            Check.expectEqual(bins.reduce(0) { $0 + $1.count }, 6)
+        }
+
+        Check.test("paused, the filter is sent no lists until the time comes, and it's kept across a relaunch") {
+            let lists = Set(BlocklistTopic.allCases)
+            Check.expectEqual(FirewallRules.activeLists(lists, pausedUntil: nil), lists)
+            Check.expectEqual(FirewallRules.activeLists(lists, pausedUntil: now.addingTimeInterval(60), now: now), [])
+            Check.expectEqual(FirewallRules.activeLists(lists, pausedUntil: now.addingTimeInterval(-60), now: now), lists)
+
+            let defaults = UserDefaults(suiteName: "ads-pause-\(UUID().uuidString)")!
+            let rules = FirewallRules(defaults: defaults, teamOf: { _ in nil })
+            let later = Date().addingTimeInterval(3600)
+            rules.pauseLists(until: later)
+            Check.expectEqual(FirewallRules(defaults: defaults, teamOf: { _ in nil }).listsPausedUntil, later)
+            rules.pauseLists(until: nil)
+            Check.expectNil(FirewallRules(defaults: defaults, teamOf: { _ in nil }).listsPausedUntil)
+            rules.pauseLists(until: Date().addingTimeInterval(-1))
+            Check.expectNil(rules.listsPausedUntil, "a time already past isn't a pause")
         }
     }
 }

@@ -182,7 +182,7 @@ two lists:
 - **Connections tags each listed server** ADS or MALWARE, whether the lists are on or
   not, so the window shows what's tracking you either way. **Show: Blocked** lists what
   they stopped.
-- **The popover** says how many they blocked today.
+- **The popover** says how many they blocked today; click it to open **Ads and Trackers**.
 - **What it can't block:** ads served from a site's own servers, like YouTube's, since
   they can't be told apart from the site; empty boxes in a page where an ad would have
   been; and anything without a name (another port, or not TLS or QUIC). It's not an ad
@@ -191,6 +191,22 @@ two lists:
   a list that shrank or that catches a site people use every day, and signs them; the app
   fetches them weekly while they're on, never on a hotspot (**Update them weekly**). It
   ships with a copy, so they work offline.
+
+### The Ads and Trackers window
+
+A window of its own (#251), from the popover's *blocked today* line, **Ads and Trackers…**
+in the right-click menu, Settings › Connections, or ⌘B while a window is open:
+
+- **How many were blocked** in the period (a day, week, month or year, with ‹ Today ›), by
+  list, with an ⓘ saying how it works.
+- **A chart** of blocks over the period, by hour or by day.
+- **Sites**, by the part of the name a person would call the site (`doubleclick.net`), with
+  the names under it that were blocked; and **Apps**, with the sites each tried most.
+- **Pause:** for an hour or until tomorrow, in every app. The lists stay chosen, the filter
+  is sent none until then, and the popover says it's paused. Kept across a relaunch.
+
+It reads `list_blocks` in History (#250), so it starts from when that was added, is kept as
+long as History, and Clear History clears it.
 
 **Show: Blocked**, beside *Group by*, lists what was blocked instead of what was sent: the same
 period, grouping, search and map, counting connections rather than bytes. Right-click one to

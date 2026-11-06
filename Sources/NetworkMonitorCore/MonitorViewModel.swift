@@ -241,14 +241,18 @@ public final class MonitorViewModel: ObservableObject {
         // hotspots", and whether Hotspot mode pauses updates here (#98). The
         // values come from the publishers: they fire before the properties
         // change.
-        firewallPolicy = Publishers.CombineLatest4(Publishers.CombineLatest3(firewall.$rules, firewall.$lists,
-                                                                             firewall.$blocksEverything),
+        firewallPolicy = Publishers.CombineLatest4(Publishers.CombineLatest4(firewall.$rules, firewall.$lists,
+                                                                             firewall.$blocksEverything,
+                                                                             firewall.$listsPausedUntil),
                                                    Publishers.CombineLatest(firewall.$mode, $networkID),
                                                    $isExpensiveNetwork, metering.$isEnabled)
             .sink { [weak self] rulesAndLists, modeAndNetwork, onHotspot, pausing in
                 let (mode, network) = modeAndNetwork
                 self?.filter.apply(FirewallPolicy(mode: mode, rules: rulesAndLists.0, onHotspot: onHotspot,
-                                                  pausesUpdates: pausing && onHotspot, lists: rulesAndLists.1,
+                                                  pausesUpdates: pausing && onHotspot,
+                                                  // None while ad blocking is paused (#251).
+                                                  lists: FirewallRules.activeLists(rulesAndLists.1,
+                                                                                   pausedUntil: rulesAndLists.3),
                                                   blocksEverything: rulesAndLists.2,
                                                   network: network.isEmpty ? nil : network))
                 // Switched on with stale lists: fetch newer ones soon.
