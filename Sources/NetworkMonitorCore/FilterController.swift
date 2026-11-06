@@ -76,6 +76,23 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     private var watchdog = FilterWatchdog()
     private var watchTimer: Timer?
 
+    /// Where an update's swap of the filter has got to (#278): the running
+    /// filter is switched off, replaced, then switched on again, so the new
+    /// one starts a session of its own instead of taking over a live one.
+    private enum Swap { case switchingOff, replacing, switchingOn }
+    private var swap: Swap?
+    /// Whether the router answered just before the swap, so the guard knows
+    /// a silence after it is the swap's doing.
+    private var routerAnsweredBefore: Bool?
+    private var updateGuard: UpdateGuard?
+    private var guardTimer: Timer?
+    /// The request whose answer counts: one the app cancelled, or replaced
+    /// with another, answers too, and is ignored.
+    private var activeRequest: OSSystemExtensionRequest?
+    /// Set while the filter is off for an update, so a launch after one cut
+    /// short (the app quit or crashed) switches it back on.
+    static let offForUpdateKey = "filterOffForUpdate"
+
     static let log = Logger(subsystem: "com.kevinabouhanna.NetworkMonitor", category: "filter")
 
     /// The filter is in the app only when it was signed with the Developer ID
@@ -123,7 +140,24 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         NEFilterManager.shared().loadFromPreferences { [weak self] _ in
             DispatchQueue.main.async {
                 guard let self else { return }
-                if NEFilterManager.shared().isEnabled {
+                let manager = NEFilterManager.shared()
+                if !manager.isEnabled, UserDefaults.standard.bool(forKey: Self.offForUpdateKey),
+                   manager.providerConfiguration != nil {
+                    Self.log.notice("the filter was left off partway through an update; switching it back on")
+                    self.state = .on
+                    self.restarting = true
+                    self.setFilterEnabled(true) { error in
+                        self.restarting = false
+                        if let error {
+                            Self.log.error("switching the filter back on failed: \(error.localizedDescription, privacy: .public)")
+                            self.state = .failed(error.localizedDescription)
+                        } else {
+                            UserDefaults.standard.removeObject(forKey: Self.offForUpdateKey)
+                            self.update()
+                        }
+                    }
+                } else if manager.isEnabled {
+                    UserDefaults.standard.removeObject(forKey: Self.offForUpdateKey)
                     // Connected only once the update is through: held open
                     // across the swap, the old filter kept its service name,
                     // and the new one came up without it (#114).
@@ -147,6 +181,8 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
                     self.state = .on
                     self.connect()
                 } else if !manager.isEnabled, self.state == .on {
+                    // Switched off by the person: not to be undone at launch.
+                    UserDefaults.standard.removeObject(forKey: Self.offForUpdateKey)
                     self.disconnect()
                     self.state = Self.offState
                 }
@@ -159,10 +195,26 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     /// replaced, and the person is asked nothing.
     private func update() {
         updating = true
+        activate()
+    }
+
+    private func activate() {
         let request = OSSystemExtensionRequest.activationRequest(
             forExtensionWithIdentifier: FilterIdentity.extensionIdentifier, queue: .main)
         request.delegate = self
+        activeRequest = request
         OSSystemExtensionManager.shared.submitRequest(request)
+    }
+
+    /// Switches the filter's configuration on or off; `completion` runs on
+    /// the main queue.
+    private func setFilterEnabled(_ enabled: Bool, completion: @escaping (Error?) -> Void) {
+        let manager = NEFilterManager.shared()
+        manager.loadFromPreferences { error in
+            guard error == nil else { DispatchQueue.main.async { completion(error) }; return }
+            manager.isEnabled = enabled
+            manager.saveToPreferences { error in DispatchQueue.main.async { completion(error) } }
+        }
     }
 
     // MARK: Switching
@@ -172,10 +224,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         state = .starting
         removing = false
         updating = false
-        let request = OSSystemExtensionRequest.activationRequest(
-            forExtensionWithIdentifier: FilterIdentity.extensionIdentifier, queue: .main)
-        request.delegate = self
-        OSSystemExtensionManager.shared.submitRequest(request)
+        activate()
     }
 
     /// For Uninstall: the filter's configuration and the extension both go.
@@ -190,6 +239,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
                     let request = OSSystemExtensionRequest.deactivationRequest(
                         forExtensionWithIdentifier: FilterIdentity.extensionIdentifier, queue: .main)
                     request.delegate = self
+                    self.activeRequest = request
                     OSSystemExtensionManager.shared.submitRequest(request)
                     // Deactivation can wait for a restart; the uninstall needn't.
                     completion()
@@ -234,23 +284,40 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
                         actionForReplacingExtension existing: OSSystemExtensionProperties,
                         withExtension replacement: OSSystemExtensionProperties)
         -> OSSystemExtensionRequest.ReplacementAction {
-        // A new version of the app brings a new filter.
-        .replace
+        let versions = "\(existing.bundleShortVersion) (\(existing.bundleVersion)) with "
+            + "\(replacement.bundleShortVersion) (\(replacement.bundleVersion))"
+        // A new version of the app brings a new filter. While one is running,
+        // switch it off first (#278): taking over a live filter's session
+        // twice left macOS dropping every packet for minutes. Cancelled here,
+        // and asked again once it's off.
+        guard request === activeRequest, updating, swap == nil, state == .on else {
+            Self.log.notice("replacing filter \(versions, privacy: .public)")
+            return .replace
+        }
+        Self.log.notice("replacing filter \(versions, privacy: .public); switching it off first")
+        activeRequest = nil
+        switchOffForSwap()
+        return .cancel
     }
 
     public func requestNeedsUserApproval(_ request: OSSystemExtensionRequest) {
+        guard request === activeRequest else { return }
         state = .waitingForApproval
     }
 
     public func request(_ request: OSSystemExtensionRequest,
                         didFinishWithResult result: OSSystemExtensionRequest.Result) {
+        guard request === activeRequest else { return }
+        activeRequest = nil
         if removing {
             removing = false
             state = Self.offState
         } else if updating {
+            updating = false
+            // Replaced while off: switch the new one on.
+            if swap != nil { switchOnAfterSwap(); return }
             // Still on. A replaced filter dropped its connection, which
             // reconnects by itself; one that was asked to approve is back.
-            updating = false
             state = .on
             connect()
         } else {
@@ -259,9 +326,16 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     }
 
     public func request(_ request: OSSystemExtensionRequest, didFailWithError error: Error) {
+        guard request === activeRequest else { return }
+        activeRequest = nil
         if removing {
             removing = false
             state = Self.offState
+        } else if updating, swap != nil {
+            // The old filter is still installed: switch it back on.
+            Self.log.error("replacing the filter failed: \(error.localizedDescription, privacy: .public)")
+            updating = false
+            switchOnAfterSwap()
         } else if updating {
             // The filter already running carries on.
             updating = false
@@ -288,6 +362,101 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         default:
             return .failed(error.localizedDescription)
         }
+    }
+
+    // MARK: An update's swap (#278)
+
+    private func switchOffForSwap() {
+        swap = .switchingOff
+        restarting = true
+        stopGuard()
+        disconnect()
+        UserDefaults.standard.set(true, forKey: Self.offForUpdateKey)
+        logDropAll("before the update")
+        UpdateGuard.routerAnswers { answered in
+            DispatchQueue.main.async {
+                self.routerAnsweredBefore = answered
+                self.setFilterEnabled(false) { error in
+                    if let error {
+                        // Replaced while it runs, as before #278.
+                        Self.log.error("switching the filter off failed: \(error.localizedDescription, privacy: .public)")
+                    } else {
+                        Self.log.notice("filter off for the update")
+                    }
+                    self.swap = .replacing
+                    self.activate()
+                }
+            }
+        }
+    }
+
+    private func switchOnAfterSwap() {
+        swap = .switchingOn
+        logDropAll("with the new filter installed")
+        setFilterEnabled(true) { error in
+            self.swap = nil
+            self.restarting = false
+            if let error {
+                // Left set, so the next launch tries again.
+                Self.log.error("switching the filter back on failed: \(error.localizedDescription, privacy: .public)")
+                self.state = .failed(error.localizedDescription)
+                return
+            }
+            UserDefaults.standard.removeObject(forKey: Self.offForUpdateKey)
+            Self.log.notice("filter back on after the update")
+            self.state = .on
+            self.watchdog.heard()
+            self.connect()
+            self.startGuard()
+        }
+    }
+
+    /// Two minutes of asking the router, if it answered before the swap.
+    private func startGuard() {
+        let answeredBefore = routerAnsweredBefore
+        routerAnsweredBefore = nil
+        guard answeredBefore == true else {
+            Self.log.notice("the router didn't answer before the update, so the network isn't checked after it")
+            return
+        }
+        updateGuard = UpdateGuard()
+        guardTimer?.invalidate()
+        guardTimer = Timer.scheduledTimer(withTimeInterval: UpdateGuard.interval, repeats: true) { [weak self] _ in
+            self?.checkAfterSwap()
+        }
+    }
+
+    private func stopGuard() {
+        guardTimer?.invalidate()
+        guardTimer = nil
+        updateGuard = nil
+    }
+
+    private func checkAfterSwap() {
+        UpdateGuard.routerAnswers { answered in
+            DispatchQueue.main.async {
+                guard var check = self.updateGuard, self.state == .on, !self.restarting else { return }
+                let action = check.checked(answered)
+                self.updateGuard = check
+                switch action {
+                case .keepChecking:
+                    if answered == false { Self.log.notice("the router didn't answer after the update") }
+                case .done:
+                    Self.log.notice("the network kept working after the update")
+                    self.stopGuard()
+                case .restart:
+                    Self.log.error("the router stopped answering after the update; switching the filter off and on")
+                    self.logDropAll("with the network cut off")
+                    self.stopGuard()
+                    self.restartFilter()
+                }
+            }
+        }
+    }
+
+    private func logDropAll(_ when: String) {
+        let level = UpdateGuard.dropAllLevel.map(String.init) ?? "unknown"
+        Self.log.notice("drop-all level \(level, privacy: .public) \(when, privacy: .public)")
     }
 
     // MARK: The connection
