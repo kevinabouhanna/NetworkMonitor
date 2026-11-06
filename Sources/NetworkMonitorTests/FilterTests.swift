@@ -202,6 +202,42 @@ func runFilterTests() {
                 Check.expectEqual(history.servers(in: day).first?.name, "wss-primary.slack.com")
             }
         }
+
+        // #250: the Ads window's record.
+        Check.test("what the lists blocked is kept by app, name and list, and read back most first") {
+            withHistory { history, url in
+                history.recordListBlocks([(app("Chrome"), "pagead2.googlesyndication.com", "ads"),
+                                          (app("Chrome"), "pagead2.googlesyndication.com", "ads"),
+                                          (app("Chrome"), "evil.example", "malware"),
+                                          (app("Slack"), "pagead2.googlesyndication.com", "ads")], now: now)
+                let blocks = history.listBlocks(from: day.start, to: day.end)
+                Check.expectEqual(blocks.first, ListBlock(appKey: "Chrome", appName: "Chrome",
+                                                          name: "pagead2.googlesyndication.com", list: "ads", count: 2))
+                Check.expectEqual(blocks.count, 3)
+                Check.expectEqual(history.listBlockCount(from: day.start, to: day.end), 4)
+
+                history.flush(now: now)
+                let reopened = UsageHistory(databaseURL: url, calendar: calendar)
+                Check.expectEqual(reopened.listBlockCount(from: day.start, to: day.end), 4)
+                Check.expectEqual(reopened.listBlocks(from: day.end, to: day.end.addingTimeInterval(86_400)), [],
+                                  "nothing the next day")
+
+                reopened.clear(now: now)
+                Check.expectEqual(reopened.listBlockCount(from: day.start, to: day.end), 0, "Clear History clears it")
+            }
+        }
+
+        Check.test("the popover's count takes History's when it's higher, and starts again each day") {
+            let defaults = UserDefaults(suiteName: "list-block-count-\(UUID().uuidString)")!
+            let count = ListBlockCount(defaults: defaults, calendar: calendar, now: now)
+            count.add(3, now: now)
+            count.seed(10, now: now)
+            Check.expectEqual(count.today, 10)
+            count.seed(4, now: now)
+            Check.expectEqual(count.today, 10, "never lower than what was counted live")
+            count.seed(2, now: now.addingTimeInterval(86_400))
+            Check.expectEqual(count.today, 2, "a new day")
+        }
     }
 }
 

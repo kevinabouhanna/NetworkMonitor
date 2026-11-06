@@ -212,6 +212,11 @@ public final class MonitorViewModel: ObservableObject {
 
         // What the filter saw names the servers nettop only gives addresses for,
         // and what it blocked is counted beside them (#114).
+        if let history = store.history {
+            let now = Date()
+            let midnight = Calendar.current.startOfDay(for: now)
+            listBlocks.seed(Int(history.listBlockCount(from: midnight, to: now.addingTimeInterval(3600))), now: now)
+        }
         filterNames = filter.flows.sink { [weak self] flows in
             self?.listBlocks.add(flows.filter { $0.blockedBy?.hasPrefix(BlockReason.listPrefix) == true }.count)
             guard let self, let history = self.store.history else { return }
@@ -219,6 +224,12 @@ public final class MonitorViewModel: ObservableObject {
                 guard let name = flow.serverName, let identity = self.identity(of: flow) else { return nil }
                 return UsageHistory.NameSighting(identity: identity, address: FirewallPolicy.serverAddress(flow.address),
                                                  name: name, blocked: flow.blockedBy != nil)
+            })
+            // What each list blocked, for the Ads window (#250).
+            history.recordListBlocks(flows.compactMap { flow in
+                guard let reason = flow.blockedBy, reason.hasPrefix(BlockReason.listPrefix),
+                      let name = flow.serverName, let key = flow.appKey else { return nil }
+                return (AppIdentityResolver.identity(forKey: key), name, String(reason.dropFirst(BlockReason.listPrefix.count)))
             })
             history.recordBlocked(flows.compactMap { flow in
                 guard flow.blockedBy != nil, let key = flow.appKey else { return nil }

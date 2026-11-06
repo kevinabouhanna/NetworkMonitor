@@ -137,6 +137,7 @@ roughly a hundred thousand rows. The servers each app talked to, for
 | `app_servers` | each app and server pair, once, with when it was first seen (#111) | `id` |
 | `server_traffic` | per hour, session and app and server: bytes in and out, and connections blocked (#114) | `(hour, session_id, app_server_id)` |
 | `server_names` | per hour, session and app and server: each name the app reached it by, and how many of those connections went through or were blocked (#247) | `(hour, session_id, app_server_id, name)` |
+| `list_blocks` | per hour, session and app: each site a list blocked, the list, and how many times (#250) | `(hour, session_id, app_key, name, list)` |
 | `updates` | each update that got through: the app, its version, the data it used, and the session it was first seen on (#96) | `(report, source, name)` |
 
 The raw figures are stored and the internet figure is derived when reading, with the
