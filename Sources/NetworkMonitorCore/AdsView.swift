@@ -15,6 +15,8 @@ struct AdsView: View {
         VStack(spacing: 0) {
             if model.tab == .log {
                 AdsLogView(model: model)
+            } else if model.tab == .rules {
+                AdsRulesView(model: model)
             } else if !model.isOn {
                 off
             } else {
@@ -29,9 +31,17 @@ struct AdsView: View {
                         .padding(.vertical, 14)
                     Divider()
                     HStack(alignment: .top, spacing: 0) {
-                        AdsList(title: "Sites", items: model.report.sites, total: model.report.total, model: model)
+                        AdsList(title: "Sites", items: model.report.sites, total: model.report.total, model: model) {
+                            item in
+                            Button("Never Block \(item.id)") { model.setSite(.neverBlock, site: item.id, app: nil) }
+                        }
                         Divider()
-                        AdsList(title: "Apps", items: model.report.apps, total: model.report.total, model: model)
+                        AdsList(title: "Apps", items: model.report.apps, total: model.report.total, model: model) {
+                            item in
+                            Button("Don't Filter Ads in \(item.title)") {
+                                model.dontFilter(.init(key: item.id, name: item.title))
+                            }
+                        }
                     }
                 }
             }
@@ -145,11 +155,12 @@ struct AdsView: View {
 }
 
 /// Sites or apps, most blocked first, each with a bar for its share.
-private struct AdsList: View {
+private struct AdsList<Menu: View>: View {
     let title: String
     let items: [AdsItem]
     let total: Int64
     let model: AdsViewModel
+    @ViewBuilder let menu: (AdsItem) -> Menu
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -163,6 +174,7 @@ private struct AdsList: View {
                     ForEach(items) { item in
                         AdsRow(item: item, icon: model.icon(for: item),
                                fraction: Double(item.count) / Double(max(items.first?.count ?? 1, 1)))
+                            .contextMenu { menu(item) }
                     }
                 }
                 .padding(.bottom, 10)
@@ -280,32 +292,41 @@ struct AdsLogView: View {
     }
 
     @ViewBuilder private func menu(for entry: AdsLogEntry) -> some View {
+        let app = entry.appKey.map { AdsViewModel.RuleApp(key: $0, name: entry.appName) }
         if let name = entry.name {
-            ForEach(FirewallRules.siteScopes(for: name), id: \.self) { domain in
-                let label = domain == name ? domain : "*.\(domain)"
-                Section(label) {
-                    Button("Allow \(label)") { model.setSite(.allow, domain: domain, name: name, in: nil) }
-                    Button("Block \(label)") { model.setSite(.block, domain: domain, name: name, in: nil) }
-                    if entry.appKey != nil {
-                        Button("Allow \(label) in \(entry.appName)") {
-                            model.setSite(.allow, domain: domain, name: name, in: entry)
-                        }
-                        Button("Block \(label) in \(entry.appName)") {
-                            model.setSite(.block, domain: domain, name: name, in: entry)
-                        }
-                    }
-                    let keys: [String?] = entry.appKey.map { [nil, $0] } ?? [nil]
-                    ForEach(keys.indices, id: \.self) { index in
-                        if let rule = model.rule(forDomain: domain, appKey: keys[index]) {
-                            Button("Remove Your Rule: \(rule.title)"
-                                   + (rule.appTitle.map { " in \($0)" } ?? "")) { model.remove(rule) }
+            ForEach(FirewallRules.siteScopes(for: name), id: \.self) { site in
+                Section(site == name ? site : "\(site) and every name under it") {
+                    Button("Never Block \(site)") { model.setSite(.neverBlock, site: site, app: nil) }
+                    Button("Always Block \(site)") { model.setSite(.alwaysBlock, site: site, app: nil) }
+                    if let app {
+                        Button("Never Block \(site) in \(app.name)") { model.setSite(.neverBlock, site: site, app: app) }
+                        Button("Always Block \(site) in \(app.name)") {
+                            model.setSite(.alwaysBlock, site: site, app: app)
                         }
                     }
                 }
             }
-            Divider()
-            Button("Copy Name") { copy(name) }
         }
+        if let app {
+            Divider()
+            Button("Don't Filter Ads in \(app.name)") { model.dontFilter(app) }
+        }
+        let adRules = model.adRules(for: entry)
+        let firewallRules = (entry.name.map(FirewallRules.siteScopes(for:)) ?? []).flatMap { domain in
+            [nil, entry.appKey].compactMap { model.rule(forDomain: domain, appKey: $0) }
+        }
+        if !adRules.isEmpty || !firewallRules.isEmpty {
+            Divider()
+            ForEach(adRules) { rule in
+                Button("Remove Your Rule: \(rule.summary)") { model.remove(rule) }
+            }
+            ForEach(firewallRules) { rule in
+                Button("Remove Your Rule: \(rule.action == .allow ? "Allow" : "Block") \(rule.title)"
+                       + (rule.appTitle.map { " in \($0)" } ?? "")) { model.remove(rule) }
+            }
+        }
+        Divider()
+        if let name = entry.name { Button("Copy Name") { copy(name) } }
         Button("Copy Address") { copy(entry.address) }
     }
 
@@ -387,5 +408,158 @@ private struct AdsLogRow: View {
         .padding(.vertical, 4)
         .contentShape(Rectangle())
         .help(entry.name.map { "\($0) · \(entry.address):\(entry.port)" } ?? "\(entry.address):\(entry.port)")
+    }
+}
+
+// MARK: - Rules (#253)
+
+/// Your own say over ad blocking: sites never blocked, sites always blocked,
+/// and apps the lists leave alone.
+struct AdsRulesView: View {
+    @ObservedObject var model: AdsViewModel
+    /// Not `@State`; see `SettingsPaneState`.
+    @StateObject private var info = RowInfoState()
+
+    var body: some View {
+        VStack(spacing: 0) {
+            form
+            Divider()
+            if model.adRules.isEmpty {
+                VStack(spacing: 6) {
+                    Image(systemName: "list.bullet.rectangle").font(.system(size: 28)).foregroundStyle(.secondary)
+                    Text("No rules yet").font(.system(size: 14, weight: .medium))
+                    Text("Add a site above, or right-click one in the Overview or the Log.")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        section("Never blocked", rules: model.neverBlocked,
+                                note: "Let through even when a list has them.")
+                        section("Always blocked", rules: model.alwaysBlocked,
+                                note: "Blocked even when no list has them.")
+                        section("Apps not filtered", rules: model.unfilteredApps,
+                                note: "The lists leave these apps' connections alone.")
+                    }
+                    .padding(20)
+                }
+            }
+            Divider()
+            HStack(spacing: 12) {
+                Button("Don't Filter an App…") { chooseApp() }
+                    .help("Choose an app whose connections the lists should leave alone, such as a bank's app that breaks")
+                Spacer()
+                if !model.isOn {
+                    Text("Rules apply while ad blocking is on.").font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+        }
+    }
+
+    private var form: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                TextField("A site, like example.com", text: $model.newSite)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(minWidth: 220)
+                    .onSubmit { model.addSite(.neverBlock) }
+                Menu(model.newSiteApp.map { "In \($0.name)" } ?? "In Every App") {
+                    Button("Every App") { model.newSiteApp = nil }
+                    let apps = model.knownApps
+                    if !apps.isEmpty { Divider() }
+                    ForEach(apps) { app in Button(app.name) { model.newSiteApp = app } }
+                    Divider()
+                    Button("Choose an App…") {
+                        if let app = Self.pickApp() { model.newSiteApp = app }
+                    }
+                }
+                .fixedSize()
+                Button("Never Block") { model.addSite(.neverBlock) }
+                Button("Always Block") { model.addSite(.alwaysBlock) }
+                RowInfoButton(help: Self.explanation, state: info) { Text(Self.explanation) }
+                Spacer(minLength: 0)
+            }
+            if let error = model.ruleError {
+                Text(error).font(.system(size: 11)).foregroundStyle(.red)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+        .onHover { info.isHovering = $0 }
+        .onChange(of: model.newSite) { _ in model.clearRuleError() }
+    }
+
+    static let explanation = "A rule covers the site and every name under it: example.com covers ads.example.com. "
+        + "Rules change only what the ad and tracker lists do. Never block lets a listed site through, and "
+        + "always block stops one no list has. A rule for one app wins over one for every app. Your firewall "
+        + "rules in Connections still come first."
+
+    @ViewBuilder private func section(_ title: String, rules: [AdRule], note: String) -> some View {
+        if !rules.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    Text(note).font(.system(size: 11)).foregroundStyle(.tertiary)
+                }
+                .padding(.bottom, 2)
+                ForEach(rules) { rule in row(rule) }
+            }
+        }
+    }
+
+    private func row(_ rule: AdRule) -> some View {
+        HStack(spacing: 10) {
+            if let icon = model.icon(forBundle: rule.appKey) {
+                Image(nsImage: icon).resizable().frame(width: 18, height: 18)
+            } else {
+                Image(systemName: rule.kind == .neverBlock ? "checkmark.shield" : "xmark.shield")
+                    .foregroundStyle(rule.kind == .neverBlock ? Color.green : Color.red)
+                    .frame(width: 18, height: 18)
+            }
+            Text(rule.site ?? rule.appTitle ?? rule.appKey ?? "")
+                .lineLimit(1).truncationMode(.middle)
+            if rule.site != nil {
+                Text(rule.appTitle.map { "in \($0)" } ?? "in every app")
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Button {
+                model.remove(rule)
+            } label: {
+                Image(systemName: "minus.circle")
+            }
+            .buttonStyle(.borderless)
+            .help("Remove this rule")
+        }
+        .font(.system(size: 13))
+        .padding(.vertical, 3)
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button("Remove") { model.remove(rule) }
+            if let site = rule.site {
+                Button(rule.kind == .neverBlock ? "Always Block Instead" : "Never Block Instead") {
+                    model.setSite(rule.kind == .neverBlock ? .alwaysBlock : .neverBlock, site: site,
+                                  app: rule.appKey.map { .init(key: $0, name: rule.appTitle ?? $0) })
+                }
+            }
+        }
+    }
+
+    private func chooseApp() {
+        if let app = Self.pickApp() { model.dontFilter(app) }
+    }
+
+    static func pickApp() -> AdsViewModel.RuleApp? {
+        let panel = NSOpenPanel()
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.allowedContentTypes = [.application]
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        return AdsViewModel.ruleApp(at: url)
     }
 }

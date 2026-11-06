@@ -110,12 +110,21 @@ public final class AdsLog: ObservableObject {
     }
 
     /// Why it was blocked or let through, in plain words.
-    public static func reason(for entry: AdsLogEntry, rules: [FirewallRule]) -> String {
+    public static func reason(for entry: AdsLogEntry, rules: [FirewallRule], adRules: [AdRule] = []) -> String {
         guard let blockedBy = entry.blockedBy else {
-            return entry.lists.isEmpty ? "Let through" : "Let through, though it's on a list"
+            guard !entry.lists.isEmpty else { return "Let through" }
+            // Your own rule said never (#253).
+            if let rule = AdRule.deciding(adRules, name: entry.name, appKeys: entry.appKey.map { [$0] } ?? []),
+               rule.kind == .neverBlock {
+                return "Your rule: \(rule.summary.lowercasedFirst)"
+            }
+            return "Let through, though it's on a list"
         }
-        if blockedBy.hasPrefix(BlockReason.listPrefix) {
-            return "On the \(AdsReport.title(ofList: String(blockedBy.dropFirst(BlockReason.listPrefix.count))).lowercased()) list"
+        if let id = BlockReason.adRuleID(inReport: blockedBy) {
+            return adRules.first { $0.id == id }.map { "Your rule: \($0.summary.lowercasedFirst)" } ?? "Your rule"
+        }
+        if let list = BlockReason.list(inReport: blockedBy) {
+            return "On the \(AdsReport.title(ofList: list).lowercased()) list"
         }
         switch blockedBy {
         case "mode":            return "Only where you allow"
@@ -140,4 +149,9 @@ public final class AdsLog: ObservableObject {
         }
         return lines.joined(separator: "\n") + "\n"
     }
+}
+
+extension String {
+    /// "Never block x" as it reads mid-sentence: "never block x".
+    var lowercasedFirst: String { prefix(1).lowercased() + dropFirst() }
 }
