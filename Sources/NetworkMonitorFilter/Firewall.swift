@@ -27,6 +27,8 @@ final class Firewall {
     private var blocklists: Blocklists?
     /// The lists downloaded on the Mac (#254), as the app last sent them.
     private var downloaded: [String: DownloadedList] = [:]
+    /// Aliases read from lookups' answers (#255).
+    private var aliases = AliasMemory()
     /// Per audit token, which names one run of one process.
     private var identities: [Data: Identity] = [:]
     private static let identityLimit = 4096
@@ -90,7 +92,8 @@ final class Firewall {
         lock.lock()
         let downloaded = self.downloaded
         lock.unlock()
-        return policy.downloadedLists.filter { downloaded[$0]?.lists(name) == true }
+        let names = matched(name, in: policy)
+        return policy.downloadedLists.filter { id in names.contains { downloaded[id]?.lists($0) == true } }
     }
 
     /// The lists from the app (#176): kept in the container so they apply
@@ -124,13 +127,41 @@ final class Firewall {
         }
     }
 
-    /// The switched-on lists holding a name.
+    /// The switched-on lists holding a name, or an alias it stands for.
     private func listed(_ name: String?, in policy: FirewallPolicy) -> Set<BlocklistTopic> {
         guard let name, !policy.lists.isEmpty else { return [] }
         lock.lock()
         let lists = blocklists
         lock.unlock()
-        return lists?.topics(listing: name).intersection(policy.lists) ?? []
+        guard let lists else { return [] }
+        return matched(name, in: policy).reduce(into: Set<BlocklistTopic>()) {
+            $0.formUnion(lists.topics(listing: $1))
+        }.intersection(policy.lists)
+    }
+
+    // MARK: Aliases (#255)
+
+    /// Whether lookups' answers are worth reading: only while a list is on.
+    var readsLookups: Bool { !current.lists.isEmpty }
+
+    /// A lookup's answer, as it came back to the Mac. Only its aliases are
+    /// kept; the answer itself goes on unchanged.
+    func learnLookup(_ answer: Data) {
+        guard let found = DNSAnswer.aliases(in: answer) else { return }
+        lock.lock()
+        aliases.learn(found)
+        lock.unlock()
+    }
+
+    /// A name, and the aliases it stands for that you haven't said never to
+    /// block: a list holding any of them holds the name.
+    private func matched(_ name: String, in policy: FirewallPolicy) -> [String] {
+        lock.lock()
+        let chain = aliases.chain(of: name)
+        lock.unlock()
+        return [name] + chain.filter {
+            AdRule.deciding(policy.adRules, name: $0, appKeys: [])?.kind != .neverBlock
+        }
     }
 
     /// A newer month from the app. Kept only if it's newer than what's in
