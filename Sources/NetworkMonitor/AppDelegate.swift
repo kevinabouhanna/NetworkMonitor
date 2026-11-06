@@ -345,31 +345,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     }
 
     /// Activates the app for the popover, leaving its windows where they were.
+    ///
+    /// The activation lands a moment after it's asked for, not during the call
+    /// (#233): measured on macOS 27.2, Settings came forward over Chrome 23 ms
+    /// after the popover opened, though it had already been put back below
+    /// Chrome. So the windows stay off screen until `appDidBecomeActive` says
+    /// it has happened, and come back then.
     private func activateForPopover() {
-        if !NSApp.isActive { activatingForPopover = true }
-        keepingWindowsInPlace { NSApp.activate(ignoringOtherApps: true) }
+        guard !NSApp.isActive else { return }
+        activatingForPopover = true
+        parkWindows()
+        NSApp.activate(ignoringOtherApps: true)
+        // macOS can turn the activation down, and then nothing else would put
+        // the windows back.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard let self, self.activatingForPopover else { return }
+            self.activatingForPopover = false
+            self.unparkWindows()
+        }
     }
 
+    /// Settings and Connections, off screen while the app activates, each with
+    /// the window that was in front of it, to go back below.
+    private var parkedWindows: [(window: NSWindow, inFront: Int)] = []
+
     /// Runs `change` without letting it bring Settings or Connections forward
-    /// from behind another app's window (#71).
+    /// from behind another app's window (#71). The popover closing while the
+    /// app is active makes Settings key, which brings it forward.
+    private func keepingWindowsInPlace(_ change: () -> Void) {
+        parkWindows()
+        change()
+        unparkWindows()
+    }
+
+    /// Takes the open windows that something covers off screen.
     ///
     /// Activating the app brings its main window forward, and Settings is made
     /// main for it whatever it says: AppKit ignored `canBecomeMain` returning
-    /// false. The popover closing while the app is active makes Settings key,
-    /// which brings it forward too. Off screen for that moment, a window is left
-    /// alone, and it goes straight back below the window that was in front of
-    /// it. Measured on macOS 27: Settings stayed behind Chrome, where without
-    /// this it came forward over it when the popover opened.
-    private func keepingWindowsInPlace(_ change: () -> Void) {
+    /// false. Off screen at that moment, a window is left alone.
+    private func parkWindows() {
         let placed = openWindows.compactMap { window -> (window: NSWindow, inFront: Int)? in
             WindowStack.window(inFrontOf: window.windowNumber).map { (window, $0) }
         }
-        guard !placed.isEmpty else {
-            change()
-            return
-        }
         placed.forEach { $0.window.orderOut(nil) }
-        change()
+        parkedWindows += placed
+    }
+
+    /// Puts each parked window back below the window that was in front of it.
+    private func unparkWindows() {
+        let placed = parkedWindows
+        parkedWindows = []
         // A window that was behind the other of ours goes back after it, so
         // there's something to go below.
         let ours = Set(placed.map { $0.window.windowNumber })
@@ -501,6 +526,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     @objc private func appDidBecomeActive() {
         guard !activatingForPopover else {
             activatingForPopover = false
+            unparkWindows()
             return
         }
         // Uninstall's alert activates the app too, and keeps the keyboard.

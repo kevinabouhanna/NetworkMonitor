@@ -317,8 +317,9 @@ Two stacked lines, `↓` download in green (`#51FF70`) over `↑` upload in ligh
   whose windows covered Settings with no way back to it.
 - **The popover leaves Settings where it is** (issue #71). Activating the app for the
   popover brought Settings forward over the app you were in, and AppKit makes it the main
-  window for that whatever it's told. So Settings goes off screen for that moment and
-  straight back below the window that was in front of it (`WindowStack`). Esc or a second
+  window for that whatever it's told. So Settings goes off screen until the activation
+  has happened, which on macOS 27.2 is a moment after it's asked for (#233), and then back
+  below the window that was in front of it (`WindowStack`). Esc or a second
   click on the item hands focus back to that app. ⌘-Tab, the Dock icon or a click on
   Settings closes the popover and shows Settings alone.
 
