@@ -31,6 +31,13 @@ through without asking. What's particular to NetworkMonitor:
     - screenshots of anything that looks different, retaken from the real app,
       never mocked up
 
+## Words in the app
+
+- Name features and settings in plain words, without technical terms: *Enhanced ad
+  blocking*, not *HTTPS filtering*.
+- How it works goes behind an ⓘ beside it, shown on hover: briefly what it does and
+  how, with the technical terms there for whoever wants them (as in Settings, #185, #189).
+
 ## The website
 
 The site is the `gh-pages` branch, checked out as a worktree at
