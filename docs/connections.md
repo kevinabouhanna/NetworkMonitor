@@ -208,11 +208,28 @@ in the right-click menu, Settings › Connections, or ⌘B while a window is ope
 **Log** (#252), beside Overview in the toolbar: every connection the filter decides, live,
 newest first, with the time, the app, the site (or its address, marked **No Name** when
 nothing named it), Blocked or Let through, and why in plain words (*On the ads and trackers
-list*, *Your rule: \*.example.com in Slack*, *Let through, though it's on a list*). Show
-All, Blocked, On a List or No Name, and search. Right-click a row to allow or block its site,
-or the whole site, in every app or only that one, or to remove a rule you made. **Pause**
+list*, *Your rule: never block example.com*, *Let through, though it's on a list*). Show
+All, Blocked, On a List or No Name, and search. Right-click a row to never or always block
+its name or its whole site, in every app or only that one, to stop filtering its app, or to
+remove a rule you made. **Pause**
 holds the list still, **Clear** empties it, and **Export…** saves what's shown as text. It
 keeps the last 5,000 in memory only; lookups aren't listed.
+
+**Rules** (#253), the third tab: your own say over what the lists do.
+
+- **Never block** a site, and every name under it: it goes through though a list has it.
+- **Always block** a site that no list has.
+- Either for **every app** or **one app**, from the menu beside the site.
+- **Don't filter an app**: the lists leave all its connections alone, for an app that breaks.
+- Type a site, or paste an address or a rule (`https://ads.example.com/x`, `*.example.com`,
+  `||example.com^`): the name is read out of it. Return makes it *never block*.
+- Right-click a site in the Overview to never block it, or an app to stop filtering it.
+
+They change only what the lists do, and only while ad blocking is on: a firewall rule in
+Connections still comes first, and *never block* lets nothing through that your rules or
+mode would stop. Decided in this order: one app's *never block*, one app's *always block*,
+every app's *never block*, every app's *always block*, then the lists, with the longer name
+first within each. What *always block* stops counts with the lists, as **Your Rules**.
 
 The overview reads `list_blocks` in History (#250), so it starts from when that was added, is kept as
 long as History, and Clear History clears it.
