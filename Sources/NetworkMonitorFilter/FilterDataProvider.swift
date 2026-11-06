@@ -56,8 +56,22 @@ final class FilterDataProvider: NEFilterDataProvider {
         AppLink.shared.report(FlowReport(address: report.address, port: port, hostname: report.hostname,
                                          pid: report.pid, time: report.time, blockedBy: decision.blockedBy,
                                          appKey: decision.blockedBy == nil ? nil : decision.appKey))
+        // A lookup: read its answer as it comes back, for the aliases in it
+        // (#255). Nothing in it is changed or held.
+        if decision.allows, Self.isLookup(socket, port: port), Firewall.shared.readsLookups {
+            return .filterDataVerdict(withFilterInbound: true, peekInboundBytes: Self.answerPeek,
+                                      filterOutbound: false, peekOutboundBytes: 0)
+        }
         return decision.verdict
     }
+
+    /// Plain DNS over UDP, the only kind whose answers can be read.
+    private static func isLookup(_ flow: NEFilterSocketFlow, port: Int) -> Bool {
+        port == 53 && flow.socketType == SOCK_DGRAM
+    }
+
+    /// Enough for any answer over UDP.
+    private static let answerPeek = 4_096
 
     /// macOS's DNS resolver, by its process.
     private static func isResolver(_ pid: Int32) -> Bool {
@@ -81,7 +95,10 @@ final class FilterDataProvider: NEFilterDataProvider {
 
     override func handleInboundData(from flow: NEFilterFlow, readBytesStartOffset offset: Int,
                                     readBytes: Data) -> NEFilterDataVerdict {
-        .allow()
+        // Only lookups ask for inbound data (#255): the first answer, then
+        // the rest of the flow goes unread.
+        if offset == 0 { Firewall.shared.learnLookup(readBytes) }
+        return .allow()
     }
 
     override func handleInboundDataComplete(for flow: NEFilterFlow) -> NEFilterDataVerdict {

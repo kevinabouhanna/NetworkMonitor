@@ -179,6 +179,10 @@ two lists:
   such as `com`.
 - **It works for apps that connect by address too,** such as Chrome, through the name in
   the connection's handshake (#196).
+- **It sees through a site's own name for a tracker** (#255): `metrics.example.com` that is
+  an alias of a listed tracker, as the answer to the Mac's lookup says, is blocked as that
+  tracker. The answers are read, never changed. Lookups an app encrypts itself, such as
+  Chrome's Secure DNS, can't be read.
 - **Connections tags each listed server** ADS or MALWARE, whether the lists are on or
   not, so the window shows what's tracking you either way. **Show: Blocked** lists what
   they stopped.
