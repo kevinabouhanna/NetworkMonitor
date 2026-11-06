@@ -220,7 +220,7 @@ public final class MonitorViewModel: ObservableObject {
             listBlocks.seed(Int(history.listBlockCount(from: midnight, to: now.addingTimeInterval(3600))), now: now)
         }
         filterNames = filter.flows.sink { [weak self] flows in
-            self?.listBlocks.add(flows.filter { $0.blockedBy?.hasPrefix(BlockReason.listPrefix) == true }.count)
+            self?.listBlocks.add(flows.filter { BlockReason.list(inReport: $0.blockedBy) != nil }.count)
             guard let self else { return }
             self.log(flows)
             guard let history = self.store.history else { return }
@@ -231,9 +231,9 @@ public final class MonitorViewModel: ObservableObject {
             })
             // What each list blocked, for the Ads window (#250).
             history.recordListBlocks(flows.compactMap { flow in
-                guard let reason = flow.blockedBy, reason.hasPrefix(BlockReason.listPrefix),
+                guard let list = BlockReason.list(inReport: flow.blockedBy),
                       let name = flow.serverName, let key = flow.appKey else { return nil }
-                return (AppIdentityResolver.identity(forKey: key), name, String(reason.dropFirst(BlockReason.listPrefix.count)))
+                return (AppIdentityResolver.identity(forKey: key), name, list)
             })
             history.recordBlocked(flows.compactMap { flow in
                 guard flow.blockedBy != nil, let key = flow.appKey else { return nil }
@@ -248,17 +248,18 @@ public final class MonitorViewModel: ObservableObject {
         firewallPolicy = Publishers.CombineLatest4(Publishers.CombineLatest4(firewall.$rules, firewall.$lists,
                                                                              firewall.$blocksEverything,
                                                                              firewall.$listsPausedUntil),
-                                                   Publishers.CombineLatest(firewall.$mode, $networkID),
+                                                   Publishers.CombineLatest3(firewall.$mode, $networkID,
+                                                                             firewall.$adRules),
                                                    $isExpensiveNetwork, metering.$isEnabled)
             .sink { [weak self] rulesAndLists, modeAndNetwork, onHotspot, pausing in
-                let (mode, network) = modeAndNetwork
+                let (mode, network, adRules) = modeAndNetwork
                 self?.filter.apply(FirewallPolicy(mode: mode, rules: rulesAndLists.0, onHotspot: onHotspot,
                                                   pausesUpdates: pausing && onHotspot,
                                                   // None while ad blocking is paused (#251).
                                                   lists: FirewallRules.activeLists(rulesAndLists.1,
                                                                                    pausedUntil: rulesAndLists.3),
                                                   blocksEverything: rulesAndLists.2,
-                                                  network: network.isEmpty ? nil : network))
+                                                  network: network.isEmpty ? nil : network, adRules: adRules))
                 // Switched on with stale lists: fetch newer ones soon.
                 if !rulesAndLists.1.isEmpty { self?.blocklists.checkSoon() }
             }

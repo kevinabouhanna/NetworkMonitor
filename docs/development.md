@@ -277,7 +277,7 @@ A development build reads a few launch arguments for that run only; nothing pers
 | Argument | Does |
 |---|---|
 | `-powerProfile balanced` (or `performance`, `saver`) | measures a power profile without unplugging (below) |
-| `-open connections`, `-open welcome`, `-open settings -pane history` | opens a window straight away, for a screenshot or a check |
+| `-open connections`, `-open ads -tab rules`, `-open welcome`, `-open settings -pane history` | opens a window straight away, for a screenshot or a check |
 | `-geoDataURL http://127.0.0.1:8765/ -geoDataCheckNow YES` | fetches the monthly data from a local package, at once (#121) |
 | `-updateFeedURL http://127.0.0.1:8765/appcast.xml -checkForUpdatesNow YES` | checks a local appcast for an update, at once (#132) |
 | `-historyDatabase ~/tmp/history.sqlite` | reads and writes Usage History, Connections and Ads and Trackers from another file, for test data (#251) |

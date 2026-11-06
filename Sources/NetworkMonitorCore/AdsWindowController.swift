@@ -49,6 +49,8 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     public var isVisible: Bool { window.isVisible }
 
+    public func select(_ tab: AdsViewModel.Tab) { model.tab = tab }
+
     public func windowDidShow() { model.windowDidOpen() }
 
     public func windowWillClose() { model.windowDidClose() }
@@ -89,10 +91,12 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     private func refreshControls() {
         tabControl.selectedSegment = AdsViewModel.Tab.allCases.firstIndex(of: model.tab) ?? 0
-        // The log is the present, live: no period.
+        // The log is the present, live, and rules have no period.
         let overview = model.tab == .overview
         scaleControl.isEnabled = overview
-        scaleControl.selectedSegment = HistoryScale.allCases.firstIndex(of: model.scale) ?? 0
+        // Nothing chosen while it doesn't apply, which a disabled control
+        // alone doesn't show.
+        scaleControl.selectedSegment = overview ? HistoryScale.allCases.firstIndex(of: model.scale) ?? 0 : -1
         stepControl.setEnabled(overview && model.canStepBack, forSegment: 0)
         stepControl.setEnabled(overview, forSegment: 1)
         stepControl.setEnabled(overview && model.canStepForward, forSegment: 2)

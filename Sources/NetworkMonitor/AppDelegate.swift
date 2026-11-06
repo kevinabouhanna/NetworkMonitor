@@ -122,15 +122,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         present(controller.window, reposition: !controller.window.isVisible)
     }
 
-    /// `open NetworkMonitor.app --args -open connections`, `-open welcome`, or
-    /// `-open settings` with `-pane history` (any pane), for a screenshot or a
+    /// `open NetworkMonitor.app --args -open connections`, `-open welcome`,
+    /// `-open ads` with `-tab rules` (any tab), or `-open settings` with
+    /// `-pane history` (any pane), for a screenshot or a
     /// check of a development build without clicking the menu bar. Only the
     /// launch arguments are read, so it never outlives the run.
     private func openWindowFromLaunchArgument() {
         let arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
         switch arguments["open"] as? String {
         case "connections": showConnections()
-        case "ads":         showAds()
+        case "ads":
+            if let tab = (arguments["tab"] as? String).flatMap(AdsViewModel.Tab.init) { ads.select(tab) }
+            showAds()
         case "welcome":     showWelcome()
         case "settings":    show(pane: (arguments["pane"] as? String).flatMap(SettingsPane.init))
         default:            break

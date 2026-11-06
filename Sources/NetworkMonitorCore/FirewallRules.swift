@@ -24,6 +24,10 @@ public final class FirewallRules: ObservableObject {
     }
     private var resumeTimer: Timer?
 
+    /// Your own ad-blocking rules (#253), newest first.
+    @Published public private(set) var adRules: [AdRule]
+    public static let adRulesKey = "adRules"
+
     public static let listsPausedKey = "blocklistsPausedUntil"
     public static let rulesKey = "firewallRules"
     public static let modeKey = "firewallMode"
@@ -48,6 +52,8 @@ public final class FirewallRules: ObservableObject {
         mode = defaults.string(forKey: Self.modeKey).flatMap(FirewallMode.init) ?? .anywhere
         lists = Set((defaults.stringArray(forKey: Self.listsKey) ?? []).compactMap(BlocklistTopic.init))
         blocksEverything = defaults.bool(forKey: Self.blocksEverythingKey)
+        adRules = defaults.data(forKey: Self.adRulesKey)
+            .flatMap { try? JSONDecoder().decode([AdRule].self, from: $0) } ?? []
         listsPausedUntil = (defaults.object(forKey: Self.listsPausedKey) as? Date).flatMap { $0 > Date() ? $0 : nil }
         scheduleResume()
     }
@@ -74,6 +80,31 @@ public final class FirewallRules: ObservableObject {
         }
         RunLoop.main.add(timer, forMode: .common)
         resumeTimer = timer
+    }
+
+    // MARK: Ad-blocking rules (#253)
+
+    /// Adds a rule, replacing one for the same site and app: a site is
+    /// either never or always blocked, not both.
+    public func add(_ rule: AdRule) {
+        guard rule.isValid else { return }
+        var updated = adRules.filter { !($0.site == rule.site && $0.appKey == rule.appKey) }
+        updated.insert(rule, at: 0)
+        saveAdRules(updated)
+    }
+
+    public func remove(_ rule: AdRule) {
+        saveAdRules(adRules.filter { $0.id != rule.id })
+    }
+
+    /// The rule a report names, by its id.
+    public func adRule(id: String) -> AdRule? {
+        adRules.first { $0.id == id }
+    }
+
+    private func saveAdRules(_ updated: [AdRule]) {
+        adRules = updated
+        defaults.set(try? JSONEncoder().encode(updated), forKey: Self.adRulesKey)
     }
 
     /// The rule for every app on a row. Rules for one app, made by answering
@@ -214,7 +245,7 @@ public final class FirewallRules: ObservableObject {
     }
 
     public func policy(onHotspot: Bool) -> FirewallPolicy {
-        FirewallPolicy(mode: mode, rules: rules, onHotspot: onHotspot, lists: lists)
+        FirewallPolicy(mode: mode, rules: rules, onHotspot: onHotspot, lists: lists, adRules: adRules)
     }
 
     static func subject(of item: ConnectionsItem) -> RuleSubject? {

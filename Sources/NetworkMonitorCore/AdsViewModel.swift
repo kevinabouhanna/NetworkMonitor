@@ -92,7 +92,8 @@ public struct AdsReport: Equatable {
 
     /// A list's name as people read it.
     public static func title(ofList id: String) -> String {
-        BlocklistTopic(rawValue: id)?.title ?? id
+        if id == BlockReason.ownList { return "Your Rules" }
+        return BlocklistTopic(rawValue: id)?.title ?? id
     }
 }
 
@@ -107,12 +108,30 @@ public final class AdsViewModel: ObservableObject {
         public var id: Date { interval.start }
     }
 
-    /// Overview or the log (#252), from the window's toolbar.
+    /// Overview, the log (#252) or your rules (#253), from the window's toolbar.
     public enum Tab: String, CaseIterable, Identifiable {
-        case overview, log
+        case overview, log, rules
 
         public var id: String { rawValue }
-        public var label: String { self == .overview ? "Overview" : "Log" }
+        public var label: String {
+            switch self {
+            case .overview: return "Overview"
+            case .log:      return "Log"
+            case .rules:    return "Rules"
+            }
+        }
+    }
+
+    /// An app a rule can be for: its key and its name.
+    public struct RuleApp: Hashable, Identifiable {
+        public let key: String
+        public let name: String
+        public var id: String { key }
+
+        public init(key: String, name: String) {
+            self.key = key
+            self.name = name
+        }
     }
 
     @Published public var tab: Tab = .overview
@@ -120,6 +139,11 @@ public final class AdsViewModel: ObservableObject {
     @Published public var logSearch = ""
     /// What the log showed when it was paused; nil while it's live.
     @Published public private(set) var frozenLog: [AdsLogEntry]?
+
+    /// The Rules tab's form (#253): a site, and every app or one.
+    @Published public var newSite = ""
+    @Published public var newSiteApp: RuleApp?
+    @Published public private(set) var ruleError: String?
 
     @Published public private(set) var period: HistoryPeriod
     @Published public private(set) var report = AdsReport()
@@ -159,7 +183,7 @@ public final class AdsViewModel: ObservableObject {
     public var logIsPaused: Bool { frozenLog != nil }
 
     public func reason(for entry: AdsLogEntry) -> String {
-        AdsLog.reason(for: entry, rules: firewall.rules)
+        AdsLog.reason(for: entry, rules: firewall.rules, adRules: firewall.adRules)
     }
 
     public func toggleLogPause() {
@@ -202,6 +226,80 @@ public final class AdsViewModel: ObservableObject {
         let icon = NSWorkspace.shared.icon(forFile: path)
         icons[path] = icon
         return icon
+    }
+
+    // MARK: Your rules (#253)
+
+    public var adRules: [AdRule] { firewall.adRules }
+
+    /// Sites never blocked, sites always blocked, and apps left alone, each
+    /// newest first.
+    public var neverBlocked: [AdRule] { adRules.filter { $0.kind == .neverBlock && $0.site != nil } }
+    public var alwaysBlocked: [AdRule] { adRules.filter { $0.kind == .alwaysBlock } }
+    public var unfilteredApps: [AdRule] { adRules.filter(\.skipsApp) }
+
+    /// From the form: false, with a reason shown, when there's no site in it.
+    @discardableResult
+    public func addSite(_ kind: AdRule.Kind) -> Bool {
+        guard let site = AdRule.site(from: newSite) else {
+            ruleError = newSite.trimmingCharacters(in: .whitespaces).isEmpty
+                ? "Type a site first, like example.com."
+                : "\"\(newSite)\" isn't a site name. Type one like example.com."
+            return false
+        }
+        firewall.add(AdRule(kind: kind, site: site, appKey: newSiteApp?.key, appTitle: newSiteApp?.name))
+        newSite = ""
+        ruleError = nil
+        objectWillChange.send()
+        return true
+    }
+
+    public func clearRuleError() {
+        if ruleError != nil { ruleError = nil }
+    }
+
+    /// A rule from a row of the overview or the log.
+    public func setSite(_ kind: AdRule.Kind, site: String, app: RuleApp?) {
+        firewall.add(AdRule(kind: kind, site: site, appKey: app?.key, appTitle: app?.name))
+        objectWillChange.send()
+    }
+
+    /// Leave an app's connections to the lists alone.
+    public func dontFilter(_ app: RuleApp) {
+        firewall.add(AdRule(kind: .neverBlock, site: nil, appKey: app.key, appTitle: app.name))
+        objectWillChange.send()
+    }
+
+    /// An app chosen in a panel, keyed as Connections keys apps.
+    public static func ruleApp(at url: URL) -> RuleApp {
+        let name = FileManager.default.displayName(atPath: url.path)
+        return RuleApp(key: url.standardizedFileURL.path,
+                       name: name.hasSuffix(".app") ? String(name.dropLast(4)) : name)
+    }
+
+    public func remove(_ rule: AdRule) {
+        firewall.remove(rule)
+        objectWillChange.send()
+    }
+
+    /// Your rules about a log row's site or app.
+    public func adRules(for entry: AdsLogEntry) -> [AdRule] {
+        let domains = Set(entry.name.map(SiteName.domains(of:)) ?? [])
+        return adRules.filter { rule in
+            (rule.appKey == nil || rule.appKey == entry.appKey)
+                && (rule.site.map(domains.contains) ?? (rule.appKey != nil))
+        }
+    }
+
+    /// Apps seen in the period and the log, for the form's menu.
+    public var knownApps: [RuleApp] {
+        var seen: [String: String] = [:]
+        for app in report.apps { seen[app.id] = app.title }
+        for entry in monitor.adsLog.entries.prefix(1000) {
+            if let key = entry.appKey, seen[key] == nil { seen[key] = entry.appName }
+        }
+        return seen.map { RuleApp(key: $0.key, name: $0.value) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     public var firewall: FirewallRules { monitor.firewall }

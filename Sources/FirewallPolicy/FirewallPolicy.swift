@@ -152,6 +152,8 @@ public enum BlockReason: Equatable {
     case list(BlocklistTopic)
     /// Block Everything is on (#198).
     case everything
+    /// The person's own *always block* (#253), counted with the lists.
+    case adRule(AdRule)
 
     /// How a report names it: the rule's id, or what blocked it.
     public var id: String {
@@ -161,11 +163,29 @@ public enum BlockReason: Equatable {
         case .updatesOnHotspot: return "hotspot-updates"
         case .list(let topic):  return Self.listPrefix + topic.rawValue
         case .everything:       return "everything"
+        case .adRule(let rule): return Self.listPrefix + Self.ownList + ":" + rule.id
         }
     }
 
     /// Every list's report starts so, for counting them.
     public static let listPrefix = "list:"
+    /// The person's own rules, as the Ads window counts them beside the lists.
+    public static let ownList = "mine"
+
+    /// The list a report says blocked it (`ads`, or `mine` for the person's
+    /// own rule), or nil when no list did.
+    public static func list(inReport blockedBy: String?) -> String? {
+        guard let blockedBy, blockedBy.hasPrefix(listPrefix) else { return nil }
+        let rest = blockedBy.dropFirst(listPrefix.count)
+        return String(rest.split(separator: ":", maxSplits: 1).first ?? rest)
+    }
+
+    /// The id of the person's rule a report names, if it was one.
+    public static func adRuleID(inReport blockedBy: String?) -> String? {
+        let prefix = listPrefix + ownList + ":"
+        guard let blockedBy, blockedBy.hasPrefix(prefix) else { return nil }
+        return String(blockedBy.dropFirst(prefix.count))
+    }
 }
 
 public enum AllowReason: Equatable {
@@ -193,10 +213,13 @@ public struct FirewallPolicy: Codable, Equatable {
     public var blocksEverything: Bool
     /// The network the Mac is on (#200), as rules for one network name it.
     public var network: String?
+    /// The person's own ad-blocking rules (#253). They change only what the
+    /// lists do, so they count only while a list is on.
+    public var adRules: [AdRule]
 
     public init(mode: FirewallMode = .anywhere, rules: [FirewallRule] = [], onHotspot: Bool = false,
                 pausesUpdates: Bool = false, lists: Set<BlocklistTopic> = [], blocksEverything: Bool = false,
-                network: String? = nil) {
+                network: String? = nil, adRules: [AdRule] = []) {
         self.mode = mode
         self.rules = rules
         self.onHotspot = onHotspot
@@ -204,10 +227,11 @@ public struct FirewallPolicy: Codable, Equatable {
         self.lists = lists
         self.blocksEverything = blocksEverything
         self.network = network
+        self.adRules = adRules
     }
 
     private enum CodingKeys: String, CodingKey {
-        case mode, rules, onHotspot, pausesUpdates, lists, blocksEverything, network
+        case mode, rules, onHotspot, pausesUpdates, lists, blocksEverything, network, adRules
     }
 
     /// A policy saved before a field existed reads it as off, so a filter
@@ -221,6 +245,7 @@ public struct FirewallPolicy: Codable, Equatable {
         lists = try container.decodeIfPresent(Set<BlocklistTopic>.self, forKey: .lists) ?? []
         blocksEverything = try container.decodeIfPresent(Bool.self, forKey: .blocksEverything) ?? false
         network = try container.decodeIfPresent(String.self, forKey: .network)
+        adRules = try container.decodeIfPresent([AdRule].self, forKey: .adRules) ?? []
     }
 
     /// Anything to decide at all. Without it, the filter looks nothing up.
@@ -264,9 +289,14 @@ public struct FirewallPolicy: Codable, Equatable {
             }
         }
         // After your rules, which always win: Always Allow lets a listed site
-        // through (#176).
-        if let topic = flow.listedIn.intersection(lists).sorted().first {
-            return .block(.list(topic))
+        // through (#176). Then your ad-blocking rules (#253), which say only
+        // what the lists do, and only while one is on.
+        if !lists.isEmpty {
+            let adRule = AdRule.deciding(adRules, name: flow.hostname, appKeys: flow.appKeys)
+            if let adRule, adRule.kind == .alwaysBlock { return .block(.adRule(adRule)) }
+            if adRule == nil, let topic = flow.listedIn.intersection(lists).sorted().first {
+                return .block(.list(topic))
+            }
         }
         // Always Allow lets an updater through too. macOS and Apple's apps
         // follow Hotspot mode's system setting instead, so an update started
