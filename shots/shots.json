@@ -34,7 +34,7 @@
           "h": 48
         },
         {
-          "match": "data-pane=\"blocking\"",
+          "match": "data-pane=\"shield\"",
           "element": "AXButton:Ads",
           "h": 48
         },
@@ -107,8 +107,8 @@
       "window": "Connections"
     },
     {
-      "name": "settings-blocking",
-      "file": "assets/settings/blocking.png",
+      "name": "settings-shield",
+      "file": "assets/settings/shield.png",
       "open": [
         "-open",
         "settings",
