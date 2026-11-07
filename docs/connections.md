@@ -214,8 +214,10 @@ in the right-click menu, Settings › Ads, or ⌘B while a window is open:
 
 - **How many were blocked** in the period (a day, week, month or year, with ‹ Today ›), by
   list, with an ⓘ saying how it works. The period is in the toolbar on Overview only: the
-  other tabs have none, so it's hidden there, and the tabs sit at the toolbar's end so they
-  stay put (#311).
+  other tabs have none, so it's hidden there (#311). The tabs, Overview, Log, Lists and
+  Rules, head the window's content rather than the toolbar (#358), so the toolbar fits down
+  to 620 pt; the window's minimum is 700, where Overview's counts by list flow under the
+  total instead of beside it, and the Sites and Apps names still read.
 - **A chart** of blocks over the period, by hour or by day.
 - **Sites**, by the part of the name a person would call the site (`doubleclick.net`), with
   the names under it that were blocked; and **Apps**, with the sites each tried most.

@@ -5,13 +5,35 @@ import SwiftUI
 
 /// The Ads and Trackers window's content (#251): what the lists blocked in
 /// the period, over time, by site and by app, and pausing. The period is in
-/// the window's toolbar, as in Connections.
+/// the window's toolbar, as in Connections; the tabs head the content (#358),
+/// so the toolbar fits a narrower window.
 struct AdsView: View {
     @ObservedObject var model: AdsViewModel
     /// Not `@State`; see `SettingsPaneState`.
     @StateObject private var info = RowInfoState()
 
     var body: some View {
+        VStack(spacing: 0) {
+            tabs
+            Divider()
+            page
+        }
+        .frame(minWidth: AdsMetrics.minWidth, minHeight: AdsMetrics.minHeight)
+    }
+
+    private var tabs: some View {
+        Picker("View", selection: $model.tab) {
+            ForEach(AdsViewModel.Tab.allCases) { tab in Text(tab.label).tag(tab) }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .fixedSize()
+        .help("What was blocked, every connection as it's decided, the lists, and your rules")
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+    }
+
+    @ViewBuilder private var page: some View {
         VStack(spacing: 0) {
             if model.tab == .log {
                 AdsLogView(model: model)
@@ -50,39 +72,59 @@ struct AdsView: View {
                 }
             }
         }
-        .frame(minWidth: AdsMetrics.minWidth, minHeight: AdsMetrics.minHeight)
     }
 
     // MARK: Header
 
+    /// The total, what each list blocked, and Pause: on one line when there's
+    /// room, else the lists' counts flow under the total, each kept whole
+    /// (#358), so a narrow window never breaks a name mid-word.
     private var header: some View {
-        HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text("\(model.report.total.formatted()) blocked")
-                        .font(.system(size: 22, weight: .semibold))
-                        .monospacedDigit()
-                    RowInfoButton(help: Self.explanation, state: info) { Text(Self.explanation) }
-                }
-                Text(model.title).font(.system(size: 12)).foregroundStyle(.secondary)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 16) {
+                total
+                HStack(spacing: 14) { listCounts }.fixedSize()
+                Spacer(minLength: 12)
+                pause
             }
-            .contentShape(Rectangle())
-            .onHover { info.isHovering = $0 }
-            HStack(spacing: 14) {
-                ForEach(model.report.lists, id: \.list) { entry in
-                    HStack(spacing: 6) {
-                        if let topic = BlocklistTopic(rawValue: entry.list) { ListTag(topic: topic) }
-                        Text(AdsReport.title(ofList: entry.list)).foregroundStyle(.secondary)
-                        Text(entry.count.formatted()).monospacedDigit()
-                    }
-                    .font(.system(size: 12))
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 10) {
+                    total
+                    FlowLayout(spacing: 14, lineSpacing: 6) { listCounts }
                 }
+                Spacer(minLength: 12)
+                pause
             }
-            Spacer(minLength: 12)
-            pause
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
+    }
+
+    private var total: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text("\(model.report.total.formatted()) blocked")
+                    .font(.system(size: 22, weight: .semibold))
+                    .monospacedDigit()
+                RowInfoButton(help: Self.explanation, state: info) { Text(Self.explanation) }
+            }
+            Text(model.title).font(.system(size: 12)).foregroundStyle(.secondary)
+        }
+        .fixedSize()
+        .contentShape(Rectangle())
+        .onHover { info.isHovering = $0 }
+    }
+
+    private var listCounts: some View {
+        ForEach(model.report.lists, id: \.list) { entry in
+            HStack(spacing: 6) {
+                if let topic = BlocklistTopic(rawValue: entry.list) { ListTag(topic: topic) }
+                Text(AdsReport.title(ofList: entry.list)).foregroundStyle(.secondary)
+                Text(entry.count.formatted()).monospacedDigit()
+            }
+            .font(.system(size: 12))
+            .fixedSize()
+        }
     }
 
     @ViewBuilder private var pause: some View {
@@ -242,11 +284,59 @@ private struct AdsRow: View {
     }
 }
 
+/// Its subviews left to right, onto a new line when the next doesn't fit.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+    var lineSpacing: CGFloat = 4
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(subviews, width: proposal.width ?? .infinity)
+        let width = rows.map(\.width).max() ?? 0
+        let height = rows.map(\.height).reduce(0, +) + lineSpacing * CGFloat(max(rows.count - 1, 0))
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in arrange(subviews, width: bounds.width) {
+            var x = bounds.minX
+            for index in row.indices {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                subviews[index].place(at: CGPoint(x: x, y: y + (row.height - size.height) / 2),
+                                      proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += row.height + lineSpacing
+        }
+    }
+
+    private struct Row { var indices: [Int] = []; var width: CGFloat = 0; var height: CGFloat = 0 }
+
+    private func arrange(_ subviews: Subviews, width: CGFloat) -> [Row] {
+        var rows: [Row] = []
+        var row = Row()
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let needed = row.indices.isEmpty ? size.width : row.width + spacing + size.width
+            if needed > width, !row.indices.isEmpty {
+                rows.append(row)
+                row = Row()
+            }
+            row.width = row.indices.isEmpty ? size.width : row.width + spacing + size.width
+            row.height = max(row.height, size.height)
+            row.indices.append(index)
+        }
+        if !row.indices.isEmpty { rows.append(row) }
+        return rows
+    }
+}
+
 enum AdsMetrics {
-    /// Wide enough for Overview's toolbar, the title, period, ‹ Today › and
-    /// tabs, which overflows below 852 (#315): no control is ever hidden in
-    /// the toolbar's » menu.
-    static let minWidth: CGFloat = 860
+    /// With the tabs in the window (#358), the toolbar (title, period and
+    /// ‹ Today ›) fits down to 620, and Overview's list counts wrap under the
+    /// total; at 700 the Sites and Apps names still read. Measured on the
+    /// real app, so no control is ever hidden in the toolbar's » menu (#315).
+    static let minWidth: CGFloat = 700
     static let minHeight: CGFloat = 480
     static let chartHeight: CGFloat = 120
     static let rowBarWidth: CGFloat = 90

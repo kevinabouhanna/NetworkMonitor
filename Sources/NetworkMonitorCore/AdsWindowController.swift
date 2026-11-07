@@ -4,17 +4,16 @@ import SwiftUI
 
 /// The Ads and Trackers window (#251): its own, like Connections, since what
 /// the lists blocked is a job of its own and not every connection. On
-/// Overview its toolbar has Connections' period and ‹ Today › (#311).
+/// Overview its toolbar has Connections' period and ‹ Today › (#311); the
+/// tabs are in the window, at the top of its content (#358).
 public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     public let window: NSWindow
     private let model: AdsViewModel
-    private let tabControl = NSSegmentedControl()
     private let scaleControl = NSSegmentedControl()
     private let stepControl = NSSegmentedControl()
     private var observation: AnyCancellable?
 
-    private static let tabItem = NSToolbarItem.Identifier("tab")
     private static let scaleItem = NSToolbarItem.Identifier("scale")
     private static let stepItem = NSToolbarItem.Identifier("step")
 
@@ -37,6 +36,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
+        toolbar.centeredItemIdentifiers = [Self.scaleItem]
         window.toolbar = toolbar
         window.toolbarStyle = .unified
 
@@ -58,15 +58,6 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     public func windowWillClose() { model.windowDidClose() }
 
     private func configureControls() {
-        let tabs = AdsViewModel.Tab.allCases
-        tabControl.segmentCount = tabs.count
-        tabControl.trackingMode = .selectOne
-        for (index, tab) in tabs.enumerated() {
-            tabControl.setLabel(tab.label, forSegment: index)
-        }
-        tabControl.target = self
-        tabControl.action = #selector(tabChosen)
-
         let scales = HistoryScale.allCases
         scaleControl.segmentCount = scales.count
         scaleControl.trackingMode = .selectOne
@@ -91,7 +82,6 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     }
 
     private func refreshControls() {
-        tabControl.selectedSegment = AdsViewModel.Tab.allCases.firstIndex(of: model.tab) ?? 0
         scaleControl.selectedSegment = HistoryScale.allCases.firstIndex(of: model.scale) ?? 0
         stepControl.setEnabled(model.canStepBack, forSegment: 0)
         stepControl.setEnabled(model.canStepForward, forSegment: 2)
@@ -101,7 +91,6 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     /// The period and ‹ Today › are in the toolbar only on Overview (#311):
     /// the log is the present, rules have no period, and the lists count
     /// today's blocks, so elsewhere they'd only sit there doing nothing.
-    /// The tabs come last, so they stay where they are when it goes.
     private func showPeriod(_ show: Bool) {
         guard let toolbar = window.toolbar else { return }
         for item in toolbar.items where [Self.scaleItem, Self.stepItem].contains(item.itemIdentifier) {
@@ -111,10 +100,6 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
                 item.view?.isHidden = !show
             }
         }
-    }
-
-    @objc private func tabChosen(_ sender: NSSegmentedControl) {
-        model.tab = AdsViewModel.Tab.allCases[sender.selectedSegment]
     }
 
     @objc private func scaleChosen(_ sender: NSSegmentedControl) {
@@ -132,7 +117,8 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     // MARK: NSToolbarDelegate
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Self.scaleItem, Self.stepItem, .flexibleSpace, Self.tabItem]
+        // As Connections: the period centred, ‹ Today › trailing.
+        [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -143,10 +129,6 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
                         willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         let item = NSToolbarItem(itemIdentifier: identifier)
         switch identifier {
-        case Self.tabItem:
-            item.view = tabControl
-            item.label = "View"
-            item.toolTip = "What was blocked, or every connection as it's decided"
         case Self.scaleItem:
             item.view = scaleControl
             item.label = "Period"
