@@ -108,9 +108,11 @@ public final class FirewallRules: ObservableObject {
     // MARK: Ad-blocking rules (#253)
 
     /// Adds a rule, replacing one for the same site and app: a site is
-    /// either never or always blocked, not both.
+    /// either never or always blocked, not both. One app's rule remembers the
+    /// team that signed it (#320).
     public func add(_ rule: AdRule) {
         guard rule.isValid else { return }
+        let rule = signed(rule)
         var updated = adRules.filter { !($0.site == rule.site && $0.appKey == rule.appKey) }
         updated.insert(rule, at: 0)
         saveAdRules(updated)
@@ -120,11 +122,15 @@ public final class FirewallRules: ObservableObject {
     /// last for a site and app wins.
     public func add(_ rules: [AdRule]) {
         var updated = adRules
-        for rule in rules where rule.isValid {
+        for rule in rules.map(signed) where rule.isValid {
             updated.removeAll { $0.site == rule.site && $0.appKey == rule.appKey }
             updated.insert(rule, at: 0)
         }
         saveAdRules(updated)
+    }
+
+    private func signed(_ rule: AdRule) -> AdRule {
+        rule.team == nil ? rule.appKey.flatMap(teamOf).map(rule.signed(by:)) ?? rule : rule
     }
 
     public func remove(_ rule: AdRule) {

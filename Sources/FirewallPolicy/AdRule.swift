@@ -22,12 +22,30 @@ public struct AdRule: Codable, Hashable, Identifiable {
     /// For one app only, by its key; nil for every app.
     public let appKey: String?
     public let appTitle: String?
+    /// For one app's rule, the team that signed the app when the rule was
+    /// made (#320), as firewall rules keep it (#202): a program at that path
+    /// signed by anyone else isn't the app, and the rule doesn't hold for it.
+    /// Nil for every app's rules, apps with no team, and rules made before.
+    public let team: String?
 
-    public init(kind: Kind, site: String?, appKey: String? = nil, appTitle: String? = nil) {
+    public init(kind: Kind, site: String?, appKey: String? = nil, appTitle: String? = nil, team: String? = nil) {
         self.kind = kind
         self.site = site
         self.appKey = appKey
         self.appTitle = appKey == nil ? nil : appTitle
+        self.team = appKey == nil ? nil : team
+    }
+
+    /// The same rule, signed for by `team`.
+    public func signed(by team: String?) -> AdRule {
+        AdRule(kind: kind, site: site, appKey: appKey, appTitle: appTitle, team: team)
+    }
+
+    /// Whether it holds for a program whose app keys were signed by `teams`.
+    /// Without them, as the app reads its log, every rule holds.
+    func holds(signedBy teams: [String: String]?) -> Bool {
+        guard let team, let appKey, let teams else { return true }
+        return teams[appKey] == team
     }
 
     public var id: String { "\(kind.rawValue):\(site ?? "*")" + (appKey.map { "@\($0)" } ?? "") }
@@ -50,9 +68,13 @@ public struct AdRule: Codable, Hashable, Identifiable {
     }
 
     /// The rule deciding a connection to `name` from apps `appKeys`, if any.
-    /// One app's rules come before every app's, *never block* before *always
-    /// block*, and within those the longer name: the narrower rule wins.
-    public static func deciding(_ rules: [AdRule], name: String?, appKeys: [String]) -> AdRule? {
+    /// One app's rules come before every app's, then *never block* before
+    /// *always block*, as AdGuard puts exceptions first, and within each the
+    /// longer name. So never blocking `example.com` wins over always blocking
+    /// `tracker.example.com`. With `teams`, one app's rule holds only for the
+    /// app its team signed (#320).
+    public static func deciding(_ rules: [AdRule], name: String?, appKeys: [String],
+                                teams: [String: String]? = nil) -> AdRule? {
         guard !rules.isEmpty else { return nil }
         let domains = name.map(SiteName.domains(of:)) ?? []
         let index = Dictionary(rules.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
@@ -60,9 +82,12 @@ public struct AdRule: Codable, Hashable, Identifiable {
             for kind in Kind.allCases {
                 for scopeKey in scope {
                     for domain in domains {
-                        if let rule = index["\(kind.rawValue):\(domain)\(scopeKey)"] { return rule }
+                        if let rule = index["\(kind.rawValue):\(domain)\(scopeKey)"], rule.holds(signedBy: teams) {
+                            return rule
+                        }
                     }
-                    if kind == .neverBlock, !scopeKey.isEmpty, let rule = index["\(kind.rawValue):*\(scopeKey)"] {
+                    if kind == .neverBlock, !scopeKey.isEmpty, let rule = index["\(kind.rawValue):*\(scopeKey)"],
+                       rule.holds(signedBy: teams) {
                         return rule
                     }
                 }
