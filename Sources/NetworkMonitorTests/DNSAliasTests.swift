@@ -63,15 +63,34 @@ func runDNSAliasTests() {
             Check.expectEqual(DNSAnswer.aliases(in: Data(circle))?.chain, ["b.example"])
         }
 
-        Check.test("kept at least five minutes, at most an hour, and forgotten after") {
+        Check.test("kept at least five minutes, at most a day, and forgotten after (#321)") {
             let now = Date(timeIntervalSince1970: 1_800_000_000)
             var memory = AliasMemory()
             memory.learn(DNSAnswer.Aliases(name: "metrics.example.com", chain: ["t.omtrdc.net"], ttl: 20), now: now)
             Check.expectEqual(memory.chain(of: "Metrics.Example.com", now: now + 299), ["t.omtrdc.net"])
             Check.expectEqual(memory.chain(of: "metrics.example.com", now: now + 301), [])
-            memory.learn(DNSAnswer.Aliases(name: "x.example.com", chain: ["y.example.net"], ttl: 86_400), now: now)
-            Check.expectEqual(memory.chain(of: "x.example.com", now: now + 3599), ["y.example.net"])
-            Check.expectEqual(memory.chain(of: "x.example.com", now: now + 3601), [])
+            memory.learn(DNSAnswer.Aliases(name: "x.example.com", chain: ["y.example.net"], ttl: 7_200), now: now)
+            Check.expectEqual(memory.chain(of: "x.example.com", now: now + 7_199), ["y.example.net"])
+            Check.expectEqual(memory.chain(of: "x.example.com", now: now + 7_201), [])
+            memory.learn(DNSAnswer.Aliases(name: "z.example.com", chain: ["y.example.net"], ttl: 604_800), now: now)
+            Check.expectEqual(memory.chain(of: "z.example.com", now: now + 86_399), ["y.example.net"])
+            Check.expectEqual(memory.chain(of: "z.example.com", now: now + 86_401), [])
+        }
+
+        Check.test("answers over TCP, each after its length, however the bytes arrive (#321)") {
+            let answer = cloakedAnswer()
+            let framed = Data(u16(answer.count)) + answer
+            var whole = DNSStream()
+            Check.expectEqual(whole.append(framed + framed), [answer, answer])
+            var pieces = DNSStream()
+            var found: [Data] = []
+            for byte in framed { found += pieces.append(Data([byte])) }
+            Check.expectEqual(found, [answer])
+            Check.expectEqual(found.first.flatMap(DNSAnswer.aliases(in:))?.chain,
+                              ["example.com.sc.omtrdc.net", "edge.omtrdc.net"])
+            var cut = DNSStream()
+            Check.expectEqual(cut.append(framed.dropLast()), [])
+            Check.expectEqual(cut.append(Data()), [])
         }
 
         Check.test("never holds more than its capacity") {
