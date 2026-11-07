@@ -1,0 +1,49 @@
+AXWindow (AXStandardWindow) title="General" 720x692
+  AXGroup 720x604
+    AXGroup (AXHostingView) 720x604
+      AXScrollArea 720x604
+        AXScrollArea 720x604
+          AXGroup 680x36
+            AXStaticText value="Start at login" h16
+            AXCheckBox (AXToggle) description="Start at login" help="Opens NetworkMonitor automatically when you log in. Quitting still quits it — it won't reopen until your next login." 36x16
+          AXGroup 680x40
+            AXStaticText value="Show speeds in" h16
+            AXRadioGroup description="Show speeds in" help="In the menu bar and the speed test. Data you've used is always counted in MB and GB, the way data plans are sold." 116x24
+              AXRadioButton (AXSegment) description="Mbps" 60x24
+              AXRadioButton (AXSegment) description="MB/s" 60x24
+          AXGroup 680x72
+            AXImage description="Wi-Fi" identifier="wifi" 20x16
+            AXStaticText value="Know your Wi-Fi networks by name" h16
+            AXStaticText value="Usage History calls them Home and Office, not “Wi-Fi · #f#a”. macOS calls this Location, but NetworkMonitor never looks up where you are." h32
+            AXButton description="Turn On…" 84x24
+          AXHeading description="Menu bar colors" 104x16
+          AXGroup 680x172
+            AXStaticText value="Download" h16
+            AXColorWell value="rgb # # # #" h24
+            AXStaticText value="Upload" h16
+            AXColorWell value="rgb # # # #" h24
+            AXStaticText value="During a speed test" h16
+            AXStaticText value="↓" help="A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates." h16
+            AXStaticText value="↑" help="A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates." h16
+            AXButton description="Use Default Colors" 140x24
+          AXHeading description="Popover totals" 92x16
+          AXGroup 680x116
+            AXStaticText value="Counting since" h16
+            AXStaticText value="#PM" help="What this connection has used, per app, all the time. The totals start over when you join a different network, and at midnight. History keeps every hour of it." h16
+            AXStaticText value="Sampling" h16
+            AXStaticText value="Every second, plugged in" h16
+            AXStaticText value="Start the totals over" h16
+            AXButton description="Reset Now" 88x24
+  AXToolbar 720x56
+    AXButton title="General" description="General" 56x56
+    AXButton title="Speed Test" description="Speed Test" 72x56
+    AXButton title="History" description="History" 56x56
+    AXButton title="Connections" description="Connections" 80x56
+    AXButton title="Ads" description="Ads" 56x56
+    AXButton title="Hotspot" description="Hotspot" 56x56
+    AXButton title="About" description="About" 56x56
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXZoomButton) 16x16
+    AXGroup 16x16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText value="General" h16
