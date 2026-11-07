@@ -1,13 +1,13 @@
 AXWindow (AXStandardWindow) title="History" 720
-  AXGroup 720
-    AXGroup (AXHostingView) 720
-      AXScrollArea 720
+  AXGroup
+    AXGroup (AXHostingView)
+      AXScrollArea
         AXRadioGroup description="Show" help="A day, week, month or year at a time" 252x24
           AXRadioButton (AXSegment) description="Day" 64x24
           AXRadioButton (AXSegment) description="Week" 64x24
           AXRadioButton (AXSegment) description="Month" 64x24
           AXRadioButton (AXSegment) description="Year" 64x24
-        AXGroup 108x24
+        AXGroup h24
           AXButton (AXSegment) description="Previous" identifier="chevron.left" help="Previous (⌘←)" 24x24
           AXButton (AXSegment) description="Today" help="Back to the present" 60x24
           AXButton (AXSegment) description="Next" identifier="chevron.right" help="Next (⌘→)" 24x24
@@ -25,7 +25,7 @@ AXWindow (AXStandardWindow) title="History" 720
           AXRadioButton (AXSegment) description="Apps" 84x24
           AXRadioButton (AXSegment) description="Networks" 84x24
           AXRadioButton (AXSegment) description="Sessions" 84x24
-        AXScrollArea 680
+        AXScrollArea
           data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
         AXStaticText value="Keep history for" h16
         AXPopUpButton description="Keep history for" 108x24
@@ -41,6 +41,7 @@ AXWindow (AXStandardWindow) title="History" 720
     AXButton title="About" description="About" 56x56
   AXButton (AXCloseButton) 16x16
   AXButton (AXZoomButton) 16x16
-    AXGroup 16x16
+    AXGroup h16
+      AXGroup h16
   AXButton (AXMinimizeButton) 16x16
   AXStaticText value="History" h16

@@ -160,6 +160,9 @@
           "from": "AXStaticText:Right now",
           "skip": 1
         }
+      ],
+      "ignore": [
+        "AXStaticText:This connection was already"
       ]
     },
     {
@@ -184,6 +187,9 @@
           "from": "AXDisclosureTriangle:Paused on a hotspot",
           "until": "end"
         }
+      ],
+      "ignore": [
+        "AXStaticText:This connection was already"
       ]
     },
     {
@@ -208,6 +214,9 @@
           "from": "AXDisclosureTriangle:Can't be paused",
           "until": "end"
         }
+      ],
+      "ignore": [
+        "AXStaticText:This connection was already"
       ]
     },
     {
@@ -270,7 +279,9 @@
       "name": "popover",
       "open": [
         "-open",
-        "popover"
+        "popover",
+        "-popoverScreen",
+        "retina"
       ],
       "window": "AXPopover",
       "data": [
@@ -279,12 +290,65 @@
         }
       ],
       "flags": [
-        "assets/popover-subprocesses.png",
-        "assets/popover-system.png",
-        "assets/speed-test.png",
         "assets/live.mp4",
         "assets/brag.mp4"
       ]
+    },
+    {
+      "name": "popover-subprocesses",
+      "file": "assets/popover-subprocesses.png",
+      "open": [
+        "-open",
+        "popover",
+        "-popoverScreen",
+        "retina"
+      ],
+      "window": "AXPopover",
+      "click": [
+        "AXOpaqueProviderGroup>AXButton"
+      ],
+      "data": [
+        {
+          "from": "AXOpaqueProviderGroup"
+        }
+      ]
+    },
+    {
+      "name": "popover-system",
+      "file": "assets/popover-system.png",
+      "open": [
+        "-open",
+        "popover",
+        "-popoverScreen",
+        "retina"
+      ],
+      "window": "AXPopover",
+      "scroll": "AXScrollArea",
+      "data": [
+        {
+          "from": "AXOpaqueProviderGroup"
+        }
+      ]
+    },
+    {
+      "name": "speed-test-result",
+      "file": "assets/speed-test.png",
+      "open": [
+        "-open",
+        "popover",
+        "-popoverScreen",
+        "retina"
+      ],
+      "window": "AXPopover",
+      "click": [
+        "AXButton:Speed test"
+      ],
+      "waitFor": {
+        "element": "AXButton:Test Again",
+        "seconds": 240
+      },
+      "when": "popover",
+      "skipIf": "AXStaticText:Using hotspot"
     }
   ]
 }
