@@ -229,7 +229,17 @@ keeps the last 5,000 in memory only; lookups aren't listed.
 **Lists** (#254), the third tab: which lists block, and what each blocked today (#311).
 
 - **Built in:** the two above, switched on and off here as in Settings.
-- **More lists**, downloaded on the Mac from where their makers publish them, by topic:
+- **Recommended** (#314), on by default: **HaGeZi Normal** and **OISD Big**, chosen by the app
+  so nobody has to weigh lists against broken sites. Between them they block most ads and
+  trackers; OISD is made to block ads without breaking sites and HaGeZi Normal is HaGeZi's
+  all-round tier, below Pro, and the pair is a common low-breakage setup. They overlap rather
+  than conflict. One switch for the pair; in Recommended the lists in use follow
+  `ListCatalogue.recommended`, so a later version can change it. Installs that had chosen lists
+  before #314 keep their choice.
+- **Advanced**, collapsed while Recommended is on: every list, and Add List. Switching a list
+  here, or adding one, makes it your own choice, starting from the lists in use; switching
+  Recommended back on keeps your choice for when you switch it off again.
+- **More lists**, under Advanced, downloaded on the Mac from where their makers publish them, by topic:
 
   | Topic | Lists |
   |---|---|

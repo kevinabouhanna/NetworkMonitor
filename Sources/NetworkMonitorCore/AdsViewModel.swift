@@ -442,6 +442,19 @@ public final class AdsViewModel: ObservableObject {
         library.setEnabled(id, on)
     }
 
+    /// The recommended lists (#314), in the catalogue's terms.
+    public var recommendedLists: [ListSource] { ListCatalogue.recommended.compactMap(ListCatalogue.source) }
+
+    public func setUsesRecommended(_ on: Bool) {
+        library.setUsesRecommended(on)
+        if !on { advancedListsShown = true }
+    }
+
+    /// Whether Advanced is open: by hand, or else while your own choice is in
+    /// use, since that's where it's made.
+    @Published public var advancedListsShown: Bool?
+    public var showsAdvancedLists: Bool { advancedListsShown ?? !library.usesRecommended }
+
     /// From the form: false, with a reason shown, when it isn't one.
     @discardableResult
     public func addList() -> Bool {
