@@ -89,6 +89,10 @@
         {
           "from": "AXOpaqueProviderGroup"
         }
+      ],
+      "ignore": [
+        "AXStaticText:~on metered connections",
+        "AXStaticText:·"
       ]
     },
     {

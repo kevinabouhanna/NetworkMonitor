@@ -16,10 +16,8 @@ AXWindow (AXStandardWindow) title="History" 720
           AXRadioButton (AXSegment) description="Wi-Fi" 72x24
           AXRadioButton (AXSegment) description="Hotspot" 72x24
         AXStaticText value="Today" h24
-        AXStaticText value="# GB" h16
+        AXStaticText value="# ‹unit›" h16
         AXStaticText value="used" h16
-        AXStaticText value="·" h16
-        AXStaticText value="# MB on metered connections" h16
         data: AXGroup AXStaticText AXUnknown
         AXRadioGroup description="List" 248x24
           AXRadioButton (AXSegment) description="Apps" 84x24
