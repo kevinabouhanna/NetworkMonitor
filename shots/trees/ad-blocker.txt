@@ -26,7 +26,7 @@ AXWindow (AXStandardWindow) title="Ads" 720x580
           AXHeading description="Yours" 36x16
           AXGroup 680x80
             AXStaticText value="More lists" h16
-            AXStaticText value="# chosen by you" h16
+            AXStaticText value="Recommended" h16
             AXButton description="Choose…" help="HaGeZi, OISD, AdGuard's and others, or any list by its address" 80x24
             AXStaticText value="Your rules" h16
             AXStaticText value="None" h16
