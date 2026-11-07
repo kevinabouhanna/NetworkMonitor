@@ -6,10 +6,11 @@ import SwiftUI
 func runSettingsTests() {
     Check.suite("Settings — panes") {
 
-        // The toolbar's order: what people open most first, About last.
-        Check.test("the toolbar runs General, Speed Test, History, Connections, Hotspot, About") {
+        // The toolbar's order: what people open most first, About last. Ad
+        // blocking is a feature of its own, so a pane of its own.
+        Check.test("the toolbar runs General, Speed Test, History, Connections, Ads, Hotspot, About") {
             Check.expectEqual(SettingsPane.allCases.map(\.title),
-                              ["General", "Speed Test", "History", "Connections", "Hotspot", "About"])
+                              ["General", "Speed Test", "History", "Connections", "Ads", "Hotspot", "About"])
         }
 
         // A missing symbol draws an empty toolbar button, silently.

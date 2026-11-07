@@ -13,8 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Pointer watchers that exist only while a revealed menu bar holds focus
     /// the popover had. See `restoreFocusWhenMenuBarHides()`.
     private var menuBarMonitors: [Any] = []
-    /// Settings: toolbar panes for General, Speed Test, History, Hotspot and
-    /// About. Created on first use.
+    /// Settings: toolbar panes for General, Speed Test, History, Connections,
+    /// Ads, Hotspot and About. Created on first use.
     private var settingsController: SettingsWindowController?
     private var settings: SettingsWindowController {
         if let settingsController { return settingsController }
@@ -22,7 +22,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             model: model, history: HistoryViewModel(monitor: model),
             connections: connectionsModel,
             onOpenConnections: { [weak self] in self?.showConnections() },
-            onOpenAds: { [weak self] in self?.showAds() },
+            onOpenAds: { [weak self] tab in
+                self?.ads.select(tab)
+                self?.showAds()
+            },
             onUninstall: { [weak self] in self?.uninstall() })
         controller.window.delegate = self
         controller.highestTop = { [weak self] screen in
@@ -772,7 +775,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
     /// The Ads and Trackers window (#251): from the popover's line of ads
     /// blocked today, Ads and Trackers… in the right-click menu, Settings ›
-    /// Connections, and ⌘B while a window is open.
+    /// Ads, and ⌘B while a window is open.
     @objc private func showAds() {
         if popover.isShown { closePopover() }
         let wasVisible = ads.isVisible

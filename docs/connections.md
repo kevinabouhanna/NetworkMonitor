@@ -164,8 +164,10 @@ and Settings › Connections lists every rule, each with a button to take it bac
 
 ## Ads and trackers
 
-**Settings › Connections › Block ads and trackers** (#176) blocks, in every app, the sites on
-two lists:
+**Settings › Ads › Block ads and trackers** (#176) blocks, in every app, the sites on two
+lists. Ad blocking has a Settings pane of its own, beside Connections: the switch, the built-in
+lists, blocked today, the weekly update, and how many more lists and rules you keep in Ads and
+Trackers, with buttons to its Lists and Rules tabs.
 
 | List | What it holds | From | Licence |
 |---|---|---|---|
@@ -199,7 +201,7 @@ two lists:
 ### The Ads and Trackers window
 
 A window of its own (#251), from the popover's *blocked today* line, **Ads and Trackers…**
-in the right-click menu, Settings › Connections, or ⌘B while a window is open:
+in the right-click menu, Settings › Ads, or ⌘B while a window is open:
 
 - **How many were blocked** in the period (a day, week, month or year, with ‹ Today ›), by
   list, with an ⓘ saying how it works.
