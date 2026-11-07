@@ -3,11 +3,11 @@ AXWindow (AXStandardWindow) title="Hotspot" 720
     AXGroup (AXHostingView) 720
       AXScrollArea 720
         AXScrollArea 720
-          AXGroup 680x112
+          AXGroup 680
             AXStaticText value="Stop apps updating on hotspots" h16
             AXCheckBox (AXSwitch) 36x16
             AXStaticText value="Right now" h16
-            AXStaticText value="This doesn't look like a hotspot." h16
+            data: AXStaticText
             AXStaticText value="This network" h16
             AXPopUpButton 172x24
           AXStaticText value="Also puts the hotspot in Low Data Mode, so iCloud and other background downloads wait until you're off it." h16

@@ -19,9 +19,9 @@ AXWindow (AXStandardWindow) title="Connections" 1120
     AXStaticText value="·" h16
     AXStaticText value="# companies · # countries · # apps · # servers" h16
     data: AXUnknown
-    AXStaticText value="#AM" h12
-    AXStaticText value="#PM" h12
-    AXStaticText value="#PM" h12
+    AXStaticText value="‹time›" h12
+    AXStaticText value="‹time›" h12
+    AXStaticText value="‹time›" h12
     AXScrollArea 496
       data: AXButton AXImage AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
     data: AXUnknown

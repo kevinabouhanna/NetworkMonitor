@@ -1,8 +1,8 @@
-AXWindow (AXStandardWindow) title="General" 720x692
-  AXGroup 720x604
-    AXGroup (AXHostingView) 720x604
-      AXScrollArea 720x604
-        AXScrollArea 720x604
+AXWindow (AXStandardWindow) title="General" 720
+  AXGroup 720
+    AXGroup (AXHostingView) 720
+      AXScrollArea 720
+        AXScrollArea 720
           AXGroup 680x36
             AXStaticText value="Start at login" h16
             AXCheckBox (AXToggle) description="Start at login" help="Opens NetworkMonitor automatically when you log in. Quitting still quits it — it won't reopen until your next login." 36x16
@@ -27,11 +27,11 @@ AXWindow (AXStandardWindow) title="General" 720x692
             AXStaticText value="↑" help="A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates." h16
             AXButton description="Use Default Colors" 140x24
           AXHeading description="Popover totals" 92x16
-          AXGroup 680x116
+          AXGroup 680
             AXStaticText value="Counting since" h16
-            AXStaticText value="#PM" help="What this connection has used, per app, all the time. The totals start over when you join a different network, and at midnight. History keeps every hour of it." h16
+            data: AXStaticText
             AXStaticText value="Sampling" h16
-            AXStaticText value="Every second, plugged in" h16
+            data: AXStaticText
             AXStaticText value="Start the totals over" h16
             AXButton description="Reset Now" 88x24
   AXToolbar 720x56

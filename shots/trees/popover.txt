@@ -1,1 +1,11 @@
-?
+AXPopover 348
+  AXGroup (AXHostingView) 320
+    AXStaticText value="Total" h12
+    AXButton description="Gauge With Dots And Needle At # Percent" identifier="gauge.with.dots.needle.#percent" help="Test internet speed" h12
+    AXButton description="Globe" identifier="globe" help="Connections" 12x12
+    AXButton description="Bar Chart With An X Axis" identifier="chart.bar.xaxis" help="Usage History" 16x12
+    AXButton description="Gear Shape, Filled" identifier="gearshape.fill" help="Settings" 12x12
+    AXStaticText value="# GB" h20
+    AXButton description="# ads and trackers blocked today" help="See what was blocked, and where" h12
+    AXScrollArea 320
+      data: AXButton AXImage AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText

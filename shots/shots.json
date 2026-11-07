@@ -48,6 +48,16 @@
           "element": "AXButton:About",
           "h": 48
         }
+      ],
+      "data": [
+        {
+          "from": "AXStaticText:Counting since",
+          "skip": 1
+        },
+        {
+          "from": "AXStaticText:Sampling",
+          "skip": 1
+        }
       ]
     },
     {
@@ -144,6 +154,12 @@
           "element": "AXDisclosureTriangle:Can't be paused",
           "parent": true
         }
+      ],
+      "data": [
+        {
+          "from": "AXStaticText:Right now",
+          "skip": 1
+        }
       ]
     },
     {
@@ -160,6 +176,10 @@
         "AXDisclosureTriangle:Paused on a hotspot"
       ],
       "data": [
+        {
+          "from": "AXStaticText:Right now",
+          "skip": 1
+        },
         {
           "from": "AXDisclosureTriangle:Paused on a hotspot",
           "until": "end"
@@ -180,6 +200,10 @@
         "AXDisclosureTriangle:Can't be paused"
       ],
       "data": [
+        {
+          "from": "AXStaticText:Right now",
+          "skip": 1
+        },
         {
           "from": "AXDisclosureTriangle:Can't be paused",
           "until": "end"
