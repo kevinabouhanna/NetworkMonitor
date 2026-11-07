@@ -7,6 +7,9 @@ through without asking. What's particular to NetworkMonitor:
 
 - **Releasing is routine here.** Carry each change on to a release, the installed app and
   the website without asking.
+- **Work in a worktree of your own**, `git worktree add ../NetworkMonitor-<N> -b <branch>
+  origin/main`, never by switching branches in this checkout: several sessions work
+  here at once, and a switch moves the others' files under them. Remove it once merged.
 - Branches are named after the issue, e.g. `settings-v2-9`. `Closes #N` also moves the
   issue to Done on the NetworkMonitor project board.
 - CI checks: `build-and-test`, `universal`.
