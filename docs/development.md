@@ -336,6 +336,13 @@ main screen it would be captured at half resolution.
 The speed test result costs 70–200 MB to take, so its entry has `when: popover`: it's
 retaken only when the popover's tree differs from the one it was last taken with (kept in
 `shots/trees/<name>.base.txt`), or when named, and a check never runs it.
+It's skipped on a hotspot (`skipIf`), where the app asks before spending the data, and
+tried again on the next update.
+
+Each tree is read once it has settled (the same twice in a row), since lists and charts
+fill in a moment after a window opens, and a window that doesn't show is tried once more
+from a fresh launch. Containers keep their height only: a scroll bar that comes with a
+longer list narrows each of them.
 
 What it can't stage at all, the videos, are entries that only check a window (the
 popover) and list the files that show it under `flags`. When that window changes, the

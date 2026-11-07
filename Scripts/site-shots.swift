@@ -57,6 +57,10 @@ struct Shot: Decodable {
     /// run, or when named: for a shot that costs something to take, such as a
     /// speed test, which must never run just to check.
     var when: String?
+    /// Skipped, with a note, while this element is in the window: a speed
+    /// test can't run on a hotspot, where the app asks before spending data.
+    /// A `when` shot that's skipped is tried again on the next update.
+    var skipIf: String?
     /// Elements left out of the tree altogether: lines that come and go with
     /// the Mac's state, such as Hotspot's "already in Low Data Mode".
     var ignore: [String]?
@@ -218,7 +222,8 @@ func line(_ element: AXUIElement) -> String {
     if let f = frame(element) {
         let shown = settingRoles.contains(r) ? labels(element).dropLast(text(element, kAXValueAttribute) == nil ? 0 : 1) : labels(element)[...]
         let hasNumber = shown.contains { $0.rangeOfCharacter(from: .decimalDigits) != nil }
-        parts.append(r == "AXStaticText" || hasNumber ? "h\(rounded(f.height))" : "\(rounded(f.width))x\(rounded(f.height))")
+        parts.append(r == "AXStaticText" || hasNumber || containerRoles.contains(r)
+                     ? "h\(rounded(f.height))" : "\(rounded(f.width))x\(rounded(f.height))")
     }
     return parts.joined(separator: " ")
 }
@@ -233,6 +238,10 @@ func roles(in elements: [AXUIElement]) -> [String] {
     elements.forEach(walk)
     return found.sorted()
 }
+
+/// Containers keep their height only: a scroll bar that comes with a longer
+/// list narrows every one of them by its width.
+let containerRoles: Set<String> = ["AXGroup", "AXScrollArea", "AXOpaqueProviderGroup", "AXList"]
 
 /// Roles left out altogether: a scroll bar comes and goes with a list's length.
 let ignoredRoles: Set<String> = ["AXScrollBar"]
@@ -277,6 +286,7 @@ func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = []) -> [
         // Whatever holds a data region grows with its rows: keep its width only.
         if holdsData {
             out[index] = out[index].replacingOccurrences(of: "(\\d+)x\\d+$", with: "$1", options: .regularExpression)
+                .replacingOccurrences(of: " h\\d+$", with: "", options: .regularExpression)
         }
         return holdsData
     }
@@ -347,7 +357,7 @@ struct Session {
     /// A click on the element, as a person would: SwiftUI's disclosure rows
     /// offer no accessibility action.
     func click(_ spec: String, in window: AXUIElement) throws {
-        guard let element = find(spec, in: window), let f = frame(element) else { throw Failure("nothing matches \(spec)") }
+        guard let element = appear(spec, in: window), let f = frame(element) else { throw Failure("nothing matches \(spec)") }
         // A click that lands while another app is in front only brings the
         // window forward. Where the element has a value, such as a disclosure
         // row's open or closed, try again until it changes.
@@ -378,12 +388,22 @@ struct Session {
 
     /// Scrolls a list to its end, as far down as it goes.
     func scrollToEnd(_ spec: String, in window: AXUIElement) throws {
-        guard let area = find(spec, in: window),
-              let bar = attribute(area, kAXVerticalScrollBarAttribute).map({ $0 as! AXUIElement }) else {
-            throw Failure("no scroll bar in \(spec)")
-        }
+        guard let area = appear(spec, in: window) else { throw Failure("nothing matches \(spec)") }
+        // A list short enough to show whole has no scroll bar, and is at its end.
+        guard let bar = attribute(area, kAXVerticalScrollBarAttribute).map({ $0 as! AXUIElement }) else { return }
         AXUIElementSetAttributeValue(bar, kAXValueAttribute as CFString, 1.0 as CFNumber)
         usleep(800_000)
+    }
+
+    /// The element, once it's there: a popover's rows arrive with the first
+    /// sample, a moment after it opens.
+    func appear(_ spec: String, in window: AXUIElement, seconds: Double = 15) -> AXUIElement? {
+        let deadline = Date().addingTimeInterval(seconds)
+        repeat {
+            if let found = find(spec, in: window) { usleep(500_000); return found }
+            usleep(300_000)
+        } while Date() < deadline
+        return nil
     }
 
     func wait(for wait: Wait, in window: AXUIElement) throws {
@@ -626,7 +646,18 @@ struct SiteShots {
                     try session.launch(shot.open)
                     cached = (shot.open, shot.window)
                 }
-                var window = try session.window(shot.window)
+                // Once more from a fresh launch if it doesn't show: a popover
+                // now and then doesn't open on the first try.
+                var window: AXUIElement
+                do { window = try session.window(shot.window) } catch {
+                    try session.launch(shot.open)
+                    window = try session.window(shot.window)
+                }
+                if let spec = shot.skipIf, find(spec, in: window) != nil {
+                    print("\(shot.name): skipped while \(spec) shows; it's tried again on the next update")
+                    cached = nil
+                    continue
+                }
                 if shot.click != nil { cached = nil }
                 for spec in shot.click ?? [] { try session.click(spec, in: window) }
                 if let spec = shot.scroll { try session.scrollToEnd(spec, in: window) }
@@ -634,7 +665,15 @@ struct SiteShots {
                 // A click can rebuild what was clicked in, such as a popover
                 // that grows: find the window again.
                 if shot.click != nil || shot.scroll != nil { window = try session.window(shot.window) }
-                let now = tree(window, data: shot.data ?? [], ignore: shot.ignore ?? [])
+                // Read it once it has settled: lists and charts fill in a
+                // moment after the window opens.
+                var now = tree(window, data: shot.data ?? [], ignore: shot.ignore ?? [])
+                for _ in 0..<12 {
+                    usleep(700_000)
+                    let again = tree(window, data: shot.data ?? [], ignore: shot.ignore ?? [])
+                    if again == now { break }
+                    now = again
+                }
                 current[shot.name] = now
                 if command == "tree" { print(now.joined(separator: "\n")); continue }
                 if command == "audit" {
