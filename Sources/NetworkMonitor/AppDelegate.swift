@@ -129,8 +129,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     }
 
     /// `open NetworkMonitor.app --args -open connections`, `-open welcome`,
-    /// `-open ads` with `-tab rules` (any tab), or `-open settings` with
-    /// `-pane history` (any pane), for a screenshot or a
+    /// `-open popover`, `-open ads` with `-tab rules` (any tab), or
+    /// `-open settings` with `-pane history` (any pane), for a screenshot or a
     /// check of a development build without clicking the menu bar. Only the
     /// launch arguments are read, so it never outlives the run.
     private func openWindowFromLaunchArgument() {
@@ -141,6 +141,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             if let tab = (arguments["tab"] as? String).flatMap(AdsViewModel.Tab.init) { ads.select(tab) }
             showAds()
         case "welcome":     showWelcome()
+        // A moment later, once the status item has a place in the menu bar to
+        // anchor to.
+        case "popover":     DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.togglePopover() }
         case "settings":    show(pane: (arguments["pane"] as? String).flatMap(SettingsPane.init))
         default:            break
         }

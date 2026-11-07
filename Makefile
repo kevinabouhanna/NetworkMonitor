@@ -1,4 +1,4 @@
-.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background clean
+.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check site-shots clean
 
 all: test app
 
@@ -92,6 +92,21 @@ public-suffixes:
 # Redraws Resources/DMG/background.tiff, which is committed like the icon.
 dmg-background:
 	@swift Scripts/make-dmg-background.swift
+
+# The website's pictures of the app (#329). Both run against the installed app,
+# quitting and relaunching it, and read ../NetworkMonitor-site unless SITE says
+# otherwise. `site-check` says which pictures show a window whose interface
+# changed; `site-shots` retakes them (or those in NAMES) and updates the page.
+SITE ?= ../NetworkMonitor-site
+build/site-shots: Scripts/site-shots.swift
+	@mkdir -p build
+	swiftc -O -parse-as-library $< -o $@
+
+site-check: build/site-shots
+	@build/site-shots check --site $(SITE) $(NAMES)
+
+site-shots: build/site-shots
+	@build/site-shots update --site $(SITE) $(NAMES)
 
 clean:
 	swift package clean
