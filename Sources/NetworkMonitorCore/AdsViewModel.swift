@@ -123,8 +123,10 @@ public final class AdsViewModel: ObservableObject {
             }
         }
 
-        /// Whether the toolbar's period applies.
-        public var hasPeriod: Bool { self == .overview || self == .lists }
+        /// Whether the toolbar shows the period (#311). Only Overview has one:
+        /// the log is the present, rules have no period, and the lists count
+        /// today's blocks.
+        public var hasPeriod: Bool { self == .overview }
     }
 
     /// An app a rule can be for: its key and its name.
@@ -154,6 +156,8 @@ public final class AdsViewModel: ObservableObject {
     @Published public private(set) var report = AdsReport()
     @Published public private(set) var bins: [Bin] = []
     @Published public private(set) var recordingSince: Date?
+    /// What each list blocked today, for the Lists tab (#311).
+    @Published public private(set) var listsToday: [String: Int64] = [:]
 
     public let monitor: MonitorViewModel
     private let calendar: Calendar
@@ -409,10 +413,8 @@ public final class AdsViewModel: ObservableObject {
         }
     }
 
-    /// What a list blocked in the period.
-    public func blocked(byList id: String) -> Int64 {
-        report.lists.first { $0.list == id }?.count ?? 0
-    }
+    /// What a list blocked today (#311).
+    public func blockedToday(byList id: String) -> Int64 { listsToday[id] ?? 0 }
 
     public func isShippedOn(_ topic: BlocklistTopic) -> Bool { firewall.lists.contains(topic) }
 
@@ -486,8 +488,8 @@ public final class AdsViewModel: ObservableObject {
         reload()
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            guard let self, self.period.contains(Date()) else { return }
-            self.reload()
+            guard let self else { return }
+            if self.period.contains(Date()) { self.reload() } else { self.reloadToday() }
         }
     }
 
@@ -528,6 +530,19 @@ public final class AdsViewModel: ObservableObject {
         bins = Self.chart(for: period, hours: history.listBlockHours(from: period.start, to: period.end),
                           calendar: calendar)
         recordingSince = history.listBlocksSince()
+        reloadToday()
+    }
+
+    private func reloadToday() {
+        guard let history = monitor.store.history else { return }
+        let now = Date()
+        let blocks = history.listBlocks(from: calendar.startOfDay(for: now), to: now.addingTimeInterval(3600))
+        listsToday = Self.byList(blocks)
+    }
+
+    /// Each list's count.
+    public static func byList(_ blocks: [ListBlock]) -> [String: Int64] {
+        blocks.reduce(into: [:]) { $0[$1.list, default: 0] += $1.count }
     }
 
     /// The period's bars, each with the blocks of the hours inside it.

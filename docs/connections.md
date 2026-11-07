@@ -204,7 +204,9 @@ A window of its own (#251), from the popover's *blocked today* line, **Ads and T
 in the right-click menu, Settings › Ads, or ⌘B while a window is open:
 
 - **How many were blocked** in the period (a day, week, month or year, with ‹ Today ›), by
-  list, with an ⓘ saying how it works.
+  list, with an ⓘ saying how it works. The period is in the toolbar on Overview only: the
+  other tabs have none, so it's hidden there, and the tabs sit at the toolbar's end so they
+  stay put (#311).
 - **A chart** of blocks over the period, by hour or by day.
 - **Sites**, by the part of the name a person would call the site (`doubleclick.net`), with
   the names under it that were blocked; and **Apps**, with the sites each tried most.
@@ -224,7 +226,7 @@ remove a rule you made. **Pause**
 holds the list still, **Clear** empties it, and **Export…** saves what's shown as text. It
 keeps the last 5,000 in memory only; lookups aren't listed.
 
-**Lists** (#254), the third tab: which lists block, and what each blocked in the period.
+**Lists** (#254), the third tab: which lists block, and what each blocked today (#311).
 
 - **Built in:** the two above, switched on and off here as in Settings.
 - **More lists**, downloaded on the Mac from where their makers publish them, by topic:

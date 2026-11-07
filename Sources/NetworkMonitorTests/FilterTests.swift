@@ -373,6 +373,17 @@ func runFilterTests() {
             Check.expectEqual(AdsReport.listed(["a", "b", "c", "d"]), "a, b and 2 more")
         }
 
+        // #311: only Overview has a period; Lists counts today's blocks.
+        Check.test("only the Ads window's Overview shows the period") {
+            Check.expectEqual(AdsViewModel.Tab.allCases.filter(\.hasPeriod), [.overview])
+            let today = AdsViewModel.byList([
+                ListBlock(appKey: "a", appName: "A", name: "x.example", list: "ads", count: 4),
+                ListBlock(appKey: "b", appName: "B", name: "y.example", list: "ads", count: 2),
+                ListBlock(appKey: "b", appName: "B", name: "z.example", list: "malware", count: 1),
+            ])
+            Check.expectEqual(today, ["ads": 6, "malware": 1])
+        }
+
         Check.test("the Ads chart puts each hour's blocks in its bar") {
             let hour = day.start.addingTimeInterval(3 * 3600)
             let bins = AdsViewModel.chart(for: day, hours: [(hour, 4), (hour.addingTimeInterval(3600), 2)],
