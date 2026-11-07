@@ -35,7 +35,7 @@ public enum AccessibilityAudit {
 
     /// `symbols` are SF Symbols the app uses. A control named with one's
     /// default description is caught even where macOS doesn't say which
-    /// symbol an element shows (macOS 26 doesn't; 27 does).
+    /// symbol an element shows.
     public static func audit(_ window: AXUIElement, symbols: Set<String> = []) -> [Problem] {
         let spoken = Dictionary(symbols.compactMap { name in
             NSImage(systemSymbolName: name, accessibilityDescription: nil)?.accessibilityDescription
@@ -55,7 +55,8 @@ public enum AccessibilityAudit {
                 } else if let symbol = symbolName(element, matching: name!)
                             // Without the identifier, only a button: a segment's
                             // "Wi-Fi" is a word that happens to be a symbol's too.
-                            ?? (role == "AXButton" ? spoken[name!.lowercased()] : nil) {
+                            ?? (role == "AXButton" ? spoken[name!.lowercased()]
+                                ?? (symbols.contains(name!) ? name : nil) : nil) {
                     problems.append(Problem(path: at, rule: "is named only by its symbol (\(symbol)); give it a label that says what it does"))
                 }
             }
@@ -84,8 +85,10 @@ public enum AccessibilityAudit {
     /// The SF Symbol the element shows, when its name is just the symbol's
     /// default description, "Gear shape, filled" for `gearshape.fill`.
     static func symbolName(_ element: AXUIElement, matching name: String) -> String? {
-        guard let identifier = string(element, kAXIdentifierAttribute),
-              let image = NSImage(systemSymbolName: identifier, accessibilityDescription: nil),
+        guard let identifier = string(element, kAXIdentifierAttribute) else { return nil }
+        // macOS 26 reads out the symbol's own name, "gearshape.fill".
+        if name == identifier { return identifier }
+        guard let image = NSImage(systemSymbolName: identifier, accessibilityDescription: nil),
               let spoken = image.accessibilityDescription else { return nil }
         return spoken.caseInsensitiveCompare(name) == .orderedSame ? identifier : nil
     }
