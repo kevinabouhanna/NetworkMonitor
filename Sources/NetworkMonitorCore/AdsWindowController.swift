@@ -3,8 +3,8 @@ import Combine
 import SwiftUI
 
 /// The Ads and Trackers window (#251): its own, like Connections, since what
-/// the lists blocked is a job of its own and not every connection. Its
-/// toolbar is Connections' period and ‹ Today ›.
+/// the lists blocked is a job of its own and not every connection. On
+/// Overview its toolbar has Connections' period and ‹ Today › (#311).
 public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     public let window: NSWindow
@@ -37,7 +37,6 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
-        toolbar.centeredItemIdentifiers = [Self.scaleItem]
         window.toolbar = toolbar
         window.toolbarStyle = .unified
 
@@ -51,7 +50,10 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     public func select(_ tab: AdsViewModel.Tab) { model.tab = tab }
 
-    public func windowDidShow() { model.windowDidOpen() }
+    public func windowDidShow() {
+        model.windowDidOpen()
+        refreshControls()
+    }
 
     public func windowWillClose() { model.windowDidClose() }
 
@@ -90,16 +92,25 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     private func refreshControls() {
         tabControl.selectedSegment = AdsViewModel.Tab.allCases.firstIndex(of: model.tab) ?? 0
-        // The log is the present, live, and rules have no period. The lists
-        // count their blocks in it (#254).
-        let overview = model.tab.hasPeriod
-        scaleControl.isEnabled = overview
-        // Nothing chosen while it doesn't apply, which a disabled control
-        // alone doesn't show.
-        scaleControl.selectedSegment = overview ? HistoryScale.allCases.firstIndex(of: model.scale) ?? 0 : -1
-        stepControl.setEnabled(overview && model.canStepBack, forSegment: 0)
-        stepControl.setEnabled(overview, forSegment: 1)
-        stepControl.setEnabled(overview && model.canStepForward, forSegment: 2)
+        scaleControl.selectedSegment = HistoryScale.allCases.firstIndex(of: model.scale) ?? 0
+        stepControl.setEnabled(model.canStepBack, forSegment: 0)
+        stepControl.setEnabled(model.canStepForward, forSegment: 2)
+        showPeriod(model.tab.hasPeriod)
+    }
+
+    /// The period and ‹ Today › are in the toolbar only on Overview (#311):
+    /// the log is the present, rules have no period, and the lists count
+    /// today's blocks, so elsewhere they'd only sit there doing nothing.
+    /// The tabs come last, so they stay where they are when it goes.
+    private func showPeriod(_ show: Bool) {
+        guard let toolbar = window.toolbar else { return }
+        for item in toolbar.items where [Self.scaleItem, Self.stepItem].contains(item.itemIdentifier) {
+            if #available(macOS 15, *) {
+                item.isHidden = !show
+            } else {
+                item.view?.isHidden = !show
+            }
+        }
     }
 
     @objc private func tabChosen(_ sender: NSSegmentedControl) {
@@ -121,7 +132,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     // MARK: NSToolbarDelegate
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Self.tabItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem]
+        [Self.scaleItem, Self.stepItem, .flexibleSpace, Self.tabItem]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
