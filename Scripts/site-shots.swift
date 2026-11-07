@@ -573,11 +573,13 @@ struct SiteShots {
                 if let file = shot.file {
                     session.ensureRetina(window)
                     var image = try await session.capture(window, crop: shot.crop)
-                    for _ in 0..<4 where !isActive(image, window: window) {
+                    // A crop leaves out the traffic lights that tell.
+                    let cropped = shot.crop != nil
+                    for _ in 0..<4 where !cropped && !isActive(image, window: window) {
                         session.bringForward(window)
                         image = try await session.capture(window, crop: shot.crop)
                     }
-                    if !isActive(image, window: window) { print("  warning: \(file) shows the window inactive") }
+                    if !cropped && !isActive(image, window: window) { print("  warning: \(file) shows the window inactive") }
                     try writePNG(image, to: site.appendingPathComponent(file))
                     page.setSize(of: file, pixels: CGSize(width: image.width, height: image.height))
                     print("  retook \(file) (\(image.width)×\(image.height))")
