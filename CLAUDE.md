@@ -44,8 +44,9 @@ through without asking. What's particular to NetworkMonitor:
       updates the page (`docs/development.md#website-pictures`). Rewrite the alt
       text of any picture it retook for an interface change, from the diff it
       prints, describing the interface, not its numbers.
-    - videos and staged pictures it names as showing a changed window: ask
-      Kevin before remaking them, since they take real work
+    - videos it names as showing a changed window: ask Kevin before
+      remaking them, since they take real work. The pictures, the popover's
+      and the speed test's included, it retakes itself.
   - `make site-audit` against the new install: every window, with real data
     in its lists, checked for what VoiceOver can't name. Fix what it finds.
 

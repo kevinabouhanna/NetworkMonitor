@@ -325,11 +325,23 @@ elements' positions; and a `?v=` with a hash of each asset's contents on every a
 so a browser never pairs a new page with a picture it kept from the last one. About is
 retaken every time, since it shows the version.
 
-Some things it can't stage: a speed test's result, a download in progress, the hero
-video. Those are entries that only check a window (the popover, from `-open popover`)
-and list the files that show it under `flags`. When that window changes, the check names
-them to remake by hand, and keeps naming them until `make site-shots NAMES=popover`
-records the new tree. Rewrite the alt text of any picture whose interface changed.
+An entry can set the window up before it's read and taken (#360): `click` (a button is
+pressed through accessibility, anything else with the pointer), `scroll` a list to its
+end, and `waitFor` an element, such as a speed test's *Test Again*. Specs can be scoped,
+`AXOpaqueProviderGroup>AXButton` for the popover's first row that opens. `ignore` leaves
+out lines that come and go with the Mac's state, such as Hotspot's "already in Low Data
+Mode". The popover opens on the Retina screen (`-popoverScreen retina`), since on a 1x
+main screen it would be captured at half resolution.
+
+The speed test result costs 70–200 MB to take, so its entry has `when: popover`: it's
+retaken only when the popover's tree differs from the one it was last taken with (kept in
+`shots/trees/<name>.base.txt`), or when named, and a check never runs it.
+
+What it can't stage at all, the videos, are entries that only check a window (the
+popover) and list the files that show it under `flags`. When that window changes, the
+check names them to remake by hand, and keeps naming them until
+`make site-shots NAMES=popover` records the new tree. Rewrite the alt text of any
+picture whose interface changed.
 
 - It needs Accessibility and Screen Recording for the terminal it runs in. It quits and
   relaunches the app, clicks with the pointer when an entry says so, and leaves the app
@@ -370,6 +382,7 @@ A development build reads a few launch arguments for that run only; nothing pers
 |---|---|
 | `-powerProfile balanced` (or `performance`, `saver`) | measures a power profile without unplugging (below) |
 | `-open connections`, `-open ads -tab rules`, `-open welcome`, `-open popover`, `-open settings -pane history` | opens a window straight away, for a screenshot or a check |
+| `-open popover -popoverScreen retina` | opens the popover on a Retina screen's menu bar rather than the main screen's, for a full-resolution capture (#360) |
 | `-geoDataURL http://127.0.0.1:PORT/ -geoDataCheckNow YES` | fetches the monthly data from a local package, at once (#121) |
 | `-updateFeedURL http://127.0.0.1:PORT/appcast.xml -checkForUpdatesNow YES` | checks a local appcast for an update, at once (#132) |
 | `-historyDatabase ~/tmp/history.sqlite` | reads and writes Usage History, Connections and Ads and Trackers from another file, for test data (#251) |

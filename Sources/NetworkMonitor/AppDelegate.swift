@@ -75,6 +75,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Invisible stand-in for the status item that the popover anchors to.
     /// See `anchorView(under:)`.
     private var anchorWindow: NSWindow?
+    /// A Retina screen to open the popover on, from `-open popover
+    /// -popoverScreen retina`, for the website's pictures (#360): the popover
+    /// opens on the main screen's menu bar, and on a 1x screen a capture comes
+    /// out at half the resolution. Only for that run.
+    private var popoverScreen: NSScreen?
     /// The app the popover opened over while Settings was open behind it, to
     /// hand focus back to when the popover is dismissed; see `closePopover`.
     private var appUnderPopover: NSRunningApplication?
@@ -143,7 +148,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         case "welcome":     showWelcome()
         // A moment later, once the status item has a place in the menu bar to
         // anchor to.
-        case "popover":     DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.togglePopover() }
+        case "popover":
+            if arguments["popoverScreen"] as? String == "retina" {
+                popoverScreen = NSScreen.screens.first { $0.backingScaleFactor >= 2 }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.togglePopover() }
         case "settings":    show(pane: (arguments["pane"] as? String).flatMap(SettingsPane.init))
         default:            break
         }
@@ -344,7 +353,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// resolves to the same rect.
     private func anchorView(under button: NSStatusBarButton) -> NSView? {
         guard let itemWindow = button.window else { return nil }
-        let rect = itemWindow.convertToScreen(button.convert(button.bounds, to: nil))
+        var rect = itemWindow.convertToScreen(button.convert(button.bounds, to: nil))
+        // The same place on another screen's menu bar, measured from its
+        // top-right corner.
+        if let screen = popoverScreen, let home = itemWindow.screen, screen != home {
+            rect.origin = NSPoint(x: screen.frame.maxX - (home.frame.maxX - rect.minX),
+                                  y: screen.frame.maxY - (home.frame.maxY - rect.minY))
+        }
         // A menu bar that is already hidden gives a rect off every screen; with
         // nothing trustworthy to anchor to, let AppKit place it as before.
         guard NSScreen.screens.contains(where: { $0.frame.intersects(rect) }) else { return nil }
