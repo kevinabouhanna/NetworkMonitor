@@ -23,7 +23,7 @@ AXWindow (AXStandardWindow) title="Connections" 1120
     AXStaticText value="‹time›" h12
     AXStaticText value="‹time›" h12
     AXScrollArea 496
-      data: AXButton AXImage AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+      data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
     data: AXUnknown
     AXLink description="IP geolocation by DB-IP" 116x12
     AXStaticText value="·" h16
