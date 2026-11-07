@@ -38,6 +38,13 @@ through without asking. What's particular to NetworkMonitor:
 - How it works goes behind an ⓘ beside it, shown on hover: briefly what it does and
   how, with the technical terms there for whoever wants them (as in Settings, #185, #189).
 
+## Layout
+
+- **When controls don't fit, say so and propose layouts.** Never fall back on a
+  menu that repeats them, such as a toolbar item's » overflow form (#315).
+  Until there's a better layout, a window's minimum width is what its toolbar
+  needs, measured on the real app.
+
 ## The website
 
 The site is the `gh-pages` branch, checked out as a worktree at

@@ -631,7 +631,9 @@ private struct ConnectionsTimeline: View {
 }
 
 enum ConnectionsMetrics {
-    static let minWidth: CGFloat = 760
+    /// Wide enough for the toolbar, which overflows below 776 (#315): no
+    /// control is ever hidden in the toolbar's » menu.
+    static let minWidth: CGFloat = 780
     static let minHeight: CGFloat = 520
     static let rowBarWidth: CGFloat = 140
     static let timelineHeight: CGFloat = 54
