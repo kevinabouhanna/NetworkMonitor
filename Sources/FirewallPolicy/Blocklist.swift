@@ -199,8 +199,8 @@ public enum BlocklistParser {
     public struct Parsed: Equatable {
         /// The names it blocks, each covering the names under it.
         public var names: [String] = []
-        /// The names it lets through, under one it blocks: `@@||site^`, or a
-        /// rule cancelled with `$badfilter`.
+        /// The names it lets through, under one it blocks: `@@||site^`. None
+        /// at or under an `$important` block, which outranks them (#322).
         public var exceptions: [String] = []
         /// From its header, `# Title: …` or `! Title: …`.
         public var title: String?
@@ -214,6 +214,8 @@ public enum BlocklistParser {
 
     public static func read(_ text: String) -> Parsed {
         var parsed = Parsed()
+        var important: [String] = []
+        var cancelled: [Rule] = []
         for raw in text.split(whereSeparator: \.isNewline) {
             let trimmed = raw.trimmingCharacters(in: .whitespaces)
             guard let lead = trimmed.first else { continue }
@@ -238,9 +240,11 @@ public enum BlocklistParser {
             guard fields.count == 1 else { parsed.skipped += 1; continue }
             if first.hasPrefix("||") || first.hasPrefix("@@||") {
                 switch rule(first) {
-                case .block(let name)?:     parsed.names.append(name)
-                case .exception(let name)?: parsed.exceptions.append(name)
-                case nil:                   parsed.skipped += 1
+                case .block(let name)?:      parsed.names.append(name)
+                case .important(let name)?:  important.append(name)
+                case .exception(let name)?:  parsed.exceptions.append(name)
+                case .cancel(let rule)?:     cancelled.append(rule)
+                case nil:                    parsed.skipped += 1
                 }
             } else if let name = name(first) {
                 parsed.names.append(name)
@@ -248,13 +252,31 @@ public enum BlocklistParser {
                 parsed.skipped += 1
             }
         }
+        // `$badfilter` takes out the very rule it names, and nothing else (#322).
+        if !cancelled.isEmpty {
+            parsed.names.removeAll { cancelled.contains(.block($0)) }
+            important.removeAll { cancelled.contains(.important($0)) }
+            parsed.exceptions.removeAll { cancelled.contains(.exception($0)) }
+        }
+        // An important block wins over the list's exceptions (#322): those at or
+        // under it go, so the block is what decides there.
+        if !important.isEmpty {
+            let outranking = Set(important)
+            parsed.exceptions.removeAll { SiteName.domains(of: $0).contains(where: outranking.contains) }
+            let named = Set(parsed.names)
+            parsed.names += important.filter { !named.contains($0) }
+        }
         return parsed
     }
 
-    private enum Rule { case block(String), exception(String) }
+    private indirect enum Rule: Equatable {
+        case block(String), important(String), exception(String)
+        /// `$badfilter`: the same rule without it doesn't count.
+        case cancel(Rule)
+    }
 
-    /// Options that keep a rule about the whole site: `$important` only
-    /// raises it over exceptions, and DNS blockers treat the rest so.
+    /// Options that keep a rule about the whole site: `$important` raises a
+    /// block over the list's exceptions, and DNS blockers treat the rest so.
     static let siteWideOptions: Set<String> = ["important", "all", "document", "doc", "popup"]
 
     private static func rule(_ text: Substring) -> Rule? {
@@ -269,11 +291,10 @@ public enum BlocklistParser {
         }
         if text.hasSuffix("^|") { text = text.dropLast() }
         guard text.hasSuffix("^"), let name = name(text.dropLast()) else { return nil }
-        // `$badfilter` cancels the same rule without it.
-        let cancels = options.contains("badfilter")
         guard options.allSatisfy({ $0 == "badfilter" || siteWideOptions.contains(String($0)) }) else { return nil }
-        if cancels { return isException ? nil : .exception(name) }
-        return isException ? .exception(name) : .block(name)
+        let rule: Rule = isException ? .exception(name) : options.contains("important") ? .important(name) : .block(name)
+        // `$badfilter` cancels the same rule without it.
+        return options.contains("badfilter") ? .cancel(rule) : rule
     }
 
     private static func name(_ candidate: Substring) -> String? {
