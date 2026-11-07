@@ -111,8 +111,9 @@ struct AdsSettingsPane: View {
     }
 
     private var moreLists: String {
+        if library.usesRecommended { return "Recommended" }
         let count = library.enabled.count
-        return count == 0 ? "None" : "\(count) switched on"
+        return count == 0 ? "None" : "\(count) chosen by you"
     }
 
     private var rules: String {
