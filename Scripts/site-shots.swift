@@ -48,6 +48,18 @@ struct Shot: Decodable {
     var window: String
     /// Elements to click, in order, once the window is open.
     var click: [String]?
+    /// A scroll area to scroll to its end, after the clicks.
+    var scroll: String?
+    /// An element to wait for, after the clicks, such as a speed test's
+    /// result: the spec, and how many seconds to wait at most.
+    var waitFor: Wait?
+    /// Taken only when the window of the shot named here changed in the same
+    /// run, or when named: for a shot that costs something to take, such as a
+    /// speed test, which must never run just to check.
+    var when: String?
+    /// Elements left out of the tree altogether: lines that come and go with
+    /// the Mac's state, such as Hotspot's "already in Low Data Mode".
+    var ignore: [String]?
     /// Regions whose contents are data: each one's roles are kept, not its
     /// labels, sizes or how many rows it has.
     var data: [DataRegion]?
@@ -61,6 +73,11 @@ struct Shot: Decodable {
     /// Videos and staged pictures that show this window. They're reported when
     /// it changes, for remaking by hand.
     var flags: [String]?
+}
+
+struct Wait: Decodable {
+    var element: String
+    var seconds: Double
 }
 
 struct DataRegion: Decodable {
@@ -139,7 +156,8 @@ func labels(_ element: AXUIElement) -> [String] {
 }
 
 /// `Role` or `Role:label`, where the label is the start of the element's
-/// title, description or value.
+/// title, description or value. `find` also takes `Outer>Inner`: an Inner
+/// inside an Outer.
 func matches(_ element: AXUIElement, _ spec: String) -> Bool {
     let parts = spec.split(separator: ":", maxSplits: 1).map(String.init)
     guard role(element) == parts[0] else { return false }
@@ -147,6 +165,10 @@ func matches(_ element: AXUIElement, _ spec: String) -> Bool {
 }
 
 func find(_ spec: String, in element: AXUIElement) -> AXUIElement? {
+    if let split = spec.range(of: ">") {
+        guard let outer = find(String(spec[..<split.lowerBound]), in: element) else { return nil }
+        return children(outer).lazy.compactMap { find(String(spec[split.upperBound...]), in: $0) }.first
+    }
     if matches(element, spec) { return element }
     for child in children(element) {
         if let found = find(spec, in: child) { return found }
@@ -215,7 +237,7 @@ func roles(in elements: [AXUIElement]) -> [String] {
 /// Roles left out altogether: a scroll bar comes and goes with a list's length.
 let ignoredRoles: Set<String> = ["AXScrollBar"]
 
-func tree(_ window: AXUIElement, data: [DataRegion]) -> [String] {
+func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = []) -> [String] {
     var out: [String] = []
     /// Whether the element's subtree held a data region.
     @discardableResult
@@ -223,7 +245,9 @@ func tree(_ window: AXUIElement, data: [DataRegion]) -> [String] {
         let pad = String(repeating: "  ", count: depth)
         let index = out.count
         out.append(pad + line(element))
-        let kids = children(element).filter { !ignoredRoles.contains(role($0)) }
+        let kids = children(element).filter { kid in
+            !ignoredRoles.contains(role(kid)) && !ignore.contains { matches(kid, $0) }
+        }
         var holdsData = false
         var i = 0
         while i < kids.count {
@@ -328,6 +352,15 @@ struct Session {
         // window forward. Where the element has a value, such as a disclosure
         // row's open or closed, try again until it changes.
         let before = text(element, kAXValueAttribute)
+        // A button presses through accessibility, with no pointer involved,
+        // which would close a popover by landing outside it.
+        var actions: CFArray?
+        AXUIElementCopyActionNames(element, &actions)
+        if (actions as? [String] ?? []).contains(kAXPressAction),
+           AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
+            usleep(1_200_000)
+            if before == nil || text(element, kAXValueAttribute) != before { return }
+        }
         for _ in 0..<4 {
             bringForward(window)
             let point = CGPoint(x: f.minX + min(40, f.width / 2), y: f.midY)
@@ -341,6 +374,25 @@ struct Session {
             if before == nil || text(element, kAXValueAttribute) != before { return }
         }
         throw Failure("clicking \(spec) didn't change it")
+    }
+
+    /// Scrolls a list to its end, as far down as it goes.
+    func scrollToEnd(_ spec: String, in window: AXUIElement) throws {
+        guard let area = find(spec, in: window),
+              let bar = attribute(area, kAXVerticalScrollBarAttribute).map({ $0 as! AXUIElement }) else {
+            throw Failure("no scroll bar in \(spec)")
+        }
+        AXUIElementSetAttributeValue(bar, kAXValueAttribute as CFString, 1.0 as CFNumber)
+        usleep(800_000)
+    }
+
+    func wait(for wait: Wait, in window: AXUIElement) throws {
+        let deadline = Date().addingTimeInterval(wait.seconds)
+        while Date() < deadline {
+            if find(wait.element, in: window) != nil { usleep(800_000); return }
+            usleep(500_000)
+        }
+        throw Failure("\(wait.element) didn't appear within \(Int(wait.seconds)) s")
     }
 
     /// Moves a window that's on a 1x screen onto a Retina one, which captures
@@ -362,11 +414,15 @@ struct Session {
         guard let app = running, let f = frame(window) else { throw Failure("no window to capture") }
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         let candidates = content.windows.filter { $0.owningApplication?.processID == app.processIdentifier }
-        guard let target = candidates.min(by: { distance($0.frame, f) < distance($1.frame, f) }),
-              distance(target.frame, f) < 4 else { throw Failure("can't find the window on screen") }
+        // A window by its frame; a popover by the smallest window around it,
+        // which is larger for the arrow and the shadow.
+        let exact = candidates.min(by: { distance($0.frame, f) < distance($1.frame, f) }).flatMap { distance($0.frame, f) < 4 ? $0 : nil }
+        let around = candidates.filter { $0.frame.insetBy(dx: -1, dy: -1).contains(f) }
+            .min(by: { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height })
+        guard let target = exact ?? around else { throw Failure("can't find the window on screen") }
         let config = SCStreamConfiguration()
-        config.width = Int(f.width * 2)
-        config.height = Int(f.height * 2)
+        config.width = Int(target.frame.width * 2)
+        config.height = Int(target.frame.height * 2)
         config.showsCursor = false
         config.ignoreShadowsSingleWindow = true
         let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: target),
@@ -543,18 +599,43 @@ struct SiteShots {
         var problems: [String] = []
         var cached: (args: [String], window: String)?
 
+        var current: [String: [String]] = [:]
         for shot in shots {
             do {
+                // A costly shot follows its base window: retaken only when the
+                // base's tree differs from the one it was last taken with.
+                var baseTree: [String]?
+                if let base = shot.when {
+                    let baseFile = trees.appendingPathComponent("\(shot.name).base.txt")
+                    let taken = (try? String(contentsOf: baseFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
+                    guard let now = current[base] else {
+                        print("\(shot.name): needs \(base) checked first, in the same run"); continue
+                    }
+                    let named = names.contains(shot.name)
+                    if taken == now && !named { print("\(shot.name): unchanged (\(base) is)"); continue }
+                    if command != "update" || (taken != nil && !named && command == "check") {
+                        print("\(shot.name): \(base) changed, so it's retaken on update")
+                        changed.append(shot.name); continue
+                    }
+                    if command != "update" { continue }
+                    baseTree = now
+                }
                 // Shots that open the same window without clicks share a launch.
                 if cached?.args != shot.open || cached?.window != shot.window || shot.click != nil {
                     cached = nil
                     try session.launch(shot.open)
                     cached = (shot.open, shot.window)
                 }
-                let window = try session.window(shot.window)
+                var window = try session.window(shot.window)
                 if shot.click != nil { cached = nil }
                 for spec in shot.click ?? [] { try session.click(spec, in: window) }
-                let now = tree(window, data: shot.data ?? [])
+                if let spec = shot.scroll { try session.scrollToEnd(spec, in: window) }
+                if let wait = shot.waitFor { try session.wait(for: wait, in: window) }
+                // A click can rebuild what was clicked in, such as a popover
+                // that grows: find the window again.
+                if shot.click != nil || shot.scroll != nil { window = try session.window(shot.window) }
+                let now = tree(window, data: shot.data ?? [], ignore: shot.ignore ?? [])
+                current[shot.name] = now
                 if command == "tree" { print(now.joined(separator: "\n")); continue }
                 if command == "audit" {
                     let found = AccessibilityAudit.audit(window).map { "\(shot.window): \($0)" }
@@ -575,7 +656,7 @@ struct SiteShots {
                     print(differs ? "\(shot.name): no tree recorded yet" : "\(shot.name): unchanged")
                 }
                 let named = names.contains(shot.name)
-                guard command == "update", differs || named || shot.always == true else { continue }
+                guard command == "update", differs || named || shot.always == true || baseTree != nil else { continue }
                 // A window that only flags videos keeps its old tree until
                 // they're remade and it's updated by name, so the reminder stays.
                 if shot.file == nil, before != nil, !named { continue }
@@ -602,6 +683,10 @@ struct SiteShots {
                     page.place(area, at: r.offsetBy(dx: -windowFrame.minX, dy: -windowFrame.minY), windowWidth: windowFrame.width)
                 }
                 try (now.joined(separator: "\n") + "\n").write(to: treeFile, atomically: true, encoding: .utf8)
+                if let baseTree {
+                    try (baseTree.joined(separator: "\n") + "\n").write(
+                        to: trees.appendingPathComponent("\(shot.name).base.txt"), atomically: true, encoding: .utf8)
+                }
                 // Saved as it goes, so a later failure doesn't leave a picture
                 // without its size and areas.
                 try page.save()
