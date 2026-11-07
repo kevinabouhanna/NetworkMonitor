@@ -308,6 +308,7 @@ public final class ListLibrary: ObservableObject {
     // MARK: Keeping them current
 
     public func start() {
+        bringBundleUpToDate()
         DispatchQueue.main.asyncAfter(deadline: .now() + 120) { [weak self] in self?.checkIfDue() }
         timer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { [weak self] _ in
             self?.checkIfDue()
@@ -441,6 +442,15 @@ public final class ListLibrary: ObservableObject {
         }
         let version = SHA256.hash(data: bundle).prefix(6).map { String(format: "%02x", $0) }.joined()
         onChange?(bundleURL, version)
+    }
+
+    /// The file is written only when the lists in use change while the app
+    /// runs. Changed while it was closed (Recommended switched, or a version
+    /// with another recommended pair), the filter would keep the old lists
+    /// until the next download (#352): so it's written again if it differs.
+    public func bringBundleUpToDate() {
+        let sent = (try? Data(contentsOf: bundleURL)).flatMap { try? DownloadedList.decode($0) }?.map(\.id) ?? []
+        if sent != ready { publish() }
     }
 
     /// The file the filter's copy is sent from, if there's one to send.

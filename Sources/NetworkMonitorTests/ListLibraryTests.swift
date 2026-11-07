@@ -271,4 +271,46 @@ func runListLibraryTests() {
             Check.expectFalse(library.chosen.contains(id), "a removed list leaves your choice too")
         }
     }
+
+    Check.suite("More lists — what the filter is sent (#352)") {
+        Check.test("a choice changed while the app was closed reaches the filter at start") {
+            let defaults = UserDefaults(suiteName: "lists-\(UUID().uuidString)")!
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("lists-\(UUID().uuidString)")
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            func copy(_ id: String, _ name: String) -> DownloadedList {
+                let list = DownloadedList(id: id, parsed: BlocklistParser.read(name))
+                try? DownloadedList.encode([list]).write(to: directory.appendingPathComponent(id + ".nmdl"))
+                return list
+            }
+            let own = copy("hagezi-pro", "pro.example.com")
+            for id in ListCatalogue.recommended { _ = copy(id, "\(id).example.com") }
+            let bundle = directory.appendingPathComponent("Enabled.nmdl")
+            try? DownloadedList.encode([own]).write(to: bundle)
+            defaults.set(["hagezi-pro"], forKey: ListLibrary.enabledKey)
+            defaults.set(true, forKey: ListLibrary.recommendedKey)
+
+            let library = ListLibrary(defaults: defaults, directory: directory)
+            library.mayDownload = { false }
+            var sent = 0
+            library.onChange = { _, _ in sent += 1 }
+            library.bringBundleUpToDate()
+            let ids = (try? DownloadedList.decode(Data(contentsOf: bundle)))?.map(\.id) ?? []
+            Check.expectEqual(ids, ListCatalogue.recommended)
+            Check.expectEqual(sent, 1)
+
+            library.bringBundleUpToDate()
+            Check.expectEqual(sent, 1, "up to date: not sent again")
+        }
+
+        Check.test("with no lists and no file, nothing is sent") {
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("lists-\(UUID().uuidString)")
+            let defaults = UserDefaults(suiteName: "lists-\(UUID().uuidString)")!
+            defaults.set(false, forKey: ListLibrary.recommendedKey)
+            let library = ListLibrary(defaults: defaults, directory: directory)
+            var sent = 0
+            library.onChange = { _, _ in sent += 1 }
+            library.bringBundleUpToDate()
+            Check.expectEqual(sent, 0)
+        }
+    }
 }
