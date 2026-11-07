@@ -286,9 +286,12 @@ public struct FirewallPolicy: Codable, Equatable {
         // what's needed to switch it off again goes through (#198).
         if blocksEverything { return flow.isNetworkMonitor ? .allow(.networkMonitor) : .block(.everything) }
         let index = Dictionary(rules.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        // The rule that lets it connect, when it's broader than a name: the
+        // lists still have their say first (#316).
+        var allowed: FirewallRule?
         // A rule for one app is narrower than any rule for every app, so those
         // go first: "Amazon, for Slack" over "Block Amazon".
-        for scopes in [flow.appKeys.map { "@" + $0 }, [""]] {
+        ruling: for scopes in [flow.appKeys.map { "@" + $0 }, [""]] {
             for subject in Self.precedence {
                 for key in Self.keys(of: flow, subject) {
                     for scope in scopes {
@@ -299,7 +302,13 @@ public struct FirewallPolicy: Codable, Equatable {
                         // by someone else (#202).
                         if let team = rule.team, let app = rule.ruledApp, flow.teams[app] != team { continue }
                         switch rule.action {
-                        case .allow:           return .allow(.rule(rule))
+                        // A site or a server is a name you chose to let through,
+                        // listed or not (#176). An app, a company or a country
+                        // may connect, but that says nothing about ads (#316).
+                        case .allow:
+                            if rule.subject == .site || rule.subject == .server { return .allow(.rule(rule)) }
+                            allowed = rule
+                            break ruling
                         case .block:           return .block(.rule(rule))
                         case .blockOnHotspots: if onHotspot { return .block(.rule(rule)) }
                         }
@@ -307,19 +316,10 @@ public struct FirewallPolicy: Codable, Equatable {
                 }
             }
         }
-        // After your rules, which always win: Always Allow lets a listed site
-        // through (#176). Then your ad-blocking rules (#253), which say only
-        // what the lists do, and only while one is on.
-        if !lists.isEmpty {
-            let adRule = AdRule.deciding(adRules, name: flow.hostname, appKeys: flow.appKeys)
-            if let adRule, adRule.kind == .alwaysBlock { return .block(.adRule(adRule)) }
-            if adRule == nil, let topic = flow.listedIn.intersection(lists).sorted().first {
-                return .block(.list(topic))
-            }
-            if adRule == nil, let id = downloadedLists.first(where: flow.listedInDownloaded.contains) {
-                return .block(.downloadedList(id))
-            }
-        }
+        // After your rules, which always win, and your ad-blocking rules (#253),
+        // which say only what the lists do, and only while one is on.
+        if let listed = listBlock(flow) { return .block(listed) }
+        if let allowed { return .allow(.rule(allowed)) }
         // Always Allow lets an updater through too. macOS and Apple's apps
         // follow Hotspot mode's system setting instead, so an update started
         // by hand still goes.
@@ -339,6 +339,17 @@ public struct FirewallPolicy: Codable, Equatable {
             if flow.isApple { return .allow(.apple) }
             return flow.appKeys.isEmpty ? .allow(.mode) : .ask
         }
+    }
+
+    /// What blocks it among the lists and your ad-blocking rules, if any.
+    private func listBlock(_ flow: FlowFacts) -> BlockReason? {
+        guard !lists.isEmpty else { return nil }
+        let adRule = AdRule.deciding(adRules, name: flow.hostname, appKeys: flow.appKeys)
+        if let adRule, adRule.kind == .alwaysBlock { return .adRule(adRule) }
+        guard adRule == nil else { return nil }
+        if let topic = flow.listedIn.intersection(lists).sorted().first { return .list(topic) }
+        if let id = downloadedLists.first(where: flow.listedInDownloaded.contains) { return .downloadedList(id) }
+        return nil
     }
 
     // MARK: Updates on a hotspot

@@ -101,6 +101,49 @@ func runBlocklistTests() {
             Check.expectEqual(FirewallPolicy(rules: [allow], lists: [.ads]).decide(chromeToAds), .allow(.rule(allow)))
             let block = FirewallRule(subject: .app, key: "/Applications/Google Chrome.app", title: "Chrome", action: .block)
             Check.expectEqual(FirewallPolicy(rules: [block], lists: [.ads]).decide(chromeToAds), .block(.rule(block)))
+            let server = FirewallRule(subject: .server, key: chromeToAds.address, title: "142.251.39.174", action: .allow)
+            Check.expectEqual(FirewallPolicy(rules: [server], lists: [.ads]).decide(chromeToAds), .allow(.rule(server)))
+        }
+
+        Check.test("allowing an app, a company or a country leaves it to the lists (#316)") {
+            let chrome = "/Applications/Google Chrome.app"
+            var unlisted = chromeToAds
+            unlisted.hostname = "www.google.com"
+            unlisted.listedIn = []
+            let rules = [
+                FirewallRule(subject: .app, key: chrome, title: "Chrome", action: .allow),
+                FirewallRule(subject: .company, key: "Google", title: "Google", action: .allow),
+                FirewallRule(subject: .company, key: "Google", title: "Google", action: .allow,
+                             appKey: chrome, appTitle: "Chrome"),
+                FirewallRule(subject: .country, key: "US", title: "United States", action: .allow),
+            ]
+            for rule in rules {
+                for mode in [FirewallMode.anywhere, .onlyAllowed, .ask] {
+                    let policy = FirewallPolicy(mode: mode, rules: [rule], lists: [.ads])
+                    Check.expectEqual(policy.decide(chromeToAds), .block(.list(.ads)), "\(rule.id), \(mode)")
+                    Check.expectEqual(policy.decide(unlisted), .allow(.rule(rule)), "\(rule.id), \(mode)")
+                    Check.expectEqual(FirewallPolicy(mode: mode, rules: [rule]).decide(chromeToAds),
+                                      .allow(.rule(rule)), "lists off: \(rule.id), \(mode)")
+                }
+            }
+            // Your ad-blocking rules still have their say over an allowed app.
+            let never = AdRule(kind: .neverBlock, site: "doubleclick.net")
+            Check.expectEqual(FirewallPolicy(mode: .onlyAllowed, rules: [rules[0]], lists: [.ads], adRules: [never])
+                                .decide(chromeToAds), .allow(.rule(rules[0])))
+            let always = AdRule(kind: .alwaysBlock, site: "google.com")
+            Check.expectEqual(FirewallPolicy(rules: [rules[0]], lists: [.ads], adRules: [always]).decide(unlisted),
+                              .block(.adRule(always)))
+            // A narrower allow still wins over a broader block, and then meets the lists.
+            let blockGoogle = FirewallRule(subject: .company, key: "Google", title: "Google", action: .block)
+            Check.expectEqual(FirewallPolicy(rules: [blockGoogle, rules[0]], lists: [.ads]).decide(unlisted),
+                              .allow(.rule(rules[0])))
+            Check.expectEqual(FirewallPolicy(rules: [blockGoogle, rules[0]], lists: [.ads]).decide(chromeToAds),
+                              .block(.list(.ads)))
+            // An allowed app's updater still goes on a hotspot.
+            var updater = unlisted
+            updater.executablePaths = [chrome + "/Contents/Frameworks/GoogleUpdater"]
+            Check.expectEqual(FirewallPolicy(rules: [rules[0]], pausesUpdates: true, lists: [.ads]).decide(updater),
+                              .allow(.rule(rules[0])))
         }
 
         Check.test("a name on both lists is blocked as malware") {
