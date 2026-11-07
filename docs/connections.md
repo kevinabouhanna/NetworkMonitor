@@ -199,7 +199,8 @@ Trackers, with buttons to its Lists and Rules tabs.
   been; and anything without a name (another port, or not TLS or QUIC). It's not an ad
   blocker for the browser.
 - **The lists stay current by themselves.** A workflow rebuilds them every Monday, refuses
-  a list that shrank or that catches a site people use every day, and signs them; the app
+  a list that shrank (below a fixed floor, or to under half of last week's, #319) or that
+  catches a site people use every day, and signs them; the app
   fetches them weekly while they're on, never on a hotspot (**Update them weekly**). It
   ships with a copy, so they work offline.
 

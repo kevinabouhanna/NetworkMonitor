@@ -453,4 +453,22 @@ public struct BlocklistManifest: Codable, Equatable {
 
     public static let fileName = "manifest.json"
     public static let signatureName = "manifest.json.sig"
+
+    /// Each table's names, by its file name, as its size says: 12 bytes,
+    /// then 8 a name.
+    public var counts: [String: Int] {
+        Dictionary(files.map { ($0.name, max(0, ($0.size - 12) / 8)) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// A list with under this share of the names it had last time isn't
+    /// published (#319): a broken source or a half-served file would
+    /// otherwise unblock what it held on every Mac.
+    public static let smallestShare = 0.5
+
+    /// Whether `count` names is too few beside the `previous` count. With
+    /// nothing earlier to go by, only the builder's fixed floors apply.
+    public static func shrank(_ count: Int, from previous: Int?) -> Bool {
+        guard let previous, previous > 0 else { return false }
+        return Double(count) < Double(previous) * smallestShare
+    }
 }
