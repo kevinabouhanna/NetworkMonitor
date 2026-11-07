@@ -1,4 +1,5 @@
 import AppKit
+import FilterProtocol
 import FirewallPolicy
 import ServerDirectory
 import SwiftUI
@@ -15,6 +16,7 @@ struct ConnectionsSettingsPane: View {
     @ObservedObject var geoData: GeoDataUpdater
     @ObservedObject var blocklists: BlocklistUpdater
     @ObservedObject var listBlocks: ListBlockCount
+    @ObservedObject var lookups: EncryptedLookups
     let onOpen: () -> Void
     var onOpenAds: () -> Void = {}
 
@@ -40,6 +42,7 @@ struct ConnectionsSettingsPane: View {
                 }
                 rulesSection
                 listsSection
+                lookupsSection
             }
 
             Section {
@@ -124,6 +127,51 @@ struct ConnectionsSettingsPane: View {
             SettingsFootnote(listsFootnote)
         }
     }
+
+    /// Encrypted lookups (#291): the system extension that filters also
+    /// sends the Mac's lookups on encrypted, to a resolver picked here.
+    private var lookupsSection: some View {
+        Section {
+            ExplainedRow("Encrypt lookups", Self.lookupsExplanation) {
+                Toggle("Encrypt lookups", isOn: Binding(get: { lookups.isOn }, set: { lookups.setOn($0) }))
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .disabled(filter.state != .on || lookups.state == .starting)
+            }
+            LabeledContent("Sent to") {
+                Picker("Sent to", selection: $lookups.resolverID) {
+                    ForEach(EncryptedDNS.resolvers) { Text($0.title).tag($0.id) }
+                }
+                .labelsHidden()
+                .fixedSize()
+                .help(lookups.resolver.about)
+            }
+        } header: {
+            Text("Lookups")
+        } footer: {
+            SettingsFootnote(lookupsFootnote)
+        }
+    }
+
+    private var lookupsFootnote: String {
+        switch lookups.state {
+        case .failed(let reason): return reason
+        case .starting:           return "Waiting for macOS, which asks you once to allow it."
+        case .checking:           return "Checking names still resolve…"
+        case .on:                 return "On. \(lookups.resolver.about)"
+        case .off:
+            return filter.state == .on
+                ? "Off: lookups go to your network's DNS server unencrypted, as on any Mac."
+                : "Needs the content filter on, which comes with it."
+        }
+    }
+
+    static let lookupsExplanation = "Before an app connects to a site, your Mac looks its name up. Those lookups "
+        + "normally travel unencrypted, so your internet provider and anyone on the Wi-Fi can read every name. "
+        + "Switched on, NetworkMonitor sends each lookup encrypted to the resolver you pick, over DNS over HTTPS, "
+        + "and gives the answer back unchanged. Names only your network knows, like the router's, still go to it. "
+        + "If the resolver doesn't answer, lookups go to your network as before, so names keep working. Apps "
+        + "that encrypt their own lookups, like Chrome with Secure DNS, aren't affected."
 
     private func siteCount(_ topic: BlocklistTopic) -> String {
         let count = blocklists.lists?.tables[topic]?.count ?? 0

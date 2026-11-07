@@ -498,6 +498,20 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    `example.com.sc.omtrdc.net`, is blocked as the ads list's `omtrdc.net`, with its app
    known. Lookups over DNS over HTTPS or TLS can't be read.
 
+   **Encrypted lookups** (#291). The same system extension is also a DNS proxy
+   (`DNSProxyProvider`, declared in its Info.plist with the `dns-proxy-systemextension`
+   entitlement and outgoing connections in its sandbox). `EncryptedLookups` in the app
+   configures it through `NEDNSProxyManager` and checks names still resolve after switching
+   it on; the resolver's id travels in `FirewallPolicy.lookupResolver`, so it's there when the
+   proxy starts. `Lookups` sends each UDP query to the resolver by address (no lookup needed
+   to reach it) with `POST application/dns-message`, fixes the answer's ID, hands it to the
+   filter's alias reading, and writes it back as though from the server it was sent to.
+   `EncryptedDNS.staysOnNetwork` keeps local names on the network's server, and
+   `EncryptedDNS.Fallback` sends lookups there for a minute after three failures. TCP lookups
+   are relayed unchanged. The filter allows the extension's own connections before anything
+   else. `FilterController` switches the proxy off and on around an update's swap, remembered
+   in `lookupsOffForUpdate` in case the app quits partway.
+
 10. **Updating itself** (#132). Sparkle 2.10.0, an exact SwiftPM dependency, linked by
    `NetworkMonitorCore` and carried in `Contents/Frameworks` by every build (`bundle.sh`
    re-signs it inside out, without its XPC services, which only sandboxed apps need).

@@ -320,6 +320,28 @@ allow it.
 A rule for one app comes before any rule for every app: *Amazon · for Slack* allowed with
 *Hosted on Amazon* blocked lets Slack through and nothing else.
 
+## Encrypted lookups
+
+**Settings › Connections › Lookups › Encrypt lookups** (#291), off until switched on, sends the
+Mac's DNS lookups encrypted, over DNS over HTTPS, to **Cloudflare** (1.1.1.1), **Quad9**
+(9.9.9.9) or **Google** (8.8.8.8). Without it they travel unencrypted to the network's DNS
+server, so the internet provider and anyone on the Wi-Fi can read every name looked up.
+
+- **It needs the content filter**, whose system extension carries it as a DNS proxy. macOS asks
+  once to allow it.
+- **Answers come back unchanged**, and the filter still reads their aliases (#255).
+- **Names only the network knows stay on it:** single names like `router`, `.local`, `.lan`,
+  `.home`, `.home.arpa`, `.internal`, `.corp`, and reverse lookups of local addresses.
+- **It fails towards working.** A lookup the resolver doesn't answer in 2.5 s goes to the
+  network's DNS server, as it would have; after three in a row, every lookup does for a
+  minute. Lookups over TCP, which are rare, go to the network's server unchanged.
+- **It checks itself.** Switched on, or at launch with it on, the app looks up a name that
+  exists nowhere: an answer, even *no such name*, means lookups work. If none comes in three
+  tries while the router answers, it switches itself off again and says why under the switch.
+- **Updates switch it off and on again** around replacing the extension, with the filter (#278).
+- Apps that encrypt their own lookups, like Chrome with Secure DNS, aren't affected; ECH is never
+  touched.
+
 ## What it costs
 
 Nothing you'd notice. Recording uses rows `nettop` already reports, and measured no extra

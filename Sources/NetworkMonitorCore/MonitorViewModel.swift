@@ -105,6 +105,8 @@ public final class MonitorViewModel: ObservableObject {
     public let listBlocks = ListBlockCount()
     /// Lists downloaded on this Mac (#254).
     public let listLibrary = ListLibrary()
+    /// Encrypted lookups (#291).
+    public let lookups = EncryptedLookups()
     /// Each decision the filter reported, for the Ads window's log (#252).
     public let adsLog = AdsLog()
     /// Updating NetworkMonitor itself (#132).
@@ -249,11 +251,12 @@ public final class MonitorViewModel: ObservableObject {
             })
         }
         filter.resume()
+        lookups.resume()
         // The rules, whether this is a hotspot for the ones that say "on
         // hotspots", and whether Hotspot mode pauses updates here (#98). The
         // values come from the publishers: they fire before the properties
         // change.
-        firewallPolicy = Publishers.CombineLatest(
+        firewallPolicy = Publishers.CombineLatest3(
             Publishers.CombineLatest4(Publishers.CombineLatest4(firewall.$rules, firewall.$lists,
                                                                 firewall.$blocksEverything,
                                                                 firewall.$listsPausedUntil),
@@ -261,8 +264,8 @@ public final class MonitorViewModel: ObservableObject {
                                                                 firewall.$adRules,
                                                                 firewall.$listsPausedNetworks),
                                       $isExpensiveNetwork, metering.$isEnabled),
-            listLibrary.$ready)
-            .sink { [weak self] state, downloaded in
+            listLibrary.$ready, lookups.$resolverID)
+            .sink { [weak self] state, downloaded, resolver in
                 let (rulesAndLists, modeAndNetwork, onHotspot, pausing) = state
                 let (mode, network, adRules, pausedNetworks) = modeAndNetwork
                 // None while ad blocking is paused (#251), and on a network
@@ -274,7 +277,8 @@ public final class MonitorViewModel: ObservableObject {
                                                   blocksEverything: rulesAndLists.2,
                                                   network: network.isEmpty ? nil : network, adRules: adRules,
                                                   // Only alongside a shipped list (#254).
-                                                  downloadedLists: lists.isEmpty ? [] : downloaded))
+                                                  downloadedLists: lists.isEmpty ? [] : downloaded,
+                                                  lookupResolver: resolver))
                 // Switched on with stale lists: fetch newer ones soon.
                 if !rulesAndLists.1.isEmpty {
                     self?.blocklists.checkSoon()

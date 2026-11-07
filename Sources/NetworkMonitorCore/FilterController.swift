@@ -94,6 +94,9 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     /// Set while the filter is off for an update, so a launch after one cut
     /// short (the app quit or crashed) switches it back on.
     static let offForUpdateKey = "filterOffForUpdate"
+    /// The DNS proxy (#291) lives in the same extension: off for the swap too,
+    /// and on again after.
+    static let lookupsOffForUpdateKey = "lookupsOffForUpdate"
 
     static let log = Logger(subsystem: "com.kevinabouhanna.NetworkMonitor", category: "filter")
 
@@ -155,11 +158,14 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
                             self.state = .failed(error.localizedDescription)
                         } else {
                             UserDefaults.standard.removeObject(forKey: Self.offForUpdateKey)
+                            Self.setLookupsEnabled(true)
                             self.update()
                         }
                     }
                 } else if manager.isEnabled {
                     UserDefaults.standard.removeObject(forKey: Self.offForUpdateKey)
+                    // Lookups switched off for an update cut short come back.
+                    Self.setLookupsEnabled(true)
                     // Connected only once the update is through: held open
                     // across the swap, the old filter kept its service name,
                     // and the new one came up without it (#114).
@@ -378,6 +384,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         UpdateGuard.routerAnswers { answered in
             DispatchQueue.main.async {
                 self.routerAnsweredBefore = answered
+                Self.setLookupsEnabled(false)
                 self.setFilterEnabled(false) { error in
                     if let error {
                         // Replaced while it runs, as before #278.
@@ -395,6 +402,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     private func switchOnAfterSwap() {
         swap = .switchingOn
         logDropAll("with the new filter installed")
+        Self.setLookupsEnabled(true)
         setFilterEnabled(true) { error in
             self.swap = nil
             self.restarting = false
@@ -452,6 +460,26 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
                     self.stopGuard()
                     self.restartFilter()
                 }
+            }
+        }
+    }
+
+    /// Encrypted lookups off for an update, if they were on, or on again
+    /// after it, if they were switched off for it. Remembered across a quit.
+    static func setLookupsEnabled(_ on: Bool) {
+        let defaults = UserDefaults.standard
+        let manager = NEDNSProxyManager.shared()
+        manager.loadFromPreferences { _ in
+            if on {
+                guard defaults.bool(forKey: lookupsOffForUpdateKey) else { return }
+                defaults.removeObject(forKey: lookupsOffForUpdateKey)
+            } else {
+                guard manager.isEnabled else { return }
+                defaults.set(true, forKey: lookupsOffForUpdateKey)
+            }
+            manager.isEnabled = on
+            manager.saveToPreferences { error in
+                log.notice("encrypted lookups \(on ? "on again" : "off", privacy: .public) for the update\(error.map { ": \($0.localizedDescription)" } ?? "", privacy: .public)")
             }
         }
     }

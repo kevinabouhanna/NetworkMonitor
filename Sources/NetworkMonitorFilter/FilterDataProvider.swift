@@ -38,6 +38,8 @@ final class FilterDataProvider: NEFilterDataProvider {
               let remote = socket.remoteEndpoint as? NWHostEndpoint else { return .allow() }
         let port = Int(remote.port) ?? 0
         let pid = FlowReport.pid(fromAuditToken: flow.sourceAppAuditToken)
+        // Its own encrypted lookups (#291), which nothing may stand in the way of.
+        if pid == getpid() { return .allow() }
         // The system resolver's flows carry the name being looked up, not the
         // server's: 1.1.1.1 read as whatever was last resolved (#196).
         let fromResolver = Self.isResolver(pid)
