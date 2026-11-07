@@ -75,12 +75,14 @@ struct PeriodStepper: View {
     var body: some View {
         ControlGroup {
             Button { onStep(-1) } label: { Image(systemName: "chevron.left") }
+                .accessibilityLabel("Previous")
                 .keyboardShortcut(.leftArrow, modifiers: [.command])
                 .disabled(!canStepBack)
                 .help("Previous (⌘←)")
             Button("Today", action: onToday)
                 .help("Back to the present")
             Button { onStep(1) } label: { Image(systemName: "chevron.right") }
+                .accessibilityLabel("Next")
                 .keyboardShortcut(.rightArrow, modifiers: [.command])
                 .disabled(!canStepForward)
                 .help("Next (⌘→)")

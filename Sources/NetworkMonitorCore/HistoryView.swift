@@ -209,7 +209,7 @@ public struct HistoryView: View {
         if !report.systemRows.isEmpty {
             HistoryListRow(
                 leading: { AnyView(Image(nsImage: model.icon(for: systemSummary))
-                    .resizable().frame(width: 18, height: 18)) },
+                    .resizable().frame(width: 18, height: 18).accessibilityHidden(true)) },
                 title: "System (\(report.systemRows.count))",
                 subtitle: nil,
                 bytes: report.systemTotal,
@@ -238,7 +238,7 @@ public struct HistoryView: View {
     private func appRow(_ row: UsageRow, largest: Int64, indented: Bool) -> some View {
         HistoryListRow(
             leading: { AnyView(Image(nsImage: model.icon(for: row))
-                .resizable().frame(width: 18, height: 18)) },
+                .resizable().frame(width: 18, height: 18).accessibilityHidden(true)) },
             title: row.displayName,
             subtitle: nil,
             bytes: row.total,
@@ -703,6 +703,7 @@ private struct HistoryListRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(open ? "Collapse" : "Expand")
             .foregroundStyle(.secondary)
         } else {
             Spacer().frame(width: 12)

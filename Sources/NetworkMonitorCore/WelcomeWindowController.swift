@@ -52,6 +52,7 @@ struct WelcomeView: View {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .frame(width: 72, height: 72)
+                    .accessibilityHidden(true)
                 Text("Welcome to NetworkMonitor")
                     .font(.system(size: 20, weight: .semibold))
                 Text(SetupCopy.welcome)

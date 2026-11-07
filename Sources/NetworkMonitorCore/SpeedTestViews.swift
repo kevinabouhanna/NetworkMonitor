@@ -99,6 +99,7 @@ struct SpeedTestButton: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Speed test")
         .foregroundStyle(speedTest.phase == .idle
                          ? AnyShapeStyle(.secondary) : AnyShapeStyle(SpeedTestPalette.download))
         .disabled(speedTest.phase.isRunning && !isHiddenRun)

@@ -480,11 +480,13 @@ private struct ConnectionsRow: View {
                         .frame(width: 14, height: 14)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(disclosure ? "Collapse" : "Expand")
                 .foregroundStyle(.secondary)
             } else {
                 Spacer().frame(width: 14)
             }
-            leading
+            // The row's name says what it is.
+            leading.accessibilityHidden(true)
                 .frame(width: 18, height: 18)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
