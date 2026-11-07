@@ -29,9 +29,10 @@ universal:
 dmg: universal
 	@./Scripts/make-dmg.sh
 
+# Stops every running copy, the installed one too, so it waits its turn in the
+# Mac lane (#342) like everything else that uses the Mac as a whole.
 run: app
-	@pkill -f "NetworkMonitor.app/Contents/MacOS" 2>/dev/null || true
-	@open build/NetworkMonitor.app
+	@./Scripts/mac-lane.sh /bin/sh -c 'pkill -f "NetworkMonitor.app/Contents/MacOS"; sleep 1; open build/NetworkMonitor.app'
 	@echo "Running — look for ↓/↑ in the menu bar. Right-click the item for the menu."
 
 # Installs to /Applications and enables launch at login. No Developer ID needed.
@@ -94,25 +95,27 @@ dmg-background:
 	@swift Scripts/make-dmg-background.swift
 
 # The website's pictures of the app (#329). Both run against the installed app,
-# quitting and relaunching it, and read ../NetworkMonitor-site unless SITE says
-# otherwise. `site-check` says which pictures show a window whose interface
-# changed; `site-shots` retakes them (or those in NAMES) and updates the page.
-SITE ?= ../NetworkMonitor-site
+# quitting and relaunching it, so both wait their turn in the Mac lane (#342).
+# They read the NetworkMonitor-site worktree beside the main checkout, found
+# through git so it works from any worktree, unless SITE says otherwise.
+# `site-check` says which pictures show a window whose interface changed;
+# `site-shots` retakes them (or those in NAMES) and updates the page.
+SITE ?= $(abspath $(dir $(shell git rev-parse --path-format=absolute --git-common-dir))../NetworkMonitor-site)
 # It shares the accessibility rules with the tests.
 build/site-shots: Scripts/site-shots.swift Sources/NetworkMonitorCore/AccessibilityAudit.swift
 	@mkdir -p build
 	swiftc -O -parse-as-library $^ -o $@
 
 site-check: build/site-shots
-	@build/site-shots check --site $(SITE) $(NAMES)
+	@./Scripts/mac-lane.sh build/site-shots check --site $(SITE) $(NAMES)
 
 site-shots: build/site-shots
-	@build/site-shots update --site $(SITE) $(NAMES)
+	@./Scripts/mac-lane.sh build/site-shots update --site $(SITE) $(NAMES)
 
 # The installed app's windows, with real data, against the tests' accessibility
 # rules (#346).
 site-audit: build/site-shots
-	@build/site-shots audit --site $(SITE) $(NAMES)
+	@./Scripts/mac-lane.sh build/site-shots audit --site $(SITE) $(NAMES)
 
 clean:
 	swift package clean

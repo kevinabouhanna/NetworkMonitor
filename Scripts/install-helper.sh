@@ -16,6 +16,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Uses the Mac as a whole, so it waits its turn in the Mac lane (#342).
+. Scripts/mac-lane.sh
+MAC_LANE_WHAT="install-helper.sh $*" mac_lane_enter
+
 REAL_USER="${SUDO_USER:-$(id -un)}"
 DAEMON="--daemon"
 UNINSTALL=0
