@@ -6,6 +6,19 @@ import NetworkMonitorCore
 /// checked for the problems a program can find (#346). Built here with empty
 /// data; `make site-audit` checks the installed app with real rows in its lists.
 func runAccessibilityTests() {
+    // Every SF Symbol the app's code names, so a control named after one is
+    // caught on any macOS (see `AccessibilityAudit.audit`).
+    let sources = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .deletingLastPathComponent().appendingPathComponent("NetworkMonitorCore")
+    var symbols: Set<String> = ["gearshape.fill"]   // FaultyView's
+    let pattern = try! NSRegularExpression(pattern: #"(?:systemName|systemSymbolName): "([a-z0-9.]+)""#)
+    for file in (try? FileManager.default.contentsOfDirectory(at: sources, includingPropertiesForKeys: nil)) ?? [] {
+        guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
+        for m in pattern.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+            symbols.insert((text as NSString).substring(with: m.range(at: 1)))
+        }
+    }
+
     Check.suite("Accessibility") {
         _ = NSApplication.shared
         NSApp.setActivationPolicy(.accessory)
@@ -30,7 +43,7 @@ func runAccessibilityTests() {
                 window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
                 window.orderFrontRegardless()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-                guard let problems = AccessibilityAudit.auditOwnWindow(titled: window.title) else {
+                guard let problems = AccessibilityAudit.auditOwnWindow(titled: window.title, symbols: symbols) else {
                     Check.expectTrue(false, "couldn't read the \(window.title) window's accessibility tree")
                     return
                 }
@@ -50,7 +63,7 @@ func runAccessibilityTests() {
             window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
             window.orderFrontRegardless()
             RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-            let rules = AccessibilityAudit.auditOwnWindow(titled: "Faulty")?.map(\.rule) ?? []
+            let rules = AccessibilityAudit.auditOwnWindow(titled: "Faulty", symbols: symbols)?.map(\.rule) ?? []
             Check.expectTrue(rules.contains { $0.hasPrefix("has no name") }, "missed the unnamed switch: \(rules)")
             Check.expectTrue(rules.contains { $0.hasPrefix("is named only by its symbol") }, "missed the symbol's name: \(rules)")
             Check.expectTrue(rules.contains { $0.hasPrefix("is an image") }, "missed the bare image: \(rules)")

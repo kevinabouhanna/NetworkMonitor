@@ -33,7 +33,14 @@ public enum AccessibilityAudit {
         "AXIncrementArrow", "AXDecrementArrow", "AXIncrementPage", "AXDecrementPage", "AXSearchField",
     ]
 
-    public static func audit(_ window: AXUIElement) -> [Problem] {
+    /// `symbols` are SF Symbols the app uses. A control named with one's
+    /// default description is caught even where macOS doesn't say which
+    /// symbol an element shows (macOS 26 doesn't; 27 does).
+    public static func audit(_ window: AXUIElement, symbols: Set<String> = []) -> [Problem] {
+        let spoken = Dictionary(symbols.compactMap { name in
+            NSImage(systemSymbolName: name, accessibilityDescription: nil)?.accessibilityDescription
+                .map { ($0.lowercased(), name) }
+        }, uniquingKeysWith: { first, _ in first })
         var problems: [Problem] = []
         func walk(_ element: AXUIElement, _ path: [String]) {
             let role = string(element, kAXRoleAttribute) ?? "?"
@@ -45,7 +52,10 @@ public enum AccessibilityAudit {
             if controls.contains(role), !systemSubroles.contains(subrole ?? "") {
                 if name == nil {
                     problems.append(Problem(path: at, rule: "has no name, so VoiceOver can't say what it is"))
-                } else if let symbol = symbolName(element, matching: name!) {
+                } else if let symbol = symbolName(element, matching: name!)
+                            // Without the identifier, only a button: a segment's
+                            // "Wi-Fi" is a word that happens to be a symbol's too.
+                            ?? (role == "AXButton" ? spoken[name!.lowercased()] : nil) {
                     problems.append(Problem(path: at, rule: "is named only by its symbol (\(symbol)); give it a label that says what it does"))
                 }
             }
@@ -96,7 +106,8 @@ public enum AccessibilityAudit {
     /// This process's window titled `title`, read from another thread while
     /// the main one keeps answering: the Accessibility API asks the main
     /// thread, so asking from it would wait forever.
-    public static func auditOwnWindow(titled title: String, timeout: TimeInterval = 10) -> [Problem]? {
+    public static func auditOwnWindow(titled title: String, symbols: Set<String> = [],
+                                      timeout: TimeInterval = 10) -> [Problem]? {
         var result: [Problem]?
         let done = DispatchSemaphore(value: 0)
         Thread.detachNewThread {
@@ -104,7 +115,7 @@ public enum AccessibilityAudit {
             AXUIElementSetMessagingTimeout(app, Float(timeout))
             let windows = value(app, kAXWindowsAttribute) as? [AXUIElement] ?? []
             if let window = windows.first(where: { string($0, kAXTitleAttribute) == title }) {
-                result = audit(window)
+                result = audit(window, symbols: symbols)
             }
             done.signal()
         }
