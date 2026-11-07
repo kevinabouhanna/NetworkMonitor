@@ -162,15 +162,12 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         switch identifier {
         case Self.layoutItem:
             return item(identifier, label: "View", control: layoutControl,
-                        help: "The list, both side by side, or the map",
-                        menu: ConnectionsViewModel.Layout.allCases.map(\.label))
+                        help: "The list, both side by side, or the map")
         case Self.scaleItem:
             return item(identifier, label: "Period", control: scaleControl,
-                        help: "A day, week, month or year at a time",
-                        menu: HistoryScale.allCases.map(\.label))
+                        help: "A day, week, month or year at a time")
         case Self.stepItem:
-            return item(identifier, label: "Go", control: stepControl, help: "Move through time",
-                        menu: ["Previous", "Today", "Next"])
+            return item(identifier, label: "Go", control: stepControl, help: "Move through time")
         case Self.searchItem:
             let item = NSSearchToolbarItem(itemIdentifier: identifier)
             item.searchField.delegate = self
@@ -183,14 +180,12 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         }
     }
 
-    private func item(_ identifier: NSToolbarItem.Identifier, label: String, control: NSSegmentedControl,
-                      help: String, menu: [String]) -> NSToolbarItem {
+    private func item(_ identifier: NSToolbarItem.Identifier, label: String, control: NSControl,
+                      help: String) -> NSToolbarItem {
         let item = NSToolbarItem(itemIdentifier: identifier)
         item.view = control
         item.label = label
         item.toolTip = help
-        // What it becomes in the » overflow when the window is narrow (#309).
-        item.menuFormRepresentation = SegmentMenu.item(for: control, label: label, titles: menu)
         return item
     }
 }

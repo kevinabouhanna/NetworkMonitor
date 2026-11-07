@@ -7,6 +7,9 @@ through without asking. What's particular to NetworkMonitor:
 
 - **Releasing is routine here.** Carry each change on to a release, the installed app and
   the website without asking.
+- **Work in a worktree of your own**, `git worktree add ../NetworkMonitor-<N> -b <branch>
+  origin/main`, never by switching branches in this checkout: several sessions work
+  here at once, and a switch moves the others' files under them. Remove it once merged.
 - Branches are named after the issue, e.g. `settings-v2-9`. `Closes #N` also moves the
   issue to Done on the NetworkMonitor project board.
 - CI checks: `build-and-test`, `universal`.
@@ -37,6 +40,13 @@ through without asking. What's particular to NetworkMonitor:
   blocking*, not *HTTPS filtering*.
 - How it works goes behind an ⓘ beside it, shown on hover: briefly what it does and
   how, with the technical terms there for whoever wants them (as in Settings, #185, #189).
+
+## Layout
+
+- **When controls don't fit, say so and propose layouts.** Never fall back on a
+  menu that repeats them, such as a toolbar item's » overflow form (#315).
+  Until there's a better layout, a window's minimum width is what its toolbar
+  needs, measured on the real app.
 
 ## The website
 

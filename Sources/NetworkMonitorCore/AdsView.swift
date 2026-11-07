@@ -241,7 +241,10 @@ private struct AdsRow: View {
 }
 
 enum AdsMetrics {
-    static let minWidth: CGFloat = 760
+    /// Wide enough for Overview's toolbar, the title, period, ‹ Today › and
+    /// tabs, which overflows below 852 (#315): no control is ever hidden in
+    /// the toolbar's » menu.
+    static let minWidth: CGFloat = 860
     static let minHeight: CGFloat = 480
     static let chartHeight: CGFloat = 120
     static let rowBarWidth: CGFloat = 90
