@@ -428,7 +428,7 @@ private struct AdsLogRow: View {
 // MARK: - Lists (#254)
 
 /// Which lists block: the two that ship with the app, the catalogue's, and
-/// any added by address, each with what it blocked in the period.
+/// any added by address, each with what it blocked today (#311).
 struct AdsListsView: View {
     @ObservedObject var model: AdsViewModel
     /// Not `@State`; see `SettingsPaneState`.
@@ -492,8 +492,8 @@ struct AdsListsView: View {
         + "makers, weekly, never on a hotspot or a metered connection, and keeps the last good copy. It reads "
         + "hosts files, plain lists of names, and Adblock rules about whole sites (||example.com^, with @@ "
         + "exceptions). Rules about parts of pages are for the Chrome extension. Each list you add blocks more, "
-        + "and makes it likelier that one blocks something a site needs to work. If a site stops working, the "
-        + "counts show which list blocked what."
+        + "and makes it likelier that one blocks something a site needs to work. If a site stops working, "
+        + "today's counts show which list blocked what."
 
     private func note(for topic: ListTopic) -> String {
         switch topic {
@@ -532,7 +532,7 @@ struct AdsListsView: View {
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            blocked(model.blocked(byList: topic.rawValue))
+            blocked(model.blockedToday(byList: topic.rawValue))
         }
         .font(.system(size: 13))
         .padding(.vertical, 3)
@@ -559,7 +559,7 @@ struct AdsListsView: View {
                 }
             }
             Spacer(minLength: 8)
-            if model.library.isEnabled(list.id) { blocked(model.blocked(byList: list.id)) }
+            if model.library.isEnabled(list.id) { blocked(model.blockedToday(byList: list.id)) }
             if list.isAdded {
                 Button {
                     model.library.remove(list.id)
@@ -590,7 +590,7 @@ struct AdsListsView: View {
     }
 
     private func blocked(_ count: Int64) -> some View {
-        Text(count > 0 ? "\(count.formatted()) blocked" : "")
+        Text(count > 0 ? "\(count.formatted()) blocked today" : "")
             .font(.system(size: 12)).monospacedDigit().foregroundStyle(.secondary)
     }
 }
