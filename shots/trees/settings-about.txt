@@ -4,7 +4,6 @@ AXWindow (AXStandardWindow) title="About" 720x708
       AXScrollArea 720x620
         AXScrollArea 720x620
           AXGroup 680x200
-            AXImage 88x88
             AXStaticText value="NetworkMonitor" h24
             AXStaticText value="Version # (#)" h16
             AXStaticText value="Live network speed in your menu bar, and which app used your data." h16
