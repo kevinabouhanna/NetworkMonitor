@@ -491,12 +491,13 @@ struct AdsListsView: View {
         + "example.com blocks ads.example.com. NetworkMonitor downloads each list you switch on from its "
         + "makers, weekly, never on a hotspot or a metered connection, and keeps the last good copy. It reads "
         + "hosts files, plain lists of names, and Adblock rules about whole sites (||example.com^, with @@ "
-        + "exceptions). Rules about parts of pages are for the Chrome extension. More lists catch more, and "
-        + "now and then a site that needs one of its names: the counts show which list blocked what."
+        + "exceptions). Rules about parts of pages are for the Chrome extension. Each list you add blocks more, "
+        + "and makes it likelier that one blocks something a site needs to work. If a site stops working, the "
+        + "counts show which list blocked what."
 
     private func note(for topic: ListTopic) -> String {
         switch topic {
-        case .ads:          return "Pick one or two: more lists catch more, and break more."
+        case .ads:          return "Pick one or two. Each one blocks more, but makes it likelier a site stops working."
         case .trackers:     return "Sites that follow you from page to page."
         case .annoyances:   return "Cookie notices and other parts of pages are for the Chrome extension."
         case .malware:      return "On top of the built-in malware list."
