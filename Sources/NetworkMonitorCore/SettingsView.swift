@@ -826,6 +826,7 @@ struct AboutSettingsPane: View {
                     Image(nsImage: NSApp.applicationIconImage)
                         .resizable()
                         .frame(width: 88, height: 88)
+                        .accessibilityHidden(true)
                     Text("NetworkMonitor").font(.system(size: 20, weight: .semibold))
                     Text(version).font(.system(size: 12)).foregroundStyle(.secondary)
                         .textSelection(.enabled)

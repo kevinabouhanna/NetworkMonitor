@@ -54,6 +54,7 @@ make run     # build build/NetworkMonitor.app and open it
 | `make dmg-background` | Redraws the disk image background |
 | `make site-check` | Says which of the website's pictures show a window whose interface changed (below) |
 | `make site-shots` | Retakes those pictures, or the ones in `NAMES`, and updates the page |
+| `make site-audit` | Checks the installed app's windows, with real data, for what VoiceOver can't name |
 | `make hooks` | Points git at `Scripts/hooks`, so `pre-push` runs the tests |
 | `make clean` | Removes `.build` and `build` |
 
@@ -108,6 +109,14 @@ and exits non-zero if anything fails.
   It runs against a stand-in `networkQuality` script; see [speed test](speed-test.md).
 - **Popover layout constants** are pinned by tests calibrated against what SwiftUI
   actually lays out.
+- **Accessibility** (#346): `AccessibilityTests.swift` builds every Settings pane, the
+  Connections and Ads and Trackers windows and the popover, out of sight, and reads each
+  one's accessibility tree through the Accessibility API, as VoiceOver does
+  (`AccessibilityAudit`). A control with no name, a control named only by its SF Symbol, or
+  an image with no description that isn't hidden fails the test. A first test checks the
+  check itself on a window with each problem in it. The windows are built with empty data,
+  so `make site-audit` runs the same rules against the installed app, with real list rows.
+  What a program can't judge is asked of Kevin (see CLAUDE.md).
 
 ## How the app is built
 

@@ -339,6 +339,7 @@ struct AskView: View {
             Image(nsImage: NSWorkspace.shared.icon(forFile: path))
                 .resizable()
                 .frame(width: 36, height: 36)
+                .accessibilityHidden(true)
         } else {
             Image(systemName: "terminal")
                 .font(.system(size: 22))

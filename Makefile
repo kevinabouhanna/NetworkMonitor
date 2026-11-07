@@ -1,4 +1,4 @@
-.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check site-shots clean
+.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check site-shots site-audit clean
 
 all: test app
 
@@ -98,15 +98,21 @@ dmg-background:
 # otherwise. `site-check` says which pictures show a window whose interface
 # changed; `site-shots` retakes them (or those in NAMES) and updates the page.
 SITE ?= ../NetworkMonitor-site
-build/site-shots: Scripts/site-shots.swift
+# It shares the accessibility rules with the tests.
+build/site-shots: Scripts/site-shots.swift Sources/NetworkMonitorCore/AccessibilityAudit.swift
 	@mkdir -p build
-	swiftc -O -parse-as-library $< -o $@
+	swiftc -O -parse-as-library $^ -o $@
 
 site-check: build/site-shots
 	@build/site-shots check --site $(SITE) $(NAMES)
 
 site-shots: build/site-shots
 	@build/site-shots update --site $(SITE) $(NAMES)
+
+# The installed app's windows, with real data, against the tests' accessibility
+# rules (#346).
+site-audit: build/site-shots
+	@build/site-shots audit --site $(SITE) $(NAMES)
 
 clean:
 	swift package clean

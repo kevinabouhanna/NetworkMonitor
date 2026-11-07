@@ -36,6 +36,32 @@ through without asking. What's particular to NetworkMonitor:
       prints, describing the interface, not its numbers.
     - videos and staged pictures it names as showing a changed window: ask
       Kevin before remaking them, since they take real work
+  - `make site-audit` against the new install: every window, with real data
+    in its lists, checked for what VoiceOver can't name. Fix what it finds.
+
+## Accessibility
+
+Everything in the app must work with VoiceOver. A program catches the major
+problems; Kevin answers what it can't judge (#346).
+
+- **Checked automatically.** `make test` (so CI and the pre-push hook) builds
+  every window and fails on a control with no name, a control named only by
+  its SF Symbol ("Gear shape, filled"), or an image with no description that
+  isn't hidden. `make site-audit` runs the same rules on the installed app,
+  with real rows in its lists.
+- **How to pass.** Name icon-only buttons and unlabelled switches and fields
+  with `.accessibilityLabel` in plain words (what it does: "Settings", "Next",
+  "Expand"). Hide an icon beside its own name with `.accessibilityHidden(true)`.
+  A new window or pane goes into `AccessibilityTests.swift`.
+- **Ask Kevin what a program can't judge.** When a change adds or reshapes
+  the interface, look at what VoiceOver will read (the accessibility tree,
+  `build/site-shots tree <name>`) and decide what you can yourself. Where you
+  can't tell (a name that might not make sense to someone who can't see the
+  screen, the order things are read in, whether it can all be reached and
+  used from the keyboard), ask Kevin before merging: specific questions, all
+  at once, each saying what to try and what you expect, e.g. "With VoiceOver
+  on, open the popover and press VO-→: does it read *Speed test, button* and
+  then *Connections, button*?"
 
 ## Words in the app
 

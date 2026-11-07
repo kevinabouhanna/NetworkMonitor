@@ -68,5 +68,6 @@ runSpeedTestTests()
 runMenuBarStripTests()
 runWindowStackTests()
 runWiFiNamesTests()
+runAccessibilityTests()
 
 exit(Check.summarize())

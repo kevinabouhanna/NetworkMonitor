@@ -208,7 +208,7 @@ private struct AdsRow: View {
     var body: some View {
         HStack(spacing: 10) {
             if let icon {
-                Image(nsImage: icon).resizable().frame(width: 20, height: 20)
+                Image(nsImage: icon).resizable().frame(width: 20, height: 20).accessibilityHidden(true)
             }
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
@@ -274,6 +274,7 @@ struct AdsLogView: View {
                 .labelsHidden()
                 .fixedSize()
                 TextField("Search apps, sites and addresses", text: $model.logSearch)
+                    .accessibilityLabel("Search the log")
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 260)
                 Spacer(minLength: 8)
@@ -400,7 +401,7 @@ private struct AdsLogRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: AdsMetrics.logTime, alignment: .leading)
             HStack(spacing: 6) {
-                if let icon { Image(nsImage: icon).resizable().frame(width: 16, height: 16) }
+                if let icon { Image(nsImage: icon).resizable().frame(width: 16, height: 16).accessibilityHidden(true) }
                 Text(entry.appName).lineLimit(1).truncationMode(.tail)
             }
             .frame(width: AdsMetrics.logApp, alignment: .leading)
@@ -547,6 +548,7 @@ struct AdsListsView: View {
             HStack(spacing: 10) {
                 // Verbatim: a key would show the address as a link.
                 TextField(text: $model.newListURL) { Text(verbatim: "A list's address, like https://example.com/hosts.txt") }
+                    .accessibilityLabel("A list's address")
                     .textFieldStyle(.roundedBorder)
                     .frame(minWidth: 300)
                     .onSubmit { model.addList() }
@@ -597,6 +599,7 @@ struct AdsListsView: View {
         HStack(spacing: 10) {
             Toggle("", isOn: Binding(get: { model.isShippedOn(topic) }, set: { model.setShipped(topic, $0) }))
                 .labelsHidden()
+                .accessibilityLabel(topic.title)
                 .toggleStyle(.switch)
                 .controlSize(.mini)
             VStack(alignment: .leading, spacing: 1) {
@@ -624,6 +627,7 @@ struct AdsListsView: View {
         return HStack(spacing: 10) {
             Toggle("", isOn: Binding(get: { model.library.isEnabled(list.id) }, set: { model.setList(list.id, $0) }))
                 .labelsHidden()
+                .accessibilityLabel(list.title)
                 .toggleStyle(.switch)
                 .controlSize(.mini)
                 .opacity(showsSwitch ? 1 : 0)
@@ -736,6 +740,7 @@ struct AdsRulesView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
                 TextField("A site, like example.com", text: $model.newSite)
+                    .accessibilityLabel("Site")
                     .textFieldStyle(.roundedBorder)
                     .frame(minWidth: 220)
                     .onSubmit { model.addSite(.neverBlock) }
@@ -822,7 +827,7 @@ struct AdsRulesView: View {
     private func row(_ rule: AdRule) -> some View {
         HStack(spacing: 10) {
             if let icon = model.icon(forBundle: rule.appKey) {
-                Image(nsImage: icon).resizable().frame(width: 18, height: 18)
+                Image(nsImage: icon).resizable().frame(width: 18, height: 18).accessibilityHidden(true)
             } else {
                 Image(systemName: rule.kind == .neverBlock ? "checkmark.shield" : "xmark.shield")
                     .foregroundStyle(rule.kind == .neverBlock ? Color.green : Color.red)

@@ -245,6 +245,7 @@ public struct MenuBarPopoverView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .help("Connections")
+            .accessibilityLabel("Connections")
             // The way back to the totals this header starts over at midnight
             // and on every network change.
             Button(action: onHistory) {
@@ -253,12 +254,14 @@ public struct MenuBarPopoverView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .help("Usage History")
+            .accessibilityLabel("Usage History")
             Button(action: onSettings) {
                 Image(systemName: "gearshape.fill").font(.system(size: 12))
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .help("Settings")
+            .accessibilityLabel("Settings")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -584,6 +587,8 @@ private struct AppRowView: View {
                 .resizable()
                 .frame(width: PopoverMetrics.iconSize(indented: indented),
                        height: PopoverMetrics.iconSize(indented: indented))
+                // The app's name is beside it.
+                .accessibilityHidden(true)
 
             // Name over bar, vertically centred against the icon.
             VStack(alignment: .leading, spacing: PopoverMetrics.detailSpacing) {

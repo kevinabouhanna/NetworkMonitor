@@ -16,6 +16,9 @@
 //                    picture's size, the clickable areas laid over it, and the
 //                    `?v=` on every asset link
 //   tree <name>      prints the masked tree, for writing an entry
+//   audit [names]    checks each window for what VoiceOver can't name (#346),
+//                    with the rules the tests use, but on real data: list
+//                    rows, scanned apps, the popover with traffic
 //
 // It needs Accessibility and Screen Recording for the terminal it runs in. It
 // quits and relaunches the installed app, and puts it back running at the end.
@@ -501,8 +504,8 @@ struct SiteShots {
         if let i = args.firstIndex(of: "--site"), i + 1 < args.count {
             site = URL(fileURLWithPath: args[i + 1]); args.removeSubrange(i...(i + 1))
         }
-        guard let command = args.first, ["check", "update", "tree"].contains(command) else {
-            print("usage: site-shots check|update [names…]|tree <name> [--site DIR]")
+        guard let command = args.first, ["check", "update", "tree", "audit"].contains(command) else {
+            print("usage: site-shots check|update|audit [names…]|tree <name> [--site DIR]")
             exit(2)
         }
         let names = Set(args.dropFirst())
@@ -537,6 +540,7 @@ struct SiteShots {
         try FileManager.default.createDirectory(at: trees, withIntermediateDirectories: true)
         var page = try Page(site: site)
         var changed: [String] = [], flagged: [String] = [], failed: [String] = []
+        var problems: [String] = []
         var cached: (args: [String], window: String)?
 
         for shot in shots {
@@ -552,6 +556,12 @@ struct SiteShots {
                 for spec in shot.click ?? [] { try session.click(spec, in: window) }
                 let now = tree(window, data: shot.data ?? [])
                 if command == "tree" { print(now.joined(separator: "\n")); continue }
+                if command == "audit" {
+                    let found = AccessibilityAudit.audit(window).map { "\(shot.window): \($0)" }
+                    print("\(shot.name): " + (found.isEmpty ? "nothing missing" : "\(found.count) to fix"))
+                    problems += found
+                    continue
+                }
 
                 let treeFile = trees.appendingPathComponent("\(shot.name).txt")
                 let before = (try? String(contentsOf: treeFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
@@ -610,7 +620,14 @@ struct SiteShots {
             print("\nThese show a window that changed. Remake them by hand, then run `update` with the window's name:")
             Set(flagged).sorted().forEach { print("  \($0)") }
         }
+        if command == "audit", !problems.isEmpty {
+            // The same row repeats down a list; say it once.
+            var seen = Set<String>()
+            print("\nFor VoiceOver:")
+            for p in problems where seen.insert(p).inserted { print("  " + p) }
+        }
         if !failed.isEmpty { return 2 }
+        if command == "audit" { return problems.isEmpty ? 0 : 1 }
         return command == "check" && !changed.isEmpty ? 1 : 0
     }
 }
