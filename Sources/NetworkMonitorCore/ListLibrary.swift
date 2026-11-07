@@ -104,6 +104,13 @@ public enum ListCatalogue {
     /// Normal is HaGeZi's all-round tier, below Pro; together they're a
     /// common setup for few broken sites. They overlap, which costs nothing.
     public static let recommended = ["hagezi-normal", "oisd-big"]
+
+    /// A list about malware and phishing, by the id a block reports: the
+    /// shipped one, or a downloaded one in that group. Your ad-blocking rules
+    /// don't change what these block (#317).
+    public static func isThreat(_ id: String) -> Bool {
+        id == BlocklistTopic.malware.rawValue || source(id)?.topic == .malware
+    }
 }
 
 /// How a downloaded list stands.

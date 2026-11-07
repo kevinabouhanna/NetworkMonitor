@@ -50,6 +50,52 @@ func runAdRuleTests() {
             Check.expectEqual(skip.summary, "Don't filter Bank")
         }
 
+        Check.test("never block and don't filter leave the malware lists on (#317)") {
+            let never = AdRule(kind: .neverBlock, site: "example.com")
+            let skip = AdRule(kind: .neverBlock, site: nil, appKey: chrome, appTitle: "Chrome")
+            for rule in [never, skip] {
+                let policy = FirewallPolicy(lists: [.ads, .malware], adRules: [rule],
+                                            downloadedLists: ["hagezi-pro", "hagezi-threats"],
+                                            threatLists: ["hagezi-threats"])
+                Check.expectEqual(policy.decide(flow("ads.example.com", listed: [.ads])), .allow(.mode), rule.id)
+                Check.expectEqual(policy.decide(flow("ads.example.com", listed: [.ads, .malware])),
+                                  .block(.list(.malware)), rule.id)
+                var downloaded = flow("ads.example.com", listed: [])
+                downloaded.listedInDownloaded = ["hagezi-pro"]
+                Check.expectEqual(policy.decide(downloaded), .allow(.mode), rule.id)
+                downloaded.listedInDownloaded = ["hagezi-pro", "hagezi-threats"]
+                Check.expectEqual(policy.decide(downloaded), .block(.downloadedList("hagezi-threats")), rule.id)
+                // Only while the malware list is on, as before.
+                Check.expectEqual(FirewallPolicy(lists: [.ads], adRules: [rule])
+                                    .decide(flow("ads.example.com", listed: [.ads, .malware])), .allow(.mode), rule.id)
+            }
+            // Without a rule, the order is as it was: malware, then ads, then the downloaded lists in order.
+            var both = flow("ads.example.com", listed: [.ads])
+            both.listedInDownloaded = ["hagezi-threats", "hagezi-pro"]
+            Check.expectEqual(FirewallPolicy(lists: [.ads], downloadedLists: ["hagezi-pro", "hagezi-threats"],
+                                             threatLists: ["hagezi-threats"]).decide(both), .block(.list(.ads)))
+            both.listedIn = []
+            Check.expectEqual(FirewallPolicy(lists: [.ads], downloadedLists: ["hagezi-pro", "hagezi-threats"],
+                                             threatLists: ["hagezi-threats"]).decide(both),
+                              .block(.downloadedList("hagezi-pro")))
+            // A site an Always Allow names still goes through.
+            let allow = FirewallRule(subject: .site, key: "example.com", title: "example.com", action: .allow)
+            Check.expectEqual(FirewallPolicy(rules: [allow], lists: [.malware], adRules: [never])
+                                .decide(flow("ads.example.com", listed: [.malware])), .allow(.rule(allow)))
+            // Which lists those are, and a site only they blocked.
+            Check.expectTrue(ListCatalogue.isThreat("malware") && ListCatalogue.isThreat("hagezi-threats"))
+            Check.expectFalse(ListCatalogue.isThreat("ads") || ListCatalogue.isThreat("hagezi-pro")
+                              || ListCatalogue.isThreat("mine") || ListCatalogue.isThreat("url-abc123"))
+            Check.expectTrue(AdsItem(id: "x.example", title: "x.example", detail: nil, count: 1,
+                                     lists: ["malware", "hagezi-threats"]).onlyThreats)
+            Check.expectFalse(AdsItem(id: "x.example", title: "x.example", detail: nil, count: 1,
+                                      lists: ["ads", "malware"]).onlyThreats)
+            Check.expectFalse(AdsItem(id: "x.example", title: "x.example", detail: nil, count: 1, lists: []).onlyThreats)
+            // A policy saved before reads none.
+            let old = Data(#"{"mode":"anywhere","rules":[]}"#.utf8)
+            Check.expectEqual(FirewallPolicy.decode(old)?.threatLists, [])
+        }
+
         Check.test("one app's rule wins over every app's, never over always, the longer name within") {
             let alwaysAll = AdRule(kind: .alwaysBlock, site: "example.com")
             let neverChrome = AdRule(kind: .neverBlock, site: "example.com", appKey: chrome, appTitle: "Chrome")

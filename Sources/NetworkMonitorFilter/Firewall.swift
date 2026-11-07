@@ -93,7 +93,9 @@ final class Firewall {
         let downloaded = self.downloaded
         lock.unlock()
         let names = matched(name, in: policy)
-        return policy.downloadedLists.filter { id in names.contains { downloaded[id]?.lists($0) == true } }
+        return policy.downloadedLists.filter { id in
+            names.contains { ($0.anyList || policy.threatLists.contains(id)) && downloaded[id]?.lists($0.name) == true }
+        }
     }
 
     /// The lists from the app (#176): kept in the container so they apply
@@ -134,8 +136,9 @@ final class Firewall {
         let lists = blocklists
         lock.unlock()
         guard let lists else { return [] }
-        return matched(name, in: policy).reduce(into: Set<BlocklistTopic>()) {
-            $0.formUnion(lists.topics(listing: $1))
+        return matched(name, in: policy).reduce(into: Set<BlocklistTopic>()) { found, match in
+            let topics = lists.topics(listing: match.name)
+            found.formUnion(match.anyList ? topics : topics.intersection([.malware]))
         }.intersection(policy.lists)
     }
 
@@ -156,14 +159,15 @@ final class Firewall {
         lock.unlock()
     }
 
-    /// A name, and the aliases it stands for that you haven't said never to
-    /// block: a list holding any of them holds the name.
-    private func matched(_ name: String, in policy: FirewallPolicy) -> [String] {
+    /// A name, and the aliases it stands for: a list holding any of them
+    /// holds the name. An alias you said never to block counts only for the
+    /// malware lists (#317).
+    private func matched(_ name: String, in policy: FirewallPolicy) -> [(name: String, anyList: Bool)] {
         lock.lock()
         let chain = aliases.chain(of: name)
         lock.unlock()
-        return [name] + chain.filter {
-            AdRule.deciding(policy.adRules, name: $0, appKeys: [])?.kind != .neverBlock
+        return [(name, true)] + chain.map {
+            ($0, AdRule.deciding(policy.adRules, name: $0, appKeys: [])?.kind != .neverBlock)
         }
     }
 

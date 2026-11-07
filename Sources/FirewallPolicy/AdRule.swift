@@ -4,6 +4,7 @@ import Foundation
 /// block, one to block although no list has it, or an app whose connections
 /// the lists leave alone. Unlike a firewall rule it changes only what the
 /// lists do: *never block* lets a listed site through, and nothing more.
+/// The malware lists apply whatever these say (#317).
 public struct AdRule: Codable, Hashable, Identifiable {
 
     public enum Kind: String, Codable, CaseIterable {
