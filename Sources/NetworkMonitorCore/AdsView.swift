@@ -686,8 +686,9 @@ struct AdsRulesView: View {
 
     static let explanation = "A rule covers the site and every name under it: example.com covers ads.example.com. "
         + "Rules change only what the ad and tracker lists do. Never block lets a listed site through, and "
-        + "always block stops one no list has. A rule for one app wins over one for every app. Your firewall "
-        + "rules in Connections still come first."
+        + "always block stops one no list has. A rule for one app wins over one for every app. In Connections, "
+        + "a block still blocks and Always Allow on a site lets it through; allowing a whole app or company "
+        + "doesn't let its ads through."
 
     @ViewBuilder private func section(_ title: String, rules: [AdRule], note: String) -> some View {
         if !rules.isEmpty {

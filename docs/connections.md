@@ -174,8 +174,11 @@ Trackers, with buttons to its Lists and Rules tabs.
 | **Ads and trackers** | about 77,000 ad, tracking and analytics servers | StevenBlack's unified hosts | MIT |
 | **Malware and phishing** | about 1,900 servers spreading malware now | URLhaus, by malware-filter | CC0 |
 
-- **Your rules come first.** Always Allow on a site in Connections lets it through, and a
-  rule that blocks still blocks.
+- **Your rules come first.** Always Allow on a site or a server in Connections lets it
+  through, and a rule that blocks still blocks. Always Allow on an app, a company or a
+  country (Ask Me's answers too, and the apps you allow under Only Where I Allow) lets it
+  connect, and the lists still apply to it (#316): allowing Google in Chrome doesn't let
+  `doubleclick.net` through.
 - **A listed name covers every name under it,** down to its site: listing
   `doubleclick.net` blocks `static.doubleclick.net`. A list can never block a whole suffix
   such as `com`.
