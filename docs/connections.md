@@ -227,7 +227,7 @@ in the right-click menu, Settings › Ads, or ⌘B while a window is open:
   by the router's identity as History knows it, every time it's there; the Rules tab lists
   those networks, and **Turn On Here** undoes it.
 
-**Log** (#252), beside Overview in the toolbar: every connection the filter decides, live,
+**Log** (#252), the tab beside Overview: every connection the filter decides, live,
 newest first, with the time, the app, the site (or its address, marked **No Name** when
 nothing named it), Blocked or Let through, and why in plain words (*On the ads and trackers
 list*, *Your rule: never block example.com*, *Let through, though it's on a list*). Show
@@ -235,7 +235,9 @@ All, Blocked, On a List or No Name, and search. Right-click a row to never or al
 its name or its whole site, in every app or only that one, to stop filtering its app, or to
 remove a rule you made. **Pause**
 holds the list still, **Clear** empties it, and **Export…** saves what's shown as text. It
-keeps the last 5,000 in memory only; lookups aren't listed.
+keeps the last 5,000 in memory only; lookups aren't listed. When the window is too narrow
+for search to be 240 pt wide beside the rest, search takes a row of its own under them
+(#370), so no button loses its words.
 
 **Lists** (#254), the third tab: which lists block, and what each blocked today (#311).
 
