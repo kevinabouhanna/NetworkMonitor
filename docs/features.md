@@ -23,7 +23,9 @@ looks like the live rates.
 ## The popover
 
 - **Total**: what this connection has used since you joined it, or since midnight, in one
-  combined figure. An orange **METERED** badge appears beside it on a hotspot.
+  combined figure. A line under it says which connection is in use, in orange on a hotspot.
+  If you've joined a hotspot but the Mac is using another connection, it says so, and the ⓘ
+  says how to switch.
 - **The apps behind it**, biggest first, each with a bar for its share. The list re-sorts
   live as apps overtake each other, and a dot marks apps moving data right now.
 - **Helpers fold into their app**: Chrome's dozen helper processes are one *Google Chrome*

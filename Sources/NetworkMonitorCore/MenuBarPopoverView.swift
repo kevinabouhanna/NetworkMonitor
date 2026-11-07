@@ -156,22 +156,21 @@ public struct MenuBarPopoverView: View {
                 Text("Total")
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
-                // The badge sits on the figure's row, not the header's: it
-                // qualifies the number, and centring it on "Total" left it
-                // floating between the two lines.
-                HStack(spacing: 8) {
-                    Text(ByteFormat.bytes(model.totalBytes))
-                        .font(.system(size: 17, weight: .medium, design: .rounded))
-                        .monospacedDigit()
-                    if model.isExpensiveNetwork {
-                        // Surfaced because metered networks are the case where
-                        // this connection's total actually matters.
-                        Text("METERED")
-                            .font(.system(size: 9, weight: .bold))
-                            .padding(.horizontal, 5).padding(.vertical, 2)
-                            .background(Color.orange.opacity(0.2), in: Capsule())
-                            .foregroundStyle(.orange)
-                    }
+                Text(ByteFormat.bytes(model.totalBytes))
+                    .font(.system(size: 17, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                // Which connection that total is for. Joining a network doesn't
+                // mean using it, and nothing else here says which is in use.
+                // Orange when it's the case where the total matters most.
+                Text(model.connection.line)
+                    .font(.system(size: 10))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .foregroundStyle(model.connection.isHighlighted ? AnyShapeStyle(.orange)
+                                                                    : AnyShapeStyle(.secondary))
+                if let standby = metering.standbyHotspot {
+                    StandbyHotspotLine(message: standby.message,
+                                       explanation: standby.explanation(inUse: model.connection))
                 }
                 if let summary = gotThroughSummary {
                     HStack(spacing: 4) {
@@ -378,6 +377,33 @@ public struct MenuBarPopoverView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
+    }
+}
+
+/// A hotspot is connected but the Mac isn't using it (#355). Warned about here,
+/// where someone who just joined one looks, with the why and how behind an ⓘ.
+private struct StandbyHotspotLine: View {
+    let message: String
+    let explanation: String
+    /// Not `@State`; see `SettingsPaneState`. Over a row in Settings the ⓘ
+    /// appears on hover, but this line has no other way to say there's more.
+    @StateObject private var info: RowInfoState = {
+        let state = RowInfoState()
+        state.isHovering = true
+        return state
+    }()
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Image(systemName: "exclamationmark.triangle.fill")
+            Text(message)
+                .fixedSize(horizontal: false, vertical: true)
+            RowInfoButton(help: explanation, state: info) { Text(explanation) }
+        }
+        .font(.system(size: 10))
+        .foregroundStyle(.orange)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(explanation)
     }
 }
 

@@ -32,6 +32,10 @@ public final class MeteringController: ObservableObject {
     /// What the person said about the current network, if anything: `true`
     /// for a hotspot, `false` for not one. Settings › Hotspot's choice.
     @Published public private(set) var override: Bool?
+    /// A hotspot the Mac has joined but isn't using (#355). Only ever said, not
+    /// acted on: pauses and History follow the connection in use.
+    @Published public private(set) var standbyHotspot: StandbyHotspot?
+    private var standbyCandidates: [StandbyCandidate] = []
     /// Names of what is suppressed right now, for the popover.
     @Published public private(set) var suppressed: [String] = []
     /// Names queued because their app is running.
@@ -164,7 +168,10 @@ public final class MeteringController: ObservableObject {
         //
         // Holding the previous verdict is also what keeps the settings pane from
         // flickering "This connection isn't metered" during a two-second dropout.
-        guard store.currentNetwork.id != NetworkFingerprint.offline.id else { return }
+        guard store.currentNetwork.id != NetworkFingerprint.offline.id else {
+            publishStandbyHotspot()
+            return
+        }
 
         // Our own Low Data Mode flags are not evidence. See
         // `InterfaceFlagOwnership` for the loop this prevents.
@@ -189,10 +196,34 @@ public final class MeteringController: ObservableObject {
             updateWatch.end()
         }
         publishLowDataMode()
+        publishStandbyHotspot()
     }
 
     /// Called by `MonitorViewModel` on every identified network change.
     public func networkDidChange() { evaluate() }
+
+    /// The connection in use, in words (#355).
+    public var connection: ConnectionStatus {
+        let network = store.currentNetwork
+        return ConnectionStatus.make(network: network, verdict: verdict,
+                                     name: store.customLabel(for: network.id) ?? network.wifiName)
+    }
+
+    /// Called by `MonitorViewModel` when the connections beside the one in use
+    /// change.
+    public func standbyCandidatesDidChange(_ candidates: [StandbyCandidate]) {
+        standbyCandidates = candidates
+        publishStandbyHotspot()
+    }
+
+    private func publishStandbyHotspot() {
+        let next = StandbyHotspots.pick(standbyCandidates,
+                                        inUse: store.currentNetwork,
+                                        inUseIsMetered: verdict.isMetered,
+                                        override: { store.meteredOverride(for: $0) },
+                                        label: { store.customLabel(for: $0) })
+        if next != standbyHotspot { standbyHotspot = next }
+    }
 
     /// Re-checks everything, for when the world changed outside this app.
     ///
