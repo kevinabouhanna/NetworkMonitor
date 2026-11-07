@@ -173,6 +173,20 @@ func runBlocklistTests() {
         }
         let manifest = try! JSONEncoder().encode(BlocklistManifest(version: "2026-11-07", files: files))
 
+        Check.test("a list with under half last week's names isn't published (#319)") {
+            let last = BlocklistManifest(version: "2026-11-02", files: [
+                BlocklistManifest.File(name: "ads.bin", asset: "ads.bin.lzfse", size: 12 + 8 * 78_000, sha256: "00"),
+                BlocklistManifest.File(name: "malware.bin", asset: "malware.bin.lzfse", size: 12, sha256: "00"),
+            ])
+            Check.expectEqual(last.counts, ["ads.bin": 78_000, "malware.bin": 0])
+            Check.expectFalse(BlocklistManifest.shrank(78_500, from: 78_000))
+            Check.expectFalse(BlocklistManifest.shrank(39_000, from: 78_000))
+            Check.expectTrue(BlocklistManifest.shrank(38_999, from: 78_000))
+            Check.expectTrue(BlocklistManifest.shrank(20_000, from: 78_000), "above the floor, still refused")
+            Check.expectFalse(BlocklistManifest.shrank(150, from: 0))
+            Check.expectFalse(BlocklistManifest.shrank(150, from: nil))
+        }
+
         Check.test("a manifest signed by the key is read; anything else is refused") {
             Check.expectEqual(try? BlocklistUpdater.verify(manifest, signature: signed(manifest, with: key),
                                                            publicKey: publicKey).version, "2026-11-07")

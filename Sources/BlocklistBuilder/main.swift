@@ -5,12 +5,14 @@ import Foundation
 // Builds the ad, tracker and malware lists (#176) from their public sources,
 // and packages them for the weekly refresh:
 //
-//   BlocklistBuilder build <output directory> [version]
+//   BlocklistBuilder build <output directory> [version] [--previous <manifest.json>]
 //   BlocklistBuilder package <built directory> <output directory>
 //
 // `build` writes each topic's table, a VERSION (the date, UTC) and SOURCES.md.
 // A list that comes back far smaller than it should is refused rather than
-// published: a bad download would otherwise unblock everything it held.
+// published: a bad download would otherwise unblock everything it held. "Far
+// smaller" is under a fixed floor, or with `--previous`, under half the names
+// the last published lists had (#319).
 // `package` compresses the tables and signs a manifest with the Ed25519 key in
 // GEODATA_SIGNING_KEY, the one the country data is signed with (#121), whose
 // public half is in the app.
@@ -52,13 +54,26 @@ func today() -> String {
 
 let arguments = CommandLine.arguments
 guard arguments.count >= 3 else {
-    fail("usage: BlocklistBuilder build <output directory> [version] | package <built directory> <output directory>")
+    fail("usage: BlocklistBuilder build <output directory> [version] [--previous <manifest.json>] | "
+         + "package <built directory> <output directory>")
 }
 
 switch arguments[1] {
 case "build":
     let output = URL(fileURLWithPath: arguments[2], isDirectory: true)
-    let version = arguments.count >= 4 ? arguments[3] : today()
+    var rest = Array(arguments.dropFirst(3))
+    var previous: [String: Int] = [:]
+    if let flag = rest.firstIndex(of: "--previous") {
+        guard flag + 1 < rest.count else { fail("--previous needs the last manifest.json") }
+        let path = rest[flag + 1]
+        rest.removeSubrange(flag...flag + 1)
+        guard let data = FileManager.default.contents(atPath: path),
+              let manifest = try? JSONDecoder().decode(BlocklistManifest.self, from: data), manifest.isWellFormed
+        else { fail("\(path) isn't a lists manifest") }
+        previous = manifest.counts
+        print("comparing with the lists from \(manifest.version)")
+    }
+    let version = rest.first ?? today()
     guard Blocklists.isVersion(version) else { fail("version must be yyyy-MM-dd: \(version)") }
     try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
     var sources = "# Where these lists come from\n\nBuilt \(version) by `BlocklistBuilder` for NetworkMonitor (#176).\n\n"
@@ -68,6 +83,10 @@ case "build":
         let table = BlocklistTable(names: names)
         guard table.count >= minimumNames[topic, default: 1] else {
             fail("\(topic.rawValue): only \(table.count) names from \(topic.sourceURL); refusing to publish")
+        }
+        if BlocklistManifest.shrank(table.count, from: previous[topic.fileName]) {
+            fail("\(topic.rawValue): \(table.count) names from \(topic.sourceURL), against "
+                 + "\(previous[topic.fileName] ?? 0) last time; refusing to publish")
         }
         try table.encoded().write(to: output.appendingPathComponent(topic.fileName), options: .atomic)
         sources += "| \(topic.title) | [\(topic.source)](\(topic.sourceURL)) | \(topic.licence) | \(table.count) |\n"
