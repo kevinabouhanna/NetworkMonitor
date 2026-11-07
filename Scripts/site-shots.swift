@@ -165,7 +165,11 @@ func labels(_ element: AXUIElement) -> [String] {
 func matches(_ element: AXUIElement, _ spec: String) -> Bool {
     let parts = spec.split(separator: ":", maxSplits: 1).map(String.init)
     guard role(element) == parts[0] else { return false }
-    return parts.count == 1 || labels(element).contains { $0.hasPrefix(parts[1]) }
+    guard parts.count == 2 else { return true }
+    // `Role:~text` matches text anywhere in the label, for a line that starts
+    // with a number.
+    if parts[1].hasPrefix("~") { return labels(element).contains { $0.contains(parts[1].dropFirst()) } }
+    return labels(element).contains { $0.hasPrefix(parts[1]) }
 }
 
 func find(_ spec: String, in element: AXUIElement) -> AXUIElement? {
@@ -202,6 +206,9 @@ func mask(_ s: String) -> String {
     s = s.replacingOccurrences(of: "\\b(\(months))\\b", with: "‹month›", options: .regularExpression)
     s = s.replacingOccurrences(of: "\\b(\(weekdays))\\b", with: "‹day›", options: .regularExpression)
     s = s.replacingOccurrences(of: "#\\s?(AM|PM|am|pm)\\b", with: "‹time›", options: .regularExpression)
+    // A total is in KB one day and GB the next.
+    s = s.replacingOccurrences(of: "#\\s?(bytes|[KMGT]?B/s|[KMGT]bps|bps|[KMGT]?B)(?![A-Za-z])", with: "# ‹unit›",
+                               options: .regularExpression)
     return s.replacingOccurrences(of: "\n", with: " ")
 }
 

@@ -328,7 +328,7 @@ retaken every time, since it shows the version.
 An entry can set the window up before it's read and taken (#360): `click` (a button is
 pressed through accessibility, anything else with the pointer), `scroll` a list to its
 end, and `waitFor` an element, such as a speed test's *Test Again*. Specs can be scoped,
-`AXOpaqueProviderGroup>AXButton` for the popover's first row that opens. `ignore` leaves
+`AXOpaqueProviderGroup>AXButton` for the popover's first row that opens. `Role:~text` matches text anywhere in a label, for a line that starts with a number. Numbers are masked with their unit, so a total in MB one day and GB the next reads the same (#374). `ignore` leaves
 out lines that come and go with the Mac's state, such as Hotspot's "already in Low Data
 Mode". The popover opens on the Retina screen (`-popoverScreen retina`), since on a 1x
 main screen it would be captured at half resolution.
