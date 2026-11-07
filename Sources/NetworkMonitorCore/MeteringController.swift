@@ -298,12 +298,15 @@ public final class MeteringController: ObservableObject {
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
         guard defaults.string(forKey: Self.helperCheckedKey) != build else { return }
         defaults.set(build, forKey: Self.helperCheckedKey)
+        // Held from now, before the model starts asking, so nothing on the
+        // main thread waits on a daemon that may not start (#243).
+        HelperService.holdVerbs()
         DispatchQueue.global(qos: .utility).async {
             let repair = HelperService.repairIfNotStarting()
-            guard repair != .notNeeded else { return }
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
-                // Re-asserted with a helper that answers, as after an install.
+                // Re-asserted with a helper that answers, as after an install,
+                // and for what was held back while it was checked.
                 self.refresh()
                 if repair == .waitingForApproval { self.watchForApproval() }
             }

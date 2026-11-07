@@ -106,4 +106,37 @@ func runHelperDaemonTests() {
             Check.expectEqual(plist?["AssociatedBundleIdentifiers"] as? [String], ["com.kevinabouhanna.NetworkMonitor"])
         }
     }
+
+    Check.suite("A helper that doesn't answer (#243)") {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+        Check.test("a missed answer holds verbs back for a minute, and an answer lets them through") {
+            var breaker = HelperService.HelperBreaker()
+            Check.expectTrue(breaker.allows(now: now))
+            breaker.missed(now: now)
+            Check.expectFalse(breaker.allows(now: now.addingTimeInterval(59)))
+            Check.expectTrue(breaker.allows(now: now.addingTimeInterval(60)))
+            breaker.missed(now: now)
+            breaker.answered()
+            Check.expectTrue(breaker.allows(now: now.addingTimeInterval(1)))
+        }
+
+        Check.test("while it's being repaired, nothing waits on it") {
+            var breaker = HelperService.HelperBreaker()
+            breaker.repairing = true
+            Check.expectFalse(breaker.allows(now: now))
+            breaker.repairing = false
+            Check.expectTrue(breaker.allows(now: now))
+        }
+
+        Check.test("a clock set back doesn't hold verbs for ever") {
+            var breaker = HelperService.HelperBreaker()
+            breaker.missed(now: now)
+            Check.expectTrue(breaker.allows(now: now.addingTimeInterval(-3600)))
+        }
+
+        Check.test("the main thread waits 5 seconds at most") {
+            Check.expectTrue(HelperService.mainThreadTimeout <= 5)
+        }
+    }
 }
