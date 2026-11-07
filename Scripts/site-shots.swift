@@ -61,8 +61,10 @@ struct Shot: Decodable {
 }
 
 struct DataRegion: Decodable {
-    /// The first element of the region.
+    /// The element the region starts at, or starts `skip` siblings after:
+    /// `skip: 1` marks the value beside a label, whatever it says.
     var from: String
+    var skip: Int?
     /// The sibling that ends it (not included); "end" for the rest of its
     /// siblings; "run" for the siblings right after it with the same role, like
     /// a chart's bars. Absent, the region is the `from` element alone.
@@ -170,6 +172,7 @@ func mask(_ s: String) -> String {
     var s = s.replacingOccurrences(of: "\\d[\\d.,:\u{202F}\u{00A0}]*", with: "#", options: .regularExpression)
     s = s.replacingOccurrences(of: "\\b(\(months))\\b", with: "‹month›", options: .regularExpression)
     s = s.replacingOccurrences(of: "\\b(\(weekdays))\\b", with: "‹day›", options: .regularExpression)
+    s = s.replacingOccurrences(of: "#\\s?(AM|PM|am|pm)\\b", with: "‹time›", options: .regularExpression)
     return s.replacingOccurrences(of: "\n", with: " ")
 }
 
@@ -222,6 +225,12 @@ func tree(_ window: AXUIElement, data: [DataRegion]) -> [String] {
         var i = 0
         while i < kids.count {
             if let region = data.first(where: { matches(kids[i], $0.from) }) {
+                if let skip = region.skip, skip > 0 {
+                    // The label itself stays interface.
+                    for k in i..<min(i + skip, kids.count) { if walk(kids[k], depth + 1) { holdsData = true } }
+                    i += skip
+                    guard i < kids.count else { break }
+                }
                 var end = i + 1
                 if let until = region.until {
                     switch until {
@@ -312,15 +321,23 @@ struct Session {
     /// offer no accessibility action.
     func click(_ spec: String, in window: AXUIElement) throws {
         guard let element = find(spec, in: window), let f = frame(element) else { throw Failure("nothing matches \(spec)") }
-        bringForward(window)
-        let point = CGPoint(x: f.minX + min(40, f.width / 2), y: f.midY)
-        let saved = CGEvent(source: nil)?.location
-        for type in [CGEventType.leftMouseDown, .leftMouseUp] {
-            CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
-            usleep(60_000)
+        // A click that lands while another app is in front only brings the
+        // window forward. Where the element has a value, such as a disclosure
+        // row's open or closed, try again until it changes.
+        let before = text(element, kAXValueAttribute)
+        for _ in 0..<4 {
+            bringForward(window)
+            let point = CGPoint(x: f.minX + min(40, f.width / 2), y: f.midY)
+            let saved = CGEvent(source: nil)?.location
+            for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+                CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
+                usleep(60_000)
+            }
+            if let saved { CGWarpMouseCursorPosition(saved) }
+            usleep(1_200_000)
+            if before == nil || text(element, kAXValueAttribute) != before { return }
         }
-        if let saved { CGWarpMouseCursorPosition(saved) }
-        usleep(1_200_000)
+        throw Failure("clicking \(spec) didn't change it")
     }
 
     /// Moves a window that's on a 1x screen onto a Retina one, which captures
@@ -489,6 +506,13 @@ struct SiteShots {
             exit(2)
         }
         let names = Set(args.dropFirst())
+        // One run at a time: each quits and relaunches the app, so two at once,
+        // from two terminals or two sessions, spoil each other's windows.
+        let lock = open(NSHomeDirectory() + "/Library/Caches/site-shots.lock", O_CREAT | O_RDWR, 0o644)
+        guard lock >= 0, flock(lock, LOCK_EX | LOCK_NB) == 0 else {
+            print("site-shots: another run is driving the app; try again once it's done")
+            exit(2)
+        }
         do {
             guard AXIsProcessTrusted() else { throw Failure("give this terminal Accessibility in System Settings › Privacy & Security") }
             let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
@@ -549,11 +573,13 @@ struct SiteShots {
                 if let file = shot.file {
                     session.ensureRetina(window)
                     var image = try await session.capture(window, crop: shot.crop)
-                    for _ in 0..<4 where !isActive(image, window: window) {
+                    // A crop leaves out the traffic lights that tell.
+                    let cropped = shot.crop != nil
+                    for _ in 0..<4 where !cropped && !isActive(image, window: window) {
                         session.bringForward(window)
                         image = try await session.capture(window, crop: shot.crop)
                     }
-                    if !isActive(image, window: window) { print("  warning: \(file) shows the window inactive") }
+                    if !cropped && !isActive(image, window: window) { print("  warning: \(file) shows the window inactive") }
                     try writePNG(image, to: site.appendingPathComponent(file))
                     page.setSize(of: file, pixels: CGSize(width: image.width, height: image.height))
                     print("  retook \(file) (\(image.width)×\(image.height))")
