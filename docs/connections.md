@@ -278,7 +278,13 @@ keeps the last 5,000 in memory only; lookups aren't listed.
 - **Never block** a site, and every name under it: it goes through though a list has it.
 - **Always block** a site that no list has.
 - Either for **every app** or **one app**, from the menu beside the site.
-- **Don't filter an app**: the lists leave all its connections alone, for an app that breaks.
+- **Don't filter an app**: the ad and tracker lists leave all its connections alone, for an
+  app that breaks.
+- **Malware lists still apply** (#317): *never block* and *don't filter* change what the ad,
+  tracker and pop-up lists do, and the built-in malware list and the downloaded ones in
+  *Malware and phishing* block whatever they say. To let such a site through anyway, Always
+  Allow it in Connections. The Overview doesn't offer *Never Block* for a site only they
+  blocked.
 - Type a site, or paste an address or a rule (`https://ads.example.com/x`, `*.example.com`,
   `||example.com^`): the name is read out of it. Return makes it *never block*.
 - Right-click a site in the Overview to never block it, or an app to stop filtering it.

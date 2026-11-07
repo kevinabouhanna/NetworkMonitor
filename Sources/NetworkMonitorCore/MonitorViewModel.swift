@@ -278,6 +278,7 @@ public final class MonitorViewModel: ObservableObject {
                                                   network: network.isEmpty ? nil : network, adRules: adRules,
                                                   // Only alongside a shipped list (#254).
                                                   downloadedLists: lists.isEmpty ? [] : downloaded,
+                                                  threatLists: Set(downloaded.filter(ListCatalogue.isThreat)),
                                                   lookupResolver: resolver))
                 // Switched on with stale lists: fetch newer ones soon.
                 if !rulesAndLists.1.isEmpty {

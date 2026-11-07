@@ -18,6 +18,9 @@ public struct AdsItem: Equatable, Identifiable {
     /// An app's bundle, for its icon.
     public let bundlePath: String?
 
+    /// Blocked only by malware lists, which *never block* doesn't change (#317).
+    public var onlyThreats: Bool { !lists.isEmpty && lists.allSatisfy(ListCatalogue.isThreat) }
+
     public init(id: String, title: String, detail: String?, count: Int64, lists: [String], bundlePath: String? = nil) {
         self.id = id
         self.title = title

@@ -35,7 +35,9 @@ struct AdsView: View {
                     HStack(alignment: .top, spacing: 0) {
                         AdsList(title: "Sites", items: model.report.sites, total: model.report.total, model: model) {
                             item in
-                            Button("Never Block \(item.id)") { model.setSite(.neverBlock, site: item.id, app: nil) }
+                            if !item.onlyThreats {
+                                Button("Never Block \(item.id)") { model.setSite(.neverBlock, site: item.id, app: nil) }
+                            }
                         }
                         Divider()
                         AdsList(title: "Apps", items: model.report.apps, total: model.report.total, model: model) {
@@ -310,13 +312,21 @@ struct AdsLogView: View {
 
     @ViewBuilder private func menu(for entry: AdsLogEntry) -> some View {
         let app = entry.appKey.map { AdsViewModel.RuleApp(key: $0, name: entry.appName) }
+        // Never block wouldn't let it through past a malware list (#317).
+        let neverBlocks = entry.lists.isEmpty || !entry.lists.allSatisfy(ListCatalogue.isThreat)
         if let name = entry.name {
             ForEach(FirewallRules.siteScopes(for: name), id: \.self) { site in
                 Section(site == name ? site : "\(site) and every name under it") {
-                    Button("Never Block \(site)") { model.setSite(.neverBlock, site: site, app: nil) }
+                    if neverBlocks {
+                        Button("Never Block \(site)") { model.setSite(.neverBlock, site: site, app: nil) }
+                    }
                     Button("Always Block \(site)") { model.setSite(.alwaysBlock, site: site, app: nil) }
                     if let app {
-                        Button("Never Block \(site) in \(app.name)") { model.setSite(.neverBlock, site: site, app: app) }
+                        if neverBlocks {
+                            Button("Never Block \(site) in \(app.name)") {
+                                model.setSite(.neverBlock, site: site, app: app)
+                            }
+                        }
                         Button("Always Block \(site) in \(app.name)") {
                             model.setSite(.alwaysBlock, site: site, app: app)
                         }
@@ -759,7 +769,7 @@ struct AdsRulesView: View {
 
     static let explanation = "A rule covers the site and every name under it: example.com covers ads.example.com. "
         + "Rules change only what the ad and tracker lists do. Never block lets a listed site through, and "
-        + "always block stops one no list has. A rule for one app wins over one for every app. In Connections, "
+        + "always block stops one no list has. Malware and phishing lists still block whatever these rules say. A rule for one app wins over one for every app. In Connections, "
         + "a block still blocks and Always Allow on a site lets it through; allowing a whole app or company "
         + "doesn't let its ads through."
 

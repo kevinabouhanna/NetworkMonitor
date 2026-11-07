@@ -226,6 +226,9 @@ public struct FirewallPolicy: Codable, Equatable {
     /// The downloaded lists switched on (#254), by id, in the order they're
     /// named when one blocks. They apply only while a shipped list is on.
     public var downloadedLists: [String]
+    /// Those of them about malware and phishing (#317), which apply whatever
+    /// your ad-blocking rules say, as the shipped malware list does.
+    public var threatLists: Set<String>
     /// The resolver the DNS proxy sends lookups to, encrypted (#291), by
     /// `EncryptedDNS.Resolver` id. Kept here so it's there when the proxy starts.
     public var lookupResolver: String?
@@ -233,7 +236,7 @@ public struct FirewallPolicy: Codable, Equatable {
     public init(mode: FirewallMode = .anywhere, rules: [FirewallRule] = [], onHotspot: Bool = false,
                 pausesUpdates: Bool = false, lists: Set<BlocklistTopic> = [], blocksEverything: Bool = false,
                 network: String? = nil, adRules: [AdRule] = [], downloadedLists: [String] = [],
-                lookupResolver: String? = nil) {
+                threatLists: Set<String> = [], lookupResolver: String? = nil) {
         self.mode = mode
         self.rules = rules
         self.onHotspot = onHotspot
@@ -243,12 +246,13 @@ public struct FirewallPolicy: Codable, Equatable {
         self.network = network
         self.adRules = adRules
         self.downloadedLists = downloadedLists
+        self.threatLists = threatLists
         self.lookupResolver = lookupResolver
     }
 
     private enum CodingKeys: String, CodingKey {
         case mode, rules, onHotspot, pausesUpdates, lists, blocksEverything, network, adRules, downloadedLists
-        case lookupResolver
+        case threatLists, lookupResolver
     }
 
     /// A policy saved before a field existed reads it as off, so a filter
@@ -264,6 +268,7 @@ public struct FirewallPolicy: Codable, Equatable {
         network = try container.decodeIfPresent(String.self, forKey: .network)
         adRules = try container.decodeIfPresent([AdRule].self, forKey: .adRules) ?? []
         downloadedLists = try container.decodeIfPresent([String].self, forKey: .downloadedLists) ?? []
+        threatLists = try container.decodeIfPresent(Set<String>.self, forKey: .threatLists) ?? []
         lookupResolver = try container.decodeIfPresent(String.self, forKey: .lookupResolver)
     }
 
@@ -346,10 +351,16 @@ public struct FirewallPolicy: Codable, Equatable {
         guard !lists.isEmpty else { return nil }
         let adRule = AdRule.deciding(adRules, name: flow.hostname, appKeys: flow.appKeys)
         if let adRule, adRule.kind == .alwaysBlock { return .adRule(adRule) }
-        guard adRule == nil else { return nil }
-        if let topic = flow.listedIn.intersection(lists).sorted().first { return .list(topic) }
-        if let id = downloadedLists.first(where: flow.listedInDownloaded.contains) { return .downloadedList(id) }
-        return nil
+        let listed = flow.listedIn.intersection(lists)
+        let downloaded = downloadedLists.filter(flow.listedInDownloaded.contains)
+        // Never block and Don't filter are for ads that break a page or an
+        // app: the malware lists still apply (#317).
+        if adRule != nil {
+            if listed.contains(.malware) { return .list(.malware) }
+            return downloaded.first(where: threatLists.contains).map(BlockReason.downloadedList)
+        }
+        if let topic = listed.sorted().first { return .list(topic) }
+        return downloaded.first.map(BlockReason.downloadedList)
     }
 
     // MARK: Updates on a hotspot
