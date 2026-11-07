@@ -11,6 +11,24 @@
 
 set -euo pipefail
 
+# git hands over one "<local ref> <local sha> <remote ref> <remote sha>" line per
+# ref. A deleted ref has an all-zero local sha and carries no commits, so a push
+# of nothing else has nothing to test. No lines at all still runs the suite.
+carries_commits=false
+deletions=0
+while read -r _ local_sha _ _; do
+  if [[ "$local_sha" =~ ^0+$ ]]; then
+    deletions=$((deletions + 1))
+  else
+    carries_commits=true
+  fi
+done
+
+if [[ "$carries_commits" == false && "$deletions" -gt 0 ]]; then
+  echo "==> pre-push: only deleting, skipping the test suite"
+  exit 0
+fi
+
 cd "$(git rev-parse --show-toplevel)"
 
 echo "==> pre-push: running the test suite"
