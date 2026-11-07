@@ -29,10 +29,13 @@ through without asking. What's particular to NetworkMonitor:
     - the download line's version and DMG size, in 1024-based MB
     - the "What's in version" link
     - any copy the change affects
-    - the About pane in the Settings section (`assets/settings/about.png`),
-      which shows the version, so it changes with every release
-    - screenshots of anything that looks different, retaken from the real app,
-      never mocked up
+    - the pictures: `make site-shots` once the new version is installed. It
+      retakes each picture whose window's interface changed, and About, and
+      updates the page (`docs/development.md#website-pictures`). Rewrite the alt
+      text of any picture it retook for an interface change, from the diff it
+      prints, describing the interface, not its numbers.
+    - videos and staged pictures it names as showing a changed window: ask
+      Kevin before remaking them, since they take real work
 
 ## Words in the app
 

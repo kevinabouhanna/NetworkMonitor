@@ -52,6 +52,8 @@ make run     # build build/NetworkMonitor.app and open it
 | `make public-suffixes` | Regenerates `Sources/FirewallPolicy/PublicSuffixes.swift` from the Public Suffix List (#318), which tells a name's site. Committed too; refresh it now and then in a pull request of its own |
 | `make geodata` | Rebuilds `Resources/Geo` from DB-IP's current month. The files are committed, because DB-IP removes old months; refresh them in a pull request of their own |
 | `make dmg-background` | Redraws the disk image background |
+| `make site-check` | Says which of the website's pictures show a window whose interface changed (below) |
+| `make site-shots` | Retakes those pictures, or the ones in `NAMES`, and updates the page |
 | `make hooks` | Points git at `Scripts/hooks`, so `pre-push` runs the tests |
 | `make clean` | Removes `.build` and `build` |
 
@@ -232,7 +234,7 @@ Every change follows the same path:
    (`GRQKG7M8CL`), the Location entitlement, and that `spctl` accepts both the app and
    the disk image as *Notarized Developer ID*.
 4. Install it with `make install` from the tag.
-5. Update the website (below).
+5. Update the website (below), including `make site-shots` against the new install.
 
 The keys behind these secrets are never committed. The update key's public half is
 `SUPublicEDKey` in `bundle.sh`, and the data key's is `GeoDataUpdater.publicKey`; the
@@ -250,11 +252,57 @@ beside the main checkout. Changes to it get an issue and a pull request against
 - Don't merge with `gh pr merge --delete-branch` while the branch is checked out in the
   worktree: `gh` removes the worktree along with it.
 - After each release, update the hero's version, the download line's version and DMG
-  size (in 1024-based MB), the "What's in version" link, and the About pane capture
-  (`assets/settings/about.png`), which shows the version.
+  size (in 1024-based MB), and the "What's in version" link, and run `make site-shots`
+  (below).
 - **Every image is a real capture of the app**, never a mock-up. The Settings section
   shows each pane as a capture in `assets/settings/`, with the window's size in points on
   each `<img>` and clickable areas placed in the same points.
+- Alt text describes the interface, not the figures in it ("how many were blocked
+  today", not "3,356"), so a retake with new numbers doesn't make it wrong.
+
+### Website pictures
+
+`Scripts/site-shots.swift` keeps the pictures of the app current (#329), so nobody has to
+notice that one went stale. `gh-pages` lists them in `shots/shots.json`: for each one,
+the launch arguments that open its window, anything to click first, which parts of the
+window are data, an optional crop, and the clickable areas laid over it on the page.
+
+For each picture it opens the **installed** app, and reads the window's accessibility
+tree: each element's role, labels and size. Numbers, dates, settings' values, scroll bars
+and the regions marked as data are masked. If that tree differs from the one recorded
+with the picture (`shots/trees/<name>.txt`), the interface changed, and the diff says how.
+New numbers, a longer list or a switch turned off change nothing. Because the check reads
+the tree rather than looking at the picture, it costs nothing to run and never tires.
+
+```sh
+make site-check                         # what changed; exits 1 if anything did
+make site-shots                         # retake what changed, update index.html
+make site-shots NAMES="settings-ads"    # retake these whether or not they changed
+```
+
+`site-shots` retakes each changed window with ScreenCaptureKit, at 2x and active, and
+records its new tree. It then updates the page: each picture's `width`, `height`,
+`data-w` and `data-h`; the `--x`, `--y`, `--w` and `--h` of the areas over it, from the
+elements' positions; and a `?v=` with a hash of each asset's contents on every asset link,
+so a browser never pairs a new page with a picture it kept from the last one. About is
+retaken every time, since it shows the version.
+
+Some things it can't stage: a speed test's result, a download in progress, the hero
+video. Those are entries that only check a window (the popover, from `-open popover`)
+and list the files that show it under `flags`. When that window changes, the check names
+them to remake by hand, and keeps naming them until `make site-shots NAMES=popover`
+records the new tree. Rewrite the alt text of any picture whose interface changed.
+
+- It needs Accessibility and Screen Recording for the terminal it runs in. It quits and
+  relaunches the app, clicks with the pointer when an entry says so, and leaves the app
+  running as it found it.
+- It must run against the installed, notarized app: a development build shows different
+  rows, since it has no content filter or helper.
+- To add a picture, write its entry, look at `build/site-shots tree <name>` to mark the
+  data regions, and run `make site-shots NAMES=<name>`.
+- **Videos.** Real behaviour, like `live.mp4`, is a screen recording of the app. Designed
+  videos, like the hero, are made with Hyperframes (`/hyperframes`) or `/brag`, which is
+  built on it, or Remotion when it suits; all three are installed as Claude Code skills.
 
 ## The wiki
 
@@ -278,7 +326,7 @@ A development build reads a few launch arguments for that run only; nothing pers
 | Argument | Does |
 |---|---|
 | `-powerProfile balanced` (or `performance`, `saver`) | measures a power profile without unplugging (below) |
-| `-open connections`, `-open ads -tab rules`, `-open welcome`, `-open settings -pane history` | opens a window straight away, for a screenshot or a check |
+| `-open connections`, `-open ads -tab rules`, `-open welcome`, `-open popover`, `-open settings -pane history` | opens a window straight away, for a screenshot or a check |
 | `-geoDataURL http://127.0.0.1:8765/ -geoDataCheckNow YES` | fetches the monthly data from a local package, at once (#121) |
 | `-updateFeedURL http://127.0.0.1:8765/appcast.xml -checkForUpdatesNow YES` | checks a local appcast for an update, at once (#132) |
 | `-historyDatabase ~/tmp/history.sqlite` | reads and writes Usage History, Connections and Ads and Trackers from another file, for test data (#251) |
