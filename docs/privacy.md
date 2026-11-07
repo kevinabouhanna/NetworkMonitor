@@ -45,7 +45,7 @@ Four things, and nothing else:
   (#176), from this repository's `blocklists` release: a signed manifest and two
   compressed lists, about 0.6 MB. The same file for everyone, signed with the same key as
   the country data, never on a hotspot, and used only if the signature and each list's
-  size and SHA-256 match. Off until you switch the lists on; then Settings › Connections ›
+  size and SHA-256 match. Off until you switch the lists on; then Settings › Ads ›
   **Update them weekly** switches the download off. The app ships with a copy, so the
   lists work without it.
 

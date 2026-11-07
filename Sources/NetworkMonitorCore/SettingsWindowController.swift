@@ -3,7 +3,7 @@ import SwiftUI
 
 /// One area of Settings, shown as a button in the window's toolbar.
 public enum SettingsPane: String, CaseIterable {
-    case general, speedTest, history, connections, hotspot, about
+    case general, speedTest, history, connections, ads, hotspot, about
 
     public var title: String {
         switch self {
@@ -11,6 +11,7 @@ public enum SettingsPane: String, CaseIterable {
         case .speedTest: return "Speed Test"
         case .history:   return "History"
         case .connections: return "Connections"
+        case .ads:       return "Ads"
         case .hotspot:   return "Hotspot"
         case .about:     return "About"
         }
@@ -22,6 +23,7 @@ public enum SettingsPane: String, CaseIterable {
         case .speedTest: return "gauge.with.dots.needle.67percent"
         case .history:   return "chart.bar.xaxis"
         case .connections: return "globe"
+        case .ads:       return "shield.lefthalf.filled"
         case .hotspot:   return "personalhotspot"
         case .about:     return "info.circle"
         }
@@ -80,7 +82,7 @@ public final class SettingsWindowController: NSObject {
 
     public init(model: MonitorViewModel, history: HistoryViewModel,
                 connections: ConnectionsViewModel, onOpenConnections: @escaping () -> Void,
-                onOpenAds: @escaping () -> Void = {},
+                onOpenAds: @escaping (AdsViewModel.Tab) -> Void = { _ in },
                 onUninstall: @escaping () -> Void, defaults: UserDefaults = .standard) {
         self.history = history
         self.defaults = defaults
@@ -102,11 +104,14 @@ public final class SettingsWindowController: NSObject {
                                                              filter: model.filter,
                                                              firewall: model.firewall,
                                                              geoData: model.geoData,
-                                                             blocklists: model.blocklists,
-                                                             listBlocks: model.listBlocks,
                                                              lookups: model.lookups,
-                                                             onOpen: onOpenConnections,
-                                                             onOpenAds: onOpenAds),
+                                                             onOpen: onOpenConnections),
+                                     width: SettingsMetrics.paneWidth)
+            case .ads:
+                host = Self.paneHost(AdsSettingsPane(connections: connections, filter: model.filter,
+                                                     firewall: model.firewall, blocklists: model.blocklists,
+                                                     listBlocks: model.listBlocks, library: model.listLibrary,
+                                                     onOpenAds: onOpenAds),
                                      width: SettingsMetrics.paneWidth)
             case .hotspot:   host = Self.paneHost(HotspotSettingsPane(metering: model.metering, state: state, filter: model.filter), width: SettingsMetrics.paneWidth)
             case .about:     host = Self.paneHost(AboutSettingsPane(updates: model.updates, onUninstall: onUninstall), width: SettingsMetrics.paneWidth)

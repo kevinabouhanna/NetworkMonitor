@@ -14,11 +14,8 @@ struct ConnectionsSettingsPane: View {
     @ObservedObject var filter: FilterController
     @ObservedObject var firewall: FirewallRules
     @ObservedObject var geoData: GeoDataUpdater
-    @ObservedObject var blocklists: BlocklistUpdater
-    @ObservedObject var listBlocks: ListBlockCount
     @ObservedObject var lookups: EncryptedLookups
     let onOpen: () -> Void
-    var onOpenAds: () -> Void = {}
 
     var body: some View {
         Form {
@@ -41,7 +38,6 @@ struct ConnectionsSettingsPane: View {
                     }
                 }
                 rulesSection
-                listsSection
                 lookupsSection
             }
 
@@ -74,58 +70,6 @@ struct ConnectionsSettingsPane: View {
             }
         }
         .formStyle(.grouped)
-    }
-
-    /// Ads, trackers and malware, blocked by name in every app (#176).
-    private var listsSection: some View {
-        Section {
-            ExplainedRow("Block ads and trackers", Self.listsExplanation) {
-                Toggle("Block ads and trackers", isOn: Binding(
-                    get: { !firewall.lists.isEmpty },
-                    set: { model.setLists($0 ? Set(BlocklistTopic.allCases) : []) }))
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-            }
-            if !firewall.lists.isEmpty {
-                ForEach(BlocklistTopic.allCases, id: \.self) { topic in
-                    LabeledContent {
-                        HStack(spacing: 10) {
-                            Text(siteCount(topic)).foregroundStyle(.secondary).monospacedDigit()
-                            Toggle(topic.title, isOn: Binding(
-                                get: { firewall.lists.contains(topic) },
-                                set: { isOn in
-                                    var lists = firewall.lists
-                                    if isOn { lists.insert(topic) } else { lists.remove(topic) }
-                                    model.setLists(lists)
-                                }))
-                                .toggleStyle(.switch)
-                                .labelsHidden()
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            ListTag(topic: topic)
-                            Text(topic.title)
-                        }
-                    }
-                }
-                LabeledContent("Blocked today") {
-                    HStack(spacing: 10) {
-                        Text(listBlocks.today.formatted()).foregroundStyle(.secondary).monospacedDigit()
-                        Button("Open Ads and Trackers…", action: onOpenAds)
-                            .help("What was blocked, when and in which app. Also ⌘B")
-                    }
-                }
-                ExplainedRow("Update them weekly", Self.updatesExplanation) {
-                    Toggle("Update them weekly", isOn: $blocklists.isEnabled)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                }
-            }
-        } header: {
-            Text("Ads and trackers")
-        } footer: {
-            SettingsFootnote(listsFootnote)
-        }
     }
 
     /// Encrypted lookups (#291): the system extension that filters also
@@ -172,22 +116,6 @@ struct ConnectionsSettingsPane: View {
         + "and gives the answer back unchanged. Names only your network knows, like the router's, still go to it. "
         + "If the resolver doesn't answer, lookups go to your network as before, so names keep working. Apps "
         + "that encrypt their own lookups, like Chrome with Secure DNS, aren't affected."
-
-    private func siteCount(_ topic: BlocklistTopic) -> String {
-        let count = blocklists.lists?.tables[topic]?.count ?? 0
-        return "\(topic.source) · \(count.formatted()) sites"
-    }
-
-    private var listsFootnote: String {
-        let date = BlocklistUpdater.displayDate(blocklists.lists?.version).map { "Lists from \($0): " } ?? "Lists: "
-        return date + "StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC0)."
-    }
-
-    static let listsExplanation = "Connections to sites on these lists are blocked in every app, after your own "
-        + "rules: Always Allow on a site in Connections lets it through. Ads served from a site's own servers, "
-        + "like YouTube's, can't be told apart from the site, so they aren't blocked."
-    static let updatesExplanation = "Once a week, NetworkMonitor downloads the lists from GitHub, the same signed "
-        + "file for everyone, never on a hotspot."
 
     /// What's blocked and what's always allowed (#114), made by right-clicking
     /// a row in Connections, and taken back here.
