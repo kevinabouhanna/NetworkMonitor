@@ -52,6 +52,9 @@ public final class MonitorViewModel: ObservableObject {
     @Published public private(set) var totalBytesIn: Int64 = 0
     @Published public private(set) var totalBytesOut: Int64 = 0
     @Published public private(set) var isExpensiveNetwork = false
+    /// Which connection is in use, in words (#355).
+    @Published public private(set) var connection = ConnectionStatus.make(
+        network: .offline, verdict: .unmetered, name: nil)
     /// The network the Mac is on, by its identity (#200): for rules that
     /// apply to one network. Empty offline.
     @Published public private(set) var networkID = ""
@@ -210,6 +213,9 @@ public final class MonitorViewModel: ObservableObject {
         }
         // Read on the watcher's queue, so it takes the component, not `self`.
         pathWatcher.wifiName = { [wifiNames] interface in wifiNames.name(onInterface: interface) }
+        pathWatcher.onStandbyChange = { [weak self] candidates in
+            self?.metering.standbyCandidatesDidChange(candidates)
+        }
         wifiNames.onChange = { [weak self] in self?.pathWatcher.refresh() }
         pathWatcher.start()
         wifiNames.start()
@@ -647,6 +653,7 @@ public final class MonitorViewModel: ObservableObject {
         if fingerprint.isSameLink(as: store.currentNetwork) {
             store.setCurrentNetwork(fingerprint)
             objectWillChange.send()
+            refreshHeader()
             return
         }
         // Joining a different network restarts its counter; an offline blip and
@@ -666,10 +673,13 @@ public final class MonitorViewModel: ObservableObject {
             self?.upSmoother.reset()
             self?.lastSampleTime = MonotonicClock.now()
         }
-        refreshHeader()
         // After the store has adopted the new fingerprint, so the verdict is
         // computed against the network just joined.
         metering.networkDidChange()
+        // After the verdict: the header and the firewall's "on a hotspot" follow
+        // it, and read before it they'd describe the network just left until
+        // the popover next opened.
+        refreshHeader()
         if popoverIsOpen { rebuildRows(now: Date()) }
     }
 
@@ -679,6 +689,8 @@ public final class MonitorViewModel: ObservableObject {
         // USB tether or an unrecognised phone reads as metered in the popover
         // for the same reason it does to the suppressors.
         isExpensiveNetwork = metering.verdict.isMetered
+        let status = metering.connection
+        if connection != status { connection = status }
         let id = store.currentNetwork.id
         if networkID != id { networkID = id }
         totalBytesIn = bucket.internetBytesIn

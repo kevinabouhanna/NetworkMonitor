@@ -324,12 +324,22 @@ struct HotspotSettingsPane: View {
                 // feature like this is not knowing whether it decided the
                 // connection counts, and the answer is one line long. Green when
                 // it has decided the connection costs money.
-                LabeledContent("Right now") {
-                    Label(metering.verdict.explanation,
-                          systemImage: metering.verdict.isMetered
-                              ? "antenna.radiowaves.left.and.right" : "wifi")
-                        .foregroundStyle(metering.verdict.isMetered
-                                         ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
+                if let standby = metering.standbyHotspot {
+                    // A hotspot's connected, so "doesn't look like one" would
+                    // read as the app having missed it (#355).
+                    ExplainedRow("Right now", standby.explanation(inUse: metering.connection)) {
+                        Label(standby.rightNow(inUse: metering.connection),
+                              systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                    }
+                } else {
+                    LabeledContent("Right now") {
+                        Label(metering.verdict.explanation,
+                              systemImage: metering.verdict.isMetered
+                                  ? "antenna.radiowaves.left.and.right" : "wifi")
+                            .foregroundStyle(metering.verdict.isMetered
+                                             ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
+                    }
                 }
                 // Right under the verdict, so a wrong one is settled where
                 // it's read: a phone that isn't recognised (#109), or a hotel

@@ -267,4 +267,15 @@ public enum InterfaceNaming {
         }
         return nil
     }
+
+    /// Whether a BSD interface is Wi-Fi, whatever macOS calls it in this language.
+    public static func isWiFi(bsdName: String) -> Bool {
+        guard let interfaces = SCNetworkInterfaceCopyAll() as? [SCNetworkInterface] else {
+            return false
+        }
+        return interfaces.contains {
+            SCNetworkInterfaceGetBSDName($0) as String? == bsdName
+                && SCNetworkInterfaceGetInterfaceType($0) == kSCNetworkInterfaceTypeIEEE80211
+        }
+    }
 }

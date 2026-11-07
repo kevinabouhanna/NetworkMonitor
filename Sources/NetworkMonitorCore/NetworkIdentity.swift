@@ -193,6 +193,16 @@ public final class NetworkIdentityWatcher {
     /// The last path seen, so `refresh()` can evaluate it again.
     private var lastPath: NWPath?
 
+    /// Hotspots joined besides the connection in use, on the main queue, when
+    /// they change (#355). Set before `start()`.
+    public var onStandbyChange: (([StandbyCandidate]) -> Void)?
+    private var standby: [StandbyCandidate] = []
+    private var standbyDebounce: DispatchWorkItem?
+    /// Tells this watcher when a service's address or lease changes. Joining a
+    /// second network doesn't change the path's preferred interface, so nothing
+    /// says `NWPathMonitor` will report it.
+    private var serviceStore: SCDynamicStore?
+
     /// The interface flags this app raised itself, kept out of `kind`.
     private let ownership: InterfaceFlagOwnership
 
@@ -205,10 +215,13 @@ public final class NetworkIdentityWatcher {
             self?.handle(path)
         }
         monitor.start(queue: queue)
+        watchServices()
     }
 
     public func stop() {
         monitor.cancel()
+        if let serviceStore { SCDynamicStoreSetDispatchQueue(serviceStore, nil) }
+        serviceStore = nil
     }
 
     public var fingerprint: NetworkFingerprint { current }
@@ -241,9 +254,44 @@ public final class NetworkIdentityWatcher {
 
     private func evaluate(_ path: NWPath) {
         let next = Self.fingerprint(for: path, ownership: ownership, wifiName: wifiName)
+        evaluateStandby(inUse: next.interfaceName, online: next.kind != .offline)
         guard next != current else { return }
         current = next
         DispatchQueue.main.async { self.onChange?(next) }
+    }
+
+    /// Separate from the fingerprint, which History and the counters follow:
+    /// a second network coming and going must never disturb those.
+    private func evaluateStandby(inUse: String?, online: Bool) {
+        let next = online ? StandbyHotspots.candidates(besides: inUse, ownership: ownership,
+                                                       wifiName: wifiName) : []
+        guard next != standby else { return }
+        standby = next
+        DispatchQueue.main.async { self.onStandbyChange?(next) }
+    }
+
+    private func watchServices() {
+        var context = SCDynamicStoreContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(),
+                                            retain: nil, release: nil, copyDescription: nil)
+        guard let store = SCDynamicStoreCreate(nil, "NetworkMonitor" as CFString, { _, _, info in
+            guard let info else { return }
+            Unmanaged<NetworkIdentityWatcher>.fromOpaque(info).takeUnretainedValue().servicesChanged()
+        }, &context) else { return }
+        SCDynamicStoreSetNotificationKeys(store, nil, ["State:/Network/Service/[^/]+/(IPv4|DHCP)"] as CFArray)
+        SCDynamicStoreSetDispatchQueue(store, queue)
+        serviceStore = store
+    }
+
+    /// On the watcher's queue. Debounced as a path change is, since a join
+    /// writes a burst of keys.
+    private func servicesChanged() {
+        standbyDebounce?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.evaluateStandby(inUse: self.current.interfaceName, online: self.current.kind != .offline)
+        }
+        standbyDebounce = work
+        queue.asyncAfter(deadline: .now() + 2, execute: work)
     }
 
     static func fingerprint(for path: NWPath,

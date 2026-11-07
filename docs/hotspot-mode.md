@@ -53,8 +53,13 @@ Hotspot › Right now** always says which one fired.
 
 Everything after 3 is convention, so it fails safe: a miss means updates aren't paused,
 never that your home network is treated as a hotspot, and *This network* settles any
-miss. The popover shows an orange **METERED** badge beside the total whenever a
-connection counts.
+miss. The popover says *Using hotspot* in orange under the total whenever a connection
+counts.
+
+These checks only decide about the connection in use. macOS sends everything over the
+connection it ranks highest, so joining a hotspot while Ethernet is plugged in leaves it
+idle. The popover and *Right now* then say the hotspot is connected but isn't being used,
+and data use, History and pauses stay with Ethernet.
 
 ## What it pauses
 
