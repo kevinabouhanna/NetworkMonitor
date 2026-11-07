@@ -1,4 +1,5 @@
 import FilterProtocol
+import FirewallPolicy
 import Foundation
 import Network
 import NetworkExtension
@@ -195,10 +196,12 @@ final class UDPLookups {
 }
 
 /// Lookups over TCP, which are rare (an answer too big for UDP): passed on
-/// to the server unchanged.
+/// to the server unchanged, with the aliases in its answers read on the way
+/// (#321).
 final class TCPRelay {
     private let flow: NEAppProxyTCPFlow
     private let connection: NWConnection
+    private var answers = DNSStream()
 
     init(flow: NEAppProxyTCPFlow, remote: NWHostEndpoint) {
         self.flow = flow
@@ -236,6 +239,7 @@ final class TCPRelay {
     private func downstream() {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65_536) { [self] data, _, finished, error in
             if let data, !data.isEmpty {
+                if Firewall.shared.readsLookups { answers.append(data).forEach(Firewall.shared.learnLookup) }
                 flow.write(data) { [self] error in
                     if error != nil { close() } else if !finished { downstream() } else { close() }
                 }

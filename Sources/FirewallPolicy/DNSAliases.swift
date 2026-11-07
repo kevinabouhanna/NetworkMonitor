@@ -100,13 +100,37 @@ public enum DNSAnswer {
     }
 }
 
+/// DNS over TCP (RFC 1035 §4.2.2): each message after its 16-bit length.
+/// Collects a connection's bytes as they come and hands back each whole
+/// message, for the aliases in answers too big for UDP (#321).
+public struct DNSStream {
+    private var buffer = Data()
+
+    public init() {}
+
+    public mutating func append(_ bytes: Data) -> [Data] {
+        buffer.append(bytes)
+        var messages: [Data] = []
+        while buffer.count >= 2 {
+            let start = buffer.startIndex
+            let length = Int(buffer[start]) << 8 | Int(buffer[start + 1])
+            guard buffer.count >= 2 + length else { break }
+            messages.append(Data(buffer[(start + 2)..<(start + 2 + length)]))
+            buffer = Data(buffer[(start + 2 + length)...])
+        }
+        return messages
+    }
+}
+
 /// The aliases lately seen in lookups' answers, each kept a while (#255).
 public struct AliasMemory {
 
     /// However short the answer said, an alias is kept this long: the
     /// connection it was looked up for may come a little later.
     public static let shortest: TimeInterval = 5 * 60
-    public static let longest: TimeInterval = 60 * 60
+    /// As long as the answer said, up to a day (#321): macOS answers again
+    /// from its own cache for as long, with no lookup to read.
+    public static let longest: TimeInterval = 24 * 60 * 60
     public static let capacity = 20_000
 
     private var entries: [String: (chain: [String], expires: Date)] = [:]

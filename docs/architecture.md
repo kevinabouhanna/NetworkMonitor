@@ -488,13 +488,15 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    built-in list is, and `decide` blocks with `.downloadedList(id)` after the built-in ones,
    reported as `list:<id>`.
 
-   **Trackers behind a site's own name** (#255). For a plain DNS lookup over UDP while a
+   **Trackers behind a site's own name** (#255). For a plain DNS lookup, over UDP or TCP (#321), while a
    list is on, the filter asks to see the first inbound bytes, the answer, and lets it go
    unchanged. `DNSAnswer.aliases` reads the CNAME chain from it (following compressed
    names, refusing loops), and `AliasMemory` keeps each name's chain for its TTL, at least
-   five minutes and at most an hour, up to 20,000 names. `Firewall.listed` and
+   five minutes and at most a day (#321), up to 20,000 names. `Firewall.listed` and
    `listedDownloaded` then match a connection's name and every alias it stands for, with
-   an alias you never block counting only for the malware lists (#317), so `metrics.example.com`, an alias of
+   an alias you never block (for every app or this one) counting only for the malware
+   lists (#317, #321), and `FlowFacts.aliases` lets an *always block* on an alias block
+   the name, so `metrics.example.com`, an alias of
    `example.com.sc.omtrdc.net`, is blocked as the ads list's `omtrdc.net`, with its app
    known. Lookups over DNS over HTTPS or TLS can't be read.
 

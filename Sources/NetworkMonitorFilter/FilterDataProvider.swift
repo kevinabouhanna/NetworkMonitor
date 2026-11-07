@@ -1,5 +1,6 @@
 import Darwin
 import FilterProtocol
+import FirewallPolicy
 import Foundation
 import NetworkExtension
 
@@ -67,9 +68,9 @@ final class FilterDataProvider: NEFilterDataProvider {
         return decision.verdict
     }
 
-    /// Plain DNS over UDP, the only kind whose answers can be read.
+    /// Plain DNS, over UDP or TCP (#321): the kinds whose answers can be read.
     private static func isLookup(_ flow: NEFilterSocketFlow, port: Int) -> Bool {
-        port == 53 && flow.socketType == SOCK_DGRAM
+        port == 53 && (flow.socketType == SOCK_DGRAM || flow.socketType == SOCK_STREAM)
     }
 
     /// Enough for any answer over UDP.
@@ -98,8 +99,15 @@ final class FilterDataProvider: NEFilterDataProvider {
     override func handleInboundData(from flow: NEFilterFlow, readBytesStartOffset offset: Int,
                                     readBytes: Data) -> NEFilterDataVerdict {
         // Only lookups ask for inbound data (#255): the first answer, then
-        // the rest of the flow goes unread.
-        if offset == 0 { Firewall.shared.learnLookup(readBytes) }
+        // the rest of the flow goes unread. Over TCP it follows its length,
+        // and is read if it came whole (#321).
+        guard offset == 0 else { return .allow() }
+        if (flow as? NEFilterSocketFlow)?.socketType == SOCK_STREAM {
+            var stream = DNSStream()
+            stream.append(readBytes).forEach(Firewall.shared.learnLookup)
+        } else {
+            Firewall.shared.learnLookup(readBytes)
+        }
         return .allow()
     }
 
