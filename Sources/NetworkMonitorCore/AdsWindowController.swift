@@ -70,7 +70,6 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
         scaleControl.trackingMode = .selectOne
         for (index, scale) in scales.enumerated() {
             scaleControl.setLabel(scale.label, forSegment: index)
-            scaleControl.setWidth(64, forSegment: index)
         }
         scaleControl.target = self
         scaleControl.action = #selector(scaleChosen)
@@ -136,14 +135,20 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
         case Self.tabItem:
             item.view = tabControl
             item.label = "View"
+            item.menuFormRepresentation = SegmentMenu.item(for: tabControl, label: "View",
+                                                           titles: AdsViewModel.Tab.allCases.map(\.label))
             item.toolTip = "What was blocked, or every connection as it's decided"
         case Self.scaleItem:
             item.view = scaleControl
             item.label = "Period"
+            item.menuFormRepresentation = SegmentMenu.item(for: scaleControl, label: "Period",
+                                                           titles: HistoryScale.allCases.map(\.label))
             item.toolTip = "A day, week, month or year at a time"
         case Self.stepItem:
             item.view = stepControl
             item.label = "Go"
+            item.menuFormRepresentation = SegmentMenu.item(for: stepControl, label: "Go",
+                                                           titles: ["Previous", "Today", "Next"])
             item.toolTip = "Move through time"
         default:
             return nil

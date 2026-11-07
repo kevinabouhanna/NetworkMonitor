@@ -69,7 +69,7 @@ public enum ListCatalogue {
                    about: "Ads, trackers, metrics and telemetry. A good everyday choice."),
         ListSource(id: "hagezi-pro", title: "HaGeZi Pro", topic: .ads, source: "HaGeZi", licence: "GPL-3.0",
                    url: hagezi("pro"),
-                   about: "More thorough: catches more, and now and then a site that needs one of its names."),
+                   about: "More thorough: blocks more, and now and then something a site needs to work."),
         ListSource(id: "oisd-small", title: "OISD Small", topic: .ads, source: "OISD", licence: "GPL-3.0",
                    url: URL(string: "https://small.oisd.nl/domainswild2")!,
                    about: "Ads and trackers, kept small so nothing breaks."),
