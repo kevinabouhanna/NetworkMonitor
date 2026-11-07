@@ -349,7 +349,7 @@ public struct FirewallPolicy: Codable, Equatable {
     /// What blocks it among the lists and your ad-blocking rules, if any.
     private func listBlock(_ flow: FlowFacts) -> BlockReason? {
         guard !lists.isEmpty else { return nil }
-        let adRule = AdRule.deciding(adRules, name: flow.hostname, appKeys: flow.appKeys)
+        let adRule = AdRule.deciding(adRules, name: flow.hostname, appKeys: flow.appKeys, teams: flow.teams)
         if let adRule, adRule.kind == .alwaysBlock { return .adRule(adRule) }
         let listed = flow.listedIn.intersection(lists)
         let downloaded = downloadedLists.filter(flow.listedInDownloaded.contains)

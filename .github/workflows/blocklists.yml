@@ -1,7 +1,8 @@
 name: Blocklists
 
 # The ad, tracker and malware lists, every week (#176). Downloads each source,
-# refuses one that comes back far smaller than it should, checks that none of
+# refuses one that comes back far smaller than it should or than last week's
+# (#319), checks that none of
 # the sites people use every day is on them (the test suite's own list), and
 # publishes them signed as the `blocklists` release, which the app downloads
 # once a week while the lists are switched on. Run it by hand from the Actions
@@ -21,10 +22,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Last week's manifest, to refuse a list that lost half its names since
+      # (#319). None the first time, and then only the fixed floors apply.
+      - name: Fetch the last published manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download blocklists -p manifest.json -D previous || echo "No earlier lists to compare with"
+
       # Into the checkout's Resources/Blocklists, which isn't committed back:
       # the app's own copy changes with a release, in a pull request of its own.
       - name: Download and build this week's lists
-        run: ./Scripts/swiftpm.sh run -c release BlocklistBuilder build Resources/Blocklists
+        run: |
+          if [ -f previous/manifest.json ]; then
+            ./Scripts/swiftpm.sh run -c release BlocklistBuilder build Resources/Blocklists --previous previous/manifest.json
+          else
+            ./Scripts/swiftpm.sh run -c release BlocklistBuilder build Resources/Blocklists
+          fi
 
       # The suite reads Resources/Blocklists: if this week's lists caught a
       # site people use every day, it fails here and nothing is published.

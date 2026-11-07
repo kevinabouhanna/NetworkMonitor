@@ -25,9 +25,37 @@ func runListLibraryTests() {
                 example.net#@#.advert
                 """)
             Check.expectEqual(parsed.title, "Test filter")
-            Check.expectEqual(parsed.names, ["ads.example.com", "important.example.com", "ends.example.com"])
-            Check.expectEqual(parsed.exceptions, ["cdn.ads.example.com", "kept.example.com", "cancelled.example.com"])
+            Check.expectEqual(parsed.names, ["ads.example.com", "ends.example.com", "important.example.com"])
+            Check.expectEqual(parsed.exceptions, ["cdn.ads.example.com", "kept.example.com"])
             Check.expectEqual(parsed.skipped, 6)
+        }
+
+        Check.test("$important outranks the list's exceptions, and $badfilter cancels only its rule (#322)") {
+            let list = DownloadedList(id: "test-list", parsed: BlocklistParser.read("""
+                ||tracker.example^$important
+                @@||tracker.example^
+                @@||cdn.tracker.example^
+                @@||ok.example^
+                ||example.com^
+                ||ads.example.com^$badfilter
+                ||gone.example^
+                ||gone.example^$badfilter
+                ||loud.example^$important
+                ||loud.example^$important,badfilter
+                @@||cdn.example.com^
+                @@||cdn.example.com^$badfilter
+                """))
+            Check.expectTrue(list.lists("tracker.example"))
+            Check.expectTrue(list.lists("img.cdn.tracker.example"))
+            Check.expectFalse(list.lists("ok.example"))
+            // Cancelling ads.example.com's own rule leaves example.com's in force.
+            Check.expectTrue(list.lists("ads.example.com"))
+            Check.expectFalse(list.lists("gone.example"))
+            Check.expectFalse(list.lists("loud.example"))
+            Check.expectTrue(list.lists("cdn.example.com"))
+            let parsed = BlocklistParser.read("||a.example^$important\n||a.example^\n@@||a.example^$important")
+            Check.expectEqual(parsed.names, ["a.example"])
+            Check.expectEqual(parsed.exceptions, [])
         }
 
         Check.test("a page-hiding rule never reads as its site") {

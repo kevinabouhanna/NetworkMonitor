@@ -199,7 +199,8 @@ Trackers, with buttons to its Lists and Rules tabs.
   been; and anything without a name (another port, or not TLS or QUIC). It's not an ad
   blocker for the browser.
 - **The lists stay current by themselves.** A workflow rebuilds them every Monday, refuses
-  a list that shrank or that catches a site people use every day, and signs them; the app
+  a list that shrank (below a fixed floor, or to under half of last week's, #319) or that
+  catches a site people use every day, and signs them; the app
   fetches them weekly while they're on, never on a hotspot (**Update them weekly**). It
   ships with a copy, so they work offline.
 
@@ -277,7 +278,9 @@ keeps the last 5,000 in memory only; lookups aren't listed.
 
 - **Never block** a site, and every name under it: it goes through though a list has it.
 - **Always block** a site that no list has.
-- Either for **every app** or **one app**, from the menu beside the site.
+- Either for **every app** or **one app**, from the menu beside the site. One app's rule
+  follows its signature, as firewall rules do (#320): a program at that path signed by
+  another team isn't the app, so it doesn't inherit *don't filter*.
 - **Don't filter an app**: the ad and tracker lists leave all its connections alone, for an
   app that breaks.
 - **Malware lists still apply** (#317): *never block* and *don't filter* change what the ad,
