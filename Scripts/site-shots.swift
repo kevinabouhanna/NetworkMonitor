@@ -518,10 +518,26 @@ struct Page {
             : tag.replacingOccurrences(of: pattern, with: "\(attribute)=\"\(value)\"", options: .regularExpression)
     }
 
-    /// The picture's size: `width` and `height` in pixels, and `data-w` and
-    /// `data-h` in points where the tag has them.
+    /// `width` and `height` in pixels, and `data-w` and `data-h` in points
+    /// where the tag has them.
+    /// Every tag containing `needle`, last first so the ranges stay good.
+    mutating func editAll(tagsContaining needle: String, _ change: (String) -> String) {
+        var ranges: [Range<String.Index>] = []
+        var from = html.startIndex
+        while let hit = html.range(of: needle, range: from..<html.endIndex) {
+            if let start = html[..<hit.lowerBound].range(of: "<", options: .backwards),
+               let end = html[hit.upperBound...].range(of: ">") {
+                ranges.append(start.lowerBound..<end.upperBound)
+            }
+            from = hit.upperBound
+        }
+        for range in ranges.reversed() { html.replaceSubrange(range, with: change(String(html[range]))) }
+    }
+
+    /// The picture's size, on every `<img>` that shows it: one picture can
+    /// be in two sections.
     mutating func setSize(of file: String, pixels: CGSize) {
-        edit(tagContaining: "\"\(file)") { tag in
+        editAll(tagsContaining: "\"\(file)") { tag in
             var tag = Page.set("width", "\(Int(pixels.width))", in: tag)
             tag = Page.set("height", "\(Int(pixels.height))", in: tag)
             tag = Page.set("data-w", "\(Int(pixels.width / 2))", in: tag)
