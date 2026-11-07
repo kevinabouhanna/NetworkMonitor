@@ -106,6 +106,8 @@ release of its own:
 - Merge and clean up as for `main`: without `--delete-branch`, which removes the
   worktree the branch is checked out in.
 - The Settings section shows each pane as a real capture in `assets/settings/`.
+- Never put "ad" or "ads" in a file name, id, class or data value on the site: browser
+  ad blockers hide them (#377). The ad blocker's pictures and anchors say `blocking`.
   Each `<img>` carries the window's size in points (`data-w`, `data-h`), and
   the buttons over it are placed in the same points.
 

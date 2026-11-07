@@ -295,6 +295,9 @@ beside the main checkout. Changes to it get an issue and a pull request against
 - **Every image is a real capture of the app**, never a mock-up. The Settings section
   shows each pane as a capture in `assets/settings/`, with the window's size in points on
   each `<img>` and clickable areas placed in the same points.
+- **No "ad" or "ads" in a file, id, class or data value** on the page (#377). Browser ad
+  blockers hide and block by those names, so the Ads pane's picture went missing for a
+  visitor running one: the feature's pictures and anchors say `blocking`.
 - Alt text describes the interface, not the figures in it ("how many were blocked
   today", not "3,356"), so a retake with new numbers doesn't make it wrong.
 
