@@ -28,38 +28,49 @@ public enum SiteName {
     }
 
     /// The site a name belongs to: its registrable domain, as a person would
-    /// say it. `stats.wp.com` is on `wp.com`, `news.bbc.co.uk` on `bbc.co.uk`.
+    /// say it. `stats.wp.com` is on `wp.com`, `news.bbc.co.uk` on `bbc.co.uk`,
+    /// `moph.gov.lb` on itself. A name that is itself a public suffix is its
+    /// own site.
     public static func site(of name: String) -> String {
         guard let name = normalized(name) else { return name }
         let labels = name.split(separator: ".").map(String.init)
-        guard labels.count > 2 else { return name }
-        let lastTwo = labels.suffix(2).joined(separator: ".")
-        let take = multiLabelSuffixes.contains(lastTwo) ? 3 : 2
-        return labels.suffix(take).joined(separator: ".")
+        // The longest public suffix decides: the first, from the left, that's
+        // one. An exception is a site itself, one label under its suffix.
+        for start in labels.indices {
+            let candidate = labels[start...].joined(separator: ".")
+            if suffixes.exceptions.contains(candidate) { return candidate }
+            let wildcard = start + 1 < labels.count
+                && suffixes.wildcards.contains(labels[(start + 1)...].joined(separator: "."))
+            if suffixes.rules.contains(candidate) || wildcard {
+                return start == 0 ? name : labels[(start - 1)...].joined(separator: ".")
+            }
+        }
+        // No rule: the last label is the suffix, as the list's default says.
+        return labels.suffix(2).joined(separator: ".")
     }
 
-    /// Suffixes under which people register names, where the site is one
-    /// label further in. The common ones only, not the whole public suffix
-    /// list: a name under a rarer one offers a narrower site, never a wider.
-    static let multiLabelSuffixes: Set<String> = [
-        "co.uk", "org.uk", "ac.uk", "gov.uk", "me.uk", "net.uk", "ltd.uk", "plc.uk",
-        "com.au", "net.au", "org.au", "edu.au", "gov.au",
-        "co.nz", "org.nz", "net.nz", "govt.nz",
-        "co.jp", "ne.jp", "or.jp", "ac.jp", "go.jp",
-        "co.kr", "or.kr", "go.kr",
-        "com.cn", "net.cn", "org.cn", "gov.cn",
-        "com.hk", "com.tw", "com.sg", "com.my", "com.ph", "com.vn", "co.th", "co.id",
-        "co.in", "net.in", "org.in", "gov.in",
-        "com.br", "net.br", "org.br", "gov.br",
-        "com.ar", "com.mx", "com.co", "com.pe", "com.uy",
-        "co.za", "org.za", "gov.za",
-        "com.tr", "gov.tr", "com.eg", "com.sa", "com.lb", "co.il", "org.il", "co.ke",
-        "com.ua", "com.pl", "com.ru", "com.es", "com.pt", "co.at", "or.at", "com.gr",
-        // Hosting platforms, where each customer's name is its own site.
-        "github.io", "gitlab.io", "pages.dev", "workers.dev", "vercel.app", "netlify.app",
-        "herokuapp.com", "appspot.com", "web.app", "firebaseapp.com", "azurewebsites.net",
-        "cloudfront.net", "amazonaws.com", "blogspot.com", "wordpress.com", "fly.dev",
-    ]
+    /// The Public Suffix List (#318), the one browsers use for cookies: where
+    /// people register names, such as `co.uk`, `gov.lb` and `myshopify.com`,
+    /// with its private section of hosting platforms. Read once, when a site
+    /// is first asked for.
+    static let suffixes: (rules: Set<String>, wildcards: Set<String>, exceptions: Set<String>) = {
+        var rules = Set<String>(), wildcards = Set<String>(), exceptions = Set<String>()
+        for line in publicSuffixRules.split(separator: "\n") {
+            let rule = line.trimmingCharacters(in: .whitespaces)
+            if rule.hasPrefix("!") {
+                exceptions.insert(String(rule.dropFirst()))
+            } else if rule.hasPrefix("*.") {
+                wildcards.insert(String(rule.dropFirst(2)))
+            } else if !rule.isEmpty {
+                rules.insert(rule)
+            }
+        }
+        return (rules.union(extraSuffixes), wildcards, exceptions)
+    }()
+
+    /// Hosting platforms the list leaves out, where each customer's name is
+    /// still its own site: `someone.wordpress.com` is someone's blog.
+    static let extraSuffixes: Set<String> = ["wordpress.com", "amazonaws.com"]
 
     static func isAddress(_ text: String) -> Bool {
         var v4 = in_addr()

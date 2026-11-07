@@ -1,4 +1,4 @@
-.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata dmg-background clean
+.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background clean
 
 all: test app
 
@@ -83,6 +83,11 @@ icon:
 # so this is only for refreshing them, in a pull request of its own.
 geodata:
 	@./Scripts/geodata.sh
+
+# Regenerates Sources/FirewallPolicy/PublicSuffixes.swift from the Public
+# Suffix List (#318). Committed, like the geodata; refresh in a PR of its own.
+public-suffixes:
+	@python3 -I Scripts/public-suffixes.py
 
 # Redraws Resources/DMG/background.tiff, which is committed like the icon.
 dmg-background:
