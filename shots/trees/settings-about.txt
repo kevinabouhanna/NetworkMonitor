@@ -1,13 +1,13 @@
 AXWindow (AXStandardWindow) title="About" 720x708
-  AXGroup 720x620
-    AXGroup (AXHostingView) 720x620
-      AXScrollArea 720x620
-        AXScrollArea 720x620
-          AXGroup 680x200
+  AXGroup h620
+    AXGroup (AXHostingView) h620
+      AXScrollArea h620
+        AXScrollArea h620
+          AXGroup h200
             AXStaticText value="NetworkMonitor" h24
             AXStaticText value="Version # (#)" h16
             AXStaticText value="Live network speed in your menu bar, and which app used your data." h16
-          AXGroup 680x112
+          AXGroup h112
             AXStaticText value="Website" h16
             AXLink description="kevinabouhanna.github.io" 176x16
             AXStaticText value="What's new" h16
@@ -15,13 +15,13 @@ AXWindow (AXStandardWindow) title="About" 720x708
             AXStaticText value="Source code" h16
             AXLink description="On GitHub" 88x16
           AXStaticText value="Free and open source, under the MIT licence." h16
-          AXGroup 680x76
+          AXGroup h76
             AXStaticText value="Check for updates automatically" h16
             AXCheckBox (AXSwitch) 36x16
             AXStaticText value="Updates" h16
             AXButton description="Check Now" 92x24
           AXStaticText value="Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor." h28
-          AXGroup 680x40
+          AXGroup h40
             AXStaticText value="Remove NetworkMonitor" h16
             AXButton description="Uninstall…" 88x24
           AXStaticText value="Puts back every setting it changed, removes its helper and your usage history, and moves the app to the Trash." h16
@@ -35,6 +35,7 @@ AXWindow (AXStandardWindow) title="About" 720x708
     AXButton title="About" description="About" 56x56
   AXButton (AXCloseButton) 16x16
   AXButton (AXZoomButton) 16x16
-    AXGroup 16x16
+    AXGroup h16
+      AXGroup h16
   AXButton (AXMinimizeButton) 16x16
   AXStaticText value="About" h16

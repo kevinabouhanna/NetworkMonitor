@@ -1,9 +1,9 @@
 AXWindow (AXStandardWindow) title="Hotspot" 720
-  AXGroup 720
-    AXGroup (AXHostingView) 720
-      AXScrollArea 720
-        AXScrollArea 720
-          AXGroup 680
+  AXGroup
+    AXGroup (AXHostingView)
+      AXScrollArea
+        AXScrollArea
+          AXGroup
             AXStaticText value="Stop apps updating on hotspots" h16
             AXCheckBox (AXSwitch) 36x16
             AXStaticText value="Right now" h16
@@ -11,16 +11,17 @@ AXWindow (AXStandardWindow) title="Hotspot" 720
             AXStaticText value="This network" h16
             AXPopUpButton 172x24
           AXStaticText value="Also puts the hotspot in Low Data Mode, so iCloud and other background downloads wait until you're off it." h16
-          AXGroup 680x44
+          AXGroup h44
             AXDisclosureTriangle description="Paused on a hotspot (#)" h16
           AXStaticText value="Found by looking inside the apps on this Mac. They're paused only while you're on a hotspot, and put back when you leave." h16
-          AXGroup 680x44
+          AXGroup h44
             AXDisclosureTriangle description="Can't be paused (#)" h16
           AXStaticText value="Quit these while you're on a hotspot to be sure they don't update. Low Data Mode slows the ones that respect it." h16
-          AXGroup 680x36
+          AXGroup h36
             AXStaticText value="Every app's updater" h16
             AXStaticText value="Stopped on hotspots" h16
           AXStaticText value="Any app's updater is stopped while you're on a hotspot, including ones listed as can't be paused when they update with a program of their own. Choose Blocked in Connections to see them." h28
+          AXGroup h36
   AXToolbar 720x56
     AXButton title="General" description="General" 56x56
     AXButton title="Speed Test" description="Speed Test" 72x56
@@ -31,6 +32,7 @@ AXWindow (AXStandardWindow) title="Hotspot" 720
     AXButton title="About" description="About" 56x56
   AXButton (AXCloseButton) 16x16
   AXButton (AXZoomButton) 16x16
-    AXGroup 16x16
+    AXGroup h16
+      AXGroup h16
   AXButton (AXMinimizeButton) 16x16
   AXStaticText value="Hotspot" h16

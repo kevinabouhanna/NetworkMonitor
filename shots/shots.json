@@ -323,7 +323,7 @@
         "retina"
       ],
       "window": "AXPopover",
-      "scroll": "AXPopover>AXGroup>AXScrollArea",
+      "scroll": "AXScrollArea",
       "data": [
         {
           "from": "AXOpaqueProviderGroup"
@@ -347,7 +347,8 @@
         "element": "AXButton:Test Again",
         "seconds": 240
       },
-      "when": "popover"
+      "when": "popover",
+      "skipIf": "AXStaticText:Using hotspot"
     }
   ]
 }
