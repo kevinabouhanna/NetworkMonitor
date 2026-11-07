@@ -1,0 +1,266 @@
+{
+  "app": "/Applications/NetworkMonitor.app",
+  "bundle": "com.kevinabouhanna.NetworkMonitor",
+  "shots": [
+    {
+      "name": "settings-general",
+      "file": "assets/settings/general.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "general"
+      ],
+      "window": "General",
+      "areas": [
+        {
+          "match": "data-pane=\"general\"",
+          "element": "AXButton:General",
+          "h": 48
+        },
+        {
+          "match": "data-pane=\"speed-test\"",
+          "element": "AXButton:Speed Test",
+          "h": 48
+        },
+        {
+          "match": "data-pane=\"history\"",
+          "element": "AXButton:History",
+          "h": 48
+        },
+        {
+          "match": "data-pane=\"connections\"",
+          "element": "AXButton:Connections",
+          "h": 48
+        },
+        {
+          "match": "data-pane=\"ads\"",
+          "element": "AXButton:Ads",
+          "h": 48
+        },
+        {
+          "match": "data-pane=\"hotspot\"",
+          "element": "AXButton:Hotspot",
+          "h": 48
+        },
+        {
+          "match": "data-pane=\"about\"",
+          "element": "AXButton:About",
+          "h": 48
+        }
+      ]
+    },
+    {
+      "name": "settings-speed-test",
+      "file": "assets/settings/speed-test.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "speedTest"
+      ],
+      "window": "Speed Test"
+    },
+    {
+      "name": "settings-history",
+      "file": "assets/settings/history.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "history"
+      ],
+      "window": "History",
+      "data": [
+        {
+          "from": "AXGroup:Usage by hour",
+          "until": "AXRadioGroup:List"
+        },
+        {
+          "from": "AXOpaqueProviderGroup"
+        }
+      ]
+    },
+    {
+      "name": "settings-connections",
+      "file": "assets/settings/connections.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "connections"
+      ],
+      "window": "Connections"
+    },
+    {
+      "name": "settings-ads",
+      "file": "assets/settings/ads.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "ads"
+      ],
+      "window": "Ads"
+    },
+    {
+      "name": "ad-blocker",
+      "file": "assets/ad-blocker.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "ads"
+      ],
+      "window": "Ads",
+      "crop": {
+        "from": "AXHeading:Lists",
+        "through": "AXStaticText:Lists from",
+        "inset": 8.5,
+        "pad": [
+          7,
+          9
+        ]
+      }
+    },
+    {
+      "name": "settings-hotspot",
+      "file": "assets/settings/hotspot.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "hotspot"
+      ],
+      "window": "Hotspot",
+      "areas": [
+        {
+          "match": "data-row=\"apps\"",
+          "element": "AXDisclosureTriangle:Paused on a hotspot",
+          "parent": true
+        },
+        {
+          "match": "data-row=\"uncovered\"",
+          "element": "AXDisclosureTriangle:Can't be paused",
+          "parent": true
+        }
+      ]
+    },
+    {
+      "name": "settings-hotspot-apps",
+      "file": "assets/settings/hotspot-apps.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "hotspot"
+      ],
+      "window": "Hotspot",
+      "click": [
+        "AXDisclosureTriangle:Paused on a hotspot"
+      ],
+      "data": [
+        {
+          "from": "AXDisclosureTriangle:Paused on a hotspot",
+          "until": "end"
+        }
+      ]
+    },
+    {
+      "name": "settings-hotspot-uncovered",
+      "file": "assets/settings/hotspot-uncovered.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "hotspot"
+      ],
+      "window": "Hotspot",
+      "click": [
+        "AXDisclosureTriangle:Can't be paused"
+      ],
+      "data": [
+        {
+          "from": "AXDisclosureTriangle:Can't be paused",
+          "until": "end"
+        }
+      ]
+    },
+    {
+      "name": "settings-about",
+      "file": "assets/settings/about.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "about"
+      ],
+      "window": "About",
+      "always": true,
+      "areas": [
+        {
+          "match": "class=\"prefs-link\" href=\"#top\"",
+          "element": "AXLink:kevinabouhanna",
+          "pad": [
+            3,
+            7
+          ]
+        },
+        {
+          "match": "class=\"prefs-link\" href=\"https://github.com/kevinabouhanna/NetworkMonitor/releases/latest\"",
+          "element": "AXLink:Release notes",
+          "pad": [
+            3,
+            7
+          ]
+        },
+        {
+          "match": "class=\"prefs-link\" href=\"https://github.com/kevinabouhanna/NetworkMonitor\"",
+          "element": "AXLink:On GitHub",
+          "pad": [
+            3,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "name": "connections",
+      "file": "assets/connections.png",
+      "open": [
+        "-open",
+        "connections"
+      ],
+      "window": "Connections",
+      "data": [
+        {
+          "from": "AXUnknown",
+          "until": "run"
+        },
+        {
+          "from": "AXOpaqueProviderGroup"
+        }
+      ]
+    },
+    {
+      "name": "popover",
+      "open": [
+        "-open",
+        "popover"
+      ],
+      "window": "AXPopover",
+      "data": [
+        {
+          "from": "AXOpaqueProviderGroup"
+        }
+      ],
+      "flags": [
+        "assets/popover-subprocesses.png",
+        "assets/popover-system.png",
+        "assets/speed-test.png",
+        "assets/live.mp4",
+        "assets/brag.mp4"
+      ]
+    }
+  ]
+}
