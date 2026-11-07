@@ -91,11 +91,24 @@ public enum HelperService {
 
     /// One verb, answered over XPC, or nil: not allowed yet, refused, or no
     /// answer in time. Synchronous, as `sudo` was, with a limit, so a wedged
-    /// daemon can't freeze the menu bar.
-    public static func invoke(_ verb: String, timeout: TimeInterval = 20) -> String? {
-        guard let reply = call(verb, timeout: timeout), reply.status == 0 else { return nil }
+    /// daemon can't freeze the menu bar: 5 seconds on the main thread, which
+    /// is a clear no (see `answers`), and none at all for a minute after the
+    /// daemon last failed to answer, or while it's being repaired (#243).
+    public static func invoke(_ verb: String, timeout: TimeInterval? = nil) -> String? {
+        let now = Date()
+        lock.lock()
+        let allowed = breaker.allows(now: now)
+        lock.unlock()
+        guard allowed else { return nil }
+        let limit = timeout ?? (Thread.isMainThread ? mainThreadTimeout : 20)
+        guard let reply = call(verb, timeout: limit), reply.status == 0 else { return nil }
         return reply.text
     }
+
+    public static let mainThreadTimeout: TimeInterval = 5
+
+    /// Whether the daemon answered lately (#243).
+    private static var breaker = HelperBreaker()
 
     /// One verb's exit status and what it printed, or nil when nothing
     /// answered: not allowed yet, refused, or not started in time.
@@ -116,13 +129,57 @@ public enum HelperService {
             lock.unlock()
             answered.signal()
         }
-        guard proxy != nil, answered.wait(timeout: .now() + timeout) == .success else { return nil }
+        guard proxy != nil, answered.wait(timeout: .now() + timeout) == .success else {
+            noteAnswer(false)
+            return nil
+        }
         lock.lock()
-        defer { lock.unlock() }
-        return reply
+        let answer = reply
+        lock.unlock()
+        noteAnswer(answer != nil)
+        return answer
+    }
+
+    private static func noteAnswer(_ answered: Bool) {
+        lock.lock()
+        answered ? breaker.answered() : breaker.missed(now: Date())
+        lock.unlock()
+    }
+
+    /// Verbs fail fast from now until `repairIfNotStarting` is done.
+    public static func holdVerbs() { repairing(true) }
+
+    /// Verbs fail fast while the daemon is checked and repaired, which asks
+    /// it directly.
+    private static func repairing(_ on: Bool) {
+        lock.lock()
+        breaker.repairing = on
+        lock.unlock()
     }
 
     // MARK: Switched on, but not starting
+
+    /// Holds verbs back from a daemon that doesn't answer (#243). Pure, so
+    /// it's tested on its own.
+    public struct HelperBreaker: Equatable {
+        /// How long a missed answer keeps verbs from waiting on it again.
+        public static let pause: TimeInterval = 60
+
+        private var missedAt: Date?
+        public var repairing = false
+
+        public init() {}
+
+        public func allows(now: Date = Date()) -> Bool {
+            guard !repairing else { return false }
+            guard let missedAt else { return true }
+            return now.timeIntervalSince(missedAt) >= Self.pause || now < missedAt
+        }
+
+        public mutating func missed(now: Date = Date()) { missedAt = now }
+
+        public mutating func answered() { missedAt = nil }
+    }
 
     /// Whether launchd starts the daemon when asked: any answer counts, even a
     /// verb that failed. Started on demand, it answers in well under a second;
@@ -156,7 +213,9 @@ public enum HelperService {
     /// registered, which may ask for it again. Blocks for seconds while it
     /// waits for answers, so call it off the main thread.
     public static func repairIfNotStarting() -> Repair {
-        repair(status: { status },
+        repairing(true)
+        defer { repairing(false) }
+        return repair(status: { status },
                answers: { answers() },
                registerAgain: { forget(); try? service.register(); forget() },
                unregister: unregister,

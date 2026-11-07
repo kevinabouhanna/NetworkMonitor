@@ -89,11 +89,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // has to go before the first-launch check, or both would start a copy.
         LoginItem.migrateLegacyAgentIfNeeded()
         enableLoginItemOnFirstLaunch()
+        // Before the model starts asking the helper anything: a daemon that
+        // can't start is found and repaired off the main thread, and until
+        // then the model's verbs fail fast instead of waiting on it (#243).
+        offerHelperUpdateIfNeeded()
         model.start()
         askController = AskController(filter: model.filter, firewall: model.firewall)
         showUpdatesGently()
         observeTitle()
-        offerHelperUpdateIfNeeded()
         showWelcomeIfNeeded()
         openWindowFromLaunchArgument()
     }
