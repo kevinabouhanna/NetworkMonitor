@@ -278,7 +278,9 @@ keeps the last 5,000 in memory only; lookups aren't listed.
 
 - **Never block** a site, and every name under it: it goes through though a list has it.
 - **Always block** a site that no list has.
-- Either for **every app** or **one app**, from the menu beside the site.
+- Either for **every app** or **one app**, from the menu beside the site. One app's rule
+  follows its signature, as firewall rules do (#320): a program at that path signed by
+  another team isn't the app, so it doesn't inherit *don't filter*.
 - **Don't filter an app**: the ad and tracker lists leave all its connections alone, for an
   app that breaks.
 - **Malware lists still apply** (#317): *never block* and *don't filter* change what the ad,

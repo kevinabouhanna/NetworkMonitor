@@ -140,6 +140,43 @@ func runAdRuleTests() {
             Check.expectEqual(firewall.adRules.count, 1)
         }
 
+        Check.test("one app's rule holds only for the app its team signed (#320)") {
+            let skip = AdRule(kind: .neverBlock, site: nil, appKey: bank, appTitle: "Bank", team: "BANKTEAM01")
+            let policy = FirewallPolicy(lists: [.ads, .malware], adRules: [skip])
+            var signed = flow("tracker.example.com", app: bank)
+            signed.teams = [bank: "BANKTEAM01"]
+            Check.expectEqual(policy.decide(signed), .allow(.mode))
+            var other = signed
+            other.teams = [bank: "SOMEONE001"]
+            Check.expectEqual(policy.decide(other), .block(.list(.ads)))
+            other.teams = [:]
+            Check.expectEqual(policy.decide(other), .block(.list(.ads)), "unsigned at the app's path")
+            // A rule made before, with no team, holds as it did.
+            let unsigned = AdRule(kind: .neverBlock, site: nil, appKey: bank, appTitle: "Bank")
+            Check.expectEqual(FirewallPolicy(lists: [.ads], adRules: [unsigned]).decide(other), .allow(.mode))
+            // Skipped, the rule leaves it to every app's rules.
+            let always = AdRule(kind: .alwaysBlock, site: "example.com")
+            let neverHere = AdRule(kind: .neverBlock, site: "example.com", appKey: bank, team: "BANKTEAM01")
+            Check.expectEqual(AdRule.deciding([always, neverHere], name: "a.example.com", appKeys: [bank],
+                                              teams: [bank: "SOMEONE001"]), always)
+            Check.expectEqual(AdRule.deciding([always, neverHere], name: "a.example.com", appKeys: [bank]), neverHere,
+                              "the log, with no teams, reads every rule")
+            // Every app's rules keep no team; the same rule's id whatever its team.
+            Check.expectNil(AdRule(kind: .alwaysBlock, site: "example.com", team: "X").team)
+            Check.expectEqual(skip.id, unsigned.id)
+            // Made in the app, it's signed for by the app's team, and saved without one if none.
+            let firewall = FirewallRules(defaults: UserDefaults(suiteName: "ad-team-\(UUID().uuidString)")!,
+                                         teamOf: { $0 == bank ? "BANKTEAM01" : nil })
+            firewall.add(unsigned)
+            firewall.add([AdRule(kind: .alwaysBlock, site: "ads.example.com", appKey: chrome)])
+            Check.expectEqual(firewall.adRules.first { $0.appKey == bank }?.team, "BANKTEAM01")
+            Check.expectNil(firewall.adRules.first { $0.appKey == chrome }?.team)
+            let encoded = try! JSONEncoder().encode(unsigned)
+            Check.expectFalse(String(decoding: encoded, as: UTF8.self).contains("team"))
+            Check.expectEqual(try? JSONDecoder().decode(AdRule.self, from: Data(#"{"kind":"neverBlock","appKey":"/A.app"}"#.utf8)),
+                              AdRule(kind: .neverBlock, site: nil, appKey: "/A.app"))
+        }
+
         Check.test("the log says which rule decided") {
             let never = AdRule(kind: .neverBlock, site: "doubleclick.net")
             let always = AdRule(kind: .alwaysBlock, site: "example.com", appKey: chrome, appTitle: "Chrome")
