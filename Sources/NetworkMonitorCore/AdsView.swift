@@ -356,23 +356,24 @@ struct AdsLogView: View {
     var body: some View {
         let entries = model.logEntries
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Picker("Show", selection: $model.logShow) {
-                    ForEach(AdsLog.Show.allCases) { Text($0.label).tag($0) }
+            // One row while search can be 240 wide; else search gets a row of
+            // its own rather than being squeezed, and every button keeps its
+            // words (#370).
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) {
+                    show
+                    search.frame(width: 240)
+                    Spacer(minLength: 8)
+                    buttons
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                TextField("Search apps, sites and addresses", text: $model.logSearch)
-                    .accessibilityLabel("Search the log")
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 260)
-                Spacer(minLength: 8)
-                Button(model.logIsPaused ? "Resume" : "Pause") { model.toggleLogPause() }
-                    .help(model.logIsPaused ? "Show new connections again" : "Stop the list moving while you read it")
-                Button("Clear") { model.clearLog() }
-                Button("Export…") { export() }
-                    .help("Save what's shown as a text file")
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 12) {
+                        show
+                        Spacer(minLength: 8)
+                        buttons
+                    }
+                    search
+                }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -399,6 +400,32 @@ struct AdsLogView: View {
                 }
             }
         }
+    }
+
+    private var show: some View {
+        Picker("Show", selection: $model.logShow) {
+            ForEach(AdsLog.Show.allCases) { Text($0.label).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .fixedSize()
+    }
+
+    private var search: some View {
+        TextField("Search apps, sites and addresses", text: $model.logSearch)
+            .accessibilityLabel("Search the log")
+            .textFieldStyle(.roundedBorder)
+    }
+
+    @ViewBuilder private var buttons: some View {
+        Button(model.logIsPaused ? "Resume" : "Pause") { model.toggleLogPause() }
+            .help(model.logIsPaused ? "Show new connections again" : "Stop the list moving while you read it")
+            .fixedSize()
+        Button("Clear") { model.clearLog() }
+            .fixedSize()
+        Button("Export…") { export() }
+            .help("Save what's shown as a text file")
+            .fixedSize()
     }
 
     @ViewBuilder private func menu(for entry: AdsLogEntry) -> some View {
