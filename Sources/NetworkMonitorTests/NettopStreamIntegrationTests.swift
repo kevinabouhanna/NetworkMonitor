@@ -308,7 +308,11 @@ func runNettopFailureTests() {
         Check.test("output that can't be read is said at once") {
             let script = standIn("while true; do echo 'Time Process In Out'; sleep 0.1; done")
             defer { script.cleanup() }
-            let messages = run(NettopStream(executable: script.path, stallAfter: 0.5)) { failures, _ in
+            // Longer than any start (#364). A new script can take a quarter of
+            // a second to print anything on an idle Mac, and longer on a busy
+            // one. If two starts in a row miss a 0.5 s stall, the stream rightly
+            // says "it stopped reporting" first, and waiting longer can't help.
+            let messages = run(NettopStream(executable: script.path, stallAfter: 2)) { failures, _ in
                 !failures.isEmpty
             }.failures
             Check.expectEqual(messages.first, "its output couldn't be read")
