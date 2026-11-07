@@ -17,3 +17,6 @@ Package.resolved
 *.xcuserstate
 xcuserdata/
 DerivedData/
+
+# Claude Code worktrees, one per session (#342)
+/.claude/worktrees/

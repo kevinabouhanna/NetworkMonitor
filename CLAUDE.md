@@ -7,11 +7,18 @@ through without asking. What's particular to NetworkMonitor:
 
 - **Releasing is routine here.** Carry each change on to a release, the installed app and
   the website without asking.
-- **Work in a worktree of your own**, `git worktree add ../NetworkMonitor-<N> -b <branch>
-  origin/main`, never by switching branches in this checkout: several sessions work
-  here at once, and a switch moves the others' files under them. Remove it once merged.
+- **Work in a worktree of your own, never in the main checkout:** several sessions
+  work here at once (`docs/development.md#working-in-parallel`). Before your first
+  edit, call `EnterWorktree` with the branch's name; a hook makes
+  `.claude/worktrees/<branch>` on that branch from a fresh `origin/main`. Another hook
+  refuses edits, `git checkout` and `git switch` in the main checkout.
 - Branches are named after the issue, e.g. `settings-v2-9`. `Closes #N` also moves the
   issue to Done on the NetworkMonitor project board.
+- **Once the PR is merged**, clean up in this order. Merge with `gh pr merge N --squash`,
+  without `--delete-branch`: that would remove the worktree you are in. Then
+  `ExitWorktree` with `remove` and `discard_changes: true` (the squash commit on `main`
+  holds the work), `git pull --ff-only` in the main checkout so it has the latest hooks,
+  and delete the branch: `git branch -D <branch>`, `git push origin --delete <branch>`.
 - CI checks: `build-and-test`, `universal`.
 - **Release it and update the app on this Mac.**
   - Write its What's new in `ReleaseNotes/X.Y.Z.md`, merged with a pull
@@ -20,6 +27,9 @@ through without asking. What's particular to NetworkMonitor:
     the update window and in the release notes.
   - Tag `vX.Y.Z` on `main` and push the tag. The Release workflow builds,
     tests and publishes `NetworkMonitor.dmg` and the appcast Sparkle reads.
+  - Do the release in a worktree too: `EnterWorktree` `release-X.Y.Z` for the
+    release notes' pull request; once the tag is pushed, `git switch --detach
+    vX.Y.Z` there, install, and clean up as above.
   - Update the installed app: `make install` from the tag when the signing
     keys are on this Mac (`~/.config/networkmonitor-signing/`); otherwise
     through Sparkle, once the release is published, so the installed app
@@ -57,13 +67,17 @@ The site is the `gh-pages` branch, checked out as a worktree at
 `../NetworkMonitor-site`. A change to it follows the same workflow, with no
 release of its own:
 
-- Branch from `gh-pages` and open the pull request against `gh-pages`. A
-  release's site update goes the same way.
+- Branch from `gh-pages` in a worktree of your own, and open the pull request
+  against `gh-pages`. A release's site update goes the same way. The hook starts
+  new branches from `main`, so make this one yourself:
+  `git worktree add --no-track -b <branch> .claude/worktrees/<branch> origin/gh-pages`,
+  then `EnterWorktree` with its `path`. Point the pictures at it with
+  `make site-shots SITE=<that path>`, run from your main-branch worktree.
+  `../NetworkMonitor-site` stays on `gh-pages`; never switch its branch.
 - `Closes #N` closes issues only for pull requests into `main`. Close the issue
   by hand once the PR is merged.
-- Don't pass `--delete-branch` to `gh pr merge` while the branch is checked out
-  in the worktree: `gh` removes the worktree with it. Merge, switch the worktree
-  back to `gh-pages`, then delete the branch.
+- Merge and clean up as for `main`: without `--delete-branch`, which removes the
+  worktree the branch is checked out in.
 - The Settings section shows each pane as a real capture in `assets/settings/`.
   Each `<img>` carries the window's size in points (`data-w`, `data-h`), and
   the buttons over it are placed in the same points.
@@ -91,11 +105,27 @@ release of its own:
   `ObservableObject` instead; see `SettingsPaneState`.
 - **The real speed test uses 70–200 MB per run.** Test against the stand-in
   script in `SpeedTestTests` rather than running it again and again.
+- **The Mac lane: one at a time on the Mac itself.** Whatever uses the Mac as a
+  whole goes through `Scripts/mac-lane.sh`, one at a time across every worktree and
+  session. That covers the installed app, the filter, the helper, settings, the
+  pointer and screen, and `pkill`. The install, uninstall, helper and smoke-test
+  scripts and `make run`, `site-check` and `site-shots` take the lane themselves.
+  Launch a development build through it too:
+  `Scripts/mac-lane.sh open -W -n build/NetworkMonitor.app --args …` holds the lane
+  until that copy quits. A busy lane waits and names its holder. Run those commands
+  in the background so a wait can't time out. `Scripts/mac-lane.sh status` says
+  whether the lane is free.
+- **Computer use has its own lock, held until the session exits.** Check windows
+  with the accessibility tree (`make site-check`, `build/site-shots tree <name>`)
+  first. Use computer use only for what that can't show, from a short session that
+  exits when it's done.
+- **Local test servers take a port the system picks**
+  (`python3 -m http.server 0 --bind 127.0.0.1`), never a fixed one.
 - **Measure a power profile without unplugging:**
-  `open -n build/NetworkMonitor.app --args -powerProfile balanced` (or
-  `performance`, `saver`). Only launch arguments are read, so nothing persists.
+  `Scripts/mac-lane.sh open -W -n build/NetworkMonitor.app --args -powerProfile balanced`
+  (or `performance`, `saver`). Only launch arguments are read, so nothing persists.
   Time CPU with `ps -o time=` on the app and its `nettop` child, in the
   foreground: `top -l` hangs when run in the background.
-- **A development build shares settings and data with the installed app.** Quit
-  the installed copy before running one, put back any setting you change, and
-  relaunch the installed copy afterwards.
+- **A development build shares settings and data with the installed app.** In the
+  lane, quit the installed copy before running one, put back any setting you
+  change, and relaunch the installed copy afterwards.

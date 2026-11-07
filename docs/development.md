@@ -213,6 +213,35 @@ Every change follows the same path:
 3. **A release** once it's merged (below), unless the change is to the website or docs
    only.
 
+## Working in parallel
+
+Several Claude Code sessions often work here at once (#342). Files and the Mac itself
+are kept apart differently:
+
+- **Files: a worktree each.** A session works in `.claude/worktrees/<branch>`, made with
+  `EnterWorktree` or `claude -w <branch>`. `.claude/hooks/worktree-create.sh` puts it on
+  branch `<branch>`, from a freshly fetched `origin/main`. The main checkout stays on
+  `main` and is never edited: `.claude/hooks/require-worktree.sh` refuses edits there,
+  and `git checkout` or `git switch`, until the session has entered a worktree, and from
+  then on Claude Code keeps the session out of the main checkout itself. Each worktree
+  builds into its own `.build/` and `build/`.
+- **The Mac itself: one at a time, in the Mac lane.** A worktree doesn't keep apart the
+  one app in /Applications, its content filter and helper daemon, its settings (which a
+  development build shares), the pointer and the screen, or a `pkill` that stops every
+  copy of the app. `Scripts/mac-lane.sh` runs whatever touches those one at a time,
+  across every worktree and session: `install.sh`, `uninstall.sh`, `install-helper.sh`
+  and `smoke-test.sh` take it themselves, and so do `make run`, `make site-check` and
+  `make site-shots`. A second caller waits, and is told who holds the lane and since
+  when; the lock is the kernel's, so it goes when its holder dies.
+  `Scripts/mac-lane.sh status` says whether it's free. `install.sh` builds and notarizes
+  before taking the lane, so the lane is held only for stopping, copying and starting
+  the app.
+- **Ports.** Local test servers take a port the system picks (see
+  [Launch arguments](#launch-arguments)).
+- **Overlaps.** [Worktrunk](https://worktrunk.dev)'s `wt list` (`brew install worktrunk`)
+  lists every worktree with its changes, and marks with ✗ one whose changes would
+  conflict with `main`. Once one branch merges, the others it overlaps show it.
+
 ## Releasing
 
 1. Write the version's **What's new** in `ReleaseNotes/X.Y.Z.md` and merge it like any
@@ -332,9 +361,19 @@ A development build reads a few launch arguments for that run only; nothing pers
 |---|---|
 | `-powerProfile balanced` (or `performance`, `saver`) | measures a power profile without unplugging (below) |
 | `-open connections`, `-open ads -tab rules`, `-open welcome`, `-open popover`, `-open settings -pane history` | opens a window straight away, for a screenshot or a check |
-| `-geoDataURL http://127.0.0.1:8765/ -geoDataCheckNow YES` | fetches the monthly data from a local package, at once (#121) |
-| `-updateFeedURL http://127.0.0.1:8765/appcast.xml -checkForUpdatesNow YES` | checks a local appcast for an update, at once (#132) |
+| `-geoDataURL http://127.0.0.1:PORT/ -geoDataCheckNow YES` | fetches the monthly data from a local package, at once (#121) |
+| `-updateFeedURL http://127.0.0.1:PORT/appcast.xml -checkForUpdatesNow YES` | checks a local appcast for an update, at once (#132) |
 | `-historyDatabase ~/tmp/history.sqlite` | reads and writes Usage History, Connections and Ads and Trackers from another file, for test data (#251) |
+
+Serve local test data on a port the system picks, so sessions working in parallel
+never ask for the same one: `python3 -m http.server 0 --bind 127.0.0.1` in the
+folder holding it prints `Serving HTTP on 127.0.0.1 port N`, and `N` is the `PORT`
+above (#342).
+
+A development build shares its settings and data with the installed app, so run it
+in the Mac lane (`Scripts/mac-lane.sh`, see [Working in parallel](#working-in-parallel)):
+`Scripts/mac-lane.sh open -W -n build/NetworkMonitor.app --args …` holds the lane
+until that copy quits.
 
 ## Measuring power
 

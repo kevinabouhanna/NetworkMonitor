@@ -13,6 +13,10 @@ set -euo pipefail
 # path from another directory silently skipped the revert.
 cd "$(dirname "$0")/.."
 
+# Uses the Mac as a whole, so it waits its turn in the Mac lane (#342).
+. Scripts/mac-lane.sh
+MAC_LANE_WHAT="uninstall.sh $*" mac_lane_enter
+
 APP_NAME="NetworkMonitor"
 BUNDLE_ID="com.kevinabouhanna.NetworkMonitor"
 DEST="/Applications/${APP_NAME}.app"
