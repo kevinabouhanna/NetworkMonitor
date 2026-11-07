@@ -104,6 +104,7 @@ public final class SettingsWindowController: NSObject {
                                                              geoData: model.geoData,
                                                              blocklists: model.blocklists,
                                                              listBlocks: model.listBlocks,
+                                                             lookups: model.lookups,
                                                              onOpen: onOpenConnections,
                                                              onOpenAds: onOpenAds),
                                      width: SettingsMetrics.paneWidth)

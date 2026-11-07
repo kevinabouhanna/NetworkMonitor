@@ -32,6 +32,8 @@
 		<dict>
 			<key>com.apple.networkextension.filter-data</key>
 			<string>FilterDataProvider</string>
+			<key>com.apple.networkextension.dns-proxy</key>
+			<string>DNSProxyProvider</string>
 		</dict>
 	</dict>
 </dict>

@@ -141,6 +141,9 @@ final class Firewall {
 
     // MARK: Aliases (#255)
 
+    /// The encrypted lookups' resolver (#291), by id.
+    var lookupResolver: String? { current.lookupResolver }
+
     /// Whether lookups' answers are worth reading: only while a list is on.
     var readsLookups: Bool { !current.lists.isEmpty }
 

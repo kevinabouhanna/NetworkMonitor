@@ -226,10 +226,14 @@ public struct FirewallPolicy: Codable, Equatable {
     /// The downloaded lists switched on (#254), by id, in the order they're
     /// named when one blocks. They apply only while a shipped list is on.
     public var downloadedLists: [String]
+    /// The resolver the DNS proxy sends lookups to, encrypted (#291), by
+    /// `EncryptedDNS.Resolver` id. Kept here so it's there when the proxy starts.
+    public var lookupResolver: String?
 
     public init(mode: FirewallMode = .anywhere, rules: [FirewallRule] = [], onHotspot: Bool = false,
                 pausesUpdates: Bool = false, lists: Set<BlocklistTopic> = [], blocksEverything: Bool = false,
-                network: String? = nil, adRules: [AdRule] = [], downloadedLists: [String] = []) {
+                network: String? = nil, adRules: [AdRule] = [], downloadedLists: [String] = [],
+                lookupResolver: String? = nil) {
         self.mode = mode
         self.rules = rules
         self.onHotspot = onHotspot
@@ -239,10 +243,12 @@ public struct FirewallPolicy: Codable, Equatable {
         self.network = network
         self.adRules = adRules
         self.downloadedLists = downloadedLists
+        self.lookupResolver = lookupResolver
     }
 
     private enum CodingKeys: String, CodingKey {
         case mode, rules, onHotspot, pausesUpdates, lists, blocksEverything, network, adRules, downloadedLists
+        case lookupResolver
     }
 
     /// A policy saved before a field existed reads it as off, so a filter
@@ -258,6 +264,7 @@ public struct FirewallPolicy: Codable, Equatable {
         network = try container.decodeIfPresent(String.self, forKey: .network)
         adRules = try container.decodeIfPresent([AdRule].self, forKey: .adRules) ?? []
         downloadedLists = try container.decodeIfPresent([String].self, forKey: .downloadedLists) ?? []
+        lookupResolver = try container.decodeIfPresent(String.self, forKey: .lookupResolver)
     }
 
     /// Anything to decide at all. Without it, the filter looks nothing up.

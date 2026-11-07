@@ -1,3 +1,4 @@
+import FilterProtocol
 import FirewallPolicy
 import Foundation
 
@@ -83,6 +84,72 @@ func runDNSAliasTests() {
             Check.expectTrue(memory.count <= AliasMemory.capacity)
             Check.expectEqual(memory.chain(of: "n\(AliasMemory.capacity).example.com", now: now), ["t.example.net"],
                               "the newest is kept")
+        }
+    }
+
+    Check.suite("Encrypted lookups (#291)") {
+        func query(_ name: String) -> Data {
+            Data(u16(0xbeef) + u16(0x0100) + u16(1) + u16(0) + u16(0) + u16(0) + label(name) + u16(1) + u16(1))
+        }
+
+        Check.test("reads the name a query asks about") {
+            Check.expectEqual(EncryptedDNS.questionName(query("WWW.Example.com")), "www.example.com")
+            Check.expectNil(EncryptedDNS.questionName(Data([0, 1, 2])))
+            Check.expectNil(EncryptedDNS.questionName(query("example.com").dropLast(6)))
+        }
+
+        Check.test("names only the network knows stay on it") {
+            for name in ["router", "printer.local", "nas.lan", "box.home.arpa", "wiki.corp", "1.1.168.192.in-addr.arpa",
+                         "5.0.0.10.in-addr.arpa", "3.20.16.172.in-addr.arpa",
+                         "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.e.f.ip6.arpa"] {
+                Check.expectTrue(EncryptedDNS.staysOnNetwork(name), name)
+            }
+            for name in ["example.com", "apple.com", "8.8.8.8.in-addr.arpa", "3.20.32.172.in-addr.arpa",
+                         "local.example.com"] {
+                Check.expectFalse(EncryptedDNS.staysOnNetwork(name), name)
+            }
+        }
+
+        Check.test("the answer goes back with the question's ID") {
+            var answer = [UInt8](query("example.com"))
+            answer[0] = 0
+            answer[1] = 0
+            answer[2] = 0x81
+            let fixed = EncryptedDNS.answer(Data(answer), for: query("example.com"))
+            Check.expectEqual(fixed.map { Array($0.prefix(3)) }, [0xbe, 0xef, 0x81])
+            Check.expectNil(EncryptedDNS.answer(Data([1, 2]), for: query("example.com")))
+        }
+
+        Check.test("three failures in a row send lookups to the network for a minute") {
+            let now = Date(timeIntervalSince1970: 1_800_000_000)
+            var fallback = EncryptedDNS.Fallback()
+            fallback.failed(now: now)
+            fallback.failed(now: now)
+            Check.expectTrue(fallback.triesEncrypted(now: now))
+            fallback.succeeded()
+            fallback.failed(now: now)
+            fallback.failed(now: now)
+            Check.expectTrue(fallback.triesEncrypted(now: now), "an answer in between starts the count again")
+            fallback.failed(now: now)
+            Check.expectFalse(fallback.triesEncrypted(now: now.addingTimeInterval(59)))
+            Check.expectTrue(fallback.triesEncrypted(now: now.addingTimeInterval(60)))
+            fallback.succeeded()
+            Check.expectFalse(fallback.isPaused)
+        }
+
+        Check.test("every resolver answers at an address, and an unknown one means the first") {
+            for resolver in EncryptedDNS.resolvers {
+                Check.expectEqual(resolver.url.scheme, "https")
+                Check.expectTrue(FirewallPolicy.isLocal(resolver.url.host ?? "") == false)
+                Check.expectTrue(resolver.url.host?.allSatisfy { $0.isNumber || $0 == "." } == true, resolver.id)
+            }
+            Check.expectEqual(EncryptedDNS.resolver("nonsense").id, EncryptedDNS.defaultResolver)
+        }
+
+        Check.test("the resolver travels with the policy, and an old policy has none") {
+            let policy = FirewallPolicy(lists: [.ads], lookupResolver: "quad9")
+            Check.expectEqual(FirewallPolicy.decode(policy.encoded())?.lookupResolver, "quad9")
+            Check.expectNil(FirewallPolicy.decode(Data(#"{"mode":"anywhere","rules":[]}"#.utf8))?.lookupResolver)
         }
     }
 }
