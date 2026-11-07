@@ -182,4 +182,65 @@ func runListLibraryTests() {
             Check.expectEqual(AdsReport.title(ofList: "ads"), BlocklistTopic.ads.title)
         }
     }
+
+    Check.suite("More lists — recommended (#314)") {
+        func library(_ defaults: UserDefaults = UserDefaults(suiteName: "lists-\(UUID().uuidString)")!)
+            -> ListLibrary {
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("lists-\(UUID().uuidString)")
+            let library = ListLibrary(defaults: defaults, directory: directory)
+            library.mayDownload = { false }
+            return library
+        }
+
+        Check.test("the recommended pair are lists the catalogue has") {
+            Check.expectEqual(ListCatalogue.recommended.count, 2)
+            Check.expectTrue(ListCatalogue.recommended.allSatisfy { ListCatalogue.source($0)?.topic == .ads })
+        }
+
+        Check.test("a new install starts on the recommended lists") {
+            let library = library()
+            Check.expectTrue(library.usesRecommended)
+            Check.expectEqual(library.enabled, ListCatalogue.recommended)
+        }
+
+        Check.test("lists chosen before #314 stay chosen") {
+            let defaults = UserDefaults(suiteName: "lists-\(UUID().uuidString)")!
+            defaults.set(["hagezi-pro", "adguard-dns"], forKey: ListLibrary.enabledKey)
+            let library = library(defaults)
+            Check.expectFalse(library.usesRecommended)
+            Check.expectEqual(library.enabled, ["hagezi-pro", "adguard-dns"])
+        }
+
+        Check.test("switching a list by hand makes it your own choice, from the lists in use") {
+            let library = library()
+            library.setEnabled("peter-lowe", true)
+            Check.expectFalse(library.usesRecommended)
+            Check.expectEqual(library.enabled, ListCatalogue.recommended + ["peter-lowe"])
+        }
+
+        Check.test("Recommended and back finds your own choice as you left it") {
+            let defaults = UserDefaults(suiteName: "lists-\(UUID().uuidString)")!
+            let first = library(defaults)
+            first.setUsesRecommended(false)
+            Check.expectEqual(first.enabled, [], "nothing chosen yet")
+            first.setEnabled("hagezi-light", true)
+            first.setUsesRecommended(true)
+            Check.expectEqual(first.enabled, ListCatalogue.recommended)
+            let relaunched = library(defaults)
+            Check.expectTrue(relaunched.usesRecommended)
+            relaunched.setUsesRecommended(false)
+            Check.expectEqual(relaunched.enabled, ["hagezi-light"])
+        }
+
+        Check.test("adding a list by its address is your own choice") {
+            let library = library()
+            guard case .success(let id) = library.add("https://more.example.com/hosts.txt") else { return }
+            Check.expectFalse(library.usesRecommended)
+            Check.expectTrue(library.isEnabled(id))
+            library.setUsesRecommended(true)
+            library.remove(id)
+            library.setUsesRecommended(false)
+            Check.expectFalse(library.chosen.contains(id), "a removed list leaves your choice too")
+        }
+    }
 }

@@ -436,11 +436,10 @@ struct AdsListsView: View {
     @ObservedObject var model: AdsViewModel
     /// Not `@State`; see `SettingsPaneState`.
     @StateObject private var info = RowInfoState()
+    @StateObject private var recommendedInfo = RowInfoState()
 
     var body: some View {
         VStack(spacing: 0) {
-            form
-            Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     group("Built in", note: "Updated weekly by NetworkMonitor, and signed.") {
@@ -448,11 +447,8 @@ struct AdsListsView: View {
                             shippedRow(topic)
                         }
                     }
-                    ForEach(model.listGroups, id: \.topic) { group in
-                        self.group(group.topic.title, note: note(for: group.topic)) {
-                            ForEach(group.lists) { list in row(list) }
-                        }
-                    }
+                    recommended
+                    advanced
                 }
                 .padding(20)
             }
@@ -466,6 +462,75 @@ struct AdsListsView: View {
             }
         }
     }
+
+    /// The lists the app picks (#314), used unless you choose your own.
+    private var recommended: some View {
+        let on = model.library.usesRecommended
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                // One switch for the pair, where each list's own would be.
+                Toggle("Use the recommended lists", isOn: Binding(get: { on }, set: { model.setUsesRecommended($0) }))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    .help(on ? "Choose your own lists under Advanced instead" : "Use the recommended lists again")
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Recommended").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    Text(on ? "Block most ads, and rarely break a site."
+                            : "Off: the lists you choose under Advanced are used instead.")
+                        .font(.system(size: 11)).foregroundStyle(.tertiary)
+                    RowInfoButton(help: Self.recommendedExplanation, state: recommendedInfo) {
+                        Text(Self.recommendedExplanation)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.bottom, 2)
+            .contentShape(Rectangle())
+            .onHover { recommendedInfo.isHovering = $0 }
+            ForEach(model.recommendedLists) { list in
+                listRow(list, showsSwitch: false)
+                    .opacity(on ? 1 : 0.5)
+            }
+        }
+    }
+
+    /// Every list, to choose your own, and any list by its address: more
+    /// blocking, and the risk of broken sites that comes with it (#314).
+    private var advanced: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                model.advancedListsShown = !model.showsAdvancedLists
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .rotationEffect(.degrees(model.showsAdvancedLists ? 90 : 0))
+                        .frame(width: 10)
+                    Text("Advanced").font(.system(size: 12, weight: .semibold))
+                    Text("Choose your own lists, or add one by its address.")
+                        .font(.system(size: 11)).foregroundStyle(.tertiary)
+                }
+                .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if model.showsAdvancedLists {
+                form
+                ForEach(model.listGroups, id: \.topic) { group in
+                    self.group(group.topic.title, note: note(for: group.topic)) {
+                        ForEach(group.lists) { list in row(list) }
+                    }
+                }
+            }
+        }
+    }
+
+    static let recommendedExplanation = "HaGeZi Normal and OISD Big, on top of the built-in lists. Between them "
+        + "they block most ads and trackers, and both are made to keep mistakes rare: OISD's aim is to block ads "
+        + "without breaking sites, and HaGeZi Normal is HaGeZi's all-round list, a step below its stricter Pro. "
+        + "They overlap rather than conflict. NetworkMonitor downloads them from their makers weekly, and a "
+        + "later version may change the pair."
 
     private var form: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -483,8 +548,6 @@ struct AdsListsView: View {
                 Text(error).font(.system(size: 11)).foregroundStyle(.red)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
         .contentShape(Rectangle())
         .onHover { info.isHovering = $0 }
         .onChange(of: model.newListURL) { _ in model.clearListError() }
@@ -500,7 +563,7 @@ struct AdsListsView: View {
 
     private func note(for topic: ListTopic) -> String {
         switch topic {
-        case .ads:          return "Pick one or two. Each one blocks more, but makes it likelier a site stops working."
+        case .ads:          return "Each one you add blocks more, but makes it likelier a site stops working."
         case .trackers:     return "Sites that follow you from page to page."
         case .annoyances:   return "Cookie notices and other parts of pages are for the Chrome extension."
         case .malware:      return "On top of the built-in malware list."
@@ -542,13 +605,20 @@ struct AdsListsView: View {
         .help("\(topic.source), \(topic.licence) licence")
     }
 
-    private func row(_ list: ListSource) -> some View {
+    private func row(_ list: ListSource) -> some View { listRow(list, showsSwitch: true) }
+
+    /// A list, with its switch, or without one among the recommended, which
+    /// come and go together.
+    private func listRow(_ list: ListSource, showsSwitch: Bool) -> some View {
         let detail = model.listDetail(list.id)
         return HStack(spacing: 10) {
             Toggle("", isOn: Binding(get: { model.library.isEnabled(list.id) }, set: { model.setList(list.id, $0) }))
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .controlSize(.mini)
+                .opacity(showsSwitch ? 1 : 0)
+                .disabled(!showsSwitch)
+                .accessibilityHidden(!showsSwitch)
             VStack(alignment: .leading, spacing: 1) {
                 Text(list.title).lineLimit(1).truncationMode(.middle)
                 Text(list.isAdded ? list.url.absoluteString : list.about)
@@ -689,8 +759,9 @@ struct AdsRulesView: View {
 
     static let explanation = "A rule covers the site and every name under it: example.com covers ads.example.com. "
         + "Rules change only what the ad and tracker lists do. Never block lets a listed site through, and "
-        + "always block stops one no list has. A rule for one app wins over one for every app. Your firewall "
-        + "rules in Connections still come first."
+        + "always block stops one no list has. A rule for one app wins over one for every app. In Connections, "
+        + "a block still blocks and Always Allow on a site lets it through; allowing a whole app or company "
+        + "doesn't let its ads through."
 
     @ViewBuilder private func section(_ title: String, rules: [AdRule], note: String) -> some View {
         if !rules.isEmpty {

@@ -174,8 +174,11 @@ Trackers, with buttons to its Lists and Rules tabs.
 | **Ads and trackers** | about 77,000 ad, tracking and analytics servers | StevenBlack's unified hosts | MIT |
 | **Malware and phishing** | about 1,900 servers spreading malware now | URLhaus, by malware-filter | CC0 |
 
-- **Your rules come first.** Always Allow on a site in Connections lets it through, and a
-  rule that blocks still blocks.
+- **Your rules come first.** Always Allow on a site or a server in Connections lets it
+  through, and a rule that blocks still blocks. Always Allow on an app, a company or a
+  country (Ask Me's answers too, and the apps you allow under Only Where I Allow) lets it
+  connect, and the lists still apply to it (#316): allowing Google in Chrome doesn't let
+  `doubleclick.net` through.
 - **A listed name covers every name under it,** down to its site: listing
   `doubleclick.net` blocks `static.doubleclick.net`. A list can never block a whole suffix
   such as `com`.
@@ -229,7 +232,17 @@ keeps the last 5,000 in memory only; lookups aren't listed.
 **Lists** (#254), the third tab: which lists block, and what each blocked today (#311).
 
 - **Built in:** the two above, switched on and off here as in Settings.
-- **More lists**, downloaded on the Mac from where their makers publish them, by topic:
+- **Recommended** (#314), on by default: **HaGeZi Normal** and **OISD Big**, chosen by the app
+  so nobody has to weigh lists against broken sites. Between them they block most ads and
+  trackers; OISD is made to block ads without breaking sites and HaGeZi Normal is HaGeZi's
+  all-round tier, below Pro, and the pair is a common low-breakage setup. They overlap rather
+  than conflict. One switch for the pair; in Recommended the lists in use follow
+  `ListCatalogue.recommended`, so a later version can change it. Installs that had chosen lists
+  before #314 keep their choice.
+- **Advanced**, collapsed while Recommended is on: every list, and Add List. Switching a list
+  here, or adding one, makes it your own choice, starting from the lists in use; switching
+  Recommended back on keeps your choice for when you switch it off again.
+- **More lists**, under Advanced, downloaded on the Mac from where their makers publish them, by topic:
 
   | Topic | Lists |
   |---|---|

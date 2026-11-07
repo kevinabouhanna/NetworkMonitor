@@ -97,6 +97,13 @@ public enum ListCatalogue {
     ]
 
     public static func source(_ id: String) -> ListSource? { all.first { $0.id == id } }
+
+    /// What's used unless you choose your own (#314): two lists that block
+    /// most ads between them, rarely break a site, and don't fight each
+    /// other. OISD is made to block ads without breaking sites, and HaGeZi
+    /// Normal is HaGeZi's all-round tier, below Pro; together they're a
+    /// common setup for few broken sites. They overlap, which costs nothing.
+    public static let recommended = ["hagezi-normal", "oisd-big"]
 }
 
 /// How a downloaded list stands.
@@ -131,14 +138,21 @@ public final class ListLibrary: ObservableObject {
 
     /// Lists added by their address, newest last.
     @Published public private(set) var added: [ListSource]
-    /// The lists switched on, by id, in the order they were.
+    /// The lists in use, by id: the recommended ones, or your own choice.
     @Published public private(set) var enabled: [String]
+    /// Whether the recommended lists are in use rather than your own (#314).
+    @Published public private(set) var usesRecommended: Bool
+    /// Your own choice, in the order you switched them on, kept while the
+    /// recommended lists are in use so switching back finds it again.
+    @Published public private(set) var chosen: [String]
     @Published public private(set) var status: [String: ListStatus]
     @Published public private(set) var downloading: Set<String> = []
     /// Switched on and with a copy: what the filter is told to use.
     @Published public private(set) var ready: [String] = []
 
+    /// Your own choice, which before #314 was simply the lists switched on.
     public static let enabledKey = "downloadedLists"
+    public static let recommendedKey = "downloadedListsRecommended"
     public static let addedKey = "downloadedListsAdded"
     public static let statusKey = "downloadedListsStatus"
 
@@ -170,13 +184,22 @@ public final class ListLibrary: ObservableObject {
             .flatMap { try? JSONDecoder().decode([ListSource].self, from: $0) } ?? []
         status = (defaults.data(forKey: Self.statusKey))
             .flatMap { try? JSONDecoder().decode([String: ListStatus].self, from: $0) } ?? [:]
-        enabled = defaults.stringArray(forKey: Self.enabledKey) ?? []
-        for id in enabled {
+        let chosen = defaults.stringArray(forKey: Self.enabledKey) ?? []
+        // Someone who chose lists before there was a recommendation keeps
+        // their choice; everyone else starts on the recommended ones.
+        let usesRecommended = defaults.object(forKey: Self.recommendedKey) == nil
+            ? chosen.isEmpty : defaults.bool(forKey: Self.recommendedKey)
+        self.chosen = chosen
+        self.usesRecommended = usesRecommended
+        enabled = []
+        // Both kept ready, so switching between them needs no download.
+        for id in Set(chosen + ListCatalogue.recommended) {
             if let data = try? Data(contentsOf: file(for: id)), let list = try? DownloadedList.decode(data).first {
                 lists[id] = list
             }
         }
-        enabled = enabled.filter { source($0) != nil }
+        self.chosen = chosen.filter { source($0) != nil }
+        enabled = usesRecommended ? ListCatalogue.recommended : self.chosen
         updateTitles()
         ready = enabled.filter { lists[$0] != nil }
     }
@@ -205,15 +228,37 @@ public final class ListLibrary: ObservableObject {
 
     // MARK: Choosing
 
+    /// A list switched on or off by hand: your own choice from then on,
+    /// starting from the lists in use.
     public func setEnabled(_ id: String, _ on: Bool) {
         guard source(id) != nil, on != isEnabled(id) else { return }
+        var choice = usesRecommended ? enabled : chosen
         if on {
-            enabled.append(id)
+            choice.append(id)
         } else {
-            enabled.removeAll { $0 == id }
+            choice.removeAll { $0 == id }
         }
-        defaults.set(enabled, forKey: Self.enabledKey)
-        if on && lists[id] == nil { download(id) }
+        chosen = choice
+        defaults.set(chosen, forKey: Self.enabledKey)
+        setMode(recommended: false)
+        use(chosen)
+    }
+
+    /// The recommended lists, or your own choice back as you left it (#314).
+    public func setUsesRecommended(_ on: Bool) {
+        guard on != usesRecommended else { return }
+        setMode(recommended: on)
+        use(on ? ListCatalogue.recommended : chosen)
+    }
+
+    private func setMode(recommended: Bool) {
+        usesRecommended = recommended
+        defaults.set(recommended, forKey: Self.recommendedKey)
+    }
+
+    private func use(_ ids: [String]) {
+        enabled = ids
+        for id in ids where lists[id] == nil { download(id) }
         publish()
     }
 
@@ -242,6 +287,8 @@ public final class ListLibrary: ObservableObject {
     public func remove(_ id: String) {
         guard added.contains(where: { $0.id == id }) else { return }
         setEnabled(id, false)
+        chosen.removeAll { $0 == id }
+        defaults.set(chosen, forKey: Self.enabledKey)
         added.removeAll { $0.id == id }
         status[id] = nil
         lists[id] = nil

@@ -111,8 +111,9 @@ struct AdsSettingsPane: View {
     }
 
     private var moreLists: String {
+        if library.usesRecommended { return "Recommended" }
         let count = library.enabled.count
-        return count == 0 ? "None" : "\(count) switched on"
+        return count == 0 ? "None" : "\(count) chosen by you"
     }
 
     private var rules: String {
@@ -131,7 +132,8 @@ struct AdsSettingsPane: View {
     }
 
     static let listsExplanation = "Connections to sites on these lists are blocked in every app, after your own "
-        + "rules: Always Allow on a site in Connections lets it through. Ads served from a site's own servers, "
+        + "rules: Always Allow on a site in Connections lets it through. Allowing an app or a company lets it "
+        + "connect, and its ads are still blocked. Ads served from a site's own servers, "
         + "like YouTube's, can't be told apart from the site, so they aren't blocked."
     static let updatesExplanation = "Once a week, NetworkMonitor downloads the lists from GitHub, the same signed "
         + "file for everyone, never on a hotspot."
