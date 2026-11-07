@@ -181,7 +181,9 @@ Trackers, with buttons to its Lists and Rules tabs.
   `doubleclick.net` through.
 - **A listed name covers every name under it,** down to its site: listing
   `doubleclick.net` blocks `static.doubleclick.net`. A list can never block a whole suffix
-  such as `com`.
+  such as `com`, `gov.lb` or `myshopify.com`. A name's site comes from the Public Suffix
+  List (#318), as browsers judge it: `moph.gov.lb` and `shop.myshopify.com` are sites of
+  their own.
 - **It works for apps that connect by address too,** such as Chrome, through the name in
   the connection's handshake (#196).
 - **It sees through a site's own name for a tracker** (#255): `metrics.example.com` that is

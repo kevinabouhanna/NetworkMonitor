@@ -34,6 +34,29 @@ func runSiteRuleTests() {
             Check.expectEqual(SiteName.site(of: "d1234.cloudfront.net"), "d1234.cloudfront.net")
             Check.expectEqual(SiteName.site(of: "wp.com"), "wp.com")
         }
+
+        Check.test("sites by the Public Suffix List, never wider than the site (#318)") {
+            Check.expectEqual(SiteName.site(of: "moph.gov.lb"), "moph.gov.lb")
+            Check.expectEqual(SiteName.site(of: "www.moph.gov.lb"), "moph.gov.lb")
+            Check.expectEqual(SiteName.site(of: "cdn.shop.myshopify.com"), "shop.myshopify.com")
+            Check.expectEqual(SiteName.site(of: "app.onrender.com"), "app.onrender.com")
+            Check.expectEqual(SiteName.site(of: "someone.wordpress.com"), "someone.wordpress.com")
+            Check.expectEqual(SiteName.site(of: "bucket.s3.amazonaws.com"), "bucket.s3.amazonaws.com")
+            // A wildcard makes every name under it a suffix, and an exception a site.
+            Check.expectEqual(SiteName.site(of: "a.b.ck"), "a.b.ck")
+            Check.expectEqual(SiteName.site(of: "x.a.b.ck"), "a.b.ck")
+            Check.expectEqual(SiteName.site(of: "www.ck"), "www.ck")
+            Check.expectEqual(SiteName.site(of: "a.www.ck"), "www.ck")
+            // In punycode, as macOS names it: 公司.cn.
+            Check.expectEqual(SiteName.site(of: "www.shop.xn--55qx5d.cn"), "shop.xn--55qx5d.cn")
+            // A suffix is its own site, and a name under no rule has its last label as suffix.
+            Check.expectEqual(SiteName.site(of: "gov.lb"), "gov.lb")
+            Check.expectEqual(SiteName.site(of: "a.b.example-tld"), "b.example-tld")
+            Check.expectEqual(SiteName.domains(of: "www.moph.gov.lb"), ["www.moph.gov.lb", "moph.gov.lb"])
+            Check.expectEqual(SiteName.domains(of: "gov.lb"), ["gov.lb"])
+            Check.expectEqual(FirewallRules.siteScopes(for: "cdn.shop.myshopify.com"),
+                              ["cdn.shop.myshopify.com", "shop.myshopify.com"])
+        }
     }
 
     Check.suite("Firewall — rules by site name (#197)") {

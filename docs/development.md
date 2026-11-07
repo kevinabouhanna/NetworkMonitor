@@ -49,6 +49,7 @@ make run     # build build/NetworkMonitor.app and open it
 | `make helper-no-daemon` | The same without the hourly self-check |
 | `make metering-report` | Prints what Hotspot mode reaches on this Mac, pending update downloads and the Low Data Mode state. Read-only, safe beside a running copy |
 | `make icon` | Redraws `Resources/AppIcon.icns` from `Scripts/make-icon.swift` |
+| `make public-suffixes` | Regenerates `Sources/FirewallPolicy/PublicSuffixes.swift` from the Public Suffix List (#318), which tells a name's site. Committed too; refresh it now and then in a pull request of its own |
 | `make geodata` | Rebuilds `Resources/Geo` from DB-IP's current month. The files are committed, because DB-IP removes old months; refresh them in a pull request of their own |
 | `make dmg-background` | Redraws the disk image background |
 | `make hooks` | Points git at `Scripts/hooks`, so `pre-push` runs the tests |
