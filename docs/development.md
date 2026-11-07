@@ -296,6 +296,11 @@ records the new tree. Rewrite the alt text of any picture whose interface change
 - It needs Accessibility and Screen Recording for the terminal it runs in. It quits and
   relaunches the app, clicks with the pointer when an entry says so, and leaves the app
   running as it found it.
+- One run at a time: a second one, from another terminal or session, stops at once
+  rather than relaunching the app under the first. Don't install a new version during
+  a run either.
+- A value that follows the Mac's state, not the interface (a time, plugged in or on
+  battery, on a hotspot or not), is marked as data with `skip: 1` on the label beside it.
 - It must run against the installed, notarized app: a development build shows different
   rows, since it has no content filter or helper.
 - To add a picture, write its entry, look at `build/site-shots tree <name>` to mark the
