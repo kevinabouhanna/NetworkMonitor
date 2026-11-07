@@ -269,14 +269,25 @@ func runNettopFailureTests() {
             return (path, { try? FileManager.default.removeItem(at: dir) })
         }
 
-        func run(_ stream: NettopStream, for seconds: TimeInterval) -> (failures: [String], samples: Int) {
+        /// Runs the stream until `done` says so, after at least `atLeast`
+        /// seconds, or for 20 seconds at most. Waiting on the outcome, not a
+        /// fixed short run, keeps a busy Mac (several builds at once) from
+        /// failing these (#357): a stand-in that's a moment late only makes
+        /// the test take a moment longer.
+        func run(_ stream: NettopStream, atLeast: TimeInterval = 0, deadline: TimeInterval = 20,
+                 until done: (_ failures: [String], _ samples: Int) -> Bool) -> (failures: [String], samples: Int) {
             let lock = NSLock()
             var messages: [String] = []
             var samples = 0
             stream.onFailure = { message in lock.lock(); messages.append(message); lock.unlock() }
             stream.onSample = { _ in lock.lock(); samples += 1; lock.unlock() }
+            let start = Date()
             stream.start()
-            Thread.sleep(forTimeInterval: seconds)
+            while Date().timeIntervalSince(start) < deadline {
+                Thread.sleep(forTimeInterval: 0.05)
+                lock.lock(); let finished = done(messages, samples); lock.unlock()
+                if finished && Date().timeIntervalSince(start) >= atLeast { break }
+            }
             stream.stop()
             lock.lock(); defer { lock.unlock() }
             return (messages, samples)
@@ -286,7 +297,9 @@ func runNettopFailureTests() {
         Check.test("a nettop that goes silent is restarted, and said once it stays so") {
             let script = standIn("exec sleep 600")
             defer { script.cleanup() }
-            let messages = run(NettopStream(executable: script.path, stallAfter: 0.5), for: 3.5).failures
+            let messages = run(NettopStream(executable: script.path, stallAfter: 0.5)) { failures, _ in
+                failures.contains("it stopped reporting")
+            }.failures
             Check.expectTrue(messages.contains("it stopped reporting"), "\(messages)")
         }
 
@@ -295,7 +308,9 @@ func runNettopFailureTests() {
         Check.test("output that can't be read is said at once") {
             let script = standIn("while true; do echo 'Time Process In Out'; sleep 0.1; done")
             defer { script.cleanup() }
-            let messages = run(NettopStream(executable: script.path, stallAfter: 0.5), for: 1.5).failures
+            let messages = run(NettopStream(executable: script.path, stallAfter: 0.5)) { failures, _ in
+                !failures.isEmpty
+            }.failures
             Check.expectEqual(messages.first, "its output couldn't be read")
         }
 
@@ -308,7 +323,11 @@ func runNettopFailureTests() {
                 done
                 """)
             defer { script.cleanup() }
-            let (messages, samples) = run(NettopStream(executable: script.path, stallAfter: 0.5), for: 2)
+            // Two stall periods with lines every 0.1 s: plenty of room for a
+            // late one, and long enough that a restart would have shown.
+            let (messages, samples) = run(NettopStream(executable: script.path, stallAfter: 2), atLeast: 4) { _, samples in
+                samples > 5
+            }
             Check.expectTrue(messages.isEmpty, "\(messages)")
             Check.expectTrue(samples > 5, "\(samples) samples")
         }
