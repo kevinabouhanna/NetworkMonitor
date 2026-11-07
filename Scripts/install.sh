@@ -36,15 +36,6 @@ for arg in "$@"; do
   esac
 done
 
-echo "==> Stopping any running copy"
-# Older installs used a LaunchAgent; boot it out first so launchd does not
-# restart the app mid-install. The plist is left in place deliberately — the
-# app reads it on next launch to carry the user's existing "start at login"
-# choice over to SMAppService, then deletes it.
-launchctl bootout "gui/$(id -u)/${BUNDLE_ID}" 2>/dev/null || true
-pkill -f "${APP_NAME}.app/Contents/MacOS/${APP_NAME}" 2>/dev/null || true
-sleep 1
-
 echo "==> Building"
 ./Scripts/bundle.sh >/dev/null
 
@@ -63,7 +54,6 @@ if [ -n "$installed_team" ] && [ "$installed_team" != "not set" ] \
   echo "    ${built_team}. Installing it would replace the notarized app." >&2
   echo "    The signing keys go in ~/.config/networkmonitor-signing/. Otherwise install the" >&2
   echo "    release's NetworkMonitor.dmg, or run with ALLOW_UNSIGNED=1 to do it anyway." >&2
-  open "$DEST"
   exit 1
 fi
 
@@ -74,6 +64,21 @@ if [ -d "build/${APP_NAME}.app/Contents/Library/SystemExtensions" ]; then
     echo "    until a notarized build replaces it. Is the login keychain locked?" >&2
   fi
 fi
+
+# Building and notarizing happen above, in this worktree, while the installed
+# app keeps running. From here on this uses the Mac as a whole, so it waits its
+# turn in the Mac lane (#342).
+. Scripts/mac-lane.sh
+MAC_LANE_WHAT="install.sh $*" mac_lane_enter
+
+echo "==> Stopping any running copy"
+# Older installs used a LaunchAgent; boot it out first so launchd does not
+# restart the app mid-install. The plist is left in place deliberately — the
+# app reads it on next launch to carry the user's existing "start at login"
+# choice over to SMAppService, then deletes it.
+launchctl bootout "gui/$(id -u)/${BUNDLE_ID}" 2>/dev/null || true
+pkill -f "${APP_NAME}.app/Contents/MacOS/${APP_NAME}" 2>/dev/null || true
+sleep 1
 
 echo "==> Installing to ${DEST}"
 if [ ! -w /Applications ]; then
