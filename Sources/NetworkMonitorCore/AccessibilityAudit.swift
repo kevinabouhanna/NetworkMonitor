@@ -103,19 +103,44 @@ public enum AccessibilityAudit {
         value(element, kAXChildrenAttribute) as? [AXUIElement] ?? []
     }
 
+    /// Each control in the tree with its name and identifier, to say what a
+    /// failed check saw.
+    public static func outline(_ window: AXUIElement) -> [String] {
+        var out: [String] = []
+        func walk(_ e: AXUIElement) {
+            let role = string(e, kAXRoleAttribute) ?? "?"
+            if controls.contains(role) || role == "AXImage" {
+                out.append("\(role) name=\(name(of: e) ?? "nil") title=\(string(e, kAXTitleAttribute) ?? "nil") "
+                           + "description=\(string(e, kAXDescriptionAttribute) ?? "nil") id=\(string(e, kAXIdentifierAttribute) ?? "nil")")
+            }
+            children(e).forEach(walk)
+        }
+        walk(window)
+        return out
+    }
+
     /// This process's window titled `title`, read from another thread while
     /// the main one keeps answering: the Accessibility API asks the main
     /// thread, so asking from it would wait forever.
     public static func auditOwnWindow(titled title: String, symbols: Set<String> = [],
                                       timeout: TimeInterval = 10) -> [Problem]? {
-        var result: [Problem]?
+        onOwnWindow(titled: title, timeout: timeout) { audit($0, symbols: symbols) }
+    }
+
+    public static func outlineOwnWindow(titled title: String) -> [String] {
+        onOwnWindow(titled: title, timeout: 10, outline) ?? []
+    }
+
+    static func onOwnWindow<T>(titled title: String, timeout: TimeInterval,
+                               _ body: @escaping (AXUIElement) -> T) -> T? {
+        var result: T?
         let done = DispatchSemaphore(value: 0)
         Thread.detachNewThread {
             let app = AXUIElementCreateApplication(getpid())
             AXUIElementSetMessagingTimeout(app, Float(timeout))
             let windows = value(app, kAXWindowsAttribute) as? [AXUIElement] ?? []
             if let window = windows.first(where: { string($0, kAXTitleAttribute) == title }) {
-                result = audit(window, symbols: symbols)
+                result = body(window)
             }
             done.signal()
         }

@@ -65,7 +65,7 @@ func runAccessibilityTests() {
             RunLoop.main.run(until: Date().addingTimeInterval(0.4))
             let rules = AccessibilityAudit.auditOwnWindow(titled: "Faulty", symbols: symbols)?.map(\.rule) ?? []
             Check.expectTrue(rules.contains { $0.hasPrefix("has no name") }, "missed the unnamed switch: \(rules)")
-            Check.expectTrue(rules.contains { $0.hasPrefix("is named only by its symbol") }, "missed the symbol's name: \(rules)")
+            Check.expectTrue(rules.contains { $0.hasPrefix("is named only by its symbol") }, "missed the symbol's name: \(rules); saw \(AccessibilityAudit.outlineOwnWindow(titled: "Faulty"))")
             Check.expectTrue(rules.contains { $0.hasPrefix("is an image") }, "missed the bare image: \(rules)")
             window.orderOut(nil)
         }
