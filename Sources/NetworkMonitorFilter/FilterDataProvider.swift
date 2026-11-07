@@ -1,5 +1,6 @@
 import Darwin
 import FilterProtocol
+import FirewallPolicy
 import Foundation
 import NetworkExtension
 

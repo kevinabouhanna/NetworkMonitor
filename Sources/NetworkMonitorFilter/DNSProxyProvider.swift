@@ -1,4 +1,5 @@
 import FilterProtocol
+import FirewallPolicy
 import Foundation
 import Network
 import NetworkExtension

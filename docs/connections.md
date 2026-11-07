@@ -188,8 +188,11 @@ Trackers, with buttons to its Lists and Rules tabs.
   the connection's handshake (#196).
 - **It sees through a site's own name for a tracker** (#255): `metrics.example.com` that is
   an alias of a listed tracker, as the answer to the Mac's lookup says, is blocked as that
-  tracker. The answers are read, never changed. Lookups an app encrypts itself, such as
-  Chrome's Secure DNS, can't be read.
+  tracker. The answers are read, never changed, over UDP or TCP, and an alias is kept as
+  long as its answer says, up to a day. Your rules meet an alias as they meet the name
+  (#321): *always block* `omtrdc.net` stops `metrics.example.com` too, and *never block*
+  for every app or one keeps an alias from counting for the ad lists. Lookups an app
+  encrypts itself, such as Chrome's Secure DNS, can't be read.
 - **Connections tags each listed server** ADS or MALWARE, whether the lists are on or
   not, so the window shows what's tracking you either way. **Show: Blocked** lists what
   they stopped.

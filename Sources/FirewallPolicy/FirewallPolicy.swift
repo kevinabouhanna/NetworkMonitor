@@ -114,11 +114,14 @@ public struct FlowFacts: Equatable {
     /// The team that signed each of its app keys' programs (#202). An app
     /// key with no entry has no team, or one that couldn't be read.
     public var teams: [String: String]
+    /// The names its name stands for, from lookups' answers (#255): your
+    /// *always block* for one of them blocks it too (#321).
+    public var aliases: [String]
 
     public init(appKeys: [String], companyKey: String?, country: String?, address: String, port: Int,
                 isApple: Bool, executablePaths: [String] = [], hostname: String? = nil,
                 isNetworkMonitor: Bool = false, listedIn: Set<BlocklistTopic> = [], listedInDownloaded: [String] = [],
-                teams: [String: String] = [:]) {
+                teams: [String: String] = [:], aliases: [String] = []) {
         self.appKeys = appKeys
         self.companyKey = companyKey
         self.country = country
@@ -131,6 +134,7 @@ public struct FlowFacts: Equatable {
         self.listedIn = listedIn
         self.listedInDownloaded = listedInDownloaded
         self.teams = teams
+        self.aliases = aliases
     }
 }
 
@@ -351,6 +355,13 @@ public struct FirewallPolicy: Codable, Equatable {
         guard !lists.isEmpty else { return nil }
         let adRule = AdRule.deciding(adRules, name: flow.hostname, appKeys: flow.appKeys, teams: flow.teams)
         if let adRule, adRule.kind == .alwaysBlock { return .adRule(adRule) }
+        // An alias you always block, as if it were the name, unless you never
+        // block the name itself (#321).
+        if adRule == nil, let rule = flow.aliases.lazy.compactMap({
+            AdRule.deciding(self.adRules, name: $0, appKeys: flow.appKeys, teams: flow.teams)
+        }).first(where: { $0.kind == .alwaysBlock }) {
+            return .adRule(rule)
+        }
         let listed = flow.listedIn.intersection(lists)
         let downloaded = downloadedLists.filter(flow.listedInDownloaded.contains)
         // Never block and Don't filter are for ads that break a page or an
@@ -361,6 +372,12 @@ public struct FirewallPolicy: Codable, Equatable {
         }
         if let topic = listed.sorted().first { return .list(topic) }
         return downloaded.first.map(BlockReason.downloadedList)
+    }
+
+    /// Whether you never block `alias` for these apps (#255, #321): then it
+    /// counts only for the malware lists, as the name itself would.
+    public func neverBlocks(alias: String, appKeys: [String], teams: [String: String]) -> Bool {
+        AdRule.deciding(adRules, name: alias, appKeys: appKeys, teams: teams)?.kind == .neverBlock
     }
 
     // MARK: Updates on a hotspot

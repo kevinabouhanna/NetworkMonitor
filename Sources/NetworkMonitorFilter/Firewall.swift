@@ -87,12 +87,13 @@ final class Firewall {
     }
 
     /// The switched-on downloaded lists holding a name, in the policy's order.
-    private func listedDownloaded(_ name: String?, in policy: FirewallPolicy) -> [String] {
+    private func listedDownloaded(_ name: String?, in policy: FirewallPolicy, appKeys: [String],
+                                  teams: [String: String]) -> [String] {
         guard let name, !policy.lists.isEmpty, !policy.downloadedLists.isEmpty else { return [] }
         lock.lock()
         let downloaded = self.downloaded
         lock.unlock()
-        let names = matched(name, in: policy)
+        let names = matched(name, in: policy, appKeys: appKeys, teams: teams)
         return policy.downloadedLists.filter { id in
             names.contains { ($0.anyList || policy.threatLists.contains(id)) && downloaded[id]?.lists($0.name) == true }
         }
@@ -130,13 +131,14 @@ final class Firewall {
     }
 
     /// The switched-on lists holding a name, or an alias it stands for.
-    private func listed(_ name: String?, in policy: FirewallPolicy) -> Set<BlocklistTopic> {
+    private func listed(_ name: String?, in policy: FirewallPolicy, appKeys: [String],
+                        teams: [String: String]) -> Set<BlocklistTopic> {
         guard let name, !policy.lists.isEmpty else { return [] }
         lock.lock()
         let lists = blocklists
         lock.unlock()
         guard let lists else { return [] }
-        return matched(name, in: policy).reduce(into: Set<BlocklistTopic>()) { found, match in
+        return matched(name, in: policy, appKeys: appKeys, teams: teams).reduce(into: Set<BlocklistTopic>()) { found, match in
             let topics = lists.topics(listing: match.name)
             found.formUnion(match.anyList ? topics : topics.intersection([.malware]))
         }.intersection(policy.lists)
@@ -159,15 +161,21 @@ final class Firewall {
         lock.unlock()
     }
 
-    /// A name, and the aliases it stands for: a list holding any of them
-    /// holds the name. An alias you said never to block counts only for the
-    /// malware lists (#317).
-    private func matched(_ name: String, in policy: FirewallPolicy) -> [(name: String, anyList: Bool)] {
+    /// The aliases a name stands for, while they're remembered (#255).
+    private func chain(of name: String?) -> [String] {
+        guard let name else { return [] }
         lock.lock()
-        let chain = aliases.chain(of: name)
-        lock.unlock()
-        return [(name, true)] + chain.map {
-            ($0, AdRule.deciding(policy.adRules, name: $0, appKeys: [])?.kind != .neverBlock)
+        defer { lock.unlock() }
+        return aliases.chain(of: name)
+    }
+
+    /// A name, and the aliases it stands for: a list holding any of them
+    /// holds the name. An alias you said never to block, for every app or for
+    /// this one, counts only for the malware lists (#317, #321).
+    private func matched(_ name: String, in policy: FirewallPolicy, appKeys: [String],
+                         teams: [String: String]) -> [(name: String, anyList: Bool)] {
+        [(name, true)] + chain(of: name).map {
+            ($0, !policy.neverBlocks(alias: $0, appKeys: appKeys, teams: teams))
         }
     }
 
@@ -292,9 +300,12 @@ final class Firewall {
                               address: address, port: port, isApple: identity.isApple,
                               executablePaths: identity.paths, hostname: flow.remoteHostname,
                               isNetworkMonitor: identity.isNetworkMonitor,
-                              listedIn: listed(flow.remoteHostname, in: policy),
-                              listedInDownloaded: listedDownloaded(flow.remoteHostname, in: policy),
-                              teams: identity.teams)
+                              listedIn: listed(flow.remoteHostname, in: policy, appKeys: identity.appKeys,
+                                               teams: identity.teams),
+                              listedInDownloaded: listedDownloaded(flow.remoteHostname, in: policy,
+                                                                   appKeys: identity.appKeys, teams: identity.teams),
+                              teams: identity.teams,
+                              aliases: policy.lists.isEmpty ? [] : chain(of: flow.remoteHostname))
         let verdict = policy.decide(facts)
         if case .block(let reason) = verdict {
             // Debug level: kept only while someone streams the log.
@@ -314,8 +325,9 @@ final class Firewall {
         let policy = current
         var named = facts
         named.hostname = name
-        named.listedIn = listed(name, in: policy)
-        named.listedInDownloaded = listedDownloaded(name, in: policy)
+        named.listedIn = listed(name, in: policy, appKeys: facts.appKeys, teams: facts.teams)
+        named.listedInDownloaded = listedDownloaded(name, in: policy, appKeys: facts.appKeys, teams: facts.teams)
+        named.aliases = policy.lists.isEmpty ? [] : chain(of: name)
         if let company = Company.named(byHostname: name) { named.companyKey = company.key }
         return policy.decide(named)
     }

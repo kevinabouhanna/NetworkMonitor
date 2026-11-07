@@ -177,6 +177,30 @@ func runAdRuleTests() {
                               AdRule(kind: .neverBlock, site: nil, appKey: "/A.app"))
         }
 
+        Check.test("an alias meets your rules as the name does (#321)") {
+            var cloaked = flow("metrics.example.com", listed: [])
+            cloaked.aliases = ["example.com.sc.omtrdc.net", "edge.omtrdc.net"]
+            let always = AdRule(kind: .alwaysBlock, site: "omtrdc.net")
+            Check.expectEqual(FirewallPolicy(lists: [.ads], adRules: [always]).decide(cloaked), .block(.adRule(always)))
+            let alwaysHere = AdRule(kind: .alwaysBlock, site: "omtrdc.net", appKey: chrome)
+            Check.expectEqual(FirewallPolicy(lists: [.ads], adRules: [alwaysHere]).decide(cloaked),
+                              .block(.adRule(alwaysHere)))
+            Check.expectEqual(FirewallPolicy(lists: [.ads], adRules: [alwaysHere])
+                                .decide(flow("metrics.example.com", app: bank, listed: [])), .allow(.mode))
+            // Never blocking the name itself wins over an alias you always block.
+            let neverName = AdRule(kind: .neverBlock, site: "example.com")
+            Check.expectEqual(FirewallPolicy(lists: [.ads], adRules: [always, neverName]).decide(cloaked), .allow(.mode))
+            // Only while a list is on, as for the name.
+            Check.expectEqual(FirewallPolicy(adRules: [always]).decide(cloaked), .allow(.mode))
+            // One app's never block keeps an alias from counting for the ad lists, in that app only.
+            let neverHere = AdRule(kind: .neverBlock, site: "omtrdc.net", appKey: chrome)
+            let policy = FirewallPolicy(lists: [.ads], adRules: [neverHere])
+            Check.expectTrue(policy.neverBlocks(alias: "edge.omtrdc.net", appKeys: [chrome], teams: [:]))
+            Check.expectFalse(policy.neverBlocks(alias: "edge.omtrdc.net", appKeys: [bank], teams: [:]))
+            Check.expectTrue(FirewallPolicy(lists: [.ads], adRules: [AdRule(kind: .neverBlock, site: "omtrdc.net")])
+                                .neverBlocks(alias: "edge.omtrdc.net", appKeys: [], teams: [:]))
+        }
+
         Check.test("the log says which rule decided") {
             let never = AdRule(kind: .neverBlock, site: "doubleclick.net")
             let always = AdRule(kind: .alwaysBlock, site: "example.com", appKey: chrome, appTitle: "Chrome")
