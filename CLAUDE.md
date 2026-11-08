@@ -106,6 +106,10 @@ release of its own:
 - Merge and clean up as for `main`: without `--delete-branch`, which removes the
   worktree the branch is checked out in.
 - The Settings section shows each pane as a real capture in `assets/settings/`.
+- **Every image, GIF and video is listed with the window it shows** (#413):
+  on the site in `shots/shots.json`, in the README and docs in
+  `Resources/README/assets.json`. CI fails on one that isn't
+  (`make asset-check`; `docs/development.md#every-asset-is-listed`).
 - Never put "ad" or "ads" in a file name, id, class, data value or `aria-label` on the
   site (a panel labelled "Ads" was hidden whole, #392; label it with `aria-labelledby`): browser
   ad blockers hide them (#377, #384). The ad blocker's pictures and anchors are named

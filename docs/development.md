@@ -54,6 +54,7 @@ make run     # build build/NetworkMonitor.app and open it
 | `make dmg-background` | Redraws the disk image background |
 | `make site-check` | Says which of the website's pictures show a window whose interface changed (below) |
 | `make site-shots` | Retakes those pictures, or the ones in `NAMES`, and updates the page |
+| `make asset-check` | Fails on any image, GIF or video the site, README or docs use that isn't listed with the window it shows (below) |
 | `make site-audit` | Checks the installed app's windows, with real data, for what VoiceOver can't name |
 | `make hooks` | Points git at `Scripts/hooks`, so `pre-push` runs the tests |
 | `make clean` | Removes `.build` and `build` |
@@ -351,11 +352,38 @@ fill in a moment after a window opens, and a window that doesn't show is tried o
 from a fresh launch. Containers keep their height only: a scroll bar that comes with a
 longer list narrows each of them.
 
-What it can't stage at all, the videos, are entries that only check a window (the
-popover) and list the files that show it under `flags`. When that window changes, the
-check names them to remake by hand, and keeps naming them until
-`make site-shots NAMES=popover` records the new tree. Rewrite the alt text of any
-picture whose interface changed.
+#### Every asset is listed
+
+Every image, GIF and video that the site, the README, `SECURITY.md` and `docs/` use
+must be listed, so none can go stale unnoticed (#413). `make asset-check` finds them all
+in the pages, including the social preview in `<meta>` tags, and fails on any that
+isn't one of these:
+
+- **A picture this tool takes:** a shot's `file`.
+- **Made by hand from the app's windows:** videos, GIFs, the social image, the README's
+  pictures. Each is listed under `assets` with the shots whose windows it `shows`:
+  - in `shots/shots.json` on `gh-pages`, for the site's;
+  - in `Resources/README/assets.json` on `main`, for the README's and the docs'.
+- **Showing no window this tool can check:** listed with `none` and why. Icons, the menu
+  bar strip, the disk image's window.
+
+It also fails on an entry that nothing uses, a file that doesn't exist, or a window that
+isn't a shot. CI runs it on every pull request into `main` and into `gh-pages`. So a new
+section's picture, or a GIF of a feature, can't merge without saying which window it
+shows:
+
+```json
+{ "file": "assets/hotspot.gif", "shows": ["settings-hotspot", "popover"] }
+```
+
+When one of those windows changes, `site-check` names everything made by hand from it,
+on either branch, until it's remade:
+
+- **The reminder stays after a retake.** Retaking the window's own picture doesn't end
+  it. The tree each was made from is kept in `shots/trees/<name>.made.txt`.
+- **To end it:** remake them, then run `make site-shots NAMES=<window>`.
+
+Rewrite the alt text of any picture whose interface changed.
 
 - It needs Accessibility and Screen Recording for the terminal it runs in. It quits and
   relaunches the app, clicks with the pointer when an entry says so, and leaves the app
@@ -368,7 +396,8 @@ picture whose interface changed.
 - It must run against the installed, notarized app: a development build shows different
   rows, since it has no content filter or helper.
 - To add a picture, write its entry, look at `build/site-shots tree <name>` to mark the
-  data regions, and run `make site-shots NAMES=<name>`.
+  data regions, and run `make site-shots NAMES=<name>`. To add one made by hand, list it
+  under `assets` (above); `make asset-check` says if anything is missing.
 - **Videos.** Real behaviour, like `live.mp4`, is a screen recording of the app. Designed
   videos, like the hero, are made with Hyperframes (`/hyperframes`) or `/brag`, which is
   built on it, or Remotion when it suits; all three are installed as Claude Code skills.
