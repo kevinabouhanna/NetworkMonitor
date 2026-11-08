@@ -297,7 +297,9 @@ beside the main checkout. Changes to it get an issue and a pull request against
   each `<img>` and clickable areas placed in the same points.
 - **No "ad" or "ads" in a file, id, class or data value** on the page (#377). Browser ad
   blockers hide and block by those names, so the Ads pane's picture went missing for a
-  visitor running one: the feature's pictures and anchors say `blocking`.
+  visitor running one (AdGuard, #377). The feature's
+  pictures and anchors are named after the pane's icon, `shield`, with no word a blocker
+  might match (#384).
 - Alt text describes the interface, not the figures in it ("how many were blocked
   today", not "3,356"), so a retake with new numbers doesn't make it wrong.
 
