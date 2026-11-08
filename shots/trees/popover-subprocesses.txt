@@ -6,7 +6,7 @@ AXPopover 348
     AXButton description="Usage History" identifier="chart.bar.xaxis" help="Usage History" 12x12
     AXButton description="Settings" identifier="gearshape.fill" help="Settings" 12x12
     AXStaticText value="# ‹unit›" h20
-    AXStaticText value="Using hotspot" h12
-    AXButton description="# ads and trackers blocked today" help="See what was blocked, and where" h12
+    AXStaticText value="Using hotspot · Kevin's iPhone" h12
+    AXButton description="# ads and trackers blocked today" help="Ads and trackers blocked today. See what was blocked, and where" h12
     AXScrollArea
       data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
