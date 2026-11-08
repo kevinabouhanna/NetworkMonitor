@@ -1,19 +1,18 @@
-AXWindow (AXStandardWindow) title="Speed Test" 720x320
-  AXGroup h232
-    AXGroup (AXHostingView) h232
-      AXScrollArea h232
-        AXScrollArea h232
+AXWindow (AXStandardWindow) title="Speed Test" 720x608
+  AXGroup h520
+    AXGroup (AXHostingView) h520
+      AXScrollArea h520
+        AXScrollArea h520
           AXGroup h60
             AXImage description="Gauge With Dots And Needle At # Percent" identifier="gauge.with.dots.needle.#percent" h28
             AXStaticText value="Test your internet speed" h16
             AXStaticText value="Download, upload, ping and jitter, measured now." h16
             AXButton description="Test Now" 80x24
           AXStaticText value="Runs macOS's built-in networkQuality, only when you start it: download first, then upload. Every run measures afresh, so it uses data each time — typically #–# ‹unit›, more on a very fast line. Speeds use the unit chosen in General." h28
-          AXGroup h40
+          AXGroup h328
             AXStaticText value="Show the test in the popover as" h16
-            AXRadioGroup description="Show the test in the popover as" 160x24
-              AXRadioButton (AXSegment) description="Card" 80x24
-              AXRadioButton (AXSegment) description="Compact" 80x24
+            AXButton description="Card" help="A card with a dial and every figure, in place of your apps." 200x272
+            AXButton description="Compact" help="Two lines above your apps, which stay in view." 200x272
           AXStaticText value="A card with a dial and every figure, in place of your apps." h16
   AXToolbar 720x56
     AXButton title="General" description="General" 56x56
