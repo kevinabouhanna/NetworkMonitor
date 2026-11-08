@@ -345,7 +345,12 @@ public final class NetworkIdentityWatcher {
             kind = .other
         }
 
-        let name = path.usesInterfaceType(.wifi) ? interfaceName.flatMap(wifiName) : nil
+        // A Personal Hotspot has no Wi-Fi name to read, but its phone's name
+        // is in configd (#369).
+        var name = path.usesInterfaceType(.wifi) ? interfaceName.flatMap(wifiName) : nil
+        if name == nil, kind == .hotspot, let interfaceName {
+            name = HotspotName.name(onInterface: interfaceName, router: gatewayIP)
+        }
 
         return .make(kind: kind,
                      gatewayMAC: gatewayMAC,
