@@ -52,6 +52,29 @@ func runAppIdentityTests() {
                 "mDNSResponder")
         }
 
+        // Claude Code's executable is named after its version (#385).
+        Check.test("a program named only by its version takes its folder's name") {
+            let names: [(String, String)] = [
+                ("/Users/k/.local/share/claude/versions/2.1.319", "Claude Code"),
+                ("/Users/k/.claude/downloads/claude-2.1.318-darwin-arm64", "Claude Code"),
+                ("/Users/k/.vscode/extensions/anthropic.claude-code-2.1.3/resources/native-binary/claude",
+                 "Claude Code"),
+                ("/opt/tool/v1.4.2/bin/1.4.2", "tool"),
+                ("/Users/k/.local/share/uv/python/cpython-3.15.2-macos-aarch64-none/bin/python3.15", "python3.15"),
+                ("/usr/sbin/mDNSResponder", "mDNSResponder"),
+                ("/usr/local/bin/node-22", "node-22"),
+            ]
+            for (path, name) in names {
+                Check.expectEqual(AppIdentityResolver.identity(forExecutablePath: path, fallbackName: "x").displayName,
+                                  name, path)
+            }
+            // Adopted by the app it ran in, it keeps its own name.
+            let key = "/Applications/Warp.app\u{1}/Users/k/.local/share/claude/versions/2.1.319"
+            Check.expectEqual(AppIdentityResolver.identity(forKey: key).displayName, "Claude Code")
+            // Only the name: the key stays the path, which rules and history use.
+            Check.expectEqual(AppIdentityResolver.identity(forKey: key).key, key)
+        }
+
         // pid 0 (kernel_task) has no resolvable path and must not crash.
         Check.test("kernel_task has no resolvable path") {
             Check.expectNil(AppIdentityResolver.executablePath(pid: 0))
@@ -122,7 +145,7 @@ func runAppIdentityTests() {
             let parent = AppIdentityResolver.adoptiveParent(ancestorPaths: editorChain)!
             let adopted = AppIdentityResolver.adopted(daemonish, by: parent)
             Check.expectFalse(adopted.isSystem)
-            Check.expectEqual(adopted.displayName, "claude")
+            Check.expectEqual(adopted.displayName, "Claude Code", "the command, as its maker names it (#385)")
             // The parent is named from its bundle exactly as a top-level row is.
             Check.expectEqual(adopted.parent?.displayName, "Test Editor")
         }

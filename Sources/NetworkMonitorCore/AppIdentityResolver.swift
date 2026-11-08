@@ -281,8 +281,6 @@ public final class AppIdentityResolver {
     /// "Google Chrome". Taking the outermost means all dozen helpers accumulate
     /// into one row.
     public static func identity(forExecutablePath path: String, fallbackName: String) -> AppIdentity {
-        let components = (path as NSString).pathComponents
-
         // The folding is `AppKey`'s, which the content filter shares, so a
         // rule made on a row means that row (#114).
         if let bundlePath = AppKey.bundlePath(forExecutablePath: path) {
@@ -296,7 +294,7 @@ public final class AppIdentityResolver {
         // No bundle: an OS daemon such as /usr/sbin/mDNSResponder. Keyed by
         // path so each daemon stays distinct inside the System group.
         return AppIdentity(key: path,
-                           displayName: friendlyNames[path] ?? components.last ?? fallbackName,
+                           displayName: friendlyNames[path] ?? toolName(forExecutablePath: path) ?? fallbackName,
                            bundlePath: nil,
                            isSystem: true)
     }
@@ -308,6 +306,40 @@ public final class AppIdentityResolver {
         // Terminal is: either way, the bytes are a speed test's.
         "/usr/bin/networkQuality": "Speed test",
     ]
+
+    /// Tools known by their command, named as their makers name them.
+    static let friendlyToolNames = [
+        "claude": "Claude Code",
+    ]
+
+    /// What to call a program outside any app, from its path (#385): its file
+    /// name, unless that's only a version. Claude Code runs as
+    /// `~/.local/share/claude/versions/2.1.319`, so it's named after the folder
+    /// holding `versions`, and its installer
+    /// `claude-2.1.318-darwin-arm64` after what comes before the version.
+    public static func toolName(forExecutablePath path: String) -> String? {
+        var components = (path as NSString).pathComponents.filter { $0 != "/" }
+        guard var name = components.popLast() else { return nil }
+        if isVersion(name) {
+            // The nearest folder above that names something: past `versions`,
+            // `bin` and further versions.
+            while let folder = components.popLast() {
+                if !isVersion(folder) && !["versions", "version", "bin"].contains(folder.lowercased()) {
+                    name = folder
+                    break
+                }
+            }
+        } else if let range = name.range(of: #"-v?\d+(\.\d+)+([-_.].*)?$"#, options: .regularExpression),
+                  range.lowerBound > name.startIndex {
+            name = String(name[..<range.lowerBound])
+        }
+        return friendlyToolNames[name] ?? name
+    }
+
+    /// "2.1.319", "v1.2", "1.2.3-beta.1": a version number and nothing else.
+    static func isVersion(_ name: String) -> Bool {
+        name.range(of: #"^v?\d+(\.\d+)+([-+][0-9A-Za-z.-]+)?$"#, options: .regularExpression) != nil
+    }
 
     private static func displayName(forBundle bundlePath: String, _ directoryName: String) -> String {
         if let bundle = Bundle(path: bundlePath),

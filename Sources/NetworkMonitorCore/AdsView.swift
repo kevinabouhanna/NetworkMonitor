@@ -158,8 +158,13 @@ struct AdsView: View {
         }
     }
 
+    /// Every refused try is counted, as Little Snitch, Pi-hole and AdGuard
+    /// Home count theirs; the ⓘ says so, since a retrying app's total reads
+    /// as far more tracking than it is (#348, #388).
     static let explanation = "Connections to sites on the lists you chose in the Lists tab, stopped "
-        + "before they started, in every app. NetworkMonitor reads only each connection's site name, from the "
+        + "before they started, in every app. Each try counts: an app that keeps trying a blocked site, "
+        + "as many do to send their usage reports, counts every time, so one app can reach thousands a day. "
+        + "NetworkMonitor reads only each connection's site name, from the "
         + "app or from the opening of a secure connection, never what's sent. Ads served from a site's own "
         + "servers, like YouTube's, can't be told apart from the site by name."
 
