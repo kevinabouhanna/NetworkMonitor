@@ -272,10 +272,6 @@
         {
           "from": "AXOpaqueProviderGroup"
         }
-      ],
-      "flags": [
-        "assets/live.mp4",
-        "assets/brag.mp4"
       ]
     },
     {
@@ -333,6 +329,67 @@
       },
       "when": "popover",
       "skipIf": "AXStaticText:Using hotspot"
+    }
+  ],
+  "assets": [
+    {
+      "file": "assets/brag.mp4",
+      "shows": [
+        "popover",
+        "popover-subprocesses",
+        "connections",
+        "settings-shield",
+        "speed-test-result",
+        "settings-hotspot"
+      ]
+    },
+    {
+      "file": "assets/brag-poster.jpg",
+      "shows": [
+        "popover"
+      ]
+    },
+    {
+      "file": "assets/live.mp4",
+      "shows": [
+        "popover"
+      ]
+    },
+    {
+      "file": "assets/live-poster.jpg",
+      "shows": [
+        "popover"
+      ]
+    },
+    {
+      "file": "assets/social-card.png",
+      "shows": [
+        "popover"
+      ]
+    },
+    {
+      "file": "assets/menubar.png",
+      "none": "the menu bar readout, which has no accessibility tree to compare: check it by eye when the readout changes"
+    },
+    {
+      "file": "assets/dmg-window.png",
+      "none": "the disk image's Finder window, whose background `make dmg-background` draws"
+    },
+    {
+      "file": "assets/icon-256.png",
+      "none": "the app icon"
+    },
+    {
+      "file": "assets/apple-touch-icon.png",
+      "none": "the app icon"
+    },
+    {
+      "file": "assets/favicon-32.png",
+      "none": "the app icon"
+    },
+    {
+      "file": "assets/favicon-64.png",
+      "none": "the app icon"
     }
   ]
 }
