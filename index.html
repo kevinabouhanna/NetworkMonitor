@@ -810,22 +810,22 @@ footer a { color: var(--text-2); }
       <div class="prefs-stage reveal" data-prefs>
         <div class="prefs-window">
           <div role="tablist" aria-label="Settings panes">
-            <button class="prefs-tab" role="tab" type="button" aria-selected="true" aria-controls="prefs-panel" data-pane="general" style="--x:-215;--y:32;--w:55;--h:48"
+            <button class="prefs-tab" id="prefs-tab-general" role="tab" type="button" aria-selected="true" aria-controls="prefs-panel" data-pane="general" style="--x:-215;--y:32;--w:55;--h:48"
                     data-caption="Start at login, speeds in MB/s or Mbps, Wi‑Fi names, the menu bar’s colours, and the popover’s totals.">General</button>
-            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="speed-test" style="--x:-159;--y:32;--w:71;--h:48"
+            <button class="prefs-tab" id="prefs-tab-speed-test" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="speed-test" style="--x:-159;--y:32;--w:71;--h:48"
                     data-caption="Run a speed test from here, and choose how the popover shows one.">Speed Test</button>
-            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="history" style="--x:-87;--y:32;--w:55;--h:48"
+            <button class="prefs-tab" id="prefs-tab-history" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="history" style="--x:-87;--y:32;--w:55;--h:48"
                     data-caption="What every app used, hour by hour, day by day. It stays on your Mac.">History</button>
-            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="connections" style="--x:-31;--y:32;--w:78;--h:48"
+            <button class="prefs-tab" id="prefs-tab-connections" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="connections" style="--x:-31;--y:32;--w:78;--h:48"
                     data-caption="How apps may connect, every rule you’ve made, encrypted lookups, and where the names come from.">Connections</button>
-            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="shield" style="--x:48;--y:32;--w:55;--h:48"
+            <button class="prefs-tab" id="prefs-tab-shield" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="shield" style="--x:48;--y:32;--w:55;--h:48"
                     data-caption="The ad blocker’s switch and lists, what it blocked today, and your own lists and rules.">Ads</button>
-            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="hotspot" style="--x:104;--y:32;--w:55;--h:48"
+            <button class="prefs-tab" id="prefs-tab-hotspot" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="hotspot" style="--x:104;--y:32;--w:55;--h:48"
                     data-caption="What it pauses on a hotspot and how, and what it can’t, with why. Click a list to open it.">Hotspot</button>
-            <button class="prefs-tab" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="about" style="--x:160;--y:32;--w:55;--h:48"
+            <button class="prefs-tab" id="prefs-tab-about" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="about" style="--x:160;--y:32;--w:55;--h:48"
                     data-caption="The version, updates, where to read more, and Uninstall…, which puts back everything it changed.">About</button>
           </div>
-          <div id="prefs-panel" role="tabpanel" aria-label="General">
+          <div id="prefs-panel" role="tabpanel" aria-labelledby="prefs-tab-general">
             <img class="prefs-shot on" data-shot="general" data-w="720" data-h="692" src="assets/settings/general.png?v=3a12a960" width="1440" height="1384"
                  alt="NetworkMonitor Settings, on its General pane, with a toolbar of seven panes: General, Speed Test, History, Connections, Ads, Hotspot and About. Start at login is on. Show speeds in offers Mbps or MB/s, with MB/s chosen. Know your Wi‑Fi networks by name, with a Turn On… button: Usage History calls them Home and Office, not Wi‑Fi · 3f2a; macOS calls this Location, but NetworkMonitor never looks up where you are. Under Menu bar colors: Download in green, Upload in light grey, During a speed test in two shades of cyan, and a dimmed Use Default Colors button. Under Popover totals: Counting since midnight, Sampling every second while plugged in, and Start the totals over, with a Reset Now button. What a row means is behind an ⓘ that appears when you point at it.">
             <img class="prefs-shot" data-shot="speed-test" data-w="720" data-h="320" src="assets/settings/speed-test.png?v=4d1ee94a" width="1440" height="640" loading="lazy" aria-hidden="true"
@@ -1027,7 +1027,9 @@ footer a { color: var(--text-2); }
         t.setAttribute('aria-selected', String(t === tab));
         t.tabIndex = t === tab ? 0 : -1;
       }
-      panel.setAttribute('aria-label', tab.textContent);
+      // Named by its tab, not an aria-label of its own: ad blockers hide a
+      // div labelled "Ads" (##div[aria-label="Ads"], #392).
+      panel.setAttribute('aria-labelledby', tab.id);
       caption.textContent = tab.dataset.caption;
       apps.hidden = state.pane !== 'hotspot';
       // Open, the first list runs past the bottom of the window, over the second row.
