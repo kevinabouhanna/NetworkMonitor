@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="../Resources/README/speed-test.png" width="320"
-       alt="The popover after a speed test: 2.09 MB/s down and 3.39 MB/s up over Wi-Fi, using 96.4 MB; ping 62.7 ms, jitter 11.0 ms, ping while downloading 57.4 ms and while uploading 54.6 ms.">
+       alt="The popover after a speed test: a dial with the download speed in its centre, 1.00 MB/s down and 2.10 MB/s up over Ethernet, using 60.0 MB; ping 40.7 ms, jitter 0.9 ms, ping while downloading and while uploading 40.6 ms; Back to Apps and Test Again buttons.">
 </p>
 
 Click the **gauge** in the popover, choose **Test Internet Speed** from the right-click
