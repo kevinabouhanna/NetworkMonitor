@@ -390,6 +390,12 @@
     {
       "file": "assets/favicon-64.png",
       "none": "the app icon"
+    },
+    {
+      "file": "assets/mock-feature.gif",
+      "shows": [
+        "settings-general"
+      ]
     }
   ]
 }
