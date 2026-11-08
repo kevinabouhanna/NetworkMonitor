@@ -206,21 +206,23 @@ struct SpeedTestSettingsPane: View {
             }
 
             Section {
-                // At the row's right edge; see General's speed unit.
-                LabeledContent("Show the test in the popover as") {
-                    Picker("Show the test in the popover as", selection: $speedTest.style) {
+                // Each choice is a picture of the popover showing it, so there's
+                // no running a test to see what a style looks like (#398).
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Show the test in the popover as")
+                    HStack(spacing: 40) {
                         ForEach(SpeedTestStyle.allCases) { style in
-                            Text(style.label).tag(style)
+                            SpeedTestStyleChoice(style: style, unit: speedTest.unit,
+                                                 isSelected: speedTest.style == style) {
+                                speedTest.style = style
+                            }
                         }
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
+                    .frame(maxWidth: .infinity)
                 }
+                .padding(.vertical, 4)
             } footer: {
-                SettingsFootnote(speedTest.style == .card
-                                 ? "A card with a dial and every figure, in place of your apps."
-                                 : "Two lines above your apps, which stay in view.")
+                SettingsFootnote(speedTest.style.summary)
             }
         }
         .settingsForm()

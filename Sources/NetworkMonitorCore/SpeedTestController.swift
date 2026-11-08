@@ -16,6 +16,14 @@ public enum SpeedTestStyle: String, CaseIterable, Identifiable {
         case .compact: return "Compact"
         }
     }
+
+    /// What the style does, under its picture in Settings.
+    public var summary: String {
+        switch self {
+        case .card:    return "A card with a dial and every figure, in place of your apps."
+        case .compact: return "Two lines above your apps, which stay in view."
+        }
+    }
 }
 
 /// The speed test as the UI sees it: what phase it is in, and what to draw.
