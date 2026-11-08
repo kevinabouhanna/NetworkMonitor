@@ -31,6 +31,12 @@ fi
 
 cd "$(git rev-parse --show-toplevel)"
 
+# git runs hooks with GIT_DIR set, and every git the build starts inherits it:
+# SwiftPM checking out Sparkle into a fresh worktree's .build then looks for
+# Sparkle's commit in this repository, and fails with "unable to read tree"
+# (#395).
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR
+
 echo "==> pre-push: running the test suite"
 
 if ! make test; then
