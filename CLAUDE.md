@@ -106,7 +106,8 @@ release of its own:
 - Merge and clean up as for `main`: without `--delete-branch`, which removes the
   worktree the branch is checked out in.
 - The Settings section shows each pane as a real capture in `assets/settings/`.
-- Never put "ad" or "ads" in a file name, id, class or data value on the site: browser
+- Never put "ad" or "ads" in a file name, id, class, data value or `aria-label` on the
+  site (a panel labelled "Ads" was hidden whole, #392; label it with `aria-labelledby`): browser
   ad blockers hide them (#377, #384). The ad blocker's pictures and anchors are named
   after the pane's icon, `shield`, with no word a blocker might match.
   Each `<img>` carries the window's size in points (`data-w`, `data-h`), and
