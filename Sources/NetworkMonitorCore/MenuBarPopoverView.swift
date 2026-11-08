@@ -211,14 +211,18 @@ public struct MenuBarPopoverView: View {
                     Button(action: onAds) {
                         HStack(spacing: 4) {
                             Image(systemName: "shield.lefthalf.filled")
-                            Text("\(listBlocks.today.formatted()) ads and trackers blocked today")
+                            // Short enough for one line beside the header's
+                            // buttons (#390); the tooltip and VoiceOver say
+                            // trackers too.
+                            Text("\(listBlocks.today.formatted()) ads blocked today")
                                 .lineLimit(1)
                         }
                     }
                     .buttonStyle(.plain)
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
-                    .help("See what was blocked, and where")
+                    .help("Ads and trackers blocked today. See what was blocked, and where")
+                    .accessibilityLabel("\(listBlocks.today.formatted()) ads and trackers blocked today")
                 }
                 if let failure = model.perAppFailure {
                     // Grey, not orange: the total above is still right. Only the
