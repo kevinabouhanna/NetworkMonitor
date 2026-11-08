@@ -295,7 +295,9 @@ beside the main checkout. Changes to it get an issue and a pull request against
 - **Every image is a real capture of the app**, never a mock-up. The Settings section
   shows each pane as a capture in `assets/settings/`, with the window's size in points on
   each `<img>` and clickable areas placed in the same points.
-- **No "ad" or "ads" in a file, id, class or data value** on the page (#377). Browser ad
+- **No "ad" or "ads" in a file, id, class, data value or `aria-label`** on the page (#377,
+  #392). A panel labelled `aria-label="Ads"` was hidden whole by `##div[aria-label="Ads"]`;
+  it's `aria-labelledby` its tab now. Browser ad
   blockers hide and block by those names, so the Ads pane's picture went missing for a
   visitor running one (AdGuard, #377). The feature's
   pictures and anchors are named after the pane's icon, `shield`, with no word a blocker
