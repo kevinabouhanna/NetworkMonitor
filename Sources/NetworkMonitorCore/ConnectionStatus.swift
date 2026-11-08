@@ -67,27 +67,33 @@ public struct StandbyHotspot: Equatable {
         self.service = service
     }
 
-    /// "Kevin's iPhone is connected, but isn't being used".
+    /// "Not using Kevin's iPhone", under "Using Ethernet". Short enough for
+    /// one line in the popover's header, beside its buttons.
     public var message: String {
+        "Not using \(name ?? "the hotspot")"
+    }
+
+    private var connected: String {
         "\(name ?? "A hotspot") is connected, but isn't being used"
     }
 
     /// Why, and how to change it, behind the ⓘ.
     public func explanation(inUse connection: ConnectionStatus) -> String {
-        let move = "move \(service ?? "the hotspot") above it in Network settings › Set Service Order"
+        let move = "move \(service ?? "the hotspot") above \(connection.medium ?? "it") "
+            + "in Network settings › Set Service Order"
         let how: String
         switch connection.kind {
         case .ethernet: how = "unplug the cable, or \(move)"
         case .wifi:     how = "disconnect from that Wi-Fi network, or \(move)"
         default:        how = move
         }
-        return "Your Mac sends everything over the connection ranked highest in macOS, and that's "
-            + "\(connection.medium ?? "another connection"). To use the hotspot, \(how)."
+        return "\(connected). Your Mac sends everything over the connection ranked highest in macOS, "
+            + "and that's \(connection.medium ?? "another connection"). To use the hotspot, \(how)."
     }
 
-    /// Settings › Hotspot › Right now.
+    /// Settings › Hotspot › Right now, which has room for the whole sentence.
     public func rightNow(inUse connection: ConnectionStatus) -> String {
-        "You're on \(connection.medium ?? "another connection"). \(message)."
+        "You're on \(connection.medium ?? "another connection"). \(connected)."
     }
 }
 
@@ -165,7 +171,9 @@ public enum StandbyHotspots {
             let id = NetworkFingerprint.make(kind: .hotspot, gatewayMAC: link.routerMAC,
                                              interfaceName: link.interface, isExpensive: false,
                                              isConstrained: false, gatewayIP: link.router).id
-            return StandbyCandidate(networkID: id, signals: signals, wifiName: wifiName(link.interface),
+            let name = wifiName(link.interface)
+                ?? HotspotName.name(onInterface: link.interface, router: link.router)
+            return StandbyCandidate(networkID: id, signals: signals, wifiName: name,
                                     service: service, isWiFi: InterfaceNaming.isWiFi(bsdName: link.interface))
         }
     }

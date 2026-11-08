@@ -399,8 +399,11 @@ private struct StandbyHotspotLine: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
             Image(systemName: "exclamationmark.triangle.fill")
+            // One line, as the lines around it are: the wording is kept short
+            // enough to fit, and a long phone name gives way in the middle.
             Text(message)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(1)
+                .truncationMode(.middle)
             RowInfoButton(help: explanation, state: info) { Text(explanation) }
         }
         .font(.system(size: 10))

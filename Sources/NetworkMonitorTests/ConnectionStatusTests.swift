@@ -112,26 +112,28 @@ func runConnectionStatusTests() {
         Check.test("with no name to read, says a hotspot, and a tether goes by its interface") {
             let unnamed = StandbyCandidate(networkID: phone.networkID, signals: phone.signals,
                                            service: "Wi-Fi", isWiFi: true)
-            Check.expectEqual(pick([unnamed])?.message, "A hotspot is connected, but isn't being used")
+            Check.expectEqual(pick([unnamed])?.message, "Not using the hotspot")
             let usb = StandbyCandidate(networkID: "gw:aa", signals: .init(interfaceDisplayName: "iPhone USB"),
                                        service: "iPhone USB", isWiFi: false)
-            Check.expectEqual(pick([usb])?.message, "iPhone USB is connected, but isn't being used")
+            Check.expectEqual(pick([usb])?.message, "Not using iPhone USB")
         }
 
         Check.test("explains the way out for what's in use") {
             let standby = StandbyHotspot(name: "Kevin's iPhone", service: "Wi-Fi")
             let cable = ConnectionStatus.make(network: ethernet, verdict: .unmetered, name: nil)
             Check.expectEqual(standby.explanation(inUse: cable),
-                              "Your Mac sends everything over the connection ranked highest in macOS, and that's "
-                              + "Ethernet. To use the hotspot, unplug the cable, or move Wi-Fi above it in "
-                              + "Network settings › Set Service Order.")
+                              "Kevin's iPhone is connected, but isn't being used. Your Mac sends everything "
+                              + "over the connection ranked highest in macOS, and that's Ethernet. To use the "
+                              + "hotspot, unplug the cable, or move Wi-Fi above Ethernet in Network settings › "
+                              + "Set Service Order.")
+            Check.expectEqual(standby.message, "Not using Kevin's iPhone")
             Check.expectEqual(standby.rightNow(inUse: cable),
                               "You're on Ethernet. Kevin's iPhone is connected, but isn't being used.")
 
             let tethered = StandbyHotspot(name: "iPhone USB", service: "iPhone USB")
             let home = ConnectionStatus.make(network: wifi, verdict: .unmetered, name: "Home")
             Check.expectTrue(tethered.explanation(inUse: home)
-                .contains("disconnect from that Wi-Fi network, or move iPhone USB above it"))
+                .contains("disconnect from that Wi-Fi network, or move iPhone USB above Wi-Fi"))
         }
 
         Check.test("reads links from configd's state") {
@@ -157,5 +159,44 @@ func runConnectionStatusTests() {
             ]
             Check.expectTrue(StandbyHotspots.links(besides: "en7", in: states).first?.androidSaysMetered ?? false)
         }
+
+    Check.suite("HotspotName") {
+        /// configd's AirPort state as macOS 27 writes it, with a `CWTetherDevice`
+        /// archived under its own class name.
+        func airport(_ name: String?) -> [String: Any] {
+            let archiver = NSKeyedArchiver(requiringSecureCoding: true)
+            archiver.setClassName("CWTetherDevice", for: ArchivedTetherDevice.self)
+            archiver.encode(ArchivedTetherDevice(name: name), forKey: NSKeyedArchiveRootObjectKey)
+            archiver.finishEncoding()
+            return ["LastTetherDevice": archiver.encodedData, "SSID_STR": ""]
+        }
+
+        Check.test("reads the phone's name from configd's AirPort state") {
+            Check.expectEqual(HotspotName.deviceName(inAirPortState: airport("Kevin's iPhone")), "Kevin's iPhone")
+            Check.expectTrue(HotspotName.deviceName(inAirPortState: airport(nil)) == nil)
+            Check.expectTrue(HotspotName.deviceName(inAirPortState: airport("  ")) == nil)
+            Check.expectTrue(HotspotName.deviceName(inAirPortState: ["SSID_STR": ""]) == nil)
+            Check.expectTrue(HotspotName.deviceName(inAirPortState: ["LastTetherDevice": Data("x".utf8)]) == nil)
+        }
+
+        Check.test("reads the phone's host name from its DHCP packet") {
+            let packet = "op = BOOTREPLY\nsiaddr = 172.20.10.1\nsname = Kevins-iPhone\nfile = \n"
+            Check.expectEqual(HotspotName.serverName(inPacket: packet), "Kevins-iPhone")
+            Check.expectTrue(HotspotName.serverName(inPacket: "sname = \nfile = \n") == nil)
+        }
+
+        Check.test("a name is used only if the phone's host name could be it") {
+            Check.expectTrue(HotspotName.matches("Kevin's iPhone", serverName: "Kevins-iPhone"))
+            Check.expectFalse(HotspotName.matches("Kevin's iPhone", serverName: "Gabys-iPhone"))
+            Check.expectTrue(HotspotName.matches("Kevin's iPhone", serverName: nil))
+            // Nothing in common to compare: trusted.
+            Check.expectTrue(HotspotName.matches("آيفون كيفن", serverName: "iPhone-2"))
+        }
+
+        Check.test("never read for a network outside Personal Hotspot's range") {
+            Check.expectTrue(HotspotName.name(onInterface: "en0", router: "192.168.1.1") == nil)
+            Check.expectTrue(HotspotName.name(onInterface: "en0", router: nil) == nil)
+        }
+    }
     }
 }
