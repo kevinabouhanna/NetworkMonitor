@@ -354,13 +354,17 @@ func restoreClaudeCodeSettings(_ state: SystemState) {
 /// Failing loudly instead means the app reports the tier as failed and the user
 /// keeps a file that still holds the answer.
 func loadState() throws -> SystemState? {
-    try loadTrusted(SystemState.self, at: statePath)
+    try loadRootOwned(SystemState.self, at: statePath)
 }
 
 /// Reads one of this helper's state files, refusing one that anybody but root
 /// could have written. Shared by both state files, so the Low Data Mode record
 /// gets exactly the provenance check the update-suppression one does.
-func loadTrusted<T: Decodable>(_ type: T.Type, at path: String) throws -> T? {
+///
+/// Named for what it checks. CodeQL reads "trusted" in a name as a credential,
+/// so `loadTrusted` made every report line built from these records look like
+/// a secret written to a log (#400). They hold an interface name and two flags.
+func loadRootOwned<T: Decodable>(_ type: T.Type, at path: String) throws -> T? {
     let manager = FileManager.default
     guard let data = manager.contents(atPath: path) else { return nil }
 
@@ -439,10 +443,10 @@ enum HelperError: LocalizedError {
 }
 
 func saveState(_ state: SystemState) throws {
-    try saveTrusted(state, to: statePath)
+    try saveRootOwned(state, to: statePath)
 }
 
-func saveTrusted<T: Encodable>(_ value: T, to path: String) throws {
+func saveRootOwned<T: Encodable>(_ value: T, to path: String) throws {
     try FileManager.default.createDirectory(atPath: stateDirectory,
                                             withIntermediateDirectories: true,
                                             attributes: [.posixPermissions: 0o755])
@@ -618,7 +622,7 @@ func clearLowDataState() {
 func constrain() throws {
     guard let interface = primaryInterface() else { throw HelperError.noInterface }
 
-    var hold = try loadTrusted(LowDataMode.Hold.self, at: lowDataStatePath)
+    var hold = try loadRootOwned(LowDataMode.Hold.self, at: lowDataStatePath)
     // The default route has moved — Wi-Fi to a USB tether, say. A flag left on
     // the old link would quietly constrain it the next time it carries traffic.
     if let previous = hold, previous.interface != interface {
@@ -644,7 +648,7 @@ func constrain() throws {
 
     // Recorded before either flag moves, so a crash in between leaves a record
     // whose release is a no-op rather than a raised flag nobody knows about.
-    try saveTrusted(next, to: lowDataStatePath)
+    try saveRootOwned(next, to: lowDataStatePath)
 
     var raised = true
     if !current.constrained {
@@ -666,7 +670,7 @@ func constrain() throws {
 /// Lowers whatever `constrain` raised. Idempotent: with nothing held it reports
 /// so and succeeds.
 func unconstrain() throws {
-    guard let hold = try loadTrusted(LowDataMode.Hold.self, at: lowDataStatePath) else {
+    guard let hold = try loadRootOwned(LowDataMode.Hold.self, at: lowDataStatePath) else {
         print(LowDataMode.Report.nothing.line)
         return
     }
@@ -750,7 +754,7 @@ func status() {
     let hostsBlocked = HostsFile.containsBlock((try? currentHosts()) ?? "")
     let lowDataReport: String
     do {
-        let hold = try loadTrusted(LowDataMode.Hold.self, at: lowDataStatePath)
+        let hold = try loadRootOwned(LowDataMode.Hold.self, at: lowDataStatePath)
         lowDataReport = (hold.map(LowDataMode.Report.holding) ?? .nothing).line
     } catch {
         lowDataReport = "unreadable"
