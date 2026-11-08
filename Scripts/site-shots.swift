@@ -35,7 +35,30 @@ struct Manifest: Decodable {
     var app: String
     var bundle: String
     var shots: [Shot]
+    /// The site's assets this tool doesn't take: see `HandMade`.
+    var assets: [HandMade]?
 }
+
+/// An image, GIF or video the pages use that isn't a shot's picture (#413).
+/// Every asset a page uses must be either a shot's `file` or one of these, so
+/// none can go stale unnoticed: `coverage` fails on any that isn't.
+struct HandMade: Decodable {
+    var file: String
+    /// The shots whose windows it shows. When one changes, it's named for
+    /// remaking by hand until that shot is updated by name.
+    var shows: [String]?
+    /// Or why it shows no window this tool can check: an icon, the menu bar.
+    var none: String?
+}
+
+/// The README's and the docs' assets, in `Resources/README/assets.json` on
+/// `main`, listed the same way.
+struct RepoAssets: Decodable {
+    var assets: [HandMade]
+}
+
+/// Where the main branch's list lives, relative to its checkout.
+let repoAssetsPath = "Resources/README/assets.json"
 
 struct Shot: Decodable {
     var name: String
@@ -75,7 +98,8 @@ struct Shot: Decodable {
     /// Retaken on every update, changed or not: About shows the version.
     var always: Bool?
     /// Videos and staged pictures that show this window. They're reported when
-    /// it changes, for remaking by hand.
+    /// it changes, for remaking by hand. The older way of saying what the
+    /// manifest's `assets` say with `shows`; both work.
     var flags: [String]?
 }
 
@@ -581,6 +605,118 @@ struct Page {
     }
 }
 
+// MARK: - Coverage
+
+/// Every image, GIF and video the pages use, each with the pages using it,
+/// checked against the lists (#413). Reads files only: no app, no
+/// Accessibility, so it runs in CI.
+enum Coverage {
+    static let media = "png|jpe?g|gif|webp|svg|mp4|webm|mov"
+
+    /// The site's own assets: `assets/…`, as a relative link or on the site's
+    /// own address (the social preview's `<meta>` tags). Another site's
+    /// `/assets/` isn't ours.
+    static func siteUses(_ site: URL) throws -> [String: Set<String>] {
+        let regex = try NSRegularExpression(
+            pattern: #"(?:^|["'(=,\s]|github\.io/NetworkMonitor/)(assets/[A-Za-z0-9_./-]+\.(?:"# + media + #"))"#,
+            options: [.caseInsensitive, .anchorsMatchLines])
+        var uses: [String: Set<String>] = [:]
+        let pages = try FileManager.default.contentsOfDirectory(atPath: site.path)
+            .filter { $0.hasSuffix(".html") }.sorted()
+        for page in pages {
+            let text = try String(contentsOf: site.appendingPathComponent(page), encoding: .utf8)
+            let ns = text as NSString
+            for m in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+                uses[ns.substring(with: m.range(at: 1)), default: []].insert(page)
+            }
+        }
+        return uses
+    }
+
+    /// The README's, SECURITY's and the docs' local media, as paths from the
+    /// checkout's root.
+    static func repoUses(_ repo: URL) throws -> [String: Set<String>] {
+        let regex = try NSRegularExpression(
+            pattern: #"(?:(?:src|poster)\s*=\s*["']([^"']+)["']|!\[[^\]]*\]\(\s*<?([^)\s>]+))"#)
+        let mediaRegex = try NSRegularExpression(pattern: #"\.(?:"# + media + #")$"#, options: .caseInsensitive)
+        var pages = ["README.md", "SECURITY.md"]
+        let docs = (try? FileManager.default.contentsOfDirectory(atPath: repo.appendingPathComponent("docs").path)) ?? []
+        pages += docs.filter { $0.hasSuffix(".md") }.sorted().map { "docs/" + $0 }
+        var uses: [String: Set<String>] = [:]
+        for page in pages {
+            guard let text = try? String(contentsOf: repo.appendingPathComponent(page), encoding: .utf8) else { continue }
+            let ns = text as NSString
+            for m in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+                let r = m.range(at: 1).location != NSNotFound ? m.range(at: 1) : m.range(at: 2)
+                var link = ns.substring(with: r)
+                if link.contains("://") || link.hasPrefix("#") || link.hasPrefix("data:") { continue }
+                link = link.components(separatedBy: CharacterSet(charactersIn: "?#"))[0]
+                let lns = link as NSString
+                guard mediaRegex.firstMatch(in: link, range: NSRange(location: 0, length: lns.length)) != nil else { continue }
+                // Relative to the page, as GitHub reads it.
+                let base = repo.appendingPathComponent(page).deletingLastPathComponent()
+                let full = URL(fileURLWithPath: link, relativeTo: base).standardizedFileURL.path
+                let root = repo.standardizedFileURL.path + "/"
+                guard full.hasPrefix(root) else { continue }
+                uses[String(full.dropFirst(root.count)), default: []].insert(page)
+            }
+        }
+        return uses
+    }
+
+    /// What's wrong, one line each; empty when every asset is accounted for.
+    static func problems(manifest: Manifest, site: URL, repoAssets: RepoAssets?, repo: URL?) throws -> (problems: [String], summary: String) {
+        var problems: [String] = []
+        let shotNames = Set(manifest.shots.map(\.name))
+
+        func checkList(_ list: [HandMade], root: URL, listName: String, uses: [String: Set<String>], taken: Set<String>) {
+            var seen = Set<String>()
+            for asset in list {
+                let file = asset.file
+                if !seen.insert(file).inserted { problems.append("\(file) is listed twice in \(listName)") }
+                if taken.contains(file) { problems.append("\(file) is a shot's picture; take it out of \(listName)'s assets") }
+                let shows = asset.shows ?? []
+                if shows.isEmpty == (asset.none == nil) {
+                    problems.append("\(file) in \(listName) needs either `shows` (the windows it shows) or `none` (why it shows none), not both")
+                }
+                for name in shows where !shotNames.contains(name) {
+                    problems.append("\(file) in \(listName) shows \"\(name)\", which isn't a shot in shots/shots.json")
+                }
+                if !FileManager.default.fileExists(atPath: root.appendingPathComponent(file).path) {
+                    problems.append("\(file) is listed in \(listName) but doesn't exist")
+                } else if uses[file] == nil {
+                    problems.append("\(file) is listed in \(listName) but no page uses it; take it out")
+                }
+            }
+            for (file, pages) in uses.sorted(by: { $0.key < $1.key }) where !taken.contains(file) && !seen.contains(file) {
+                problems.append("\(file) (\(pages.sorted().joined(separator: ", "))) isn't listed. Add it to \(listName)'s "
+                                + "`assets` with the shots whose windows it `shows`, or `none` and why it shows none")
+            }
+        }
+
+        // The site: each asset is a shot's picture, a flag, or listed.
+        let siteUses = try siteUses(site)
+        let shotFiles = Set(manifest.shots.compactMap(\.file))
+        for shot in manifest.shots {
+            if let file = shot.file, !FileManager.default.fileExists(atPath: site.appendingPathComponent(file).path) {
+                problems.append("\(file), \(shot.name)'s picture, doesn't exist")
+            }
+        }
+        let flagged = manifest.shots.flatMap { shot in (shot.flags ?? []).map { HandMade(file: $0, shows: [shot.name]) } }
+        checkList((manifest.assets ?? []) + flagged.filter { f in !(manifest.assets ?? []).contains { $0.file == f.file } },
+                  root: site, listName: "shots/shots.json", uses: siteUses, taken: shotFiles)
+        var summary = "\(siteUses.count) assets on the site"
+
+        // The README and the docs.
+        if let repo {
+            let uses = try repoUses(repo)
+            checkList(repoAssets?.assets ?? [], root: repo, listName: repoAssetsPath, uses: uses, taken: [])
+            summary += " and \(uses.count) in the README and docs"
+        }
+        return (problems, summary)
+    }
+}
+
 // MARK: - Running
 
 struct Failure: Error, CustomStringConvertible {
@@ -603,11 +739,38 @@ struct SiteShots {
         if let i = args.firstIndex(of: "--site"), i + 1 < args.count {
             site = URL(fileURLWithPath: args[i + 1]); args.removeSubrange(i...(i + 1))
         }
-        guard let command = args.first, ["check", "update", "tree", "audit"].contains(command) else {
-            print("usage: site-shots check|update|audit [names…]|tree <name> [--site DIR]")
+        // The main checkout, for the README's and the docs' assets: this one.
+        var repo = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        if let i = args.firstIndex(of: "--repo"), i + 1 < args.count {
+            repo = URL(fileURLWithPath: args[i + 1]); args.removeSubrange(i...(i + 1))
+        }
+        guard let command = args.first, ["check", "update", "tree", "audit", "coverage"].contains(command) else {
+            print("usage: site-shots check|update|audit [names…]|tree <name>|coverage [--site DIR] [--repo DIR]")
             exit(2)
         }
         let names = Set(args.dropFirst())
+        let repoAssets = try? JSONDecoder().decode(RepoAssets.self, from: Data(contentsOf: repo.appendingPathComponent(repoAssetsPath)))
+
+        // Files only, so first, before anything that needs the app.
+        if command == "coverage" {
+            do {
+                let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
+                if repoAssets == nil, FileManager.default.fileExists(atPath: repo.appendingPathComponent(repoAssetsPath).path) {
+                    throw Failure("\(repoAssetsPath) doesn't read as a list of assets")
+                }
+                let found = try Coverage.problems(manifest: manifest, site: site, repoAssets: repoAssets, repo: repo)
+                if found.problems.isEmpty {
+                    print("coverage: \(found.summary), all accounted for")
+                    exit(0)
+                }
+                print("coverage: every image, GIF and video a page uses must be listed, so a change to the window it shows can't leave it stale (#413):")
+                found.problems.forEach { print("  " + $0) }
+                exit(1)
+            } catch {
+                print("coverage: \(error)")
+                exit(2)
+            }
+        }
         // One run at a time: each quits and relaunches the app, so two at once,
         // from two terminals or two sessions, spoil each other's windows.
         let lock = open(NSHomeDirectory() + "/Library/Caches/site-shots.lock", O_CREAT | O_RDWR, 0o644)
@@ -621,7 +784,7 @@ struct SiteShots {
             let session = Session(manifest: manifest)
             let wasRunning = session.running != nil
             let status: Int32
-            do { status = try await run(command, names: names, manifest: manifest, session: session, site: site) }
+            do { status = try await run(command, names: names, manifest: manifest, session: session, site: site, repoAssets: repoAssets) }
             catch { status = 2; print("site-shots: \(error)") }
             // Put the app back as it was.
             if wasRunning { try? session.launch([]) } else { session.quit() }
@@ -632,7 +795,8 @@ struct SiteShots {
         }
     }
 
-    static func run(_ command: String, names: Set<String>, manifest: Manifest, session: Session, site: URL) async throws -> Int32 {
+    static func run(_ command: String, names: Set<String>, manifest: Manifest, session: Session, site: URL,
+                    repoAssets: RepoAssets?) async throws -> Int32 {
         let shots = manifest.shots.filter { names.isEmpty || names.contains($0.name) }
         if shots.isEmpty { throw Failure("no shot named \(names.sorted().joined(separator: ", "))") }
         let trees = site.appendingPathComponent("shots/trees")
@@ -641,6 +805,17 @@ struct SiteShots {
         var changed: [String] = [], flagged: [String] = [], failed: [String] = []
         var problems: [String] = []
         var cached: (args: [String], window: String)?
+
+        // What's made by hand from each window, on the site and in the README
+        // and docs (#413), to name when the window changes.
+        var handMade: [String: [String]] = [:]
+        for shot in manifest.shots { handMade[shot.name, default: []] += shot.flags ?? [] }
+        for asset in manifest.assets ?? [] {
+            for name in asset.shows ?? [] where !(handMade[name] ?? []).contains(asset.file) { handMade[name, default: []].append(asset.file) }
+        }
+        for asset in repoAssets?.assets ?? [] {
+            for name in asset.shows ?? [] { handMade[name, default: []].append("\(asset.file) (main)") }
+        }
 
         var current: [String: [String]] = [:]
         for shot in shots {
@@ -713,11 +888,20 @@ struct SiteShots {
                     print("\(shot.name): the interface changed")
                     diff(before, now).prefix(40).forEach { print($0) }
                     changed.append(shot.name)
-                    flagged += shot.flags ?? []
                 } else {
                     print(differs ? "\(shot.name): no tree recorded yet" : "\(shot.name): unchanged")
                 }
                 let named = names.contains(shot.name)
+                // What's made by hand from this window is compared with the
+                // tree it was made from: retaking the window's own picture
+                // doesn't remake them, so it doesn't end the reminder. Only an
+                // update by the window's name does, once they're remade.
+                let hand = handMade[shot.name] ?? []
+                let madeFile = trees.appendingPathComponent("\(shot.name).made.txt")
+                let made = (try? String(contentsOf: madeFile, encoding: .utf8))?.split(separator: "\n").map(String.init) ?? before
+                if !hand.isEmpty, let made, made != now, !(command == "update" && named) {
+                    flagged += hand.map { "\($0), from \(shot.name)" }
+                }
                 guard command == "update", differs || named || shot.always == true || baseTree != nil else { continue }
                 // A window that only flags videos keeps its old tree until
                 // they're remade and it's updated by name, so the reminder stays.
@@ -744,6 +928,13 @@ struct SiteShots {
                     guard let r = frame(element) else { continue }
                     page.place(area, at: r.offsetBy(dx: -windowFrame.minX, dy: -windowFrame.minY), windowWidth: windowFrame.width)
                 }
+                if !hand.isEmpty {
+                    if named {
+                        try (now.joined(separator: "\n") + "\n").write(to: madeFile, atomically: true, encoding: .utf8)
+                    } else if !FileManager.default.fileExists(atPath: madeFile.path), let before {
+                        try (before.joined(separator: "\n") + "\n").write(to: madeFile, atomically: true, encoding: .utf8)
+                    }
+                }
                 try (now.joined(separator: "\n") + "\n").write(to: treeFile, atomically: true, encoding: .utf8)
                 if let baseTree {
                     try (baseTree.joined(separator: "\n") + "\n").write(
@@ -764,7 +955,7 @@ struct SiteShots {
             try page.save()
         }
         if !flagged.isEmpty {
-            print("\nThese show a window that changed. Remake them by hand, then run `update` with the window's name:")
+            print("\nThese show a window that changed since they were made. Remake them by hand, then run `update` with the window's name:")
             Set(flagged).sorted().forEach { print("  \($0)") }
         }
         if command == "audit", !problems.isEmpty {
@@ -775,6 +966,6 @@ struct SiteShots {
         }
         if !failed.isEmpty { return 2 }
         if command == "audit" { return problems.isEmpty ? 0 : 1 }
-        return command == "check" && !changed.isEmpty ? 1 : 0
+        return command == "check" && !(changed.isEmpty && flagged.isEmpty) ? 1 : 0
     }
 }

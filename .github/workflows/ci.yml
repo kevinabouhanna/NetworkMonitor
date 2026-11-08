@@ -39,6 +39,18 @@ jobs:
       - name: Test
         run: make test
 
+      # Every image, GIF and video the site, the README and the docs use must
+      # be listed with the window it shows, so none goes stale unnoticed (#413).
+      # Reads files only: no app.
+      - name: Check out the website
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: site
+
+      - name: Check every picture, GIF and video is listed
+        run: make asset-check SITE=site
+
       # The bundle is where breakage actually hides: Info.plist keys, the
       # .icns, codesigning. `swift build` alone would not catch any of it.
       - name: Assemble the app bundle

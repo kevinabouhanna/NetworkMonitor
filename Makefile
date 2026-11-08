@@ -1,4 +1,4 @@
-.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check site-shots site-audit clean
+.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check site-shots site-audit clean
 
 all: test app
 
@@ -107,7 +107,14 @@ build/site-shots: Scripts/site-shots.swift Sources/NetworkMonitorCore/Accessibil
 	swiftc -O -parse-as-library $^ -o $@
 
 site-check: build/site-shots
+	@build/site-shots coverage --site $(SITE)
 	@./Scripts/mac-lane.sh build/site-shots check --site $(SITE) $(NAMES)
+
+# Every image, GIF and video the site, the README and the docs use is listed
+# with the window it shows, or why it shows none (#413). Files only, no app:
+# CI runs it on every pull request, here and on the site.
+asset-check: build/site-shots
+	@build/site-shots coverage --site $(SITE)
 
 site-shots: build/site-shots
 	@./Scripts/mac-lane.sh build/site-shots update --site $(SITE) $(NAMES)
