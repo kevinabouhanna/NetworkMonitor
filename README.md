@@ -92,3 +92,6 @@ See [docs/development.md](docs/development.md) for the rest.
 ## 📄 License
 
 [MIT](LICENSE)
+
+<!-- MOCK #413: test only, never merged -->
+![mock](Resources/README/mock-feature.gif)
