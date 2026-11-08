@@ -78,6 +78,24 @@ func runAccessibilityTests() {
             check(settings.window, "Settings › \(pane.title)")
         }
 
+        // The popover styles are pictures to click (#398). Each reads as a
+        // button named after its style; the sample card inside is left out.
+        Check.test("Settings › Speed Test reads each style's picture as one button") {
+            settings.select(.speedTest)
+            settings.window.alphaValue = 0
+            settings.window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
+            settings.window.orderFrontRegardless()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+            let outline = AccessibilityAudit.outlineOwnWindow(titled: settings.window.title)
+            for style in ["Card", "Compact"] {
+                Check.expectTrue(outline.contains { $0.hasPrefix("AXButton name=\(style) ") },
+                                 "no \(style) button in \(outline)")
+            }
+            Check.expectTrue(!outline.contains { $0.contains("Back to Apps") },
+                             "the picture's sample buttons reach VoiceOver: \(outline)")
+            settings.window.orderOut(nil)
+        }
+
         check(ConnectionsWindowController(model: connections).window, "Connections")
 
         let adsController = AdsWindowController(model: AdsViewModel(monitor: model))

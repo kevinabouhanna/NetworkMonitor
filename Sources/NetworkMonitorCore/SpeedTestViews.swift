@@ -623,3 +623,176 @@ struct DialArc: Shape {
         return path
     }
 }
+
+// MARK: - Style pictures
+
+/// One of Settings' two ways to show a test, as a picture of the popover
+/// showing it, picked by clicking it (#398).
+///
+/// Like System Settings' Appearance pictures: an accent ring around the chosen
+/// one, its name below. VoiceOver reads it as a button named after the style,
+/// selected or not, with what the style does as its hint. The picture itself
+/// is left out: its figures are samples, not the user's.
+struct SpeedTestStyleChoice: View {
+    let style: SpeedTestStyle
+    let unit: SpeedUnit
+    let isSelected: Bool
+    let select: () -> Void
+
+    var body: some View {
+        Button(action: select) {
+            VStack(spacing: 7) {
+                SpeedTestStylePicture(style: style, unit: unit)
+                    .padding(3)
+                    .overlay(RoundedRectangle(cornerRadius: 9)
+                        .strokeBorder(Color.accentColor, lineWidth: 2.5)
+                        .opacity(isSelected ? 1 : 0))
+                Text(style.label)
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(style.summary)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(style.label)
+        .accessibilityHint(style.summary)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+/// The popover in miniature: the real card or strip, filled with sample
+/// figures, where it sits, and the header and apps around it as plain shapes,
+/// so the test is what the eye lands on.
+private struct SpeedTestStylePicture: View {
+    let style: SpeedTestStyle
+    let unit: SpeedUnit
+
+    static let scale: CGFloat = 0.6
+    static let width: CGFloat = 320
+    static let headerHeight: CGFloat = 58
+    /// The card's popover: header, divider and card. The compact picture is
+    /// drawn the same height, its apps filling what the card would take.
+    static let height: CGFloat = headerHeight + 1 + PopoverMetrics.speedCardHeight
+
+    /// No live reading: the pictures only ever show a finished test.
+    private static let live = SpeedTestController.Live()
+
+    /// A plausible home line, with nothing worth a note under the card.
+    private static let sample: SpeedTestResult = {
+        let nineFortyOne = Calendar.current.date(bySettingHour: 9, minute: 41, second: 0, of: Date())
+        var result = SpeedTestResult(downloadBitsPerSecond: 412e6, uploadBitsPerSecond: 46e6,
+                                     ping: 14, jitter: 2.3, downloadPing: 31, uploadPing: 52,
+                                     bytesTransferred: 418_000_000, interfaceName: nil,
+                                     endpoint: nil, finishedAt: nineFortyOne ?? Date())
+        result.interfaceKind = "Wi-Fi"
+        return result
+    }()
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider()
+            switch style {
+            case .card:
+                VStack(spacing: 0) {
+                    CardBody(live: Self.live, result: Self.sample, startedAt: nil, unit: unit)
+                    Spacer(minLength: 0)
+                    HStack {
+                        pill("Back to Apps", prominent: false)
+                        Spacer()
+                        pill("Test Again", prominent: true)
+                    }
+                }
+                .padding(.top, 10)
+                .padding(.bottom, 12)
+                .padding(.horizontal, 14)
+                .frame(height: PopoverMetrics.speedCardHeight)
+            case .compact:
+                StripBody(live: Self.live, result: Self.sample, startedAt: nil, unit: unit) {
+                    Image(systemName: "arrow.clockwise").frame(width: 18, height: 16)
+                    Image(systemName: "xmark").frame(width: 18, height: 16)
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .frame(height: PopoverMetrics.speedStripHeight)
+                Divider()
+                VStack(spacing: 0) {
+                    ForEach([0.9, 0.55, 0.35, 0.22, 0.14, 0.08], id: \.self) { share in
+                        appRow(share)
+                    }
+                }
+                .padding(.vertical, 4)
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(width: Self.width, height: Self.height, alignment: .top)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .scaleEffect(Self.scale, anchor: .topLeading)
+        .frame(width: Self.width * Self.scale, height: Self.height * Self.scale,
+               alignment: .topLeading)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6)
+            .strokeBorder(Color.secondary.opacity(0.35), lineWidth: 0.5))
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    /// The total, its connection and the header's buttons, as shapes.
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 6) {
+                bar(width: 34, height: 7)
+                bar(width: 92, height: 15)
+                bar(width: 128, height: 7)
+            }
+            Spacer()
+            HStack(spacing: 10) {
+                ForEach(0..<4, id: \.self) { _ in
+                    Circle().fill(.secondary.opacity(0.2)).frame(width: 14, height: 14)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(height: Self.headerHeight)
+    }
+
+    /// One app: its icon, its name over its bar, its total, as shapes.
+    private func appRow(_ share: Double) -> some View {
+        HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 7).fill(.secondary.opacity(0.18))
+                .frame(width: PopoverMetrics.iconSize, height: PopoverMetrics.iconSize)
+            VStack(alignment: .leading, spacing: 6) {
+                bar(width: 70 + 40 * share, height: 8)
+                Capsule().fill(Color.accentColor.opacity(0.55))
+                    .frame(width: max(PopoverMetrics.maxBarWidth * share, PopoverMetrics.minBarWidth),
+                           height: PopoverMetrics.barHeight)
+            }
+            Spacer()
+            bar(width: 44, height: 8)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: PopoverMetrics.rowHeight)
+    }
+
+    private func bar(width: CGFloat, height: CGFloat) -> some View {
+        Capsule().fill(.secondary.opacity(0.2)).frame(width: width, height: height)
+    }
+
+    /// The card's small buttons, drawn rather than made: nothing in a picture
+    /// can be pressed.
+    private func pill(_ title: String, prominent: Bool) -> some View {
+        Text(title)
+            .font(.system(size: 11))
+            .foregroundStyle(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(prominent ? AnyShapeStyle(Color.accentColor)
+                                  : AnyShapeStyle(.secondary.opacity(0.2)),
+                        in: RoundedRectangle(cornerRadius: 5))
+    }
+}
