@@ -1,0 +1,31 @@
+AXPopover 348x456
+  AXGroup (AXHostingView) h428
+    AXStaticText value="Total" h12
+    AXButton description="Speed test" identifier="gauge.with.dots.needle.#percent" help="Test internet speed" 12x12
+    AXButton description="Connections" identifier="globe" help="Connections" 12x12
+    AXButton description="Usage History" identifier="chart.bar.xaxis" help="Usage History" 12x12
+    AXButton description="Settings" identifier="gearshape.fill" help="Settings" 12x12
+    AXStaticText value="# ‹unit›" h20
+    AXStaticText value="Using Ethernet" h12
+    AXButton description="# ads and trackers blocked today" help="Ads and trackers blocked today. See what was blocked, and where" h12
+    AXStaticText value="#" h12
+    AXStaticText value="#" h8
+    AXStaticText value="#" h40
+    AXStaticText value="#" h12
+    AXStaticText value="#" h12
+    AXStaticText value="KB/s down" h12
+    AXStaticText value="Download" h12
+    AXStaticText value="# ‹unit›" h16
+    AXStaticText value="Upload" h12
+    AXStaticText value="# ‹unit›" h16
+    AXStaticText value="Ethernet · used # ‹unit› · ‹time›" h12
+    AXStaticText value="Ping" help="Round trip to the test server on a quiet line. Under # ms is great; over # ms is noticeable in calls and games." h12
+    AXStaticText value="Jitter" help="How much ping varies from one moment to the next. Under # ms is good; more makes calls choppy." h12
+    AXStaticText value="# ms" help="Round trip to the test server on a quiet line. Under # ms is great; over # ms is noticeable in calls and games." h16
+    AXStaticText value="# ms" help="How much ping varies from one moment to the next. Under # ms is good; more makes calls choppy." h16
+    AXStaticText value="Ping while downloading" help="Ping measured while the test fills the line. A big rise over the quiet-line ping means calls and games lag whenever something downloads or uploads." h12
+    AXStaticText value="Ping while uploading" help="Ping measured while the test fills the line. A big rise over the quiet-line ping means calls and games lag whenever something downloads or uploads." h12
+    AXStaticText value="# ms" help="Ping measured while the test fills the line. A big rise over the quiet-line ping means calls and games lag whenever something downloads or uploads." h16
+    AXStaticText value="# ms" help="Ping measured while the test fills the line. A big rise over the quiet-line ping means calls and games lag whenever something downloads or uploads." h16
+    AXButton description="Back to Apps" 88x20
+    AXButton description="Test Again" 76x20

@@ -1,0 +1,12 @@
+AXPopover 348
+  AXGroup (AXHostingView)
+    AXStaticText value="Total" h12
+    AXButton description="Speed test" identifier="gauge.with.dots.needle.#percent" help="Test internet speed" 12x12
+    AXButton description="Connections" identifier="globe" help="Connections" 12x12
+    AXButton description="Usage History" identifier="chart.bar.xaxis" help="Usage History" 12x12
+    AXButton description="Settings" identifier="gearshape.fill" help="Settings" 12x12
+    AXStaticText value="# ‹unit›" h20
+    AXStaticText value="Using Ethernet" h12
+    AXButton description="# ads and trackers blocked today" help="Ads and trackers blocked today. See what was blocked, and where" h12
+    AXScrollArea
+      data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
