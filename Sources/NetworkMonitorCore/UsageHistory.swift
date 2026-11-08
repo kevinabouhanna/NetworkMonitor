@@ -1620,7 +1620,29 @@ public final class UsageHistory {
             "SELECT COUNT(*) FROM pragma_table_info('server_traffic') WHERE name = 'blocked'")) == 0 {
             try database.execute("ALTER TABLE server_traffic ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0")
         }
+        try renameTools(database)
         return database
+    }
+
+    /// Programs outside any app stored under their file name when a better
+    /// one exists (#385): Claude Code as "2.1.319". A program seen again is
+    /// renamed as it's written, but one from an earlier version, or a program
+    /// gone since, would keep the old name in its history.
+    static func renameTools(_ database: SQLiteDatabase) throws {
+        let query = try database.prepare("SELECT key, name FROM apps WHERE bundle_path IS NULL")
+        var renames: [(key: String, name: String)] = []
+        while try query.step() {
+            guard let key = query.string(0), let stored = query.string(1) else { continue }
+            let path = key.split(separator: AppIdentityResolver.keySeparator).last.map(String.init) ?? key
+            // Only a name taken from the file: not a speed test's, a daemon's
+            // fallback or anything else chosen for it.
+            guard stored == (path as NSString).lastPathComponent,
+                  let name = AppIdentityResolver.toolName(forExecutablePath: path), name != stored else { continue }
+            renames.append((key, name))
+        }
+        guard !renames.isEmpty else { return }
+        let update = try database.prepare("UPDATE apps SET name = ?2 WHERE key = ?1")
+        for rename in renames { try update.run([.text(rename.key), .text(rename.name)]) }
     }
 
     /// Picks up where the last run left off: the newest session stays open, so

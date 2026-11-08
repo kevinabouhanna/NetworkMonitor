@@ -267,6 +267,35 @@ func runFirewallTests() {
             Check.expectEqual(history.servers(from: day.start, to: day.end, measure: .blocked).map(\.bytesIn), [1])
         }
 
+        Check.test("a program stored under its version is renamed when the history opens (#385)") {
+            let url = temporaryURL()
+            defer { remove(url) }
+            _ = UsageHistory(databaseURL: url, calendar: calendar)
+            let claude = "/Applications/Warp.app\u{1}/Users/k/.local/share/claude/versions/2.1.318"
+            var database: OpaquePointer?
+            sqlite3_open(url.path, &database)
+            sqlite3_exec(database, """
+                INSERT INTO apps (key, name) VALUES ('\(claude)', '2.1.318'),
+                    ('/usr/bin/networkQuality', 'Speed test'), ('system:kernel_task', 'kernel_task');
+                INSERT INTO list_blocks (hour, session_id, app_key, name, list, count)
+                    VALUES (\(Int(day.start.timeIntervalSince1970)), 1, '\(claude)', 'x.example', 'ads', 3);
+                """, nil, nil, nil)
+            sqlite3_close(database)
+
+            let history = UsageHistory(databaseURL: url, calendar: calendar)
+            Check.expectEqual(history.listBlocks(from: day.start, to: day.end).map(\.appName), ["Claude Code"])
+            // Names chosen for a program, not taken from its file, stay.
+            sqlite3_open(url.path, &database)
+            var statement: OpaquePointer?
+            sqlite3_prepare_v2(database, "SELECT name FROM apps WHERE key != '\(claude)' ORDER BY key", -1,
+                               &statement, nil)
+            var names: [String] = []
+            while sqlite3_step(statement) == SQLITE_ROW { names.append(String(cString: sqlite3_column_text(statement, 0))) }
+            sqlite3_finalize(statement)
+            sqlite3_close(database)
+            Check.expectEqual(names, ["Speed test", "kernel_task"])
+        }
+
         Check.test("an app is rebuilt from its key alone, as the filter sends it") {
             for key in ["/Applications/Safari.app", "/usr/sbin/mDNSResponder", curlKey] {
                 Check.expectEqual(AppIdentityResolver.identity(forKey: key).key, key, key)
