@@ -181,12 +181,12 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
         // As Connections: the period centred, ‹ Today › trailing, and the gear
         // last, where it stays put when the period hides on Log.
         (standalone ? [] : MainWindowController.sidebarItems)
-            + [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, search.item.itemIdentifier,
+            + [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, search.restingIdentifier,
                SettingsGear.identifier]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        toolbarDefaultItemIdentifiers(toolbar)
+        toolbarDefaultItemIdentifiers(toolbar).filter { !search.identifiers.contains($0) } + search.identifiers
     }
 
     public func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
@@ -195,7 +195,8 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
             return SettingsGear.item(target: self, action: #selector(openSettings),
                                      help: L("Settings for ads and trackers: the lists and your rules"))
         }
-        if identifier == search.item.itemIdentifier { return search.item }
+        if let item = MainWindowController.sidebarButton(identifier) { return item }
+        if let item = search.item(for: identifier, in: toolbar) { return item }
         let item = NSToolbarItem(itemIdentifier: identifier)
         switch identifier {
         case Self.scaleItem:

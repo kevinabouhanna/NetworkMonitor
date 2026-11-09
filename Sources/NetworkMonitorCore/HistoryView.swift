@@ -44,12 +44,9 @@ public struct HistoryView: View {
     private var scopeBar: some View {
         HStack(spacing: 10) {
             LabelledControl(L("Show")) {
-                Picker(L("Show"), selection: $model.tab) {
-                    ForEach(HistoryViewModel.Tab.allCases) { tab in
-                        Text(tab.label).tag(tab)
-                    }
-                }
-                .help(L("Apps, networks or each visit to a network. A row narrows the window to it."))
+                GlassSegmented(name: L("Show"), options: HistoryViewModel.Tab.allCases, selection: $model.tab,
+                               label: { $0.label }, size: .small)
+                    .help(L("Apps, networks or each visit to a network. A row narrows the window to it."))
             }
             if hasChips {
                 Divider().frame(height: 16)
@@ -58,17 +55,10 @@ public struct HistoryView: View {
             Spacer(minLength: 12)
             // Wi-Fi and Hotspot, the two kinds asked for in #70. Ethernet and
             // Other stay under All, and on the Networks list.
-            Picker(L("Networks"), selection: Binding(get: { model.kind }, set: { model.kind = $0 })) {
-                Text(L("All")).tag(NetworkFingerprint.Kind?.none)
-                ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
-                    Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .controlSize(.small)
-            .help(L("Every connection, Wi-Fi only, or hotspots only"))
+            GlassSegmented(name: L("Networks"), options: [nil, .wifi, .hotspot],
+                           selection: Binding(get: { model.kind }, set: { model.kind = $0 }),
+                           label: { $0?.historyLabel ?? L("All") }, size: .small)
+                .help(L("Every connection, Wi-Fi only, or hotspots only"))
         }
         .frame(height: ScopeMetrics.height)
     }

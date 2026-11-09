@@ -889,3 +889,5 @@
 "Decisions" = "判定";
 "Every decision, or only some" = "所有判定，或只看其中一部分";
 "“%@”" = "“%@”";
+"Sidebar" = "边栏";
+"Show or hide the sidebar's names (⌃⌘S)" = "显示或隐藏边栏中的名称（⌃⌘S）";

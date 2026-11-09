@@ -289,9 +289,10 @@ public struct MenuBarPopoverView: View {
                 .help(L("Settings (⌘,)"))
                 .accessibilityLabel(L("Settings"))
             }
-            .padding(.leading, 12)
+            .padding(.leading, PopoverMetrics.edge)
             .padding(.trailing, 6)
-            .padding(.top, 6)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
             PopoverButtons(selection: Binding(get: { model.popoverSection },
                                               set: { section in
                                                   model.popoverSection = section
@@ -304,7 +305,7 @@ public struct MenuBarPopoverView: View {
                            blockedIsOn: !firewall.lists.isEmpty,
                            connection: PopoverConnection.word(model.connection, metering: metering),
                            isHotspot: metering.verdict.isMetered)
-                .padding(.horizontal, 6)
+                .padding(.horizontal, PopoverMetrics.edge)
             VStack(alignment: .leading, spacing: 2) {
                     if let standby = metering.standbyHotspot {
                         StandbyHotspotLine(message: standby.message,

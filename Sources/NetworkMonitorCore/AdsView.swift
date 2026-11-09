@@ -28,10 +28,9 @@ struct AdsView: View {
     private var scopeBar: some View {
         HStack(spacing: 10) {
             LabelledControl(L("Show")) {
-                Picker(L("Show"), selection: $model.tab) {
-                    ForEach(AdsViewModel.Tab.allCases) { tab in Text(tab.label).tag(tab) }
-                }
-                .help(L("What was blocked, and every connection as it's decided"))
+                GlassSegmented(name: L("Show"), options: AdsViewModel.Tab.allCases, selection: $model.tab,
+                               label: { $0.label }, size: .small)
+                    .help(L("What was blocked, and every connection as it's decided"))
             }
             // The toolbar's search, as a filter like the others (#436).
             let query = model.logSearch.trimmingCharacters(in: .whitespaces)
@@ -495,13 +494,9 @@ struct AdsLogControls: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Picker(L("Decisions"), selection: $model.logShow) {
-                ForEach(AdsLog.Show.allCases) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .help(L("Every decision, or only some"))
+            GlassSegmented(name: L("Decisions"), options: AdsLog.Show.allCases, selection: $model.logShow,
+                           label: { $0.label }, size: .small)
+                .help(L("Every decision, or only some"))
             Spacer(minLength: 8)
             Button(model.logIsPaused ? L("Resume") : L("Pause")) { model.toggleLogPause() }
                 .help(model.logIsPaused ? L("Show new connections again") : L("Stop the list moving while you read it"))

@@ -64,19 +64,18 @@ public struct ConnectionsView: View {
     private var scopeBar: some View {
         HStack(spacing: 10) {
             LabelledControl(L("Group by")) {
-                Picker(L("Group by"), selection: Binding(get: { model.grouping }, set: { model.grouping = $0 })) {
-                    ForEach(ConnectionsGrouping.allCases) { Text($0.label).tag($0) }
-                }
-                .help(L("Group the list by company, app or country. A row inside a group narrows the window to it."))
+                GlassSegmented(name: L("Group by"), options: ConnectionsGrouping.allCases,
+                               selection: Binding(get: { model.grouping }, set: { model.grouping = $0 }),
+                               label: { $0.label }, size: .small)
+                    .help(L("Group the list by company, app or country. A row inside a group narrows the window to it."))
             }
             // What was blocked (#114), once there's a filter to block anything.
             if model.filter.state != .unavailable {
                 LabelledControl(L("Show")) {
-                    Picker(L("Show"), selection: Binding(get: { model.measure }, set: { model.measure = $0 })) {
-                        Text(L("Traffic")).tag(ServerMeasure.bytes)
-                        Text(L("Blocked")).tag(ServerMeasure.blocked)
-                    }
-                    .help(L("What your apps sent and received, or the connections that were blocked"))
+                    GlassSegmented(name: L("Show"), options: [ServerMeasure.bytes, .blocked],
+                                   selection: Binding(get: { model.measure }, set: { model.measure = $0 }),
+                                   label: { $0 == .bytes ? L("Traffic") : L("Blocked") }, size: .small)
+                        .help(L("What your apps sent and received, or the connections that were blocked"))
                 }
             }
             if model.spanTitle != nil || !model.chips.isEmpty || !query.isEmpty {
@@ -96,17 +95,10 @@ public struct ConnectionsView: View {
             }
             Spacer(minLength: 12)
             // All, Wi-Fi and Hotspot say what they are; no label needed.
-            Picker(L("Networks"), selection: Binding(get: { model.kind }, set: { model.setKind($0) })) {
-                Text(L("All")).tag(NetworkFingerprint.Kind?.none)
-                ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
-                    Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .controlSize(.small)
-            .help(L("Every connection, Wi-Fi only, or hotspots only"))
+            GlassSegmented(name: L("Networks"), options: [nil, .wifi, .hotspot],
+                           selection: Binding(get: { model.kind }, set: { model.setKind($0) }),
+                           label: { $0?.historyLabel ?? L("All") }, size: .small)
+                .help(L("Every connection, Wi-Fi only, or hotspots only"))
         }
         .frame(height: ScopeMetrics.height)
     }

@@ -191,15 +191,17 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         (standalone ? [] : MainWindowController.sidebarItems)
             + [Self.layoutItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem,
-               search.item.itemIdentifier, SettingsGear.identifier]
+               search.restingIdentifier, SettingsGear.identifier]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        toolbarDefaultItemIdentifiers(toolbar)
+        toolbarDefaultItemIdentifiers(toolbar).filter { !search.identifiers.contains($0) } + search.identifiers
     }
 
     public func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                         willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        if let item = MainWindowController.sidebarButton(identifier) { return item }
+        if let item = search.item(for: identifier, in: toolbar) { return item }
         switch identifier {
         case Self.layoutItem:
             return item(identifier, control: layoutControl)
@@ -207,8 +209,6 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
             return item(identifier, control: scaleControl)
         case Self.stepItem:
             return item(identifier, control: stepControl)
-        case search.item.itemIdentifier:
-            return search.item
         case SettingsGear.identifier:
             return SettingsGear.item(target: self, action: #selector(openSettings),
                                      help: L("Settings for Connections"))

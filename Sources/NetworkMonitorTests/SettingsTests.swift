@@ -54,9 +54,32 @@ func runSettingsTests() {
             // answered by the window itself, so it works with nothing focused.
             for section in MainSection.allCases {
                 main.show(section)
-                let buttons = main.window.toolbar?.items.filter { $0.itemIdentifier == .toggleSidebar } ?? []
+                let buttons = main.window.toolbar?.items.filter { $0.itemIdentifier.rawValue == "sidebarButton" } ?? []
                 Check.expectEqual(buttons.count, 1, "\(section.rawValue) has the sidebar button")
+                // AppKit's own button greyed itself out once the sidebar
+                // couldn't hide away entirely; this one goes to the window.
+                if let action = buttons.first?.action {
+                    Check.expectTrue(main.window.responds(to: action), "\(section.rawValue): the window takes its action")
+                } else {
+                    Check.expectTrue(false, "\(section.rawValue): the sidebar button has an action")
+                }
             }
+
+            // Search (#436): the glass gives way to the field and comes back
+            // once it's left empty; a search keeps the field.
+            main.show(.connections)
+            let search = main.connections.search
+            Check.expectTrue(!search.isOpen, "search starts as the glass")
+            search.begin()
+            Check.expectTrue(search.isOpen, "⌘F opens the field")
+            search.finish()
+            Check.expectTrue(!search.isOpen, "left empty, it's the glass again")
+            search.show("goo")
+            Check.expectTrue(search.isOpen, "a search keeps the field open")
+            search.finish()
+            Check.expectTrue(search.isOpen, "holding a search, it doesn't close")
+            search.show("")
+            Check.expectTrue(!search.isOpen, "cleared, it closes")
             main.window.makeFirstResponder(nil)
             let before = main.sidebarIsCollapsed
             Check.expectTrue(NSApp.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)),

@@ -28,6 +28,9 @@ extension PopoverMetrics {
     public static let summaryRowHeight: CGFloat = 28
     /// The row at the end of a view that opens its window, and the footer.
     public static let openRowHeight: CGFloat = 40
+    /// The leading edge the header's switch, its buttons' raised backgrounds
+    /// and a list's switch all start from (#436).
+    public static let edge: CGFloat = 12
 }
 
 /// The four buttons across the header: the number that matters, and what it
@@ -105,18 +108,11 @@ struct PopoverSwitch<Value: Hashable & Identifiable>: View {
     let options: [Value]
     @Binding var selection: Value
     let label: (Value) -> String
+    /// The period is the larger: it scopes everything under it.
+    var size: GlassSegmented<Value>.Size = .regular
 
     var body: some View {
-        Picker(name, selection: $selection) {
-            ForEach(options) { option in
-                Text(label(option)).tag(option)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .controlSize(.small)
-        .fixedSize()
-        .accessibilityLabel(name)
+        GlassSegmented(name: name, options: options, selection: $selection, label: label, size: size)
     }
 }
 
@@ -129,7 +125,7 @@ struct PopoverGroupingRow<Value: Hashable & Identifiable>: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            PopoverSwitch(name: L("Group by"), options: options, selection: $selection, label: label)
+            PopoverSwitch(name: L("Group by"), options: options, selection: $selection, label: label, size: .small)
             Spacer(minLength: 4)
             Text(count)
                 .font(.system(size: 10.5))
@@ -137,9 +133,9 @@ struct PopoverGroupingRow<Value: Hashable & Identifiable>: View {
                 .monospacedDigit()
                 .lineLimit(1)
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 8)
-        .padding(.bottom, 2)
+        .padding(.horizontal, PopoverMetrics.edge)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
     }
 }
 

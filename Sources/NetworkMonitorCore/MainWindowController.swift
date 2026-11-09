@@ -56,7 +56,24 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
 
     /// The sidebar's button and the line that keeps the toolbar's items over
     /// the content, first in every section's toolbar.
-    public static let sidebarItems: [NSToolbarItem.Identifier] = [.toggleSidebar, .sidebarTrackingSeparator]
+    public static let sidebarItems: [NSToolbarItem.Identifier] = [sidebarButtonID, .sidebarTrackingSeparator]
+    static let sidebarButtonID = NSToolbarItem.Identifier("sidebarButton")
+
+    /// The sidebar button (#436), for every section's toolbar: ours, not
+    /// AppKit's, which greys itself out unless the sidebar can hide away
+    /// entirely, and this one folds to its icons instead. Sent up the
+    /// responder chain to the window, which is always in it.
+    static func sidebarButton(_ identifier: NSToolbarItem.Identifier) -> NSToolbarItem? {
+        guard identifier == sidebarButtonID else { return nil }
+        let item = NSToolbarItem(itemIdentifier: identifier)
+        item.image = NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: L("Sidebar"))
+        item.label = L("Sidebar")
+        item.paletteLabel = L("Sidebar")
+        item.toolTip = L("Show or hide the sidebar's names (⌃⌘S)")
+        item.isBordered = true
+        item.action = #selector(MainWindow.toggleSidebar(_:))
+        return item
+    }
     private static let backItem = NSToolbarItem.Identifier("back")
 
     public let window: NSWindow
@@ -360,6 +377,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
 
     public func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                         willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        if let item = Self.sidebarButton(identifier) { return item }
         switch identifier {
         case Self.backItem:
             let item = NSToolbarItem(itemIdentifier: identifier)
