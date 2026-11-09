@@ -1,47 +1,37 @@
-AXWindow (AXStandardWindow) title="Ads" 720x580
-  AXGroup h492
-    AXGroup (AXHostingView) h492
-      AXScrollArea h492
-        AXScrollArea h492
+AXWindow (AXStandardWindow) title="Ads and Trackers Settings" 1300
+  AXSplitGroup 1300
+    AXGroup (AXHostingView) h800
+      AXScrollArea h700
+        AXButton description="Usage History" 172x32
+        AXButton description="Connections" 172x32
+        AXButton description="Ads and Trackers" 172x32
+        AXButton description="Network" 172x32
+      AXButton description="Settings" help="Settings (⌘,)" 172x32
+    AXSplitter value="#" h748
+    AXGroup (AXHostingView)
+      AXScrollArea
+        AXScrollArea h272
           AXGroup h52
-            AXStaticText value="Ads, trackers and malware sites stopped in every app, and what was stopped, when and where." h32
-            AXButton description="Open Ads and Trackers…" help="Also ⌘B, and the blocked-today line in the popover" 176x24
-          AXHeading description="Lists" 32x16
-          AXGroup h184
+            AXStaticText value="# blocked today, Ads, trackers and malware sites stopped in every app" h32
+            AXButton description="Open Ads and Trackers…" help="Also ⌘B" 176x24
+          AXGroup h72
             AXStaticText value="Block ads and trackers" h16
             AXCheckBox (AXToggle) description="Block ads and trackers" help="Connections to sites on these lists are blocked in every app, after your own rules: Always Allow on a site in Connections lets it through. Allowing an app or a company lets it connect, and its ads are still blocked. Ads served from a site's own servers, like YouTube's, can't be told apart from the site, so they aren't blocked." 36x16
-            AXStaticText value="ADS" help="On the ads and trackers list, from StevenBlack" h12
-            AXStaticText value="Ads and trackers" h16
-            AXStaticText value="StevenBlack · # sites" h16
-            AXCheckBox (AXToggle) description="Ads and trackers" 36x16
-            AXStaticText value="MALWARE" help="On the malware and phishing list, from URLhaus, by malware-filter" h12
-            AXStaticText value="Malware and phishing" h16
-            AXStaticText value="URLhaus, by malware-filter · # sites" h16
-            AXCheckBox (AXToggle) description="Malware and phishing" 36x16
-            AXStaticText value="Blocked today" h16
-            AXStaticText value="#" h16
-            AXStaticText value="Update them weekly" h16
-            AXCheckBox (AXToggle) description="Update them weekly" help="Once a week, NetworkMonitor downloads the lists from GitHub, the same signed file for everyone, never on a hotspot." 36x16
+            AXStaticText value="Update the lists weekly" h16
+            AXCheckBox (AXToggle) description="Update the lists weekly" help="Once a week, NetworkMonitor downloads the lists from GitHub, the same signed file for everyone, never on a hotspot." 36x16
           AXStaticText value="Lists from # ‹month› # StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC#)." h16
-          AXHeading description="Yours" 36x16
-          AXGroup h80
-            AXStaticText value="More lists" h16
-            AXStaticText value="Recommended" h16
-            AXButton description="Choose…" help="HaGeZi, OISD, AdGuard's and others, or any list by its address" 80x24
-            AXStaticText value="Your rules" h16
-            AXStaticText value="None" h16
-            AXButton description="Edit…" help="Never block a site, always block one, or leave an app alone; import from uBlock Origin or AdGuard" 60x24
-  AXToolbar 720x56
-    AXButton title="General" description="General" 56x56
-    AXButton title="Speed Test" description="Speed Test" 72x56
-    AXButton title="History" description="History" 56x56
-    AXButton title="Connections" description="Connections" 80x56
-    AXButton title="Ads" description="Ads" 56x56
-    AXButton title="Hotspot" description="Hotspot" 56x56
-    AXButton title="About" description="About" 56x56
+          AXGroup h44
+            AXRadioGroup description="Show" 180x24
+              AXRadioButton (AXSegment) description="Lists" 88x24
+              AXRadioButton (AXSegment) description="Your Rules" 88x24
+        AXScrollArea
+          data: AXButton AXCheckBox(AXToggle) AXStaticText
+  AXToolbar 1300x52
+    AXButton description="Sidebar" help="Hide Sidebar" 44x52
+    AXButton description="Ads and Trackers" help="Back to Ads and Trackers" 44x52
   AXButton (AXCloseButton) 16x16
-  AXButton (AXZoomButton) 16x16
+  AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16
     AXGroup h16
       AXGroup h16
   AXButton (AXMinimizeButton) 16x16
-  AXStaticText value="Ads" h16
+  AXStaticText value="Ads and Trackers Settings" h52

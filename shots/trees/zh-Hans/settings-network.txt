@@ -1,0 +1,28 @@
+AXWindow (AXStandardWindow) title="网络设置" 1300x800
+  AXSplitGroup 1300x800
+    AXGroup (AXHostingView) h800
+      AXScrollArea h700
+        AXButton description="流量历史" 172x32
+        AXButton description="连接" 172x32
+        AXButton description="广告与跟踪器" 172x32
+        AXButton description="网络" 172x32
+      AXButton description="设置" help="设置（⌘,）" 172x32
+    AXSplitter value="#" h748
+    AXGroup (AXHostingView) h748
+      AXScrollArea h748
+        AXScrollArea h416
+          AXHeading description="网速测试" 52x16
+          AXGroup h328
+            AXStaticText value="在弹出窗口中显示测试的样式" h16
+            AXButton description="卡片" help="一张带仪表盘和所有数值的卡片，显示在应用列表的位置。" 200x272
+            AXButton description="紧凑" help="在应用列表上方显示两行，应用列表仍然可见。" 200x272
+          AXStaticText value="一张带仪表盘和所有数值的卡片，显示在应用列表的位置。" h16
+  AXToolbar 1300x52
+    AXButton description="边栏" help="隐藏边栏" 44x52
+    AXButton description="网络" help="返回网络" 44x52
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXFullScreenButton) help="此按钮也可以执行缩放窗口的操作" 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText value="网络设置" h52

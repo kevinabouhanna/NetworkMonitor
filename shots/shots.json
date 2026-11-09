@@ -3,131 +3,116 @@
   "bundle": "com.kevinabouhanna.NetworkMonitor",
   "shots": [
     {
-      "name": "settings-general",
-      "file": "assets/settings/general.png",
+      "name": "main-history",
+      "file": "assets/main/history.png",
       "open": [
         "-open",
-        "settings",
-        "-pane",
-        "general"
+        "history"
       ],
-      "window": "General",
+      "window": "Usage History",
       "areas": [
         {
-          "match": "data-pane=\"general\"",
-          "element": "AXButton:General",
-          "h": 48
-        },
-        {
-          "match": "data-pane=\"speed-test\"",
-          "element": "AXButton:Speed Test",
-          "h": 48
-        },
-        {
           "match": "data-pane=\"history\"",
-          "element": "AXButton:History",
-          "h": 48
+          "element": "AXButton:Usage History"
         },
         {
           "match": "data-pane=\"connections\"",
-          "element": "AXButton:Connections",
-          "h": 48
+          "element": "AXButton:Connections"
         },
         {
           "match": "data-pane=\"shield\"",
-          "element": "AXButton:Ads",
-          "h": 48
+          "element": "AXButton:Ads and Trackers"
         },
         {
-          "match": "data-pane=\"hotspot\"",
-          "element": "AXButton:Hotspot",
-          "h": 48
+          "match": "data-pane=\"network\"",
+          "element": "AXButton:Network"
         },
         {
-          "match": "data-pane=\"about\"",
-          "element": "AXButton:About",
-          "h": 48
+          "match": "data-pane=\"settings\"",
+          "element": "AXButton:Settings"
+        },
+        {
+          "match": "data-gear=\"history\"",
+          "element": "AXToolbar>AXButton:Settings"
         }
       ],
-      "data": [
-        {
-          "from": "AXStaticText:Counting since",
-          "skip": 1
-        },
-        {
-          "from": "AXStaticText:Sampling",
-          "skip": 1
-        }
-      ]
-    },
-    {
-      "name": "settings-speed-test",
-      "file": "assets/settings/speed-test.png",
-      "open": [
-        "-open",
-        "settings",
-        "-pane",
-        "speedTest"
-      ],
-      "window": "Speed Test"
-    },
-    {
-      "name": "settings-history",
-      "file": "assets/settings/history.png",
-      "open": [
-        "-open",
-        "settings",
-        "-pane",
-        "history"
-      ],
-      "window": "History",
       "data": [
         {
           "from": "AXGroup:Usage by hour",
-          "until": "AXRadioGroup:List"
+          "until": "AXScrollArea"
         },
         {
           "from": "AXOpaqueProviderGroup"
         }
-      ],
-      "ignore": [
-        "AXStaticText:~on metered connections",
-        "AXStaticText:·"
       ]
     },
     {
-      "name": "settings-connections",
-      "file": "assets/settings/connections.png",
+      "name": "connections",
+      "file": "assets/connections.png",
       "open": [
         "-open",
-        "settings",
-        "-pane",
         "connections"
       ],
-      "window": "Connections"
-    },
-    {
-      "name": "settings-shield",
-      "file": "assets/settings/shield.png",
-      "open": [
-        "-open",
-        "settings",
-        "-pane",
-        "ads"
-      ],
-      "window": "Ads"
-    },
-    {
-      "name": "settings-hotspot",
-      "file": "assets/settings/hotspot.png",
-      "open": [
-        "-open",
-        "settings",
-        "-pane",
-        "hotspot"
-      ],
-      "window": "Hotspot",
+      "window": "Connections",
       "areas": [
+        {
+          "match": "data-gear=\"connections\"",
+          "element": "AXToolbar>AXButton:Settings"
+        }
+      ],
+      "data": [
+        {
+          "from": "AXUnknown",
+          "until": "run"
+        },
+        {
+          "from": "AXOpaqueProviderGroup"
+        }
+      ]
+    },
+    {
+      "name": "main-shield",
+      "file": "assets/main/shield.png",
+      "open": [
+        "-open",
+        "ads",
+        "-tab",
+        "overview"
+      ],
+      "window": "Ads and Trackers",
+      "areas": [
+        {
+          "match": "data-gear=\"shield\"",
+          "element": "AXToolbar>AXButton:Settings"
+        }
+      ],
+      "data": [
+        {
+          "from": "AXStaticText:~blocked",
+          "until": "AXMenuButton"
+        },
+        {
+          "from": "AXStaticText:Today",
+          "skip": 1
+        },
+        {
+          "from": "AXOpaqueProviderGroup"
+        }
+      ]
+    },
+    {
+      "name": "main-network",
+      "file": "assets/main/network.png",
+      "open": [
+        "-open",
+        "network"
+      ],
+      "window": "Network",
+      "areas": [
+        {
+          "match": "data-gear=\"network\"",
+          "element": "AXToolbar>AXButton:Settings"
+        },
         {
           "match": "data-row=\"apps\"",
           "element": "AXDisclosureTriangle:Paused on a hotspot",
@@ -141,6 +126,9 @@
       ],
       "data": [
         {
+          "from": "AXStaticText:~ today"
+        },
+        {
           "from": "AXStaticText:Right now",
           "skip": 1
         }
@@ -150,19 +138,20 @@
       ]
     },
     {
-      "name": "settings-hotspot-apps",
-      "file": "assets/settings/hotspot-apps.png",
+      "name": "main-network-apps",
+      "file": "assets/main/network-apps.png",
       "open": [
         "-open",
-        "settings",
-        "-pane",
-        "hotspot"
+        "network"
       ],
-      "window": "Hotspot",
+      "window": "Network",
       "click": [
         "AXDisclosureTriangle:Paused on a hotspot"
       ],
       "data": [
+        {
+          "from": "AXStaticText:~ today"
+        },
         {
           "from": "AXStaticText:Right now",
           "skip": 1
@@ -177,19 +166,20 @@
       ]
     },
     {
-      "name": "settings-hotspot-uncovered",
-      "file": "assets/settings/hotspot-uncovered.png",
+      "name": "main-network-uncovered",
+      "file": "assets/main/network-uncovered.png",
       "open": [
         "-open",
-        "settings",
-        "-pane",
-        "hotspot"
+        "network"
       ],
-      "window": "Hotspot",
+      "window": "Network",
       "click": [
         "AXDisclosureTriangle:Can't be paused"
       ],
       "data": [
+        {
+          "from": "AXStaticText:~ today"
+        },
         {
           "from": "AXStaticText:Right now",
           "skip": 1
@@ -204,60 +194,89 @@
       ]
     },
     {
-      "name": "settings-about",
-      "file": "assets/settings/about.png",
+      "name": "main-settings",
+      "file": "assets/main/settings.png",
       "open": [
         "-open",
-        "settings",
-        "-pane",
-        "about"
+        "settings"
       ],
-      "window": "About",
-      "always": true,
-      "areas": [
+      "window": "Settings",
+      "data": [
         {
-          "match": "class=\"prefs-link\" href=\"#top\"",
-          "element": "AXLink:kevinabouhanna",
-          "pad": [
-            3,
-            7
-          ]
+          "from": "AXStaticText:Counting since",
+          "skip": 1
         },
         {
-          "match": "class=\"prefs-link\" href=\"https://github.com/kevinabouhanna/NetworkMonitor/releases/latest\"",
-          "element": "AXLink:Release notes",
-          "pad": [
-            3,
-            7
-          ]
-        },
-        {
-          "match": "class=\"prefs-link\" href=\"https://github.com/kevinabouhanna/NetworkMonitor\"",
-          "element": "AXLink:On GitHub",
-          "pad": [
-            3,
-            7
-          ]
+          "from": "AXStaticText:Sampling",
+          "skip": 1
         }
       ]
     },
     {
-      "name": "connections",
-      "file": "assets/connections.png",
+      "name": "settings-history",
+      "file": "assets/settings/history.png",
       "open": [
         "-open",
-        "connections"
+        "settings",
+        "-pane",
+        "history"
       ],
-      "window": "Connections",
-      "data": [
+      "window": "Usage History Settings",
+      "areas": [
         {
-          "from": "AXUnknown",
-          "until": "run"
-        },
-        {
-          "from": "AXOpaqueProviderGroup"
+          "match": "class=\"prefs-back\"",
+          "element": "AXToolbar>AXButton:Usage History"
         }
       ]
+    },
+    {
+      "name": "settings-connections",
+      "file": "assets/settings/connections.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "connections"
+      ],
+      "window": "Connections Settings"
+    },
+    {
+      "name": "settings-shield",
+      "file": "assets/settings/shield.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "ads"
+      ],
+      "window": "Ads and Trackers Settings",
+      "data": [
+        {
+          "from": "AXStaticText:Built in",
+          "until": "end"
+        }
+      ]
+    },
+    {
+      "name": "settings-network",
+      "file": "assets/settings/network.png",
+      "open": [
+        "-open",
+        "settings",
+        "-pane",
+        "speedTest"
+      ],
+      "window": "Network Settings"
+    },
+    {
+      "name": "about",
+      "file": "assets/about.png",
+      "open": [
+        "-open",
+        "about"
+      ],
+      "window": "AXWindow",
+      "always": true
     },
     {
       "name": "popover",
@@ -265,7 +284,9 @@
         "-open",
         "popover",
         "-popoverScreen",
-        "retina"
+        "retina",
+        "-popoverPeriod",
+        "today"
       ],
       "window": "AXPopover",
       "data": [
@@ -281,7 +302,9 @@
         "-open",
         "popover",
         "-popoverScreen",
-        "retina"
+        "retina",
+        "-popoverPeriod",
+        "today"
       ],
       "window": "AXPopover",
       "click": [
@@ -300,7 +323,9 @@
         "-open",
         "popover",
         "-popoverScreen",
-        "retina"
+        "retina",
+        "-popoverPeriod",
+        "today"
       ],
       "window": "AXPopover",
       "scroll": "AXScrollArea",
@@ -317,18 +342,21 @@
         "-open",
         "popover",
         "-popoverScreen",
-        "retina"
+        "retina",
+        "-popoverPeriod",
+        "today"
       ],
       "window": "AXPopover",
       "click": [
-        "AXButton:Speed test"
+        "AXButton:Network",
+        "AXButton:Test Speed"
       ],
       "waitFor": {
         "element": "AXButton:Test Again",
         "seconds": 240
       },
       "when": "popover",
-      "skipIf": "AXStaticText:Using hotspot"
+      "skipIf": "AXButton:~, Hotspot"
     }
   ],
   "assets": [
@@ -338,9 +366,9 @@
         "popover",
         "popover-subprocesses",
         "connections",
-        "settings-shield",
+        "main-shield",
         "speed-test-result",
-        "settings-hotspot"
+        "main-network"
       ]
     },
     {
@@ -357,6 +385,18 @@
     },
     {
       "file": "assets/live-poster.jpg",
+      "shows": [
+        "popover"
+      ]
+    },
+    {
+      "file": "assets/zh-Hans/live.mp4",
+      "shows": [
+        "popover"
+      ]
+    },
+    {
+      "file": "assets/zh-Hans/live-poster.jpg",
       "shows": [
         "popover"
       ]
@@ -406,7 +446,13 @@
       "specs": {
         "Can't be paused": "不能暂停",
         "This connection was already": "此连接之前已处于",
-        "~on metered connections": "~按流量计费的连接上用了"
+        "~ today": "~ · 今天",
+        "~blocked": "~已拦截",
+        "~, Hotspot": "~热点",
+        "Usage History Settings": "流量历史设置",
+        "Connections Settings": "连接设置",
+        "Ads and Trackers Settings": "广告与跟踪器设置",
+        "Network Settings": "网络设置"
       }
     }
   ]

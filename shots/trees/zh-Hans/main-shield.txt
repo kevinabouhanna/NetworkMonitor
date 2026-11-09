@@ -1,0 +1,47 @@
+AXWindow (AXStandardWindow) title="广告与跟踪器" 1300
+  AXSplitGroup 1300
+    AXGroup (AXHostingView) h800
+      AXScrollArea h700
+        AXButton description="流量历史" 172x32
+        AXButton description="连接" 172x32
+        AXButton description="广告与跟踪器" 172x32
+        AXButton description="网络" 172x32
+      AXButton description="设置" help="设置（⌘,）" 172x32
+    AXSplitter value="#" h748
+    AXGroup (AXHostingView)
+      AXStaticText value="显示" h16
+      AXTabGroup description="显示" 100x24
+        AXRadioButton (AXTabButton) description="概览" 12x24
+        AXRadioButton (AXTabButton) description="日志" 12x24
+      data: AXStaticText
+      AXMenuButton title="暂停" help="在所有应用中暂时放行广告" 44x16
+      AXStaticText value="今天" h16
+      data: AXGroup AXUnknown
+      AXStaticText value="网站" h16
+      AXStaticText value="应用" h16
+      AXScrollArea
+        data: AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+      AXScrollArea
+        data: AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+  AXToolbar 1300x52
+    AXButton description="边栏" help="隐藏边栏" 44x52
+    AXGroup help="每次显示一天、一周、一个月或一年" h52
+      AXRadioGroup description="统计周期" 280x40
+        AXRadioButton (AXSegment) description="日" 72x36
+        AXRadioButton (AXSegment) description="周" 68x36
+        AXRadioButton (AXSegment) description="月" 68x36
+        AXRadioButton (AXSegment) description="年" 72x36
+    AXGroup help="按时间前后翻看" h52
+      AXGroup description="前往" h40
+        AXButton (AXSegment) description="上一个" help="上一个" 36x36
+        AXButton (AXSegment) description="今天" help="回到当前" 48x36
+        AXButton (AXSegment) description="下一个" help="下一个" 40x36
+    AXGroup help="搜索网站和应用（⌘F）" h52
+      AXButton (AXSearchField) description="搜索" 40x40
+    AXButton description="设置" help="广告与跟踪器的设置：列表和你的规则" 40x52
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXFullScreenButton) help="此按钮也可以执行缩放窗口的操作" 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText value="广告与跟踪器" h52

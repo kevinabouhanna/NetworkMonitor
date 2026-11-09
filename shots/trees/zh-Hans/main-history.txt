@@ -1,0 +1,51 @@
+AXWindow (AXStandardWindow) title="流量历史" 1300
+  AXSplitGroup 1300
+    AXGroup (AXHostingView) h800
+      AXScrollArea h700
+        AXButton description="流量历史" 172x32
+        AXButton description="连接" 172x32
+        AXButton description="广告与跟踪器" 172x32
+        AXButton description="网络" 172x32
+      AXButton description="设置" help="设置（⌘,）" 172x32
+    AXSplitter value="#" h748
+    AXGroup (AXHostingView)
+      AXStaticText value="显示" h16
+      AXTabGroup description="显示" 164x24
+        AXRadioButton (AXTabButton) description="应用" 12x24
+        AXRadioButton (AXTabButton) description="网络" 12x24
+        AXRadioButton (AXTabButton) description="连接时段" 12x24
+      AXStaticText value="网络" h16
+      AXTabGroup 484x24
+        AXRadioButton (AXTabButton) description="全部" 156x24
+        AXRadioButton (AXTabButton) description="Wi-Fi" 156x24
+        AXRadioButton (AXTabButton) description="热点" 156x24
+      AXStaticText value="今天" h24
+      AXStaticText value="# ‹unit›" h16
+      AXStaticText value="已使用" h16
+      data: AXGroup AXStaticText AXUnknown
+      AXScrollArea
+        data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+      AXStaticText value="每小时的数据都按应用和网络保存在这台 Mac 上。" h16
+      AXButton description="导出 CSV…" 88x24
+  AXToolbar 1300x52
+    AXButton description="边栏" help="隐藏边栏" 44x52
+    AXGroup help="每次显示一天、一周、一个月或一年" h52
+      AXRadioGroup description="统计周期" 280x40
+        AXRadioButton (AXSegment) description="日" 72x36
+        AXRadioButton (AXSegment) description="周" 68x36
+        AXRadioButton (AXSegment) description="月" 68x36
+        AXRadioButton (AXSegment) description="年" 72x36
+    AXGroup help="按时间前后翻看" h52
+      AXGroup description="前往" h40
+        AXButton (AXSegment) description="上一个" help="上一个（⌘←）" 36x36
+        AXButton (AXSegment) description="今天" help="回到当前" 48x36
+        AXButton (AXSegment) description="下一个" help="下一个（⌘→）" 40x36
+    AXGroup help="搜索应用和网络（⌘F）" h52
+      AXButton (AXSearchField) description="搜索" 40x40
+    AXButton description="设置" help="流量历史的设置" 40x52
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXFullScreenButton) help="此按钮也可以执行缩放窗口的操作" 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText value="流量历史" h52

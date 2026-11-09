@@ -1,0 +1,51 @@
+AXWindow (AXStandardWindow) title="Usage History" 1300
+  AXSplitGroup 1300
+    AXGroup (AXHostingView) h800
+      AXScrollArea h700
+        AXButton description="Usage History" 172x32
+        AXButton description="Connections" 172x32
+        AXButton description="Ads and Trackers" 172x32
+        AXButton description="Network" 172x32
+      AXButton description="Settings" help="Settings (⌘,)" 172x32
+    AXSplitter value="#" h748
+    AXGroup (AXHostingView)
+      AXStaticText value="Show" h16
+      AXTabGroup description="Show" 192x24
+        AXRadioButton (AXTabButton) description="Apps" 12x24
+        AXRadioButton (AXTabButton) description="Networks" 12x24
+        AXRadioButton (AXTabButton) description="Sessions" 12x24
+      AXStaticText value="Networks" h16
+      AXTabGroup 452x24
+        AXRadioButton (AXTabButton) description="All" 148x24
+        AXRadioButton (AXTabButton) description="Wi-Fi" 144x24
+        AXRadioButton (AXTabButton) description="Hotspot" 148x24
+      AXStaticText value="Today" h24
+      AXStaticText value="# ‹unit›" h16
+      AXStaticText value="used" h16
+      data: AXGroup AXStaticText AXUnknown
+      AXScrollArea
+        data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+      AXStaticText value="Every hour is kept on this Mac, per app and per network." h16
+      AXButton description="Export CSV…" 104x24
+  AXToolbar 1300x52
+    AXButton description="Sidebar" help="Hide Sidebar" 44x52
+    AXGroup help="A day, week, month or year at a time" h52
+      AXRadioGroup description="Period" 284x40
+        AXRadioButton (AXSegment) description="Day" 72x36
+        AXRadioButton (AXSegment) description="Week" 72x36
+        AXRadioButton (AXSegment) description="Month" 72x36
+        AXRadioButton (AXSegment) description="Year" 72x36
+    AXGroup help="Move through time" h52
+      AXGroup description="Go" h40
+        AXButton (AXSegment) description="Previous" help="Previous (⌘←)" 36x36
+        AXButton (AXSegment) description="Today" help="Back to the present" 60x36
+        AXButton (AXSegment) description="Next" help="Next (⌘→)" 40x36
+    AXGroup help="Search apps and networks (⌘F)" h52
+      AXButton (AXSearchField) description="Search" 40x40
+    AXButton description="Settings" help="Settings for Usage History" 40x52
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText value="Usage History" h52

@@ -1,0 +1,17 @@
+AXWindow (AXDialog) identifier="_NS:#" 284x316
+  AXImage description="NetworkMonitor图标" identifier="_NS:#" 68x68
+  AXStaticText value="NetworkMonitor" identifier="_NS:#" h20
+  AXStaticText value="版本# (#)" identifier="_NS:#" h16
+  AXScrollArea identifier="_NS:#" h116
+    AXTextArea identifier="_NS:#" 268x116
+      AXLink (AXTextLink) title="网站 " 140x12
+      AXLink (AXTextLink) title="新功能 " 144x12
+      AXLink (AXTextLink) title="源代码 " 144x12
+  AXScrollArea identifier="_NS:#" h12
+    AXStaticText value="© # Kevin Abouhanna" identifier="_NS:#" h16
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXZoomButton) 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText h16

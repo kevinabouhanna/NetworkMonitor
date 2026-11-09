@@ -1,53 +1,64 @@
-AXWindow (AXStandardWindow) title="Connections" 1120
-  AXGroup (AXHostingView)
-    AXStaticText value="Group by" h16
-    AXRadioGroup description="Group by" help="Group the list by company, app or country. A row inside a group narrows the window to it." 236x20
-      AXRadioButton (AXSegment) description="Companies" 80x20
-      AXRadioButton (AXSegment) description="Apps" 80x20
-      AXRadioButton (AXSegment) description="Countries" 80x20
-    AXStaticText value="Show" h16
-    AXRadioGroup description="Show" help="What your apps sent and received, or the connections that were blocked" 124x20
-      AXRadioButton (AXSegment) description="Traffic" 64x20
-      AXRadioButton (AXSegment) description="Blocked" 64x20
-    AXRadioGroup description="Networks" help="Every connection, Wi-Fi only, or hotspots only" 188x20
-      AXRadioButton (AXSegment) description="All" 64x20
-      AXRadioButton (AXSegment) description="Wi-Fi" 64x20
-      AXRadioButton (AXSegment) description="Hotspot" 64x20
-    AXStaticText value="Today" h24
-    AXStaticText value="# ‹unit›" h16
-    AXStaticText value="to and from servers" h16
-    AXStaticText value="·" h16
-    AXStaticText value="# companies · # countries · # apps · # servers" h16
-    data: AXUnknown
-    AXStaticText value="‹time›" h12
-    AXStaticText value="‹time›" h12
-    AXStaticText value="‹time›" h12
-    AXScrollArea
-      data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
-    data: AXUnknown
-    AXLink description="IP geolocation by DB-IP" 116x12
-    AXStaticText value="·" h16
-    AXStaticText value="Everything is named on this Mac: nothing is looked up online." h12
-  AXToolbar 1120x52
+AXWindow (AXStandardWindow) title="Connections" 1300
+  AXSplitGroup 1300
+    AXGroup (AXHostingView) h800
+      AXScrollArea h700
+        AXButton description="Usage History" 172x32
+        AXButton description="Connections" 172x32
+        AXButton description="Ads and Trackers" 172x32
+        AXButton description="Network" 172x32
+      AXButton description="Settings" help="Settings (⌘,)" 172x32
+    AXSplitter value="#" h748
+    AXGroup (AXHostingView)
+      AXStaticText value="Group by" h16
+      AXTabGroup description="Group by" 204x24
+        AXRadioButton (AXTabButton) description="Companies" 12x24
+        AXRadioButton (AXTabButton) description="Apps" 12x24
+        AXRadioButton (AXTabButton) description="Countries" 12x24
+      AXStaticText value="Show" h16
+      AXTabGroup description="Show" 124x24
+        AXRadioButton (AXTabButton) description="Traffic" 12x24
+        AXRadioButton (AXTabButton) description="Blocked" 12x24
+      AXStaticText value="Networks" h16
+      AXTabGroup 276x24
+        AXRadioButton (AXTabButton) description="All" 88x24
+        AXRadioButton (AXTabButton) description="Wi-Fi" 88x24
+        AXRadioButton (AXTabButton) description="Hotspot" 88x24
+      AXStaticText value="Today" h24
+      AXStaticText value="# ‹unit›" h16
+      AXStaticText value="to and from servers" h16
+      AXStaticText value="·" h16
+      AXStaticText value="# companies · # countries · # apps · # servers" h16
+      data: AXUnknown
+      AXStaticText value="‹time›" h12
+      AXStaticText value="‹time›" h12
+      AXStaticText value="‹time›" h12
+      AXScrollArea
+        data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+      data: AXUnknown
+      AXLink description="IP geolocation by DB-IP" 116x12
+      AXStaticText value="·" h16
+      AXStaticText value="Everything is named on this Mac: nothing is looked up online." h12
+  AXToolbar 1300x52
+    AXButton description="Sidebar" help="Hide Sidebar" 44x52
     AXGroup help="The list, both side by side, or the map" h52
       AXRadioGroup description="View" 116x40
-        AXRadioButton (AXSegment) description="List" help="List" 36x36
+        AXRadioButton (AXSegment) description="List" help="List" 40x36
         AXRadioButton (AXSegment) description="Both" help="Both" 40x36
         AXRadioButton (AXSegment) description="Map" help="Map" 40x36
     AXGroup help="A day, week, month or year at a time" h52
-      AXRadioGroup description="Period" 212x40
-        AXRadioButton (AXSegment) description="Day" 48x36
-        AXRadioButton (AXSegment) description="Week" 56x36
-        AXRadioButton (AXSegment) description="Month" 60x36
-        AXRadioButton (AXSegment) description="Year" 52x36
+      AXRadioGroup description="Period" 284x40
+        AXRadioButton (AXSegment) description="Day" 72x36
+        AXRadioButton (AXSegment) description="Week" 72x36
+        AXRadioButton (AXSegment) description="Month" 72x36
+        AXRadioButton (AXSegment) description="Year" 72x36
     AXGroup help="Move through time" h52
       AXGroup description="Go" h40
         AXButton (AXSegment) description="Previous" help="Previous (⌘←)" 36x36
         AXButton (AXSegment) description="Today" help="Back to the present" 60x36
-        AXButton (AXSegment) description="Next" help="Next (⌘→)" 36x36
-    AXGroup h52
-      AXTextField (AXSearchField) 300x40
-        AXButton description="Search" 28x36
+        AXButton (AXSegment) description="Next" help="Next (⌘→)" 40x36
+    AXGroup help="Search companies, apps, countries and addresses (⌘F)" h52
+      AXButton (AXSearchField) description="Search" 40x40
+    AXButton description="Settings" help="Settings for Connections" 40x52
   AXButton (AXCloseButton) 16x16
   AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16
     AXGroup h16
