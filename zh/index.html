@@ -31,6 +31,22 @@
 <meta name="twitter:image" content="https://kevinabouhanna.github.io/NetworkMonitor/assets/social-card.png?v=6d645350">
 <meta name="twitter:image:alt" content="NetworkMonitor。每个字节，一清二楚。在 Mac 菜单栏中显示实时网速，以及哪个应用用了你的流量。免费、开源，适用于 macOS 13 或更高版本。旁边是真实的应用：菜单栏中的读数和弹出窗口，按用量列出 Google Chrome、iTerm2、Slack 等应用。">
 <script>document.documentElement.classList.add('js')</script>
+<script>
+// The page in the browser's language (#430): Chinese readers are sent to the
+// Chinese page, until they choose a language with the switch, which is kept.
+(function () {
+  try {
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[data-lang]');
+      if (a) localStorage.setItem('lang', a.getAttribute('data-lang'));
+    });
+    if (!document.documentElement.hasAttribute('data-follow-language') || localStorage.getItem('lang')) return;
+    var langs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+    var first = langs.map(function (l) { return l.toLowerCase(); }).filter(function (l) { return /^(en|zh)(-|$)/.test(l); })[0] || '';
+    if (/^zh(-hans(-.*)?|-cn|-sg)?$/.test(first)) location.replace('zh/' + location.hash);
+  } catch (e) {}
+})();
+</script>
 <style>
 :root {
   /* From the app icon: Scripts/make-icon.swift */
@@ -445,6 +461,7 @@ footer a { color: var(--text-2); }
       </div>
       <a href="#privacy">隐私</a>
       <a href="#install">安装</a>
+      <a href="../" lang="en" hreflang="en" data-lang="en">English</a>
     </div>
     <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>下载</a>
   </div>
@@ -481,7 +498,7 @@ footer a { color: var(--text-2); }
     <figure class="hero-shot hero-video reveal" style="margin-bottom:0">
       <video id="hero-video" src="../assets/brag.mp4?v=1b1c7e0e" poster="../assets/brag-poster.jpg?v=2e5826b2" width="1920" height="1080"
              muted loop playsinline preload="auto" data-autoplay
-             aria-label="一段 22 秒的 NetworkMonitor 发布视频，每一帧都是真实的应用画面。它在真实的菜单栏读数上方提问：哪个应用用了我的流量？点按一下，弹出窗口就会打开，从用量最大的开始列出每个应用，Warp 展开后显示每条命令。接着，“连接”窗口在地图上显示应用在和谁通信；“设置”在每个应用中阻止推广内容和跟踪器；点按一下，网速测试就给出新的测量结果；打开“停止热点下的应用更新”后：热点打开，更新关闭。最后是“免费且开源，适用于 macOS”。"></video>
+             aria-label="一段 22 秒的 NetworkMonitor 发布视频，每一帧都是真实的应用画面。它在真实的菜单栏读数上方提问：哪个应用用了我的流量？点按一下，弹出窗口就会打开，从用量最大的开始列出每个应用，Warp 展开后显示每条命令。接着，“连接”窗口在地图上显示应用在和谁通信；“设置”在每个应用中拦截推广内容和跟踪器；点按一下，网速测试就给出新的测量结果；打开“停止热点下的应用更新”后：热点打开，更新关闭。最后是“免费且开源，适用于 macOS”。"></video>
       <button class="sound" type="button" aria-pressed="false" hidden data-sound>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 2.5 4.6 5.3H2v5.4h2.6L8 13.5z"/><path data-wave fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M10.6 5.6a3.4 3.4 0 0 1 0 4.8M12.5 3.8a6 6 0 0 1 0 8.4" opacity=".35"/></svg>
         <span>打开声音</span>
@@ -547,7 +564,7 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <p class="eyebrow reveal">解决方案</p>
       <h2 class="h2 reveal d1">隆重介绍 NetworkMonitor。</h2>
-      <p class="lead reveal d2">一款小巧的菜单栏应用：实时显示网速，准确告诉你哪些应用用了当前连接、它们在和谁通信；只要你愿意，还能<strong>在你使用热点时阻止它们更新</strong>。没有程序坞图标，没有要管理的窗口，也不需要账户。</p>
+      <p class="lead reveal d2">一款小巧的菜单栏应用：实时显示网速，准确告诉你哪些应用在当前网络下消耗了多少流量、它们在和谁通信；只要你愿意，还能<strong>在你使用热点时阻止它们更新</strong>。没有程序坞图标，没有要管理的窗口，也不需要账户。</p>
       <div class="pillars">
         <div class="pillar reveal">
           <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M14 6v22" stroke="#51ff70" stroke-width="5"/><path d="M5 25l9 13 9-13z" fill="#51ff70"/><path d="M30 38V16" stroke="#e5e5e5" stroke-width="5"/><path d="M21 19l9-13 9 13z" fill="#e5e5e5"/></svg>
@@ -601,7 +618,7 @@ footer a { color: var(--text-2); }
           <h3 class="h4">用量记在该记的应用上。</h3>
           <p class="copy">辅助进程会归入它们所属的应用，因此 Chrome 的十几个辅助进程只算作一行 <strong>Google Chrome</strong>。从终端启动的命令会在它下方单独列出，各有各的数字。</p>
           <img src="../assets/zh-Hans/popover-subprocesses.png?v=afd0b237" width="692" height="966" loading="lazy"
-               alt="弹出窗口：总计和今天的用量、正在使用的连接（这里是一个热点，以共享它的手机命名）、今天阻止的广告数，右上角有四个按钮：网速测试、连接、流量历史和设置。下方按用量从多到少列出应用，每个都有图标、用量条和用量；第一个带子进程的应用已展开，每个子进程都列在它下方，各有用量条和数字。">
+               alt="弹出窗口：总计和今天的用量、正在使用的连接（这里是一个热点，以共享它的手机命名）、今天的拦截次数，右上角有四个按钮：网速测试、连接、流量历史和设置。下方按用量从多到少列出应用，每个都有图标、用量条和用量；第一个带子进程的应用已展开，每个子进程都列在它下方，各有用量条和数字。">
         </div>
         <div class="tile shot span-3 reveal d1">
           <p class="kicker">系统</p>
@@ -701,7 +718,7 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>或者让它来问你。</h3>
-          <p>选择<b>询问我</b>后，应用第一次访问某家公司时，会弹出一个小面板并写明网站：<em>Figma 想要连接到 api.segment.io</em>。你可以针对这个网站或整家公司作答，允许一次、直到应用退出，或者始终允许。30 秒内没有回应，就会放行。也可以选择<b>仅限我允许的地方</b>。本地网络、域名查询和时间同步永远不会被阻止，macOS 自己的连接也从不询问。</p>
+          <p>选择<b>询问我</b>后，应用第一次访问某家公司时，会弹出一个小面板并写明网站：<em>Figma 想要连接到 api.segment.io</em>。你可以针对这个网站或整家公司作答，允许一次、直到应用退出，或者始终允许。30 秒内没有回应，就会放行。也可以选择<b>仅允许已授权的连接</b>。本地网络、域名查询和时间同步永远不会被阻止，macOS 自己的连接也从不询问。</p>
         </div>
         <div class="reveal">
           <h3>一个开关，全部停下。</h3>
@@ -709,7 +726,7 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>广告和跟踪器也一样。</h3>
-          <p>一个开关就能在每个应用中阻止它们，而且无论是否打开，它们使用的服务器都会在这里标出。</p>
+          <p>一个开关就能在每个应用中拦截它们，而且无论是否打开，它们使用的服务器都会在这里标出。</p>
           <p class="more-line"><a class="more" href="#shield">查看广告拦截</a></p>
         </div>
       </div>
@@ -729,12 +746,12 @@ footer a { color: var(--text-2); }
       <div class="center">
         <p class="eyebrow reveal">广告拦截</p>
         <h2 class="h2 reveal d1">广告和跟踪器。<br><span class="grad">在每个应用中消失。</span></h2>
-        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">一个开关，就能阻止约 77,000 个广告和跟踪服务器，以及约 1,900 个正在传播恶意软件的服务器，范围是<strong>你 Mac 上的每个应用</strong>，而不只是浏览器。</p>
+        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">一个开关，就能拦截约 77,000 个广告和跟踪服务器，以及约 1,900 个正在传播恶意软件的服务器，范围是<strong>你 Mac 上的每个应用</strong>，而不只是浏览器。</p>
       </div>
 
       <figure class="shield-shot reveal">
         <img src="../assets/zh-Hans/settings/shield.png?v=8e188961" width="1440" height="452" loading="lazy"
-             alt="“广告”面板：在每个应用中阻止广告、跟踪器和恶意网站，并显示阻止了什么、何时以及在哪里阻止，带有“打开广告与跟踪器…”按钮。在“列表”下，“阻止广告和跟踪器”已打开，有两个列表，各自已打开并显示收录的网站数：“广告”，广告和跟踪器，来自 StevenBlack；“恶意软件”，恶意软件和网络钓鱼，来自 malware-filter 的 URLhaus。显示今天阻止的数量，“每周更新列表”已打开，并显示列表的日期。在“自定义”下，有“更多列表”（显示“推荐”或你选择的数量），带有“选择…”按钮，以及“你的规则”，带有“编辑…”按钮。">
+             alt="“广告”面板：在每个应用中拦截广告、跟踪器和恶意网站，并显示拦截了什么、何时以及在哪里拦截，带有“打开广告与跟踪器…”按钮。在“列表”下，“拦截广告和跟踪器”已打开，有两个列表，各自已打开并显示收录的网站数：“广告”，广告和跟踪器，来自 StevenBlack；“恶意软件”，恶意软件和网络钓鱼，来自 malware-filter 的 URLhaus。显示今天拦截的数量，“每周更新列表”已打开，并显示列表的日期。在“自定义”下，有“更多列表”（显示“推荐”或你选择的数量），带有“选择…”按钮，以及“你的规则”，带有“编辑…”按钮。">
       </figure>
 
       <div class="facts two">
@@ -744,11 +761,11 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>由你掌控。</h3>
-          <p>在“设置 › 广告”中打开之前，它一直是关闭的；第一次打开时，macOS 会请你允许这个过滤器。除了内置列表，它还会使用它推荐的两个列表：HaGeZi Normal 和 OISD Big，两者合起来能拦下大部分广告，又很少导致网站出错。在“列表”标签页的<b>高级</b>中，你可以改为自行选择：按主题，或者选择 HaGeZi、OISD、AdGuard 等的列表，也可以通过地址添加任何列表。你可以把它全部暂停一小时，也可以在需要访问某个被列入网站的网络上关闭它。对于广告，你自己的规则说了算：永不阻止某个网站，或者始终阻止某个列表里没有的网站，可以针对所有应用或某一个应用；也可以完全放过某个应用。恶意软件和网络钓鱼列表无论如何都会照常阻止，在“连接”中允许某个应用，也不会放行它的广告。从 uBlock Origin 或 AdGuard 转过来？导入它的备份或你的规则，先看看会导入哪些内容，也能以同样的格式导出你的规则。</p>
+          <p>在“设置 › 广告”中打开之前，它一直是关闭的；第一次打开时，macOS 会请你允许这个过滤器。除了内置列表，它还会使用它推荐的两个列表：HaGeZi Normal 和 OISD Big，两者合起来能拦下大部分广告，又很少导致网站出错。在“列表”标签页的<b>高级</b>中，你可以改为自行选择：按主题，或者选择 HaGeZi、OISD、AdGuard 等的列表，也可以通过地址添加任何列表。你可以把它全部暂停一小时；你也可以针对某个网络关闭拦截，方便访问被列表拦截的网站。对于广告，你自己的规则说了算：永不阻止某个网站，或者始终阻止某个列表里没有的网站，可以针对所有应用或某一个应用；也可以完全放过某个应用。恶意软件和网络钓鱼列表无论如何都会照常拦截，在“连接”中允许某个应用，也不会放行它的广告。从 uBlock Origin 或 AdGuard 转过来？导入它的备份或你的规则，先看看会导入哪些内容，也能以同样的格式导出你的规则。</p>
         </div>
         <div class="reveal">
           <h3>看看它拦下了什么。</h3>
-          <p><b>广告与跟踪器</b>有自己的窗口：一天、一周、一个月或一年内阻止了多少，随时间的变化，以及被阻止最多的网站和应用。它的<b>日志</b>会在每个连接被判定时显示出来，并说明原因；每个列表也会显示它阻止了什么，所以很容易找出阻止过多的那个列表。弹出窗口会显示今天阻止了多少，“连接”会给每个被列入的服务器标上<b>广告</b>或<b>恶意软件</b>。</p>
+          <p><b>广告与跟踪器</b>有自己的窗口：一天、一周、一个月或一年内拦截了多少，随时间的变化，以及被拦截最多的网站和应用。它的<b>日志</b>会在每个连接被判定时显示出来，并说明原因；每个列表也会显示它拦截了什么，所以很容易找出拦截过多的那个列表。弹出窗口会显示今天拦截了多少，“连接”会给每个被列入的服务器标上<b>广告</b>或<b>恶意软件</b>。</p>
         </div>
         <div class="reveal">
           <h3>自动保持最新。</h3>
@@ -836,9 +853,9 @@ footer a { color: var(--text-2); }
             <img class="prefs-shot" data-shot="history" data-w="720" data-h="785" src="../assets/zh-Hans/settings/history.png?v=6282be52" width="1440" height="1570" loading="lazy" aria-hidden="true"
                  alt="“历史记录”面板显示“今天”，带有“日”、“周”、“月”和“年”，一个“‹ 今天 ›”切换器，以及“全部”、“Wi‑Fi”和“热点”。按网络显示用了多少，以按小时排列的柱状图呈现。下方是“应用”，按用量从多到少排列，每个都有图标和用量。另外两个列表是“网络”和“连接时段”。“历史记录保留”设为“永久”，并带有“清除历史记录…”和“导出 CSV…”按钮。">
             <img class="prefs-shot" data-shot="connections" data-w="720" data-h="381" src="../assets/zh-Hans/settings/connections.png?v=ca992ddd" width="1440" height="762" loading="lazy" aria-hidden="true"
-                 alt="“连接”面板。你的应用在和哪些公司、国家或地区以及服务器通信，以列表和世界地图显示，带有“打开‘连接’…”按钮。在“阻止”下，“允许应用连接”提供“任何地方”、“询问我”和“仅限我允许的地方”，已选择“任何地方”；在“连接”中右键点按一家公司、一个应用、国家或地区或者服务器，即可阻止它，或始终允许它。“规则”，带有“导出…”和“导入…”按钮。在“域名查询”下，“加密域名查询”已关闭，发送到 Cloudflare：关闭时，域名查询会以未加密的方式发送到你所在网络的 DNS 服务器，和其他 Mac 一样。“打开时显示”提供“列表”、“两者”和“地图”，已选择“两者”。“国家或地区与网络”：DB-IP Lite，2026 年 11 月，“每月更新”已打开，保留时间与“流量历史”相同。">
+                 alt="“连接”面板。你的应用在和哪些公司、国家或地区以及服务器通信，以列表和世界地图显示，带有“打开‘连接’…”按钮。在“阻止”下，“允许应用连接”提供“任何地方”、“询问我”和“仅允许已授权的连接”，已选择“任何地方”；在“连接”中右键点按一家公司、一个应用、国家或地区或者服务器，即可阻止它，或始终允许它。“规则”，带有“导出…”和“导入…”按钮。在“域名查询”下，“加密域名查询”已关闭，发送到 Cloudflare：关闭时，域名查询会以未加密的方式发送到你所在网络的 DNS 服务器，和其他 Mac 一样。“打开时显示”提供“列表”、“两者”和“地图”，已选择“两者”。“国家或地区与网络”：DB-IP Lite，2026 年 11 月，“每月更新”已打开，保留时间与“流量历史”相同。">
             <img class="prefs-shot" data-shot="shield" data-w="720" data-h="226" src="../assets/zh-Hans/settings/shield.png?v=8e188961" width="1440" height="452" loading="lazy" aria-hidden="true"
-                 alt="“广告”面板：在每个应用中阻止广告、跟踪器和恶意网站，并显示阻止了什么、何时以及在哪里阻止，带有“打开广告与跟踪器…”按钮。在“列表”下，“阻止广告和跟踪器”已打开，有两个列表，各自已打开并显示收录的网站数：“广告”，广告和跟踪器，来自 StevenBlack；“恶意软件”，恶意软件和网络钓鱼，来自 malware-filter 的 URLhaus。显示今天阻止的数量，“每周更新列表”已打开，并显示列表的日期。在“自定义”下，有“更多列表”（显示“推荐”或你选择的数量），带有“选择…”按钮，以及“你的规则”，带有“编辑…”按钮。">
+                 alt="“广告”面板：在每个应用中拦截广告、跟踪器和恶意网站，并显示拦截了什么、何时以及在哪里拦截，带有“打开广告与跟踪器…”按钮。在“列表”下，“拦截广告和跟踪器”已打开，有两个列表，各自已打开并显示收录的网站数：“广告”，广告和跟踪器，来自 StevenBlack；“恶意软件”，恶意软件和网络钓鱼，来自 malware-filter 的 URLhaus。显示今天拦截的数量，“每周更新列表”已打开，并显示列表的日期。在“自定义”下，有“更多列表”（显示“推荐”或你选择的数量），带有“选择…”按钮，以及“你的规则”，带有“编辑…”按钮。">
             <img class="prefs-shot" data-shot="hotspot" data-w="720" data-h="526" src="../assets/zh-Hans/settings/hotspot.png?v=46160a44" width="1440" height="1052" loading="lazy" aria-hidden="true"
                  alt="“热点”面板。“停止热点下的应用更新”已打开，“当前”显示 macOS 是否将此连接报告为热点。“此网络”设为“自动检测”。它还会让热点进入低数据模式。“使用热点时暂停”和“不能暂停”都已收起，各自显示应用数量。“所有应用的更新程序”：使用热点时停止，包括那些被列为不能暂停、但用自己的程序更新的应用。">
             <img class="prefs-shot" data-shot="hotspot-apps" data-w="720" data-h="907" src="../assets/zh-Hans/settings/hotspot-apps.png?v=01cfed95" width="1440" height="1814" loading="lazy" aria-hidden="true"
@@ -870,7 +887,7 @@ footer a { color: var(--text-2); }
         <div class="number reveal d2"><div class="big">0.5%</div><p>在低电量模式下，或者使用电池且屏幕关闭或锁定、无需绘制读数时。</p></div>
         <div class="number reveal d3"><div class="big">1 · 3 · 10 秒</div><p>的采样间隔，分别对应接通电源、使用电池和低电量模式。无论哪种，累计值都一样。</p></div>
       </div>
-      <p class="note reveal">各应用的数字加起来不会正好等于连接总量：有些流量是线路层面的开销，不属于任何应用。大号的总数才是可信的那个。</p>
+      <p class="note reveal">各应用的数字加起来不会正好等于连接总量：有些流量是线路层面的开销，不属于任何应用。判断总流量时，请以顶部显示的累计值为准。</p>
     </div>
   </section>
 
@@ -903,7 +920,7 @@ footer a { color: var(--text-2); }
           <p>和安装其他 Mac 应用一样：打开磁盘映像，把 NetworkMonitor 拖到<strong>应用程序</strong>文件夹中。</p>
           <div class="get">
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>下载 NetworkMonitor.dmg</a>
-            <span class="meta">版本 1.26.7 · 14.0 MB · 通用</span>
+            <span class="meta">版本 1.26.7 · 14.0 MB · 通用版（Apple 芯片和 Intel）</span>
           </div>
           <figure class="dmg-shot" style="margin-bottom:0">
             <img src="../assets/dmg-window.png?v=5630c3c3" width="1424" height="1104" loading="lazy"
@@ -939,7 +956,7 @@ footer a { color: var(--text-2); }
         <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">版本发布</a>
         <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">报告问题</a>
         <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">许可证</a>
-        <a href="../" lang="en" hreflang="en">English</a>
+        <a href="../" lang="en" hreflang="en" data-lang="en">English</a>
       </nav>
     </div>
   </div>
