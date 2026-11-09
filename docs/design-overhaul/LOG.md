@@ -5,9 +5,14 @@ numbers, with their setup behind a gear. Tracked in #437. This file is the recor
 the app looked like, what was planned and done, where ideas came from, what was decided
 and by whom, and what's left.
 
-**Status (2026-11-09):** Phases 0 and 1 are done. **Waiting on Kevin's review of
-[`PRODUCT.md`](../../PRODUCT.md) and [`DESIGN.md`](../../DESIGN.md)** before Phase 2.
-Nothing merges or releases until Kevin has reviewed it: both pull requests are drafts.
+**Status (2026-11-09):** Phases 0–2 are done. **Waiting on Kevin to choose a layout
+(Phase 3)** on the comparison page, where the three options are drawn as Mac windows:
+https://claude.ai/artifact/GooXLRsHfm6a6CRRTsNu92 (private to Kevin). Nothing merges or
+releases until Kevin has reviewed it: both pull requests are drafts.
+
+Kevin reviews visually, on that page, not by reading files (2026-11-09).
+[`PRODUCT.md`](../../PRODUCT.md) and [`DESIGN.md`](../../DESIGN.md) are working notes for
+the design tools, not something waiting on him.
 
 Contents: [1. Before](#1-before) · [2. Plan](#2-plan) · [3. Inspiration](#3-inspiration) ·
 [4. Decisions](#4-decisions) · [5. After](#5-after) · [6. Audit](#6-audit) ·
@@ -114,9 +119,9 @@ Neither merges until Kevin has reviewed it.
 | Phase | What | Status |
 |---|---|---|
 | 0. Baseline | Pictures of every state; structure and pain points; baseline audit | **Done** (2026-11-09) |
-| 1. Context | `PRODUCT.md` and `DESIGN.md` | **Drafted; waiting on Kevin's review** |
-| 2. Research | Inspo, 3–5 references, plus native Mac apps described in words | Not started: waits on Phase 1's review |
-| 3. Define | 2–3 options for the stats view and for the settings entry; a recommendation | Not started; **waits on Kevin's approval of one option** |
+| 1. Context | `PRODUCT.md` and `DESIGN.md` | **Done**: working notes, not a review gate (changed below) |
+| 2. Research | Inspo, 3–5 references, plus native Mac apps described in words | **Done** (2026-11-09): [Inspiration](#3-inspiration) |
+| 3. Define | 2–3 options for the stats view and for the settings entry; a recommendation | **Drawn; waiting on Kevin's choice** on the comparison page |
 | 4. Build | #436 in small commits, then Impeccable's layout, typeset, clarify, distill, and polish last | Pull request 2 |
 | 5. Critique | Audit again against the baseline; contrast, keyboard, VoiceOver, minimum size, light and dark, long names, empty and first-launch states | Pull request 2 |
 
@@ -141,9 +146,16 @@ Neither merges until Kevin has reviewed it.
   touch targets, tab bars, Dynamic Type, the Simulator), and are marked *adapted*.
 - **Impeccable's detector hook isn't enabled:** it reads only web files (`.tsx`, `.css`,
   `.html` and the like), never `.swift`. Manual checks instead, in Phase 5.
-- **`/impeccable init`'s interview** was answered by Kevin's brief and the repository;
-  his review of `PRODUCT.md` stands in for it. Anything not from him is marked
-  *(inferred)* there.
+- **`/impeccable init`'s interview** was answered by Kevin's brief and the repository.
+  Anything not from him is marked *(inferred)* there.
+- **No reading review of `PRODUCT.md` and `DESIGN.md`** (changed 2026-11-09). The brief
+  asked to show both files before continuing; Kevin then asked for a visual review in
+  the artifact instead, and said not to feel bound by those files where a better flow
+  needs something else. So Phases 2 and 3 went ahead, and every decision comes to him
+  as pictures to compare.
+- **Options are drawn as HTML mockups of Mac windows**, at their real sizes and with the
+  same made-up data, so three layouts can be compared before any is built. The build's
+  after pictures come from the real app with `make design-shots`.
 - **`/impeccable document`** wrote `DESIGN.md` with no colour, type, radius or spacing
   tokens: the app uses the system's semantic colours and text, which change with
   appearance and accessibility settings, so a hex or px value would be invented. It
@@ -152,9 +164,26 @@ Neither merges until Kevin has reviewed it.
 
 ## 3. Inspiration
 
-Phase 2, after Kevin's review of Phase 1. Each reference will be listed with its name,
-link, what we took and what we rejected. Inspo's screens are other designers' work: they
-are used for ideas only, and credited here.
+Inspo's screens are other designers' work: used for ideas only, and credited here. As
+expected, Inspo holds websites, mostly marketing pages, so its useful references are the
+product screenshots inside them. The settings decision follows the Mac's own apps,
+described here rather than copied.
+
+Inspo calls (2026-11-09): one `recommend` ("calm, technical analytics overview for a
+network traffic monitor…"), one `search_screens` ("product analytics dashboard with stat
+header, date range segmented control, bar chart and top list…", SaaS), and `get_screen`
+on the three kept below.
+
+| Reference | Link | What we took | What we left |
+|---|---|---|---|
+| System Settings › Battery and › Screen Time (Apple, macOS) | Built into macOS | The chart and the headline number first, the setup behind an **Options…** button in a sheet. The pattern for option C. | Their sidebar: our Settings keeps its toolbar of panes. |
+| Xcode, Pages, Keynote and Finder inspectors (Apple) | Built into macOS | A toolbar button that shows and hides a right-hand inspector. The pattern for option B. | — |
+| Feedly, Market Intelligence panel | https://feedly.com (Inspo `feedly-com`) | One headline, a chart, then ranked lists with inline bars: the order the glance follows. | Its brand colours, pill buttons and marketing layout. |
+| Statsig, product analytics | https://statsig.com (Inspo `statsig-com`) | Grouping placed with the list it changes, not in a global bar. | Its floating 3D cards and type. |
+| Capacities, side panel | https://capacities.io (Inspo `capacities-io`) | A panel beside the content that adds context without leaving it (option B). | Its decorative cards and palette. |
+
+Looked at and not used: Forest Admin, Mailchimp, Huly, Amie, Coda, Dust, Novu and
+Superlist, all marketing pages with nothing to say about an app's stats or settings.
 
 ## 4. Decisions
 
@@ -163,8 +192,20 @@ are used for ideas only, and credited here.
 | D1 | Pictures from made-up data | Real data from the installed app; made-up data | **Approved by Kevin**, 2026-11-09 |
 | D2 | Two draft pull requests and a comparison page | One pull request; two | **Approved by Kevin**, 2026-11-09 |
 | D3 | How to use tools made for the web | Use them as they are; adapt them to the Mac (above) | Proposed 2026-11-09; Kevin didn't object |
-| D4 | The stats-first layout | Phase 3 | Not yet |
-| D5 | Where the settings go (gear, inspector, sheet) | Phase 3 | Not yet |
+| D4 | Review visually, in the artifact, not by reading files | — | **Kevin's instruction**, 2026-11-09 |
+| D5 | The layout and where the settings go | **C** (recommended): Settings opens on today's numbers at a glance, setup in one Options… sheet that the windows' gear opens too, Lists folds into it. **A**: full stats in Settings like History, setup in a sheet, windows unchanged. **B**: the windows are home, setup in a toolbar inspector, Connections and Ads leave Settings | **Waiting on Kevin's choice** |
+
+**Why C.** Stats first on every surface, and each setting in one place. It follows
+macOS's own Battery and Screen Time panes, keeps Settings to one calm screen, and leaves
+the windows at full width. A keeps two full stats views per feature in step (their charts
+already differ, pain point 4) and leaves the lists' switches in two places. B takes
+Connections and Ads out of Settings, where Mac users look first, and an inspector of
+about 320 pt crowds Connections' list and map.
+
+**Within every option:** one headline number with its unit, three or four supporting
+figures to its right, the period's chart with an axis, then the top items as ranked rows
+with inline bars; one primary action per view; the period controls stay in the windows'
+toolbars.
 
 ## 5. After
 
@@ -243,23 +284,16 @@ Beyond what the tools suggested. **Review these separately.**
 
 ## 8. Open questions
 
-For Kevin, before Phase 2:
+For Kevin, on the comparison page:
 
-1. **Should the numbers live in Settings at all?** The Mac's guidelines keep the
-   Settings window for preferences. #436 adds numbers to two Settings panes (History
-   already has them). Phase 3 can offer both directions:
-   - **A: as #436 says.** Settings › Connections and › Ads open on the numbers, with the
-     setup behind a gear.
-   - **B: the other way round.** Settings › Connections and › Ads stay setup, but
-     shorter. The Connections and Ads and Trackers windows, which already open on the
-     numbers, gain the gear for their own setup, so each setting has one home.
+1. **Which layout: C, A or B**, or a mix? (Whether numbers belong in Settings at all is
+   now answered by the options themselves: A and C keep them there, B doesn't.)
 
-   Is B worth showing, or is A decided?
-2. **`PRODUCT.md`:** are the *(inferred)* lines right? Anything missing about who uses it?
-3. **`DESIGN.md`:** keep "The quiet instrument", or another name? Is anything in it not
-   how you see the app?
-4. **The pictures weigh 8.8 MB per set, about 18 MB with the after set.** Keep them in
-   the repository, or only the dark ones?
-5. **#402** (the ad blocking numbers disagree): fix it before #436 ships, since stats
-   first puts those numbers forward?
-6. **Companies named after a site** ("Theguardian", "Me" for me.com): a separate issue?
+Smaller ones, with what happens if there's no answer:
+
+2. **The pictures weigh 8.8 MB per set, about 18 MB with the after set.** Kept in the
+   repository unless you'd rather keep only the dark ones.
+3. **#402** (the ad blocking numbers disagree): stats first puts those numbers forward,
+   so it's flagged as worth fixing before #436 ships.
+4. **Companies named after a site** ("Theguardian", "Me" for me.com): left for a
+   separate issue.
