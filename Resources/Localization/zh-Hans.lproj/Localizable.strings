@@ -1,0 +1,842 @@
+/* Simplified Chinese (#429). Each key is the English text as it is written
+   in L("…") in the source; see docs/development.md#languages. */
+
+
+/* AdImport.swift */
+"a list of rules" = "规则列表";
+"uBlock Origin backup" = "uBlock Origin 备份";
+"AdGuard settings" = "AdGuard 设置";
+"AdGuard filter %@" = "AdGuard 过滤器 %@";
+"A custom list" = "自定义列表";
+"it names several apps, or every app but some" = "指定了多个应用，或排除了某些应用";
+"%@ isn't on this Mac" = "这台 Mac 上没有 %@";
+"it's about every site" = "针对所有网站";
+"it doesn't name a site" = "没有指明网站";
+"it isn't one site" = "不是单个网站";
+"NetworkMonitor ad-blocking rules" = "NetworkMonitor 广告拦截规则";
+"1 rule" = "1 条规则";
+"%@ rules" = "%@ 条规则";
+"Don't filter %@" = "不过滤 %@";
+"Don't filter this app" = "不过滤此应用";
+"1 site never blocked" = "1 个网站永不阻止";
+"%@ sites never blocked" = "%@ 个网站永不阻止";
+"1 site always blocked" = "1 个网站始终阻止";
+"%@ sites always blocked" = "%@ 个网站始终阻止";
+"1 app not filtered" = "1 个应用不过滤";
+"%@ apps not filtered" = "%@ 个应用不过滤";
+"Switch on %@ and %@" = "打开 %@ 和 %@";
+"Switch on %@" = "打开 %@";
+"Add 1 list by address: %@" = "按地址添加 1 个列表：%@";
+"Add %@ lists by address: %@" = "按地址添加 %@ 个列表：%@";
+"1 rule already here" = "1 条规则已存在";
+"%@ rules already here" = "%@ 条规则已存在";
+"1 rule that hides parts of a page waits for the browser extension" = "1 条隐藏网页部分内容的规则需等待浏览器扩展";
+"%@ rules that hide parts of a page wait for the browser extension" = "%@ 条隐藏网页部分内容的规则需等待浏览器扩展";
+"1 rule about part of a site waits for Enhanced ad blocking" = "1 条针对网站部分内容的规则需等待增强型广告拦截";
+"%@ rules about part of a site wait for Enhanced ad blocking" = "%@ 条针对网站部分内容的规则需等待增强型广告拦截";
+"Not offered here yet: %@" = "这里暂未提供：%@";
+"%@ (%@)" = "%@（%@）";
+"1 line can't be used: %@" = "1 行无法使用：%@";
+"%@ lines can't be used: %@" = "%@ 行无法使用：%@";
+
+/* AdsLog.swift */
+"All" = "全部";
+"Blocked" = "已阻止";
+"On a List" = "在列表中";
+"No Name" = "无名称";
+"Let through" = "已放行";
+"Your rule: %@" = "你的规则：%@";
+"Let through, though it's on a list" = "已放行，尽管它在列表中";
+"Your rule" = "你的规则";
+"On %@" = "在 %@ 列表中";
+"On the %@ list" = "在“%@”列表中";
+"Only where you allow" = "仅限你允许的地方";
+"Ask Me" = "询问我";
+"An update, on a hotspot" = "热点上的更新";
+"A rule" = "一条规则";
+"Your rule: %@ in %@" = "你的规则：%2$@ 中的 %1$@";
+"time\tapp\tname\taddress\tport\tdecision\twhy\tlists" = "时间\t应用\t名称\t地址\t端口\t决定\t原因\t列表";
+"(no name)" = "（无名称）";
+"blocked" = "已阻止";
+"let through" = "已放行";
+
+/* AdsSettingsPane.swift */
+"Ads, trackers and malware sites stopped in every app, and what was stopped, when and where." = "在所有应用中阻止广告、跟踪器和恶意软件网站，并查看阻止了什么、何时以及在哪里。";
+"Open Ads and Trackers…" = "打开广告与跟踪器…";
+"Also ⌘B, and the blocked-today line in the popover" = "也可按 ⌘B，或点按弹出窗口中“今天已阻止”那一行";
+"Ad blocking needs the content filter, which this build of NetworkMonitor doesn't have." = "广告拦截需要内容过滤器，但此版本的 NetworkMonitor 没有内容过滤器。";
+"Block ads and trackers" = "阻止广告和跟踪器";
+"Blocked today" = "今天已阻止";
+"Update them weekly" = "每周更新列表";
+"Lists" = "列表";
+"More lists" = "更多列表";
+"Choose…" = "选择…";
+"HaGeZi, OISD, AdGuard's and others, or any list by its address" = "HaGeZi、OISD、AdGuard 等列表，或按地址添加任意列表";
+"Your rules" = "你的规则";
+"Edit…" = "编辑…";
+"Never block a site, always block one, or leave an app alone; import from uBlock Origin or AdGuard" = "永不阻止某个网站、始终阻止某个网站，或不过滤某个应用；可从 uBlock Origin 或 AdGuard 导入";
+"Yours" = "自定义";
+"Recommended" = "推荐";
+"None" = "无";
+"%@ chosen by you" = "你选择了 %@ 个";
+"%@ · %@ sites" = "%@ · %@ 个网站";
+"Lists: StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC0)." = "列表：StevenBlack 的 hosts（MIT）和 malware-filter 的 URLhaus（CC0）。";
+"Lists from %@: StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC0)." = "列表更新于 %@：StevenBlack 的 hosts（MIT）和 malware-filter 的 URLhaus（CC0）。";
+"Connections to sites on these lists are blocked in every app, after your own rules: Always Allow on a site in Connections lets it through. Allowing an app or a company lets it connect, and its ads are still blocked. Ads served from a site's own servers, like YouTube's, can't be told apart from the site, so they aren't blocked." = "在所有应用中，连接这些列表上网站的连接都会被阻止，但你自己的规则优先：在“连接”中对某个网站设为“始终允许”就会放行它。允许某个应用或公司后，它可以连接，但它的广告仍会被阻止。由网站自己的服务器提供的广告（例如 YouTube 的广告）无法与网站本身区分开，因此不会被阻止。";
+"Once a week, NetworkMonitor downloads the lists from GitHub, the same signed file for everyone, never on a hotspot." = "NetworkMonitor 每周从 GitHub 下载一次列表，每个人下载的都是同一个已签名的文件，在热点上从不下载。";
+
+/* AdsView.swift */
+"View" = "视图";
+"What was blocked, every connection as it's decided, the lists, and your rules" = "阻止了什么、每个连接在作出决定时的情况、列表，以及你的规则";
+"Sites" = "网站";
+"Never Block %@" = "永不阻止 %@";
+"Apps" = "应用";
+"Don't Filter Ads in %@" = "不过滤 %@ 中的广告";
+"%@ blocked" = "已阻止 %@ 次";
+"Paused until %@" = "已暂停至 %@";
+"Resume" = "继续";
+"Off on %@" = "在 %@ 上已关闭";
+"Turn On Here" = "在此处打开";
+"Pause" = "暂停";
+"For 1 Hour" = "1 小时";
+"Until Tomorrow" = "直到明天";
+"Whenever on %@" = "每当连接 %@ 时";
+"Let ads through for a while, in every app" = "在所有应用中暂时放行广告";
+"Connections to sites on the lists you chose in the Lists tab, stopped before they started, in every app. Each try counts: an app that keeps trying a blocked site, as many do to send their usage reports, counts every time, so one app can reach thousands a day. NetworkMonitor reads only each connection's site name, from the app or from the opening of a secure connection, never what's sent. Ads served from a site's own servers, like YouTube's, can't be told apart from the site by name." = "在所有应用中，连接你在“列表”标签页中所选列表上网站的连接，会在开始之前被阻止。每次尝试都会计数：很多应用会为了发送使用情况报告而不断尝试连接已阻止的网站，每次尝试都会计入，因此一个应用一天就可能达到数千次。NetworkMonitor 只读取每个连接的网站名称（来自应用或安全连接的开头），绝不读取发送的内容。由网站自己的服务器提供的广告（例如 YouTube 的广告）无法通过名称与网站本身区分开。";
+"Time" = "时间";
+"Nothing blocked yet" = "尚未阻止任何内容";
+"Nothing blocked in this period" = "此期间未阻止任何内容";
+"Ads and trackers your apps try to reach show here as they're stopped." = "你的应用尝试访问的广告和跟踪器被阻止时，会显示在这里。";
+"Ad blocking is off" = "广告拦截已关闭";
+"Turn it on to stop ads, trackers and malware sites in every app." = "打开它即可在所有应用中阻止广告、跟踪器和恶意软件网站。";
+"Turn On" = "打开";
+"%@: %@" = "%@：%@";
+"Paused" = "已暂停";
+"Nothing yet" = "暂无内容";
+"Each connection your apps open shows here as it's decided, while NetworkMonitor runs." = "NetworkMonitor 运行时，你的应用打开的每个连接都会在作出决定时显示在这里。";
+"Show" = "显示";
+"Search apps, sites and addresses" = "搜索应用、网站和地址";
+"Search the log" = "搜索日志";
+"Show new connections again" = "重新显示新连接";
+"Stop the list moving while you read it" = "阅读时让列表停止滚动";
+"Clear" = "清除";
+"Export…" = "导出…";
+"Save what's shown as a text file" = "将显示的内容存储为文本文件";
+"%@ and every name under it" = "%@ 及其下的所有名称";
+"Always Block %@" = "始终阻止 %@";
+"Never Block %@ in %@" = "在 %2$@ 中永不阻止 %1$@";
+"Always Block %@ in %@" = "在 %2$@ 中始终阻止 %1$@";
+"Remove Your Rule: %@" = "移除你的规则：%@";
+"Copy Name" = "拷贝名称";
+"Copy Address" = "拷贝地址";
+"Remove Your Rule: Allow %@ in %@" = "移除你的规则：在 %2$@ 中允许 %1$@";
+"Remove Your Rule: Block %@ in %@" = "移除你的规则：在 %2$@ 中阻止 %1$@";
+"Remove Your Rule: Allow %@" = "移除你的规则：允许 %@";
+"Remove Your Rule: Block %@" = "移除你的规则：阻止 %@";
+"NetworkMonitor log.txt" = "NetworkMonitor 日志.txt";
+"App" = "应用";
+"Site" = "网站";
+"Decision" = "决定";
+"Why" = "原因";
+"NO NAME" = "无名称";
+"Its site couldn't be read, so no list can match it. The app connected by address, and the start of the connection didn't name the site, or named only the service in front of it." = "无法读取它的网站，因此没有列表能匹配它。该应用通过地址连接，而连接的开头没有指明网站，或只指明了网站前面的服务。";
+"Built in" = "内置";
+"Updated weekly by NetworkMonitor, and signed." = "由 NetworkMonitor 每周更新并签名。";
+"Lists block only while ad blocking is on: switch on a built-in list." = "列表只在广告拦截打开时生效：请打开一个内置列表。";
+"Use the recommended lists" = "使用推荐列表";
+"Choose your own lists under Advanced instead" = "改为在“高级”中自行选择列表";
+"Use the recommended lists again" = "重新使用推荐列表";
+"Block most ads, and rarely break a site." = "阻止大部分广告，很少导致网站出问题。";
+"Off: the lists you choose under Advanced are used instead." = "已关闭：改用你在“高级”中选择的列表。";
+"Advanced" = "高级";
+"Choose your own lists, or add one by its address." = "自行选择列表，或按地址添加列表。";
+"HaGeZi Normal and OISD Big, on top of the built-in lists. Between them they block most ads and trackers, and both are made to keep mistakes rare: OISD's aim is to block ads without breaking sites, and HaGeZi Normal is HaGeZi's all-round list, a step below its stricter Pro. They overlap rather than conflict. NetworkMonitor downloads them from their makers weekly, and a later version may change the pair." = "在内置列表之外，再加上 HaGeZi Normal 和 OISD Big。两者合起来能阻止大部分广告和跟踪器，而且都力求少出错：OISD 的目标是阻止广告而不破坏网站，HaGeZi Normal 是 HaGeZi 的通用列表，比更严格的 Pro 低一级。两者是相互重叠，而不是相互冲突。NetworkMonitor 每周从它们的制作者那里下载，以后的版本可能会更换这两个列表。";
+"A list's address, like https://example.com/hosts.txt" = "列表地址，例如 https://example.com/hosts.txt";
+"A list's address" = "列表地址";
+"Add List" = "添加列表";
+"A list names sites to block, and covers every name under each: listing example.com blocks ads.example.com. NetworkMonitor downloads each list you switch on from its makers, weekly, never on a hotspot or a metered connection, and keeps the last good copy. It reads hosts files, plain lists of names, and Adblock rules about whole sites (||example.com^, with @@ exceptions). Rules about parts of pages are for the Chrome extension. Each list you add blocks more, and makes it likelier that one blocks something a site needs to work. If a site stops working, today's counts show which list blocked what." = "列表列出要阻止的网站，并涵盖每个网站下的所有名称：列出 example.com 就会阻止 ads.example.com。NetworkMonitor 每周从制作者那里下载你打开的每个列表，在热点或按流量计费的连接上从不下载，并保留最后一份完好的副本。它能读取 hosts 文件、纯名称列表，以及针对整个网站的 Adblock 规则（||example.com^，可用 @@ 设例外）。针对网页部分内容的规则由 Chrome 扩展处理。你每添加一个列表，阻止的内容就更多，某个列表阻止网站正常运行所需内容的可能性也越大。如果某个网站无法正常使用，可通过今天的计数查看哪个列表阻止了什么。";
+"Each one you add blocks more, but makes it likelier a site stops working." = "每添加一个都会阻止更多内容，但网站无法正常使用的可能性也更大。";
+"Sites that follow you from page to page." = "在网页之间跟踪你的网站。";
+"Cookie notices and other parts of pages are for the Chrome extension." = "Cookie 提示和网页的其他部分由 Chrome 扩展处理。";
+"On top of the built-in malware list." = "在内置恶意软件列表之外。";
+"Downloaded from the address you gave." = "从你提供的地址下载。";
+"%@, %@ licence" = "%@，%@ 许可证";
+"Remove this list" = "移除此列表";
+"%@, on its own terms" = "%@，适用其自身条款";
+"Update Now" = "立即更新";
+"Remove" = "移除";
+"%@ blocked today" = "今天已阻止 %@ 次";
+"No rules yet" = "还没有规则";
+"Add a site above, or right-click one in the Overview or the Log." = "在上方添加网站，或在“概览”或“日志”中右键点按一个网站。";
+"Never blocked" = "永不阻止";
+"Let through even when a list has them." = "即使在列表中也放行。";
+"Always blocked" = "始终阻止";
+"Blocked even when no list has them." = "即使不在任何列表中也阻止。";
+"Apps not filtered" = "不过滤的应用";
+"The lists leave these apps' connections alone." = "列表不处理这些应用的连接。";
+"Don't Filter an App…" = "不过滤某个应用…";
+"Choose an app whose connections the lists should leave alone, such as a bank's app that breaks" = "选择一个不让列表处理其连接的应用，例如因此无法正常使用的银行应用";
+"Import…" = "导入…";
+"Bring rules over from uBlock Origin, AdGuard, or a list of rules" = "从 uBlock Origin、AdGuard 或规则列表导入规则";
+"Save your rules in the format uBlock Origin and AdGuard read" = "以 uBlock Origin 和 AdGuard 能读取的格式存储你的规则";
+"Rules apply while ad blocking is on." = "规则在广告拦截打开时生效。";
+"A site, like example.com" = "网站，例如 example.com";
+"In %@" = "在 %@ 中";
+"In Every App" = "在所有应用中";
+"Every App" = "所有应用";
+"Choose an App…" = "选择应用…";
+"Never Block" = "永不阻止";
+"Always Block" = "始终阻止";
+"A rule covers the site and every name under it: example.com covers ads.example.com. Rules change only what the ad and tracker lists do. Never block lets a listed site through, and always block stops one no list has. Malware and phishing lists still block whatever these rules say. A rule for one app wins over one for every app. In Connections, a block still blocks and Always Allow on a site lets it through; allowing a whole app or company doesn't let its ads through." = "规则涵盖该网站及其下的所有名称：example.com 涵盖 ads.example.com。规则只改变广告和跟踪器列表的作用。“永不阻止”会放行列表中的网站，“始终阻止”会阻止任何列表中都没有的网站。无论这些规则怎么设置，恶意软件和网络钓鱼列表仍会照常阻止。针对单个应用的规则优先于针对所有应用的规则。在“连接”中，阻止仍然有效，对网站设为“始终允许”会放行它；允许整个应用或公司并不会放行它的广告。";
+"Networks" = "网络";
+"Ad blocking is off whenever the Mac is on these." = "Mac 连接这些网络时，广告拦截会关闭。";
+"the network you're on" = "当前网络";
+"Block ads on this network again" = "在此网络上重新阻止广告";
+"in %@" = "在 %@ 中";
+"in every app" = "在所有应用中";
+"Remove this rule" = "移除此规则";
+"Always Block Instead" = "改为始终阻止";
+"Never Block Instead" = "改为永不阻止";
+"NetworkMonitor ad rules.txt" = "NetworkMonitor 广告规则.txt";
+"Choose" = "选择";
+"Bring Rules Over" = "导入规则";
+"Choose uBlock Origin's backup (its Settings › Back up to file), AdGuard's exported settings, or a file of rules. Or paste rules below, one a line." = "选择 uBlock Origin 的备份（在它的“设置 › 备份到文件”中）、AdGuard 导出的设置或一个规则文件。也可以在下方粘贴规则，每行一条。";
+"Choose File…" = "选择文件…";
+"Continue" = "继续";
+"From %@" = "来自 %@";
+"Nothing new to bring over." = "没有可导入的新内容。";
+"Trusted sites become never blocked: connections to the site itself go through. Ads its pages load from other sites are still blocked, since the filter can't tell which page asked." = "受信任的网站会变为永不阻止：连接该网站本身的连接会被放行。但它的网页从其他网站加载的广告仍会被阻止，因为过滤器无法分辨是哪个网页发出的请求。";
+"Left out" = "未导入";
+"Back" = "返回";
+"Import" = "导入";
+
+/* AdsViewModel.swift */
+"%@ and %@ more" = "%@ 及另外 %@ 个";
+"Your Rules" = "你的规则";
+"Ads and trackers" = "广告和跟踪器";
+"Malware and phishing" = "恶意软件和网络钓鱼";
+"Never block %@ in %@" = "在 %2$@ 中永不阻止 %1$@";
+"Always block %@ in %@" = "在 %2$@ 中始终阻止 %1$@";
+"Never block %@" = "永不阻止 %@";
+"Always block %@" = "始终阻止 %@";
+"Overview" = "概览";
+"Log" = "日志";
+"Rules" = "规则";
+"Type a site first, like example.com." = "请先输入网站，例如 example.com。";
+"\"%@\" isn't a site name. Type one like example.com." = "“%@”不是网站名称。请输入类似 example.com 的名称。";
+"That isn't a uBlock Origin backup, AdGuard's settings, or rules NetworkMonitor can read." = "这不是 uBlock Origin 备份或 AdGuard 设置，也不是 NetworkMonitor 能读取的规则。";
+"%@ sites" = "%@ 个网站";
+"%@ sites, from %@" = "%@ 个网站，截至 %@";
+"Paste a list's address first, starting https://." = "请先粘贴列表地址，以 https:// 开头。";
+"That isn't a list's address. It needs to start https://." = "这不是列表地址。地址需要以 https:// 开头。";
+"That list is here already, as %@." = "此列表已存在，名为“%@”。";
+"Downloading…" = "正在下载…";
+"%@ sites, from %@. %@" = "%@ 个网站，截至 %@。%@";
+"%@ sites, updated %@" = "%@ 个网站，更新于 %@";
+"Not downloaded yet" = "尚未下载";
+
+/* AdsWindowController.swift */
+"Previous" = "上一个";
+"Today" = "今天";
+"Next" = "下一个";
+"Back to the present" = "回到当前";
+"Period" = "统计周期";
+"A day, week, month or year at a time" = "每次显示一天、一周、一个月或一年";
+"Go" = "前往";
+"Move through time" = "按时间前后翻看";
+
+/* AppDelegate.swift */
+"Stop Speed Test" = "停止网速测试";
+"Test Internet Speed" = "测试网速";
+"↓ %@   ↑ %@   at %@" = "↓ %@   ↑ %@   于 %@";
+"Block Everything" = "全部阻止";
+"Stops every app's new connections, apart from what's needed to turn this off" = "阻止所有应用的新连接，关闭此功能所需的连接除外";
+"Connections…" = "连接…";
+"Ads and Trackers…" = "广告与跟踪器…";
+"Usage History…" = "流量历史…";
+"Settings…" = "设置…";
+"Check for Updates…" = "检查更新…";
+"Uninstall NetworkMonitor…" = "卸载 NetworkMonitor…";
+"Quit" = "退出";
+"Uninstall NetworkMonitor?" = "要卸载 NetworkMonitor 吗？";
+"Every setting it changed is put back, its helper is removed, your usage history is deleted, and the app is moved to the Trash." = "它更改过的所有设置都会恢复，它的辅助程序会被移除，你的流量历史会被删除，应用会被移到废纸篓。";
+"Uninstall" = "卸载";
+"Cancel" = "取消";
+"NetworkMonitor couldn't finish uninstalling" = "NetworkMonitor 无法完成卸载";
+"%@\n\nNothing was removed, so every setting it changed can still be put back. Try again later." = "%@\n\n没有移除任何内容，因此它更改过的所有设置仍可恢复。请稍后再试。";
+"About NetworkMonitor" = "关于 NetworkMonitor";
+"Hide NetworkMonitor" = "隐藏 NetworkMonitor";
+"Hide Others" = "隐藏其他";
+"Show All" = "全部显示";
+"Quit NetworkMonitor" = "退出 NetworkMonitor";
+"Window" = "窗口";
+"Close" = "关闭";
+"Minimize" = "最小化";
+"Connections" = "连接";
+"Ads and Trackers" = "广告与跟踪器";
+"Usage History" = "流量历史";
+
+/* AppIdentityResolver.swift */
+"System process" = "系统进程";
+
+/* AskPanel.swift */
+"All of %@'s network" = "%@ 的整个网络";
+"All of %@" = "整个 %@";
+"a server on %@'s network" = "%@ 网络上的一台服务器";
+"on %@'s network" = "位于 %@ 的网络上";
+"port %@" = "端口 %@";
+"%@ wants to connect to %@" = "%@ 想要连接到 %@";
+"Allowed, since there was no answer in 30 seconds. NetworkMonitor asks again in an hour." = "30 秒内没有回应，因此已允许。NetworkMonitor 会在一小时后再次询问。";
+"Block" = "阻止";
+"Blocks it from now on, for %@" = "从现在起阻止 %@ 连接到这里";
+"Allow" = "允许";
+"Always Allow %@ Anywhere" = "始终允许 %@ 连接到任何地方";
+"For" = "范围";
+"Once" = "一次";
+"Until It Quits" = "直到它退出";
+"Always" = "始终";
+"Once lets it connect and asks again in an hour" = "选择“一次”会允许这次连接，并在一小时后再次询问";
+"Allowed in %@ s if you don't answer · %@ more" = "如果你不回应，%@ 秒后将允许 · 还有 %@ 个";
+"Allowed in %@ s if you don't answer" = "如果你不回应，%@ 秒后将允许";
+
+/* ConfigFileSuppressor.swift */
+"Turns off automatic updates in its settings" = "在它的设置中关闭自动更新";
+
+/* ConnectionStatus.swift */
+"No connection" = "无连接";
+"Using %@" = "正在使用 %@";
+"Low Data Mode" = "低数据模式";
+"Using hotspot" = "正在使用热点";
+"Ethernet" = "以太网";
+"Wi-Fi" = "Wi-Fi";
+"a network" = "网络";
+"Not using %@" = "未使用 %@";
+"Not using the hotspot" = "未使用热点";
+"%@ is connected, but isn't being used" = "%@ 已连接，但未在使用";
+"A hotspot is connected, but isn't being used" = "热点已连接，但未在使用";
+"move %@ above %@ in Network settings › Set Service Order" = "在网络设置 › 设定服务顺序中，将 %@ 移到 %@ 上方";
+"the hotspot" = "热点";
+"it" = "当前连接";
+"unplug the cable, or %@" = "拔掉网线，或者%@";
+"disconnect from that Wi-Fi network, or %@" = "断开该 Wi-Fi 网络，或者%@";
+"%@. Your Mac sends everything over the connection ranked highest in macOS, and that's %@. To use the hotspot, %@." = "%@。你的 Mac 会通过 macOS 中排在最前面的连接发送所有数据，目前是 %@。要使用热点，请%@。";
+"another connection" = "另一个连接";
+"You're on %@. %@." = "你正在使用 %@。%@。";
+
+/* ConnectionsMap.swift */
+"World map of %@ countries your apps reached. The list has the same, country by country." = "世界地图，显示你的应用访问过的 %@ 个国家或地区。列表中按国家或地区列出了相同的内容。";
+"Zoom out" = "缩小";
+"Zoom in" = "放大";
+"The whole world" = "显示整个世界";
+"These networks answer each address from whichever of their data centres is nearest, so no one country is where it went." = "这些网络会从离你最近的数据中心响应每个地址，因此无法确定流量去了哪个国家或地区。";
+"%@ and %@" = "%@ 和 %@";
+"%@ and %@ and others" = "%@、%@ 等";
+"%@: %@ blocked, not placed on the map: they answer from many places at once." = "%@：已阻止 %@，未在地图上标出，因为它们同时从多个地方响应。";
+"%@: %@ answered from nearby data centres, so not placed on the map." = "%@：%@ 由附近的数据中心响应，因此未在地图上标出。";
+"Nothing blocked here" = "这里没有阻止任何连接";
+"Nothing went here" = "没有流量去往这里";
+"and %@ more" = "还有 %@ 个";
+"Click to see only %@" = "点按以仅查看 %@";
+
+/* ConnectionsReport.swift */
+"Companies" = "公司";
+"Countries" = "国家或地区";
+"Servers" = "服务器";
+"Other servers" = "其他服务器";
+"Past an app's %@ in an hour" = "超出单个应用每小时 %@ 个的上限";
+"Unknown network" = "未知网络";
+"A private, carrier or VPN address, or one the data doesn't list" = "私有、运营商或 VPN 地址，或数据中未列出的地址";
+"Hosted on %@" = "托管于 %@";
+"Company unknown" = "公司未知";
+"Started by %@" = "由 %@ 启动";
+"Unknown country" = "未知国家或地区";
+"Also %@" = "也称 %@";
+"Also %@ and %@ more" = "也称 %@ 及另外 %@ 个名称";
+
+/* ConnectionsSettingsPane.swift */
+"Which companies, countries and servers your apps talk to, on a list and a world map." = "以列表和世界地图显示你的应用与哪些公司、国家或地区以及服务器通信。";
+"Open Connections…" = "打开“连接”…";
+"Also ⌘K, and the globe in the popover" = "也可以按 ⌘K，或点按弹出窗口中的地球图标";
+"Opens with" = "打开时显示";
+"Countries and networks" = "国家或地区与网络";
+"Update them monthly" = "每月更新";
+"Kept" = "保留时长";
+"As long as Usage History" = "与流量历史相同";
+"Everything is named on this Mac: nothing is looked up online. Once a month, NetworkMonitor downloads DB-IP's new data from GitHub, the same file for everyone, never on a hotspot. %@, CC BY 4.0." = "所有名称都在这台 Mac 上识别，不会在线查询。NetworkMonitor 每月从 GitHub 下载一次 DB-IP 的新数据，每个人下载的都是同一个文件，且从不在热点上下载。%@，CC BY 4.0。";
+"Encrypt lookups" = "加密域名查询";
+"Sent to" = "发送到";
+"Lookups" = "域名查询";
+"Waiting for macOS, which asks you once to allow it." = "正在等待 macOS，系统会请你允许一次。";
+"Checking names still resolve…" = "正在检查域名是否仍能解析…";
+"On. %@" = "已开启。%@";
+"Off: lookups go to your network's DNS server unencrypted, as on any Mac." = "已关闭：域名查询会以未加密的方式发送到你所在网络的 DNS 服务器，和其他 Mac 一样。";
+"Needs the content filter on, which comes with it." = "需要开启内容过滤器，此功能随它一起提供。";
+"Before an app connects to a site, your Mac looks its name up. Those lookups normally travel unencrypted, so your internet provider and anyone on the Wi-Fi can read every name. Switched on, NetworkMonitor sends each lookup encrypted to the resolver you pick, over DNS over HTTPS, and gives the answer back unchanged. Names only your network knows, like the router's, still go to it. If the resolver doesn't answer, lookups go to your network as before, so names keep working. Apps that encrypt their own lookups, like Chrome with Secure DNS, aren't affected." = "应用连接到某个网站之前，你的 Mac 会先查询它的域名。这些域名查询通常不加密，因此你的互联网服务提供商以及同一 Wi-Fi 上的任何人都能看到每个域名。开启后，NetworkMonitor 会通过 DNS over HTTPS 将每次域名查询加密发送到你选择的解析服务器，并原样返回结果。只有你的网络才知道的名称（例如路由器的名称）仍会发送到你的网络。如果解析服务器没有响应，域名查询会像以前一样发送到你的网络，因此域名仍能正常解析。自行加密域名查询的应用（例如开启了安全 DNS 的 Chrome）不受影响。";
+"1.1.1.1. Keeps no record of your address, and deletes its logs within a day." = "1.1.1.1。不记录你的地址，并在一天内删除日志。";
+"9.9.9.9. A Swiss non-profit; keeps no record of your address, and refuses known malware sites." = "9.9.9.9。瑞士非营利组织；不记录你的地址，并拒绝解析已知的恶意软件网站。";
+"8.8.8.8. Deletes your address from its logs within two days." = "8.8.8.8。在两天内从日志中删除你的地址。";
+"Let apps connect" = "允许应用连接";
+"Anywhere" = "任何地方";
+"Only Where I Allow" = "仅限我允许的地方";
+"Right-click a company, app, country or server in Connections to block it, or to always allow it." = "在“连接”中右键点按公司、应用、国家或地区、服务器，即可阻止或始终允许它。";
+"Blocking" = "阻止";
+"That file has no NetworkMonitor rules in it." = "该文件中没有 NetworkMonitor 规则。";
+"Choose a file made with Export… in Settings › Connections." = "请选择用“设置 › 连接”中的“导出…”生成的文件。";
+"Everything connects except what you block." = "除了你阻止的内容，一切都可以连接。";
+"The first time an app connects to a company, NetworkMonitor asks. With no answer in 30 seconds, it's allowed. macOS and Apple's apps aren't asked about." = "应用首次连接到某个公司时，NetworkMonitor 会询问你。如果 30 秒内没有回应，则允许连接。macOS 和 Apple 的应用不会询问。";
+"Only what you allow connects, and macOS and Apple's apps. Allow an app under Blocked in Connections." = "只有你允许的内容以及 macOS 和 Apple 的应用可以连接。你可以在“连接”的“已阻止”下允许某个应用。";
+"%@ This applies once “%@” is on." = "%@开启“%@”后生效。";
+"%@ A rule applies from an app's next connection: one already open carries on until it closes." = "%@规则从应用的下一次连接开始生效：已建立的连接会持续到关闭为止。";
+"Only let apps connect where you allow?" = "只允许应用连接到你允许的地方？";
+"Every other app is blocked, your browser included, until you allow it: choose Blocked in Connections and right-click it. macOS and Apple's apps can always connect, and you can switch back here at any time." = "其他所有应用都会被阻止（包括你的浏览器），直到你允许它为止：在“连接”中选择“已阻止”，然后右键点按该应用。macOS 和 Apple 的应用始终可以连接，你也可以随时在这里切换回来。";
+"Company" = "公司";
+"Country" = "国家或地区";
+"Server" = "服务器";
+"%@ · for %@" = "%@ · 适用于 %@";
+"%@, until it quits" = "%@，直到它退出";
+
+/* ConnectionsView.swift */
+"Group by" = "分组方式";
+"Group the list by company, app or country. A row inside a group narrows the window to it." = "按公司、应用或国家或地区对列表分组。点按组内的一行，窗口将只显示该项。";
+"Traffic" = "流量";
+"What your apps sent and received, or the connections that were blocked" = "你的应用发送和接收的数据，或被阻止的连接";
+"Every connection, Wi-Fi only, or hotspots only" = "所有连接、仅 Wi-Fi 或仅热点";
+"to and from servers" = "与服务器往来";
+"connection blocked" = "个连接被阻止";
+"connections blocked" = "个连接被阻止";
+"1 company" = "1 个公司";
+"%@ companies" = "%@ 个公司";
+"1 country" = "1 个国家或地区";
+"%@ countries" = "%@ 个国家或地区";
+"1 app" = "1 个应用";
+"%@ apps" = "%@ 个应用";
+"1 server" = "1 个服务器";
+"%@ servers" = "%@ 个服务器";
+"Loading…" = "正在载入…";
+"Nothing matches" = "没有匹配项";
+"span" = "时段";
+"Nothing blocked in this %@" = "该%@内没有阻止任何连接";
+"No connections in this %@" = "该%@内没有连接";
+"Clear the search or a chip to see more." = "清除搜索内容或某个筛选条件以查看更多。";
+"Right-click a company, app, country or server under Traffic to block it." = "在“流量”下右键点按公司、应用、国家或地区、服务器，即可阻止它。";
+"Connections are recorded from this version on, while NetworkMonitor is running." = "从这个版本开始，NetworkMonitor 运行时会记录连接。";
+"Click to close" = "点按以收起";
+"Click to see its %@" = "点按以查看其中的%@";
+"%@ · %@" = "%@ · %@";
+"Show all %@" = "显示全部 %@ 项";
+"Block “%@” on “%@”" = "在“%2$@”上阻止“%1$@”";
+"Remove Rule" = "移除规则";
+"All of *.%@" = "所有 *.%@";
+"Block on “%@”" = "在“%@”上阻止";
+"Block on Hotspots" = "在热点上阻止";
+"Always Allow" = "始终允许";
+"Block “%@”" = "阻止“%@”";
+"Block “%@” on Hotspots" = "在热点上阻止“%@”";
+"Always Allow “%@”" = "始终允许“%@”";
+"Everything is named on this Mac: nothing is looked up online." = "所有名称都在这台 Mac 上识别，不会在线查询。";
+"Close. Settings › Connections still has it." = "关闭。“设置 › 连接”中仍可找到它。";
+"%@ on %@" = "%@（%@）";
+"On the %@ list, from %@" = "在%@列表中，来源：%@";
+"ADS" = "广告";
+"MALWARE" = "恶意软件";
+"Collapse" = "收起";
+"Expand" = "展开";
+"HOST" = "主机";
+"A network that carries many companies' traffic" = "承载许多公司流量的网络";
+
+/* ConnectionsViewModel.swift */
+"List" = "列表";
+"Both" = "两者";
+"Map" = "地图";
+"1 time" = "1 次";
+"%@ times" = "%@ 次";
+"By %@" = "开发者：%@";
+"also %@ and %@ more" = "还连接 %@ 及另外 %@ 个公司";
+"also %@" = "还连接 %@";
+
+/* ConnectionsWindowController.swift */
+"Previous (⌘←)" = "上一个（⌘←）";
+"Next (⌘→)" = "下一个（⌘→）";
+"Company, app, country or address" = "公司、应用、国家或地区、地址";
+"The list, both side by side, or the map" = "列表、两者并排，或地图";
+
+/* EncryptedLookups.swift */
+"Names stopped resolving with it on, so it's off again." = "开启后域名无法解析，因此已重新关闭。";
+"Another app's DNS settings are in charge. Switch them off to use this." = "另一个应用的 DNS 设置正在生效。请先关闭它们，再使用此功能。";
+
+/* FirewallRules.swift */
+"No new rules." = "没有新规则。";
+"Added 1 rule." = "已添加 1 条规则。";
+"Added %@ rules." = "已添加 %@ 条规则。";
+"1 was already here." = "1 条已存在。";
+"%@ were already here." = "%@ 条已存在。";
+"Blocked on hotspots" = "在热点上已阻止";
+"Always allowed" = "始终允许";
+
+/* GeoDataUpdater.swift */
+"DB-IP Lite, %@" = "DB-IP Lite，%@";
+"IP geolocation by DB-IP" = "IP 地理位置数据由 DB-IP 提供";
+
+/* HelperInstaller.swift */
+"This copy of NetworkMonitor is missing its helper. Download it again." = "这份 NetworkMonitor 缺少辅助程序。请重新下载。";
+"Move NetworkMonitor to your Applications folder first." = "请先将 NetworkMonitor 移到“应用程序”文件夹。";
+"NetworkMonitor needs your permission once to pause macOS updates and turn on Low Data Mode while you're on a hotspot." = "NetworkMonitor 需要你授权一次，才能在你使用热点时暂停 macOS 更新并开启低数据模式。";
+"NetworkMonitor's helper couldn't put back the settings it changed." = "NetworkMonitor 的辅助程序无法恢复它更改过的设置。";
+"This copy of NetworkMonitor is missing its uninstaller." = "这份 NetworkMonitor 缺少卸载程序。";
+"NetworkMonitor needs your permission to put back the system settings it changed and remove its helper." = "NetworkMonitor 需要你的授权，才能恢复它更改过的系统设置并移除辅助程序。";
+"Couldn't prepare the administrator request." = "无法准备管理员请求。";
+"The helper could not be installed." = "无法安装辅助程序。";
+
+/* HistoryPeriod.swift */
+"Day" = "日";
+"Week" = "周";
+"Month" = "月";
+"Year" = "年";
+"Yesterday" = "昨天";
+"This Week" = "本周";
+"Last Week" = "上周";
+
+/* HistoryView.swift */
+"Session" = "连接时段";
+"%@ on metered connections" = "按流量计费的连接上用了 %@";
+"%@ a day on average" = "平均每天 %@";
+"used" = "已使用";
+"No history yet" = "暂无历史记录";
+"NetworkMonitor keeps every hour from now on, per app and per network." = "从现在起，NetworkMonitor 会按应用和网络记录每个小时的数据。";
+"Nothing used in this period" = "这段时间内没有使用流量";
+"System (%@)" = "系统（%@）";
+"Rename…" = "重新命名…";
+"1 update got through" = "仍下载了 1 个更新";
+"%@ updates got through" = "仍下载了 %@ 个更新";
+"Keep history for" = "历史记录保留";
+"Clear History…" = "清除历史记录…";
+"Export CSV…" = "导出 CSV…";
+"Usage by hour" = "每小时流量";
+"Usage by month" = "每月流量";
+"Usage by day" = "每日流量";
+"METERED" = "按流量计费";
+"Click to show everything again" = "点按以重新显示全部";
+"Show everything again" = "重新显示全部";
+"%@, %@" = "%@，%@";
+"under a minute" = "不到 1 分钟";
+
+/* HistoryViewModel.swift */
+"Sessions" = "连接时段";
+"Network" = "网络";
+"Rename Network" = "重新命名网络";
+"The name is used in Usage History and its exports. Leave it empty to go back to “%@”." = "此名称会用于流量历史及其导出文件。留空则恢复为“%@”。";
+"Rename" = "重新命名";
+"Delete history older than %@?" = "删除 %@前的历史记录？";
+"Everything recorded before %@ is deleted now, and from then on history is kept for %@." = "%@ 之前记录的所有数据会立即删除，此后历史记录保留 %@。";
+"Delete" = "删除";
+"Clear all usage history?" = "清除所有流量历史？";
+"Every hour NetworkMonitor has recorded is deleted. The totals in the menu bar are not affected." = "NetworkMonitor 记录的每个小时的数据都会被删除。菜单栏中的总量不受影响。";
+"Everything recorded since %@ is deleted. The totals in the menu bar are not affected." = "自 %@ 以来记录的所有数据都会被删除。菜单栏中的总量不受影响。";
+"Clear History" = "清除历史记录";
+"NetworkMonitor Usage – %@.csv" = "NetworkMonitor 流量 – %@.csv";
+
+/* ListLibrary.swift */
+"More ad and tracker lists" = "更多广告和跟踪器列表";
+"Trackers" = "跟踪器";
+"Pop-ups" = "弹出式窗口";
+"Added by you" = "你添加的";
+"Ads, trackers and metrics, from the sites people actually visit. Rarely breaks anything." = "来自人们实际访问的网站的广告、跟踪器和统计服务。很少导致问题。";
+"Ads, trackers, metrics and telemetry. A good everyday choice." = "广告、跟踪器、统计服务和遥测。适合日常使用。";
+"More thorough: blocks more, and now and then something a site needs to work." = "更彻底：阻止的内容更多，偶尔也会阻止网站正常运行所需的内容。";
+"Ads and trackers, kept small so nothing breaks." = "广告和跟踪器，保持精简，不会导致问题。";
+"Ads, trackers, malware and scams, made from dozens of other lists." = "广告、跟踪器、恶意软件和诈骗，由数十个其他列表汇编而成。";
+"AdGuard's own ad and tracker lists, with EasyList and EasyPrivacy, as site names." = "AdGuard 自己的广告和跟踪器列表，并包含 EasyList 和 EasyPrivacy，以网站名称的形式提供。";
+"A small, careful list of ad and tracking servers, kept since 2001." = "一个精简、审慎的广告和跟踪服务器列表，自 2001 年起持续维护。";
+"The tracker sites from EasyPrivacy, which uBlock Origin uses, as Firebog extracts them." = "EasyPrivacy 中的跟踪器网站（uBlock Origin 使用这个列表），由 Firebog 提取。";
+"Sites that open pop-ups and pop-unders." = "会打开弹出窗口和背投窗口的网站。";
+"Malware, phishing, scams and cryptojacking sites, seen recently." = "近期发现的恶意软件、网络钓鱼、诈骗和挖矿劫持网站。";
+"Waiting for a network that isn't a hotspot or metered." = "正在等待既不是热点、也不按流量计费的网络。";
+"It's larger than 40 MB." = "它大于 40 MB。";
+"It isn't text." = "它不是文本。";
+"It's a web page, not a list." = "它是网页，不是列表。";
+"It has no rules about whole sites. Rules about parts of pages need the Chrome extension." = "它没有针对整个网站的规则。针对网页局部的规则需要 Chrome 扩展。";
+"It has no site names in it." = "它不包含任何网站名称。";
+"Couldn't keep a copy: %@" = "无法保留副本：%@";
+"The site answered %@." = "网站返回了 %@。";
+
+/* LoginItem.swift */
+"Launch at Login needs the app to live in a fixed location, but it is running from:\n\n%@\n\nMove NetworkMonitor.app to /Applications (or run 'make install') and try again." = "“登录时启动”需要应用位于固定位置，但它当前运行于：\n\n%@\n\n请将 NetworkMonitor.app 移到 /Applications（或运行 make install），然后再试一次。";
+"macOS is holding this login item for approval. Open System Settings > General > Login Items and switch NetworkMonitor on there." = "macOS 正在等待你批准这个登录项。请打开“系统设置 > 通用 > 登录项”，在那里打开 NetworkMonitor。";
+"Could not change the login item: %@" = "无法更改登录项：%@";
+
+/* LowDataModeSuppressor.swift */
+"macOS keeps turning Low Data Mode off on this connection" = "macOS 一直在此连接上关闭低数据模式";
+"Couldn't record the change, so nothing was changed" = "无法记录这项更改，因此没有做任何更改";
+"The helper couldn't turn Low Data Mode on" = "辅助程序无法打开低数据模式";
+"Low Data Mode didn't stay on for %@" = "%@ 的低数据模式没有保持打开";
+"Couldn't turn Low Data Mode off yet — it will be retried" = "暂时无法关闭低数据模式 — 稍后会重试";
+
+/* MenuBarPopoverView.swift */
+"Ad blocking paused until %@" = "广告拦截已暂停至 %@";
+"Ad blocking off on %@" = "已在 %@ 上关闭广告拦截";
+"up to %@" = "最多 %@";
+"%@ is updating" = "%@ 正在更新";
+"%@ updates got through · %@" = "仍下载了 %@ 个更新 · %@";
+"Total" = "总计";
+"Downloaded over this connection anyway. Settings › Hotspot lists what NetworkMonitor can't stop." = "仍通过此连接下载了。“设置 › 热点”列出了 NetworkMonitor 无法阻止的项目。";
+"Everything is blocked" = "已全部阻止";
+"Turn Off" = "关闭";
+"Block Everything is on: every app's new connections stop, apart from looking up names, the clock and your own network" = "“全部阻止”已打开：所有应用的新连接都会被阻止，域名查询、时间同步和你自己的网络除外";
+"Open Ads and Trackers to resume" = "打开“广告与跟踪器”以继续";
+"%@ ads blocked today" = "今天已阻止 %@ 个广告";
+"Ads and trackers blocked today. See what was blocked, and where" = "今天阻止的广告和跟踪器。查看阻止了什么，以及在哪里阻止的";
+"%@ ads and trackers blocked today" = "今天已阻止 %@ 个广告和跟踪器";
+"Per-app figures paused" = "按应用统计已暂停";
+"macOS's nettop isn't reporting per-app figures (%@). The total is still counted, and NetworkMonitor keeps trying." = "macOS 的 nettop 没有报告按应用的数据（%@）。总量仍在统计，NetworkMonitor 会继续尝试。";
+"Settings" = "设置";
+"No network activity yet" = "暂无网络活动";
+"Counting since you joined this network" = "从加入当前网络开始统计";
+
+/* MeteredHeuristic.swift */
+"You said this network is a hotspot." = "你已将此网络设为热点。";
+"You said this network isn't a hotspot." = "你已将此网络设为不是热点。";
+"macOS reports this connection as a hotspot." = "macOS 报告此连接是热点。";
+"An Android phone is sharing its connection." = "一台 Android 手机正在共享它的网络连接。";
+"This looks like an iPhone Personal Hotspot." = "此连接看起来来自 iPhone 个人热点。";
+"This looks like a phone sharing its connection." = "此连接看起来来自手机共享网络。";
+"You're tethered through a phone." = "当前通过手机共享网络连接。";
+"This network is in Low Data Mode." = "此网络已启用低数据模式。";
+"This doesn't look like a hotspot." = "这看起来不是热点。";
+
+/* MonitorViewModel.swift */
+"Process %@" = "进程 %@";
+
+/* NettopStream.swift */
+"its output couldn't be read" = "无法读取它的输出";
+"it stopped reporting" = "它停止了报告";
+"nettop not found at %@" = "在 %@ 找不到 nettop";
+"openpty failed: %@" = "openpty 失败：%@";
+"pipe failed: %@" = "pipe 失败：%@";
+"could not launch nettop: %@" = "无法启动 nettop：%@";
+
+/* PermissionRows.swift */
+"It lives in your menu bar: click it to see which apps are using the internet. Two more things it can do, if you'd like:" = "它就在你的菜单栏中：点按它，即可查看哪些应用正在使用网络。如果你愿意，它还能做两件事：";
+"Not now? You can turn these on later in Settings. Nothing leaves your Mac." = "现在不想打开？你可以稍后在“设置”中打开它们。任何数据都不会离开你的 Mac。";
+"See which websites your apps visit" = "查看你的应用访问了哪些网站";
+"Slack shows up as slack.com, not just as Amazon, whose computers it runs on. It also lets you block any app, company or country." = "Slack 会显示为 slack.com，而不只是显示为托管它的 Amazon。你还可以借此阻止任何应用、公司或国家或地区。";
+"Stop every app's updates on hotspots" = "使用热点时停止所有应用的更新";
+"Not only the apps listed here: any app's updater is stopped while you're on a hotspot. It turns on the same thing as seeing which websites your apps visit." = "不只是这里列出的应用：使用热点时，任何应用的更新程序都会被停止。它打开的功能与“查看你的应用访问了哪些网站”相同。";
+"Any app's updater is stopped while you're on a hotspot, including ones listed as can't be paused when they update with a program of their own. Choose Blocked in Connections to see them." = "使用热点时，任何应用的更新程序都会被停止，包括那些用自己的程序更新、被列为“不能暂停”的应用。在“连接”中选择“已阻止”即可查看。";
+"Know your Wi-Fi networks by name" = "按名称识别你的 Wi-Fi 网络";
+"Usage History calls them Home and Office, not “Wi-Fi · 3f2a”. macOS calls this Location, but NetworkMonitor never looks up where you are." = "“流量历史”会显示“家”和“办公室”这样的名称，而不是“Wi-Fi · 3f2a”。macOS 把这项权限称为“定位服务”，但 NetworkMonitor 从不查询你的位置。";
+"In System Settings, scroll down to Network Extensions, click ⓘ, and switch on NetworkMonitor." = "在“系统设置”中，向下滚动到“网络扩展”，点按 ⓘ，然后打开 NetworkMonitor。";
+"Click Allow when macOS asks." = "macOS 询问时，点按“允许”。";
+"In System Settings, switch on Location Services for NetworkMonitor." = "在“系统设置”中，为 NetworkMonitor 打开“定位服务”。";
+"Move NetworkMonitor to your Applications folder, open it from there, and try again." = "将 NetworkMonitor 移到“应用程序”文件夹，从那里打开它，然后再试一次。";
+"It didn't turn on. Try again, or restart your Mac if it keeps happening." = "没有打开。请再试一次；如果一直这样，请重新启动你的 Mac。";
+"Open System Settings" = "打开系统设置";
+"On" = "已打开";
+"Turn On…" = "打开…";
+"Try Again" = "重试";
+
+/* PreferenceSuppressor.swift */
+"Turns off its automatic update check" = "关闭它的自动检查更新";
+"Turns off its updater" = "关闭它的更新程序";
+"Tells Google's updater not to check" = "让 Google 的更新程序不再检查更新";
+"Sets Microsoft's apps to update only when you ask" = "让 Microsoft 的应用只在你要求时更新";
+
+/* PrivilegedSuppressor.swift */
+"Through NetworkMonitor's helper" = "通过 NetworkMonitor 的辅助程序";
+"macOS updates" = "macOS 更新";
+"Turns off automatic downloads and installs" = "关闭自动下载和安装";
+"App Store apps" = "App Store 应用";
+"Turns off automatic updates" = "关闭自动更新";
+"Turns off updates with the setting IT departments use" = "用 IT 部门使用的设置关闭更新";
+"Blocks its update server" = "阻止它的更新服务器";
+
+/* SettingsView.swift */
+"Start at login" = "登录时启动";
+"Opens NetworkMonitor automatically when you log in. Quitting still quits it — it won't reopen until your next login." = "登录 macOS 后自动打开 NetworkMonitor。退出应用仍然会退出；下次登录前不会再次打开。";
+"Show speeds in" = "速度显示单位";
+"In the menu bar and the speed test. Data you've used is always counted in MB and GB, the way data plans are sold." = "用于菜单栏和网速测试。已用的流量始终以 MB 和 GB 计算，与流量套餐的计算方式相同。";
+"Download" = "下载";
+"Upload" = "上传";
+"During a speed test" = "网速测试期间";
+"A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates." = "网速测试的数值使用自己的颜色，与这些颜色区分开，因此不会被误认为是实时速度。";
+"Use Default Colors" = "使用默认颜色";
+"Menu bar colors" = "菜单栏颜色";
+"Counting since" = "统计开始于";
+"What this connection has used, per app, all the time. The totals start over when you join a different network, and at midnight. History keeps every hour of it." = "按应用持续统计此连接用了多少流量。加入其他网络时以及每天午夜，累计值会重新开始。“历史记录”会保留每个小时的数据。";
+"Sampling" = "采样";
+"Every second, plugged in" = "接通电源时每秒一次";
+"Every 3 seconds on battery, same totals" = "使用电池时每 3 秒一次，累计值不变";
+"Every 10 seconds in Low Power Mode, same totals" = "低电量模式下每 10 秒一次，累计值不变";
+"Start the totals over" = "重新开始累计";
+"Reset Now" = "立即重置";
+"Popover totals" = "弹出窗口中的累计值";
+"This Mac has no networkQuality, which the test runs on." = "这台 Mac 上没有 networkQuality，而测试需要用它来运行。";
+"Runs macOS's built-in networkQuality, only when you start it: download first, then upload. Every run measures afresh, so it uses data each time — typically 50–500 MB, more on a very fast line. Speeds use the unit chosen in General." = "使用 macOS 内置的 networkQuality，只在你开始测试时运行：先测下载，再测上传。每次都会重新测量，所以每次都会消耗流量 — 通常为 50–500 MB，网速很快时会更多。速度使用“通用”中选择的单位。";
+"Show the test in the popover as" = "在弹出窗口中显示测试的样式";
+"Test your internet speed" = "测试你的网速";
+"Download, upload, ping and jitter, measured now." = "立即测量下载、上传、延迟和抖动。";
+"Test Now" = "立即测试";
+"Run Anyway" = "仍然测试";
+"Stop" = "停止";
+"Done" = "完成";
+"Test Again" = "再测一次";
+"Speed test didn't finish" = "网速测试未完成";
+"Stop apps updating on hotspots" = "停止热点下的应用更新";
+"Right now" = "当前";
+"This network" = "此网络";
+"Detect automatically" = "自动检测";
+"Is a hotspot" = "是热点";
+"Isn't a hotspot" = "不是热点";
+"Also puts the hotspot in Low Data Mode, so iCloud and other background downloads wait until you're off it." = "还会让热点进入低数据模式，这样 iCloud 和其他后台下载会等到你断开热点后再进行。";
+"Nothing on this Mac to pause." = "这台 Mac 没有可暂停的应用。";
+"Found by looking inside the apps on this Mac. They're paused only while you're on a hotspot, and put back when you leave." = "通过查看这台 Mac 上的应用内部找到。它们只在你使用热点时暂停，断开后会恢复。";
+"Can't be paused (%@)" = "不能暂停（%@）";
+"Quit these while you're on a hotspot to be sure they don't update. Low Data Mode slows the ones that respect it." = "使用热点时请退出这些应用，以确保它们不会更新。对于遵循低数据模式的应用，低数据模式会让它们放慢更新。";
+"Every app's updater" = "所有应用的更新程序";
+"Stopped on hotspots" = "使用热点时停止";
+"Low Data Mode is on — macOS confirms it" = "低数据模式已打开 — macOS 已确认";
+"Low Data Mode is on" = "低数据模式已打开";
+"This connection was already in Low Data Mode" = "此连接之前已处于低数据模式";
+"To finish, switch on NetworkMonitor in System Settings, under Allow in the Background." = "要完成设置，请在“系统设置”的“允许在后台”下打开 NetworkMonitor。";
+"Allow…" = "允许…";
+"macOS updates, Chrome, Claude, Slack and Low Data Mode need a quick update to NetworkMonitor's helper." = "macOS 更新、Chrome、Claude、Slack 和低数据模式需要先快速更新 NetworkMonitor 的辅助程序。";
+"macOS updates, Chrome, Claude, Slack and Low Data Mode need your permission once." = "macOS 更新、Chrome、Claude、Slack 和低数据模式需要你授权一次。";
+"Move NetworkMonitor to your Applications folder to pause macOS updates and use Low Data Mode too." = "将 NetworkMonitor 移到“应用程序”文件夹，即可同时暂停 macOS 更新并使用低数据模式。";
+"Couldn't pause %@" = "无法暂停 %@";
+"Got through on this connection" = "在此连接上仍下载的更新";
+"Got through on your last metered connection" = "在你上次按流量计费的连接上仍下载的更新";
+"Through its updater, %@." = "通过它的更新程序 %@。";
+"All %@ used on this connection, so its update used no more than this." = "这是 %@ 在此连接上的全部用量，所以它的更新用量不会超过这个数。";
+"The update's size on your Mac. It used no more than this to download." = "这是更新在你 Mac 上的大小。下载它所用的流量不会超过这个数。";
+"What %@ used while the update downloaded." = "下载更新期间 %@ 的用量。";
+"What its updater used on this connection." = "它的更新程序在此连接上的用量。";
+"%@ updated to %@ anyway" = "%@ 仍更新到了 %@";
+"%@ updated to %@" = "%@ 已更新到 %@";
+"%@ downloaded an update anyway" = "%@ 仍下载了更新";
+"%@ downloaded an update" = "%@ 下载了更新";
+"Paused once you allow the helper below" = "允许下方的辅助程序后即会暂停";
+"Paused on a hotspot" = "使用热点时暂停";
+"Paused on a hotspot (%@)" = "使用热点时暂停（%@）";
+"Paused on a hotspot (%@ of %@)" = "使用热点时暂停（%@/%@）";
+"paused once you quit it" = "退出后暂停";
+"NetworkMonitor can't change %@'s settings while it's open. It pauses its updates as soon as you quit it." = "%@ 打开时，NetworkMonitor 无法更改它的设置。你一退出它，NetworkMonitor 就会暂停它的更新。";
+"%@ updated anyway" = "%@ 仍然更新了";
+"updated anyway" = "仍然更新了";
+"%@ updated on your last metered connection although it was paused. Its row under Got through says how much it used." = "虽然已暂停，%@ 仍在你上次按流量计费的连接上更新了。“仍下载的更新”下它所在的那一行显示了它的用量。";
+"These updated on your last metered connection although they were paused. Their rows under Got through say how much each used." = "虽然已暂停，这些应用仍在你上次按流量计费的连接上更新了。“仍下载的更新”下它们所在的各行显示了各自的用量。";
+"Language" = "语言";
+"The language NetworkMonitor's windows, menus and VoiceOver are in. Same as the Mac follows System Settings › General › Language & Region." = "NetworkMonitor 的窗口、菜单和 VoiceOver 使用的语言。“与 Mac 相同”会跟随“系统设置 › 通用 › 语言与地区”。";
+"Same as the Mac" = "与 Mac 相同";
+"Development build" = "开发版本";
+"Version %@ (%@)" = "版本 %@（%@）";
+"Version %@" = "版本 %@";
+"Live network speed in your menu bar, and which app used your data." = "在菜单栏中显示实时网速，以及哪个应用用了你的流量。";
+"Website" = "网站";
+"What's new" = "新功能";
+"Release notes" = "发行说明";
+"Source code" = "源代码";
+"On GitHub" = "在 GitHub 上";
+"Free and open source, under the MIT licence." = "免费开源，采用 MIT 许可证。";
+"Check for updates automatically" = "自动检查更新";
+"Updates" = "更新";
+"Check Now" = "立即检查";
+"Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor." = "NetworkMonitor 每天向 GitHub 查询一次是否有新版本，使用热点时从不查询。只有在你同意时才会安装更新，而且只安装由 NetworkMonitor 签名的更新。";
+"Remove NetworkMonitor" = "移除 NetworkMonitor";
+"Uninstall…" = "卸载…";
+"Puts back every setting it changed, removes its helper and your usage history, and moves the app to the Trash." = "恢复它更改过的每项设置，移除它的辅助程序和你的流量历史，并将应用移到废纸篓。";
+
+/* SettingsWindowController.swift */
+"General" = "通用";
+"Speed Test" = "网速测试";
+"History" = "历史记录";
+"Ads" = "广告";
+"Hotspot" = "热点";
+"About" = "关于";
+
+/* SpeedTest.swift */
+"Cellular" = "蜂窝网络";
+
+/* SpeedTestController.swift */
+"Card" = "卡片";
+"Compact" = "紧凑";
+"A card with a dial and every figure, in place of your apps." = "一张带仪表盘和所有数值的卡片，显示在应用列表的位置。";
+"Two lines above your apps, which stay in view." = "在应用列表上方显示两行，应用列表仍然可见。";
+"The network changed during the test" = "测试期间网络发生了变化";
+"networkQuality returned a result this app could not read" = "networkQuality 返回了此应用无法读取的结果";
+
+/* SpeedTestRunner.swift */
+"networkQuality is not available on this Mac" = "这台 Mac 上没有 networkQuality";
+"Could not create a working folder" = "无法创建工作文件夹";
+"Could not open a terminal for the test" = "无法为测试打开终端";
+"Could not start networkQuality" = "无法启动 networkQuality";
+"The test took too long and was stopped" = "测试用时过长，已停止";
+"networkQuality exited with status %@" = "networkQuality 已退出，状态码为 %@";
+
+/* SpeedTestViews.swift */
+"Ping rises by %@ ms when the line is busy, so calls may lag during big downloads" = "线路繁忙时延迟会增加 %@ ms，因此下载大文件期间通话可能会卡顿";
+"Round trip to the test server on a quiet line. Under 50 ms is great; over 100 ms is noticeable in calls and games." = "线路空闲时到测试服务器的往返时间。低于 50 ms 很好；超过 100 ms 时，通话和游戏中会明显感觉到。";
+"How much ping varies from one moment to the next. Under 10 ms is good; more makes calls choppy." = "延迟随时间波动的幅度。低于 10 ms 为好；更高会让通话断断续续。";
+"Ping measured while the test fills the line. A big rise over the quiet-line ping means calls and games lag whenever something downloads or uploads." = "测试占满线路时测得的延迟。如果比线路空闲时的延迟高出很多，那么每当有内容下载或上传时，通话和游戏就会卡顿。";
+", " = "、";
+"%@ used %@ during the test — figures may read low" = "测试期间 %@ 使用了 %@ — 结果可能偏低";
+"Metered connection. The last test here used %@." = "按流量计费的连接。上次在这里测试用了 %@。";
+"Metered connection. A test can use 100 MB or more on a fast line." = "按流量计费的连接。在快速线路上，一次测试可能用掉 100 MB 或更多。";
+"Speed test" = "网速测试";
+"Show the speed test" = "显示网速测试";
+"Speed test running" = "网速测试正在进行";
+"Test internet speed" = "测试网速";
+"Test on a metered connection?" = "要在按流量计费的连接上测试吗？";
+"Back to Apps" = "返回应用";
+"Stop the test" = "停止测试";
+"Test again" = "再测一次";
+"Ping %@" = "延迟 %@";
+"Jitter %@" = "抖动 %@";
+"Measuring ping" = "正在测量延迟";
+"Testing download" = "正在测试下载";
+"Testing upload" = "正在测试上传";
+"Ping" = "延迟";
+"Jitter" = "抖动";
+"Ping while downloading" = "下载时的延迟";
+"Ping while uploading" = "上传时的延迟";
+"used %@" = "已用 %@";
+"Download first, then upload, like any speed test" = "先测下载，再测上传，和其他网速测试一样";
+"%@ up" = "%@ 上传";
+"%@ down" = "%@ 下载";
+
+/* UpdateController.swift */
+"On a metered connection: the check waits." = "正在使用按流量计费的连接：检查将推迟。";
+
+/* UpdateFolderSuppressor.swift */
+"Through their update folders" = "通过它们的更新文件夹";
+"Locks the folder its updates download to" = "锁定它下载更新所用的文件夹";
+
+/* UpdaterScan.swift */
+"Updates from inside the app, with no setting NetworkMonitor can turn off" = "在应用内部更新，没有 NetworkMonitor 可以关闭的设置";
+"macOS keeps its update setting where NetworkMonitor can't change it" = "macOS 把它的更新设置存放在 NetworkMonitor 无法更改的地方";
+"Has its own updater, with no setting NetworkMonitor can turn off" = "有自己的更新程序，没有 NetworkMonitor 可以关闭的设置";
+
+/* UsageHistory.swift */
+"1 Month" = "1 个月";
+"3 Months" = "3 个月";
+"1 Year" = "1 年";
+"Forever" = "永久";
+"Other" = "其他";
+"No Connection" = "无连接";
+"Hour" = "小时";
+"Network Type" = "网络类型";
+"Metered" = "按流量计费";
+"Downloaded (bytes)" = "下载（字节）";
+"Uploaded (bytes)" = "上传（字节）";
+"Update That Got Through" = "仍下载的更新";
+"Yes" = "是";
+"No" = "否";
+"Not attributed to an app" = "未归属到任何应用";
+
+/* UsageRow.swift */
+"Other (%@)" = "其他（%@）";
+
+/* UsageStore.swift */
+"%@ · networks not told apart" = "%@ · 无法区分的网络";
+"Personal Hotspot" = "个人热点";
+
+/* WelcomeWindowController.swift */
+"Welcome to NetworkMonitor" = "欢迎使用 NetworkMonitor";
