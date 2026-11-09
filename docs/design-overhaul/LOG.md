@@ -6,7 +6,9 @@ the app looked like, what was planned and done, where ideas came from, what was 
 and by whom, and what's left.
 
 **Status (2026-11-09):** Kevin approved the plan (D6–D10) and asked for it built, not
-released, and run on his Mac for review. **Built (Phase 4) and audited (Phase 5);
+released, and run on his Mac for review; after a first look he asked for the popover's
+gear and speed test to move, and for one window with a sidebar and settings in place
+(D11). **Built (Phase 4) and audited (Phase 5);
 waiting on Kevin's review** of the running build (`make review`) and of the before and
 after on the comparison page:
 https://claude.ai/artifact/GooXLRsHfm6a6CRRTsNu92 (private to Kevin). Nothing merges or
@@ -222,6 +224,16 @@ week was a summary, and This week sat oddly beside three things about today. The
 line under the chosen number used a statistic's colour for a state; companies needed a
 colour of their own; and the speed test deserved a clearer place than a pill.
 
+| D11 | **One main window with a sidebar; settings in place.** Usage History, Connections, Ads and Trackers and Network (the connection, the hotspot switch, the speed test) as sections of one window. Each section's gear shows its settings in place, with a back button, instead of the Settings window on top; the Settings window stays for ⌘, and the popover's gear. The popover's fourth button is Network; its gear sits beside the buttons, its footer and its network line go, and the speed test moves into Network | Network and Hotspot as two sections; keep the three windows | **Kevin approved the sidebar** ("I liked it"), 2026-11-09; built, waiting on his review |
+
+**One window with a sidebar (Kevin, 2026-11-09).** A Settings window opening on top of
+the window being read felt like a dialogue above a dialogue. Apple's apps keep a
+separate Settings window for ⌘, (a menu bar popover closes first, so that's fine), but
+inside a window they go deeper in place: System Settings with a back button, Music and
+Mail keeping the sidebar. Network and Hotspot became one section, since they would say
+much the same, and the popover's Connection became Network so "Connection" and
+"Connections" don't sit side by side.
+
 **Round 3 (Kevin, 2026-11-09).** Kevin liked the gear and the windows, and asked for the
 popover to load each place's summary in place, as it does for apps, with a way to the
 full picture from there; and found the header too big, with empty space beside the
@@ -257,33 +269,37 @@ pictures. Every after picture, light and dark, is also on the comparison page.
 **What changed:**
 
 - **The popover:** four buttons across the header, Today, Companies, Ads blocked and
-  Connection, each showing its view in place: the apps, then *Open Usage History ⌘Y*;
-  today's top companies, then *Open Connections ⌘K*; the top blocked sites, then *Open
-  Ads and Trackers ⌘B*; the network, with a *This is a hotspot* switch on every kind of
-  network, then *Hotspot Settings*. The chosen button looks raised in neutral grey.
-  The network's name and the speed test icon share a slim line above; *Settings…* is
-  named at the bottom.
-- **The windows:** Connections, Ads and Trackers and a new **Usage History** window share
-  one toolbar: Day, Week, Month, Year, ‹ Today ›, and a gear to that feature's Settings
-  pane. Ads and Trackers keeps Overview and Log; its Lists and Rules are in Settings ›
-  Ads. Connections' minimum width is 816 pt, what its toolbar needs with the gear.
-- **Settings:** General, History, Connections, Ads, Hotspot, Speed Test, About. Each
-  feature's pane is headed by today's number and a button to its window; Settings ›
-  History keeps *Keep history for* and *Clear History*; Settings › Ads has the switch,
-  the weekly update, and the lists and your rules.
+  Network, with Settings' gear beside them. Each shows its view in place: the apps and
+  *Open Usage History ⌘Y*; today's top companies and *Open Connections ⌘K*; the top
+  blocked sites and *Open Ads and Trackers ⌘B*; the network, with a *This is a hotspot*
+  switch on every kind of network and the speed test, then *Open Network*. The chosen
+  button looks raised in neutral grey.
+- **One main window with a sidebar** (Kevin's review): Usage History, Connections, Ads
+  and Trackers, and Network (the connection, the hotspot switch and the speed test), in
+  the popover's order. Each section keeps every view it had as a window and brings its
+  toolbar: Day, Week, Month, Year, ‹ Today › where there's a period, and a gear. **The gear
+  shows the section's settings in place, with a back button before the title**, as
+  System Settings goes deeper, rather than a Settings window on top. Ads and Trackers
+  keeps Overview and Log.
+- **Settings (⌘, and the popover's gear):** setup only, in the popover's order: General,
+  History, Connections, Ads, Hotspot, Speed Test, About. The same panes the main window
+  shows in place.
+- **Widths, measured** (`make design-shots`, `--measure`): beside the 190 pt sidebar,
+  Connections' toolbar fits from 914 pt, the others from 756; each section's minimum
+  is the sidebar and its content's own.
 
 | State | Before | After |
 |---|---|---|
 | Settings › General | <img src="before/settings-general-dark.png" width="340" alt="Settings › General, before"> | <img src="after/settings-general-dark.png" width="340" alt="Settings › General, after"> |
 | Settings › Connections | <img src="before/settings-connections-dark.png" width="340" alt="Settings › Connections, before"> | <img src="after/settings-connections-dark.png" width="340" alt="Settings › Connections, after"> |
 | Settings › Ads | <img src="before/settings-ads-dark.png" width="340" alt="Settings › Ads, before"> | <img src="after/settings-ads-dark.png" width="340" alt="Settings › Ads, after"> |
-| Settings › History → Usage History window | <img src="before/settings-history-dark.png" width="340" alt="Settings › History → Usage History window, before"> | <img src="after/history-dark.png" width="340" alt="Settings › History → Usage History window, after"> |
+| Settings › History → the main window's Usage History | <img src="before/settings-history-dark.png" width="340" alt="Settings › History → the main window's Usage History, before"> | <img src="after/history-dark.png" width="340" alt="Settings › History → the main window's Usage History, after"> |
 | Connections, list | <img src="before/connections-list-dark.png" width="340" alt="Connections, list, before"> | <img src="after/connections-list-dark.png" width="340" alt="Connections, list, after"> |
 | Connections, list and map | <img src="before/connections-both-dark.png" width="340" alt="Connections, list and map, before"> | <img src="after/connections-both-dark.png" width="340" alt="Connections, list and map, after"> |
 | Connections, map | <img src="before/connections-map-dark.png" width="340" alt="Connections, map, before"> | <img src="after/connections-map-dark.png" width="340" alt="Connections, map, after"> |
 | Ads and Trackers › Overview | <img src="before/ads-overview-dark.png" width="340" alt="Ads and Trackers › Overview, before"> | <img src="after/ads-overview-dark.png" width="340" alt="Ads and Trackers › Overview, after"> |
 | Ads and Trackers › Log | <img src="before/ads-log-dark.png" width="340" alt="Ads and Trackers › Log, before"> | <img src="after/ads-log-dark.png" width="340" alt="Ads and Trackers › Log, after"> |
-| Ads and Trackers › Lists → Settings › Ads | <img src="before/ads-lists-dark.png" width="340" alt="Ads and Trackers › Lists → Settings › Ads, before"> | <img src="after/settings-ads-dark.png" width="340" alt="Ads and Trackers › Lists → Settings › Ads, after"> |
+| Ads and Trackers › Lists → its settings, in place | <img src="before/ads-lists-dark.png" width="340" alt="Ads and Trackers › Lists → its settings, in place, before"> | <img src="after/main-ads-settings-dark.png" width="340" alt="Ads and Trackers › Lists → its settings, in place, after"> |
 | Ads and Trackers › Rules → Settings › Ads › Your Rules | <img src="before/ads-rules-dark.png" width="340" alt="Ads and Trackers › Rules → Settings › Ads › Your Rules, before"> | <img src="after/settings-ads-rules-dark.png" width="340" alt="Ads and Trackers › Rules → Settings › Ads › Your Rules, after"> |
 
 New views, which had no before:
@@ -293,7 +309,11 @@ New views, which had no before:
 | The popover › Today | <img src="after/popover-today-dark.png" width="300" alt="The popover › Today, dark"> | <img src="after/popover-today-light.png" width="300" alt="The popover › Today, light"> |
 | The popover › Companies | <img src="after/popover-companies-dark.png" width="300" alt="The popover › Companies, dark"> | <img src="after/popover-companies-light.png" width="300" alt="The popover › Companies, light"> |
 | The popover › Ads blocked | <img src="after/popover-blocked-dark.png" width="300" alt="The popover › Ads blocked, dark"> | <img src="after/popover-blocked-light.png" width="300" alt="The popover › Ads blocked, light"> |
-| The popover › Connection | <img src="after/popover-connection-dark.png" width="300" alt="The popover › Connection, dark"> | <img src="after/popover-connection-light.png" width="300" alt="The popover › Connection, light"> |
+| The popover › Network | <img src="after/popover-connection-dark.png" width="300" alt="The popover › Network, dark"> | <img src="after/popover-connection-light.png" width="300" alt="The popover › Network, light"> |
+| Main window › Network | <img src="after/network-dark.png" width="300" alt="Main window › Network, dark"> | <img src="after/network-light.png" width="300" alt="Main window › Network, light"> |
+| Main window › Usage History's settings, in place | <img src="after/main-history-settings-dark.png" width="300" alt="Main window › Usage History's settings, in place, dark"> | <img src="after/main-history-settings-light.png" width="300" alt="Main window › Usage History's settings, in place, light"> |
+| Main window › Connections' settings, in place | <img src="after/main-connections-settings-dark.png" width="300" alt="Main window › Connections' settings, in place, dark"> | <img src="after/main-connections-settings-light.png" width="300" alt="Main window › Connections' settings, in place, light"> |
+| Main window › Network's settings, in place | <img src="after/main-network-settings-dark.png" width="300" alt="Main window › Network's settings, in place, dark"> | <img src="after/main-network-settings-light.png" width="300" alt="Main window › Network's settings, in place, light"> |
 | Settings › History | <img src="after/settings-history-dark.png" width="300" alt="Settings › History, dark"> | <img src="after/settings-history-light.png" width="300" alt="Settings › History, light"> |
 | Settings › Hotspot | <img src="after/settings-hotspot-dark.png" width="300" alt="Settings › Hotspot, dark"> | <img src="after/settings-hotspot-light.png" width="300" alt="Settings › Hotspot, light"> |
 
@@ -364,7 +384,7 @@ The same rubric, on pull request 2's code and the after pictures.
 | 2 | Performance | 3 | 3 | Today's companies and blocked sites are read when the popover opens or a button is chosen, never on a timer. The blocked sites are read on the main thread: short, but worth moving |
 | 3 | Appearance & theming | 3 | 3 | System colours only, teal added for companies; light and dark drawn for every view |
 | 4 | Platform conformance | 3 | 4 | Settings holds setup only; every switch, list and rule has one home; a gear always means settings and opens the right pane; one toolbar shape for the three windows |
-| 5 | Adaptivity | 3 | 3 | Toolbar widths measured again (`--measure`): Connections 812 pt, so its minimum is 816; Ads and Trackers and Usage History 654, under their 700. New text has its Chinese |
+| 5 | Adaptivity | 3 | 3 | Toolbar widths measured again (`--measure`), in the main window beside its sidebar: Connections 914 pt, the others 756, under each section's minimum. New text has its Chinese |
 | **Total** | | **15** | **16** | **Good** |
 
 **Checked:** light and dark (every view), a long app name ("Northwind Field Operations
