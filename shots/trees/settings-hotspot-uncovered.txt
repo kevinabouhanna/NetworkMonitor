@@ -21,7 +21,6 @@ AXWindow (AXStandardWindow) title="Hotspot" 720
             AXStaticText value="Every app's updater" h16
             AXStaticText value="Stopped on hotspots" h16
           AXStaticText value="Any app's updater is stopped while you're on a hotspot, including ones listed as can't be paused when they update with a program of their own. Choose Blocked in Connections to see them." h28
-          AXGroup h36
   AXToolbar 720x56
     AXButton title="General" description="General" 56x56
     AXButton title="Speed Test" description="Speed Test" 72x56

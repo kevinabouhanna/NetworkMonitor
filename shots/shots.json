@@ -368,6 +368,12 @@
       ]
     },
     {
+      "file": "assets/zh-Hans/social-card.png",
+      "shows": [
+        "popover"
+      ]
+    },
+    {
       "file": "assets/menubar.png",
       "none": "the menu bar readout, which has no accessibility tree to compare: check it by eye when the readout changes"
     },
@@ -390,6 +396,18 @@
     {
       "file": "assets/favicon-64.png",
       "none": "the app icon"
+    }
+  ],
+  "languages": [
+    {
+      "code": "zh-Hans",
+      "page": "zh/index.html",
+      "assets": "assets/zh-Hans/",
+      "specs": {
+        "Can't be paused": "不能暂停",
+        "This connection was already": "此连接之前已处于",
+        "~on metered connections": "~按流量计费的连接上用了"
+      }
     }
   ]
 }

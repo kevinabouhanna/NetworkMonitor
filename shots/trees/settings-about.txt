@@ -1,4 +1,4 @@
-AXWindow (AXStandardWindow) title="About" 720x708
+AXWindow (AXStandardWindow) title="About" 720x712
   AXGroup h620
     AXGroup (AXHostingView) h620
       AXScrollArea h620
@@ -13,7 +13,7 @@ AXWindow (AXStandardWindow) title="About" 720x708
             AXStaticText value="What's new" h16
             AXLink description="Release notes" 108x16
             AXStaticText value="Source code" h16
-            AXLink description="On GitHub" 88x16
+            AXLink description="On GitHub" 84x16
           AXStaticText value="Free and open source, under the MIT licence." h16
           AXGroup h76
             AXStaticText value="Check for updates automatically" h16

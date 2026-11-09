@@ -3,6 +3,9 @@ AXWindow (AXStandardWindow) title="General" 720
     AXGroup (AXHostingView)
       AXScrollArea
         AXScrollArea
+          AXGroup h40
+            AXStaticText value="Language" h16
+            AXPopUpButton description="Language" help="The language NetworkMonitor's windows, menus and VoiceOver are in. Same as the Mac follows System Settings › General › Language & Region." 152x24
           AXGroup h36
             AXStaticText value="Start at login" h16
             AXCheckBox (AXToggle) description="Start at login" help="Opens NetworkMonitor automatically when you log in. Quitting still quits it — it won't reopen until your next login." 36x16
@@ -12,7 +15,7 @@ AXWindow (AXStandardWindow) title="General" 720
               AXRadioButton (AXSegment) description="Mbps" 60x24
               AXRadioButton (AXSegment) description="MB/s" 60x24
           AXGroup h72
-            AXImage description="Wi-Fi" identifier="wifi" 20x16
+            AXImage description="Wi-Fi" identifier="wifi" 20x12
             AXStaticText value="Know your Wi-Fi networks by name" h16
             AXStaticText value="Usage History calls them Home and Office, not “Wi-Fi · #f#a”. macOS calls this Location, but NetworkMonitor never looks up where you are." h32
             AXButton description="Turn On…" 84x24
@@ -25,7 +28,7 @@ AXWindow (AXStandardWindow) title="General" 720
             AXStaticText value="During a speed test" h16
             AXStaticText value="↓" help="A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates." h16
             AXStaticText value="↑" help="A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates." h16
-            AXButton description="Use Default Colors" 140x24
+            AXButton description="Use Default Colors" 136x24
           AXHeading description="Popover totals" 92x16
           AXGroup
             AXStaticText value="Counting since" h16

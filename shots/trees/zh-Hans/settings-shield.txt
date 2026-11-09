@@ -1,0 +1,47 @@
+AXWindow (AXStandardWindow) title="广告" 720x580
+  AXGroup h492
+    AXGroup (AXHostingView) h492
+      AXScrollArea h492
+        AXScrollArea h492
+          AXGroup h52
+            AXStaticText value="在所有应用中拦截广告、跟踪器和恶意软件网站，并查看拦截了什么、何时以及在哪里。" h32
+            AXButton description="打开广告与跟踪器…" help="也可按 ⌘B，或点按弹出窗口中“今天已拦截”那一行" 140x24
+          AXHeading description="列表" 28x16
+          AXGroup h184
+            AXStaticText value="拦截广告和跟踪器" h16
+            AXCheckBox (AXToggle) description="拦截广告和跟踪器" help="在所有应用中，连接这些列表上网站的连接都会被拦截，但你自己的规则优先：在“连接”中对某个网站设为“始终允许”就会放行它。允许某个应用或公司后，它可以连接，但它的广告仍会被拦截。由网站自己的服务器提供的广告（例如 YouTube 的广告）无法与网站本身区分开，因此不会被拦截。" 36x16
+            AXStaticText value="广告" help="在广告和跟踪器列表中，来源：StevenBlack" h12
+            AXStaticText value="广告和跟踪器" h16
+            AXStaticText value="StevenBlack · # 个网站" h16
+            AXCheckBox (AXToggle) description="广告和跟踪器" 36x16
+            AXStaticText value="恶意软件" help="在恶意软件和网络钓鱼列表中，来源：URLhaus, by malware-filter" h12
+            AXStaticText value="恶意软件和网络钓鱼" h16
+            AXStaticText value="URLhaus, by malware-filter · # 个网站" h16
+            AXCheckBox (AXToggle) description="恶意软件和网络钓鱼" 36x16
+            AXStaticText value="今天已拦截" h16
+            AXStaticText value="#" h16
+            AXStaticText value="每周更新列表" h16
+            AXCheckBox (AXToggle) description="每周更新列表" help="NetworkMonitor 每周从 GitHub 下载一次列表，每个人下载的都是同一个已签名的文件，在热点上从不下载。" 36x16
+          AXStaticText value="列表更新于 #年#月#日：StevenBlack 的 hosts（MIT）和 malware-filter 的 URLhaus（CC#）。" h16
+          AXHeading description="自定义" 40x16
+          AXGroup h80
+            AXStaticText value="更多列表" h16
+            AXStaticText value="推荐" h16
+            AXButton description="选择…" help="HaGeZi、OISD、AdGuard 等列表，或按地址添加任意列表" 60x24
+            AXStaticText value="你的规则" h16
+            AXStaticText value="无" h16
+            AXButton description="编辑…" help="永不阻止某个网站、始终阻止某个网站，或不过滤某个应用；可从 uBlock Origin 或 AdGuard 导入" 60x24
+  AXToolbar 720x56
+    AXButton title="通用" description="通用" 56x56
+    AXButton title="网速测试" description="网速测试" 56x56
+    AXButton title="历史记录" description="历史记录" 56x56
+    AXButton title="连接" description="连接" 56x56
+    AXButton title="广告" description="广告" 56x56
+    AXButton title="热点" description="热点" 56x56
+    AXButton title="关于" description="关于" 56x56
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXZoomButton) 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText value="广告" h16

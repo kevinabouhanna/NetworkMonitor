@@ -1,0 +1,37 @@
+AXWindow (AXStandardWindow) title="热点" 720
+  AXGroup
+    AXGroup (AXHostingView)
+      AXScrollArea
+        AXScrollArea
+          AXGroup
+            AXStaticText value="停止热点下的应用更新" h16
+            AXCheckBox (AXSwitch) 36x16
+            AXStaticText value="当前" h16
+            data: AXStaticText
+            AXStaticText value="此网络" h16
+            AXPopUpButton 100x24
+          AXStaticText value="还会让热点进入低数据模式，这样 iCloud 和其他后台下载会等到你断开热点后再进行。" h16
+          AXGroup h44
+            AXDisclosureTriangle description="使用热点时暂停（#）" h16
+          AXStaticText value="通过查看这台 Mac 上的应用内部找到。它们只在你使用热点时暂停，断开后会恢复。" h16
+          AXGroup h44
+            AXDisclosureTriangle description="不能暂停（#）" h16
+          AXStaticText value="使用热点时请退出这些应用，以确保它们不会更新。对于遵循低数据模式的应用，低数据模式会让它们放慢更新。" h16
+          AXGroup h36
+            AXStaticText value="所有应用的更新程序" h16
+            AXStaticText value="使用热点时停止" h16
+          AXStaticText value="使用热点时，任何应用的更新程序都会被停止，包括那些用自己的程序更新、被列为“不能暂停”的应用。在“连接”中选择“已阻止”即可查看。" h28
+  AXToolbar 720x56
+    AXButton title="通用" description="通用" 56x56
+    AXButton title="网速测试" description="网速测试" 56x56
+    AXButton title="历史记录" description="历史记录" 56x56
+    AXButton title="连接" description="连接" 56x56
+    AXButton title="广告" description="广告" 56x56
+    AXButton title="热点" description="热点" 56x56
+    AXButton title="关于" description="关于" 56x56
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXZoomButton) 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText value="热点" h16
