@@ -15,21 +15,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Pointer watchers that exist only while a revealed menu bar holds focus
     /// the popover had. See `restoreFocusWhenMenuBarHides()`.
     private var menuBarMonitors: [Any] = []
-    /// Settings (⌘,): General only, what applies to the whole app (#436). Each
-    /// feature's settings are in the main window, behind its section's gear.
-    /// Created on first use.
-    private var settingsController: SettingsWindowController?
-    private var settings: SettingsWindowController {
-        if let settingsController { return settingsController }
-        let controller = SettingsWindowController(
-            model: model, onOpenSection: { [weak self] section in self?.showSectionSettings(section) })
-        controller.window.delegate = self
-        controller.highestTop = { [weak self] screen in
-            screen.frame.maxY - (self?.menuBarHeight(on: screen) ?? 0)
-        }
-        settingsController = controller
-        return controller
-    }
     /// One model for the Connections section and Settings › Connections, so
     /// the layout chosen in one is the layout shown in the other.
     private lazy var connectionsModel = ConnectionsViewModel(monitor: model)
@@ -57,7 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Settings, Connections and the welcome window, whichever exist, without
     /// creating any to find out.
     private var ourWindows: [NSWindow] {
-        [settingsController?.window, mainController?.window, welcomeController?.window].compactMap { $0 }
+        [mainController?.window, welcomeController?.window].compactMap { $0 }
     }
     /// Those that are open, front to back.
     private var openWindows: [NSWindow] {
@@ -139,7 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             // The lists and your rules are in Settings › Ads now (#436).
             if let setup = (arguments["tab"] as? String).flatMap(AdsViewModel.SetupTab.init) {
                 adsModel.setupTab = setup
-                showSectionSettings(.ads)
+                showSectionSettings(.ads, from: nil)
             } else {
                 if let tab = (arguments["tab"] as? String).flatMap(AdsViewModel.Tab.init) { main.ads.select(tab) }
                 showAds()
@@ -158,10 +143,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // section's settings in the main window (#436); otherwise General.
         case "settings":
             let pane = arguments["pane"] as? String
-            if let section = MainSection(rawValue: pane == "hotspot" ? "network" : pane ?? "") {
-                showSectionSettings(section)
+            if let section = MainSection(rawValue: pane == "hotspot" ? "network" : pane ?? ""),
+               section != .settings {
+                showSectionSettings(section, from: nil)
             } else {
-                show(pane: .general)
+                showSettings()
             }
         default:            break
         }
@@ -774,13 +760,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
     }
 
-    // MARK: Settings window
+    // MARK: The main window
 
-    /// Settings, on the pane last viewed — the HIG's "restore the most
-    /// recently viewed pane".
-    @objc private func showSettings() {
-        show(pane: nil)
-    }
+    /// Settings, at the bottom of the main window's sidebar (#436): from ⌘,,
+    /// Settings… in both menus, and the popover's gear.
+    @objc private func showSettings() { show(section: .settings) }
 
     /// Usage History, in the main window (#436): from Open Usage History in
     /// the popover, Usage History… in the right-click menu, Settings ›
@@ -799,11 +783,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Network, in the main window (#436): from Open Network in the popover.
     @objc private func showNetwork() { show(section: .network) }
 
-    /// A section's settings, in place in the main window (#436): from the
-    /// buttons at the top of Settings › General.
-    private func showSectionSettings(_ section: MainSection) {
+    /// A section's settings, in place in the main window (#436), going back
+    /// to `origin` (the section itself when nil).
+    private func showSectionSettings(_ section: MainSection, from origin: MainSection?) {
         show(section: section)
-        main.showSettings()
+        main.showSettings(for: section, from: origin)
     }
 
     /// The standard About window, with what was Settings › About (#436): the
@@ -837,30 +821,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         main.show(section)
         present(main.window, reposition: !wasVisible)
         main.windowDidShow()
-        // Nothing focused, as Settings opens: see `show(pane:)`.
+        // Opens with nothing focused, for the reason the popover does: the
+        // window would otherwise hand first responder to its first control,
+        // which then wears a focus ring nobody asked for. Tab still reaches it.
+        // Deferred, since SwiftUI assigns focus after the window is shown.
         if !wasVisible {
             DispatchQueue.main.async { [weak self] in self?.main.window.makeFirstResponder(nil) }
         }
     }
 
-    private func show(pane: SettingsPane?) {
-        if popover.isShown { closePopover() }
-        let wasVisible = settings.isVisible
-        settings.select(pane)
-        // Sized to the pane before it is placed, so it is centred at its real size.
-        settings.fitSelectedPane()
-        // Not re-centred if it is already up: it may have been moved, and the
-        // request is only to bring it forward or change pane.
-        present(settings.window, reposition: !wasVisible)
-        settings.windowDidShow()
-        // Opens with nothing focused, for the reason the popover does: the window
-        // would otherwise hand first responder to its first control, which then
-        // wears a focus ring nobody asked for. Tab still reaches it. Deferred,
-        // since SwiftUI assigns focus after the window is shown.
-        if !wasVisible {
-            DispatchQueue.main.async { [weak self] in self?.settings.window.makeFirstResponder(nil) }
-        }
-    }
 
     /// Brings one of the app's windows forward.
     ///
@@ -894,7 +863,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// macOS 27.
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow else { return }
-        if closing === settingsController?.window { settingsController?.windowWillClose() }
         if closing === mainController?.window { mainController?.windowWillClose() }
         // Still a regular app while another window is open.
         let stillOpen = ourWindows.contains { $0 !== closing && $0.isVisible }

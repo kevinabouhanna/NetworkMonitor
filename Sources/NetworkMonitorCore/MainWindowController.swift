@@ -5,8 +5,13 @@ import SwiftUI
 /// The main window's sections (#436), in the popover's order: Usage History
 /// (Today), Connections (Companies), Ads and Trackers (Ads blocked) and
 /// Network, which holds the connection, the hotspot switch and the speed test.
+/// Then Settings, pinned to the bottom of the sidebar: what applies to the
+/// whole app, and a way to each section's own settings.
 public enum MainSection: String, CaseIterable, Identifiable {
-    case history, connections, ads, network
+    case history, connections, ads, network, settings
+
+    /// The four that show what happened, with settings of their own.
+    public static var features: [MainSection] { [.history, .connections, .ads, .network] }
 
     public var id: String { rawValue }
 
@@ -16,6 +21,7 @@ public enum MainSection: String, CaseIterable, Identifiable {
         case .connections: return L("Connections")
         case .ads:         return L("Ads and Trackers")
         case .network:     return L("Network")
+        case .settings:    return L("Settings")
         }
     }
 
@@ -25,9 +31,9 @@ public enum MainSection: String, CaseIterable, Identifiable {
         case .connections: return "globe"
         case .ads:         return "shield.lefthalf.filled"
         case .network:     return "wifi"
+        case .settings:    return "gearshape"
         }
     }
-
 }
 
 /// Which section is shown, and whether its settings are, for the sidebar.
@@ -56,6 +62,11 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
     public let ads: AdsWindowController
     private let network: NSViewController
     private let networkToolbar = NSToolbar(identifier: "Main.network")
+    private let generalToolbar = NSToolbar(identifier: "Main.general")
+    private var general: NSViewController!
+    /// Where a section's settings go back to: the section, or Settings when
+    /// they were opened from its rows.
+    private var backTarget: MainSection?
     private let settingsToolbar = NSToolbar(identifier: "Main.settings")
     private let container = MainContainerController()
     private let split = NSSplitViewController()
@@ -100,7 +111,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                 view = AnyView(AdsSettingsPane(ads: adsModel, connections: connectionsModel, filter: model.filter,
                                                firewall: model.firewall, blocklists: model.blocklists,
                                                listBlocks: model.listBlocks, onOpenAds: { back() }))
-            case .network:
+            case .network, .settings:
                 view = AnyView(VStack(spacing: 0) {
                     HotspotSettingsPane(metering: model.metering, state: state, filter: model.filter)
                     SpeedTestStylePane(speedTest: model.speedTest)
@@ -112,6 +123,13 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         }
         super.init()
         back = { [weak self] in self?.closeSettings() }
+        // Settings: General, then a row to each section's settings.
+        let generalHost = NSHostingController(rootView: MainSettingsPage(
+            content: AnyView(GeneralSettingsPane(model: model, state: state, onOpenSection: { [weak self] section in
+                self?.showSettings(for: section, from: .settings)
+            })), width: SettingsMetrics.paneWidth).localizedRoot())
+        generalHost.sizingOptions = []
+        general = generalHost
 
         let sidebar = NSHostingController(rootView: MainSidebar(navigation: navigation,
                                                                 onSelect: { [weak self] in self?.show($0) })
@@ -128,7 +146,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         window.toolbarStyle = .unified
         window.setFrameAutosaveName("Main")
 
-        for toolbar in [networkToolbar, settingsToolbar] {
+        for toolbar in [networkToolbar, settingsToolbar, generalToolbar] {
             toolbar.delegate = self
             toolbar.displayMode = .iconOnly
             toolbar.allowsUserCustomization = false
@@ -151,6 +169,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
     /// Brings a section forward, out of its settings if they were showing.
     public func show(_ section: MainSection) {
         navigation.showsSettings = false
+        backTarget = nil
         place(section)
         if window.isVisible { open(section) }
     }
@@ -167,6 +186,8 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
     /// The section's settings, in place of its content, with a back button.
     public func showSettings() {
         let section = navigation.section
+        guard section != .settings else { return }
+        if backTarget == nil { backTarget = section }
         if settingsPages[section] == nil { settingsPages[section] = makeSettingsPage(section) }
         guard let page = settingsPages[section] else { return }
         navigation.showsSettings = true
@@ -187,16 +208,23 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
     /// The sidebar and Network's view, for the same tests.
     public var sidebarController: NSViewController { split.splitViewItems[0].viewController }
     public var networkController: NSViewController { network }
+    public var generalController: NSViewController { general }
 
-    /// Back from the settings to the section.
+    /// Back from the settings to where they were opened from: the section,
+    /// or Settings.
     public func closeSettings() {
+        let target = backTarget ?? navigation.section
+        backTarget = nil
         navigation.showsSettings = false
-        place(navigation.section)
+        place(target)
+        if window.isVisible { open(target) }
     }
 
-    /// Opens straight on a section's settings: from Settings… in a menu, say.
-    public func showSettings(for section: MainSection) {
+    /// Opens straight on a section's settings, going back to `origin`: the
+    /// section itself, or Settings when they were opened from its rows.
+    public func showSettings(for section: MainSection, from origin: MainSection? = nil) {
         show(section)
+        backTarget = origin ?? section
         showSettings()
     }
 
@@ -215,6 +243,9 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         case .network:
             container.show(network)
             window.toolbar = networkToolbar
+        case .settings:
+            container.show(general)
+            window.toolbar = generalToolbar
         }
         window.contentMinSize = NSSize(width: MainMetrics.minWidth(section), height: MainMetrics.minHeight)
         if window.frame.width < window.frameRect(forContentRect: NSRect(x: 0, y: 0, width: MainMetrics.minWidth(section),
@@ -237,7 +268,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         case .history:     history.windowDidShow()
         case .connections: connections.windowDidShow()
         case .ads:         ads.windowDidShow()
-        case .network:     break
+        case .network, .settings: break
         }
     }
 
@@ -246,7 +277,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         case .history:     history.windowWillClose()
         case .connections: connections.windowWillClose()
         case .ads:         ads.windowWillClose()
-        case .network, .none: break
+        case .network, .settings, .none: break
         }
     }
 
@@ -255,16 +286,17 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         case .history:     historyModel.refreshToday()
         case .ads:         adsModel.reloadToday(); glance.refresh()
         case .connections: glance.refresh()
-        case .network:     break
+        case .network, .settings: break
         }
     }
 
     private func nameWindow() {
         let section = navigation.section
         window.title = navigation.showsSettings ? L("%@ Settings", section.title) : section.title
+        let target = (backTarget ?? section).title
         for item in settingsToolbar.items where item.itemIdentifier == Self.backItem {
-            item.label = section.title
-            item.toolTip = L("Back to %@", section.title)
+            item.label = target
+            item.toolTip = L("Back to %@", target)
         }
     }
 
@@ -275,6 +307,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         if toolbar === settingsToolbar { return Self.sidebarItems + [Self.backItem, .flexibleSpace] }
+        if toolbar === generalToolbar { return Self.sidebarItems + [.flexibleSpace] }
         return Self.sidebarItems + [.flexibleSpace, SettingsGear.identifier]
     }
 
@@ -328,19 +361,37 @@ final class MainContainerController: NSViewController {
     }
 }
 
-/// The sidebar: the four sections, as the popover's four buttons.
+/// The sidebar: the four sections, as the popover's four buttons, and
+/// Settings pinned to the bottom (#436).
 struct MainSidebar: View {
     @ObservedObject var navigation: MainNavigation
     let onSelect: (MainSection) -> Void
 
     var body: some View {
-        List(selection: Binding<MainSection?>(get: { navigation.section },
-                                              set: { if let section = $0 { onSelect(section) } })) {
-            ForEach(MainSection.allCases) { section in
-                Label(section.title, systemImage: section.symbol).tag(section)
+        VStack(spacing: 0) {
+            List(selection: Binding<MainSection?>(get: { navigation.section == .settings ? nil : navigation.section },
+                                                  set: { if let section = $0 { onSelect(section) } })) {
+                ForEach(MainSection.features) { section in
+                    Label(section.title, systemImage: section.symbol).tag(section)
+                }
             }
+            .listStyle(.sidebar)
+            Divider()
+            Button { onSelect(.settings) } label: {
+                Label(MainSection.settings.title, systemImage: MainSection.settings.symbol)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(RoundedRectangle(cornerRadius: 6)
+                        .fill(navigation.section == .settings ? Color.primary.opacity(0.1) : Color.clear))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .help(L("Settings (⌘,)"))
+            .accessibilityAddTraits(navigation.section == .settings ? [.isSelected] : [])
         }
-        .listStyle(.sidebar)
     }
 }
 
@@ -372,6 +423,7 @@ enum MainMetrics {
         case .ads:         return sidebarWidth + AdsMetrics.minWidth
         case .history:     return sidebarWidth + HistoryMetrics.windowMinWidth
         case .network:     return sidebarWidth + 560
+        case .settings:    return sidebarWidth + SettingsMetrics.paneWidth
         }
     }
 }

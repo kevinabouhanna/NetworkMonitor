@@ -75,15 +75,6 @@ func runAccessibilityTests() {
         for code in Localization.shared.available {
             Localization.shared.showForThisRun(code)
             let language = code == Localization.source ? "" : " (\(code))"
-            let settings = SettingsWindowController(model: model, defaults: defaults)
-            for pane in SettingsPane.allCases {
-                settings.select(pane)
-                check(settings.window, "Settings › \(pane.title)\(language)")
-            }
-
-            // The popover styles are pictures to click (#398). Each reads as a
-            // button named after its style; the sample card inside is left out.
-            // The style names it looks for are English.
             // They're in Network's settings now, in the main window (#436).
             if code == Localization.source { Check.test("Network's settings read each speed test style's picture as one button") {
                 let main = MainWindowController(model: model, history: HistoryViewModel(monitor: model),
@@ -133,7 +124,8 @@ func runAccessibilityTests() {
             }
             check(part(main.sidebarController, "Main window sidebar", width: 220), "The main window's sidebar\(language)")
             check(part(main.networkController, "Main window Network"), "The main window › Network\(language)")
-            for section in MainSection.allCases {
+            check(part(main.generalController, "Main window Settings"), "The main window › Settings\(language)")
+            for section in MainSection.features {
                 check(part(main.settingsPage(for: section), "Main window \(section.rawValue) settings"),
                       "The main window › \(section.rawValue) › settings\(language)")
             }

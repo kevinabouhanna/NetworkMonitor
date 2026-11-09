@@ -3,7 +3,7 @@ import SwiftUI
 
 // Settings' panes, each a grouped form in the shape of System Settings: labels on
 // the left, controls on the right, sections with a line of explanation beneath.
-// `SettingsWindowController` puts them behind a toolbar; History is `HistoryView`.
+// The main window shows them: General under Settings, the rest behind each section's gear (#436).
 //
 // Quit is deliberately not here. It is a menu bar app, and the menu bar is where
 // a Mac user looks to quit one — it stays on the status item's right-click menu.
@@ -42,22 +42,6 @@ struct GeneralSettingsPane: View {
 
     var body: some View {
         Form {
-            // Where everything else is (#436): each feature's settings live in
-            // the main window, behind its section's gear, and only there.
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L("Each section's settings are in the main window, behind its gear."))
-                        .fixedSize(horizontal: false, vertical: true)
-                    HStack(spacing: 8) {
-                        ForEach(MainSection.allCases) { section in
-                            Button(section.title) { onOpenSection(section) }
-                                .help(L("Open the settings for %@", section.title))
-                        }
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-
             // The app's language (#433): the Mac's unless one is chosen here.
             Section {
                 LanguageRow()
@@ -179,6 +163,28 @@ struct GeneralSettingsPane: View {
                 } footer: {
                     SettingsFootnote(L("Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor."))
                 }
+            }
+
+            // Each section's own settings (#436): the same pages its gear
+            // shows, one home each, reached from here too.
+            Section {
+                ForEach(MainSection.features) { section in
+                    Button { onOpenSection(section) } label: {
+                        HStack {
+                            Label(section.title, systemImage: section.symbol)
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(L("Open the settings for %@", section.title))
+                }
+            } header: {
+                Text(L("Sections"))
+            } footer: {
+                SettingsFootnote(L("Also behind the gear in each section."))
             }
         }
         .settingsForm()

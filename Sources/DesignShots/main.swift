@@ -359,16 +359,6 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     world.model.popoverSection = .today
     popover.orderOut(nil)
 
-    // The Settings window: General alone (#436).
-    let settings = SettingsWindowController(model: world.model, defaults: .standard)
-    for (pane, name) in [(SettingsPane.general, "settings-general")] where wanted(prefix + name) {
-        settings.select(pane)
-        show(settings.window, appearance: appearance)
-        settings.windowDidShow()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.8))
-        save(settings.window, prefix + name, appearance: appearance)
-    }
-    settings.window.orderOut(nil)
 
     // The main window (#436): each section, and each section's settings in place.
     let main = MainWindowController(model: world.model, history: world.historyModel,
@@ -395,7 +385,9 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     main.ads.select(.overview)
     main.show(.network)
     shoot("network")
-    for section in MainSection.allCases {
+    main.show(.settings)
+    shoot("settings-general")
+    for section in MainSection.features {
         main.show(section)
         main.showSettings()
         world.ads.setupTab = .lists
