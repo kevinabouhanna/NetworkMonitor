@@ -80,6 +80,12 @@ problems; Kevin answers what it can't judge (#346).
   blocking*, not *HTTPS filtering*.
 - How it works goes behind an ⓘ beside it, shown on hover: briefly what it does and
   how, with the technical terms there for whoever wants them (as in Settings, #185, #189).
+- **Every language, in the same pull request** (#428). The app's text is in
+  `L("…")`, with a translation in each `Resources/Localization/<code>.lproj` table,
+  and `make test` fails until a new or changed piece has one. The README, the user
+  docs (`docs/zh-Hans/`) and the website (`zh/index.html`) have a Chinese copy: a
+  change to the English changes the copy too, using the app's own words
+  (`docs/development.md#languages`).
 
 ## Layout
 

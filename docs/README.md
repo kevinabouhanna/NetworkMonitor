@@ -1,5 +1,7 @@
 # NetworkMonitor documentation
 
+English · [简体中文](zh-Hans/README.md)
+
 The [README](../README.md) is the short version. These pages are the long one: how every
 feature works, and why it was built that way.
 

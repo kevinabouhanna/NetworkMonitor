@@ -443,6 +443,17 @@ Language & Region › Applications writes, so the two are one setting.
   `L()` (a line that only looks that way ends `// untranslated: why`); every table
   has every key, with the same placeholders, and none the app no longer uses; and
   every window passes the accessibility checks in every language.
+- **The docs too** (#430). The README and the pages for people using the app have a
+  copy per language: `README.zh-Hans.md` and `docs/zh-Hans/`, with its own index,
+  each linked to and from its English page under the title. The pages for working
+  on the app (architecture, building, decisions, roadmap) are English only. The
+  wiki publishes each copy as the English page's name with the code after it
+  (`Features-zh-Hans`, `Home-zh-Hans`) and lists them in a section of the sidebar.
+  A change to an English page changes its copies in the same pull request, using
+  the app's own words for anything in the app (its table, above). The website has
+  a page per language too: `zh/index.html` on `gh-pages`. In Chinese pages, bold is
+  `<strong>…</strong>`, and a paragraph is one line: GitHub's Markdown leaves `**`
+  showing next to Chinese punctuation, and turns a line break into a space.
 
 ## Launch arguments
 

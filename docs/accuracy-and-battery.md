@@ -1,5 +1,7 @@
 # Accuracy and battery
 
+English · [简体中文](zh-Hans/accuracy-and-battery.md)
+
 ## The total is the one to trust
 
 **Your speed and connection total come straight from the kernel's own byte counters,**
