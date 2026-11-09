@@ -11,10 +11,13 @@
   fonts have loaded, and screenshotting the page; it uses the system font, so render on a Mac.
   Each language the site has a page in gets its own card (#431): add &lang=zh-Hans for the
   Chinese page's, which goes in assets/zh-Hans/social-card.png. Its words are below, and its
-  picture is capture-zh-Hans.png: capture.png's menu bar with the popover in that language
-  laid over the English one.
-  capture.png is a real capture of the menu bar and popover (2x); icon.png is
-  Resources/AppIcon.icns at 1024 px. Retake capture.png whenever the popover changes.
+  picture is capture-zh-Hans.png, the same capture with the app launched in that language.
+  capture.png is a real capture of the Retina display's menu bar and popover (2x, 530×500 pt,
+  on black, with the readout 300 pt from its left edge; the popover opened with
+  `-open popover -popoverScreen retina -popoverPeriod today`); icon.png is
+  Resources/AppIcon.icns at 1024 px. Retake both whenever the popover changes, set the
+  cards' `made` in the site's shots/shots.json, and render
+  headless: Chrome --headless=new --force-device-scale-factor=1 --window-size=W,H --screenshot.
 -->
 <style>
   /* The site's identity (kevinabouhanna.github.io/NetworkMonitor): black, one green,
