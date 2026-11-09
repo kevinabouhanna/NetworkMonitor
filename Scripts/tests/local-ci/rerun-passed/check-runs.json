@@ -1,0 +1,47 @@
+{
+  "total_count": 3,
+  "check_runs": [
+    {
+      "id": 111,
+      "name": "build-and-test",
+      "head_sha": "1234567890abcdef1234567890abcdef12345678",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-09T09:00:00Z",
+      "completed_at": "2026-11-09T09:00:00Z",
+      "html_url": "https://github.com/kevinabouhanna/NetworkMonitor/actions/runs/1/job/111",
+      "app": {
+        "slug": "github-actions",
+        "name": "GitHub Actions"
+      }
+    },
+    {
+      "id": 112,
+      "name": "universal",
+      "head_sha": "1234567890abcdef1234567890abcdef12345678",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-09T10:00:00Z",
+      "completed_at": "2026-11-09T10:00:00Z",
+      "html_url": "https://github.com/kevinabouhanna/NetworkMonitor/actions/runs/1/job/112",
+      "app": {
+        "slug": "github-actions",
+        "name": "GitHub Actions"
+      }
+    },
+    {
+      "id": 113,
+      "name": "build-and-test",
+      "head_sha": "1234567890abcdef1234567890abcdef12345678",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-09T09:30:00Z",
+      "completed_at": "2026-11-09T09:30:00Z",
+      "html_url": "https://github.com/kevinabouhanna/NetworkMonitor/actions/runs/1/job/113",
+      "app": {
+        "slug": "github-actions",
+        "name": "GitHub Actions"
+      }
+    }
+  ]
+}
