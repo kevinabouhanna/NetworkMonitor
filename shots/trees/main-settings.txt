@@ -1,5 +1,13 @@
-AXWindow (AXStandardWindow) title="General" 720
-  AXGroup
+AXWindow (AXStandardWindow) title="Settings" 1300
+  AXSplitGroup 1300
+    AXGroup (AXHostingView) h800
+      AXScrollArea h700
+        AXButton description="Usage History" 172x32
+        AXButton description="Connections" 172x32
+        AXButton description="Ads and Trackers" 172x32
+        AXButton description="Network" 172x32
+      AXButton description="Settings" help="Settings (⌘,)" 172x32
+    AXSplitter value="#" h748
     AXGroup (AXHostingView)
       AXScrollArea
         AXScrollArea
@@ -15,7 +23,7 @@ AXWindow (AXStandardWindow) title="General" 720
               AXRadioButton (AXSegment) description="Mbps" 60x24
               AXRadioButton (AXSegment) description="MB/s" 60x24
           AXGroup h72
-            AXImage description="Wi-Fi" identifier="wifi" 20x12
+            AXImage description="Wi-Fi" identifier="wifi" 20x16
             AXStaticText value="Know your Wi-Fi networks by name" h16
             AXStaticText value="Usage History calls them Home and Office, not “Wi-Fi · #f#a”. macOS calls this Location, but NetworkMonitor never looks up where you are." h32
             AXButton description="Turn On…" 84x24
@@ -28,7 +36,7 @@ AXWindow (AXStandardWindow) title="General" 720
             AXStaticText value="During a speed test" h16
             AXStaticText value="↓" help="A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates." h16
             AXStaticText value="↑" help="A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates." h16
-            AXButton description="Use Default Colors" 136x24
+            AXButton description="Use Default Colors" 140x24
           AXHeading description="Popover totals" 92x16
           AXGroup
             AXStaticText value="Counting since" h16
@@ -37,17 +45,27 @@ AXWindow (AXStandardWindow) title="General" 720
             data: AXStaticText
             AXStaticText value="Start the totals over" h16
             AXButton description="Reset Now" 88x24
-  AXToolbar 720x56
-    AXButton title="General" description="General" 56x56
-    AXButton title="Speed Test" description="Speed Test" 72x56
-    AXButton title="History" description="History" 56x56
-    AXButton title="Connections" description="Connections" 80x56
-    AXButton title="Ads" description="Ads" 56x56
-    AXButton title="Hotspot" description="Hotspot" 56x56
-    AXButton title="About" description="About" 56x56
+          AXGroup h76
+            AXStaticText value="Check for updates automatically" h16
+            AXCheckBox (AXSwitch) 36x16
+            AXStaticText value="Updates" h16
+            AXButton description="Check Now" 92x24
+          AXStaticText value="Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor." h28
+          AXHeading description="Sections" 56x16
+          AXGroup h148
+            AXButton description="Usage History" help="Open the settings for Usage History" 660x16
+            AXButton description="Connections" help="Open the settings for Connections" 660x16
+            AXButton description="Ads and Trackers" help="Open the settings for Ads and Trackers" 660x16
+            AXButton description="Network" help="Open the settings for Network" 660x16
+          AXStaticText value="Also behind the gear in each section." h16
+          AXGroup h40
+            AXStaticText value="Remove NetworkMonitor and everything it set up" h16
+            AXButton description="Uninstall NetworkMonitor…" 188x24
+  AXToolbar 1300x52
+    AXButton description="Sidebar" help="Hide Sidebar" 44x52
   AXButton (AXCloseButton) 16x16
-  AXButton (AXZoomButton) 16x16
+  AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16
     AXGroup h16
       AXGroup h16
   AXButton (AXMinimizeButton) 16x16
-  AXStaticText value="General" h16
+  AXStaticText value="Settings" h52

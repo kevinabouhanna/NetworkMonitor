@@ -1,0 +1,54 @@
+AXWindow (AXStandardWindow) title="Network" 1300
+  AXSplitGroup 1300
+    AXGroup (AXHostingView) h800
+      AXScrollArea h700
+        AXButton description="Usage History" 172x32
+        AXButton description="Connections" 172x32
+        AXButton description="Ads and Trackers" 172x32
+        AXButton description="Network" 172x32
+      AXButton description="Settings" help="Settings (⌘,)" 172x32
+    AXSplitter value="#" h748
+    AXGroup (AXHostingView)
+      AXScrollArea
+        data: AXStaticText
+        AXScrollArea
+          AXHeading description="This network" 84x16
+          AXGroup
+            AXStaticText value="This is a hotspot" h16
+            AXCheckBox (AXToggle) description="This is a hotspot" help="Pauses app updates and iCloud downloads while you're on this network. NetworkMonitor recognises an iPhone's hotspot by itself, but some phones look like ordinary Wi-Fi, or like Ethernet over USB: switch this on for those. It's remembered for this network." 36x16
+            AXStaticText value="Right now" h16
+            data: AXStaticText
+          AXStaticText value="App updates pause on any network marked as a hotspot." h16
+        AXScrollArea
+          AXHeading description="Hotspots" 60x16
+          AXGroup h36
+            AXStaticText value="Stop apps updating on hotspots" h16
+            AXCheckBox (AXSwitch) 36x16
+          AXStaticText value="Also puts the hotspot in Low Data Mode, so iCloud and other background downloads wait until you're off it." h16
+          AXGroup
+            data: AXCheckBox(AXSwitch) AXDisclosureTriangle AXStaticText
+          AXStaticText value="Found by looking inside the apps on this Mac. They're paused only while you're on a hotspot, and put back when you leave." h16
+          AXGroup h44
+            AXDisclosureTriangle description="Can't be paused (#)" h16
+          AXStaticText value="Quit these while you're on a hotspot to be sure they don't update. Low Data Mode slows the ones that respect it." h16
+          AXGroup h36
+            AXStaticText value="Every app's updater" h16
+            AXStaticText value="Stopped on hotspots" h16
+          AXStaticText value="Any app's updater is stopped while you're on a hotspot, including ones listed as can't be paused when they update with a program of their own. Choose Blocked in Connections to see them." h28
+        AXScrollArea h164
+          AXHeading description="Speed test" 68x16
+          AXGroup h60
+            AXImage description="Gauge With Dots And Needle At # Percent" identifier="gauge.with.dots.needle.#percent" h28
+            AXStaticText value="Test your internet speed" h16
+            AXStaticText value="Download, upload, ping and jitter, measured now." h16
+            AXButton description="Test Now" 80x24
+          AXStaticText value="Runs macOS's built-in networkQuality, only when you start it: download first, then upload. Every run measures afresh, so it uses data each time — typically #–# ‹unit›, more on a very fast line. Speeds use the unit chosen in General." h28
+  AXToolbar 1300x52
+    AXButton description="Sidebar" help="Hide Sidebar" 44x52
+    AXButton description="Settings" help="Settings for the speed test" 40x52
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText value="Network" h52

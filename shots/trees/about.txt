@@ -1,0 +1,17 @@
+AXWindow (AXDialog) identifier="_NS:#" 284x328
+  AXImage description="NetworkMonitor icon" identifier="_NS:#" 68x68
+  AXStaticText value="NetworkMonitor" identifier="_NS:#" h20
+  AXStaticText value="Version # (#)" identifier="_NS:#" h16
+  AXScrollArea identifier="_NS:#" h132
+    AXTextArea identifier="_NS:#" 268x132
+      AXLink (AXTextLink) title="Website " 152x12
+      AXLink (AXTextLink) title="What's new " 160x12
+      AXLink (AXTextLink) title="Source code " 160x12
+  AXScrollArea identifier="_NS:#" h12
+    AXStaticText value="© # Kevin Abouhanna" identifier="_NS:#" h16
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXZoomButton) 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText h16

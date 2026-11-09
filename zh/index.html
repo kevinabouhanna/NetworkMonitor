@@ -348,31 +348,42 @@ p code, li code { background: #1d1d1f; border: 1px solid var(--hair); border-rad
 .fine b { color: var(--text-2); font-weight: 600; display: block; margin-bottom: 4px; }
 @media (max-width: 834px) { .hotspot-grid, .fine, .facts.two { grid-template-columns: minmax(0, 1fr); } }
 
-/* Settings: the app's own window, pane by pane. Every pane is a capture of the
-   app. The toolbar, the Hotspot lists and About's links are buttons and links
-   laid over it, placed in the window's points; --s turns points into pixels. */
-.prefs-stage { position: relative; margin: 72px auto 0; width: min(720px, 100%); }
+/* The main window, section by section. Every view is a capture of the app.
+   The sidebar, each section's gear, the back button and Network's lists are
+   buttons laid over it, placed in the window's points; --s turns points into
+   pixels. About's links are laid over its picture the same way, by hand. */
+.prefs-stage { position: relative; margin: 72px auto 0; width: 100%; }
 .prefs-stage::before {
   content: ""; position: absolute; left: 50%; top: 2%; width: min(150%, 100vw); height: 75%; transform: translateX(-50%); pointer-events: none;
   background: radial-gradient(closest-side, rgba(81, 255, 112, .10), rgba(81, 255, 112, .03) 55%, transparent 75%);
 }
 .prefs-window { position: relative; margin-inline: auto; --s: 1; filter: drop-shadow(0 28px 48px rgba(0, 0, 0, .55)); }
-.prefs-shot { width: min(720px, 100%); margin-inline: auto; }
-.prefs-shot:not([data-shot="general"]), .prefs-tab, .prefs-row, .prefs-link { display: none; }
+.prefs-shot { width: 100%; margin-inline: auto; }
+.prefs-shot:not([data-shot="history"]), .prefs-tab, .prefs-gear, .prefs-back, .prefs-row { display: none; }
 .js .prefs-window { overflow: hidden; border-radius: calc(18px * var(--s)); transition: width .45s var(--ease), height .45s var(--ease); }
 .js .prefs-window.resizing { background: #1e1e1e; }
 .js .prefs-shot { display: block; position: absolute; top: 0; left: 50%; transform: translateX(-50%); max-width: none; opacity: 0; transition: opacity .3s ease; pointer-events: none; }
 .js .prefs-shot.on { opacity: 1; }
-.js .prefs-tab, .js .prefs-row, .js .prefs-link {
+.js .prefs-tab, .js .prefs-gear, .js .prefs-back, .js .prefs-row {
   display: block; position: absolute; z-index: 1; margin: 0; padding: 0; border: 0; background: transparent; cursor: pointer;
   left: calc(50% + var(--x) * var(--s) * 1px); top: calc(var(--y) * var(--s) * 1px);
   width: calc(var(--w) * var(--s) * 1px); height: calc(var(--h) * var(--s) * 1px);
   border-radius: calc(10px * var(--s)); color: transparent; font-size: 0;
 }
-.js .prefs-row[hidden], .js .prefs-link[hidden] { display: none; }
-.prefs-tab:not([aria-selected="true"]):hover, .prefs-link:hover { background: rgba(255, 255, 255, .07); }
-.prefs-tab:focus-visible, .prefs-row:focus-visible, .prefs-link:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.js .prefs-gear[hidden], .js .prefs-back[hidden], .js .prefs-row[hidden] { display: none; }
+.prefs-tab:not([aria-selected="true"]):hover, .prefs-gear:hover, .prefs-back:hover { background: rgba(255, 255, 255, .07); }
+.prefs-tab:focus-visible, .prefs-gear:focus-visible, .prefs-back:focus-visible, .prefs-row:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
 .prefs-caption { min-height: 2.9em; margin-top: 28px; }
+.about-shot { margin: clamp(72px, 10vw, 112px) auto 0; }
+.about-window { position: relative; width: min(284px, 100%); margin-inline: auto; filter: drop-shadow(0 22px 40px rgba(0, 0, 0, .55)); }
+.about-window img { width: 100%; height: auto; }
+.about-link {
+  position: absolute; left: calc(50% + var(--x) * 1px); top: calc(var(--y) * 1px);
+  width: calc(var(--w) * 1px); height: calc(var(--h) * 1px);
+  border-radius: 6px; color: transparent; font-size: 0;
+}
+.about-link:hover { background: rgba(255, 255, 255, .07); text-decoration: none; }
+.about-link:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
 @media (prefers-reduced-motion: reduce) { .js .prefs-window, .js .prefs-shot { transition: none; } }
 
 /* Numbers */
@@ -456,7 +467,7 @@ footer a { color: var(--text-2); }
           <a href="#connections">连接</a>
           <a href="#shield">广告拦截</a>
           <a href="#speed-test">网速测试</a>
-          <a href="#settings">设置</a>
+          <a href="#settings">主窗口</a>
         </div>
       </div>
       <a href="#privacy">隐私</a>
@@ -479,7 +490,7 @@ footer a { color: var(--text-2); }
         <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>下载 Mac 版</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">在 GitHub 上查看</a>
       </div>
-      <p class="hero-meta reveal d3"><span>版本 1.27.0</span><span>macOS 13 或更高版本</span><span>Apple 芯片和 Intel</span><span>免费且开源</span></p>
+      <p class="hero-meta reveal d3"><span>版本 1.28.1</span><span>macOS 13 或更高版本</span><span>Apple 芯片和 Intel</span><span>免费且开源</span></p>
       <div class="featured reveal d3">
         <a href="https://www.trymacapps.com" target="_blank" rel="noopener">
           <img
@@ -564,7 +575,7 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <p class="eyebrow reveal">解决方案</p>
       <h2 class="h2 reveal d1">隆重介绍 NetworkMonitor。</h2>
-      <p class="lead reveal d2">一款小巧的菜单栏应用：实时显示网速，准确告诉你哪些应用在当前网络下消耗了多少流量、它们在和谁通信；只要你愿意，还能<strong>在你使用热点时阻止它们更新</strong>。没有程序坞图标，没有要管理的窗口，也不需要账户。</p>
+      <p class="lead reveal d2">一款小巧的菜单栏应用：实时显示网速，准确告诉你哪些应用在当前网络下消耗了多少流量、它们在和谁通信；只要你愿意，还能<strong>在你使用热点时阻止它们更新</strong>。它常驻菜单栏，想看细节时再打开一个窗口，也不需要账户。</p>
       <div class="pillars">
         <div class="pillar reveal">
           <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M14 6v22" stroke="#51ff70" stroke-width="5"/><path d="M5 25l9 13 9-13z" fill="#51ff70"/><path d="M30 38V16" stroke="#e5e5e5" stroke-width="5"/><path d="M21 19l9-13 9 13z" fill="#e5e5e5"/></svg>
@@ -603,29 +614,29 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <p class="eyebrow reveal">点按一下</p>
       <h2 class="h2 reveal d1">实时变化。<br>不是快照。</h2>
-      <p class="lead reveal d2" style="max-width:660px;margin-inline:auto">点按读数，即可查看当前连接的总用量和背后的应用。<strong>数字会在你眼前跳动。</strong></p>
+      <p class="lead reveal d2" style="max-width:660px;margin-inline:auto">点按读数，即可查看你的应用今天、本周或本月用了多少流量、在和谁通信，以及拦截了什么。<strong>数字会在你眼前跳动。</strong></p>
       <div class="video-frame reveal">
         <span class="rec"><i></i>屏幕录制 · 10 秒</span>
-        <video id="live" src="../assets/live.mp4?v=c178b805" poster="../assets/live-poster.jpg?v=c66933c4" width="1040" height="990" data-autoplay
+        <video id="live" src="../assets/zh-Hans/live.mp4?v=0d91b887" poster="../assets/zh-Hans/live-poster.jpg?v=527811e0" width="1040" height="990" data-autoplay
                muted loop playsinline preload="metadata"
-               aria-label="NetworkMonitor 弹出窗口在下载期间的 10 秒屏幕录制。菜单栏显示下载速度约为 1.1 MB/s。弹出窗口显示当天的总用量、正在使用的连接和今天的拦截数，下面是按用量从多到少排列的应用，随着下载进行，Warp 的数字不断上涨。"></video>
+               aria-label="NetworkMonitor 弹出窗口在下载期间的 10 秒屏幕录制。点按菜单栏读数后，弹出窗口在“今天”上打开，顶部有“今天”、“周”和“月”，下面是四个数字：蓝色的“数据”、青绿色的“连接”、红色的“已拦截”，以及“网络”。“数据”按用量从多到少列出应用，每个都有用量条。统计周期依次切换到“周”和“月”，再回到“今天”，数字也随之变化。接着，“连接”列出公司，“已拦截”列出被拦截的网站，“网络”显示当前连接、“这是热点”开关和网速测试。"></video>
       </div>
-      <p class="caption reveal">10 秒的应用画面，直接从屏幕录制。随着下载进行，Warp 的数字不断上涨。</p>
+      <p class="caption reveal">10 秒的应用画面，直接从屏幕录制：今天、本周和本月的用量，然后是你的应用在和谁通信、拦截了什么，以及你所在的网络。</p>
 
       <div class="bento" style="text-align:left">
         <div class="tile shot span-3 reveal">
           <p class="kicker">子进程</p>
           <h3 class="h4">用量记在该记的应用上。</h3>
           <p class="copy">辅助进程会归入它们所属的应用，因此 Chrome 的十几个辅助进程只算作一行 <strong>Google Chrome</strong>。从终端启动的命令会在它下方单独列出，各有各的数字。</p>
-          <img src="../assets/zh-Hans/popover-subprocesses.png?v=56f58998" width="692" height="966" loading="lazy"
-               alt="弹出窗口：总计和今天的用量、正在使用的连接（这里是以太网）、今天的拦截次数，右上角有四个按钮：网速测试、连接、流量历史和设置。下方按用量从多到少列出应用，每个都有图标、用量条和用量；第一个带子进程的应用已展开，每个子进程都列在它下方，各有用量条和数字。">
+          <img src="../assets/zh-Hans/popover-subprocesses.png?v=b86a814b" width="692" height="982" loading="lazy"
+               alt="弹出窗口显示“今天”，旁边是“周”和“月”，右上角有一个四个方块的按钮和一个齿轮图标。四个数字：已选中的蓝色“数据”、青绿色的“连接”、红色的“已拦截”，以及显示当前连接的“网络”。“数据”下方有“应用”和“网络”以及应用数量，然后按用量从多到少列出应用，每个都有图标、用量条和用量。第一个带子进程的应用已展开，它启动的命令列在它下方，各有用量条和数字。底部是“打开流量历史”，快捷键 ⌘Y。">
         </div>
         <div class="tile shot span-3 reveal d1">
           <p class="kicker">系统</p>
           <h3 class="h4">macOS 的杂音，统统收起。</h3>
           <p class="copy">几十个系统守护进程合并成列表底部的一行 <strong>系统</strong>。好奇时打开看看，不在意时就别管它。</p>
-          <img src="../assets/zh-Hans/popover-system.png?v=ecbdc769" width="692" height="966" loading="lazy"
-               alt="弹出窗口列表的底部：用量最小的几个应用，各有图标、用量条和用量；最后是“系统”，汇总了 macOS 自己的进程，显示进程数和它们的总用量。">
+          <img src="../assets/zh-Hans/popover-system.png?v=48d3f048" width="692" height="982" loading="lazy"
+               alt="弹出窗口中“今天”的应用列表底部：用量最小的几个应用，各有图标、用量条和用量；最后是“系统”，汇总了 macOS 自己的进程，显示进程数和它们的总用量。">
         </div>
         <div class="tile span-2 reveal">
           <p class="kicker">实时排序</p>
@@ -633,9 +644,9 @@ footer a { color: var(--text-2); }
           <p class="copy">每个应用都有一条用量条，表示它在总量中的占比；应用之间你追我赶时，列表会重新排序。</p>
         </div>
         <div class="tile span-2 reveal d1">
-          <p class="kicker">按连接统计</p>
-          <h3 class="h4">每个网络，一个总数。</h3>
-          <p class="copy">加入另一个 Wi‑Fi 或热点，计数会从零开始。断开后重新加入同一个网络，会从上次的位置接着算。每天午夜也会重新开始，重启后数据依然保留。</p>
+          <p class="kicker">今天 · 周 · 月</p>
+          <h3 class="h4">今天，或者整个月。</h3>
+          <p class="copy">弹出窗口顶部的“今天”、“周”和“月”决定下面每个数字的统计周期，涵盖所有网络。“网络”页面则单独统计你正在使用的连接，每换一个连接都从零开始。</p>
         </div>
         <div class="tile span-2 reveal d2">
           <p class="kicker">只算互联网</p>
@@ -658,7 +669,7 @@ footer a { color: var(--text-2); }
       <div class="facts two">
         <div class="reveal">
           <h3>一加入热点就能认出来。</h3>
-          <p>iPhone 个人热点和 Android 共享网络，无论通过 Wi‑Fi 还是 USB，无论来自你的手机还是别人的手机。你设为低数据模式的任何网络也算在内。“设置”始终会告诉你它对当前连接的判断，判断错了时，你可以亲自更正。</p>
+          <p>iPhone 个人热点和 Android 共享网络，无论通过 Wi‑Fi 还是 USB，无论来自你的手机还是别人的手机。你设为低数据模式的任何网络也算在内。“网络”页面始终会告诉你它对当前连接的判断；判断错了时，在那里或弹出窗口中打开<b>这是热点</b>即可更正。</p>
         </div>
         <div class="reveal">
           <h3>无需特殊权限即可覆盖。</h3>
@@ -675,16 +686,16 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>连它从没见过的应用也能管住。</h3>
-          <p>应用是根据它们的更新方式找到的，而不是靠一份名单，所以一个它从没见过的 Electron 应用也会被阻止，即使它正开着。同一个开关还会让热点进入低数据模式，这样 iCloud、照片以及所有遵循低数据模式的应用和服务都会减少后台数据传输，无论你装了什么。“设置”会列出每个它无法暂停的应用及原因；如果有更新还是在热点上溜了过去，弹出窗口会告诉你是哪个应用、用了多少。已暂停的应用如果更新了，也会标明这一点；每次溜过去的更新都会保留在“流量历史”中，并记在发生时的那次连接下。打开网站名称后，任何应用的更新程序也会在网络层面被阻止，无论它属于哪个应用。</p>
+          <p>应用是根据它们的更新方式找到的，而不是靠一份名单，所以一个它从没见过的 Electron 应用也会被阻止，即使它正开着。同一个开关还会让热点进入低数据模式，这样 iCloud、照片以及所有遵循低数据模式的应用和服务都会减少后台数据传输，无论你装了什么。“网络”页面会列出每个它无法暂停的应用及原因；如果有更新还是在热点上溜了过去，弹出窗口会告诉你是哪个应用、用了多少。已暂停的应用如果更新了，也会标明这一点；每次溜过去的更新都会保留在“流量历史”中，并记在发生时的那次连接下。打开网站名称后，任何应用的更新程序也会在网络层面被阻止，无论它属于哪个应用。</p>
         </div>
       </div>
 
-      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="hotspot">查看“热点”面板</a></p>
+      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="network">查看“网络”页面</a></p>
 
       <div class="fine reveal">
         <p style="margin:0"><b>先改应用自己的设置。</b>对于几乎所有应用，它修改的都是应用自己的“自动检查更新”设置，所以手动“检查更新…”仍然有效：它阻止的是无人值守的下载，而不是你。Canva、Figma 和 Chrome 是例外：有辅助程序时，在你离开热点之前，它们的更新服务器都无法访问。更新文件夹被锁定的 Electron 应用也是如此；打开网站名称后，任何应用独立的更新程序也是如此。</p>
         <p style="margin:0"><b>安全更新也会暂停。</b>没有可靠的方法能区分安全补丁和功能更新，假装能区分只会更糟。离开热点或关闭该设置，一切都会恢复。</p>
-        <p style="margin:0"><b>一切都会复原。</b>点按“设置 › 关于”中的“卸载…”，或者右键点按菜单栏项目并选择“卸载 NetworkMonitor…”。它会把每项设置恢复成它当初看到的样子，然后移除辅助程序，并将应用移到废纸篓。</p>
+        <p style="margin:0"><b>一切都会复原。</b>点按“设置”中的“卸载 NetworkMonitor…”，或者右键点按菜单栏项目并选择“卸载 NetworkMonitor…”。它会把每项设置恢复成它当初看到的样子，然后移除辅助程序，并将应用移到废纸篓。</p>
       </div>
     </div>
   </section>
@@ -695,12 +706,12 @@ footer a { color: var(--text-2); }
       <div class="center">
         <p class="eyebrow reveal">连接</p>
         <h2 class="h2 reveal d1">你的应用在和谁通信。<br><span class="grad">尽在地图上。</span></h2>
-        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">每个应用都会把数据发往某处。“连接”会显示每个应用访问了<strong>哪些公司、国家或地区以及服务器</strong>，可以用列表、世界地图或两者同时查看，范围可以是今天，也可以是任意一天、一周、一个月或一年。按下 <b>⌘K</b>，或点按弹出窗口中的地球图标。</p>
+        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">每个应用都会把数据发往某处。“连接”会显示每个应用访问了<strong>哪些公司、国家或地区以及服务器</strong>，可以用列表、世界地图或两者同时查看，范围可以是今天，也可以是任意一天、一周、一个月或一年。按下 <b>⌘K</b>，或点按弹出窗口中的<b>连接</b>。</p>
       </div>
 
       <figure class="connections-shot reveal">
-        <img src="../assets/zh-Hans/connections.png?v=14b95051" width="2240" height="1688" loading="lazy"
-             alt="“连接”窗口显示“今天”，按公司分组并显示“流量”，带有“全部”、“Wi‑Fi”和“热点”。上方是发往服务器和来自服务器的流量，以及公司、国家或地区、应用和服务器的数量，下面是按小时排列的时间线。左侧按用量从多到少列出公司，每个都有用量条和用量，Apple 和 GitHub 排在最前，云上的服务器显示为“托管于 Amazon”，并带有“主机”标签。右侧是一张世界地图，访问过的国家或地区以阴影标出，橙色线条从黎巴嫩连到它们，还有缩放按钮，以及一条说明：由附近数据中心应答的流量不会标在地图上。">
+        <img src="../assets/zh-Hans/connections.png?v=7cadebc8" width="2600" height="1600" loading="lazy"
+             alt="主窗口中的“连接”，显示“今天”。工具栏上有“列表”、“两者”和“地图”，“日”、“周”、“月”和“年”，一个“‹ 今天 ›”切换器、搜索和齿轮图标。“分组方式”提供“公司”、“应用”和“国家或地区”，“显示”提供“流量”和“已阻止”，另有“全部”、“Wi‑Fi”和“热点”。上方是发往服务器和来自服务器的流量，以及公司、国家或地区、应用和服务器的数量，下面是按小时排列的时间线。左侧按用量从多到少列出公司，每个都有用量条和用量，云上的服务器显示为“托管于 Amazon”，并带有“主机”标签。右侧是一张世界地图，访问过的国家或地区以阴影标出，有线条从这台 Mac 所在的位置连到它们，还有缩放按钮，以及一条说明：由附近数据中心应答的流量不会标在地图上。">
       </figure>
 
       <div class="facts two">
@@ -714,7 +725,7 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>阻止你选择的。</h3>
-          <p>右键点按一家公司、一个应用、国家或地区，或者一台服务器：<b>阻止</b>、<b>在热点上阻止</b>、<b>在“你所在的网络”上阻止</b>，或<b>始终允许</b>。有名称的服务器按名称管理，也可以按整个网站管理，如 <em>*.doubleclick.net</em>。范围最小的规则优先，所以阻止 Meta 的同时允许 WhatsApp，结果会如你所愿。针对应用的规则跟随它的签名，因此任何顶替它的程序都不会继承这条规则。“设置”会列出每条规则，还能导出给另一台 Mac 使用；<b>显示：已阻止</b>会列出被阻止的内容。</p>
+          <p>右键点按一家公司、一个应用、国家或地区，或者一台服务器：<b>阻止</b>、<b>在热点上阻止</b>、<b>在“你所在的网络”上阻止</b>，或<b>始终允许</b>。有名称的服务器按名称管理，也可以按整个网站管理，如 <em>*.doubleclick.net</em>。范围最小的规则优先，所以阻止 Meta 的同时允许 WhatsApp，结果会如你所愿。针对应用的规则跟随它的签名，因此任何顶替它的程序都不会继承这条规则。它的设置中会列出每条规则，还能导出给另一台 Mac 使用；<b>显示：已阻止</b>会列出被阻止的内容。</p>
         </div>
         <div class="reveal">
           <h3>或者让它来问你。</h3>
@@ -731,7 +742,7 @@ footer a { color: var(--text-2); }
         </div>
       </div>
 
-      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="connections">查看“连接”面板</a></p>
+      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="connections" data-pane-settings>查看“连接”的设置</a></p>
 
       <div class="fine reveal">
         <p style="margin:0"><b>在你的 Mac 上命名。</b>国家或地区和网络所有者来自 DB-IP 的免费数据，内置在应用中。不会联网查询：向某个服务询问每个地址，就等于告诉它你的 Mac 访问的每一台服务器。</p>
@@ -750,8 +761,8 @@ footer a { color: var(--text-2); }
       </div>
 
       <figure class="shield-shot reveal">
-        <img src="../assets/zh-Hans/settings/shield.png?v=17ee8bdd" width="1440" height="1162" loading="lazy"
-             alt="“广告”面板：在每个应用中拦截广告、跟踪器和恶意网站，并显示拦截了什么、何时以及在哪里拦截，带有“打开广告与跟踪器…”按钮。在“列表”下，“拦截广告和跟踪器”已打开，有两个列表，各自已打开并显示收录的网站数：“广告”，广告和跟踪器，来自 StevenBlack；“恶意软件”，恶意软件和网络钓鱼，来自 malware-filter 的 URLhaus。显示今天拦截的数量，“每周更新列表”已打开，并显示列表的日期。在“自定义”下，有“更多列表”（显示“推荐”或你选择的数量），带有“选择…”按钮，以及“你的规则”，带有“编辑…”按钮。">
+        <img src="../assets/zh-Hans/main/shield.png?v=258a6ca2" width="2600" height="1600" loading="lazy"
+             alt="主窗口中的“广告与跟踪器”，显示“今天”的“概览”，旁边是“日志”。上方是拦截的次数，以及每个列表各拦截了多少次，还有一个“暂停”菜单。下面是按小时排列的红色柱状图，显示拦截了多少。再往下是“网站”和“应用”，次数最多的在前：每个网站都列出被尝试访问的服务器和次数，有些带“广告”标签；每个应用都列出它尝试访问的网站。">
       </figure>
 
       <div class="facts two">
@@ -761,11 +772,11 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>由你掌控。</h3>
-          <p>在“设置 › 广告”中打开之前，它一直是关闭的；第一次打开时，macOS 会请你允许这个过滤器。除了内置列表，它还会使用它推荐的两个列表：HaGeZi Normal 和 OISD Big，两者合起来能拦下大部分广告，又很少导致网站出错。在“列表”标签页的<b>高级</b>中，你可以改为自行选择：按主题，或者选择 HaGeZi、OISD、AdGuard 等的列表，也可以通过地址添加任何列表。你可以把它全部暂停一小时；你也可以针对某个网络关闭拦截，方便访问被列表拦截的网站。对于广告，你自己的规则说了算：永不阻止某个网站，或者始终阻止某个列表里没有的网站，可以针对所有应用或某一个应用；也可以完全放过某个应用。恶意软件和网络钓鱼列表无论如何都会照常拦截，在“连接”中允许某个应用，也不会放行它的广告。从 uBlock Origin 或 AdGuard 转过来？导入它的备份或你的规则，先看看会导入哪些内容，也能以同样的格式导出你的规则。</p>
+          <p>在“广告与跟踪器”的设置（点按它的齿轮图标）中打开之前，它一直是关闭的；第一次打开时，macOS 会请你允许这个过滤器。除了内置列表，它还会使用它推荐的两个列表：HaGeZi Normal 和 OISD Big，两者合起来能拦下大部分广告，又很少导致网站出错。在它的“列表”的<b>高级</b>中，你可以改为自行选择：按主题，或者选择 HaGeZi、OISD、AdGuard 等的列表，也可以通过地址添加任何列表。你可以把它全部暂停一小时；你也可以针对某个网络关闭拦截，方便访问被列表拦截的网站。对于广告，你自己的规则说了算：永不阻止某个网站，或者始终阻止某个列表里没有的网站，可以针对所有应用或某一个应用；也可以完全放过某个应用。恶意软件和网络钓鱼列表无论如何都会照常拦截，在“连接”中允许某个应用，也不会放行它的广告。从 uBlock Origin 或 AdGuard 转过来？导入它的备份或你的规则，先看看会导入哪些内容，也能以同样的格式导出你的规则。</p>
         </div>
         <div class="reveal">
           <h3>看看它拦下了什么。</h3>
-          <p><b>广告与跟踪器</b>有自己的窗口：一天、一周、一个月或一年内拦截了多少，随时间的变化，以及被拦截最多的网站和应用。它的<b>日志</b>会在每个连接被判定时显示出来，并说明原因；每个列表也会显示它拦截了什么，所以很容易找出拦截过多的那个列表。弹出窗口会显示今天拦截了多少，“连接”会给每个被列入的服务器标上<b>广告</b>或<b>恶意软件</b>。</p>
+          <p><b>广告与跟踪器</b>有自己的部分：一天、一周、一个月或一年内拦截了多少，随时间的变化，以及被拦截最多的网站和应用。它的<b>日志</b>会在每个连接被判定时显示出来，并说明原因；每个列表也会显示它拦截了什么，所以很容易找出拦截过多的那个列表。弹出窗口会显示今天、本周或本月拦截了多少，“连接”会给每个被列入的服务器标上<b>广告</b>或<b>恶意软件</b>。</p>
         </div>
         <div class="reveal">
           <h3>自动保持最新。</h3>
@@ -773,7 +784,7 @@ footer a { color: var(--text-2); }
         </div>
       </div>
 
-      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="shield">查看“广告”面板</a></p>
+      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="shield" data-pane-settings>查看它的设置</a></p>
 
       <div class="fine reveal">
         <p style="margin:0"><b>它拦不住的。</b>从网站自己的服务器投放的广告，比如 YouTube 的，无法与网站本身区分开来，所以会保留。没有名称的连接也一样：使用其他端口的，或者不是 TLS 或 QUIC 的连接。</p>
@@ -789,13 +800,13 @@ footer a { color: var(--text-2); }
       <div class="center">
         <p class="eyebrow reveal">网速测试</p>
         <h2 class="h2 reveal d1">点按一下。<br><span class="grad">重新测量。</span></h2>
-        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">点按弹出窗口中的仪表图标，NetworkMonitor 就会运行每台 Mac 都自带的网速测试，连接 Apple 最近的服务器。<strong>先测下载，再测上传</strong>，和网速测试一贯的做法一样。每次运行都重新测量，不使用任何缓存。</p>
+        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">在弹出窗口中选择<b>网络</b>，再点按<b>测试网速</b>，NetworkMonitor 就会运行每台 Mac 都自带的网速测试，连接 Apple 最近的服务器。<strong>先测下载，再测上传</strong>，和网速测试一贯的做法一样。每次运行都重新测量，不使用任何缓存。</p>
       </div>
 
       <div class="hotspot-grid">
         <figure class="speed-shot reveal" style="margin:0">
-          <img src="../assets/zh-Hans/speed-test.png?v=911a94c4" width="692" height="910" loading="lazy"
-               alt="网速测试后的弹出窗口：中间显示下载速度的仪表盘，下方是下载和上传速度、网络、测试用了多少流量以及测试时间，然后是“延迟”、“抖动”、“下载时的延迟”和“上传时的延迟”，以及“返回应用”和“再测一次”按钮。">
+          <img src="../assets/zh-Hans/speed-test.png?v=36dc187e" width="692" height="936" loading="lazy"
+               alt="网速测试后弹出窗口中的“网络”视图，上方是“今天”、“周”、“月”和四个数字。中间是显示下载速度的仪表盘，下方是下载和上传速度、网络、测试用了多少流量以及测试时间，然后是“延迟”、“抖动”、“下载时的延迟”和“上传时的延迟”，以及“返回”和“再测一次”按钮。">
           <figcaption class="caption" style="text-align:center">在制作这个页面的 Mac 上实测，线路上没有其他流量争抢。</figcaption>
         </figure>
         <div class="facts">
@@ -820,59 +831,77 @@ footer a { color: var(--text-2); }
     </div>
   </section>
 
-  <!-- Settings -->
+  <!-- The main window -->
   <section id="settings" class="pad raised center">
     <div class="wrap">
-      <p class="eyebrow reveal">设置</p>
+      <p class="eyebrow reveal">主窗口</p>
       <h2 class="h2 reveal d1">一个窗口。<br><span class="grad">所有功能。</span></h2>
-      <p class="lead reveal d2" style="max-width:700px;margin-inline:auto">通用、网速测试、历史记录、连接、广告、热点和关于，各占一个面板。<strong>逐个点按看看。</strong>每个面板都是真实的应用，截取自制作这个页面的 Mac。</p>
+      <p class="lead reveal d2" style="max-width:720px;margin-inline:auto">流量历史、连接、广告与跟踪器和网络，是同一个窗口中的各部分，设置固定在边栏底部。点按各部分的齿轮图标，即可在原处查看它自己的设置。<strong>逐个点按看看。</strong>每个画面都是真实的应用，截取自制作这个页面的 Mac。</p>
 
       <div class="prefs-stage reveal" data-prefs>
         <div class="prefs-window">
-          <div role="tablist" aria-label="设置面板">
-            <button class="prefs-tab" id="prefs-tab-general" role="tab" type="button" aria-selected="true" aria-controls="prefs-panel" data-pane="general" style="--x:-197;--y:32;--w:55;--h:48"
-                    data-caption="登录时启动、以 MB/s 或 Mbps 显示速度、Wi‑Fi 名称、菜单栏颜色，以及弹出窗口中的累计值。">通用</button>
-            <button class="prefs-tab" id="prefs-tab-speed-test" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="speed-test" style="--x:-141;--y:32;--w:56;--h:48"
-                    data-caption="在这里运行网速测试，并选择弹出窗口显示测试的样式。">网速测试</button>
-            <button class="prefs-tab" id="prefs-tab-history" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="history" style="--x:-84;--y:32;--w:56;--h:48"
-                    data-caption="每个应用每小时、每天用了多少。数据保存在你的 Mac 上。">历史记录</button>
-            <button class="prefs-tab" id="prefs-tab-connections" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="connections" style="--x:-27;--y:32;--w:55;--h:48"
-                    data-caption="应用可以如何连接、你创建的每条规则、加密域名查询，以及名称的来源。">连接</button>
-            <button class="prefs-tab" id="prefs-tab-shield" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="shield" style="--x:30;--y:32;--w:55;--h:48"
-                    data-caption="拦截开关和列表、今天拦截了多少，以及你自己的列表和规则。">广告</button>
-            <button class="prefs-tab" id="prefs-tab-hotspot" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="hotspot" style="--x:86;--y:32;--w:55;--h:48"
-                    data-caption="它在热点上暂停什么、如何暂停，以及无法暂停的应用和原因。点按一个列表即可展开。">热点</button>
-            <button class="prefs-tab" id="prefs-tab-about" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="about" style="--x:142;--y:32;--w:55;--h:48"
-                    data-caption="版本、更新、在哪里了解更多，以及“卸载…”，它会恢复它更改过的一切。">关于</button>
+          <div role="tablist" aria-label="各部分" aria-orientation="vertical">
+            <button class="prefs-tab" id="prefs-tab-history" role="tab" type="button" aria-selected="true" aria-controls="prefs-panel" data-pane="history" style="--x:-640;--y:58;--w:170;--h:32"
+                    data-caption="每个应用和每个网络每小时用了多少，可按日、周、月或年查看。数据保存在你的 Mac 上。">流量历史</button>
+            <button class="prefs-tab" id="prefs-tab-connections" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="connections" style="--x:-640;--y:92;--w:170;--h:32"
+                    data-caption="你的应用在和谁通信，以列表和世界地图显示，或者被阻止了什么。">连接</button>
+            <button class="prefs-tab" id="prefs-tab-shield" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="shield" style="--x:-640;--y:126;--w:170;--h:32"
+                    data-caption="所选时间段内拦截了什么，有图表，并按网站和应用列出。它的“日志”显示每个连接，以及对它作出的决定。">广告与跟踪器</button>
+            <button class="prefs-tab" id="prefs-tab-network" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="network" style="--x:-640;--y:160;--w:170;--h:32"
+                    data-caption="你正在使用的连接、它是不是热点、在热点上会暂停什么和不能暂停什么，以及网速测试。点按一个列表即可展开。">网络</button>
+            <button class="prefs-tab" id="prefs-tab-settings" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="settings" style="--x:-640;--y:760;--w:170;--h:32"
+                    data-caption="适用于整个应用的设置：语言、登录时启动、速度单位、菜单栏颜色、更新，以及通往各部分设置的入口。">设置</button>
           </div>
-          <div id="prefs-panel" role="tabpanel" aria-labelledby="prefs-tab-general">
-            <img class="prefs-shot on" data-shot="general" data-w="720" data-h="742" src="../assets/zh-Hans/settings/general.png?v=48ab4a5b" width="1440" height="1484"
-                 alt="NetworkMonitor 设置的“通用”面板，工具栏上有七个面板：通用、网速测试、历史记录、连接、广告、热点和关于。“语言”为“跟随系统”。“登录时启动”已打开。“速度显示单位”提供 Mbps 和 MB/s，已选择 MB/s。“按名称识别你的 Wi‑Fi 网络”带有“打开…”按钮：“流量历史”会显示“家”和“办公室”这样的名称，而不是“Wi‑Fi · 3f2a”；macOS 把这项权限称为“定位服务”，但 NetworkMonitor 从不查询你的位置。在“菜单栏颜色”下：下载为绿色，上传为浅灰色，网速测试期间为两种深浅的青色，还有一个变暗的“使用默认颜色”按钮。在“弹出窗口中的累计值”下：从午夜开始统计，接通电源时每秒采样一次，以及“重新开始累计”，带有“立即重置”按钮。每一行的含义藏在一个 ⓘ 后面，指针移到该行上时才会出现。">
-            <img class="prefs-shot" data-shot="speed-test" data-w="720" data-h="606" src="../assets/zh-Hans/settings/speed-test.png?v=089f2904" width="1440" height="1212" loading="lazy" aria-hidden="true"
-                 alt="“网速测试”面板：“测试你的网速”，带有“立即测试”按钮。一条说明写着，它只在你开始测试时运行 macOS 内置的 networkQuality，先测下载，再测上传，通常会用掉 50 到 500 MB。“在弹出窗口中显示测试的样式”：有两张弹出窗口的图片可供选择，各自下方写着名称。“卡片”已选中并带有蓝色外框，在应用列表的位置显示一个带下载速度的仪表盘、下方的两个速度，以及延迟和抖动方块。“紧凑”在应用列表上方用两条细条显示下载和上传及其速度。下面一行说明所选样式的效果。">
-            <img class="prefs-shot" data-shot="history" data-w="720" data-h="785" src="../assets/zh-Hans/settings/history.png?v=2236c0e6" width="1440" height="1570" loading="lazy" aria-hidden="true"
-                 alt="“历史记录”面板显示“今天”，带有“日”、“周”、“月”和“年”，一个“‹ 今天 ›”切换器，以及“全部”、“Wi‑Fi”和“热点”。按网络显示用了多少，以按小时排列的柱状图呈现。下方是“应用”，按用量从多到少排列，每个都有图标和用量。另外两个列表是“网络”和“连接时段”。“历史记录保留”设为“永久”，并带有“清除历史记录…”和“导出 CSV…”按钮。">
-            <img class="prefs-shot" data-shot="connections" data-w="720" data-h="756" src="../assets/zh-Hans/settings/connections.png?v=4e507bff" width="1440" height="1512" loading="lazy" aria-hidden="true"
-                 alt="“连接”面板。你的应用在和哪些公司、国家或地区以及服务器通信，以列表和世界地图显示，带有“打开‘连接’…”按钮。在“阻止”下，“允许应用连接”提供“任何地方”、“询问我”和“仅允许已授权的连接”，已选择“任何地方”；在“连接”中右键点按一家公司、一个应用、国家或地区或者服务器，即可阻止它，或始终允许它。“规则”，带有“导出…”和“导入…”按钮。在“域名查询”下，“加密域名查询”已关闭，发送到 Cloudflare：关闭时，域名查询会以未加密的方式发送到你所在网络的 DNS 服务器，和其他 Mac 一样。“打开时显示”提供“列表”、“两者”和“地图”，已选择“两者”。“国家或地区与网络”：DB-IP Lite，2026 年 11 月，“每月更新”已打开，保留时间与“流量历史”相同。">
-            <img class="prefs-shot" data-shot="shield" data-w="720" data-h="581" src="../assets/zh-Hans/settings/shield.png?v=17ee8bdd" width="1440" height="1162" loading="lazy" aria-hidden="true"
-                 alt="“广告”面板：在每个应用中拦截广告、跟踪器和恶意网站，并显示拦截了什么、何时以及在哪里拦截，带有“打开广告与跟踪器…”按钮。在“列表”下，“拦截广告和跟踪器”已打开，有两个列表，各自已打开并显示收录的网站数：“广告”，广告和跟踪器，来自 StevenBlack；“恶意软件”，恶意软件和网络钓鱼，来自 malware-filter 的 URLhaus。显示今天拦截的数量，“每周更新列表”已打开，并显示列表的日期。在“自定义”下，有“更多列表”（显示“推荐”或你选择的数量），带有“选择…”按钮，以及“你的规则”，带有“编辑…”按钮。">
-            <img class="prefs-shot" data-shot="hotspot" data-w="720" data-h="564" src="../assets/zh-Hans/settings/hotspot.png?v=b5c31546" width="1440" height="1128" loading="lazy" aria-hidden="true"
-                 alt="“热点”面板。“停止热点下的应用更新”已打开，“当前”显示 macOS 是否将此连接报告为热点。“此网络”设为“自动检测”。它还会让热点进入低数据模式。“使用热点时暂停”和“不能暂停”都已收起，各自显示应用数量。“所有应用的更新程序”：使用热点时停止，包括那些被列为不能暂停、但用自己的程序更新的应用。">
-            <img class="prefs-shot" data-shot="hotspot-apps" data-w="720" data-h="949" src="../assets/zh-Hans/settings/hotspot-apps.png?v=aa4ac4d1" width="1440" height="1898" loading="lazy" aria-hidden="true"
-                 alt="展开了“使用热点时暂停”的“热点”面板：这台 Mac 上找到的每个应用各占一行，各有开关，全部打开，NetworkMonitor 自己也在其中。另外两行归类其余应用：“通过 NetworkMonitor 的辅助程序”，列出 macOS 更新、App Store 应用、Chrome、Slack 等；“通过它们的更新文件夹”，列出更新文件夹被锁定的应用。面板向下滚动到已收起的“不能暂停”。">
-            <img class="prefs-shot" data-shot="hotspot-uncovered" data-w="720" data-h="584" src="../assets/zh-Hans/settings/hotspot-uncovered.png?v=d11019a9" width="1440" height="1168" loading="lazy" aria-hidden="true"
-                 alt="展开了“不能暂停”的“热点”面板：列出它无法暂停的应用，原因藏在一个 ⓘ 后面，指针移到该行上时才会出现。使用热点时请退出这些应用，以确保它们不会更新。“所有应用的更新程序”：使用热点时停止，包括那些被列为不能暂停、但用自己的程序更新的应用。">
-            <img class="prefs-shot" data-shot="about" data-w="720" data-h="710" src="../assets/zh-Hans/settings/about.png?v=c1339cb2" width="1440" height="1420" loading="lazy" aria-hidden="true"
-                 alt="“关于”面板：NetworkMonitor 图标、版本号，以及“在菜单栏中显示实时网速，以及哪个应用用了你的流量。”指向网站、发行说明和 GitHub 上源代码的链接。免费且开源，采用 MIT 许可证。“自动检查更新”已打开，带有“立即检查”按钮：NetworkMonitor 每天向 GitHub 查询一次是否有新版本，使用热点时从不查询；只有在你同意时才会安装更新，而且只安装由 NetworkMonitor 签名的更新。“移除 NetworkMonitor”，带有“卸载…”按钮。">
-            <button class="prefs-row" type="button" aria-expanded="false" data-row="apps" style="--x:-340;--y:274;--w:680;--h:44" hidden>使用热点时暂停</button>
-            <button class="prefs-row" type="button" aria-expanded="false" data-row="uncovered" style="--x:-340;--y:372;--w:680;--h:44" hidden>不能暂停</button>
-            <a class="prefs-link" href="#top" style="--x:151;--y:320;--w:183;--h:30" hidden>网站</a>
-            <a class="prefs-link" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest" style="--x:254;--y:357;--w:80;--h:30" hidden>发行说明</a>
-            <a class="prefs-link" href="https://github.com/kevinabouhanna/NetworkMonitor" style="--x:230;--y:394;--w:103;--h:30" hidden>GitHub 上的源代码</a>
+          <div id="prefs-panel" role="tabpanel" aria-labelledby="prefs-tab-history">
+            <img class="prefs-shot on" data-shot="history" data-w="1300" data-h="800" src="../assets/zh-Hans/main/history.png?v=18b1c0e7" width="2600" height="1600"
+                 alt="NetworkMonitor 主窗口中的“流量历史”。边栏列出已选中的“流量历史”，以及“连接”、“广告与跟踪器”和“网络”，“设置”在底部。工具栏上有“日”、“周”、“月”和“年”，一个“‹ 今天 ›”切换器、一个搜索按钮和一个齿轮图标。“显示”提供“应用”、“网络”和“连接时段”，旁边是“全部”、“Wi‑Fi”和“热点”。“今天”下方是已用的流量和一张按小时排列、按网络着色的柱状图，再往下按用量从多到少列出应用，每个都有图标、用量条和用量，有些带可展开的箭头。底部说明每小时的数据都按应用和网络保存在这台 Mac 上，并带有“导出 CSV…”按钮。">
+            <img class="prefs-shot" data-shot="connections" data-w="1300" data-h="800" src="../assets/zh-Hans/connections.png?v=7cadebc8" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="主窗口中的“连接”，显示“今天”。工具栏上有“列表”、“两者”和“地图”，“日”、“周”、“月”和“年”，一个“‹ 今天 ›”切换器、搜索和齿轮图标。“分组方式”提供“公司”、“应用”和“国家或地区”，“显示”提供“流量”和“已阻止”，另有“全部”、“Wi‑Fi”和“热点”。上方是发往服务器和来自服务器的流量，以及公司、国家或地区、应用和服务器的数量，下面是按小时排列的时间线。左侧按用量从多到少列出公司，每个都有用量条和用量，云上的服务器显示为“托管于 Amazon”，并带有“主机”标签。右侧是一张世界地图，访问过的国家或地区以阴影标出，有线条从这台 Mac 所在的位置连到它们，还有缩放按钮，以及一条说明：由附近数据中心应答的流量不会标在地图上。">
+            <img class="prefs-shot" data-shot="shield" data-w="1300" data-h="800" src="../assets/zh-Hans/main/shield.png?v=258a6ca2" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="主窗口中的“广告与跟踪器”，显示“今天”的“概览”，旁边是“日志”。上方是拦截的次数，以及每个列表各拦截了多少次，还有一个“暂停”菜单。下面是按小时排列的红色柱状图，显示拦截了多少。再往下是“网站”和“应用”，次数最多的在前：每个网站都列出被尝试访问的服务器和次数，有些带“广告”标签；每个应用都列出它尝试访问的网站。">
+            <img class="prefs-shot" data-shot="network" data-w="1300" data-h="800" src="../assets/zh-Hans/main/network.png?v=cf9445f0" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="主窗口中的“网络”：正在使用的连接（以太网），以及它今天用了多少。在“此网络”下，“这是热点”开关已关闭，“当前”显示检测结果。在“热点”下，“停止热点下的应用更新”已打开，它还会让热点进入低数据模式；“使用热点时暂停”和“不能暂停”都已收起，各自显示应用数量；“所有应用的更新程序”：使用热点时停止。网速测试在下方，工具栏上有一个齿轮图标。">
+            <img class="prefs-shot" data-shot="network-apps" data-w="1300" data-h="800" src="../assets/zh-Hans/main/network-apps.png?v=9bf139e7" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="展开了“使用热点时暂停”的“网络”页面：这台 Mac 上找到的每个应用各占一行，各有开关，全部打开，NetworkMonitor 自己也在其中。">
+            <img class="prefs-shot" data-shot="network-uncovered" data-w="1300" data-h="800" src="../assets/zh-Hans/main/network-uncovered.png?v=9772b243" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="展开了“不能暂停”的“网络”页面，列出它无法暂停的应用。使用热点时请退出这些应用，以确保它们不会更新；低数据模式会让遵循它的应用减少下载。">
+            <img class="prefs-shot" data-shot="settings" data-w="1300" data-h="800" src="../assets/zh-Hans/main/settings.png?v=f3596bf8" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="主窗口中的“设置”，在边栏底部已选中。“语言”为“跟随系统”。“登录时启动”已打开。“速度显示单位”提供 Mbps 和 MB/s，已选择 MB/s。“按名称识别你的 Wi‑Fi 网络”带有“打开…”按钮。在“菜单栏颜色”下：下载为绿色，上传为浅灰色，网速测试期间为两种深浅的青色，还有一个变暗的“使用默认颜色”按钮。在“弹出窗口中的累计值”下：“统计开始于”、“采样”，以及带有“立即重置”按钮的“重新开始累计”。“自动检查更新”已打开，带有“立即检查”按钮。再往下是“各部分”，每个部分的设置各占一行，以及“卸载 NetworkMonitor…”。">
+            <img class="prefs-shot" data-shot="history-settings" data-w="1300" data-h="800" src="../assets/zh-Hans/settings/history.png?v=de8b885d" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="“流量历史设置”在主窗口中原处显示，带有返回按钮：今天已用的流量，带有“打开流量历史…”按钮；“历史记录保留”设为“永久”；以及“清除历史记录…”。流量历史从不离开这台 Mac。">
+            <img class="prefs-shot" data-shot="connections-settings" data-w="1300" data-h="800" src="../assets/zh-Hans/settings/connections.png?v=e8acc86c" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="“连接设置”在原处显示，带有返回按钮：今天的公司数量，带有“打开‘连接’…”按钮。在“阻止”下，“允许应用连接”提供“任何地方”、“询问我”和“仅允许已授权的连接”，已选择“任何地方”；“规则”带有“导出…”和“导入…”按钮。在“域名查询”下，“加密域名查询”已关闭，发送到 Cloudflare。“打开时显示”提供“列表”、“两者”和“地图”，已选择“两者”。“国家或地区与网络”来自 DB-IP Lite 并显示日期，“每月更新”已打开，保留时长与“流量历史”相同。">
+            <img class="prefs-shot" data-shot="shield-settings" data-w="1300" data-h="800" src="../assets/zh-Hans/settings/shield.png?v=ea7c1bfd" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="“广告与跟踪器设置”在原处显示，带有返回按钮：今天拦截的次数，带有“打开广告与跟踪器…”按钮。“拦截广告和跟踪器”和“每周更新列表”都已打开。下面是“列表”和“你的规则”。在“列表”中，内置的“广告和跟踪器”（带“广告”标签）和“恶意软件和网络钓鱼”（带“恶意软件”标签）各有开关，并显示网站数和今天拦截的次数；“推荐”已打开，包括 HaGeZi Normal 和 OISD Big；以及“高级”，可以自行选择列表，或按地址添加列表。">
+            <img class="prefs-shot" data-shot="network-settings" data-w="1300" data-h="800" src="../assets/zh-Hans/settings/network.png?v=90a550c2" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="“网络设置”在原处显示，带有返回按钮：“在弹出窗口中显示测试的样式”，有两张弹出窗口的图片可供选择。“卡片”已选中并带有蓝色外框，显示一个带下载速度的仪表盘、两个速度，以及延迟和抖动方块。“紧凑”在应用列表上方用两条细条显示下载和上传。下面一行说明所选样式的效果。">
+            <button class="prefs-gear" id="prefs-gear-history" type="button" data-gear="history" style="--x:606;--y:0;--w:40;--h:52" hidden
+                    data-caption="流量历史的设置：保留多久，以及“清除历史记录…”。它从不离开你的 Mac。">流量历史设置</button>
+            <button class="prefs-gear" id="prefs-gear-connections" type="button" data-gear="connections" style="--x:606;--y:0;--w:40;--h:52" hidden
+                    data-caption="应用可以如何连接、你创建的每条规则、加密域名查询，以及名称的来源。">连接设置</button>
+            <button class="prefs-gear" id="prefs-gear-shield" type="button" data-gear="shield" style="--x:606;--y:0;--w:40;--h:52" hidden
+                    data-caption="拦截开关、每周更新、它使用的列表，以及你自己的规则。">广告与跟踪器设置</button>
+            <button class="prefs-gear" id="prefs-gear-network" type="button" data-gear="network" style="--x:606;--y:0;--w:40;--h:52" hidden
+                    data-caption="弹出窗口如何显示网速测试：显示所有数据的卡片，或者在应用列表上方显示两行。">网络设置</button>
+            <button class="prefs-back" type="button" data-label="返回%@" style="--x:-456;--y:0;--w:44;--h:52" hidden>返回流量历史</button>
+            <button class="prefs-row" type="button" aria-expanded="false" data-row="apps" style="--x:-440;--y:448;--w:680;--h:44" hidden>使用热点时暂停</button>
+            <button class="prefs-row" type="button" aria-expanded="false" data-row="uncovered" style="--x:-440;--y:546;--w:680;--h:44" hidden>不能暂停</button>
           </div>
         </div>
       </div>
-      <p class="caption prefs-caption" aria-live="polite" data-prefs-caption>登录时启动、以 MB/s 或 Mbps 显示速度、菜单栏颜色，以及弹出窗口中的累计值。</p>
+      <p class="caption prefs-caption" aria-live="polite" data-prefs-caption>每个应用和每个网络每小时用了多少，可按日、周、月或年查看。数据保存在你的 Mac 上。</p>
+
+      <figure class="about-shot reveal">
+        <div class="about-window">
+          <!-- About's links are placed by hand, in points: the About window reports its links' frames a line off, so site-shots leaves them alone. -->
+          <img src="../assets/zh-Hans/about.png?v=0d36f6f0" width="568" height="632" data-w="284" data-h="316" loading="lazy"
+               alt="“关于 NetworkMonitor”窗口：应用图标、名称和版本，以及“在菜单栏中显示实时网速，以及哪个应用用了你的流量。”指向网站、新功能和源代码的链接。免费开源，采用 Apache 2.0 许可证，以及版权信息。">
+          <a class="about-link" href="#top" style="--x:-15;--y:198;--w:30;--h:13">网站</a>
+          <a class="about-link" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest" style="--x:-21;--y:211;--w:41;--h:13">新功能</a>
+          <a class="about-link" href="https://github.com/kevinabouhanna/NetworkMonitor" style="--x:-21;--y:224;--w:41;--h:13">源代码</a>
+        </div>
+        <figcaption class="caption">还有“关于 NetworkMonitor”，在菜单栏的右键菜单中：版本、新功能、源代码和许可证。</figcaption>
+      </figure>
     </div>
   </section>
 
@@ -920,7 +949,7 @@ footer a { color: var(--text-2); }
           <p>和安装其他 Mac 应用一样：打开磁盘映像，把 NetworkMonitor 拖到<strong>应用程序</strong>文件夹中。</p>
           <div class="get">
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>下载 NetworkMonitor.dmg</a>
-            <span class="meta">版本 1.27.0 · 14.1 MB · 通用版（Apple 芯片和 Intel）</span>
+            <span class="meta">版本 1.28.1 · 14.5 MB · 通用版（Apple 芯片和 Intel）</span>
           </div>
           <figure class="dmg-shot" style="margin-bottom:0">
             <img src="../assets/dmg-window.png?v=5630c3c3" width="1424" height="1104" loading="lazy"
@@ -937,7 +966,7 @@ footer a { color: var(--text-2); }
       </div>
 
       <div class="ctas reveal">
-        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.27.0">1.27.0 版的新内容</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.28.1">1.28.1 版的新内容</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/README.zh-Hans.md">文档</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">在 GitHub 上查看</a>
       </div>
@@ -1003,24 +1032,30 @@ footer a { color: var(--text-2); }
     });
   }
 
-  // Settings: the toolbar switches panes as the app's does. The window takes
-  // each pane's size and keeps its top edge, and in Hotspot each list opens on
-  // its own, so every combination is a capture of its own.
+  // The main window: the sidebar switches sections as the app's does, each
+  // section's gear shows its settings in place and the back button returns,
+  // and on Network each list opens on its own, so every combination is a
+  // capture of its own. The window takes each view's size and keeps its top edge.
   const prefs = document.querySelector('[data-prefs]');
   if (prefs) {
     const win = prefs.querySelector('.prefs-window');
     const panel = prefs.querySelector('[role="tabpanel"]');
     const tabs = [...prefs.querySelectorAll('[role="tab"]')];
     const shots = new Map([...prefs.querySelectorAll('.prefs-shot')].map(img => [img.dataset.shot, img]));
+    const gears = [...prefs.querySelectorAll('[data-gear]')];
+    const back = prefs.querySelector('.prefs-back');
     const apps = prefs.querySelector('[data-row="apps"]');
     const uncovered = prefs.querySelector('[data-row="uncovered"]');
-    const links = prefs.querySelectorAll('.prefs-link');
     const caption = document.querySelector('[data-prefs-caption]');
-    const state = { pane: 'general', apps: false, uncovered: false };
+    const state = { pane: 'history', settings: false, apps: false, uncovered: false };
     let settle = 0;
 
-    const shotName = () => state.pane !== 'hotspot' ? state.pane
-      : state.apps ? 'hotspot-apps' : state.uncovered ? 'hotspot-uncovered' : 'hotspot';
+    const gearOf = pane => gears.find(g => g.dataset.gear === pane);
+    // Settings has no gear: it is the settings.
+    const inSettings = () => state.settings && !!gearOf(state.pane);
+    const shotName = () => inSettings() ? state.pane + '-settings'
+      : state.pane !== 'network' ? state.pane
+      : state.apps ? 'network-apps' : state.uncovered ? 'network-uncovered' : 'network';
 
     function render(animate) {
       const shot = shots.get(shotName());
@@ -1048,40 +1083,52 @@ footer a { color: var(--text-2); }
         t.setAttribute('aria-selected', String(t === tab));
         t.tabIndex = t === tab ? 0 : -1;
       }
-      // Named by its tab, not an aria-label of its own: ad blockers hide a
-      // div labelled "Ads" (##div[aria-label="Ads"], #392).
-      panel.setAttribute('aria-labelledby', tab.id);
-      caption.textContent = tab.dataset.caption;
-      apps.hidden = state.pane !== 'hotspot';
+      const gear = gearOf(state.pane);
+      const settings = inSettings();
+      // Named by its tab or its gear, not an aria-label of its own: ad blockers
+      // hide a div labelled "Ads" (##div[aria-label="Ads"], #392).
+      panel.setAttribute('aria-labelledby', settings ? gear.id : tab.id);
+      caption.textContent = settings ? gear.dataset.caption : tab.dataset.caption;
+      for (const g of gears) g.hidden = settings || g !== gear;
+      back.hidden = !settings;
+      back.textContent = back.dataset.label.replace('%@', tab.textContent);
+      const rows = state.pane === 'network' && !settings;
+      apps.hidden = !rows;
       // Open, the first list runs past the bottom of the window, over the second row.
-      uncovered.hidden = state.pane !== 'hotspot' || state.apps;
+      uncovered.hidden = !rows || state.apps;
       apps.setAttribute('aria-expanded', String(state.apps));
-      apps.style.setProperty('--h', state.apps ? 34 : 44);
       uncovered.setAttribute('aria-expanded', String(state.uncovered));
-      uncovered.style.setProperty('--h', state.uncovered ? 34 : 44);
-      links.forEach(link => { link.hidden = state.pane !== 'about'; });
     }
 
     const choose = (pane, focus) => {
-      if (pane === state.pane) return;
+      if (pane === state.pane && !state.settings) return;
       state.pane = pane;
+      state.settings = false;
       render(true);
       if (focus) tabs.find(t => t.dataset.pane === pane).focus();
     };
     tabs.forEach(tab => tab.addEventListener('click', () => choose(tab.dataset.pane)));
-    // Arrow keys move along the toolbar, as in any set of tabs.
+    // Arrow keys move along the sidebar, as in any set of tabs.
     prefs.querySelector('[role="tablist"]').addEventListener('keydown', event => {
       const i = tabs.findIndex(t => t.dataset.pane === state.pane);
-      const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[event.key];
+      const next = { ArrowDown: i + 1, ArrowRight: i + 1, ArrowUp: i - 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[event.key];
       if (next === undefined) return;
       event.preventDefault();
       choose(tabs[(next + tabs.length) % tabs.length].dataset.pane, true);
     });
+    // The gear shows the section's settings in place; Back returns to it.
+    gears.forEach(gear => gear.addEventListener('click', () => { state.settings = true; render(true); back.focus(); }));
+    back.addEventListener('click', () => { state.settings = false; render(true); gearOf(state.pane).focus(); });
     apps.addEventListener('click', () => { state.apps = !state.apps; if (state.apps) state.uncovered = false; render(true); });
     uncovered.addEventListener('click', () => { state.uncovered = !state.uncovered; render(true); });
-    // "See the Hotspot pane" opens it on the way down.
+    // "See the Network page" opens it on the way down; data-pane-settings,
+    // the section's settings.
     document.querySelectorAll('[data-pane-link]').forEach(link => {
-      link.addEventListener('click', () => { state.pane = link.dataset.paneLink; render(false); });
+      link.addEventListener('click', () => {
+        state.pane = link.dataset.paneLink;
+        state.settings = link.hasAttribute('data-pane-settings');
+        render(false);
+      });
     });
 
     render(false);

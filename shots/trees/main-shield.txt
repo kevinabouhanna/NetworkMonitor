@@ -1,0 +1,47 @@
+AXWindow (AXStandardWindow) title="Ads and Trackers" 1300
+  AXSplitGroup 1300
+    AXGroup (AXHostingView) h800
+      AXScrollArea h700
+        AXButton description="Usage History" 172x32
+        AXButton description="Connections" 172x32
+        AXButton description="Ads and Trackers" 172x32
+        AXButton description="Network" 172x32
+      AXButton description="Settings" help="Settings (⌘,)" 172x32
+    AXSplitter value="#" h748
+    AXGroup (AXHostingView)
+      AXStaticText value="Show" h16
+      AXTabGroup description="Show" 124x24
+        AXRadioButton (AXTabButton) description="Overview" 12x24
+        AXRadioButton (AXTabButton) description="Log" 12x24
+      data: AXStaticText
+      AXMenuButton title="Pause" help="Let ads through for a while, in every app" 56x16
+      AXStaticText value="Today" h16
+      data: AXGroup AXUnknown
+      AXStaticText value="Sites" h16
+      AXStaticText value="Apps" h16
+      AXScrollArea
+        data: AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+      AXScrollArea
+        data: AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+  AXToolbar 1300x52
+    AXButton description="Sidebar" help="Hide Sidebar" 44x52
+    AXGroup help="A day, week, month or year at a time" h52
+      AXRadioGroup description="Period" 284x40
+        AXRadioButton (AXSegment) description="Day" 72x36
+        AXRadioButton (AXSegment) description="Week" 72x36
+        AXRadioButton (AXSegment) description="Month" 72x36
+        AXRadioButton (AXSegment) description="Year" 72x36
+    AXGroup help="Move through time" h52
+      AXGroup description="Go" h40
+        AXButton (AXSegment) description="Previous" help="Previous" 36x36
+        AXButton (AXSegment) description="Today" help="Back to the present" 60x36
+        AXButton (AXSegment) description="Next" help="Next" 40x36
+    AXGroup help="Search sites and apps (⌘F)" h52
+      AXButton (AXSearchField) description="Search" 40x40
+    AXButton description="Settings" help="Settings for ads and trackers: the lists and your rules" 40x52
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText value="Ads and Trackers" h52

@@ -1,45 +1,31 @@
-AXWindow (AXStandardWindow) title="History" 720
-  AXGroup
-    AXGroup (AXHostingView)
-      AXScrollArea
-        AXRadioGroup description="Show" help="A day, week, month or year at a time" 252x24
-          AXRadioButton (AXSegment) description="Day" 64x24
-          AXRadioButton (AXSegment) description="Week" 64x24
-          AXRadioButton (AXSegment) description="Month" 64x24
-          AXRadioButton (AXSegment) description="Year" 64x24
-        AXGroup h24
-          AXButton (AXSegment) description="Previous" identifier="chevron.left" help="Previous (⌘←)" 24x24
-          AXButton (AXSegment) description="Today" help="Back to the present" 60x24
-          AXButton (AXSegment) description="Next" identifier="chevron.right" help="Next (⌘→)" 24x24
-        AXRadioGroup description="Networks" help="Every connection, Wi-Fi only, or hotspots only" 220x24
-          AXRadioButton (AXSegment) description="All" 72x24
-          AXRadioButton (AXSegment) description="Wi-Fi" 72x24
-          AXRadioButton (AXSegment) description="Hotspot" 72x24
-        AXStaticText value="Today" h24
-        AXStaticText value="# ‹unit›" h16
-        AXStaticText value="used" h16
-        data: AXGroup AXStaticText AXUnknown
-        AXRadioGroup description="List" 244x24
-          AXRadioButton (AXSegment) description="Apps" 80x24
-          AXRadioButton (AXSegment) description="Networks" 80x24
-          AXRadioButton (AXSegment) description="Sessions" 80x24
-        AXScrollArea
-          data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
-        AXStaticText value="Keep history for" h16
-        AXPopUpButton description="Keep history for" 104x24
-        AXButton description="Clear History…" 112x24
-        AXButton description="Export CSV…" 104x24
-  AXToolbar 720x56
-    AXButton title="General" description="General" 56x56
-    AXButton title="Speed Test" description="Speed Test" 72x56
-    AXButton title="History" description="History" 56x56
-    AXButton title="Connections" description="Connections" 80x56
-    AXButton title="Ads" description="Ads" 56x56
-    AXButton title="Hotspot" description="Hotspot" 56x56
-    AXButton title="About" description="About" 56x56
+AXWindow (AXStandardWindow) title="Usage History Settings" 1300x800
+  AXSplitGroup 1300x800
+    AXGroup (AXHostingView) h800
+      AXScrollArea h700
+        AXButton description="Usage History" 172x32
+        AXButton description="Connections" 172x32
+        AXButton description="Ads and Trackers" 172x32
+        AXButton description="Network" 172x32
+      AXButton description="Settings" help="Settings (⌘,)" 172x32
+    AXSplitter value="#" h748
+    AXGroup (AXHostingView) h748
+      AXScrollArea h748
+        AXScrollArea h208
+          AXGroup h52
+            AXStaticText value="# ‹unit› used today, Every hour is kept on this Mac, per app and per network" h32
+            AXButton description="Open Usage History…" help="Also ⌘Y" 156x24
+          AXGroup h84
+            AXStaticText value="Keep history for" h16
+            AXPopUpButton description="Keep history for" 92x24
+            AXStaticText value="Clear History" h16
+            AXButton description="Clear History…" 112x24
+          AXStaticText value="Usage History never leaves this Mac. Clearing it can't be undone." h16
+  AXToolbar 1300x52
+    AXButton description="Sidebar" help="Hide Sidebar" 44x52
+    AXButton description="Usage History" help="Back to Usage History" 44x52
   AXButton (AXCloseButton) 16x16
-  AXButton (AXZoomButton) 16x16
+  AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16
     AXGroup h16
       AXGroup h16
   AXButton (AXMinimizeButton) 16x16
-  AXStaticText value="History" h16
+  AXStaticText value="Usage History Settings" h52

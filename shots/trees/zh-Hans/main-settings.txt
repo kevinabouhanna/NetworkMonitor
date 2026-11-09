@@ -1,5 +1,13 @@
-AXWindow (AXStandardWindow) title="通用" 720
-  AXGroup
+AXWindow (AXStandardWindow) title="设置" 1300
+  AXSplitGroup 1300
+    AXGroup (AXHostingView) h800
+      AXScrollArea h700
+        AXButton description="流量历史" 172x32
+        AXButton description="连接" 172x32
+        AXButton description="广告与跟踪器" 172x32
+        AXButton description="网络" 172x32
+      AXButton description="设置" help="设置（⌘,）" 172x32
+    AXSplitter value="#" h748
     AXGroup (AXHostingView)
       AXScrollArea
         AXScrollArea
@@ -15,7 +23,7 @@ AXWindow (AXStandardWindow) title="通用" 720
               AXRadioButton (AXSegment) description="Mbps" 60x24
               AXRadioButton (AXSegment) description="MB/s" 60x24
           AXGroup h72
-            AXImage description="Wi-Fi" identifier="wifi" 20x12
+            AXImage description="Wi-Fi" identifier="wifi" 20x16
             AXStaticText value="按名称识别你的 Wi-Fi 网络" h16
             AXStaticText value="“流量历史”会显示“家”和“办公室”这样的名称，而不是“Wi-Fi · #f#a”。macOS 把这项权限称为“定位服务”，但 NetworkMonitor 从不查询你的位置。" h32
             AXButton description="打开…" 60x24
@@ -28,7 +36,7 @@ AXWindow (AXStandardWindow) title="通用" 720
             AXStaticText value="网速测试期间" h16
             AXStaticText value="↓" help="网速测试的数值使用自己的颜色，与这些颜色区分开，因此不会被误认为是实时速度。" h16
             AXStaticText value="↑" help="网速测试的数值使用自己的颜色，与这些颜色区分开，因此不会被误认为是实时速度。" h16
-            AXButton description="使用默认颜色" 100x24
+            AXButton description="使用默认颜色" 104x24
           AXHeading description="弹出窗口中的累计值" 116x16
           AXGroup
             AXStaticText value="统计开始于" h16
@@ -37,17 +45,27 @@ AXWindow (AXStandardWindow) title="通用" 720
             data: AXStaticText
             AXStaticText value="重新开始累计" h16
             AXButton description="立即重置" 76x24
-  AXToolbar 720x56
-    AXButton title="通用" description="通用" 56x56
-    AXButton title="网速测试" description="网速测试" 56x56
-    AXButton title="历史记录" description="历史记录" 56x56
-    AXButton title="连接" description="连接" 56x56
-    AXButton title="广告" description="广告" 56x56
-    AXButton title="热点" description="热点" 56x56
-    AXButton title="关于" description="关于" 56x56
+          AXGroup h76
+            AXStaticText value="自动检查更新" h16
+            AXCheckBox (AXSwitch) 36x16
+            AXStaticText value="更新" h16
+            AXButton description="立即检查" 76x24
+          AXStaticText value="NetworkMonitor 每天向 GitHub 查询一次是否有新版本，使用热点时从不查询。只有在你同意时才会安装更新，而且只安装由 NetworkMonitor 签名的更新。" h28
+          AXHeading description="各部分" 40x16
+          AXGroup h148
+            AXButton description="流量历史" help="打开“流量历史”的设置" 660x16
+            AXButton description="连接" help="打开“连接”的设置" 660x16
+            AXButton description="广告与跟踪器" help="打开“广告与跟踪器”的设置" 660x16
+            AXButton description="网络" help="打开“网络”的设置" 660x16
+          AXStaticText value="也可以点按各部分中的齿轮图标打开。" h16
+          AXGroup h40
+            AXStaticText value="移除 NetworkMonitor 及其设置的所有内容" h16
+            AXButton description="卸载 NetworkMonitor…" 160x24
+  AXToolbar 1300x52
+    AXButton description="边栏" help="隐藏边栏" 44x52
   AXButton (AXCloseButton) 16x16
-  AXButton (AXZoomButton) 16x16
+  AXButton (AXFullScreenButton) help="此按钮也可以执行缩放窗口的操作" 16x16
     AXGroup h16
       AXGroup h16
   AXButton (AXMinimizeButton) 16x16
-  AXStaticText value="通用" h16
+  AXStaticText value="设置" h52

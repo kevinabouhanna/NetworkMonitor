@@ -348,31 +348,42 @@ p code, li code { background: #1d1d1f; border: 1px solid var(--hair); border-rad
 .fine b { color: var(--text-2); font-weight: 600; display: block; margin-bottom: 4px; }
 @media (max-width: 834px) { .hotspot-grid, .fine, .facts.two { grid-template-columns: minmax(0, 1fr); } }
 
-/* Settings: the app's own window, pane by pane. Every pane is a capture of the
-   app. The toolbar, the Hotspot lists and About's links are buttons and links
-   laid over it, placed in the window's points; --s turns points into pixels. */
-.prefs-stage { position: relative; margin: 72px auto 0; width: min(720px, 100%); }
+/* The main window, section by section. Every view is a capture of the app.
+   The sidebar, each section's gear, the back button and Network's lists are
+   buttons laid over it, placed in the window's points; --s turns points into
+   pixels. About's links are laid over its picture the same way, by hand. */
+.prefs-stage { position: relative; margin: 72px auto 0; width: 100%; }
 .prefs-stage::before {
   content: ""; position: absolute; left: 50%; top: 2%; width: min(150%, 100vw); height: 75%; transform: translateX(-50%); pointer-events: none;
   background: radial-gradient(closest-side, rgba(81, 255, 112, .10), rgba(81, 255, 112, .03) 55%, transparent 75%);
 }
 .prefs-window { position: relative; margin-inline: auto; --s: 1; filter: drop-shadow(0 28px 48px rgba(0, 0, 0, .55)); }
-.prefs-shot { width: min(720px, 100%); margin-inline: auto; }
-.prefs-shot:not([data-shot="general"]), .prefs-tab, .prefs-row, .prefs-link { display: none; }
+.prefs-shot { width: 100%; margin-inline: auto; }
+.prefs-shot:not([data-shot="history"]), .prefs-tab, .prefs-gear, .prefs-back, .prefs-row { display: none; }
 .js .prefs-window { overflow: hidden; border-radius: calc(18px * var(--s)); transition: width .45s var(--ease), height .45s var(--ease); }
 .js .prefs-window.resizing { background: #1e1e1e; }
 .js .prefs-shot { display: block; position: absolute; top: 0; left: 50%; transform: translateX(-50%); max-width: none; opacity: 0; transition: opacity .3s ease; pointer-events: none; }
 .js .prefs-shot.on { opacity: 1; }
-.js .prefs-tab, .js .prefs-row, .js .prefs-link {
+.js .prefs-tab, .js .prefs-gear, .js .prefs-back, .js .prefs-row {
   display: block; position: absolute; z-index: 1; margin: 0; padding: 0; border: 0; background: transparent; cursor: pointer;
   left: calc(50% + var(--x) * var(--s) * 1px); top: calc(var(--y) * var(--s) * 1px);
   width: calc(var(--w) * var(--s) * 1px); height: calc(var(--h) * var(--s) * 1px);
   border-radius: calc(10px * var(--s)); color: transparent; font-size: 0;
 }
-.js .prefs-row[hidden], .js .prefs-link[hidden] { display: none; }
-.prefs-tab:not([aria-selected="true"]):hover, .prefs-link:hover { background: rgba(255, 255, 255, .07); }
-.prefs-tab:focus-visible, .prefs-row:focus-visible, .prefs-link:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.js .prefs-gear[hidden], .js .prefs-back[hidden], .js .prefs-row[hidden] { display: none; }
+.prefs-tab:not([aria-selected="true"]):hover, .prefs-gear:hover, .prefs-back:hover { background: rgba(255, 255, 255, .07); }
+.prefs-tab:focus-visible, .prefs-gear:focus-visible, .prefs-back:focus-visible, .prefs-row:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
 .prefs-caption { min-height: 2.9em; margin-top: 28px; }
+.about-shot { margin: clamp(72px, 10vw, 112px) auto 0; }
+.about-window { position: relative; width: min(284px, 100%); margin-inline: auto; filter: drop-shadow(0 22px 40px rgba(0, 0, 0, .55)); }
+.about-window img { width: 100%; height: auto; }
+.about-link {
+  position: absolute; left: calc(50% + var(--x) * 1px); top: calc(var(--y) * 1px);
+  width: calc(var(--w) * 1px); height: calc(var(--h) * 1px);
+  border-radius: 6px; color: transparent; font-size: 0;
+}
+.about-link:hover { background: rgba(255, 255, 255, .07); text-decoration: none; }
+.about-link:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
 @media (prefers-reduced-motion: reduce) { .js .prefs-window, .js .prefs-shot { transition: none; } }
 
 /* Numbers */
@@ -456,7 +467,7 @@ footer a { color: var(--text-2); }
           <a href="#connections">Connections</a>
           <a href="#shield">Ad blocker</a>
           <a href="#speed-test">Speed test</a>
-          <a href="#settings">Settings</a>
+          <a href="#settings">Main window</a>
         </div>
       </div>
       <a href="#privacy">Privacy</a>
@@ -479,7 +490,7 @@ footer a { color: var(--text-2); }
         <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download for Mac</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
-      <p class="hero-meta reveal d3"><span>Version 1.27.0</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
+      <p class="hero-meta reveal d3"><span>Version 1.28.1</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
       <div class="featured reveal d3">
         <a href="https://www.trymacapps.com" target="_blank" rel="noopener">
           <img
@@ -564,7 +575,7 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <p class="eyebrow reveal">The solution</p>
       <h2 class="h2 reveal d1">Meet NetworkMonitor.</h2>
-      <p class="lead reveal d2">A small menu bar app that shows your speed live, tells you exactly which apps used this connection and who they talked to, and, if you ask it to, <strong>stops them updating while you’re on a hotspot</strong>. No Dock icon, no window to manage, no account.</p>
+      <p class="lead reveal d2">A small menu bar app that shows your speed live, tells you exactly which apps used this connection and who they talked to, and, if you ask it to, <strong>stops them updating while you’re on a hotspot</strong>. It lives in the menu bar, opens one window when you want the detail, and needs no account.</p>
       <div class="pillars">
         <div class="pillar reveal">
           <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M14 6v22" stroke="#51ff70" stroke-width="5"/><path d="M5 25l9 13 9-13z" fill="#51ff70"/><path d="M30 38V16" stroke="#e5e5e5" stroke-width="5"/><path d="M21 19l9-13 9 13z" fill="#e5e5e5"/></svg>
@@ -603,29 +614,29 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <p class="eyebrow reveal">One click</p>
       <h2 class="h2 reveal d1">It’s live.<br>Not a snapshot.</h2>
-      <p class="lead reveal d2" style="max-width:660px;margin-inline:auto">Click the readout for this connection’s total and the apps behind it. <strong>The numbers move while you watch.</strong></p>
+      <p class="lead reveal d2" style="max-width:660px;margin-inline:auto">Click the readout for what your apps used today, this week or this month, who they talked to and what was blocked. <strong>The numbers move while you watch.</strong></p>
       <div class="video-frame reveal">
         <span class="rec"><i></i>Screen recording · 10 s</span>
-        <video id="live" src="assets/live.mp4?v=c178b805" poster="assets/live-poster.jpg?v=c66933c4" width="1040" height="990" data-autoplay
+        <video id="live" src="assets/live.mp4?v=8b1b3b42" poster="assets/live-poster.jpg?v=9d4f384b" width="1040" height="990" data-autoplay
                muted loop playsinline preload="metadata"
-               aria-label="Ten-second screen recording of NetworkMonitor's popover during a download. The menu bar reads about 1.1 MB/s down. The popover shows the day's total, the connection in use and the ads blocked today, over apps biggest first, and Warp's figure climbs as its download runs."></video>
+               aria-label="Ten-second screen recording of NetworkMonitor's popover during a download. A click on the menu bar readout opens it on Today, Week and Month, over four figures: Data in blue, Connections in teal, what was blocked in red, and Network. Data lists apps biggest first, each with a bar. The period switches to Week, then Month, then back to Today, and the figures follow. Then Connections lists companies, the blocked figure lists the sites it stopped, and Network shows the connection, a This is a hotspot switch and the speed test."></video>
       </div>
-      <p class="caption reveal">Ten seconds of the app, recorded off the screen. Warp’s figure climbs as a download runs.</p>
+      <p class="caption reveal">Ten seconds of the app, recorded off the screen: today, this week and this month, then who your apps talked to, what was blocked and the network you’re on.</p>
 
       <div class="bento" style="text-align:left">
         <div class="tile shot span-3 reveal">
           <p class="kicker">Sub-processes</p>
           <h3 class="h4">Credit where it’s due.</h3>
           <p class="copy">Helpers fold into the app that owns them, so Chrome’s dozen helper processes are one <strong>Google Chrome</strong> row. Commands started from a terminal break out beneath it, each with its own figure.</p>
-          <img src="assets/popover-subprocesses.png?v=5b2e68ad" width="692" height="966" loading="lazy"
-               alt="The popover, with Total and how much was used today, which connection is in use (here Ethernet), the ads blocked today, and four buttons at the top right: Speed test, Connections, Usage History and Settings. Below, apps biggest first, each with its icon, a bar and how much it used; the first app that has sub-processes is open, showing each one beneath it with its own bar and figure.">
+          <img src="assets/popover-subprocesses.png?v=c7bc2d17" width="692" height="982" loading="lazy"
+               alt="The popover on Today, with Week and Month beside it, and a four-squares button and a gear at the top right. Four figures: Data in blue, chosen, Connections in teal, Ads blocked in red, and Network, the connection in use. Under Data, Apps and Networks, with how many apps, then apps biggest first, each with its icon, a bar and how much it used. The first app with sub-processes is open, showing the commands it started beneath it, each with its own bar and figure. Open Usage History, ⌘Y, at the bottom.">
         </div>
         <div class="tile shot span-3 reveal d1">
           <p class="kicker">System</p>
           <h3 class="h4">macOS noise, folded away.</h3>
           <p class="copy">Dozens of system daemons collapse into a single <strong>System</strong> row at the bottom of the list. Open it when you’re curious; ignore it when you’re not.</p>
-          <img src="assets/popover-system.png?v=2e52ac4c" width="692" height="966" loading="lazy"
-               alt="The bottom of the popover's list: the smallest apps, each with its icon, a bar and how much it used, and last, System, grouping macOS's own processes, with how many and how much they used together.">
+          <img src="assets/popover-system.png?v=7010f7da" width="692" height="982" loading="lazy"
+               alt="The bottom of the popover’s list of apps on Today: the smallest apps, each with its icon, a bar and how much it used, and last, System, grouping macOS’s own processes, with how many and how much they used together.">
         </div>
         <div class="tile span-2 reveal">
           <p class="kicker">Sorted live</p>
@@ -633,9 +644,9 @@ footer a { color: var(--text-2); }
           <p class="copy">Every app gets a bar for its share of the total, and the list re-sorts as apps overtake each other.</p>
         </div>
         <div class="tile span-2 reveal d1">
-          <p class="kicker">Per connection</p>
-          <h3 class="h4">One total per network.</h3>
-          <p class="copy">Join a different Wi‑Fi or hotspot and the count starts from zero. Drop out and rejoin the same network and it picks up where it left off. It also resets at midnight, and survives restarts.</p>
+          <p class="kicker">Today · Week · Month</p>
+          <h3 class="h4">Today, or the whole month.</h3>
+          <p class="copy">Today, Week and Month at the top of the popover set every figure under it, on every network. The Network page keeps a total of its own for the connection you’re on, from zero on each new one.</p>
         </div>
         <div class="tile span-2 reveal d2">
           <p class="kicker">Internet only</p>
@@ -658,7 +669,7 @@ footer a { color: var(--text-2); }
       <div class="facts two">
         <div class="reveal">
           <h3>Knows a hotspot when it joins one.</h3>
-          <p>iPhone Personal Hotspot and Android tethering, over Wi‑Fi or USB, from your phone or someone else’s. Any network you’ve put in Low Data Mode counts too. Settings always tells you what it decided about the connection you’re on, and lets you settle it when it guesses wrong.</p>
+          <p>iPhone Personal Hotspot and Android tethering, over Wi‑Fi or USB, from your phone or someone else’s. Any network you’ve put in Low Data Mode counts too. The Network page always tells you what it decided about the connection you’re on, and <b>This is a hotspot</b>, there and in the popover, settles it when it guesses wrong.</p>
         </div>
         <div class="reveal">
           <h3>Covered with no special permissions.</h3>
@@ -675,16 +686,16 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>Reaches apps it’s never heard of.</h3>
-          <p>Apps are found by how they update, not from a list, so an Electron app it has never heard of is stopped too, even while it’s open. The same switch puts the hotspot in Low Data Mode, so iCloud, Photos and every app that respects it hold back, whatever you have installed. Settings lists every app it can’t pause, with the reason, and the popover tells you if an update got through on your hotspot anyway, which app, and how much it used. A paused app that updated says so, and every update that got through stays in Usage History with the visit it happened on. With website names on, any app’s updater is also stopped at the network, whatever app it belongs to.</p>
+          <p>Apps are found by how they update, not from a list, so an Electron app it has never heard of is stopped too, even while it’s open. The same switch puts the hotspot in Low Data Mode, so iCloud, Photos and every app that respects it hold back, whatever you have installed. The Network page lists every app it can’t pause, with the reason, and the popover tells you if an update got through on your hotspot anyway, which app, and how much it used. A paused app that updated says so, and every update that got through stays in Usage History with the visit it happened on. With website names on, any app’s updater is also stopped at the network, whatever app it belongs to.</p>
         </div>
       </div>
 
-      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="hotspot">See the Hotspot pane</a></p>
+      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="network">See the Network page</a></p>
 
       <div class="fine reveal">
         <p style="margin:0"><b>The app’s own setting first.</b>For almost every app it changes the app’s own “check for updates automatically” setting, so a manual Check for Updates… still works: it stops unattended downloads, not you. Canva, Figma and Chrome are the exception: with the helper, their update servers stay out of reach until you leave the hotspot. So do Electron apps whose update folder is locked, and, with website names on, any app’s separate updater program.</p>
         <p style="margin:0"><b>Security updates pause too.</b>There’s no reliable way to tell a security patch from a feature release, and pretending otherwise would be worse. Leave the hotspot or turn the setting off and everything resumes.</p>
-        <p style="margin:0"><b>Puts everything back.</b>Click Uninstall… in Settings › About, or right-click the menu bar item and choose Uninstall NetworkMonitor…. It restores every setting exactly as it found it, then removes the helper and moves the app to the Trash.</p>
+        <p style="margin:0"><b>Puts everything back.</b>Click Uninstall NetworkMonitor… in Settings, or right-click the menu bar item and choose Uninstall NetworkMonitor…. It restores every setting exactly as it found it, then removes the helper and moves the app to the Trash.</p>
       </div>
     </div>
   </section>
@@ -695,12 +706,12 @@ footer a { color: var(--text-2); }
       <div class="center">
         <p class="eyebrow reveal">Connections</p>
         <h2 class="h2 reveal d1">Who your apps talk to.<br><span class="grad">On a map.</span></h2>
-        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">Every app sends its data somewhere. Connections shows <strong>which companies, countries and servers</strong> each one reached, on a list, a world map, or both, for today or any day, week, month or year. Press <b>⌘K</b>, or click the globe in the popover.</p>
+        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">Every app sends its data somewhere. Connections shows <strong>which companies, countries and servers</strong> each one reached, on a list, a world map, or both, for today or any day, week, month or year. Press <b>⌘K</b>, or click <b>Connections</b> in the popover.</p>
       </div>
 
       <figure class="connections-shot reveal">
-        <img src="assets/connections.png?v=9bb91104" width="2240" height="1688" loading="lazy"
-             alt="The Connections window on Today, grouped by company and showing Traffic, with All, Wi‑Fi and Hotspot. How much went to and from servers, and how many companies, countries, apps and servers, over a timeline by the hour. On the left, companies biggest first, each with a bar and how much it used, Apple and GitHub at the top, and servers on a cloud as Hosted on Amazon with a HOST tag. On the right, a world map with the countries reached shaded, orange lines from Lebanon to them, zoom buttons, and a note on the traffic answered from nearby data centres, which isn't placed on the map.">
+        <img src="assets/connections.png?v=7ad6de93" width="2600" height="1600" loading="lazy"
+             alt="The main window on Connections, Today. The toolbar has List, Both and Map, Day, Week, Month and Year, a ‹ Today › stepper, search and a gear. Group by Companies, Apps or Countries, Show Traffic or Blocked, and All, Wi‑Fi and Hotspot. How much went to and from servers, with how many companies, countries, apps and servers, over a timeline by the hour. On the left, companies biggest first, each with a bar and how much it used, and servers on a cloud as Hosted on Amazon with a HOST tag. On the right, a world map with the countries reached shaded, lines from where the Mac is to them, zoom buttons, and a note on the traffic answered from nearby data centres, which isn’t placed on the map.">
       </figure>
 
       <div class="facts two">
@@ -714,7 +725,7 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>Block what you choose.</h3>
-          <p>Right-click a company, app, country or server: <b>Block</b>, <b>Block on Hotspots</b>, <b>Block on</b> the network you’re on, or <b>Always Allow</b>. A server with a name is ruled by name, or its whole site, <em>*.doubleclick.net</em>. The narrowest rule wins, so blocking Meta while allowing WhatsApp does what you’d expect. A rule for an app follows its signature, so nothing put in its place inherits it. Settings lists every rule, exports them for another Mac, and <b>Show: Blocked</b> lists what was stopped.</p>
+          <p>Right-click a company, app, country or server: <b>Block</b>, <b>Block on Hotspots</b>, <b>Block on</b> the network you’re on, or <b>Always Allow</b>. A server with a name is ruled by name, or its whole site, <em>*.doubleclick.net</em>. The narrowest rule wins, so blocking Meta while allowing WhatsApp does what you’d expect. A rule for an app follows its signature, so nothing put in its place inherits it. Its settings list every rule, export them for another Mac, and <b>Show: Blocked</b> lists what was stopped.</p>
         </div>
         <div class="reveal">
           <h3>Or have it ask.</h3>
@@ -731,7 +742,7 @@ footer a { color: var(--text-2); }
         </div>
       </div>
 
-      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="connections">See the Connections pane</a></p>
+      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="connections" data-pane-settings>See Connections’ settings</a></p>
 
       <div class="fine reveal">
         <p style="margin:0"><b>Named on your Mac.</b>Countries and network owners come from DB-IP’s free data, shipped inside the app. Nothing is looked up online: asking a service about each address would tell it every server your Mac talks to.</p>
@@ -750,8 +761,8 @@ footer a { color: var(--text-2); }
       </div>
 
       <figure class="shield-shot reveal">
-        <img src="assets/settings/shield.png?v=2c56ee46" width="1440" height="1162" loading="lazy"
-             alt="The Ads pane: ads, trackers and malware sites stopped in every app, and what was stopped, when and where, with an Open Ads and Trackers… button. Under Lists, Block ads and trackers is on, with two lists, each switched on and with how many sites it has: ADS, Ads and trackers, from StevenBlack; MALWARE, Malware and phishing, from URLhaus by malware-filter. How many were blocked today, and Update them weekly on, with the lists' date. Under Yours, More lists, Recommended or how many you chose, with a Choose… button, and Your rules, with an Edit… button.">
+        <img src="assets/main/shield.png?v=030bfdc3" width="2600" height="1600" loading="lazy"
+             alt="The main window on Ads and Trackers, Today, on Overview, with Log beside it. How many were blocked, and how many by each list, with a Pause menu. A red bar chart of what was blocked, by the hour. Below, Sites and Apps, busiest first: each site with the servers that were tried and how many times, some tagged ADS; each app with the sites it tried.">
       </figure>
 
       <div class="facts two">
@@ -761,11 +772,11 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>Yours to control.</h3>
-          <p>It’s off until you turn it on in Settings › Ads, and macOS asks you to allow the filter the first time. On top of the built-in lists it uses two it recommends, HaGeZi Normal and OISD Big, which between them block most ads and rarely break a site. Under <b>Advanced</b> in the Lists tab you can choose your own instead, by topic, HaGeZi, OISD, AdGuard’s and others, or add any list by its address. You can pause it all for an hour, or turn it off on a network that needs a listed site. Your own rules have the last word on ads: never block a site, always block one no list has, everywhere or in one app, or leave an app alone entirely. The malware and phishing lists still block either way, and allowing an app in Connections doesn’t let its ads through. Coming from uBlock Origin or AdGuard? Import its backup or your rules, see what comes over first, and export yours in the same format.</p>
+          <p>It’s off until you turn it on in Ads and Trackers’ settings, behind its gear, and macOS asks you to allow the filter the first time. On top of the built-in lists it uses two it recommends, HaGeZi Normal and OISD Big, which between them block most ads and rarely break a site. Under <b>Advanced</b> in its Lists you can choose your own instead, by topic, HaGeZi, OISD, AdGuard’s and others, or add any list by its address. You can pause it all for an hour, or turn it off on a network that needs a listed site. Your own rules have the last word on ads: never block a site, always block one no list has, everywhere or in one app, or leave an app alone entirely. The malware and phishing lists still block either way, and allowing an app in Connections doesn’t let its ads through. Coming from uBlock Origin or AdGuard? Import its backup or your rules, see what comes over first, and export yours in the same format.</p>
         </div>
         <div class="reveal">
           <h3>See what it stopped.</h3>
-          <p><b>Ads and Trackers</b> has a window of its own: how many were blocked in a day, week, month or year, over time, and the sites and apps most blocked. Its <b>Log</b> shows every connection as it’s decided, and why, and each list says what it blocked, so one that blocks too much is easy to find. The popover says how many today, and Connections tags each listed server <b>ADS</b> or <b>MALWARE</b>.</p>
+          <p><b>Ads and Trackers</b> has a section of its own: how many were blocked in a day, week, month or year, over time, and the sites and apps most blocked. Its <b>Log</b> shows every connection as it’s decided, and why, and each list says what it blocked, so one that blocks too much is easy to find. The popover counts them for today, this week or this month, and Connections tags each listed server <b>ADS</b> or <b>MALWARE</b>.</p>
         </div>
         <div class="reveal">
           <h3>Current by itself.</h3>
@@ -773,7 +784,7 @@ footer a { color: var(--text-2); }
         </div>
       </div>
 
-      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="shield">See the Ads pane</a></p>
+      <p class="see-pane reveal"><a class="more" href="#settings" data-pane-link="shield" data-pane-settings>See its settings</a></p>
 
       <div class="fine reveal">
         <p style="margin:0"><b>What it can’t block.</b>Ads served from a site’s own servers, like YouTube’s, can’t be told apart from the site, so they stay. So does anything without a name: another port, or a connection that isn’t TLS or QUIC.</p>
@@ -789,13 +800,13 @@ footer a { color: var(--text-2); }
       <div class="center">
         <p class="eyebrow reveal">Speed test</p>
         <h2 class="h2 reveal d1">One click.<br><span class="grad">A fresh measurement.</span></h2>
-        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">Click the gauge in the popover and NetworkMonitor runs the speed test Apple ships with every Mac, against Apple’s nearest servers. <strong>Download first, then upload</strong>, the way speed tests always have. Every run measures afresh. Nothing is cached.</p>
+        <p class="lead reveal d2" style="max-width:760px;margin-inline:auto">Choose <b>Network</b> in the popover and click <b>Test Speed</b>, and NetworkMonitor runs the speed test Apple ships with every Mac, against Apple’s nearest servers. <strong>Download first, then upload</strong>, the way speed tests always have. Every run measures afresh. Nothing is cached.</p>
       </div>
 
       <div class="hotspot-grid">
         <figure class="speed-shot reveal" style="margin:0">
-          <img src="assets/speed-test.png?v=cddd2136" width="692" height="910" loading="lazy"
-               alt="The popover after a speed test: a dial with the download speed in its centre, the download and upload speeds beneath, the network, how much the test used and when, then Ping, Jitter, Ping while downloading and Ping while uploading, with Back to Apps and Test Again buttons.">
+          <img src="assets/speed-test.png?v=321abe62" width="692" height="936" loading="lazy"
+               alt="The popover’s Network view after a speed test, under Today, Week and Month and the four figures. A dial with the download speed in its centre, the download and upload speeds beneath, the network, how much the test used and when, then Ping, Jitter, Ping while downloading and Ping while uploading, with Back and Test Again buttons.">
           <figcaption class="caption" style="text-align:center">A real test on the Mac this page was built on, with nothing else competing for the line.</figcaption>
         </figure>
         <div class="facts">
@@ -820,59 +831,77 @@ footer a { color: var(--text-2); }
     </div>
   </section>
 
-  <!-- Settings -->
+  <!-- The main window -->
   <section id="settings" class="pad raised center">
     <div class="wrap">
-      <p class="eyebrow reveal">Settings</p>
+      <p class="eyebrow reveal">The main window</p>
       <h2 class="h2 reveal d1">One window.<br><span class="grad">Every feature.</span></h2>
-      <p class="lead reveal d2" style="max-width:700px;margin-inline:auto">General, Speed Test, History, Connections, Ads, Hotspot and About, each in a pane of its own. <strong>Click through them.</strong> Every pane is the real app, captured on the Mac this page was built on.</p>
+      <p class="lead reveal d2" style="max-width:720px;margin-inline:auto">Usage History, Connections, Ads and Trackers and Network are sections of one window, with Settings at the bottom of the sidebar. Each section’s gear shows its own settings in place. <strong>Click through them.</strong> Every view is the real app, captured on the Mac this page was built on.</p>
 
       <div class="prefs-stage reveal" data-prefs>
         <div class="prefs-window">
-          <div role="tablist" aria-label="Settings panes">
-            <button class="prefs-tab" id="prefs-tab-general" role="tab" type="button" aria-selected="true" aria-controls="prefs-panel" data-pane="general" style="--x:-215;--y:32;--w:55;--h:48"
-                    data-caption="Start at login, speeds in MB/s or Mbps, Wi‑Fi names, the menu bar’s colours, and the popover’s totals.">General</button>
-            <button class="prefs-tab" id="prefs-tab-speed-test" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="speed-test" style="--x:-159;--y:32;--w:71;--h:48"
-                    data-caption="Run a speed test from here, and choose how the popover shows one.">Speed Test</button>
-            <button class="prefs-tab" id="prefs-tab-history" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="history" style="--x:-87;--y:32;--w:55;--h:48"
-                    data-caption="What every app used, hour by hour, day by day. It stays on your Mac.">History</button>
-            <button class="prefs-tab" id="prefs-tab-connections" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="connections" style="--x:-31;--y:32;--w:78;--h:48"
-                    data-caption="How apps may connect, every rule you’ve made, encrypted lookups, and where the names come from.">Connections</button>
-            <button class="prefs-tab" id="prefs-tab-shield" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="shield" style="--x:48;--y:32;--w:55;--h:48"
-                    data-caption="The ad blocker’s switch and lists, what it blocked today, and your own lists and rules.">Ads</button>
-            <button class="prefs-tab" id="prefs-tab-hotspot" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="hotspot" style="--x:104;--y:32;--w:55;--h:48"
-                    data-caption="What it pauses on a hotspot and how, and what it can’t, with why. Click a list to open it.">Hotspot</button>
-            <button class="prefs-tab" id="prefs-tab-about" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="about" style="--x:160;--y:32;--w:55;--h:48"
-                    data-caption="The version, updates, where to read more, and Uninstall…, which puts back everything it changed.">About</button>
+          <div role="tablist" aria-label="Sections" aria-orientation="vertical">
+            <button class="prefs-tab" id="prefs-tab-history" role="tab" type="button" aria-selected="true" aria-controls="prefs-panel" data-pane="history" style="--x:-640;--y:58;--w:170;--h:32"
+                    data-caption="What every app and network used, hour by hour, for a day, week, month or year. It stays on your Mac.">Usage History</button>
+            <button class="prefs-tab" id="prefs-tab-connections" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="connections" style="--x:-640;--y:92;--w:170;--h:32"
+                    data-caption="Who your apps talk to, on a list and a world map, or what was blocked.">Connections</button>
+            <button class="prefs-tab" id="prefs-tab-shield" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="shield" style="--x:-640;--y:126;--w:170;--h:32"
+                    data-caption="What was blocked in the period, on a chart and by site and app. Its Log shows each connection as it’s decided.">Ads and Trackers</button>
+            <button class="prefs-tab" id="prefs-tab-network" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="network" style="--x:-640;--y:160;--w:170;--h:32"
+                    data-caption="The connection you’re on, whether it’s a hotspot, what’s paused there and what can’t be, and the speed test. Click a list to open it.">Network</button>
+            <button class="prefs-tab" id="prefs-tab-settings" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="settings" style="--x:-640;--y:760;--w:170;--h:32"
+                    data-caption="What applies to the whole app: language, start at login, speeds, the menu bar’s colours, updates, and a way to each section’s settings.">Settings</button>
           </div>
-          <div id="prefs-panel" role="tabpanel" aria-labelledby="prefs-tab-general">
-            <img class="prefs-shot on" data-shot="general" data-w="720" data-h="742" src="assets/settings/general.png?v=12bb0e47" width="1440" height="1484"
-                 alt="NetworkMonitor Settings, on its General pane, with a toolbar of seven panes: General, Speed Test, History, Connections, Ads, Hotspot and About. Language is Same as the Mac. Start at login is on. Show speeds in offers Mbps or MB/s, with MB/s chosen. Know your Wi‑Fi networks by name, with a Turn On… button: Usage History calls them Home and Office, not Wi‑Fi · 3f2a; macOS calls this Location, but NetworkMonitor never looks up where you are. Under Menu bar colors: Download in green, Upload in light grey, During a speed test in two shades of cyan, and a dimmed Use Default Colors button. Under Popover totals: Counting since midnight, Sampling every second while plugged in, and Start the totals over, with a Reset Now button. What a row means is behind an ⓘ that appears when you point at it.">
-            <img class="prefs-shot" data-shot="speed-test" data-w="720" data-h="606" src="assets/settings/speed-test.png?v=d98d6127" width="1440" height="1212" loading="lazy" aria-hidden="true"
-                 alt="The Speed Test pane: Test your internet speed, with a Test Now button. A note says it runs macOS's built-in networkQuality only when you start it, download first, then upload, typically using 50 to 500 MB. Show the test in the popover as: two pictures of the popover to choose from, each with its name below. Card, chosen and ringed in blue, shows a dial with the download speed, both speeds beneath it, and tiles for ping and jitter, in place of the apps. Compact shows the download and upload as two thin bars with their speeds, above the list of apps. The line below says what the chosen style does.">
-            <img class="prefs-shot" data-shot="history" data-w="720" data-h="785" src="assets/settings/history.png?v=ff803edb" width="1440" height="1570" loading="lazy" aria-hidden="true"
-                 alt="The History pane on Today, with Day, Week, Month and Year, a ‹ Today › stepper, and All, Wi‑Fi and Hotspot. How much was used, by network, in a bar chart by the hour. Below it, Apps, biggest first, each with its icon and how much it used. Networks and Sessions are the other two lists. Keep history for Forever, with Clear History… and Export CSV… buttons.">
-            <img class="prefs-shot" data-shot="connections" data-w="720" data-h="778" src="assets/settings/connections.png?v=5207e2ca" width="1440" height="1556" loading="lazy" aria-hidden="true"
-                 alt="The Connections pane. Which companies, countries and servers your apps talk to, on a list and a world map, with an Open Connections… button. Under Blocking, Let apps connect offers Anywhere, Ask Me and Only Where I Allow, with Anywhere chosen; right-click a company, app, country or server in Connections to block it, or to always allow it. Rules, with Export… and Import… buttons. Under Lookups, Encrypt lookups is off, sent to Cloudflare: off, lookups go to your network's DNS server unencrypted, as on any Mac. Opens with List, Both or Map, with Both chosen. Countries and networks: DB-IP Lite, November 2026, Update them monthly, switched on, and Kept as long as Usage History.">
-            <img class="prefs-shot" data-shot="shield" data-w="720" data-h="581" src="assets/settings/shield.png?v=2c56ee46" width="1440" height="1162" loading="lazy" aria-hidden="true"
-                 alt="The Ads pane: ads, trackers and malware sites stopped in every app, and what was stopped, when and where, with an Open Ads and Trackers… button. Under Lists, Block ads and trackers is on, with two lists, each switched on and with how many sites it has: ADS, Ads and trackers, from StevenBlack; MALWARE, Malware and phishing, from URLhaus by malware-filter. How many were blocked today, and Update them weekly on, with the lists' date. Under Yours, More lists, Recommended or how many you chose, with a Choose… button, and Your rules, with an Edit… button.">
-            <img class="prefs-shot" data-shot="hotspot" data-w="720" data-h="564" src="assets/settings/hotspot.png?v=2c4a1b96" width="1440" height="1128" loading="lazy" aria-hidden="true"
-                 alt="The Hotspot pane. Stop apps updating on hotspots is on, and Right now says whether macOS reports this connection as a hotspot. This network is set to Detect automatically. It also puts the hotspot in Low Data Mode. Paused on a hotspot and Can't be paused, each with how many apps, are both closed. Every app's updater: Stopped on hotspots, including ones listed as can't be paused when they update with a program of their own.">
-            <img class="prefs-shot" data-shot="hotspot-apps" data-w="720" data-h="949" src="assets/settings/hotspot-apps.png?v=6300d33d" width="1440" height="1898" loading="lazy" aria-hidden="true"
-                 alt="The Hotspot pane with Paused on a hotspot open: one line per app found on this Mac, each with its switch, all on, NetworkMonitor itself among them. Two lines group the rest: Through NetworkMonitor's helper, naming macOS updates, App Store apps, Chrome, Slack and others, and Through their update folders, naming the apps whose update folder is locked. The pane scrolls to Can't be paused, closed.">
-            <img class="prefs-shot" data-shot="hotspot-uncovered" data-w="720" data-h="584" src="assets/settings/hotspot-uncovered.png?v=b7ad645b" width="1440" height="1168" loading="lazy" aria-hidden="true"
-                 alt="The Hotspot pane with Can't be paused open: the apps it can't pause, with why behind an ⓘ that appears when you point at the row. Quit these while you're on a hotspot to be sure they don't update. Every app's updater: Stopped on hotspots, including ones listed as can't be paused when they update with a program of their own.">
-            <img class="prefs-shot" data-shot="about" data-w="720" data-h="710" src="assets/settings/about.png?v=60697144" width="1440" height="1420" loading="lazy" aria-hidden="true"
-                 alt="The About pane: the NetworkMonitor icon, its version, and Live network speed in your menu bar, and which app used your data. Links to the website, the release notes and the source code on GitHub. Free and open source, under the MIT licence. Check for updates automatically is on, with a Check Now button: once a day it asks GitHub whether there's a newer version, never on a hotspot, and an update installs only when you say so, and only if it's signed by NetworkMonitor. Remove NetworkMonitor, with an Uninstall… button.">
-            <button class="prefs-row" type="button" aria-expanded="false" data-row="apps" style="--x:-340;--y:274;--w:680;--h:44" hidden>Paused on a hotspot</button>
-            <button class="prefs-row" type="button" aria-expanded="false" data-row="uncovered" style="--x:-340;--y:372;--w:680;--h:44" hidden>Can’t be paused</button>
-            <a class="prefs-link" href="#top" style="--x:151;--y:320;--w:183;--h:30" hidden>Website</a>
-            <a class="prefs-link" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest" style="--x:221;--y:357;--w:113;--h:30" hidden>Release notes</a>
-            <a class="prefs-link" href="https://github.com/kevinabouhanna/NetworkMonitor" style="--x:242;--y:394;--w:91;--h:30" hidden>Source code on GitHub</a>
+          <div id="prefs-panel" role="tabpanel" aria-labelledby="prefs-tab-history">
+            <img class="prefs-shot on" data-shot="history" data-w="1300" data-h="800" src="assets/main/history.png?v=20785701" width="2600" height="1600"
+                 alt="NetworkMonitor’s main window on Usage History. The sidebar lists Usage History, chosen, Connections, Ads and Trackers and Network, with Settings at the bottom. The toolbar has Day, Week, Month and Year, a ‹ Today › stepper, a search button and a gear. Show offers Apps, Networks and Sessions, beside All, Wi‑Fi and Hotspot. Under Today, how much was used, over a bar chart by the hour coloured by network, then apps biggest first, each with its icon, a bar and how much it used, some with an arrow that opens them. At the bottom, every hour is kept on this Mac, per app and per network, with an Export CSV… button.">
+            <img class="prefs-shot" data-shot="connections" data-w="1300" data-h="800" src="assets/connections.png?v=7ad6de93" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="The main window on Connections, Today. The toolbar has List, Both and Map, Day, Week, Month and Year, a ‹ Today › stepper, search and a gear. Group by Companies, Apps or Countries, Show Traffic or Blocked, and All, Wi‑Fi and Hotspot. How much went to and from servers, with how many companies, countries, apps and servers, over a timeline by the hour. On the left, companies biggest first, each with a bar and how much it used, and servers on a cloud as Hosted on Amazon with a HOST tag. On the right, a world map with the countries reached shaded, lines from where the Mac is to them, zoom buttons, and a note on the traffic answered from nearby data centres, which isn’t placed on the map.">
+            <img class="prefs-shot" data-shot="shield" data-w="1300" data-h="800" src="assets/main/shield.png?v=030bfdc3" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="The main window on Ads and Trackers, Today, on Overview, with Log beside it. How many were blocked, and how many by each list, with a Pause menu. A red bar chart of what was blocked, by the hour. Below, Sites and Apps, busiest first: each site with the servers that were tried and how many times, some tagged ADS; each app with the sites it tried.">
+            <img class="prefs-shot" data-shot="network" data-w="1300" data-h="800" src="assets/main/network.png?v=2efd9796" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="The main window on Network: the connection in use, Ethernet, and how much it used today. Under This network, a This is a hotspot switch, off, and Right now, what it’s detected as. Under Hotspots, Stop apps updating on hotspots, on, which also puts the hotspot in Low Data Mode; Paused on a hotspot and Can’t be paused, each with how many apps, both closed; and Every app’s updater, Stopped on hotspots. The speed test follows below, and the toolbar has a gear.">
+            <img class="prefs-shot" data-shot="network-apps" data-w="1300" data-h="800" src="assets/main/network-apps.png?v=b1adb401" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="The Network page with Paused on a hotspot open: one line per app found on this Mac, each with its switch, all on, NetworkMonitor itself among them.">
+            <img class="prefs-shot" data-shot="network-uncovered" data-w="1300" data-h="800" src="assets/main/network-uncovered.png?v=2d67d4fc" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="The Network page with Can’t be paused open, naming the app it can’t pause. Quit these while you’re on a hotspot to be sure they don’t update; Low Data Mode slows the ones that respect it.">
+            <img class="prefs-shot" data-shot="settings" data-w="1300" data-h="800" src="assets/main/settings.png?v=6618ac67" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="The main window on Settings, chosen at the bottom of the sidebar. Language, Same as the Mac. Start at login, on. Show speeds in Mbps or MB/s, with MB/s chosen. Know your Wi‑Fi networks by name, with a Turn On… button. Under Menu bar colors, Download in green, Upload in light grey, During a speed test in two shades of cyan, and a dimmed Use Default Colors button. Under Popover totals, Counting since, Sampling, and Start the totals over with a Reset Now button. Check for updates automatically, on, with Check Now. Further down, Sections, a row to each section’s settings, and Uninstall NetworkMonitor….">
+            <img class="prefs-shot" data-shot="history-settings" data-w="1300" data-h="800" src="assets/settings/history.png?v=7acef8f8" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="Usage History Settings, shown in place in the main window with a back button: how much was used today, with an Open Usage History… button, Keep history for Forever, and Clear History…. Usage History never leaves this Mac.">
+            <img class="prefs-shot" data-shot="connections-settings" data-w="1300" data-h="800" src="assets/settings/connections.png?v=f51d3c7d" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="Connections Settings, in place with a back button: how many companies today, with an Open Connections… button. Under Blocking, Let apps connect offers Anywhere, Ask Me and Only Where I Allow, with Anywhere chosen, and Rules, with Export… and Import… buttons. Under Lookups, Encrypt lookups, off, Sent to Cloudflare. Opens with List, Both or Map, with Both chosen. Countries and networks from DB-IP Lite, with its date, Update them monthly, on, and Kept as long as Usage History.">
+            <img class="prefs-shot" data-shot="shield-settings" data-w="1300" data-h="800" src="assets/settings/shield.png?v=2c906415" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="Ads and Trackers Settings, in place with a back button: how many were blocked today, with an Open Ads and Trackers… button. Block ads and trackers and Update the lists weekly, both on. Then Lists and Your Rules. On Lists, the built-in lists, Ads and trackers, tagged ADS, and Malware and phishing, tagged MALWARE, each with its switch, how many sites it has and how many it blocked today; Recommended, on, with HaGeZi Normal and OISD Big; and Advanced, to choose your own lists or add one by its address.">
+            <img class="prefs-shot" data-shot="network-settings" data-w="1300" data-h="800" src="assets/settings/network.png?v=1dce24f7" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="Network Settings, in place with a back button: Show the test in the popover as, with two pictures of the popover to choose from. Card, chosen and ringed in blue, shows a dial with the download speed, both speeds, and tiles for ping and jitter. Compact shows download and upload as two thin bars above the apps. The line below says what the chosen style does.">
+            <button class="prefs-gear" id="prefs-gear-history" type="button" data-gear="history" style="--x:606;--y:0;--w:40;--h:52" hidden
+                    data-caption="Usage History’s settings: how long to keep it, and Clear History…. It never leaves your Mac.">Usage History Settings</button>
+            <button class="prefs-gear" id="prefs-gear-connections" type="button" data-gear="connections" style="--x:606;--y:0;--w:40;--h:52" hidden
+                    data-caption="How apps may connect, every rule you’ve made, encrypted lookups, and where the names come from.">Connections Settings</button>
+            <button class="prefs-gear" id="prefs-gear-shield" type="button" data-gear="shield" style="--x:606;--y:0;--w:40;--h:52" hidden
+                    data-caption="The switch, weekly updates, the lists it uses and your own rules.">Ads and Trackers Settings</button>
+            <button class="prefs-gear" id="prefs-gear-network" type="button" data-gear="network" style="--x:606;--y:0;--w:40;--h:52" hidden
+                    data-caption="How the popover shows a speed test: a card with every figure, or two lines above your apps.">Network Settings</button>
+            <button class="prefs-back" type="button" data-label="Back to %@" style="--x:-456;--y:0;--w:44;--h:52" hidden>Back to Usage History</button>
+            <button class="prefs-row" type="button" aria-expanded="false" data-row="apps" style="--x:-440;--y:448;--w:680;--h:44" hidden>Paused on a hotspot</button>
+            <button class="prefs-row" type="button" aria-expanded="false" data-row="uncovered" style="--x:-440;--y:546;--w:680;--h:44" hidden>Can’t be paused</button>
           </div>
         </div>
       </div>
-      <p class="caption prefs-caption" aria-live="polite" data-prefs-caption>Start at login, speeds in MB/s or Mbps, the menu bar’s colours, and the popover’s totals.</p>
+      <p class="caption prefs-caption" aria-live="polite" data-prefs-caption>What every app and network used, hour by hour, for a day, week, month or year. It stays on your Mac.</p>
+
+      <figure class="about-shot reveal">
+        <div class="about-window">
+          <!-- About's links are placed by hand, in points: the About window reports its links' frames a line off, so site-shots leaves them alone. -->
+          <img src="assets/about.png?v=ec8ba205" width="568" height="658" data-w="284" data-h="329" loading="lazy"
+               alt="The About NetworkMonitor window: the app icon, its name and version, and Live network speed in your menu bar, and which app used your data. Links to the website, what’s new and the source code. Free and open source, under the Apache 2.0 licence, and the copyright.">
+          <a class="about-link" href="#top" style="--x:-25;--y:198;--w:50;--h:13">Website</a>
+          <a class="about-link" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest" style="--x:-35;--y:211;--w:69;--h:13">What’s new</a>
+          <a class="about-link" href="https://github.com/kevinabouhanna/NetworkMonitor" style="--x:-37;--y:224;--w:74;--h:13">Source code</a>
+        </div>
+        <figcaption class="caption">And About NetworkMonitor, in the menu bar’s right-click menu: the version, what’s new, the source code and the licence.</figcaption>
+      </figure>
     </div>
   </section>
 
@@ -920,7 +949,7 @@ footer a { color: var(--text-2); }
           <p>The usual Mac way: open the disk image and drag NetworkMonitor into <strong>Applications</strong>.</p>
           <div class="get">
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download NetworkMonitor.dmg</a>
-            <span class="meta">Version 1.27.0 · 14.1 MB · Universal</span>
+            <span class="meta">Version 1.28.1 · 14.5 MB · Universal</span>
           </div>
           <figure class="dmg-shot" style="margin-bottom:0">
             <img src="assets/dmg-window.png?v=5630c3c3" width="1424" height="1104" loading="lazy"
@@ -937,7 +966,7 @@ footer a { color: var(--text-2); }
       </div>
 
       <div class="ctas reveal">
-        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.27.0">What’s in version 1.27.0</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.28.1">What’s in version 1.28.1</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/wiki">Documentation</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
@@ -1003,24 +1032,30 @@ footer a { color: var(--text-2); }
     });
   }
 
-  // Settings: the toolbar switches panes as the app's does. The window takes
-  // each pane's size and keeps its top edge, and in Hotspot each list opens on
-  // its own, so every combination is a capture of its own.
+  // The main window: the sidebar switches sections as the app's does, each
+  // section's gear shows its settings in place and the back button returns,
+  // and on Network each list opens on its own, so every combination is a
+  // capture of its own. The window takes each view's size and keeps its top edge.
   const prefs = document.querySelector('[data-prefs]');
   if (prefs) {
     const win = prefs.querySelector('.prefs-window');
     const panel = prefs.querySelector('[role="tabpanel"]');
     const tabs = [...prefs.querySelectorAll('[role="tab"]')];
     const shots = new Map([...prefs.querySelectorAll('.prefs-shot')].map(img => [img.dataset.shot, img]));
+    const gears = [...prefs.querySelectorAll('[data-gear]')];
+    const back = prefs.querySelector('.prefs-back');
     const apps = prefs.querySelector('[data-row="apps"]');
     const uncovered = prefs.querySelector('[data-row="uncovered"]');
-    const links = prefs.querySelectorAll('.prefs-link');
     const caption = document.querySelector('[data-prefs-caption]');
-    const state = { pane: 'general', apps: false, uncovered: false };
+    const state = { pane: 'history', settings: false, apps: false, uncovered: false };
     let settle = 0;
 
-    const shotName = () => state.pane !== 'hotspot' ? state.pane
-      : state.apps ? 'hotspot-apps' : state.uncovered ? 'hotspot-uncovered' : 'hotspot';
+    const gearOf = pane => gears.find(g => g.dataset.gear === pane);
+    // Settings has no gear: it is the settings.
+    const inSettings = () => state.settings && !!gearOf(state.pane);
+    const shotName = () => inSettings() ? state.pane + '-settings'
+      : state.pane !== 'network' ? state.pane
+      : state.apps ? 'network-apps' : state.uncovered ? 'network-uncovered' : 'network';
 
     function render(animate) {
       const shot = shots.get(shotName());
@@ -1048,40 +1083,52 @@ footer a { color: var(--text-2); }
         t.setAttribute('aria-selected', String(t === tab));
         t.tabIndex = t === tab ? 0 : -1;
       }
-      // Named by its tab, not an aria-label of its own: ad blockers hide a
-      // div labelled "Ads" (##div[aria-label="Ads"], #392).
-      panel.setAttribute('aria-labelledby', tab.id);
-      caption.textContent = tab.dataset.caption;
-      apps.hidden = state.pane !== 'hotspot';
+      const gear = gearOf(state.pane);
+      const settings = inSettings();
+      // Named by its tab or its gear, not an aria-label of its own: ad blockers
+      // hide a div labelled "Ads" (##div[aria-label="Ads"], #392).
+      panel.setAttribute('aria-labelledby', settings ? gear.id : tab.id);
+      caption.textContent = settings ? gear.dataset.caption : tab.dataset.caption;
+      for (const g of gears) g.hidden = settings || g !== gear;
+      back.hidden = !settings;
+      back.textContent = back.dataset.label.replace('%@', tab.textContent);
+      const rows = state.pane === 'network' && !settings;
+      apps.hidden = !rows;
       // Open, the first list runs past the bottom of the window, over the second row.
-      uncovered.hidden = state.pane !== 'hotspot' || state.apps;
+      uncovered.hidden = !rows || state.apps;
       apps.setAttribute('aria-expanded', String(state.apps));
-      apps.style.setProperty('--h', state.apps ? 34 : 44);
       uncovered.setAttribute('aria-expanded', String(state.uncovered));
-      uncovered.style.setProperty('--h', state.uncovered ? 34 : 44);
-      links.forEach(link => { link.hidden = state.pane !== 'about'; });
     }
 
     const choose = (pane, focus) => {
-      if (pane === state.pane) return;
+      if (pane === state.pane && !state.settings) return;
       state.pane = pane;
+      state.settings = false;
       render(true);
       if (focus) tabs.find(t => t.dataset.pane === pane).focus();
     };
     tabs.forEach(tab => tab.addEventListener('click', () => choose(tab.dataset.pane)));
-    // Arrow keys move along the toolbar, as in any set of tabs.
+    // Arrow keys move along the sidebar, as in any set of tabs.
     prefs.querySelector('[role="tablist"]').addEventListener('keydown', event => {
       const i = tabs.findIndex(t => t.dataset.pane === state.pane);
-      const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[event.key];
+      const next = { ArrowDown: i + 1, ArrowRight: i + 1, ArrowUp: i - 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[event.key];
       if (next === undefined) return;
       event.preventDefault();
       choose(tabs[(next + tabs.length) % tabs.length].dataset.pane, true);
     });
+    // The gear shows the section's settings in place; Back returns to it.
+    gears.forEach(gear => gear.addEventListener('click', () => { state.settings = true; render(true); back.focus(); }));
+    back.addEventListener('click', () => { state.settings = false; render(true); gearOf(state.pane).focus(); });
     apps.addEventListener('click', () => { state.apps = !state.apps; if (state.apps) state.uncovered = false; render(true); });
     uncovered.addEventListener('click', () => { state.uncovered = !state.uncovered; render(true); });
-    // "See the Hotspot pane" opens it on the way down.
+    // "See the Network page" opens it on the way down; data-pane-settings,
+    // the section's settings.
     document.querySelectorAll('[data-pane-link]').forEach(link => {
-      link.addEventListener('click', () => { state.pane = link.dataset.paneLink; render(false); });
+      link.addEventListener('click', () => {
+        state.pane = link.dataset.paneLink;
+        state.settings = link.hasAttribute('data-pane-settings');
+        render(false);
+      });
     });
 
     render(false);

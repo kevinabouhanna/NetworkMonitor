@@ -1,11 +1,19 @@
-AXWindow (AXStandardWindow) title="Connections" 720x780
-  AXGroup h692
-    AXGroup (AXHostingView) h692
-      AXScrollArea h692
+AXWindow (AXStandardWindow) title="Connections Settings" 1300x800
+  AXSplitGroup 1300x800
+    AXGroup (AXHostingView) h800
+      AXScrollArea h700
+        AXButton description="Usage History" 172x32
+        AXButton description="Connections" 172x32
+        AXButton description="Ads and Trackers" 172x32
+        AXButton description="Network" 172x32
+      AXButton description="Settings" help="Settings (⌘,)" 172x32
+    AXSplitter value="#" h748
+    AXGroup (AXHostingView) h748
+      AXScrollArea h748
         AXScrollArea h692
           AXGroup h52
-            AXStaticText value="Which companies, countries and servers your apps talk to, on a list and a world map." h32
-            AXButton description="Open Connections…" help="Also ⌘K, and the globe in the popover" 148x24
+            AXStaticText value="# companies today, Which companies, countries and servers your apps talk to, on a list and a world map" h32
+            AXButton description="Open Connections…" help="Also ⌘K, and Companies in the popover" 148x24
           AXHeading description="Blocking" 56x16
           AXGroup h120
             AXStaticText value="Let apps connect" h16
@@ -18,8 +26,8 @@ AXWindow (AXStandardWindow) title="Connections" 720x780
             AXButton description="Export…" 76x24
             AXButton description="Import…" 76x24
           AXStaticText value="Everything connects except what you block. A rule applies from an app's next connection: one already open carries on until it closes." h28
-          AXHeading description="Lookups" 52x16
-          AXGroup h76
+          AXHeading description="Lookups" 56x16
+          AXGroup h80
             AXStaticText value="Encrypt lookups" h16
             AXCheckBox (AXToggle) description="Encrypt lookups" help="Before an app connects to a site, your Mac looks its name up. Those lookups normally travel unencrypted, so your internet provider and anyone on the Wi-Fi can read every name. Switched on, NetworkMonitor sends each lookup encrypted to the resolver you pick, over DNS over HTTPS, and gives the answer back unchanged. Names only your network knows, like the router's, still go to it. If the resolver doesn't answer, lookups go to your network as before, so names keep working. Apps that encrypt their own lookups, like Chrome with Secure DNS, aren't affected." 36x16
             AXStaticText value="Sent to" h16
@@ -27,7 +35,7 @@ AXWindow (AXStandardWindow) title="Connections" 720x780
           AXStaticText value="Off: lookups go to your network's DNS server unencrypted, as on any Mac." h16
           AXGroup h40
             AXStaticText value="Opens with" h16
-            AXRadioGroup description="Opens with" 156x24
+            AXRadioGroup description="Opens with" 160x24
               AXRadioButton (AXSegment) description="List" 52x24
               AXRadioButton (AXSegment) description="Both" 52x24
               AXRadioButton (AXSegment) description="Map" 52x24
@@ -39,17 +47,12 @@ AXWindow (AXStandardWindow) title="Connections" 720x780
             AXStaticText value="Kept" h16
             AXStaticText value="As long as Usage History" h16
           AXStaticText value="Everything is named on this Mac: nothing is looked up online. Once a month, NetworkMonitor downloads DB-IP's new data from GitHub, the same file for everyone, never on a hotspot. IP geolocation by DB-IP, CC BY #" h28
-  AXToolbar 720x56
-    AXButton title="General" description="General" 56x56
-    AXButton title="Speed Test" description="Speed Test" 72x56
-    AXButton title="History" description="History" 56x56
-    AXButton title="Connections" description="Connections" 80x56
-    AXButton title="Ads" description="Ads" 56x56
-    AXButton title="Hotspot" description="Hotspot" 56x56
-    AXButton title="About" description="About" 56x56
+  AXToolbar 1300x52
+    AXButton description="Sidebar" help="Hide Sidebar" 44x52
+    AXButton description="Connections" help="Back to Connections" 44x52
   AXButton (AXCloseButton) 16x16
-  AXButton (AXZoomButton) 16x16
+  AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16
     AXGroup h16
       AXGroup h16
   AXButton (AXMinimizeButton) 16x16
-  AXStaticText value="Connections" h16
+  AXStaticText value="Connections Settings" h52

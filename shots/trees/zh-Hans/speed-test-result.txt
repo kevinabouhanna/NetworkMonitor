@@ -1,19 +1,22 @@
-AXPopover 348x456
-  AXGroup (AXHostingView) h428
-    AXStaticText value="总计" h12
-    AXButton description="网速测试" identifier="gauge.with.dots.needle.#percent" help="测试网速" 12x12
-    AXButton description="连接" identifier="globe" help="连接" 12x12
-    AXButton description="流量历史" identifier="chart.bar.xaxis" help="流量历史" 12x12
-    AXButton description="设置" identifier="gearshape.fill" help="设置" 12x12
-    AXStaticText value="# ‹unit›" h20
-    AXStaticText value="正在使用 以太网" h12
-    AXButton description="今天已拦截 # 次" help="今天拦截的广告和跟踪器。查看拦截了什么，以及在哪里拦截的" h12
+AXPopover 348x468
+  AXGroup (AXHostingView) h444
+    AXStaticText value="统计周期" h16
+    AXTabGroup 48x16
+      AXRadioButton (AXTabButton) description="今天" 12x16
+      AXRadioButton (AXTabButton) description="周" 12x16
+      AXRadioButton (AXTabButton) description="月" 12x16
+    AXButton description="打开“网络”" identifier="square.grid.#x#" help="打开“网络”" 28x28
+    AXButton description="设置" identifier="gearshape" help="设置（⌘,）" 28x28
+    AXButton description="数据，今天，# ‹unit›" help="你的应用在所有网络上使用的数据量 · 今天" h44
+    AXButton description="连接，今天，#" help="连接：一个应用与一台服务器通信计为一次 · 今天" h44
+    AXButton description="已拦截，今天，#" help="已拦截的广告、跟踪器和恶意网站 · 今天" h44
+    AXButton description="网络，以太网" help="这台 Mac 连接的网络，以及它是否是热点" 72x44
     AXStaticText value="#" h12
-    AXStaticText value="#" h8
+    AXStaticText value="#" h12
     AXStaticText value="#" h40
     AXStaticText value="#" h12
     AXStaticText value="#" h12
-    AXStaticText value="MB/s 下载" h12
+    AXStaticText value="KB/s 下载" h12
     AXStaticText value="下载" h12
     AXStaticText value="# ‹unit›" h16
     AXStaticText value="上传" h12
@@ -27,5 +30,5 @@ AXPopover 348x456
     AXStaticText value="上传时的延迟" help="测试占满线路时测得的延迟。如果比线路空闲时的延迟高出很多，那么每当有内容下载或上传时，通话和游戏就会卡顿。" h12
     AXStaticText value="# ms" help="测试占满线路时测得的延迟。如果比线路空闲时的延迟高出很多，那么每当有内容下载或上传时，通话和游戏就会卡顿。" h16
     AXStaticText value="# ms" help="测试占满线路时测得的延迟。如果比线路空闲时的延迟高出很多，那么每当有内容下载或上传时，通话和游戏就会卡顿。" h16
-    AXButton description="返回应用" 64x20
+    AXButton description="返回" 44x20
     AXButton description="再测一次" 64x20
