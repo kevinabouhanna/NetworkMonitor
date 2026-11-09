@@ -1,0 +1,31 @@
+AXPopover 348x456
+  AXGroup (AXHostingView) h428
+    AXStaticText value="总计" h12
+    AXButton description="网速测试" identifier="gauge.with.dots.needle.#percent" help="测试网速" 12x12
+    AXButton description="连接" identifier="globe" help="连接" 12x12
+    AXButton description="流量历史" identifier="chart.bar.xaxis" help="流量历史" 12x12
+    AXButton description="设置" identifier="gearshape.fill" help="设置" 12x12
+    AXStaticText value="# ‹unit›" h20
+    AXStaticText value="正在使用 以太网" h12
+    AXButton description="今天已拦截 # 次" help="今天拦截的广告和跟踪器。查看拦截了什么，以及在哪里拦截的" h12
+    AXStaticText value="#" h12
+    AXStaticText value="#" h8
+    AXStaticText value="#" h40
+    AXStaticText value="#" h12
+    AXStaticText value="#" h12
+    AXStaticText value="MB/s 下载" h12
+    AXStaticText value="下载" h12
+    AXStaticText value="# ‹unit›" h16
+    AXStaticText value="上传" h12
+    AXStaticText value="# ‹unit›" h16
+    AXStaticText value="以太网 · 已用 # ‹unit› · ‹time›" h12
+    AXStaticText value="延迟" help="线路空闲时到测试服务器的往返时间。低于 # ms 很好；超过 # ms 时，通话和游戏中会明显感觉到。" h12
+    AXStaticText value="抖动" help="延迟随时间波动的幅度。低于 # ms 为好；更高会让通话断断续续。" h12
+    AXStaticText value="# ms" help="线路空闲时到测试服务器的往返时间。低于 # ms 很好；超过 # ms 时，通话和游戏中会明显感觉到。" h16
+    AXStaticText value="# ms" help="延迟随时间波动的幅度。低于 # ms 为好；更高会让通话断断续续。" h16
+    AXStaticText value="下载时的延迟" help="测试占满线路时测得的延迟。如果比线路空闲时的延迟高出很多，那么每当有内容下载或上传时，通话和游戏就会卡顿。" h12
+    AXStaticText value="上传时的延迟" help="测试占满线路时测得的延迟。如果比线路空闲时的延迟高出很多，那么每当有内容下载或上传时，通话和游戏就会卡顿。" h12
+    AXStaticText value="# ms" help="测试占满线路时测得的延迟。如果比线路空闲时的延迟高出很多，那么每当有内容下载或上传时，通话和游戏就会卡顿。" h16
+    AXStaticText value="# ms" help="测试占满线路时测得的延迟。如果比线路空闲时的延迟高出很多，那么每当有内容下载或上传时，通话和游戏就会卡顿。" h16
+    AXButton description="返回应用" 64x20
+    AXButton description="再测一次" 64x20

@@ -5,7 +5,7 @@ AXWindow (AXStandardWindow) title="连接" 720x380
         AXScrollArea h292
           AXGroup h44
             AXStaticText value="以列表和世界地图显示你的应用与哪些公司、国家或地区以及服务器通信。" h16
-            AXButton description="打开“连接”…" help="也可以按 ⌘K，或点按弹出窗口中的地球图标" 96x24
+            AXButton description="打开“连接”…" help="也可以按 ⌘K，或点按弹出窗口中的地球图标" 100x24
           AXGroup h40
             AXStaticText value="打开时显示" h16
             AXRadioGroup description="打开时显示" 152x24

@@ -7,6 +7,6 @@ AXPopover 348
     AXButton description="设置" identifier="gearshape.fill" help="设置" 12x12
     AXStaticText value="# ‹unit›" h20
     AXStaticText value="正在使用 以太网" h12
-    AXButton description="今天已阻止 # 个广告和跟踪器" help="今天阻止的广告和跟踪器。查看阻止了什么，以及在哪里阻止的" h12
+    AXButton description="今天已拦截 # 次" help="今天拦截的广告和跟踪器。查看拦截了什么，以及在哪里拦截的" h12
     AXScrollArea
       data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText

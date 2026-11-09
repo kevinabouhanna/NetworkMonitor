@@ -4,8 +4,8 @@ AXWindow (AXStandardWindow) title="广告" 720x228
       AXScrollArea h140
         AXScrollArea h140
           AXGroup h52
-            AXStaticText value="在所有应用中阻止广告、跟踪器和恶意软件网站，并查看阻止了什么、何时以及在哪里。" h32
-            AXButton description="打开广告与跟踪器…" help="也可按 ⌘B，或点按弹出窗口中“今天已阻止”那一行" 140x24
+            AXStaticText value="在所有应用中拦截广告、跟踪器和恶意软件网站，并查看拦截了什么、何时以及在哪里。" h32
+            AXButton description="打开广告与跟踪器…" help="也可按 ⌘B，或点按弹出窗口中“今天已拦截”那一行" 140x24
           AXGroup h36
             AXStaticText value="广告拦截需要内容过滤器，但此版本的 NetworkMonitor 没有内容过滤器。" h16
   AXToolbar 720x56

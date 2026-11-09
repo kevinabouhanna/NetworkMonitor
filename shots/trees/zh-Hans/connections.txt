@@ -15,9 +15,9 @@ AXWindow (AXStandardWindow) title="连接" 1120
     AXStaticText value="·" h16
     AXStaticText value="# 个公司 · # 个国家或地区 · # 个应用 · # 个服务器" h16
     data: AXUnknown
-    AXStaticText value="凌晨#时" h12
-    AXStaticText value="中午#时" h12
-    AXStaticText value="晚上#时" h12
+    AXStaticText value="‹time›时" h12
+    AXStaticText value="‹time›时" h12
+    AXStaticText value="‹time›时" h12
     AXScrollArea
       data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
     data: AXUnknown
@@ -43,9 +43,9 @@ AXWindow (AXStandardWindow) title="连接" 1120
         AXButton (AXSegment) description="下一个" help="下一个（⌘→）" 36x36
     AXGroup h52
       AXTextField (AXSearchField) 328x40
-        AXButton description="Search" 28x36
+        AXButton description="搜索" 28x36
   AXButton (AXCloseButton) 16x16
-  AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16
+  AXButton (AXFullScreenButton) help="此按钮也可以执行缩放窗口的操作" 16x16
     AXGroup h16
       AXGroup h16
   AXButton (AXMinimizeButton) 16x16

@@ -5,7 +5,7 @@ AXWindow (AXStandardWindow) title="通用" 720
         AXScrollArea
           AXGroup h40
             AXStaticText value="语言" h16
-            AXPopUpButton description="语言" help="NetworkMonitor 的窗口、菜单和 VoiceOver 使用的语言。“与 Mac 相同”会跟随“系统设置 › 通用 › 语言与地区”。" 120x24
+            AXPopUpButton description="语言" help="NetworkMonitor 的窗口、菜单和 VoiceOver 使用的语言。“跟随系统”使用“系统设置 › 通用 › 语言与地区”中的语言。" 100x24
           AXGroup h36
             AXStaticText value="登录时启动" h16
             AXCheckBox (AXToggle) description="登录时启动" help="登录 macOS 后自动打开 NetworkMonitor。退出应用仍然会退出；下次登录前不会再次打开。" 36x16
