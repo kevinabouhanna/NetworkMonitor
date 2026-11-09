@@ -54,6 +54,7 @@ make run     # build build/NetworkMonitor.app and open it
 | `make dmg-background` | Redraws the disk image background |
 | `make site-check` | Says which of the website's pictures show a window whose interface changed (below) |
 | `make site-shots` | Retakes those pictures, or the ones in `NAMES`, and updates the page |
+| `make site-trees NAMES=…` | Records those windows' trees as they read now, without retaking their pictures, after marking more of them as data (below) |
 | `make asset-check` | Fails on any image, GIF or video the site, README or docs use that isn't listed with the window it shows (below) |
 | `make translation-check` | Fails when this branch changes an English page for people using the app but not its translation ([Languages](#languages)) |
 | `make translation-review FROM=vX.Y.Z` | The text added or changed since that release in each language, as a table for its native reviewer ([Adding a language](#adding-a-language)) |
@@ -457,6 +458,18 @@ Rewrite the alt text of any picture whose interface changed.
   a run either.
 - A value that follows the Mac's state, not the interface (a time, plugged in or on
   battery, on a hotspot or not), is marked as data with `skip: 1` on the label beside it.
+  A line that comes and goes with it is left out with `ignore`, or, where what comes
+  and goes can't be named, covered by a region with `optional: true`: it may be
+  empty, and only that it's there is kept. The Mac's connection is one (#416): the
+  popover's Network button and the lines that can show under it ("Not using …", an
+  update that got through); in Network the "Right now" row, the note under it, and
+  the status lines at the end of Hotspots ("Low Data Mode is on"). So a check on
+  Wi-Fi or a hotspot reads the same as one on Ethernet.
+- **After adding a mark**, record the trees again without retaking the pictures:
+  `make site-trees NAMES="popover-subprocesses main-network"`. The diff it prints
+  should be only what the new marks cover. What's made by hand stays flagged if it was
+  already, and a `when` shot named with its base (`popover speed-test-result`) records
+  only that it was taken with the base as it reads now, without running.
 - It must run against the installed, notarized app: a development build shows different
   rows, since it has no content filter or helper.
 - To add a picture, write its entry, look at `build/site-shots tree <name>` to mark the

@@ -1,4 +1,4 @@
-.PHONY: all build test hooks design-shots review app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check translation-check translation-review site-shots site-audit clean
+.PHONY: all build test hooks design-shots review app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check translation-check translation-review site-shots site-trees site-audit clean
 
 all: test app
 
@@ -140,6 +140,12 @@ translation-review:
 
 site-shots: build/site-shots
 	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh env MAC_LANE=screen ./Scripts/mac-lane.sh build/site-shots update --site $(SITE) $(NAMES)
+
+# Records the trees of the windows in NAMES as they read now, without retaking
+# their pictures: after marking more of a window as data or ignored, such as
+# what follows the Mac's connection (#416).
+site-trees: build/site-shots
+	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh env MAC_LANE=screen ./Scripts/mac-lane.sh build/site-shots record --site $(SITE) $(NAMES)
 
 # The installed app's windows, with real data, against the tests' accessibility
 # rules (#346).
