@@ -13,6 +13,12 @@
 #                                        (a billing or spending-limit error, no checks at all,
 #                                        or a job not started after CI_START_MINUTES, 15)
 #
+# Scripts/tests/local-ci-test.sh (in `make test`) checks which way --fallback decides, against
+# a stand-in `gh` and GitHub's answers saved as files (#461). It sets these to run in seconds:
+#   CI_START_SECONDS   the start window in seconds, instead of CI_START_MINUTES
+#   CI_POLL_SECONDS    how often GitHub's checks are read (30)
+#   LOCAL_CI_DECIDE_ONLY=1   stop once decided: print that it would run here, and run nothing
+#
 # Builds reuse one worktree (~/Library/Caches/networkmonitor-dev/ci), one run at a time, so
 # SwiftPM builds incrementally. Only the smoke test touches the Mac: it runs in the
 # networkmonitor Mac lane and opens the installed copy again afterwards. Takes 5-15 minutes:
@@ -26,9 +32,13 @@ if [[ "${1:-}" == --fallback ]]; then fallback=true; shift; fi
 target="${1:?usage: Scripts/local-ci.sh [--fallback] <pull request number | branch | commit>}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 
+start_window=$((${CI_START_SECONDS:-$((${CI_START_MINUTES:-15} * 60))}))
+poll=$((${CI_POLL_SECONDS:-30}))
+if ((start_window % 60)); then window_text="${start_window}s"; else window_text="$((start_window / 60)) min"; fi
+
 if [[ "$target" =~ ^[0-9]+$ ]]; then
+  # The commit itself is fetched only to run here, once --fallback has decided to.
   sha="$(gh pr view "$target" -R "$REPO" --json headRefOid --jq .headRefOid)"
-  git -C "$root" fetch -q origin "pull/$target/head"
 else
   git -C "$root" fetch -q origin
   sha="$(git -C "$root" rev-parse --verify -q "origin/$target^{commit}" || git -C "$root" rev-parse --verify "$target^{commit}")"
@@ -48,14 +58,14 @@ github_job() { # <name>
         grep -qiE 'billing|spending limit|payment|account is locked'; then echo cant; else echo fail; fi ;;
     *)
       if [[ "$status" == queued ]] &&
-        (($(date +%s) - $(date -juf '%Y-%m-%dT%H:%M:%SZ' "$created" +%s 2>/dev/null || date +%s) > ${CI_START_MINUTES:-15} * 60)); then
+        (($(date +%s) - $(date -juf '%Y-%m-%dT%H:%M:%SZ' "$created" +%s 2>/dev/null || date +%s) > start_window)); then
         echo cant
       else echo running; fi ;;
   esac
 }
 
 if $fallback; then
-  waited=0
+  began=$SECONDS
   while :; do
     states=""
     for job in "${JOBS[@]}"; do states="$states $(github_job "$job")"; done
@@ -63,12 +73,18 @@ if $fallback; then
       *cant*) echo "local-ci: GitHub can't run CI for ${sha:0:7} (billing, or not started): running it here"; break ;;
       *fail*) echo "local-ci: GitHub ran CI and it failed:"; gh pr checks "$target" -R "$REPO" 2>/dev/null || true; exit 1 ;;
       " pass pass") echo "local-ci: GitHub's CI passed for ${sha:0:7}; nothing to run here"; exit 0 ;;
-      *none*none*) if ((waited >= ${CI_START_MINUTES:-15} * 60)); then
-          echo "local-ci: no GitHub checks for ${sha:0:7} after ${CI_START_MINUTES:-15} min: running here"; break; fi ;;
+      *none*none*) if ((SECONDS - began >= start_window)); then
+          echo "local-ci: no GitHub checks for ${sha:0:7} after $window_text: running here"; break; fi ;;
     esac
-    sleep 30; waited=$((waited + 30))
+    sleep "$poll"
   done
 fi
+
+if [[ "${LOCAL_CI_DECIDE_ONLY:-}" == 1 ]]; then
+  echo "local-ci: would run ${JOBS[*]} here for ${sha:0:7} (LOCAL_CI_DECIDE_ONLY)"
+  exit 0
+fi
+if [[ "$target" =~ ^[0-9]+$ ]]; then git -C "$root" fetch -q origin "pull/$target/head"; fi
 
 ci="$HOME/Library/Caches/networkmonitor-dev/ci"
 src="$ci/src" site="$ci/site"
