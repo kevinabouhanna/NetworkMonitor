@@ -1,0 +1,33 @@
+{
+  "total_count": 2,
+  "check_runs": [
+    {
+      "id": 601,
+      "name": "build-and-test",
+      "head_sha": "1234567890abcdef1234567890abcdef12345678",
+      "status": "in_progress",
+      "conclusion": null,
+      "started_at": "__AGO_5__",
+      "completed_at": null,
+      "html_url": "https://github.com/kevinabouhanna/NetworkMonitor/actions/runs/1/job/601",
+      "app": {
+        "slug": "github-actions",
+        "name": "GitHub Actions"
+      }
+    },
+    {
+      "id": 602,
+      "name": "universal",
+      "head_sha": "1234567890abcdef1234567890abcdef12345678",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "__AGO_5__",
+      "completed_at": "__AGO_5__",
+      "html_url": "https://github.com/kevinabouhanna/NetworkMonitor/actions/runs/1/job/602",
+      "app": {
+        "slug": "github-actions",
+        "name": "GitHub Actions"
+      }
+    }
+  ]
+}

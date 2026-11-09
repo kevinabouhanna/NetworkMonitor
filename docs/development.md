@@ -54,6 +54,7 @@ make run     # build build/NetworkMonitor.app and open it
 | `make dmg-background` | Redraws the disk image background |
 | `make site-check` | Says which of the website's pictures show a window whose interface changed (below) |
 | `make site-shots` | Retakes those pictures, or the ones in `NAMES`, and updates the page |
+| `make site-trees NAMES=…` | Records those windows' trees as they read now, without retaking their pictures, after marking more of them as data (below) |
 | `make asset-check` | Fails on any image, GIF or video the site, README or docs use that isn't listed with the window it shows (below) |
 | `make translation-check` | Fails when this branch changes an English page for people using the app but not its translation ([Languages](#languages)) |
 | `make translation-review FROM=vX.Y.Z` | The text added or changed since that release in each language, as a table for its native reviewer ([Adding a language](#adding-a-language)) |
@@ -108,6 +109,12 @@ and exits non-zero if anything fails.
 - **The asset check's cases.** `make test` also runs `build/site-shots coverage-test`:
   made-up pages that put a picture in each place [the asset check](#every-asset-is-listed)
   must find it (#425).
+- **The CI fallback's decisions.** `make test` also runs `Scripts/tests/local-ci-test.sh`:
+  `Scripts/local-ci.sh --fallback` against a stand-in `gh` that answers from files in
+  `Scripts/tests/local-ci/`, one folder per case, with GitHub's own billing texts (#461). It
+  checks only which way the script decides: GitHub passed or failed, so report that; or a
+  billing or spending-limit error, a job still queued after the start window, or no checks
+  at all, so run both jobs here. Nothing is built or fetched, and it takes seconds.
 - **Live tests**, which need a real network and a real `nettop`, are skipped when `CI` is
   set. Run them anyway with `NETMON_LIVE_TESTS=1`. They include guards such as "the stream
   stays under 25% of a core" and "changing the interval leaves exactly one `nettop`".
@@ -224,6 +231,8 @@ must be green before a merge.
 each result on the commit under the same name, so a pull request reads the same either way.
 - It watches GitHub's checks first, and doesn't run anything here when GitHub can do it.
 - Without `--fallback`, it runs here straight away.
+- `CI_START_MINUTES` (15) sets how long it waits for GitHub to start; `CI_START_SECONDS`,
+  `CI_POLL_SECONDS` and `LOCAL_CI_DECIDE_ONLY=1` are for its tests (see [Tests](#tests)).
 - Builds reuse one worktree in `~/Library/Caches/networkmonitor-dev/ci`, one run at a time.
 - The smoke test runs in the `networkmonitor` Mac lane, and opens the installed copy again
   afterwards.
@@ -437,18 +446,42 @@ It also fails on an entry that nothing uses, a file that doesn't exist, or a win
 isn't a shot. CI runs it on every pull request into `main` and into `gh-pages`, and
 `gh-pages` takes nothing but a pull request that passes it (a ruleset, #426). So a new
 section's picture, or a GIF of a feature, can't merge without saying which window it
-shows:
+shows, and which version of the app it was made from:
 
 ```json
-{ "file": "assets/hotspot.gif", "shows": ["settings-hotspot", "popover"] }
+{ "file": "assets/hotspot.gif", "shows": ["main-network", "popover"], "made": "1.28.1" }
 ```
+
+**Check `shows` frame by frame** (#422). The check trusts the list: a window left out
+is never compared, so a change to it never names the asset. Before listing an asset, or
+after remaking one, step through it and name every window any frame shows, a sheet, a
+section or a list opened in it included. A pull request that adds or remakes one says
+it was checked (the pull request template asks).
+
+**`made`: the version it was made from** (#421). Every entry with `shows` needs it.
+Each window's record has a version too: `shots/trees/versions.json` gives, for each
+tree file, the version of the app it was taken from. `site-shots` keeps a record's
+version while its tree stays the same, and sets the installed app's when it changes.
+The check fails on an asset made from a version older than the record of a window it
+shows. That record is `<name>.made.txt` when there is one (the tree what's made by hand
+was last remade from), the window's own tree otherwise. So an asset already out of
+date the day it's listed fails, where a comparison of trees alone would pass it.
+
+- **Remade it?** Set `made` to the version it was made from.
+- **Can't remake it yet?** Set `stale` to the issue its remake waits on
+  (`"stale": "#458"`). The check names it, and passes. Once the asset is remade and
+  `made` is as new as its windows, `stale` has to come out.
+- **A window known to look the same in an earlier version** can have that version in
+  `versions.json`, written by hand, when the release notes show it didn't change.
 
 When one of those windows changes, `site-check` names everything made by hand from it,
 on either branch, until it's remade:
 
 - **The reminder stays after a retake.** Retaking the window's own picture doesn't end
   it. The tree each was made from is kept in `shots/trees/<name>.made.txt`.
-- **To end it:** remake them, then run `make site-shots NAMES=<window>`.
+- **To end it:** remake them, set their `made`, then run `make site-shots NAMES=<window>`.
+  That records the window as it is today, for everything made by hand from it, so
+  anything left unremade fails the check, unless it's marked `stale`.
 
 Rewrite the alt text of any picture whose interface changed.
 
@@ -460,6 +493,18 @@ Rewrite the alt text of any picture whose interface changed.
   a run either.
 - A value that follows the Mac's state, not the interface (a time, plugged in or on
   battery, on a hotspot or not), is marked as data with `skip: 1` on the label beside it.
+  A line that comes and goes with it is left out with `ignore`, or, where what comes
+  and goes can't be named, covered by a region with `optional: true`: it may be
+  empty, and only that it's there is kept. The Mac's connection is one (#416): the
+  popover's Network button and the lines that can show under it ("Not using …", an
+  update that got through); in Network the "Right now" row, the note under it, and
+  the status lines at the end of Hotspots ("Low Data Mode is on"). So a check on
+  Wi-Fi or a hotspot reads the same as one on Ethernet.
+- **After adding a mark**, record the trees again without retaking the pictures:
+  `make site-trees NAMES="popover-subprocesses main-network"`. The diff it prints
+  should be only what the new marks cover. What's made by hand stays flagged if it was
+  already, and a `when` shot named with its base (`popover speed-test-result`) records
+  only that it was taken with the base as it reads now, without running.
 - It must run against the installed, notarized app: a development build shows different
   rows, since it has no content filter or helper.
 - To add a picture, write its entry, look at `build/site-shots tree <name>` to mark the

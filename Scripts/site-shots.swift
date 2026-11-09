@@ -22,6 +22,9 @@
 //   readme           copies the site's pictures the README uses into it, in
 //                    every language (#434). Files only. `update` copies each
 //                    one it retakes
+//   record <names>   records the named windows' trees as they read now,
+//                    without retaking their pictures: after marking more of
+//                    a window as data or ignored (#416)
 //
 // It needs Accessibility and Screen Recording for the terminal it runs in. It
 // quits and relaunches the installed app, and puts it back running at the end.
@@ -125,6 +128,58 @@ struct HandMade: Decodable {
     /// `update` copies the site's picture here, and each language's to
     /// `<folder>/<code>/<name>`, which needn't be listed.
     var copy: String?
+    /// With `shows`, required: the app version it was made from, such as
+    /// `1.28.1` (#421). It fails the check when it's older than the record of
+    /// a window it shows (`Versions`), so an asset that was out of date on the
+    /// day it was listed doesn't pass.
+    var made: String?
+    /// The issue its remake waits on, such as `#458`, when it's out of date
+    /// and can't be remade yet: the check names it without failing. It fails
+    /// again once the asset is as new as its windows, until this comes out.
+    var stale: String?
+}
+
+/// The app version each window's record was taken from (#421), in
+/// `shots/trees/versions.json`, by file name: `{"popover.txt": "1.28.1",
+/// "popover.made.txt": "1.28.1"}`. English only, as what's made by hand is.
+/// `update` keeps a record's version while the tree it holds stays the same,
+/// since the window looked the same then, and sets this run's app version
+/// when it changes.
+enum Versions {
+    static let file = "versions.json"
+
+    static func read(_ trees: URL) -> [String: String] {
+        guard let data = try? Data(contentsOf: trees.appendingPathComponent(file)),
+              let versions = try? JSONDecoder().decode([String: String].self, from: data) else { return [:] }
+        return versions
+    }
+
+    static func write(_ versions: [String: String], to trees: URL) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try (encoder.encode(versions) + Data("\n".utf8)).write(to: trees.appendingPathComponent(file))
+    }
+
+    /// The version of the app at `path`, from its Info.plist.
+    static func app(_ path: String) -> String? {
+        let plist = URL(fileURLWithPath: path).appendingPathComponent("Contents/Info.plist")
+        return (NSDictionary(contentsOf: plist)?["CFBundleShortVersionString"] as? String)
+    }
+
+    /// `1.26.7`, `1.28`: numbers and dots only.
+    static func valid(_ version: String) -> Bool {
+        version.range(of: #"^\d+(\.\d+)*$"#, options: .regularExpression) != nil
+    }
+
+    /// Whether `a` is an earlier version than `b`: 1.9 is before 1.10.
+    static func older(_ a: String, than b: String) -> Bool {
+        let x = a.split(separator: ".").map { Int($0) ?? 0 }, y = b.split(separator: ".").map { Int($0) ?? 0 }
+        for i in 0..<max(x.count, y.count) {
+            let p = i < x.count ? x[i] : 0, q = i < y.count ? y[i] : 0
+            if p != q { return p < q }
+        }
+        return false
+    }
 }
 
 /// The README's and the docs' assets, in `Resources/README/assets.json` on
@@ -209,7 +264,9 @@ struct Shot: Decodable {
     var always: Bool?
     /// Videos and staged pictures that show this window. They're reported when
     /// it changes, for remaking by hand. The older way of saying what the
-    /// manifest's `assets` say with `shows`; both work.
+    /// manifest's `assets` say with `shows`. With nowhere to say which version
+    /// each was made from (`made`, #421), an entry here fails the check: list
+    /// it under `assets` instead.
     var flags: [String]?
 
     /// The same shot in `language`: the app opened in it, its elements named
@@ -262,6 +319,10 @@ struct DataRegion: Decodable {
     /// siblings; "run" for the siblings right after it with the same role, like
     /// a chart's bars. Absent, the region is the `from` element alone.
     var until: String?
+    /// Lines that come and go with the Mac's state, such as Network's status
+    /// lines on a hotspot (#416): the region may be empty, and only that it's
+    /// there is kept, not its roles.
+    var optional: Bool?
 }
 
 struct Crop: Decodable {
@@ -444,7 +505,10 @@ func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = []) -> [
                     // The label itself stays interface.
                     for k in i..<min(i + skip, kids.count) { if walk(kids[k], depth + 1) { holdsData = true } }
                     i += skip
-                    guard i < kids.count else { break }
+                    guard i < kids.count else {
+                        if region.optional == true { out.append(pad + "  data: optional"); holdsData = true }
+                        break
+                    }
                 }
                 var end = i + 1
                 if let until = region.until {
@@ -454,7 +518,8 @@ func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = []) -> [
                     default:    end = kids[(i + 1)...].firstIndex { matches($0, until) } ?? kids.count
                     }
                 }
-                out.append(pad + "  data: " + roles(in: Array(kids[i..<end])).joined(separator: " "))
+                out.append(pad + "  data: " + (region.optional == true ? "optional"
+                                               : roles(in: Array(kids[i..<end])).joined(separator: " ")))
                 holdsData = true
                 i = end
             } else {
@@ -935,10 +1000,20 @@ enum Coverage {
 
     /// What's wrong, one line each; empty when every asset is accounted for.
     /// The site's come first, fixed on `gh-pages`; from `onMain` on, the
-    /// README's and the docs', fixed on `main` (#426).
-    static func problems(manifest: Manifest, site: URL, repoAssets: RepoAssets?, repo: URL?) throws -> (problems: [String], onMain: Int, summary: String) {
-        var problems: [String] = []
+    /// README's and the docs', fixed on `main` (#426). And what's known to be
+    /// out of date, waiting on an issue (`stale`), which doesn't fail it.
+    static func problems(manifest: Manifest, site: URL, repoAssets: RepoAssets?, repo: URL?) throws
+        -> (problems: [String], onMain: Int, summary: String, stale: [String]) {
+        var problems: [String] = [], stale: [String] = []
         let shotNames = Set(manifest.shots.map(\.name))
+        // Each window's record, as the version it was taken from (#421): the
+        // tree what's made by hand was last remade from, or the window's own.
+        let trees = site.appendingPathComponent("shots/trees")
+        let versions = Versions.read(trees)
+        func recorded(_ name: String) -> String? {
+            let made = "\(name).made.txt"
+            return FileManager.default.fileExists(atPath: trees.appendingPathComponent(made).path) ? versions[made] : versions["\(name).txt"]
+        }
 
         func checkList(_ list: [HandMade], root: URL, listName: String, uses: [String: Set<String>], taken: Set<String>) {
             var seen = Set<String>()
@@ -953,6 +1028,21 @@ enum Coverage {
                 for name in shows where !shotNames.contains(name) {
                     problems.append("\(file) in \(listName) shows \"\(name)\", which isn't a shot in shots/shots.json"
                                     + (listName == repoAssetsPath ? renamedOnSite : ""))
+                }
+                // Made from a window older than its record: out of date on
+                // the day it was listed, or since a remake of its window (#421).
+                if !shows.isEmpty, !(asset.made.map(Versions.valid) ?? false) {
+                    problems.append("\(file) in \(listName) needs `made`: the app version it was made from, such as \"1.28.1\" (#421)")
+                } else if !shows.isEmpty, let made = asset.made {
+                    let newer = shows.compactMap { name in recorded(name).flatMap { Versions.older(made, than: $0) ? "\(name) (\($0))" : nil } }
+                    if newer.isEmpty, let issue = asset.stale {
+                        problems.append("\(file) in \(listName) is as new as the windows it shows; take out `stale` (\(issue))")
+                    } else if !newer.isEmpty, let issue = asset.stale {
+                        stale.append("\(file), made from \(made), waits on \(issue): \(newer.joined(separator: ", ")) changed since")
+                    } else if !newer.isEmpty {
+                        problems.append("\(file) in \(listName) was made from \(made), but these windows' records are newer: "
+                                        + newer.joined(separator: ", ") + ". Remake it and set `made`, or set `stale` to the issue its remake waits on")
+                    }
                 }
                 if !FileManager.default.fileExists(atPath: root.appendingPathComponent(file).path) {
                     problems.append("\(file) is listed in \(listName) but doesn't exist")
@@ -1010,7 +1100,7 @@ enum Coverage {
             checkList(repoAssets?.assets ?? [], root: repo, listName: repoAssetsPath, uses: uses, taken: copies)
             summary += " and \(uses.count) in the README and docs"
         }
-        return (problems, onMain, summary)
+        return (problems, onMain, summary, stale)
     }
 
     /// A shot `main` names, gone from `gh-pages`: the usual cause is a change
@@ -1193,7 +1283,7 @@ enum CoverageTests {
              "shots": [{"name": "popover", "file": "assets/popover.png", "open": [], "window": "x"}]}
             """.utf8))
         let repoAssets = try JSONDecoder().decode(RepoAssets.self, from: Data("""
-            {"assets": [{"file": "Resources/README/demo.gif", "shows": ["popover-subprocesses"]},
+            {"assets": [{"file": "Resources/README/demo.gif", "shows": ["popover-subprocesses"], "made": "1.28.1"},
                         {"file": "Resources/README/speed.png", "copy": "speed-test-result"}]}
             """.utf8))
         let found = try Coverage.problems(manifest: manifest, site: site, repoAssets: repoAssets, repo: repo)
@@ -1291,11 +1381,15 @@ struct SiteShots {
         if let i = args.firstIndex(of: "--language"), i + 1 < args.count {
             only = args[i + 1]; args.removeSubrange(i...(i + 1))
         }
-        guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "coverage-test", "readme"].contains(command) else {
-            print("usage: site-shots check|update|audit [names…]|tree <name>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
+        guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "coverage-test", "readme", "record"].contains(command) else {
+            print("usage: site-shots check|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
             exit(2)
         }
         let names = Set(args.dropFirst())
+        if command == "record", names.isEmpty {
+            print("record: name the windows whose marks changed; recording every tree would hide a real change")
+            exit(2)
+        }
         let repoAssets = try? JSONDecoder().decode(RepoAssets.self, from: Data(contentsOf: repo.appendingPathComponent(repoAssetsPath)))
 
         // Made-up pages only: where `coverage` looks for media (#425).
@@ -1325,16 +1419,20 @@ struct SiteShots {
                 let found = try Coverage.problems(manifest: manifest, site: site, repoAssets: repoAssets, repo: repo)
                 if found.problems.isEmpty {
                     print("coverage: \(found.summary), all accounted for")
-                    exit(0)
+                } else {
+                    print("coverage: every image, GIF and video a page uses must be listed, so a change to the window it shows can't leave it stale (#413):")
+                    // The branch a pull request goes into, or a push went to, on GitHub.
+                    let env = ProcessInfo.processInfo.environment
+                    let checking = [env["GITHUB_BASE_REF"], env["GITHUB_REF_NAME"]]
+                        .compactMap { $0 }.first { !$0.isEmpty }.flatMap { ["main", "gh-pages"].contains($0) ? $0 : nil }
+                    let head = env["GITHUB_HEAD_REF"].flatMap { $0.isEmpty ? nil : $0 }
+                    Coverage.report(found.problems, onMain: found.onMain, checking: checking, head: head).forEach { print($0) }
                 }
-                print("coverage: every image, GIF and video a page uses must be listed, so a change to the window it shows can't leave it stale (#413):")
-                // The branch a pull request goes into, or a push went to, on GitHub.
-                let env = ProcessInfo.processInfo.environment
-                let checking = [env["GITHUB_BASE_REF"], env["GITHUB_REF_NAME"]]
-                    .compactMap { $0 }.first { !$0.isEmpty }.flatMap { ["main", "gh-pages"].contains($0) ? $0 : nil }
-                let head = env["GITHUB_HEAD_REF"].flatMap { $0.isEmpty ? nil : $0 }
-                Coverage.report(found.problems, onMain: found.onMain, checking: checking, head: head).forEach { print($0) }
-                exit(1)
+                if !found.stale.isEmpty {
+                    print("Out of date, each waiting on its issue (#421):")
+                    found.stale.forEach { print("  " + $0) }
+                }
+                exit(found.problems.isEmpty ? 0 : 1)
             } catch {
                 print("coverage: \(error)")
                 exit(2)
@@ -1426,12 +1524,27 @@ struct SiteShots {
             }
         }
 
+        // The version each record was taken from (#421), English only: what's
+        // made by hand is checked against it.
+        var versions = language == nil ? Versions.read(trees) : [:]
+        let appVersion = Versions.app(manifest.app)
+
         var current: [String: [String]] = [:]
         for shot in shots {
             do {
                 // A costly shot follows its base window: retaken only when the
                 // base's tree differs from the one it was last taken with.
                 var baseTree: [String]?
+                if let base = shot.when, command == "record" {
+                    // Can't be read without taking it (a speed test): record
+                    // only that it was taken with the base window as it reads
+                    // now, so a new mark there doesn't retake it.
+                    guard let now = current[base] else { print("\(shot.name): name \(base) too, to record its base"); continue }
+                    try (now.joined(separator: "\n") + "\n").write(
+                        to: trees.appendingPathComponent("\(shot.name).base.txt"), atomically: true, encoding: .utf8)
+                    print("\(shot.name): recorded \(base) as it was taken with")
+                    continue
+                }
                 if let base = shot.when {
                     let baseFile = trees.appendingPathComponent("\(shot.name).base.txt")
                     let taken = (try? String(contentsOf: baseFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
@@ -1493,6 +1606,10 @@ struct SiteShots {
                 let treeFile = trees.appendingPathComponent("\(shot.name).txt")
                 let before = (try? String(contentsOf: treeFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
                 let differs = before != now
+                if command == "record" {
+                    try record(shot, now: now, before: before, handMade: handMade[shot.name] ?? [], trees: trees)
+                    continue
+                }
                 if let before, differs {
                     print("\(shot.name): the interface changed")
                     diff(before, now).prefix(40).forEach { print($0) }
@@ -1507,7 +1624,8 @@ struct SiteShots {
                 // update by the window's name does, once they're remade.
                 let hand = handMade[shot.name] ?? []
                 let madeFile = trees.appendingPathComponent("\(shot.name).made.txt")
-                let made = (try? String(contentsOf: madeFile, encoding: .utf8))?.split(separator: "\n").map(String.init) ?? before
+                let madeOnDisk = (try? String(contentsOf: madeFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
+                let made = madeOnDisk ?? before
                 if !hand.isEmpty, let made, made != now, !(command == "update" && named) {
                     flagged += hand.map { "\($0), from \(shot.name)" }
                 }
@@ -1542,14 +1660,20 @@ struct SiteShots {
                     guard let r = frame(element) else { continue }
                     page.place(area, at: r.offsetBy(dx: -windowFrame.minX, dy: -windowFrame.minY), windowWidth: windowFrame.width)
                 }
+                // Each record keeps its version while it holds the same tree.
+                let treeName = treeFile.lastPathComponent, madeName = madeFile.lastPathComponent
                 if !hand.isEmpty {
                     if named {
                         try (now.joined(separator: "\n") + "\n").write(to: madeFile, atomically: true, encoding: .utf8)
-                    } else if !FileManager.default.fileExists(atPath: madeFile.path), let before {
+                        versions[madeName] = (madeOnDisk == now ? versions[madeName] : before == now ? versions[treeName] : nil) ?? appVersion
+                    } else if madeOnDisk == nil, let before {
                         try (before.joined(separator: "\n") + "\n").write(to: madeFile, atomically: true, encoding: .utf8)
+                        versions[madeName] = versions[treeName]
                     }
                 }
                 try (now.joined(separator: "\n") + "\n").write(to: treeFile, atomically: true, encoding: .utf8)
+                versions[treeName] = (before == now ? versions[treeName] : nil) ?? appVersion
+                if language == nil { try Versions.write(versions, to: trees) }
                 if let baseTree {
                     try (baseTree.joined(separator: "\n") + "\n").write(
                         to: trees.appendingPathComponent("\(shot.name).base.txt"), atomically: true, encoding: .utf8)
@@ -1579,7 +1703,33 @@ struct SiteShots {
             for p in problems where seen.insert(p).inserted { print("  " + p) }
         }
         if !failed.isEmpty { return 2 }
+        if command == "record" { return 0 }
         if command == "audit" { return problems.isEmpty ? 0 : 1 }
         return command == "check" && !(changed.isEmpty && flagged.isEmpty) ? 1 : 0
+    }
+
+    /// Records a window's tree as it reads now, without retaking its picture
+    /// (#416): for after a mark in the manifest changed what's data or left
+    /// out, such as the Mac's connection. The diff it prints should be only
+    /// what the new marks cover. A reminder to remake what's made by hand
+    /// stays: the tree each was made from is updated only if it was the
+    /// window's tree, and a window that only flags videos keeps its old tree
+    /// while they're waiting to be remade.
+    static func record(_ shot: Shot, now: [String], before: [String]?, handMade: [String], trees: URL) throws {
+        let treeFile = trees.appendingPathComponent("\(shot.name).txt")
+        let madeFile = trees.appendingPathComponent("\(shot.name).made.txt")
+        if shot.file == nil, !handMade.isEmpty, let before, before != now {
+            print("\(shot.name): kept, as what's made from it is waiting to be remade (\(handMade.joined(separator: ", ")))")
+            return
+        }
+        if let before, before == now { print("\(shot.name): unchanged"); return }
+        print("\(shot.name): recorded" + (before == nil ? "" : ", as it reads now:"))
+        if let before { diff(before, now).prefix(40).forEach { print($0) } }
+        let text = now.joined(separator: "\n") + "\n"
+        if let made = (try? String(contentsOf: madeFile, encoding: .utf8))?.split(separator: "\n").map(String.init),
+           made == before {
+            try text.write(to: madeFile, atomically: true, encoding: .utf8)
+        }
+        try text.write(to: treeFile, atomically: true, encoding: .utf8)
     }
 }

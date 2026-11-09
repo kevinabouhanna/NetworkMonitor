@@ -1,0 +1,5 @@
+#!/bin/bash
+# A stand-in for `git` in Scripts/tests/local-ci-test.sh: deciding with a pull request's number
+# needs no git at all, so any call is logged as unexpected and fails.
+echo "UNEXPECTED git $*" >>"${GH_LOG:?}"
+exit 1
