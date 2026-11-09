@@ -14,23 +14,38 @@ struct AdsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            tabs
-            Divider()
+            scopeBar
+                .padding(.horizontal, ScopeMetrics.inset)
+                .padding(.top, ScopeMetrics.top)
+            if model.tab == .log { Spacer().frame(height: ScopeMetrics.below) }
             page
         }
         .frame(minWidth: AdsMetrics.minWidth, minHeight: AdsMetrics.minHeight)
     }
 
-    private var tabs: some View {
-        Picker(L("View"), selection: $model.tab) {
-            ForEach(AdsViewModel.Tab.allCases) { tab in Text(tab.label).tag(tab) }
+    /// Overview or the log, in the row every section has under its toolbar,
+    /// at the same place (#436); on Log, which decisions and its buttons too.
+    private var scopeBar: some View {
+        HStack(spacing: 10) {
+            LabelledControl(L("Show")) {
+                Picker(L("Show"), selection: $model.tab) {
+                    ForEach(AdsViewModel.Tab.allCases) { tab in Text(tab.label).tag(tab) }
+                }
+                .help(L("What was blocked, and every connection as it's decided"))
+            }
+            // The toolbar's search, as a filter like the others (#436).
+            let query = model.logSearch.trimmingCharacters(in: .whitespaces)
+            if !query.isEmpty {
+                FilterChip(label: L("“%@”", query), onClear: { model.logSearch = "" })
+            }
+            if model.tab == .log {
+                Divider().frame(height: 16)
+                AdsLogControls(model: model)
+            } else {
+                Spacer(minLength: 0)
+            }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .fixedSize()
-        .help(L("What was blocked, and every connection as it's decided"))
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
+        .frame(height: ScopeMetrics.height)
     }
 
     @ViewBuilder private var page: some View {
@@ -364,14 +379,8 @@ struct AdsLogView: View {
     var body: some View {
         let entries = model.logEntries
         VStack(spacing: 0) {
-            // Search is in the toolbar, as in every section (#436).
-            HStack(spacing: 12) {
-                show
-                Spacer(minLength: 8)
-                buttons
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
+            // Which decisions, and the buttons, are in the scope row above;
+            // search is in the toolbar, as in every section (#436).
             Divider()
             AdsLogHeader()
             Divider()
@@ -399,15 +408,6 @@ struct AdsLogView: View {
         }
     }
 
-    private var show: some View {
-        Picker(L("Show"), selection: $model.logShow) {
-            ForEach(AdsLog.Show.allCases) { Text($0.label).tag($0) }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .fixedSize()
-    }
-
     /// Why the log is empty: it's live, so it fills only while the filter
     /// decides connections, from the moment NetworkMonitor starts (#436).
     private var emptyTitle: String {
@@ -423,17 +423,6 @@ struct AdsLogView: View {
             return L("The log shows each connection as the filter decides it. It fills once ad blocking or a rule is on, and starts afresh each time NetworkMonitor opens.")
         }
         return L("Each connection your apps open shows here as it's decided, while NetworkMonitor runs.")
-    }
-
-    @ViewBuilder private var buttons: some View {
-        Button(model.logIsPaused ? L("Resume") : L("Pause")) { model.toggleLogPause() }
-            .help(model.logIsPaused ? L("Show new connections again") : L("Stop the list moving while you read it"))
-            .fixedSize()
-        Button(L("Clear")) { model.clearLog() }
-            .fixedSize()
-        Button(L("Export…")) { export() }
-            .help(L("Save what's shown as a text file"))
-            .fixedSize()
     }
 
     @ViewBuilder private func menu(for entry: AdsLogEntry) -> some View {
@@ -495,6 +484,35 @@ struct AdsLogView: View {
     private func copy(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+    }
+
+}
+
+/// The log's own controls, in the scope row: which decisions, then Pause,
+/// Clear and Export.
+struct AdsLogControls: View {
+    @ObservedObject var model: AdsViewModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Picker(L("Decisions"), selection: $model.logShow) {
+                ForEach(AdsLog.Show.allCases) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help(L("Every decision, or only some"))
+            Spacer(minLength: 8)
+            Button(model.logIsPaused ? L("Resume") : L("Pause")) { model.toggleLogPause() }
+                .help(model.logIsPaused ? L("Show new connections again") : L("Stop the list moving while you read it"))
+                .fixedSize()
+            Button(L("Clear")) { model.clearLog() }
+                .fixedSize()
+            Button(L("Export…")) { export() }
+                .help(L("Save what's shown as a text file"))
+                .fixedSize()
+        }
+        .controlSize(.small)
     }
 
     private func export() {

@@ -7,6 +7,17 @@ import SwiftUI
 
 /// A segmented control with its name beside it: on its own, a segmented
 /// control doesn't say what it chooses.
+/// Where the row under a section's toolbar sits, the same in Usage History,
+/// Connections and Ads and Trackers, so it doesn't move as you go from one
+/// to the next (#436).
+enum ScopeMetrics {
+    static let inset: CGFloat = 20
+    static let top: CGFloat = 12
+    static let height: CGFloat = 24
+    /// Between the row and what's under it.
+    static let below: CGFloat = 14
+}
+
 struct LabelledControl<Control: View>: View {
     let label: String
     @ViewBuilder let control: Control

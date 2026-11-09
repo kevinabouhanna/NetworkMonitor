@@ -854,8 +854,6 @@
 "Paste" = "粘贴";
 "Select All" = "全选";
 "Find…" = "查找…";
-"Hide Sidebar" = "隐藏边栏";
-"Show Sidebar" = "显示边栏";
 "Hotspots" = "热点";
 "Search" = "搜索";
 "Search apps and networks" = "搜索应用和网络";
@@ -886,3 +884,8 @@
 "Counted while NetworkMonitor is running, on every network" = "NetworkMonitor 运行时统计，涵盖所有网络";
 "Data your apps used, on every network" = "你的应用在所有网络上使用的数据量";
 "What Data, Connections and Ads blocked count: today, this week or this month so far, on every network" = "数据、连接和已拦截的统计范围：今天、本周或本月至今，涵盖所有网络";
+"Collapse Sidebar" = "收起边栏";
+"Expand Sidebar" = "展开边栏";
+"Decisions" = "判定";
+"Every decision, or only some" = "所有判定，或只看其中一部分";
+"“%@”" = "“%@”";

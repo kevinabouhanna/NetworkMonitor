@@ -31,9 +31,13 @@ enum PeriodControl {
 }
 
 /// Search in a section's toolbar (#436): a magnifying glass until it's
-/// clicked or ⌘F is pressed, then a field, as in Mail and Finder. It stays
-/// open while it holds a search, so what narrows the list stays in sight, and
-/// folds back once it's emptied and left.
+/// clicked or ⌘F is pressed, then a field, as in Mail and Finder.
+///
+/// - Clicking anywhere else, or Escape, folds it back while it's empty.
+/// - Escape with a search in it clears the search first; again, it folds.
+/// - Holding a search, it stays open, so what narrows the list stays in
+///   sight; the row under the toolbar shows it as a chip too, cleared with
+///   one click like any other filter.
 ///
 /// `NSSearchToolbarItem` folds itself into the glass when its field has no
 /// width to spare and opens to `preferredWidthForSearchField` while it's
@@ -50,10 +54,12 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
     private let folded: NSLayoutConstraint
     private let open: NSLayoutConstraint
     private var isEditing = false
+    private var clicks: Any?
 
     init(_ identifier: NSToolbarItem.Identifier) {
         item = NSSearchToolbarItem(itemIdentifier: identifier)
         item.preferredWidthForSearchField = Self.width
+        item.resignsFirstResponderWithCancel = true
         let field = item.searchField
         field.translatesAutoresizingMaskIntoConstraints = false
         folded = field.widthAnchor.constraint(equalToConstant: 0)
@@ -63,6 +69,17 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
         super.init()
         field.delegate = self
         fold()
+        // A click outside the open, empty field folds it, wherever it lands:
+        // the list, the chart and empty space don't take the keyboard from
+        // it, so on its own the field would stay open.
+        clicks = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+            self?.clicked(event)
+            return event
+        }
+    }
+
+    deinit {
+        if let clicks { NSEvent.removeMonitor(clicks) }
     }
 
     public var field: NSSearchField { item.searchField }
@@ -75,10 +92,11 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
     }
 
     /// The model's search, put back in the field: a section shown again, or
-    /// a search set elsewhere.
+    /// a search cleared from its chip.
     public func show(_ text: String) {
         guard field.stringValue != text else { return }
         field.stringValue = text
+        if text.isEmpty && !hasFocus { item.endSearchInteraction() }
         fold()
     }
 
@@ -87,6 +105,23 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
 
     /// Whether it rests open, holding a search, rather than as the glass.
     public var isOpen: Bool { open.isActive }
+
+    /// Folds it back to the glass, if it holds no search.
+    public func finish() {
+        guard field.stringValue.isEmpty else { return }
+        isEditing = false
+        item.endSearchInteraction()
+        fold()
+    }
+
+    private var hasFocus: Bool { field.currentEditor() != nil }
+
+    private func clicked(_ event: NSEvent) {
+        guard hasFocus, field.stringValue.isEmpty, let window = field.window, event.window === window else { return }
+        guard !field.convert(field.bounds, to: nil).contains(event.locationInWindow) else { return }
+        // After the click is handled, so a click on a control still works.
+        DispatchQueue.main.async { [weak self] in self?.finish() }
+    }
 
     private func fold() {
         let shut = field.stringValue.isEmpty && !isEditing
@@ -107,5 +142,18 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
     public func controlTextDidEndEditing(_ notification: Notification) {
         isEditing = false
         fold()
+    }
+
+    /// Escape: clears the search, then, pressed again, folds the field.
+    public func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+        guard selector == #selector(NSResponder.cancelOperation(_:)) else { return false }
+        if field.stringValue.isEmpty {
+            finish()
+        } else {
+            field.stringValue = ""
+            onChange("")
+            fold()
+        }
+        return true
     }
 }

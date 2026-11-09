@@ -21,7 +21,7 @@ public struct ConnectionsView: View {
 
     public var body: some View {
         GeometryReader { geometry in
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: ScopeMetrics.below) {
                 if model.offersWebsiteNames {
                     WebsiteNamesOffer(filter: model.filter) { model.offersWebsiteNames = false }
                 }
@@ -42,8 +42,8 @@ public struct ConnectionsView: View {
                 Divider()
                 footer
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
+            .padding(.horizontal, ScopeMetrics.inset)
+            .padding(.top, ScopeMetrics.top)
             .padding(.bottom, 14)
         }
         .frame(minWidth: ConnectionsMetrics.minWidth, minHeight: ConnectionsMetrics.minHeight)
@@ -79,9 +79,13 @@ public struct ConnectionsView: View {
                     .help(L("What your apps sent and received, or the connections that were blocked"))
                 }
             }
-            if model.spanTitle != nil || !model.chips.isEmpty {
+            if model.spanTitle != nil || !model.chips.isEmpty || !query.isEmpty {
                 Divider().frame(height: 16)
                 HStack(spacing: 6) {
+                    // The toolbar's search, as a filter like the others (#436).
+                    if !query.isEmpty {
+                        FilterChip(label: L("“%@”", query), onClear: { model.search = "" })
+                    }
                     if let span = model.spanTitle {
                         FilterChip(label: span, onClear: model.clearSpan)
                     }
@@ -104,8 +108,10 @@ public struct ConnectionsView: View {
             .controlSize(.small)
             .help(L("Every connection, Wi-Fi only, or hotspots only"))
         }
-        .frame(height: 24)
+        .frame(height: ScopeMetrics.height)
     }
+
+    private var query: String { model.search.trimmingCharacters(in: .whitespaces) }
 
     // MARK: Header
 

@@ -40,6 +40,10 @@ public enum MainSection: String, CaseIterable, Identifiable {
 final class MainNavigation: ObservableObject {
     @Published var section: MainSection = .history
     @Published var showsSettings = false
+    /// The sidebar folded to its icons (#436), remembered between launches.
+    @Published var iconsOnly = UserDefaults.standard.bool(forKey: MainMetrics.iconsOnlyKey) {
+        didSet { UserDefaults.standard.set(iconsOnly, forKey: MainMetrics.iconsOnlyKey) }
+    }
 }
 
 /// The main window (#436): one window with a sidebar, in place of the
@@ -136,12 +140,12 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                                                                 onSelect: { [weak self] in self?.show($0) })
             .localizedRoot())
         let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebar)
-        sidebarItem.minimumThickness = MainMetrics.sidebarWidth
-        sidebarItem.maximumThickness = 260
-        sidebarItem.canCollapse = true
+        // Folds to its icons rather than away (#436), so the sections stay
+        // one click away.
+        sidebarItem.canCollapse = false
         split.addSplitViewItem(sidebarItem)
         split.addSplitViewItem(NSSplitViewItem(viewController: container))
-        mainWindow.split = split
+        mainWindow.onToggleSidebar = { [weak self] in self?.toggleSidebar() }
         window.contentViewController = split
         window.setContentSize(NSSize(width: 1300, height: 800))
         window.isReleasedWhenClosed = false
@@ -161,6 +165,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
             .publisher(for: Localization.didChange)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.nameWindow() }
+        sizeSidebar()
         place(navigation.section)
     }
 
@@ -168,10 +173,24 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
 
     private func use(_ toolbar: NSToolbar) { window.toolbar = toolbar }
 
-    /// Shows or hides the sidebar: the toolbar's button, and View › Hide Sidebar.
-    public func toggleSidebar() { split.toggleSidebar(nil) }
+    /// Folds the sidebar to its icons, or opens it again: the toolbar's
+    /// button, and View › Collapse Sidebar (#436).
+    public func toggleSidebar() {
+        navigation.iconsOnly.toggle()
+        sizeSidebar()
+        place(navigation.section, keepingSettings: navigation.showsSettings)
+    }
 
-    public var sidebarIsCollapsed: Bool { split.splitViewItems[0].isCollapsed }
+    /// Whether the sidebar shows its icons alone.
+    public var sidebarIsCollapsed: Bool { navigation.iconsOnly }
+
+    private func sizeSidebar() {
+        let item = split.splitViewItems[0]
+        let width = navigation.iconsOnly ? MainMetrics.iconsOnlyWidth : MainMetrics.sidebarWidth
+        item.minimumThickness = width
+        item.maximumThickness = navigation.iconsOnly ? width : 260
+        split.splitView.setPosition(width, ofDividerAt: 0)
+    }
 
     /// ⌘F: the section's search, opened, with the cursor in it.
     public func beginSearch() {
@@ -248,7 +267,12 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         showSettings()
     }
 
-    private func place(_ section: MainSection) {
+    private func place(_ section: MainSection, keepingSettings: Bool = false) {
+        if keepingSettings {
+            window.contentMinSize = NSSize(width: MainMetrics.minWidth(section, iconsOnly: navigation.iconsOnly),
+                                           height: MainMetrics.minHeight)
+            return
+        }
         navigation.section = section
         switch section {
         case .history:
@@ -267,13 +291,12 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
             container.show(general)
             use(generalToolbar)
         }
-        window.contentMinSize = NSSize(width: MainMetrics.minWidth(section), height: MainMetrics.minHeight)
-        if window.frame.width < window.frameRect(forContentRect: NSRect(x: 0, y: 0, width: MainMetrics.minWidth(section),
-                                                                        height: 100)).width {
+        let least = MainMetrics.minWidth(section, iconsOnly: navigation.iconsOnly)
+        window.contentMinSize = NSSize(width: least, height: MainMetrics.minHeight)
+        let frameWidth = window.frameRect(forContentRect: NSRect(x: 0, y: 0, width: least, height: 100)).width
+        if window.frame.width < frameWidth {
             var frame = window.frame
-            frame.size.width = window.frameRect(forContentRect: NSRect(x: 0, y: 0,
-                                                                       width: MainMetrics.minWidth(section),
-                                                                       height: 100)).width
+            frame.size.width = frameWidth
             window.setFrame(frame, display: true)
         }
         nameWindow()
@@ -364,9 +387,9 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
 /// the window opens, it went from the window to the app, found no one, and
 /// the button did nothing. The built-in button can't be given a target.
 final class MainWindow: NSWindow {
-    weak var split: NSSplitViewController?
+    var onToggleSidebar: () -> Void = {}
 
-    @objc func toggleSidebar(_ sender: Any?) { split?.toggleSidebar(sender) }
+    @objc func toggleSidebar(_ sender: Any?) { onToggleSidebar() }
 }
 
 /// The content area: shows one section's view, or its settings.
@@ -403,15 +426,17 @@ struct MainSidebar: View {
             List(selection: Binding<MainSection?>(get: { navigation.section == .settings ? nil : navigation.section },
                                                   set: { if let section = $0 { onSelect(section) } })) {
                 ForEach(MainSection.features) { section in
-                    Label(section.title, systemImage: section.symbol).tag(section)
+                    label(section)
+                        .help(navigation.iconsOnly ? section.title : "")
+                        .tag(section)
                 }
             }
             .listStyle(.sidebar)
             Divider()
             Button { onSelect(.settings) } label: {
-                Label(MainSection.settings.title, systemImage: MainSection.settings.symbol)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
+                label(.settings)
+                    .frame(maxWidth: .infinity, alignment: navigation.iconsOnly ? .center : .leading)
+                    .padding(.horizontal, navigation.iconsOnly ? 0 : 10)
                     .padding(.vertical, 6)
                     .background(RoundedRectangle(cornerRadius: 6)
                         .fill(navigation.section == .settings ? Color.primary.opacity(0.1) : Color.clear))
@@ -420,8 +445,22 @@ struct MainSidebar: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
+            .padding(.horizontal, navigation.iconsOnly ? 8 : 0)
             .help(L("Settings (⌘,)"))
             .accessibilityAddTraits(navigation.section == .settings ? [.isSelected] : [])
+        }
+    }
+
+    /// The name and its icon, or the icon alone with the sidebar folded; the
+    /// name still goes to VoiceOver, and shows on hover.
+    @ViewBuilder
+    private func label(_ section: MainSection) -> some View {
+        if navigation.iconsOnly {
+            Label(section.title, systemImage: section.symbol)
+                .labelStyle(.iconOnly)
+                .frame(maxWidth: .infinity)
+        } else {
+            Label(section.title, systemImage: section.symbol)
         }
     }
 }
@@ -445,17 +484,22 @@ struct MainSettingsPage: View {
 
 enum MainMetrics {
     static let sidebarWidth: CGFloat = 190
+    /// Folded to its icons: room for the window's buttons and the sidebar's
+    /// own above it, and an icon in each row.
+    static let iconsOnlyWidth: CGFloat = 64
+    static let iconsOnlyKey = "MainSidebarIconsOnly"  // untranslated: defaults key
     static let minHeight: CGFloat = 560
     /// The narrowest the window can be on a section: the sidebar and what the
     /// section's toolbar needs (#315), measured with `make design-shots`
     /// and `--measure`.
-    static func minWidth(_ section: MainSection) -> CGFloat {
+    static func minWidth(_ section: MainSection, iconsOnly: Bool = false) -> CGFloat {
+        let sidebar = iconsOnly ? iconsOnlyWidth : sidebarWidth
         switch section {
-        case .connections: return sidebarWidth + ConnectionsMetrics.minWidth
-        case .ads:         return sidebarWidth + AdsMetrics.minWidth
-        case .history:     return sidebarWidth + HistoryMetrics.windowMinWidth
-        case .network:     return sidebarWidth + 560
-        case .settings:    return sidebarWidth + SettingsMetrics.paneWidth
+        case .connections: return sidebar + ConnectionsMetrics.minWidth
+        case .ads:         return sidebar + AdsMetrics.minWidth
+        case .history:     return sidebar + HistoryMetrics.windowMinWidth
+        case .network:     return sidebar + 560
+        case .settings:    return sidebar + SettingsMetrics.paneWidth
         }
     }
 }

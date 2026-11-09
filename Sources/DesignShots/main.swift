@@ -436,6 +436,13 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     shoot("network")
     main.show(.settings)
     shoot("settings-general")
+    // The sidebar folded to its icons (#436).
+    if wanted(prefix + "connections-icons") {
+        main.show(.connections)
+        main.toggleSidebar()
+        shoot("connections-icons", settle: 1.5)
+        main.toggleSidebar()
+    }
     for section in MainSection.features {
         main.show(section)
         main.showSettings()

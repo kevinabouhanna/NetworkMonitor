@@ -19,7 +19,7 @@ public struct HistoryView: View {
     private var report: HistoryReport { model.report }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: ScopeMetrics.below) {
             scopeBar
             heading
             HistoryChart(model: model)
@@ -29,7 +29,9 @@ public struct HistoryView: View {
             Divider()
             footer
         }
-        .padding(20)
+        .padding(.horizontal, ScopeMetrics.inset)
+        .padding(.top, ScopeMetrics.top)
+        .padding(.bottom, 14)
         .background(periodShortcuts)
         .frame(minWidth: HistoryMetrics.windowMinWidth, minHeight: HistoryMetrics.windowMinHeight)
     }
@@ -68,11 +70,12 @@ public struct HistoryView: View {
             .controlSize(.small)
             .help(L("Every connection, Wi-Fi only, or hotspots only"))
         }
-        .frame(height: 24)
+        .frame(height: ScopeMetrics.height)
     }
 
     private var hasChips: Bool {
         model.filteredAppName != nil || model.filteredNetworkName != nil || model.filter.sessionID != nil
+            || !query.isEmpty
     }
 
     /// ⌘← and ⌘→ step through periods, as in Connections. The toolbar's arrows
@@ -97,6 +100,10 @@ public struct HistoryView: View {
     /// beside the row that was clicked to add one (#192).
     @ViewBuilder
     private var chips: some View {
+        // The toolbar's search, as a filter like the others (#436).
+        if !query.isEmpty {
+            FilterChip(label: L("“%@”", query), onClear: { model.search = "" })
+        }
         if let name = model.filteredAppName {
             FilterChip(label: name, onClear: model.clearApp)
         }
