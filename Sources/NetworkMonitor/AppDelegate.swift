@@ -828,7 +828,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         line(L("What's new"), link: "https://github.com/kevinabouhanna/NetworkMonitor/releases/latest")
         line(L("Source code"), link: "https://github.com/kevinabouhanna/NetworkMonitor")
         line("")
-        line(L("Free and open source, under the MIT licence."))
+        line(L("Free and open source, under the Apache 2.0 licence."))
         let style = NSMutableParagraphStyle()
         style.alignment = .center
         credits.addAttribute(.paragraphStyle, value: style, range: NSRange(location: 0, length: credits.length))

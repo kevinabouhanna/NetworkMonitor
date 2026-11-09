@@ -7,7 +7,7 @@ import Foundation
 /// nearest the user, and records ping on separate connections while each
 /// direction is saturated — the number that explains a stuttering call, which a
 /// plain download timer cannot. The alternatives either need an install (Ookla's CLI, under a
-/// licence an MIT app cannot redistribute), publish the user's IP address as open
+/// licence that forbids bundling it), publish the user's IP address as open
 /// data (M-Lab's NDT), or mean writing and maintaining a measurement engine that
 /// would be worse than the one already on the machine.
 ///
