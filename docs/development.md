@@ -451,7 +451,9 @@ Language & Region › Applications writes, so the two are one setting.
   (`Features-zh-Hans`, `Home-zh-Hans`) and lists them in a section of the sidebar.
   A change to an English page changes its copies in the same pull request, using
   the app's own words for anything in the app (its table, above). The website has
-  a page per language too: `zh/index.html` on `gh-pages`.
+  a page per language too: `zh/index.html` on `gh-pages`. In Chinese pages, bold is
+  `<strong>…</strong>`, and a paragraph is one line: GitHub's Markdown leaves `**`
+  showing next to Chinese punctuation, and turns a line break into a space.
 
 ## Launch arguments
 
