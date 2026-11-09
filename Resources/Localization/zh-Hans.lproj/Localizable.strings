@@ -831,12 +831,10 @@
 "Also ⌘K, and Companies in the popover" = "也可按 ⌘K，或点按弹出窗口中的“公司”";
 "Also ⌘Y" = "也可按 ⌘Y";
 "Apps, networks or each visit to a network. A row narrows the window to it." = "应用、网络或每个连接时段。点按一行即可只看这一项。";
-"Connection" = "连接方式";
 "Connections are counted while NetworkMonitor is running." = "NetworkMonitor 运行时会统计连接。";
 "Data used today, by app" = "今天各应用使用的数据量";
 "Every hour is kept on this Mac, per app and per network" = "每小时的数据都按应用和网络保存在这台 Mac 上";
 "Every hour is kept on this Mac, per app and per network." = "每小时的数据都按应用和网络保存在这台 Mac 上。";
-"Hotspot Settings" = "热点设置";
 "Marked by you for this network." = "已由你为此网络标记。";
 "No connections yet today" = "今天还没有连接";
 "Nothing blocked yet today" = "今天还没有拦截任何内容";
@@ -868,3 +866,13 @@
 "Test Speed" = "测试网速";
 "This build has no content filter: the lists and rules here are kept, and apply when the signed app runs." = "此版本没有内容过滤器：这里的列表和规则会保留，并在已签名的 App 运行时生效。";
 "↓ %@  ↑ %@ · %@" = "↓ %@  ↑ %@ · %@";
+"%@ Settings" = "%@设置";
+"%@ · %@ today" = "%@ · 今天 %@";
+"Also joined" = "也已加入";
+"App updates are paused until you leave this network." = "在你离开此网络之前，应用更新会一直暂停。";
+"App updates pause on any network marked as a hotspot." = "在任何标记为热点的网络上，应用更新都会暂停。";
+"Back to %@" = "返回%@";
+"Open Network" = "打开“网络”";
+"Pauses app updates and iCloud downloads while you're on this network. NetworkMonitor recognises an iPhone's hotspot by itself, but some phones look like ordinary Wi-Fi, or like Ethernet over USB: switch this on for those. It's remembered for this network." = "连接此网络时，暂停应用更新和 iCloud 下载。NetworkMonitor 能自动识别 iPhone 的热点，但有些手机看起来像普通 Wi-Fi，或通过 USB 连接时像以太网：遇到这些手机时请打开此开关。此设置会为此网络记住。";
+"Settings for the network and hotspots" = "网络和热点的设置";
+"Stopping app updates on hotspots is off: switch it on with the gear." = "“停止热点下的应用更新”已关闭：可通过齿轮图标打开。";

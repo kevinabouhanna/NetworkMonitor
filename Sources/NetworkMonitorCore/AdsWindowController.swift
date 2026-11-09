@@ -18,27 +18,37 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     private static let scaleItem = NSToolbarItem.Identifier("scale")
     private static let stepItem = NSToolbarItem.Identifier("step")
 
-    public init(model: AdsViewModel) {
+    /// The content and the toolbar, for the window of its own or for a
+    /// section of the main window (#436).
+    public let content: NSViewController
+    public let toolbar: NSToolbar
+    private let standalone: Bool
+
+    public init(model: AdsViewModel, standalone: Bool = true) {
         self.model = model
+        self.standalone = standalone
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 640),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
-        super.init()
         let host = NSHostingController(rootView: AdsView(model: model).localizedRoot())
+        content = host
+        toolbar = NSToolbar(identifier: standalone ? "Ads" : "Main.ads")
+        super.init()
         host.sizingOptions = []
-        window.contentViewController = host
+        if standalone { window.contentViewController = host }
         window.setContentSize(NSSize(width: 900, height: 640))
         window.contentMinSize = NSSize(width: AdsMetrics.minWidth, height: AdsMetrics.minHeight)
         window.isReleasedWhenClosed = false
 
         configureControls()
-        let toolbar = NSToolbar(identifier: "Ads")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
         toolbar.centeredItemIdentifiers = [Self.scaleItem]
-        window.toolbar = toolbar
-        window.toolbarStyle = .unified
+        if standalone {
+            window.toolbar = toolbar
+            window.toolbarStyle = .unified
+        }
         nameControls()
         // The words follow a language chosen while the window is open (#433).
         languageObservation = NotificationCenter.default
@@ -100,7 +110,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
         stepControl.setToolTip(L("Back to the present"), forSegment: 1)
         stepControl.setToolTip(L("Next"), forSegment: 2)
 
-        for item in window.toolbar?.items ?? [] {
+        for item in toolbar.items {
             if let names = Self.names(for: item.itemIdentifier) {
                 item.label = names.label
                 item.toolTip = names.help
@@ -129,7 +139,6 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     /// the log is the present, rules have no period, and the lists count
     /// today's blocks, so elsewhere they'd only sit there doing nothing.
     private func showPeriod(_ show: Bool) {
-        guard let toolbar = window.toolbar else { return }
         for item in toolbar.items where [Self.scaleItem, Self.stepItem].contains(item.itemIdentifier) {
             if #available(macOS 15, *) {
                 item.isHidden = !show
@@ -156,7 +165,8 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         // As Connections: the period centred, ‹ Today › trailing, and the gear
         // last, where it stays put when the period hides on Log.
-        [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, SettingsGear.identifier]
+        (standalone ? [] : MainWindowController.sidebarItems)
+            + [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, SettingsGear.identifier]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {

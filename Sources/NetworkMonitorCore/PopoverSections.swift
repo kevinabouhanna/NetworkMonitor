@@ -49,7 +49,7 @@ struct PopoverButtons: View {
             button(.blocked, value: blocked, label: L("Ads blocked"),
                    color: blockedIsOn ? PopoverPalette.blocked : .primary,
                    help: L("Ads, trackers and malware sites blocked today"))
-            button(.connection, value: connection, label: L("Connection"),
+            button(.connection, value: connection, label: L("Network"),
                    color: isHotspot ? PopoverPalette.hotspot : .primary,
                    help: L("What the Mac is connected to, and whether it's a hotspot"))
         }
@@ -297,7 +297,7 @@ struct PopoverConnection: View {
                         }
                         Spacer(minLength: 8)
                         Toggle(L("This is a hotspot"), isOn: Binding(get: { metering.verdict.isMetered },
-                                                                     set: setHotspot))
+                                                                     set: metering.setHotspot))
                             .toggleStyle(.switch)
                             .labelsHidden()
                     }
@@ -310,7 +310,7 @@ struct PopoverConnection: View {
             }
             .padding(12)
             .frame(height: PopoverMetrics.sectionHeight)
-            PopoverOpenRow(title: L("Hotspot Settings"), shortcut: "", action: onHotspotSettings)
+            PopoverOpenRow(title: L("Open Network"), shortcut: "", action: onHotspotSettings)
         }
     }
 
@@ -361,18 +361,6 @@ struct PopoverConnection: View {
             ? L("Pauses app updates and iCloud downloads while you're on this network.")
             : L("Stopping app updates on hotspots is off in Hotspot Settings.")
         return metering.override == nil ? what : what + "\n" + L("Marked by you for this network.")
-    }
-
-    /// On: a hotspot, by your say. Off: back to detecting it, unless it was
-    /// detected as one, which needs your say that it isn't.
-    private func setHotspot(_ on: Bool) {
-        if on {
-            metering.setOverride(true)
-        } else if metering.override == true, !metering.detectsHotspot {
-            metering.setOverride(nil)
-        } else {
-            metering.setOverride(false)
-        }
     }
 
     /// The word on the Connection button: Wi-Fi, Ethernet or Hotspot.

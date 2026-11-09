@@ -102,16 +102,24 @@ func runAccessibilityTests() {
                 settings.window.orderOut(nil)
             } }
 
-            check(ConnectionsWindowController(model: connections).window, "Connections\(language)")
-
-            // Usage History, a window of its own (#436).
-            check(HistoryWindowController(model: HistoryViewModel(monitor: model)).window, "Usage History\(language)")
-
-            let adsController = AdsWindowController(model: AdsViewModel(monitor: model))
-            for tab in AdsViewModel.Tab.allCases {
-                adsController.select(tab)
-                check(adsController.window, "Ads and Trackers › \(tab.label)\(language)")
+            // The main window (#436): each section, Ads and Trackers' two tabs,
+            // and each section's settings shown in place.
+            let main = MainWindowController(model: model, history: HistoryViewModel(monitor: model),
+                                            connections: connections, ads: AdsViewModel(monitor: model))
+            for section in MainSection.allCases {
+                main.show(section)
+                if section == .ads {
+                    for tab in AdsViewModel.Tab.allCases {
+                        main.ads.select(tab)
+                        check(main.window, "Main window › \(section.rawValue) › \(tab.rawValue)\(language)")
+                    }
+                } else {
+                    check(main.window, "Main window › \(section.rawValue)\(language)")
+                }
+                main.showSettings()
+                check(main.window, "Main window › \(section.rawValue) › settings\(language)")
             }
+            main.window.orderOut(nil)
 
             let popover = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 480),
                                    styleMask: [.titled], backing: .buffered, defer: false)

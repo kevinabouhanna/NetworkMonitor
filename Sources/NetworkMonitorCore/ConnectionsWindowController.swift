@@ -26,29 +26,39 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
     private static let stepItem = NSToolbarItem.Identifier("step")
     private static let searchItem = NSToolbarItem.Identifier("search")
 
-    public init(model: ConnectionsViewModel) {
+    /// The content and the toolbar, for the window of its own or for a
+    /// section of the main window (#436), which shows them in its place.
+    public let content: NSViewController
+    public let toolbar: NSToolbar
+    private let standalone: Bool
+
+    public init(model: ConnectionsViewModel, standalone: Bool = true) {
         self.model = model
+        self.standalone = standalone
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 760),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
-        super.init()
         let host = NSHostingController(rootView: ConnectionsView(model: model).localizedRoot())
+        content = host
+        toolbar = NSToolbar(identifier: standalone ? "Connections" : "Main.connections")
+        super.init()
         // The window keeps the size it's given or dragged to. Sized to its
         // content, it would jump each time the list grew or shrank.
         host.sizingOptions = []
-        window.contentViewController = host
+        if standalone { window.contentViewController = host }
         window.setContentSize(NSSize(width: 1120, height: 760))
         window.contentMinSize = NSSize(width: ConnectionsMetrics.minWidth, height: ConnectionsMetrics.minHeight)
         window.isReleasedWhenClosed = false
 
         configureControls()
-        let toolbar = NSToolbar(identifier: "Connections")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
         toolbar.centeredItemIdentifiers = [Self.scaleItem]
-        window.toolbar = toolbar
-        window.toolbarStyle = .unified
+        if standalone {
+            window.toolbar = toolbar
+            window.toolbarStyle = .unified
+        }
         nameControls()
         // The words follow a language chosen while the window is open (#433).
         languageObservation = NotificationCenter.default
@@ -126,7 +136,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         stepControl.setToolTip(L("Back to the present"), forSegment: 1)
         stepControl.setToolTip(L("Next (⌘→)"), forSegment: 2)
 
-        for item in window.toolbar?.items ?? [] {
+        for item in toolbar.items {
             if let names = Self.names(for: item.itemIdentifier) {
                 item.label = names.label
                 item.toolTip = names.help
@@ -190,8 +200,9 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
     // MARK: NSToolbarDelegate
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Self.layoutItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, Self.searchItem,
-         SettingsGear.identifier]
+        (standalone ? [] : MainWindowController.sidebarItems)
+            + [Self.layoutItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, Self.searchItem,
+               SettingsGear.identifier]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {

@@ -376,38 +376,38 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     }
     settings.window.orderOut(nil)
 
-    let connectionsWindow = ConnectionsWindowController(model: world.connections)
-    for layout in ConnectionsViewModel.Layout.allCases where wanted(prefix + "connections-\(layout.rawValue)") {
+    // The main window (#436): each section, and each section's settings in place.
+    let main = MainWindowController(model: world.model, history: world.historyModel,
+                                    connections: world.connections, ads: world.ads)
+    func shoot(_ name: String, settle: TimeInterval = 1.2) {
+        guard wanted(prefix + name) else { return }
+        show(main.window, appearance: appearance)
+        main.windowDidShow()
+        RunLoop.main.run(until: Date().addingTimeInterval(settle))
+        save(main.window, prefix + name, appearance: appearance)
+    }
+    main.show(.history)
+    shoot("history", settle: 1.5)
+    main.show(.connections)
+    for layout in ConnectionsViewModel.Layout.allCases {
         world.connections.layout = layout
-        show(connectionsWindow.window, appearance: appearance)
-        connectionsWindow.windowDidShow()
-        RunLoop.main.run(until: Date().addingTimeInterval(1.5))
-        save(connectionsWindow.window, prefix + "connections-\(layout.rawValue)", appearance: appearance)
+        shoot("connections-\(layout.rawValue)", settle: 1.5)
     }
-    connectionsWindow.windowWillClose()
-    connectionsWindow.window.orderOut(nil)
-
-    let adsWindow = AdsWindowController(model: world.ads)
-    for tab in AdsViewModel.Tab.allCases where wanted(prefix + "ads-\(tab.rawValue)") {
-        adsWindow.select(tab)
-        show(adsWindow.window, appearance: appearance)
-        adsWindow.windowDidShow()
-        RunLoop.main.run(until: Date().addingTimeInterval(1.2))
-        save(adsWindow.window, prefix + "ads-\(tab.rawValue)", appearance: appearance)
+    main.show(.ads)
+    for tab in AdsViewModel.Tab.allCases {
+        main.ads.select(tab)
+        shoot("ads-\(tab.rawValue)")
     }
-    adsWindow.windowWillClose()
-    adsWindow.window.orderOut(nil)
-
-    // Usage History, a window of its own (#436).
-    let historyWindow = HistoryWindowController(model: world.historyModel)
-    if wanted(prefix + "history") {
-        show(historyWindow.window, appearance: appearance)
-        historyWindow.windowDidShow()
-        RunLoop.main.run(until: Date().addingTimeInterval(1.5))
-        save(historyWindow.window, prefix + "history", appearance: appearance)
+    main.ads.select(.overview)
+    main.show(.network)
+    shoot("network")
+    for section in MainSection.allCases where wanted(prefix + "main-\(section.rawValue)-settings") {
+        main.show(section)
+        main.showSettings()
+        shoot("main-\(section.rawValue)-settings")
     }
-    historyWindow.windowWillClose()
-    historyWindow.window.orderOut(nil)
+    main.windowWillClose()
+    main.window.orderOut(nil)
 }
 
 /// The narrowest each window can be with every toolbar item showing (#315):
@@ -415,29 +415,29 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
 /// overflow. `--measure` prints them; the windows' minimum widths must be
 /// at least these.
 func measureToolbars(_ world: World) {
-    let windows: [(String, NSWindow)] = [
-        ("Connections", ConnectionsWindowController(model: world.connections).window),
-        ("Ads and Trackers", AdsWindowController(model: world.ads).window),
-        ("Usage History", HistoryWindowController(model: world.historyModel).window),
-    ]
-    for (name, window) in windows {
+    let main = MainWindowController(model: world.model, history: world.historyModel,
+                                    connections: world.connections, ads: world.ads)
+    let window = main.window
+    for section in MainSection.allCases {
+        main.show(section)
         window.contentMinSize = NSSize(width: 300, height: 300)
         show(window, appearance: .darkAqua, settle: 0.6)
-        var width: CGFloat = 1400
+        var width: CGFloat = 1600
         var fits = width
         while width >= 300 {
             window.setContentSize(NSSize(width: width, height: 700))
             window.layoutIfNeeded()
             RunLoop.main.run(until: Date().addingTimeInterval(0.02))
-            let items = window.toolbar?.items.filter { ![.flexibleSpace, .space].contains($0.itemIdentifier) } ?? []
-            let visible = window.toolbar?.visibleItems?.filter { ![.flexibleSpace, .space].contains($0.itemIdentifier) } ?? []
+            let skip: Set<NSToolbarItem.Identifier> = [.flexibleSpace, .space, .sidebarTrackingSeparator]
+            let items = window.toolbar?.items.filter { !skip.contains($0.itemIdentifier) } ?? []
+            let visible = window.toolbar?.visibleItems?.filter { !skip.contains($0.itemIdentifier) } ?? []
             if visible.count < items.count { break }
             fits = width
             width -= 2
         }
-        print("\(name): toolbar fits from \(Int(fits)) pt")
-        window.orderOut(nil)
+        print("\(section.rawValue): toolbar fits from \(Int(fits)) pt")
     }
+    window.orderOut(nil)
 }
 
 if arguments.contains("--measure") {

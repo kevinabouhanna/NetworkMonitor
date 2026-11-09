@@ -231,7 +231,7 @@ struct SpeedTestSettingsPane: View {
 
 /// The test inside Settings: a button to start it, then the same dial and figures
 /// the popover's card shows.
-private struct SpeedTestPanel: View {
+struct SpeedTestPanel: View {
     @ObservedObject var speedTest: SpeedTestController
 
     var body: some View {

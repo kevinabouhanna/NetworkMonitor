@@ -21,28 +21,38 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
     /// The toolbar's gear: Settings › History.
     public var onSettings: () -> Void = {}
 
-    public init(model: HistoryViewModel) {
+    /// The content and the toolbar, for the window of its own or for a
+    /// section of the main window (#436).
+    public let content: NSViewController
+    public let toolbar: NSToolbar
+    private let standalone: Bool
+
+    public init(model: HistoryViewModel, standalone: Bool = true) {
         self.model = model
+        self.standalone = standalone
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 860, height: 720),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
-        super.init()
         let host = NSHostingController(rootView: HistoryView(model: model).localizedRoot())
+        content = host
+        toolbar = NSToolbar(identifier: standalone ? "History" : "Main.history")
+        super.init()
         // The window keeps the size it's given or dragged to.
         host.sizingOptions = []
-        window.contentViewController = host
+        if standalone { window.contentViewController = host }
         window.setContentSize(NSSize(width: 860, height: 720))
         window.contentMinSize = NSSize(width: HistoryMetrics.windowMinWidth, height: HistoryMetrics.windowMinHeight)
         window.isReleasedWhenClosed = false
 
         configureControls()
-        let toolbar = NSToolbar(identifier: "History")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
         toolbar.centeredItemIdentifiers = [Self.scaleItem]
-        window.toolbar = toolbar
-        window.toolbarStyle = .unified
+        if standalone {
+            window.toolbar = toolbar
+            window.toolbarStyle = .unified
+        }
         nameControls()
         // The words follow a language chosen while the window is open (#433).
         languageObservation = NotificationCenter.default
@@ -95,7 +105,7 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
         stepControl.setToolTip(L("Back to the present"), forSegment: 1)
         stepControl.setToolTip(L("Next (⌘→)"), forSegment: 2)
 
-        for item in window.toolbar?.items ?? [] {
+        for item in toolbar.items {
             if let names = Self.names(for: item.itemIdentifier) {
                 item.label = names.label
                 item.toolTip = names.help
@@ -136,7 +146,8 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
     // MARK: NSToolbarDelegate
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, SettingsGear.identifier]
+        (standalone ? [] : MainWindowController.sidebarItems)
+            + [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, SettingsGear.identifier]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
