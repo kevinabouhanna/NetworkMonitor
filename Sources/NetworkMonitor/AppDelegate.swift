@@ -207,7 +207,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Title construction lives in `MenuBarTitle` so its width-stability and
     /// menu-bar-fit invariants are covered by the test suite.
     private func applyTitle() {
-        statusItem.button?.image = model.menuBarImage
+        guard let button = statusItem.button else { return }
+        button.image = model.menuBarImage
+        // The readout is a picture, so VoiceOver had nothing to read but
+        // "image" (#424): the app's name, and the rates in words. It's also
+        // what `make site-check` compares for the menu bar's picture.
+        button.setAccessibilityLabel("NetworkMonitor")
+        button.setAccessibilityValue(model.menuBarSpoken)
     }
 
     private func observeTitle() {

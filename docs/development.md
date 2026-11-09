@@ -109,6 +109,12 @@ and exits non-zero if anything fails.
 - **The asset check's cases.** `make test` also runs `build/site-shots coverage-test`:
   made-up pages that put a picture in each place [the asset check](#every-asset-is-listed)
   must find it (#425).
+- **The CI fallback's decisions.** `make test` also runs `Scripts/tests/local-ci-test.sh`:
+  `Scripts/local-ci.sh --fallback` against a stand-in `gh` that answers from files in
+  `Scripts/tests/local-ci/`, one folder per case, with GitHub's own billing texts (#461). It
+  checks only which way the script decides: GitHub passed or failed, so report that; or a
+  billing or spending-limit error, a job still queued after the start window, or no checks
+  at all, so run both jobs here. Nothing is built or fetched, and it takes seconds.
 - **Live tests**, which need a real network and a real `nettop`, are skipped when `CI` is
   set. Run them anyway with `NETMON_LIVE_TESTS=1`. They include guards such as "the stream
   stays under 25% of a core" and "changing the interval leaves exactly one `nettop`".
@@ -223,6 +229,8 @@ must be green before a merge.
 each result on the commit under the same name, so a pull request reads the same either way.
 - It watches GitHub's checks first, and doesn't run anything here when GitHub can do it.
 - Without `--fallback`, it runs here straight away.
+- `CI_START_MINUTES` (15) sets how long it waits for GitHub to start; `CI_START_SECONDS`,
+  `CI_POLL_SECONDS` and `LOCAL_CI_DECIDE_ONLY=1` are for its tests (see [Tests](#tests)).
 - Builds reuse one worktree in `~/Library/Caches/networkmonitor-dev/ci`, one run at a time.
 - The smoke test runs in the `networkmonitor` Mac lane, and opens the installed copy again
   afterwards.
@@ -455,8 +463,14 @@ Each must be one of these:
   other pictures. Each is listed under `assets` with the shots whose windows it `shows`:
   - in `shots/shots.json` on `gh-pages`, for the site's;
   - in `Resources/README/assets.json` on `main`, for the README's and the docs'.
-- **Showing no window this tool can check:** listed with `none` and why. Icons, the menu
-  bar strip, the disk image's window.
+- **Showing no window this tool can check:** listed with `none` and why. Icons, the disk
+  image's window.
+
+The menu bar readout is a shot with no picture of its own, `menubar` (#424), so the
+strip made by hand (`assets/menubar.png`) `shows` it. Its window is `AXMenuBarItem`,
+the status item: the tree keeps its name, the rates as VoiceOver reads them ("Download
+# ‹unit›, upload # ‹unit›") and its width, which is the same in bits or bytes, so a new
+layout or a new line in it is named. A new colour or arrow at the same width isn't.
 
 It also fails on an entry that nothing uses, a file that doesn't exist, or a window that
 isn't a shot. CI runs it on every pull request into `main` and into `gh-pages`. So a new

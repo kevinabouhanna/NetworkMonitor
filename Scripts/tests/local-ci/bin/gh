@@ -1,0 +1,48 @@
+#!/bin/bash
+#
+# A stand-in for `gh` in Scripts/tests/local-ci-test.sh (#461). It answers the calls
+# local-ci.sh --fallback makes from the files in $FIXTURE, and logs each call to $GH_LOG.
+#
+#   gh pr view N --json headRefOid --jq …        → a made-up commit
+#   gh api repos/…/commits/<sha>/check-runs --jq F → F applied to check-runs.json, or to
+#                                                  check-runs.<poll>.json when the case changes
+#                                                  between polls (the latest one ≤ poll)
+#   gh api repos/…/check-runs/<id>/annotations     → annotations-<id>.json, or no annotations
+#   gh pr checks N                                 → pr-checks.txt
+#
+# A poll reads the check runs once per job, so the poll is the call count over JOBS_PER_POLL (2).
+# In the files, __AGO_<seconds>__ becomes the time that long ago, as GitHub writes it.
+# Anything else is a call the decision shouldn't make: it's logged and fails.
+set -euo pipefail
+: "${FIXTURE:?}" "${GH_LOG:?}"
+echo "gh $*" >>"$GH_LOG"
+
+jq_filter() { # the value after --jq
+  while (($#)); do [[ "$1" == --jq ]] && { echo "$2"; return; }; shift; done
+}
+render() { # <file>: the fixture, its times filled in
+  perl -MPOSIX=strftime -pe 's/__AGO_(\d+)__/strftime("%Y-%m-%dT%H:%M:%SZ", gmtime(time - $1))/ge' "$1"
+}
+
+case "$1 ${2:-}" in
+  "pr view") echo 1234567890abcdef1234567890abcdef12345678 ;;
+  "pr checks") cat "$FIXTURE/pr-checks.txt" ;;
+  "api repos/"*/commits/*/check-runs*)
+    calls_file="$GH_LOG.check-runs"
+    calls=$(($(cat "$calls_file" 2>/dev/null || echo 0) + 1))
+    echo "$calls" >"$calls_file"
+    poll=$(((calls + ${JOBS_PER_POLL:-2} - 1) / ${JOBS_PER_POLL:-2}))
+    file="$FIXTURE/check-runs.json"
+    for ((n = 1; n <= poll; n++)); do
+      [[ -f "$FIXTURE/check-runs.$n.json" ]] && file="$FIXTURE/check-runs.$n.json"
+    done
+    render "$file" | jq -r "$(jq_filter "$@")" ;;
+  "api repos/"*/check-runs/*/annotations*)
+    id="${2#*/check-runs/}" id="${id%%/*}"
+    file="$FIXTURE/annotations-$id.json"
+    if [[ -f "$file" ]]; then render "$file"; else echo '[]'; fi | jq -r "$(jq_filter "$@")" ;;
+  *)
+    echo "gh stand-in: unexpected call: gh $*" >&2
+    echo "UNEXPECTED gh $*" >>"$GH_LOG"
+    exit 1 ;;
+esac

@@ -8,9 +8,11 @@ build:
 # Not `swift test`: neither XCTest nor swift-testing ships with Command Line
 # Tools, so the suite is a plain executable. See Sources/NetworkMonitorTests.
 # Then the asset check's own cases, on made-up pages: where it finds media (#425).
+# Then which way `Scripts/local-ci.sh --fallback` decides, on GitHub's answers saved as files (#461).
 test: build/site-shots
 	@./Scripts/swiftpm.sh run NetworkMonitorTests
 	@build/site-shots coverage-test
+	@./Scripts/tests/local-ci-test.sh
 
 # Points git at Scripts/hooks, so pre-push runs the suite before anything
 # reaches the remote. Run once per clone. Hooks are version-controlled this way
