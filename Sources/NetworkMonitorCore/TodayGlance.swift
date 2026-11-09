@@ -100,8 +100,18 @@ public final class TodayGlance: ObservableObject {
     /// Reads Data again, at most every `liveInterval`: called on each sample
     /// while the popover is open on it, so its figures keep moving.
     public func tick(now: Date = Date()) {
-        guard now.timeIntervalSince(lastData) >= Self.liveInterval else { return }
+        let interval = period == .today ? Self.liveInterval : Self.liveInterval * 6
+        guard now.timeIntervalSince(lastData) >= interval else { return }
         refreshData(now: now)
+        if period != .today { readBlocks(now: now, request: generation) }
+    }
+
+    /// The popover opening (#436): what was open is closed again, as Data's
+    /// apps are, and a report from another day isn't shown, even for a moment.
+    public func popoverWillOpen(now: Date = Date()) {
+        expanded = []
+        if let report, !report.period.interval.contains(now) { self.report = nil }
+        refresh(now: now)
     }
 
     /// Reads the period again.
@@ -113,27 +123,8 @@ public final class TodayGlance: ObservableObject {
             return
         }
         refreshData(now: now)
+        readBlocks(now: now, request: request)
         let span = period.period(containing: now, calendar: calendar).interval
-        let blocks = history.listBlocks(from: span.start, to: span.end)
-        ads = AdsReport(blocks) { key in AppIdentityResolver.identity(forKey: key).bundlePath }
-        var bySite: [String: [String: (name: String, count: Int64)]] = [:]
-        var byApp: [String: [String: Int64]] = [:]
-        for block in blocks {
-            let site = SiteName.site(of: block.name)
-            bySite[site, default: [:]][block.appKey, default: (block.appName, 0)].count += block.count
-            byApp[block.appKey, default: [:]][site, default: 0] += block.count
-        }
-        siteApps = bySite.mapValues { apps in
-            apps.map { key, app in
-                AdsItem(id: key, title: app.name, detail: nil, count: app.count, lists: [],
-                        bundlePath: AppIdentityResolver.identity(forKey: key).bundlePath)
-            }
-            .sorted(by: Self.order)
-        }
-        appSites = byApp.mapValues { sites in
-            sites.map { site, count in AdsItem(id: site, title: site, detail: nil, count: count, lists: []) }
-                .sorted(by: Self.order)
-        }
 
         history.loadServers(in: span, hoursOf: span, filter: HistoryFilter(), measure: .bytes) { [weak self] report in
             guard let self, request == self.generation else { return }
@@ -160,9 +151,47 @@ public final class TodayGlance: ObservableObject {
         }
     }
 
+    /// What the lists blocked in the period, read off the main thread (#436):
+    /// waited for, a month of them held the popover back as it opened.
+    private func readBlocks(now: Date, request: Int) {
+        guard let history = history() else { return }
+        let span = period.period(containing: now, calendar: calendar).interval
+        history.loadListBlocks(from: span.start, to: span.end) { [weak self] blocks in
+            guard let self, request == self.generation else { return }
+            let ads = AdsReport(blocks) { key in AppIdentityResolver.identity(forKey: key).bundlePath }
+            var bySite: [String: [String: (name: String, count: Int64)]] = [:]
+            var byApp: [String: [String: Int64]] = [:]
+            for block in blocks {
+                let site = SiteName.site(of: block.name)
+                bySite[site, default: [:]][block.appKey, default: (block.appName, 0)].count += block.count
+                byApp[block.appKey, default: [:]][site, default: 0] += block.count
+            }
+            let siteApps = bySite.mapValues { apps in
+                apps.map { key, app in
+                    AdsItem(id: key, title: app.name, detail: nil, count: app.count, lists: [],
+                            bundlePath: AppIdentityResolver.identity(forKey: key).bundlePath)
+                }
+                .sorted(by: Self.order)
+            }
+            let appSites = byApp.mapValues { sites in
+                sites.map { site, count in AdsItem(id: site, title: site, detail: nil, count: count, lists: []) }
+                    .sorted(by: Self.order)
+            }
+            Motion.content {
+                self.ads = ads
+                self.siteApps = siteApps
+                self.appSites = appSites
+            }
+        }
+    }
+
     private func refreshData(now: Date) {
         lastData = now
-        guard let history = history() else { return }
+        // Without History's database, Data shows the live rows, as before.
+        guard let history = history(), history.isOpen else {
+            report = nil
+            return
+        }
         history.loadReport(for: period.period(containing: now, calendar: calendar)) { [weak self] report in
             guard let self, report.period.scale == self.period.scale else { return }
             Motion.content { self.report = report }

@@ -1,7 +1,8 @@
 import AppKit
 
 /// The gear at the end of a window's toolbar (#436): it opens that feature's
-/// pane of Settings, so a gear always means settings, wherever it is.
+/// settings in place in the main window, so a gear always means settings,
+/// wherever it is.
 /// Connections, Ads and Trackers and Usage History each have one.
 enum SettingsGear {
     static let identifier = NSToolbarItem.Identifier("settings")

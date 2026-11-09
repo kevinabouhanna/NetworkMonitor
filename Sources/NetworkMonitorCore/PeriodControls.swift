@@ -1,12 +1,9 @@
 import SwiftUI
 
-// The parts Usage History and Connections share (#123, #125), so the two
-// windows read the same way and can't drift apart: a control with its name,
-// the period's heading, and ‹ Today › for History, which lives in Settings and
-// so has no window toolbar of its own.
+// The parts the main window's sections share (#123, #125, #436), so they read
+// the same way and can't drift apart: the row under the toolbar, a control
+// with its name, and the period's heading.
 
-/// A segmented control with its name beside it: on its own, a segmented
-/// control doesn't say what it chooses.
 /// Where the row under a section's toolbar sits, the same in Usage History,
 /// Connections and Ads and Trackers, so it doesn't move as you go from one
 /// to the next (#436).
@@ -18,6 +15,8 @@ enum ScopeMetrics {
     static let below: CGFloat = 14
 }
 
+/// A control with its name beside it: on its own, a segmented control
+/// doesn't say what it chooses.
 struct LabelledControl<Control: View>: View {
     let label: String
     @ViewBuilder let control: Control

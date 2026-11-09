@@ -210,18 +210,22 @@ public final class ConnectionsViewModel: ObservableObject {
 
     /// Each opening starts on the present, unfiltered, or on Hotspot while the
     /// Mac is on one, as History does.
-    public func windowDidOpen() {
-        selected = [:]
-        span = nil
-        dragging = nil
-        search = ""
-        expanded.removeAll()
-        showingAll.removeAll()
-        kind = HistoryFilter.opening(on: monitor.store.currentNetwork.kind).kind
-        period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar)
-        // Traffic, unless only what's allowed may connect: then what was
-        // blocked is where someone looks to allow it.
-        measure = firewall.mode == .onlyAllowed ? .blocked : .bytes
+    /// `reset` false: the section shown again in the open window (#436),
+    /// read again with its period, filters and search as they were.
+    public func windowDidOpen(reset: Bool = true) {
+        if reset {
+            selected = [:]
+            span = nil
+            dragging = nil
+            search = ""
+            expanded.removeAll()
+            showingAll.removeAll()
+            kind = HistoryFilter.opening(on: monitor.store.currentNetwork.kind).kind
+            period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar)
+            // Traffic, unless only what's allowed may connect: then what was
+            // blocked is where someone looks to allow it.
+            measure = firewall.mode == .onlyAllowed ? .blocked : .bytes
+        }
         reload()
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in

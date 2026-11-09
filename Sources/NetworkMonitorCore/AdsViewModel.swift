@@ -538,8 +538,9 @@ public final class AdsViewModel: ObservableObject {
 
     // MARK: Window lifecycle
 
-    public func windowDidOpen() {
-        period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar)
+    /// `reset` false: the section shown again in the open window (#436).
+    public func windowDidOpen(reset: Bool = true) {
+        if reset { period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar) }
         reload()
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in

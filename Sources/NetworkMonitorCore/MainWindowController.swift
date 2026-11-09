@@ -57,8 +57,8 @@ final class MainNavigation: ObservableObject {
 /// Connections, Ads and Trackers and Usage History windows, so you can go
 /// through them one by one. Each section brings its own toolbar. Its gear
 /// shows that section's settings in place, with a back button, as System
-/// Settings goes deeper, rather than a second window on top; the Settings
-/// window stays for ⌘, and the popover's gear, with the same panes.
+/// Settings goes deeper, rather than a second window on top. Settings, for
+/// ⌘, and the popover's gear, is the last item of the sidebar.
 public final class MainWindowController: NSObject, NSToolbarDelegate {
 
     /// The sidebar's button and the line that keeps the toolbar's items over
@@ -87,12 +87,20 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
     private let adsModel: AdsViewModel
     private let glance: TodayGlance
     private var openSection: MainSection?
+    /// Sections shown since the window opened: shown again, each keeps its
+    /// search, filters and period (#436); reopened, the window starts afresh.
+    private var shownSinceOpening: Set<MainSection> = []
+    private let connectionsModel: ConnectionsViewModel
+    private var occlusion: AnyCancellable?
+    /// Uninstall…, from Settings (#436): it was on the old About pane.
+    public var onUninstall: () -> Void = {}
     private var languageObservation: AnyCancellable?
 
     public init(model: MonitorViewModel, history historyModel: HistoryViewModel,
                 connections connectionsModel: ConnectionsViewModel, ads adsModel: AdsViewModel) {
         self.historyModel = historyModel
         self.adsModel = adsModel
+        self.connectionsModel = connectionsModel
         glance = model.todayGlance
         history = HistoryWindowController(model: historyModel, standalone: false)
         connections = ConnectionsWindowController(model: connectionsModel, standalone: false)
@@ -108,22 +116,22 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                                     backing: .buffered, defer: false)
         window = mainWindow
         // Each section's settings, behind its gear and Settings' rows.
-        var back: () -> Void = {}
+        var go: (MainSection) -> Void = { _ in }
         makeSettingsPage = { section in
             let width = SettingsMetrics.paneWidth
             let view: AnyView
             switch section {
             case .history:
-                view = AnyView(HistorySettingsPane(model: historyModel, onOpen: { back() }))
+                view = AnyView(HistorySettingsPane(model: historyModel, onOpen: { go(.history) }))
             case .connections:
                 view = AnyView(ConnectionsSettingsPane(model: connectionsModel, filter: model.filter,
                                                        firewall: model.firewall, geoData: model.geoData,
                                                        lookups: model.lookups, glance: model.todayGlance,
-                                                       onOpen: { back() }))
+                                                       onOpen: { go(.connections) }))
             case .ads:
                 view = AnyView(AdsSettingsPane(ads: adsModel, connections: connectionsModel, filter: model.filter,
                                                firewall: model.firewall, blocklists: model.blocklists,
-                                               listBlocks: model.listBlocks, onOpenAds: { back() }))
+                                               listBlocks: model.listBlocks, onOpenAds: { go(.ads) }))
             case .network, .settings:
                 // Hotspots are on the Network page itself (#436): what's
                 // left to set is how the popover shows the speed test.
@@ -134,12 +142,12 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
             return host
         }
         super.init()
-        back = { [weak self] in self?.closeSettings() }
+        go = { [weak self] section in self?.show(section) }
         // Settings: General, then a row to each section's settings.
         let generalHost = NSHostingController(rootView: MainSettingsPage(
             content: AnyView(GeneralSettingsPane(model: model, state: state, onOpenSection: { [weak self] section in
                 self?.showSettings(for: section, from: .settings)
-            })), width: SettingsMetrics.paneWidth).localizedRoot())
+            }, onUninstall: { [weak self] in self?.onUninstall() })), width: SettingsMetrics.paneWidth).localizedRoot())
         generalHost.sizingOptions = []
         general = generalHost
 
@@ -173,7 +181,34 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
             .publisher(for: Localization.didChange)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.nameWindow() }
+        occlusion = NotificationCenter.default
+            .publisher(for: NSWindow.didChangeOcclusionStateNotification, object: window)
+            .sink { [weak self] _ in self?.updateVisibility() }
+        fitToScreen()
         place(navigation.section)
+    }
+
+    /// Connections' map pulses only while someone can see it (#182).
+    private func updateVisibility() {
+        guard openSection == .connections else { return }
+        connectionsModel.windowIsVisible = window.occlusionState.contains(.visible)
+    }
+
+    /// No bigger than the screen it's on, and on it (#436): the first size is
+    /// 1300×800, which a small display can't hold.
+    public func fitToScreen() {
+        guard let visible = (window.screen ?? NSScreen.main)?.visibleFrame else { return }
+        var frame = window.frame
+        frame.size.width = min(frame.width, visible.width)
+        frame.size.height = min(frame.height, visible.height)
+        frame.origin.x = min(max(frame.minX, visible.minX), visible.maxX - frame.width)
+        frame.origin.y = min(max(frame.minY, visible.minY), visible.maxY - frame.height)
+        if frame != window.frame { window.setFrame(frame, display: window.isVisible) }
+    }
+
+    /// Whether ⌘F has a search to open: the sections with lists.
+    public var canSearch: Bool {
+        !navigation.showsSettings && [.history, .connections, .ads].contains(navigation.section)
     }
 
     public var isVisible: Bool { window.isVisible }
@@ -184,8 +219,12 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
     }
 
     /// Hides or shows the sidebar, sliding as AppKit slides it: the
-    /// toolbar's button, and View › Hide Sidebar (#436).
-    public func toggleSidebar() { split.toggleSidebar(nil) }
+    /// toolbar's button, and View › Hide Sidebar (#436). The window may be
+    /// narrower without it.
+    public func toggleSidebar() {
+        split.toggleSidebar(nil)
+        DispatchQueue.main.async { [weak self] in self?.fitMinimum() }
+    }
 
     public var sidebarIsCollapsed: Bool { split.splitViewItems[0].isCollapsed }
 
@@ -217,6 +256,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
     public func windowWillClose() {
         close(openSection)
         openSection = nil
+        shownSinceOpening = []
     }
 
     /// The section's settings, in place of its content, with a back button.
@@ -283,15 +323,27 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
             container.show(general)
             use(generalToolbar)
         }
-        let least = MainMetrics.minWidth(section)
+        fitMinimum()
+        nameWindow()
+    }
+
+    /// The narrowest the window may be for the section shown: what its
+    /// toolbar needs (#315), less the sidebar while it's hidden, and never
+    /// wider than the screen. Widened to it when narrower, kept on screen.
+    private func fitMinimum() {
+        let section = navigation.section
+        var least = MainMetrics.minWidth(section, sidebar: !sidebarIsCollapsed)
+        if let visible = (window.screen ?? NSScreen.main)?.visibleFrame {
+            least = min(least, visible.width - (window.frame.width - window.contentLayoutRect.width))
+        }
         window.contentMinSize = NSSize(width: least, height: MainMetrics.minHeight)
         let frameWidth = window.frameRect(forContentRect: NSRect(x: 0, y: 0, width: least, height: 100)).width
         if window.frame.width < frameWidth {
             var frame = window.frame
             frame.size.width = frameWidth
             window.setFrame(frame, display: true)
+            fitToScreen()
         }
-        nameWindow()
     }
 
     /// One section reads at a time, while it's shown.
@@ -299,10 +351,11 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         guard openSection != section else { return }
         close(openSection)
         openSection = section
+        let fresh = shownSinceOpening.insert(section).inserted
         switch section {
-        case .history:     history.windowDidShow()
-        case .connections: connections.windowDidShow()
-        case .ads:         ads.windowDidShow()
+        case .history:     history.windowDidShow(fresh: fresh)
+        case .connections: connections.windowDidShow(fresh: fresh); updateVisibility()
+        case .ads:         ads.windowDidShow(fresh: fresh)
         case .network, .settings: break
         }
     }
@@ -452,6 +505,19 @@ struct MainSidebar: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
+                // ↑ and ↓ move through the sections, as in a sidebar list.
+                .focusable()
+                .onMoveCommand { direction in
+                    let all = MainSection.allCases
+                    guard let index = all.firstIndex(of: navigation.section) else { return }
+                    switch direction {
+                    case .up where index > 0:
+                        withAnimation(Motion.choice) { onSelect(all[index - 1]) }
+                    case .down where index < all.count - 1:
+                        withAnimation(Motion.choice) { onSelect(all[index + 1]) }
+                    default: break
+                    }
+                }
             }
             Divider()
             row(.settings)
@@ -529,12 +595,14 @@ enum MainMetrics {
     static let sidebarWidth: CGFloat = 190
     static let sidebarRowHeight: CGFloat = 32
     static let sidebarRowRadius: CGFloat = 10
-    static let minHeight: CGFloat = 560
+    /// History's 560, and the toolbar above it: with the content under the
+    /// toolbar, 560 alone clipped History's top and bottom.
+    static let minHeight: CGFloat = 620
     /// The narrowest the window can be on a section: the sidebar and what the
     /// section's toolbar needs (#315), measured with `make design-shots`
     /// and `--measure`.
-    static func minWidth(_ section: MainSection) -> CGFloat {
-        let sidebar = sidebarWidth
+    static func minWidth(_ section: MainSection, sidebar shown: Bool = true) -> CGFloat {
+        let sidebar = shown ? sidebarWidth : 0
         switch section {
         case .connections: return sidebar + ConnectionsMetrics.minWidth
         case .ads:         return sidebar + AdsMetrics.minWidth

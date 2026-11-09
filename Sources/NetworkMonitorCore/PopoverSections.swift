@@ -21,8 +21,6 @@ extension PopoverMetrics {
     /// Each of the Companies, Blocked and Connection views, one height for
     /// all three, so the popover doesn't change size moving between them.
     public static let sectionHeight: CGFloat = 220
-    /// A row in the Companies and Blocked views.
-    public static let summaryRowHeight: CGFloat = 28
     /// The row at the end of a view that opens its window, and the footer.
     public static let openRowHeight: CGFloat = 40
     /// The leading edge the header's switch, its buttons' raised backgrounds
@@ -164,8 +162,26 @@ struct PopoverOpenRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .modifier(PopoverShortcut(shortcut))
         .padding(.horizontal, 12)
         .frame(height: PopoverMetrics.openRowHeight)
+    }
+}
+
+/// "⌘K" shown on an Open row also works there (#436): the app has no menu
+/// to answer it while no window is open.
+private struct PopoverShortcut: ViewModifier {
+    let key: Character?
+    init(_ shortcut: String) {
+        key = shortcut.hasPrefix("⌘") ? shortcut.dropFirst().first.map { Character($0.lowercased()) } : nil
+    }
+
+    func body(content: Content) -> some View {
+        if let key {
+            content.keyboardShortcut(KeyEquivalent(key), modifiers: .command)
+        } else {
+            content
+        }
     }
 }
 

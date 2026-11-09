@@ -60,13 +60,19 @@ public final class HistoryViewModel: ObservableObject {
 
     /// Each opening starts at the present, at the scale last used, unfiltered
     /// or on Hotspot while the Mac is on one: see `HistoryFilter.opening(on:)`.
-    public func windowDidOpen() {
+    /// `reset` false: the section shown again in the open window (#436),
+    /// read again with its period, filters and search as they were.
+    public func windowDidOpen(reset: Bool = true) {
         retention = history?.retention ?? .forever
-        hoveredBin = nil
-        expandedApps.removeAll()
-        systemExpanded = false
-        show(HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar),
-             filter: .opening(on: monitor.store.currentNetwork.kind))
+        if reset {
+            hoveredBin = nil
+            expandedApps.removeAll()
+            systemExpanded = false
+            show(HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar),
+                 filter: .opening(on: monitor.store.currentNetwork.kind))
+        } else {
+            reload()
+        }
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             guard let self, self.period.contains(Date()) else { return }

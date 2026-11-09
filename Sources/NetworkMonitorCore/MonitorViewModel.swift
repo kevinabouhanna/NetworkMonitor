@@ -627,9 +627,10 @@ public final class MonitorViewModel: ObservableObject {
                                   localBytesIn: summary.localIn, localBytesOut: summary.localOut,
                                   now: now)
 
-            if self.popoverIsOpen {
+            // The rows are Data's: rebuilt only while Data is what's shown.
+            if self.popoverIsOpen && self.popoverSection == .today {
                 self.rebuildRows(now: now)
-                if self.popoverSection == .today { self.glance.tick(now: now) }
+                self.glance.tick(now: now)
             }
         }
     }
@@ -647,8 +648,10 @@ public final class MonitorViewModel: ObservableObject {
         if open {
             // Opens on Today, the apps (#436), or on Connection while a speed
             // test is showing, which is where it runs.
-            popoverSection = speedTest.isPresented && speedTest.phase != .idle ? .connection : .today
-            glance.refresh()
+            // Only while it runs: a finished test waits on Network for its ✕
+            // without holding every later open there.
+            popoverSection = speedTest.isPresented && speedTest.phase.isRunning ? .connection : .today
+            glance.popoverWillOpen()
             refreshHeader()
             rebuildRows(now: Date())
         } else {

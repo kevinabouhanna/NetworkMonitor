@@ -2,7 +2,8 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// The Connections window: its own, not a Settings pane, because it's read
+/// Connections, a section of the main window (#436); a window of its own only
+/// for the accessibility tests. Once its own window, not a Settings pane, because it's read
 /// beside other work and wants room for the list and the map side by side.
 ///
 /// Its controls are a real window toolbar (#123), laid out as Apple's own
@@ -86,7 +87,8 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
     /// The toolbar's gear: Connections' settings (#436).
     public var onSettings: () -> Void = {}
 
-    public func windowDidShow() { model.windowDidOpen() }
+    /// `fresh` false: shown again in the open main window, as it was (#436).
+    public func windowDidShow(fresh: Bool = true) { model.windowDidOpen(reset: fresh) }
 
     public func windowWillClose() { model.windowDidClose() }
 

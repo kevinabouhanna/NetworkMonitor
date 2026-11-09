@@ -29,8 +29,11 @@ struct GeneralSettingsPane: View {
     @ObservedObject var updates: UpdateController
     /// Opens a section's settings in the main window (#436).
     let onOpenSection: (MainSection) -> Void
+    /// Uninstall…, which the old About pane had.
+    let onUninstall: () -> Void
 
-    init(model: MonitorViewModel, state: SettingsPaneState, onOpenSection: @escaping (MainSection) -> Void = { _ in }) {
+    init(model: MonitorViewModel, state: SettingsPaneState, onOpenSection: @escaping (MainSection) -> Void = { _ in },
+         onUninstall: @escaping () -> Void = {}) {
         self.model = model
         self.speedTest = model.speedTest
         self.colors = model.menuBarColors
@@ -38,6 +41,7 @@ struct GeneralSettingsPane: View {
         self.state = state
         self.updates = model.updates
         self.onOpenSection = onOpenSection
+        self.onUninstall = onUninstall
     }
 
     var body: some View {
@@ -185,6 +189,12 @@ struct GeneralSettingsPane: View {
                 Text(L("Sections"))
             } footer: {
                 SettingsFootnote(L("Also behind the gear in each section."))
+            }
+
+            Section {
+                LabeledContent(L("Remove NetworkMonitor and everything it set up")) {
+                    Button(L("Uninstall NetworkMonitor…"), action: onUninstall)
+                }
             }
         }
         .settingsForm()

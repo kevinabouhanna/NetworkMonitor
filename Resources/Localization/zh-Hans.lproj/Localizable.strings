@@ -890,3 +890,5 @@
 "Open Usage History (⌘Y)" = "打开流量历史（⌘Y）";
 "Open Connections (⌘K)" = "打开“连接”（⌘K）";
 "Open Ads and Trackers (⌘B)" = "打开广告与跟踪器（⌘B）";
+"Not blocking now: the content filter isn't running." = "目前未拦截：内容过滤器未在运行。";
+"Remove NetworkMonitor and everything it set up" = "移除 NetworkMonitor 及其设置的所有内容";

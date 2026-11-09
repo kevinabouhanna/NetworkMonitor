@@ -149,7 +149,7 @@ struct SpeedTestCard: View {
 
 // MARK: - Compact
 
-/// The compact style: the test as two lines above the app list, which stays in
+/// The compact style: the test as two lines above Network's view, which stays in
 /// view.
 ///
 /// Download and upload are thin gauges on the dial's log scale with their
@@ -170,7 +170,7 @@ struct SpeedTestStrip: View {
             case .running(let startedAt):
                 StripBody(live: speedTest.live, result: nil, startedAt: startedAt,
                           unit: speedTest.unit) {
-                    // No "Back to Apps" here: the apps never left.
+                    // No "Back" here: Network's view never left.
                     iconButton("stop.circle.fill", L("Stop the test")) { speedTest.dismiss() }
                 }
             case .finished(let result):

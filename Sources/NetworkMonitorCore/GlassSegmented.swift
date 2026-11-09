@@ -32,6 +32,19 @@ struct GlassSegmented<Value: Hashable>: View {
         .frame(height: height)
         .background { track }
         .fixedSize()
+        // One stop for the keyboard, ← and → moving the choice, as a native
+        // segmented control has it.
+        .focusable()
+        .onMoveCommand { direction in
+            guard let index = options.firstIndex(of: selection) else { return }
+            switch direction {
+            case .left where index > 0:
+                withAnimation(Motion.choice) { selection = options[index - 1] }
+            case .right where index < options.count - 1:
+                withAnimation(Motion.choice) { selection = options[index + 1] }
+            default: break
+            }
+        }
         // VoiceOver reads it as the segmented control it looks like.
         .accessibilityRepresentation {
             Picker(name, selection: $selection) {

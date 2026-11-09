@@ -73,8 +73,9 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     @objc private func openSettings() { onSettings() }
 
-    public func windowDidShow() {
-        model.windowDidOpen()
+    /// `fresh` false: shown again in the open main window, as it was (#436).
+    public func windowDidShow(fresh: Bool = true) {
+        model.windowDidOpen(reset: fresh)
         refreshControls()
     }
 

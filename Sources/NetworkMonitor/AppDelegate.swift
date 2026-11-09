@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         let controller = MainWindowController(model: model, history: historyModel,
                                               connections: connectionsModel, ads: adsModel)
         controller.window.delegate = self
+        controller.onUninstall = { [weak self] in self?.uninstall() }
         mainController = controller
         return controller
     }
@@ -327,7 +328,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
     /// Opens the popover with nothing focused.
     ///
-    /// The gear is the only focusable control in there, so on becoming key the
+    /// The popover's switches and buttons are focusable, so on becoming key the
     /// window hands it first responder and it opens wearing a focus ring the
     /// user never asked for. Dropping first responder is deliberately not the
     /// same as making the button unfocusable: the key view loop still reaches
@@ -843,6 +844,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // closed first, the window left the screen and came back before it
         // came forward, a flash each time (#399).
         present(main.window, reposition: !wasVisible)
+        main.fitToScreen()
         if popover.isShown { closePopover(parking: false) }
         main.windowDidShow()
         // Opens with nothing focused, for the reason the popover does: the
@@ -935,7 +937,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         switch item.action {
         case #selector(beginSearch):
-            return mainController?.window.isKeyWindow == true
+            return mainController?.window.isKeyWindow == true && mainController?.canSearch == true
         case #selector(toggleSidebar):
             guard let mainController, mainController.window.isKeyWindow else { return false }
             item.title = mainController.sidebarIsCollapsed ? L("Show Sidebar") : L("Hide Sidebar")
@@ -1021,8 +1023,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// whenever the menu bar appears. The top edge is therefore clamped to exactly
     /// one menu bar height below the top of the screen.
     private func position(_ window: NSWindow) {
-        // Sizing is the settings controller's job (`fitSelectedPane`), done before
-        // this runs, so the frame centred here is already the pane's.
+        // Sizing is the window's own job (the main window's `fitToScreen`),
+        // done before this runs, so the frame centred here is already its own.
         guard let screen = window.screen ?? NSScreen.main else { return }
 
         var frame = window.frame

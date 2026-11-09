@@ -3,7 +3,8 @@ import Combine
 import SwiftUI
 
 /// The Usage History window (#436): its own, like Connections and Ads and
-/// Trackers, rather than a pane of Settings, which holds only setup now. The
+/// Trackers, rather than a pane of Settings; now a section of the main window,
+/// a window of its own only for the accessibility tests. The
 /// same toolbar as theirs: the period centred, ‹ Today › trailing, and the
 /// gear, which opens Usage History's settings.
 public final class HistoryWindowController: NSObject, NSToolbarDelegate {
@@ -70,8 +71,9 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
 
     public var isVisible: Bool { window.isVisible }
 
-    public func windowDidShow() {
-        model.windowDidOpen()
+    /// `fresh` false: shown again in the open main window, as it was (#436).
+    public func windowDidShow(fresh: Bool = true) {
+        model.windowDidOpen(reset: fresh)
         refreshControls()
     }
 

@@ -96,7 +96,7 @@ struct AdsSettingsPane: View {
     static var updatesExplanation: String { L("Once a week, NetworkMonitor downloads the lists from GitHub, the same signed file for everyone, never on a hotspot.") }
 }
 
-/// The line that heads a feature's pane of Settings (#436): the number that
+/// The line that heads a section's settings (#436): the number that
 /// matters today, a sentence, and the way to the feature's window. Settings
 /// itself holds only setup; the numbers live in the popover and the windows.
 struct SettingsStatusLine: View {

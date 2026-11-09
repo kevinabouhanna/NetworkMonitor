@@ -47,8 +47,13 @@ public struct MenuBarPopoverView: View {
         if let until = firewall.listsPausedUntil {
             return L("Ad blocking paused until %@", until.formatted(date: .omitted, time: .shortened))
         }
-        guard !firewall.lists.isEmpty, let network = model.adsPausedHere else { return nil }
-        return L("Ad blocking off on %@", network)
+        guard !firewall.lists.isEmpty else { return nil }
+        if let network = model.adsPausedHere { return L("Ad blocking off on %@", network) }
+        // Lists chosen, but nothing to block with: the filter is off, still
+        // waiting for your OK, or failed (#436). Said, so a 0 isn't taken for
+        // a quiet day.
+        if filter.state.isOffered { return L("Not blocking now: the content filter isn't running.") }
+        return nil
     }
 
     /// One line under the total, while metered, when an update came through
@@ -78,12 +83,6 @@ public struct MenuBarPopoverView: View {
         speedTest.phase != .idle && speedTest.isPresented && speedTest.style == .compact
     }
 
-    /// The list gives up the strip's height while it is shown, so the popover's
-    /// tallest size is the same with a test on screen as without.
-    private var listCap: CGFloat {
-        showsStrip ? PopoverMetrics.maxListHeight - PopoverMetrics.speedStripHeight - 1
-                   : PopoverMetrics.maxListHeight
-    }
 
     private var expandedChildRows: Int {
         appRows
@@ -211,7 +210,7 @@ public struct MenuBarPopoverView: View {
             emptyState
         } else {
             let total = max(rows.reduce(0) { $0 + $1.bytes }, 1)
-            PopoverList(rows: max(rows.count, appsRowCount), cap: listCap) {
+            PopoverList(rows: max(rows.count, appsRowCount)) {
                 ForEach(rows) { network in
                     PopoverRow(title: model.store.displayLabel(for: network.id, defaultLabel: network.defaultLabel),
                                value: ByteFormat.bytes(network.bytes),
@@ -291,6 +290,9 @@ public struct MenuBarPopoverView: View {
                 }
                 .buttonStyle(.plain)
                 .help(L("Settings (⌘,)"))
+                // The popover's own: with no window open, the app has no menu
+                // for ⌘, to come from.
+                .keyboardShortcut(",", modifiers: .command)
                 .accessibilityLabel(L("Settings"))
             }
             .padding(.leading, PopoverMetrics.edge)
@@ -377,7 +379,7 @@ public struct MenuBarPopoverView: View {
     /// never the frame, which sets the popover's size; see
     /// `PopoverMetrics.maxListHeight`.
     private var list: some View {
-        PopoverList(rows: max(dataRowCount, networksRowCount), cap: listCap) {
+        PopoverList(rows: max(dataRowCount, networksRowCount)) {
             ForEach(appRows) { row in
                 appRow(row)
             }
