@@ -211,6 +211,17 @@ must be green before a merge.
   the bundle (signature, plist, icon), and the smoke test.
 - **`universal`:** `make universal`, and checks that both architectures are there.
 
+**When GitHub can't run it** (a billing or spending-limit error, or no runner for 15 minutes),
+`Scripts/local-ci.sh --fallback <pr>` runs the same two jobs on this Mac (#456). It records
+each result on the commit under the same name, so a pull request reads the same either way.
+- It watches GitHub's checks first, and doesn't run anything here when GitHub can do it.
+- Without `--fallback`, it runs here straight away.
+- Builds reuse one worktree in `~/Library/Caches/networkmonitor-dev/ci`, one run at a time.
+- The smoke test runs in the `networkmonitor` Mac lane, and opens the installed copy again
+  afterwards.
+
+Releases stay on GitHub. The keys they're signed with are repository secrets.
+
 ## Contributing
 
 Every change follows the same path:
