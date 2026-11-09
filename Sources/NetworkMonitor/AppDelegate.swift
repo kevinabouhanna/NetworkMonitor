@@ -15,18 +15,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Pointer watchers that exist only while a revealed menu bar holds focus
     /// the popover had. See `restoreFocusWhenMenuBarHides()`.
     private var menuBarMonitors: [Any] = []
-    /// Settings: toolbar panes for General, History, Connections, Ads,
-    /// Hotspot, Speed Test and About, setup only (#436). Created on first use.
+    /// Settings (⌘,): General only, what applies to the whole app (#436). Each
+    /// feature's settings are in the main window, behind its section's gear.
+    /// Created on first use.
     private var settingsController: SettingsWindowController?
     private var settings: SettingsWindowController {
         if let settingsController { return settingsController }
         let controller = SettingsWindowController(
-            model: model, history: historyModel,
-            connections: connectionsModel, ads: adsModel,
-            onOpenConnections: { [weak self] in self?.showConnections() },
-            onOpenAds: { [weak self] in self?.showAds() },
-            onOpenHistory: { [weak self] in self?.showHistory() },
-            onUninstall: { [weak self] in self?.uninstall() })
+            model: model, onOpenSection: { [weak self] section in self?.showSectionSettings(section) })
         controller.window.delegate = self
         controller.highestTop = { [weak self] screen in
             screen.frame.maxY - (self?.menuBarHeight(on: screen) ?? 0)
@@ -143,7 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             // The lists and your rules are in Settings › Ads now (#436).
             if let setup = (arguments["tab"] as? String).flatMap(AdsViewModel.SetupTab.init) {
                 adsModel.setupTab = setup
-                show(pane: .ads)
+                showSectionSettings(.ads)
             } else {
                 if let tab = (arguments["tab"] as? String).flatMap(AdsViewModel.Tab.init) { main.ads.select(tab) }
                 showAds()
@@ -158,7 +154,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                 popoverScreen = NSScreen.screens.first { $0.backingScaleFactor >= 2 }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.togglePopover() }
-        case "settings":    show(pane: (arguments["pane"] as? String).flatMap(SettingsPane.init))
+        // `-pane history` (or connections, ads, network, hotspot): that
+        // section's settings in the main window (#436); otherwise General.
+        case "settings":
+            let pane = arguments["pane"] as? String
+            if let section = MainSection(rawValue: pane == "hotspot" ? "network" : pane ?? "") {
+                showSectionSettings(section)
+            } else {
+                show(pane: .general)
+            }
         default:            break
         }
     }
@@ -661,6 +665,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                      action: #selector(showHistory), keyEquivalent: "y")
         menu.addItem(withTitle: L("Settings…"),
                      action: #selector(showSettings), keyEquivalent: ",")
+        menu.addItem(withTitle: L("About NetworkMonitor"),
+                     action: #selector(showAbout), keyEquivalent: "")
         if model.updates.isAvailable {
             menu.addItem(withTitle: L("Check for Updates…"),
                          action: #selector(checkForUpdates), keyEquivalent: "")
@@ -793,6 +799,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Network, in the main window (#436): from Open Network in the popover.
     @objc private func showNetwork() { show(section: .network) }
 
+    /// A section's settings, in place in the main window (#436): from the
+    /// buttons at the top of Settings › General.
+    private func showSectionSettings(_ section: MainSection) {
+        show(section: section)
+        main.showSettings()
+    }
+
+    /// The standard About window, with what was Settings › About (#436): the
+    /// version, and links to the website, the release notes and the source.
+    @objc private func showAbout() {
+        if popover.isShown { closePopover() }
+        let credits = NSMutableAttributedString()
+        let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        func line(_ text: String, link: String? = nil) {
+            var attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
+            if let link { attributes[.link] = URL(string: link) }
+            credits.append(NSAttributedString(string: text + "\n", attributes: attributes))
+        }
+        line(L("Live network speed in your menu bar, and which app used your data."))
+        line("")
+        line(L("Website"), link: "https://kevinabouhanna.github.io/NetworkMonitor/")
+        line(L("What's new"), link: "https://github.com/kevinabouhanna/NetworkMonitor/releases/latest")
+        line(L("Source code"), link: "https://github.com/kevinabouhanna/NetworkMonitor")
+        line("")
+        line(L("Free and open source, under the MIT licence."))
+        let style = NSMutableParagraphStyle()
+        style.alignment = .center
+        credits.addAttribute(.paragraphStyle, value: style, range: NSRange(location: 0, length: credits.length))
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+    }
+
     private func show(section: MainSection) {
         if popover.isShown { closePopover() }
         let wasVisible = main.isVisible
@@ -897,8 +935,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private func makeMainMenu() -> NSMenu {
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: L("About NetworkMonitor"),
-                        action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
-                        keyEquivalent: "")
+                        action: #selector(showAbout), keyEquivalent: "").target = self
         if model.updates.isAvailable {
             appMenu.addItem(withTitle: L("Check for Updates…"),
                             action: #selector(checkForUpdates), keyEquivalent: "").target = self

@@ -6,12 +6,11 @@ import SwiftUI
 func runSettingsTests() {
     Check.suite("Settings — panes") {
 
-        // The toolbar's order: what people open most first, About last. Ad
-        // blocking is a feature of its own, so a pane of its own.
-        // The popover's order after General (#436).
-        Check.test("the toolbar runs General, History, Connections, Ads, Hotspot, Speed Test, About") {
-            Check.expectEqual(SettingsPane.allCases.map(\.title),
-                              ["General", "History", "Connections", "Ads", "Hotspot", "Speed Test", "About"])
+        // General alone (#436): each feature's settings are in the main
+        // window, behind its section's gear, so nothing is in two places.
+        Check.test("Settings is General alone; the features' settings are in the main window") {
+            Check.expectEqual(SettingsPane.allCases.map(\.title), ["General"])
+            Check.expectEqual(MainSection.allCases.map(\.rawValue), ["history", "connections", "ads", "network"])
         }
 
         // A missing symbol draws an empty toolbar button, silently.
@@ -35,24 +34,17 @@ func runSettingsTests() {
                               "no crossfade or slide of any kind")
         }
 
-        // The HIG's "restore the most recently viewed pane".
-        Check.test("Settings reopens on the last pane viewed, General the first time") {
+        // With one pane there's nothing else to reopen on, and an old
+        // choice of a pane that's gone falls back to General.
+        Check.test("Settings opens on General, whatever pane was last remembered") {
             let defaults = UserDefaults(suiteName: "settings-pane-\(UUID().uuidString)")!
             Check.expectEqual(SettingsPane.last(in: defaults), .general)
-            SettingsPane.hotspot.remember(in: defaults)
-            Check.expectEqual(SettingsPane.last(in: defaults), .hotspot)
-            defaults.set("preferences", forKey: "settingsPane")
-            Check.expectEqual(SettingsPane.last(in: defaults), .general,
-                              "an unknown pane falls back to General")
+            defaults.set("hotspot", forKey: "settingsPane")
+            Check.expectEqual(SettingsPane.last(in: defaults), .general, "a pane that's gone falls back to General")
         }
 
-        // Building the window selects the first pane by itself. Taken for a
-        // choice, it overwrote the last pane, so after every relaunch Settings
-        // opened on General (#14). About, because Hotspot refreshes the real
-        // metering state when it appears.
-        Check.test("a new Settings window reopens on the last pane, not General") {
+        Check.test("the Settings window is titled Settings, with no toolbar of tabs") {
             let defaults = UserDefaults(suiteName: "settings-window-\(UUID().uuidString)")!
-            SettingsPane.about.remember(in: defaults)
             let dir = URL(fileURLWithPath: NSTemporaryDirectory())
                 .appendingPathComponent("settings-window-\(UUID().uuidString)")
             defer { try? FileManager.default.removeItem(at: dir) }
@@ -61,13 +53,10 @@ func runSettingsTests() {
                                               journal: SuppressionJournal(url: dir.appendingPathComponent("journal.json")),
                                               suppressors: [], defaults: defaults)
             let model = MonitorViewModel(store: store, metering: metering)
-            let settings = SettingsWindowController(model: model, history: HistoryViewModel(monitor: model),
-                                                    connections: ConnectionsViewModel(monitor: model, defaults: defaults),
-                                                    onOpenConnections: {}, onUninstall: {}, defaults: defaults)
-            Check.expectEqual(SettingsPane.last(in: defaults), .about,
-                              "building the window must not overwrite the last pane")
+            let settings = SettingsWindowController(model: model, defaults: defaults)
             settings.select(nil)
-            Check.expectEqual(settings.window.title, "About")
+            Check.expectEqual(settings.window.title, "Settings")
+            Check.expectTrue(settings.window.toolbar?.items.isEmpty ?? true, "one pane needs no tabs")
         }
     }
 

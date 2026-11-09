@@ -28,15 +28,6 @@ public enum MainSection: String, CaseIterable, Identifiable {
         }
     }
 
-    /// The Settings pane its gear shows in place.
-    public var settingsPane: SettingsPane {
-        switch self {
-        case .history:     return .history
-        case .connections: return .connections
-        case .ads:         return .ads
-        case .network:     return .hotspot
-        }
-    }
 }
 
 /// Which section is shown, and whether its settings are, for the sidebar.
@@ -110,7 +101,10 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                                                firewall: model.firewall, blocklists: model.blocklists,
                                                listBlocks: model.listBlocks, onOpenAds: { back() }))
             case .network:
-                view = AnyView(HotspotSettingsPane(metering: model.metering, state: state, filter: model.filter))
+                view = AnyView(VStack(spacing: 0) {
+                    HotspotSettingsPane(metering: model.metering, state: state, filter: model.filter)
+                    SpeedTestStylePane(speedTest: model.speedTest)
+                })
             }
             let host = NSHostingController(rootView: MainSettingsPage(content: view, width: width).localizedRoot())
             host.sizingOptions = []
@@ -181,6 +175,18 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         nameWindow()
         refreshSettings(for: section)
     }
+
+    /// A section's settings page, built if it isn't yet: for the
+    /// accessibility tests, which read each page in a window of its own (the
+    /// split view can't be read from the app's own process).
+    public func settingsPage(for section: MainSection) -> NSViewController {
+        if settingsPages[section] == nil { settingsPages[section] = makeSettingsPage(section) }
+        return settingsPages[section]!
+    }
+
+    /// The sidebar and Network's view, for the same tests.
+    public var sidebarController: NSViewController { split.splitViewItems[0].viewController }
+    public var networkController: NSViewController { network }
 
     /// Back from the settings to the section.
     public func closeSettings() {
@@ -394,12 +400,23 @@ struct NetworkView: View {
                                     .labelsHidden()
                             }
                         }
-                        LabeledContent(L("Right now")) {
-                            Text(metering.verdict.explanation).foregroundStyle(.secondary)
-                        }
+                        // The verdict, always shown: the commonest confusion is not
+                        // knowing whether it decided the connection counts.
                         if let standby = metering.standbyHotspot {
-                            LabeledContent(L("Also joined")) {
-                                Text(standby.message).foregroundStyle(.orange)
+                            // A hotspot's connected, so "doesn't look like one"
+                            // would read as the app having missed it (#355).
+                            ExplainedRow(L("Right now"), standby.explanation(inUse: metering.connection)) {
+                                Label(standby.rightNow(inUse: metering.connection),
+                                      systemImage: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                            }
+                        } else {
+                            LabeledContent(L("Right now")) {
+                                Label(metering.verdict.explanation,
+                                      systemImage: metering.verdict.isMetered
+                                          ? "antenna.radiowaves.left.and.right" : "wifi")
+                                    .foregroundStyle(metering.verdict.isMetered
+                                                     ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
                             }
                         }
                     } header: {

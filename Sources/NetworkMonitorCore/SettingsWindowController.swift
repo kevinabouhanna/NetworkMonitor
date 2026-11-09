@@ -1,35 +1,14 @@
 import AppKit
 import SwiftUI
 
-/// One area of Settings, shown as a button in the window's toolbar. In the
-/// popover's order after General (#436): History (Today), Connections
-/// (Companies), Ads (Blocked), Hotspot (Connection), then Speed Test and About.
+/// One area of the Settings window. Just General now (#436): each feature's
+/// settings are in the main window, behind its section's gear, so no setting
+/// lives in two places. Kept as a type for the pane machinery below.
 public enum SettingsPane: String, CaseIterable {
-    case general, history, connections, ads, hotspot, speedTest, about
+    case general
 
-    public var title: String {
-        switch self {
-        case .general:   return L("General")
-        case .speedTest: return L("Speed Test")
-        case .history:   return L("History")
-        case .connections: return L("Connections")
-        case .ads:       return L("Ads")
-        case .hotspot:   return L("Hotspot")
-        case .about:     return L("About")
-        }
-    }
-
-    public var symbol: String {
-        switch self {
-        case .general:   return "gearshape"
-        case .speedTest: return "gauge.with.dots.needle.67percent"
-        case .history:   return "chart.bar.xaxis"
-        case .connections: return "globe"
-        case .ads:       return "shield.lefthalf.filled"
-        case .hotspot:   return "personalhotspot"
-        case .about:     return "info.circle"
-        }
-    }
+    public var title: String { L("General") }
+    public var symbol: String { "gearshape" }
 
     static let lastKey = "settingsPane"
 
@@ -45,20 +24,15 @@ public enum SettingsPane: String, CaseIterable {
     }
 }
 
-/// The Settings window: a toolbar of panes, in the shape Apple's guidelines give
-/// a Mac app's settings.
+/// The Settings window (⌘,): what applies to the whole app, in one pane (#436).
+/// Each feature's settings are in the main window, behind its section's gear,
+/// and General's first row says so, with a button to each. One pane needs no
+/// toolbar of tabs, as Apple's guidelines have it for a simple app.
 ///
-/// - a toolbar that never changes and always shows which pane is open;
-/// - the window titled after the pane, and sized to it, up to the height of the
-///   screen, past which the pane scrolls;
+/// - the window sized to the pane, up to the height of the screen, past which
+///   the pane scrolls;
 /// - minimise and zoom dimmed, because Command-comma brings it straight back
-///   and the window is always the size of what it shows;
-/// - the last pane remembered.
-///
-/// It also carries the app's features, not only its settings: the speed test,
-/// Usage History and uninstalling were each reachable only through an unlabelled
-/// icon or the right-click menu, and anyone who missed those would look here.
-/// Usage History lives here and nowhere else, so nothing exists twice.
+///   and the window is always the size of what it shows.
 ///
 /// `AppDelegate` owns the window's lifecycle (activation policy, menu bar,
 /// positioning) and calls `windowWillClose()`.
@@ -66,12 +40,8 @@ public final class SettingsWindowController: NSObject {
 
     public let window: NSWindow
     private let tabs = PaneTabViewController()
-    private let ads: AdsViewModel
-    private let glance: TodayGlance
-    private let history: HistoryViewModel
     private let defaults: UserDefaults
     private var sizeObservation: NSKeyValueObservation?
-    private var historyOnScreen = false
     /// Caps the content at the screen's height; see `keepOnScreen()`.
     private var heightCap: NSLayoutConstraint!
     private var screenObservers: [NSObjectProtocol] = []
@@ -84,47 +54,20 @@ public final class SettingsWindowController: NSObject {
     /// screen, and covers the title bar there whenever it's revealed.
     public var highestTop: (NSScreen) -> CGFloat = { $0.visibleFrame.maxY }
 
-    public init(model: MonitorViewModel, history: HistoryViewModel,
-                connections: ConnectionsViewModel, ads: AdsViewModel? = nil,
-                onOpenConnections: @escaping () -> Void,
-                onOpenAds: @escaping () -> Void = {},
-                onOpenHistory: @escaping () -> Void = {},
-                onUninstall: @escaping () -> Void, defaults: UserDefaults = .standard) {
-        self.history = history
-        self.glance = model.glance
-        let ads = ads ?? AdsViewModel(monitor: model)
-        self.ads = ads
+    public init(model: MonitorViewModel, onOpenSection: @escaping (MainSection) -> Void = { _ in },
+                defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let state = SettingsPaneState()
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: SettingsMetrics.paneWidth, height: 400),
                           styleMask: [.titled, .closable], backing: .buffered, defer: false)
         super.init()
 
-        tabs.tabStyle = .toolbar
+        // One pane: no toolbar of tabs.
+        tabs.tabStyle = SettingsPane.allCases.count > 1 ? .toolbar : .unspecified
         tabs.transitionOptions = Self.paneTransition
         for pane in SettingsPane.allCases {
-            let host: NSViewController
-            switch pane {
-            case .general:   host = Self.paneHost(GeneralSettingsPane(model: model, state: state), width: SettingsMetrics.paneWidth)
-            case .speedTest: host = Self.paneHost(SpeedTestSettingsPane(speedTest: model.speedTest), width: SettingsMetrics.paneWidth)
-            case .history:   host = Self.paneHost(HistorySettingsPane(model: history, onOpen: onOpenHistory), width: SettingsMetrics.paneWidth)
-            case .connections:
-                host = Self.paneHost(ConnectionsSettingsPane(model: connections,
-                                                             filter: model.filter,
-                                                             firewall: model.firewall,
-                                                             geoData: model.geoData,
-                                                             lookups: model.lookups,
-                                                             glance: model.glance,
-                                                             onOpen: onOpenConnections),
+            let host = Self.paneHost(GeneralSettingsPane(model: model, state: state, onOpenSection: onOpenSection),
                                      width: SettingsMetrics.paneWidth)
-            case .ads:
-                host = Self.paneHost(AdsSettingsPane(ads: ads, connections: connections, filter: model.filter,
-                                                     firewall: model.firewall, blocklists: model.blocklists,
-                                                     listBlocks: model.listBlocks, onOpenAds: onOpenAds),
-                                     width: SettingsMetrics.paneWidth)
-            case .hotspot:   host = Self.paneHost(HotspotSettingsPane(metering: model.metering, state: state, filter: model.filter), width: SettingsMetrics.paneWidth)
-            case .about:     host = Self.paneHost(AboutSettingsPane(updates: model.updates, onUninstall: onUninstall), width: SettingsMetrics.paneWidth)
-            }
             let item = NSTabViewItem(viewController: host)
             item.identifier = pane.rawValue
             tabs.addTabViewItem(item)
@@ -175,7 +118,7 @@ public final class SettingsWindowController: NSObject {
             item.label = pane.title
             item.viewController?.title = pane.title
             item.image = NSImage(systemSymbolName: pane.symbol, accessibilityDescription: pane.title)
-            if item === tabs.tabView.selectedTabViewItem { window.title = pane.title }
+            if item === tabs.tabView.selectedTabViewItem { window.title = Self.title }
         }
     }
 
@@ -235,7 +178,6 @@ public final class SettingsWindowController: NSObject {
     }
 
     public func windowWillClose() {
-        setHistoryOnScreen(false)
         // Opened by a colour well in General. Left up, it would outlive the
         // window it belongs to once the app is back in the menu bar.
         if NSColorPanel.sharedColorPanelExists { NSColorPanel.shared.close() }
@@ -245,9 +187,7 @@ public final class SettingsWindowController: NSObject {
 
     private func didSelect(_ pane: SettingsPane) {
         pane.remember(in: defaults)
-        window.title = pane.title
-        setHistoryOnScreen(pane == .history)
-        refreshAds(pane)
+        window.title = Self.title
         guard let child = tabs.tabViewItems.first(where: { $0.identifier as? String == pane.rawValue })?
             .viewController else { return }
         // The window follows the pane's size as its content changes (a list
@@ -340,30 +280,11 @@ public final class SettingsWindowController: NSObject {
         return frame
     }
 
-    /// Settings › History and › Ads head with today's number, fetched when
-    /// the pane is shown (#436). The history itself is in its own window.
-    private func setHistoryOnScreen(_ onScreen: Bool) {
-        let shown = onScreen && window.isVisible
-        guard shown != historyOnScreen else { return }
-        historyOnScreen = shown
-        if shown { history.refreshToday() }
-    }
+    /// The window's title: one pane, so the window is named for what it is.
+    static var title: String { L("Settings") }
 
-    private func refreshAds(_ pane: SettingsPane) {
-        guard window.isVisible else { return }
-        if pane == .ads { ads.reloadToday() }
-        if pane == .connections || pane == .ads { glance.refresh() }
-    }
-
-    /// Re-run after the window is shown, since `isVisible` was false when the
-    /// pane was selected.
-    public func windowDidShow() {
-        if let id = tabs.tabView.selectedTabViewItem?.identifier as? String,
-           let pane = SettingsPane(rawValue: id) {
-            setHistoryOnScreen(pane == .history)
-            refreshAds(pane)
-        }
-    }
+    /// Kept for `AppDelegate`'s show sequence; nothing to fetch for General.
+    public func windowDidShow() {}
 }
 
 /// Whether the pane on screen scrolls, which is when it gets a scroll bar (#65).

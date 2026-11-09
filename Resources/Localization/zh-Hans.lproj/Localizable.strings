@@ -647,7 +647,6 @@
 "Start the totals over" = "重新开始累计";
 "Reset Now" = "立即重置";
 "Popover totals" = "弹出窗口中的累计值";
-"This Mac has no networkQuality, which the test runs on." = "这台 Mac 上没有 networkQuality，而测试需要用它来运行。";
 "Runs macOS's built-in networkQuality, only when you start it: download first, then upload. Every run measures afresh, so it uses data each time — typically 50–500 MB, more on a very fast line. Speeds use the unit chosen in General." = "使用 macOS 内置的 networkQuality，只在你开始测试时运行：先测下载，再测上传。每次都会重新测量，所以每次都会消耗流量 — 通常为 50–500 MB，网速很快时会更多。速度使用“通用”中选择的单位。";
 "Show the test in the popover as" = "在弹出窗口中显示测试的样式";
 "Test your internet speed" = "测试你的网速";
@@ -661,9 +660,6 @@
 "Stop apps updating on hotspots" = "停止热点下的应用更新";
 "Right now" = "当前";
 "This network" = "此网络";
-"Detect automatically" = "自动检测";
-"Is a hotspot" = "是热点";
-"Isn't a hotspot" = "不是热点";
 "Also puts the hotspot in Low Data Mode, so iCloud and other background downloads wait until you're off it." = "还会让热点进入低数据模式，这样 iCloud 和其他后台下载会等到你断开热点后再进行。";
 "Nothing on this Mac to pause." = "这台 Mac 没有可暂停的应用。";
 "Found by looking inside the apps on this Mac. They're paused only while you're on a hotspot, and put back when you leave." = "通过查看这台 Mac 上的应用内部找到。它们只在你使用热点时暂停，断开后会恢复。";
@@ -704,31 +700,19 @@
 "Language" = "语言";
 "The language NetworkMonitor's windows, menus and VoiceOver are in. Same as the Mac follows System Settings › General › Language & Region." = "NetworkMonitor 的窗口、菜单和 VoiceOver 使用的语言。“跟随系统”使用“系统设置 › 通用 › 语言与地区”中的语言。";
 "Same as the Mac" = "跟随系统";
-"Development build" = "开发版本";
-"Version %@ (%@)" = "版本 %@（%@）";
-"Version %@" = "版本 %@";
 "Live network speed in your menu bar, and which app used your data." = "在菜单栏中显示实时网速，以及哪个应用用了你的流量。";
 "Website" = "网站";
 "What's new" = "新功能";
-"Release notes" = "发行说明";
 "Source code" = "源代码";
-"On GitHub" = "在 GitHub 上";
 "Free and open source, under the MIT licence." = "免费开源，采用 MIT 许可证。";
 "Check for updates automatically" = "自动检查更新";
 "Updates" = "更新";
 "Check Now" = "立即检查";
 "Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor." = "NetworkMonitor 每天向 GitHub 查询一次是否有新版本，使用热点时从不查询。只有在你同意时才会安装更新，而且只安装由 NetworkMonitor 签名的更新。";
-"Remove NetworkMonitor" = "移除 NetworkMonitor";
-"Uninstall…" = "卸载…";
-"Puts back every setting it changed, removes its helper and your usage history, and moves the app to the Trash." = "恢复它更改过的每项设置，移除它的辅助程序和你的流量历史，并将应用移到废纸篓。";
 
 /* SettingsWindowController.swift */
 "General" = "通用";
-"Speed Test" = "网速测试";
-"History" = "历史记录";
-"Ads" = "广告";
 "Hotspot" = "热点";
-"About" = "关于";
 
 /* SpeedTest.swift */
 "Cellular" = "蜂窝网络";
@@ -868,7 +852,6 @@
 "↓ %@  ↑ %@ · %@" = "↓ %@  ↑ %@ · %@";
 "%@ Settings" = "%@设置";
 "%@ · %@ today" = "%@ · 今天 %@";
-"Also joined" = "也已加入";
 "App updates are paused until you leave this network." = "在你离开此网络之前，应用更新会一直暂停。";
 "App updates pause on any network marked as a hotspot." = "在任何标记为热点的网络上，应用更新都会暂停。";
 "Back to %@" = "返回%@";
@@ -876,3 +859,5 @@
 "Pauses app updates and iCloud downloads while you're on this network. NetworkMonitor recognises an iPhone's hotspot by itself, but some phones look like ordinary Wi-Fi, or like Ethernet over USB: switch this on for those. It's remembered for this network." = "连接此网络时，暂停应用更新和 iCloud 下载。NetworkMonitor 能自动识别 iPhone 的热点，但有些手机看起来像普通 Wi-Fi，或通过 USB 连接时像以太网：遇到这些手机时请打开此开关。此设置会为此网络记住。";
 "Settings for the network and hotspots" = "网络和热点的设置";
 "Stopping app updates on hotspots is off: switch it on with the gear." = "“停止热点下的应用更新”已关闭：可通过齿轮图标打开。";
+"Each section's settings are in the main window, behind its gear." = "每个部分的设置都在主窗口中，点按它的齿轮图标即可找到。";
+"Open the settings for %@" = "打开“%@”的设置";

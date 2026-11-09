@@ -359,15 +359,9 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     world.model.popoverSection = .today
     popover.orderOut(nil)
 
-    let settings = SettingsWindowController(model: world.model, history: world.historyModel,
-                                            connections: world.connections, ads: world.ads, onOpenConnections: {},
-                                            onUninstall: {}, defaults: .standard)
-    for (pane, name, setup) in [(SettingsPane.general, "settings-general", AdsViewModel.SetupTab.lists),
-                                (.connections, "settings-connections", .lists),
-                                (.ads, "settings-ads", .lists), (.ads, "settings-ads-rules", .rules),
-                                (.history, "settings-history", .lists), (.hotspot, "settings-hotspot", .lists)]
-    where wanted(prefix + name) {
-        world.ads.setupTab = setup
+    // The Settings window: General alone (#436).
+    let settings = SettingsWindowController(model: world.model, defaults: .standard)
+    for (pane, name) in [(SettingsPane.general, "settings-general")] where wanted(prefix + name) {
         settings.select(pane)
         show(settings.window, appearance: appearance)
         settings.windowDidShow()
@@ -401,10 +395,16 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     main.ads.select(.overview)
     main.show(.network)
     shoot("network")
-    for section in MainSection.allCases where wanted(prefix + "main-\(section.rawValue)-settings") {
+    for section in MainSection.allCases {
         main.show(section)
         main.showSettings()
+        world.ads.setupTab = .lists
         shoot("main-\(section.rawValue)-settings")
+        if section == .ads {
+            world.ads.setupTab = .rules
+            shoot("main-ads-settings-rules")
+            world.ads.setupTab = .lists
+        }
     }
     main.windowWillClose()
     main.window.orderOut(nil)
