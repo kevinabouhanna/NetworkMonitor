@@ -10,7 +10,9 @@
 // with the tree recorded when the picture was taken (`shots/trees/<name>.txt`):
 //
 //   check            reports what changed, and which videos or staged pictures
-//                    show a window that changed (they're remade by hand)
+//                    show a window that changed (they're remade by hand). And,
+//                    as advice, the windows that look different from their
+//                    pictures, outside what's masked (`<name>.look`, #423)
 //   update [names]   retakes the pictures whose window changed (or the ones
 //                    named), records their trees, and updates the page: each
 //                    picture's size, the clickable areas laid over it, and the
@@ -24,7 +26,8 @@
 //                    one it retakes
 //   record <names>   records the named windows' trees as they read now,
 //                    without retaking their pictures: after marking more of
-//                    a window as data or ignored (#416)
+//                    a window as data or ignored (#416). And keeps each
+//                    picture's look from the picture as it is
 //
 // It needs Accessibility and Screen Recording for the terminal it runs in. It
 // quits and relaunches the installed app, and puts it back running at the end.

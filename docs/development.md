@@ -355,14 +355,29 @@ the tree rather than looking at the picture, it costs nothing to run and never t
 
 **The look too** (#423). A change only to how something looks (a colour, an icon,
 spacing, a font) leaves the tree the same, so each picture also keeps its look:
-`shots/trees/<name>.look`, a thumbnail 64 cells across of the picture's average colour,
-four bits a channel. Cells over anything the tree masks (data regions, a number, a
-setting's value, an ignored line) are left out (`---`). `site-check` takes a fresh
-capture, masks it the same way, and names the windows where more than
-`Look.threshold` cells differ by more than one level in a channel, or whose size
-changed. `update` retakes those too, and keeps each new picture's look; `make
-site-trees` keeps the look from the picture as it is, without retaking it.
-LOOK_TUNING
+`shots/trees/<name>.look`, a thumbnail 128 cells along the picture's longer side, each
+cell's average colour at five bits a channel. Cells over anything the tree masks (data
+regions, a number, a setting's value, an ignored line, a scroll bar) are left out
+(`----`). `site-check` takes a fresh capture, masks it the same way, and names the
+windows where more than one cell differs by more than one level in a channel, or whose
+size changed.
+
+- **Advice, not a failure.** It's listed after the tree's changes and doesn't change
+  `site-check`'s exit status, and `update` doesn't retake a window for it: look at
+  the two, and retake the ones that changed with `make site-shots NAMES=…`. Pixels
+  follow things the app doesn't (the wallpaper behind a translucent sidebar, the
+  screen a window is on), which a few hours' captures on one Mac can't rule out.
+- **How it was tuned** (#423): fresh captures of all fourteen windows, in English and
+  Chinese, against pictures taken hours before on the same Mac, Ethernet both times:
+  no cell differed. A red 8-point square over a sidebar icon changed 2 cells, a
+  16-point one 6, the lower half of Network moved down 2 points about 120, a faint
+  blue wash over one row about 230. With 64 cells and four bits, a 2-point move went
+  unseen.
+- `update` keeps each picture's look as it retakes it. `make site-trees NAMES=…` keeps
+  it from the picture as it is, with the window's masks as it lays out now, without
+  retaking it (and says so when the picture's size no longer matches).
+- Only a shot with a picture has a look: not `menubar` or `popover`, which are
+  checked by their trees alone.
 
 ```sh
 make site-check                         # what changed; exits 1 if anything did
