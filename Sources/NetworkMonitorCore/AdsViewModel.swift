@@ -89,7 +89,7 @@ public struct AdsReport: Equatable {
     /// "a.com, b.com and 3 more".
     public static func listed(_ names: [String], shown: Int = 2) -> String? {
         guard !names.isEmpty else { return nil }
-        let head = names.prefix(shown).joined(separator: ", ")
+        let head = names.prefix(shown).joined(separator: L(", "))
         return names.count > shown ? L("%@ and %@ more", head, String(names.count - shown)) : head
     }
 

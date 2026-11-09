@@ -867,10 +867,10 @@ enum HistoryFormat {
 
     static func axisLabel(_ date: Date, scale: HistoryScale) -> String {
         switch scale {
-        case .day:   return date.formatted(.dateTime.hour())
-        case .week:  return date.formatted(.dateTime.weekday(.abbreviated))
-        case .month: return date.formatted(.dateTime.day())
-        case .year:  return date.formatted(.dateTime.month(.abbreviated))
+        case .day:   return date.formatted(.dateTime.hour().locale(Localization.shared.locale))
+        case .week:  return date.formatted(.dateTime.weekday(.abbreviated).locale(Localization.shared.locale))
+        case .month: return date.formatted(.dateTime.day().locale(Localization.shared.locale))
+        case .year:  return date.formatted(.dateTime.month(.abbreviated).locale(Localization.shared.locale))
         }
     }
 
@@ -879,26 +879,28 @@ enum HistoryFormat {
         switch scale {
         case .day:
             let formatter = DateIntervalFormatter()
+            formatter.locale = Localization.shared.locale
             formatter.dateTemplate = "j"
             return formatter.string(from: interval.start, to: interval.end)
         case .week, .month:
-            return interval.start.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+            return interval.start.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().locale(Localization.shared.locale))
         case .year:
-            return interval.start.formatted(.dateTime.month(.wide).year())
+            return interval.start.formatted(.dateTime.month(.wide).year().locale(Localization.shared.locale))
         }
     }
 
     /// "Today 09:02 – 12:30", "Oct 21, 22:10 – Oct 22, 07:45".
     static func sessionSpan(_ session: HistorySession) -> String {
         let formatter = DateIntervalFormatter()
+        formatter.locale = Localization.shared.locale
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         if Calendar.current.isDate(session.start, inSameDayAs: session.end) {
             let day = Calendar.current.isDateInToday(session.start) ? L("Today")
                 : Calendar.current.isDateInYesterday(session.start) ? L("Yesterday")
-                : session.start.formatted(.dateTime.month(.abbreviated).day())
+                : session.start.formatted(.dateTime.month(.abbreviated).day().locale(Localization.shared.locale))
             formatter.dateStyle = .none
-            return day + ", " + formatter.string(from: session.start, to: session.end)
+            return L("%@, %@", day, formatter.string(from: session.start, to: session.end))
         }
         return formatter.string(from: session.start, to: session.end)
     }

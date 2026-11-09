@@ -1,5 +1,7 @@
 # Privacy
 
+English · [简体中文](zh-Hans/privacy.md)
+
 NetworkMonitor measures how much data moves, never what it is. Nothing it learns
 leaves your Mac.
 

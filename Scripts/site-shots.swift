@@ -37,6 +37,75 @@ struct Manifest: Decodable {
     var shots: [Shot]
     /// The site's assets this tool doesn't take: see `HandMade`.
     var assets: [HandMade]?
+    /// The other languages the site has a page in (#431). Each shot is taken
+    /// again in each, for its page.
+    var languages: [Language]?
+}
+
+/// A language the site has a page in (#431). Its pictures are taken from the
+/// app shown in that language (`-language`), into a folder of their own, for
+/// its page; their trees are kept apart too. Element specs are translated with
+/// the app's own table, so the manifest names each element once, in English.
+struct Language: Decodable {
+    /// The app's code for it: `zh-Hans`.
+    var code: String
+    /// Its page, from the site's root: `zh/index.html`.
+    var page: String
+    /// Where its pictures go: `assets/zh-Hans/`, the English one's path after it.
+    var assets: String
+    /// Labels in specs the table can't translate, because a spec names only
+    /// the start of one (`This connection was already`) or a part (`~on metered
+    /// connections`): the English as written in the spec, to this language's.
+    var specs: [String: String]?
+
+    /// From its page's folder back to the site's root: `../` for `zh/index.html`.
+    var up: String { String(repeating: "../", count: page.split(separator: "/").count - 1) }
+
+    /// Where it keeps its copy of an English picture.
+    func file(_ english: String) -> String {
+        english.hasPrefix("assets/") ? assets + english.dropFirst("assets/".count) : english
+    }
+}
+
+/// Element specs and window titles in another language, from the app's table
+/// for it (`<code>.lproj/Localizable.strings` in the app), and the language's
+/// `specs` for what the table can't say.
+final class Translator {
+    let table: [String: String]
+    let overrides: [String: String]
+    /// Labels found in neither, which stay English: report them.
+    private(set) var missing: Set<String> = []
+
+    init(app: String, language: Language) throws {
+        let url = URL(fileURLWithPath: app).appendingPathComponent("Contents/Resources/\(language.code).lproj/Localizable.strings")
+        guard let table = NSDictionary(contentsOf: url) as? [String: String] else {
+            throw Failure("\(app) has no \(language.code) table; is it a version with that language?")
+        }
+        self.table = table
+        overrides = language.specs ?? [:]
+    }
+
+    /// `Role:label`, `Role:~part` and `Outer>Inner`, with the labels translated.
+    func spec(_ spec: String) -> String {
+        spec.components(separatedBy: ">").map { part in
+            let pieces = part.split(separator: ":", maxSplits: 1).map(String.init)
+            return pieces.count == 2 ? "\(pieces[0]):\(label(pieces[1]))" : part
+        }.joined(separator: ">")
+    }
+
+    /// A window's title, or a spec for one that has none.
+    func window(_ title: String) -> String { title.hasPrefix("AX") ? spec(title) : label(title) }
+
+    func label(_ english: String) -> String {
+        if let own = overrides[english] { return own }
+        let part = english.hasPrefix("~")
+        let text = part ? String(english.dropFirst()) : english
+        if let translated = table[text] { return (part ? "~" : "") + translated }
+        // A separator or a number is the same in every language; a name may
+        // be too (`kevinabouhanna`), which the report lets you tell.
+        if text.rangeOfCharacter(from: .letters) != nil { missing.insert(english) }
+        return english
+    }
 }
 
 /// An image, GIF or video the pages use that isn't a shot's picture (#413).
@@ -101,6 +170,41 @@ struct Shot: Decodable {
     /// it changes, for remaking by hand. The older way of saying what the
     /// manifest's `assets` say with `shows`; both work.
     var flags: [String]?
+
+    /// The same shot in `language`: the app opened in it, its elements named
+    /// in it, its picture in the language's folder. Videos and staged pictures
+    /// are the English shot's business.
+    func localized(_ language: Language, _ t: Translator) -> Shot {
+        var shot = self
+        // AppleLanguages too, so dates and times come out as that language
+        // writes them, as on a Mac set to it.
+        shot.open = open + ["-language", language.code, "-AppleLanguages", "(\(language.code))"]
+        shot.window = t.window(window)
+        shot.file = file.map(language.file)
+        shot.click = click?.map(t.spec)
+        shot.scroll = scroll.map(t.spec)
+        shot.waitFor = waitFor.map { Wait(element: t.spec($0.element), seconds: $0.seconds) }
+        shot.skipIf = skipIf.map(t.spec)
+        shot.ignore = ignore?.map(t.spec)
+        shot.data = data?.map { region in
+            var region = region
+            region.from = t.spec(region.from)
+            region.until = region.until.map { ["end", "run"].contains($0) ? $0 : t.spec($0) }
+            return region
+        }
+        shot.crop = crop.map { c in
+            var c = c
+            c.from = t.spec(c.from); c.through = t.spec(c.through)
+            return c
+        }
+        shot.areas = areas?.map { a in
+            var a = a
+            a.element = t.spec(a.element)
+            return a
+        }
+        shot.flags = nil
+        return shot
+    }
 }
 
 struct Wait: Decodable {
@@ -230,6 +334,9 @@ func mask(_ s: String) -> String {
     s = s.replacingOccurrences(of: "\\b(\(months))\\b", with: "‹month›", options: .regularExpression)
     s = s.replacingOccurrences(of: "\\b(\(weekdays))\\b", with: "‹day›", options: .regularExpression)
     s = s.replacingOccurrences(of: "#\\s?(AM|PM|am|pm)\\b", with: "‹time›", options: .regularExpression)
+    // Chinese times and days (#431): 早上5:51, 下午#, 星期一, 周一.
+    s = s.replacingOccurrences(of: "(凌晨|早上|上午|中午|下午|晚上)\\s?#", with: "‹time›", options: .regularExpression)
+    s = s.replacingOccurrences(of: "(星期|周)[一二三四五六日天]", with: "‹day›", options: .regularExpression)
     // A total is in KB one day and GB the next.
     s = s.replacingOccurrences(of: "#\\s?(bytes|[KMGT]?B/s|[KMGT]bps|bps|[KMGT]?B)(?![A-Za-z])", with: "# ‹unit›",
                                options: .regularExpression)
@@ -443,7 +550,9 @@ struct Session {
             if find(wait.element, in: window) != nil { usleep(800_000); return }
             usleep(500_000)
         }
-        throw Failure("\(wait.element) didn't appear within \(Int(wait.seconds)) s")
+        // What it showed instead, to tell a slow window from a wrong spec.
+        let showing = tree(window, data: []).prefix(30).joined(separator: "\n")
+        throw Failure("\(wait.element) didn't appear within \(Int(wait.seconds)) s; the window showed:\n\(showing)")
     }
 
     /// Moves a window that's on a 1x screen onto a Retina one, which captures
@@ -505,6 +614,8 @@ func isActive(_ image: CGImage, window: AXUIElement) -> Bool {
 }
 
 func writePNG(_ image: CGImage, to url: URL) throws {
+    // A language's first pictures go in folders that don't exist yet.
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
     guard let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else { throw Failure("can't write \(url.path)") }
     CGImageDestinationAddImage(dest, image, nil)
     guard CGImageDestinationFinalize(dest) else { throw Failure("can't write \(url.path)") }
@@ -515,10 +626,14 @@ func writePNG(_ image: CGImage, to url: URL) throws {
 struct Page {
     let url: URL
     var html: String
+    /// From the page's folder back to the site's root, before each asset's
+    /// path in its links: `../` for a language's page in a folder.
+    let up: String
 
-    init(site: URL) throws {
-        url = site.appendingPathComponent("index.html")
+    init(site: URL, path: String = "index.html", up: String = "") throws {
+        url = site.appendingPathComponent(path)
         html = try String(contentsOf: url, encoding: .utf8)
+        self.up = up
     }
 
     func save() throws { try html.write(to: url, atomically: true, encoding: .utf8) }
@@ -561,7 +676,7 @@ struct Page {
     /// The picture's size, on every `<img>` that shows it: one picture can
     /// be in two sections.
     mutating func setSize(of file: String, pixels: CGSize) {
-        editAll(tagsContaining: "\"\(file)") { tag in
+        editAll(tagsContaining: "\"\(up)\(file)") { tag in
             var tag = Page.set("width", "\(Int(pixels.width))", in: tag)
             tag = Page.set("height", "\(Int(pixels.height))", in: tag)
             tag = Page.set("data-w", "\(Int(pixels.width / 2))", in: tag)
@@ -618,11 +733,16 @@ enum Coverage {
     /// `/assets/` isn't ours.
     static func siteUses(_ site: URL) throws -> [String: Set<String>] {
         let regex = try NSRegularExpression(
-            pattern: #"(?:^|["'(=,\s]|github\.io/NetworkMonitor/)(assets/[A-Za-z0-9_./-]+\.(?:"# + media + #"))"#,
+            pattern: #"(?:^|["'(=,\s]|github\.io/NetworkMonitor/)(?:\.\./)*(assets/[A-Za-z0-9_./-]+\.(?:"# + media + #"))"#,
             options: [.caseInsensitive, .anchorsMatchLines])
         var uses: [String: Set<String>] = [:]
-        let pages = try FileManager.default.contentsOfDirectory(atPath: site.path)
-            .filter { $0.hasSuffix(".html") }.sorted()
+        // The pages at the top, and each language's page in a folder of its
+        // own (zh/index.html, #430), whose links climb out with ../.
+        let entries = try FileManager.default.contentsOfDirectory(atPath: site.path)
+        let pages = (entries.filter { $0.hasSuffix(".html") }
+            + entries.map { "\($0)/index.html" }.filter {
+                FileManager.default.fileExists(atPath: site.appendingPathComponent($0).path)
+            }).sorted()
         for page in pages {
             let text = try String(contentsOf: site.appendingPathComponent(page), encoding: .utf8)
             let ns = text as NSString
@@ -640,10 +760,17 @@ enum Coverage {
             pattern: #"(?:(?:src|poster)\s*=\s*["']([^"']+)["']|!\[[^\]]*\]\(\s*<?([^)\s>]+))"#)
         let mediaRegex = try NSRegularExpression(pattern: #"\.(?:"# + media + #")$"#, options: .caseInsensitive)
         var pages = ["README.md", "SECURITY.md"]
-        // Every page under docs/, its folders' too, such as the design log's (#437).
-        let docs = FileManager.default.enumerator(atPath: repo.appendingPathComponent("docs").path)?
-            .compactMap { $0 as? String } ?? []
+        // Translations too (#430): README.<code>.md, and docs/<code>/. The
+        // folders' pages include the design log's, docs/design-overhaul (#437).
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: repo.path)) ?? []
+        pages += files.filter { $0.hasPrefix("README.") && $0.hasSuffix(".md") && $0 != "README.md" }.sorted()
+        let docs = (try? FileManager.default.contentsOfDirectory(atPath: repo.appendingPathComponent("docs").path)) ?? []
         pages += docs.filter { $0.hasSuffix(".md") }.sorted().map { "docs/" + $0 }
+        for folder in docs.sorted() {
+            let inner = (try? FileManager.default.contentsOfDirectory(
+                atPath: repo.appendingPathComponent("docs/\(folder)").path)) ?? []
+            pages += inner.filter { $0.hasSuffix(".md") }.sorted().map { "docs/\(folder)/" + $0 }
+        }
         var uses: [String: Set<String>] = [:]
         for page in pages {
             guard let text = try? String(contentsOf: repo.appendingPathComponent(page), encoding: .utf8) else { continue }
@@ -698,11 +825,18 @@ enum Coverage {
 
         // The site: each asset is a shot's picture, a flag, or listed.
         let siteUses = try siteUses(site)
-        let shotFiles = Set(manifest.shots.compactMap(\.file))
-        for shot in manifest.shots {
-            if let file = shot.file, !FileManager.default.fileExists(atPath: site.appendingPathComponent(file).path) {
-                problems.append("\(file), \(shot.name)'s picture, doesn't exist")
-            }
+        // Each shot's picture, and its copy in each language (#431).
+        var pictures: [(file: String, shot: String)] = manifest.shots.compactMap { s in s.file.map { ($0, s.name) } }
+        var translated: [(file: String, shot: String)] = []
+        for language in manifest.languages ?? [] {
+            translated += manifest.shots.compactMap { s in s.file.map { (language.file($0), "\(s.name) (\(language.code))") } }
+        }
+        let shotFiles = Set((pictures + translated).map(\.file))
+        // A language's copy is needed once its page shows it: until the first
+        // run takes it, the page can show the English one.
+        pictures += translated.filter { siteUses[$0.file] != nil }
+        for (file, shot) in pictures where !FileManager.default.fileExists(atPath: site.appendingPathComponent(file).path) {
+            problems.append("\(file), \(shot)'s picture, doesn't exist")
         }
         let flagged = manifest.shots.flatMap { shot in (shot.flags ?? []).map { HandMade(file: $0, shows: [shot.name]) } }
         checkList((manifest.assets ?? []) + flagged.filter { f in !(manifest.assets ?? []).contains { $0.file == f.file } },
@@ -746,8 +880,19 @@ struct SiteShots {
         if let i = args.firstIndex(of: "--repo"), i + 1 < args.count {
             repo = URL(fileURLWithPath: args[i + 1]); args.removeSubrange(i...(i + 1))
         }
+        // Another copy of the app than the manifest's, such as a development
+        // build of a version not yet released.
+        var app: String?
+        if let i = args.firstIndex(of: "--app"), i + 1 < args.count {
+            app = args[i + 1]; args.removeSubrange(i...(i + 1))
+        }
+        // One language only: `en`, or a language's code (#431). All of them otherwise.
+        var only: String?
+        if let i = args.firstIndex(of: "--language"), i + 1 < args.count {
+            only = args[i + 1]; args.removeSubrange(i...(i + 1))
+        }
         guard let command = args.first, ["check", "update", "tree", "audit", "coverage"].contains(command) else {
-            print("usage: site-shots check|update|audit [names…]|tree <name>|coverage [--site DIR] [--repo DIR]")
+            print("usage: site-shots check|update|audit [names…]|tree <name>|coverage [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
             exit(2)
         }
         let names = Set(args.dropFirst())
@@ -782,14 +927,31 @@ struct SiteShots {
         }
         do {
             guard AXIsProcessTrusted() else { throw Failure("give this terminal Accessibility in System Settings › Privacy & Security") }
-            let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
+            var manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
+            if let app { manifest.app = app }
             let session = Session(manifest: manifest)
             let wasRunning = session.running != nil
-            let status: Int32
-            do { status = try await run(command, names: names, manifest: manifest, session: session, site: site, repoAssets: repoAssets) }
-            catch { status = 2; print("site-shots: \(error)") }
-            // Put the app back as it was.
-            if wasRunning { try? session.launch([]) } else { session.quit() }
+            var status: Int32 = 0
+            // English, then each language's page with the same shots in it.
+            let languages: [Language?] = [nil] + (manifest.languages ?? []).map { $0 }
+            for language in languages where only == nil || only == (language?.code ?? "en") {
+                if let language { print("\n\(language.code), for \(language.page):") }
+                do {
+                    let translator = try language.map { try Translator(app: manifest.app, language: $0) }
+                    let s = try await run(command, names: names, manifest: manifest, session: session, site: site,
+                                          repoAssets: repoAssets, language: language, translator: translator)
+                    status = max(status, s)
+                    if let missing = translator?.missing, !missing.isEmpty {
+                        print("  kept in English, as the app's \(language!.code) table doesn't have them "
+                              + "(a name is fine; otherwise add it to the language's `specs`): "
+                              + missing.sorted().joined(separator: " | "))
+                    }
+                } catch { status = 2; print("site-shots: \(error)") }
+            }
+            // Put the app back as it was: the installed one, even after a run
+            // with another copy (`--app`).
+            let installed = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
+            if wasRunning { try? Session(manifest: installed).launch([]) } else { session.quit() }
             exit(status)
         } catch {
             print("site-shots: \(error)")
@@ -798,25 +960,31 @@ struct SiteShots {
     }
 
     static func run(_ command: String, names: Set<String>, manifest: Manifest, session: Session, site: URL,
-                    repoAssets: RepoAssets?) async throws -> Int32 {
-        let shots = manifest.shots.filter { names.isEmpty || names.contains($0.name) }
+                    repoAssets: RepoAssets?, language: Language? = nil, translator: Translator? = nil) async throws -> Int32 {
+        var shots = manifest.shots.filter { names.isEmpty || names.contains($0.name) }
         if shots.isEmpty { throw Failure("no shot named \(names.sorted().joined(separator: ", "))") }
-        let trees = site.appendingPathComponent("shots/trees")
+        if let language, let translator { shots = shots.map { $0.localized(language, translator) } }
+        // Each language's trees apart, as its labels differ.
+        let trees = site.appendingPathComponent(language.map { "shots/trees/\($0.code)" } ?? "shots/trees")
         try FileManager.default.createDirectory(at: trees, withIntermediateDirectories: true)
-        var page = try Page(site: site)
+        var page = try Page(site: site, path: language?.page ?? "index.html", up: language?.up ?? "")
         var changed: [String] = [], flagged: [String] = [], failed: [String] = []
         var problems: [String] = []
         var cached: (args: [String], window: String)?
 
         // What's made by hand from each window, on the site and in the README
         // and docs (#413), to name when the window changes.
+        // Named once, from English: they're remade from that window in every
+        // language at the same time.
         var handMade: [String: [String]] = [:]
-        for shot in manifest.shots { handMade[shot.name, default: []] += shot.flags ?? [] }
-        for asset in manifest.assets ?? [] {
-            for name in asset.shows ?? [] where !(handMade[name] ?? []).contains(asset.file) { handMade[name, default: []].append(asset.file) }
-        }
-        for asset in repoAssets?.assets ?? [] {
-            for name in asset.shows ?? [] { handMade[name, default: []].append("\(asset.file) (main)") }
+        if language == nil {
+            for shot in manifest.shots { handMade[shot.name, default: []] += shot.flags ?? [] }
+            for asset in manifest.assets ?? [] {
+                for name in asset.shows ?? [] where !(handMade[name] ?? []).contains(asset.file) { handMade[name, default: []].append(asset.file) }
+            }
+            for asset in repoAssets?.assets ?? [] {
+                for name in asset.shows ?? [] { handMade[name, default: []].append("\(asset.file) (main)") }
+            }
         }
 
         var current: [String: [String]] = [:]

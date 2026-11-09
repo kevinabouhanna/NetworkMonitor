@@ -352,6 +352,16 @@ fill in a moment after a window opens, and a window that doesn't show is tried o
 from a fresh launch. Containers keep their height only: a scroll bar that comes with a
 longer list narrows each of them.
 
+**Every language** (#431). `shots.json`'s `languages` lists the site's other pages:
+each one's code, page (`zh/index.html`) and pictures folder (`assets/zh-Hans/`). Each
+shot is taken again in each language, from the app launched with `-language`, into that
+folder, for that page, with its trees in `shots/trees/<code>/`. The entries name their
+elements once, in English: the tool translates each label with the app's own table, and a
+language's `specs` says what the table can't, such as the start of a longer line. A run
+names any label it couldn't translate. `--language zh-Hans` (or `en`) takes one language
+only; `--app` takes them from another copy of the app, such as a development build of a
+version not released yet.
+
 #### Every asset is listed
 
 Every image, GIF and video that the site, the README, `SECURITY.md` and `docs/` use
@@ -443,6 +453,17 @@ Language & Region › Applications writes, so the two are one setting.
   `L()` (a line that only looks that way ends `// untranslated: why`); every table
   has every key, with the same placeholders, and none the app no longer uses; and
   every window passes the accessibility checks in every language.
+- **The docs too** (#430). The README and the pages for people using the app have a
+  copy per language: `README.zh-Hans.md` and `docs/zh-Hans/`, with its own index,
+  each linked to and from its English page under the title. The pages for working
+  on the app (architecture, building, decisions, roadmap) are English only. The
+  wiki publishes each copy as the English page's name with the code after it
+  (`Features-zh-Hans`, `Home-zh-Hans`) and lists them in a section of the sidebar.
+  A change to an English page changes its copies in the same pull request, using
+  the app's own words for anything in the app (its table, above). The website has
+  a page per language too: `zh/index.html` on `gh-pages`. In Chinese pages, bold is
+  `<strong>…</strong>`, and a paragraph is one line: GitHub's Markdown leaves `**`
+  showing next to Chinese punctuation, and turns a line break into a space.
 
 ## Launch arguments
 

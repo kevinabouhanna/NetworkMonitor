@@ -1,5 +1,7 @@
 # Security policy
 
+English · [简体中文](docs/zh-Hans/security.md)
+
 ## Supported versions
 
 Only the [latest release](https://github.com/kevinabouhanna/NetworkMonitor/releases/latest)

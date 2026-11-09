@@ -12,9 +12,15 @@
 # #N to the issue. The sidebar follows docs/README.md's tables, and a page
 # whose doc is gone is removed.
 #
+# Translations (#430): docs/<code>/ holds a language's copies, with its own
+# index docs/<code>/README.md. Each becomes the English page's name with the
+# code after it (Features-zh-Hans), the index Home-<code>, and the sidebar
+# gets a section per language.
+#
 # Usage:
 #   python3 Scripts/wiki.py <wiki checkout> [commit]    commit defaults to HEAD
 
+import os
 import pathlib
 import re
 import subprocess
@@ -35,13 +41,35 @@ ATTRIBUTE = re.compile(r'(src|href)="([^"]+)"')
 ISSUE = re.compile(r"(?<![\w/&\[])#(\d{1,4})\b(?!\])")
 
 
+# Each translation's folder in docs/, and the language's own name for itself.
+LANGUAGES = {"zh-Hans": "简体中文"}
+
+
 def tracked_docs() -> list[str]:
     files = subprocess.run(["git", "ls-files", "docs/*.md", "SECURITY.md"], cwd=ROOT,
                            check=True, capture_output=True, text=True).stdout.split()
-    return [f for f in files if f != "docs/README.md" and "/" not in f.removeprefix("docs/")]
+
+    def is_page(f: str) -> bool:
+        rest = f.removeprefix("docs/")
+        if "/" not in rest:
+            return f != "docs/README.md"
+        code, _, name = rest.partition("/")
+        return code in LANGUAGES and "/" not in name and name != "README.md"
+    return [f for f in files if is_page(f)]
+
+
+def language(file: str) -> str | None:
+    """The language a translated page is in, or None for English."""
+    parts = file.split("/")
+    return parts[1] if len(parts) == 3 and parts[0] == "docs" and parts[1] in LANGUAGES else None
 
 
 def page_name(file: str) -> str:
+    code = language(file)
+    if code:
+        name = file.rsplit("/", 1)[1]
+        english = "SECURITY.md" if name == "security.md" else f"docs/{name}"
+        return f"{page_name(english)}-{code}"
     if file in NAMES:
         return NAMES[file]
     words = pathlib.PurePosixPath(file).stem.split("-")
@@ -65,6 +93,8 @@ def resolve(target: str, source: str, pages: dict[str, str], commit: str, image:
         return pages[file] + suffix
     if file == "docs/README.md":
         return "Home" + suffix
+    if language(file) and file.endswith("/README.md"):
+        return f"Home-{language(file)}" + suffix
     if file == "README.md":
         return f"{REPO}{suffix or '#readme'}"
     if image or re.search(r"\.(png|gif|jpe?g|svg)$", file):
@@ -105,18 +135,28 @@ def convert(text: str, source: str, pages: dict[str, str], commit: str) -> str:
     return "\n".join(lines)
 
 
-def sidebar(index: str, pages: dict[str, str]) -> str:
-    """The pages in docs/README.md's order, under its headings."""
+def sidebar(index: str, pages: dict[str, str], translations: dict[str, str]) -> str:
+    """The pages in docs/README.md's order, under its headings, then each
+    translation's pages in its own index's order."""
     lines, listed = ["**[Home](Home)**"], set()
-    for line in index.split("\n"):
-        if line.startswith("## "):
-            lines += ["", f"**{line[3:]}**", ""]
-        elif line.startswith("| ["):
-            m = LINK.search(line)
-            file = str(pathlib.PurePosixPath("docs") / m.group(3)).replace("docs/../", "")
-            if file in pages:
-                lines.append(f"- [{m.group(2)}]({pages[file]})")
-                listed.add(file)
+
+    def add(index: str, folder: str) -> None:
+        for line in index.split("\n"):
+            if line.startswith("## "):
+                lines.extend(["", f"**{line[3:]}**", ""])
+            elif line.startswith("| ["):
+                m = LINK.search(line)
+                file = os.path.normpath(f"{folder}/{m.group(3)}")
+                # A translation's index lists again the English pages it has
+                # no copy of, under its own headings.
+                if file in pages and (folder != "docs" or file not in listed):
+                    lines.append(f"- [{m.group(2)}]({pages[file]})")
+                    listed.add(file)
+
+    add(index, "docs")
+    for code, translated in translations.items():
+        lines.extend(["", f"**[{LANGUAGES[code]}](Home-{code})**"])
+        add(translated, f"docs/{code}")
     unlisted = [f for f in pages if f not in listed]
     if unlisted:
         lines += ["", "**More**", ""] + [f"- [{pages[f].replace('-', ' ')}]({pages[f]})" for f in unlisted]
@@ -143,7 +183,15 @@ def main() -> None:
         f"[Download]({REPO}/releases/latest/download/NetworkMonitor.dmg) · "
         f"[Website](https://kevinabouhanna.github.io/NetworkMonitor/) · [Source]({REPO})\n\n"
         + convert(body, "docs/README.md", pages, commit))
-    (wiki / "_Sidebar.md").write_text(sidebar(index, pages))
+    translations = {}
+    for code in LANGUAGES:
+        translated_index = ROOT / f"docs/{code}/README.md"
+        if translated_index.exists():
+            translations[code] = translated_index.read_text()
+            (wiki / f"Home-{code}.md").write_text(
+                convert(translations[code], f"docs/{code}/README.md", pages, commit))
+            written.add(f"Home-{code}.md")
+    (wiki / "_Sidebar.md").write_text(sidebar(index, pages, translations))
     (wiki / "_Footer.md").write_text(
         f"Copied from [`docs/`]({REPO}/tree/main/docs) at [`{commit[:7]}`]({REPO}/commit/{commit}). "
         "The repository is the source: change the docs there, in a pull request, and the wiki follows.\n")

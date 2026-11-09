@@ -444,8 +444,23 @@ public final class UsageStore {
     /// identify says so, rather than passing for a network of its own.
     public func displayLabel(for id: String, defaultLabel: String) -> String {
         if let name = customLabel(for: id) ?? wifiLabel(for: id) { return name }
-        return NetworkFingerprint.isUnidentified(id) ? "\(defaultLabel) · networks not told apart"
-                                                     : defaultLabel
+        let shown = Self.shownDefaultLabel(defaultLabel)
+        return NetworkFingerprint.isUnidentified(id) ? L("%@ · networks not told apart", shown) : shown
+    }
+
+    /// A default label in the app's language (#429). It's saved in English,
+    /// the kind first ("Personal Hotspot · 2"), so the kind is translated where
+    /// it's shown; anything else is shown as saved.
+    public static func shownDefaultLabel(_ saved: String) -> String {
+        var parts = saved.components(separatedBy: " · ")
+        switch parts[0] {
+        case "Personal Hotspot": parts[0] = L("Personal Hotspot")
+        case "Ethernet":         parts[0] = L("Ethernet")
+        case "Network":          parts[0] = L("Network")
+        case "No Connection":    parts[0] = L("No Connection")
+        default:                 return saved
+        }
+        return parts.joined(separator: " · ")
     }
 
     /// Its Wi-Fi names, joined: "Home / Home-5G" for a router whose two bands
