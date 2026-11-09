@@ -352,6 +352,16 @@ fill in a moment after a window opens, and a window that doesn't show is tried o
 from a fresh launch. Containers keep their height only: a scroll bar that comes with a
 longer list narrows each of them.
 
+**Every language** (#431). `shots.json`'s `languages` lists the site's other pages:
+each one's code, page (`zh/index.html`) and pictures folder (`assets/zh-Hans/`). Each
+shot is taken again in each language, from the app launched with `-language`, into that
+folder, for that page, with its trees in `shots/trees/<code>/`. The entries name their
+elements once, in English: the tool translates each label with the app's own table, and a
+language's `specs` says what the table can't, such as the start of a longer line. A run
+names any label it couldn't translate. `--language zh-Hans` (or `en`) takes one language
+only; `--app` takes them from another copy of the app, such as a development build of a
+version not released yet.
+
 #### Every asset is listed
 
 Every image, GIF and video that the site, the README, `SECURITY.md` and `docs/` use
