@@ -358,7 +358,7 @@ public struct AdImport: Identifiable, Equatable {
         let titles = lists.sorted { $0.rawValue < $1.rawValue }.map(\.shownTitle)
             + downloadedLists.compactMap { ListCatalogue.source($0)?.title }
         if titles.count > 1 {
-            lines.append(L("Switch on %@ and %@", titles.dropLast().joined(separator: ", "), titles[titles.count - 1]))
+            lines.append(L("Switch on %@ and %@", titles.dropLast().joined(separator: L(", ")), titles[titles.count - 1]))
         } else if let title = titles.first {
             lines.append(L("Switch on %@", title))
         }

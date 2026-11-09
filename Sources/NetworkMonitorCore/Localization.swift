@@ -44,6 +44,11 @@ public final class Localization: ObservableObject {
 
     /// For numbers and dates: the language shown, with the Mac's region.
     public var locale: Locale {
+        // The Mac's own, when it's in this language: that keeps the choices
+        // made in System Settings, such as a 24-hour clock.
+        if Locale.current.language.languageCode == Locale(identifier: code).language.languageCode {
+            return .current
+        }
         let region = Locale.current.region?.identifier
         return Locale(identifier: region.map { "\(code)_\($0)" } ?? code)
     }
