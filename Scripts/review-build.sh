@@ -34,11 +34,11 @@ if pgrep -xq NetworkMonitor; then
 fi
 
 echo "review build running: quit it from its menu (right-click the menu bar item › Quit) when done"
-open -W -n "$build"
+open -W -n -g "$build"
 
 # Back to the installed app, as it was.
 if [ -d "$installed" ]; then
   sleep 2
-  open "$installed"
+  open -g "$installed"
   echo "the installed NetworkMonitor is back"
 fi
