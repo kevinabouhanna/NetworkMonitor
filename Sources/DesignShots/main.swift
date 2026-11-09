@@ -334,6 +334,15 @@ func show(_ window: NSWindow, appearance: NSAppearance.Name, settle: TimeInterva
 
 func wanted(_ name: String) -> Bool { only.map { $0.contains(name) } ?? true }
 
+/// Today, by apps, companies and sites: what the popover shows until someone
+/// changes it, whatever the last run left remembered (#449).
+func resetPopoverChoices(_ glance: TodayGlance) {
+    glance.period = .today
+    glance.dataGrouping = .apps
+    glance.connectionsGrouping = .companies
+    glance.adsGrouping = .sites
+}
+
 @available(macOS 14.0, *)
 func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     // The popover, each of its four views (#436), in a plain window of its width.
@@ -344,6 +353,7 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
                                                                 onConnections: {}, onAds: {}))
     host.sizingOptions = [.preferredContentSize]
     popover.contentViewController = host
+    resetPopoverChoices(world.model.glance)
     world.model.setPopoverOpen(true)
     // On a home Wi-Fi network, named as the popover names it.
     let home = NetworkFingerprint(id: "design-home", kind: .wifi, gatewayMAC: "design-home",
@@ -358,7 +368,7 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     }
     // Companies and Ads blocked with their first row open (#436).
     let glance = world.model.glance
-    for (section, id) in [(PopoverSection.companies, glance.companies.first?.item.id),
+    for (section, id) in [(PopoverSection.companies, glance.groups.first?.item.id),
                           (.blocked, glance.ads.sites.first.map { "site:" + $0.id })]
     where wanted(prefix + "popover-\(section.rawValue)-open") {
         guard let id else { continue }
@@ -370,6 +380,23 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
         save(popover, prefix + "popover-\(section.rawValue)-open", appearance: appearance)
     }
     glance.expanded = []
+    // The other periods and groupings (#449).
+    for (name, section, period, set) in [
+        ("popover-today-networks-week", PopoverSection.today, PopoverPeriod.week,
+         { glance.dataGrouping = .networks } as () -> Void),
+        ("popover-companies-countries-month", .companies, .month, { glance.connectionsGrouping = .countries }),
+        ("popover-companies-apps", .companies, .today, { glance.connectionsGrouping = .apps }),
+        ("popover-blocked-apps-week", .blocked, .week, { glance.adsGrouping = .apps }),
+    ] where wanted(prefix + name) {
+        world.model.popoverSection = section
+        glance.period = period
+        set()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+        popover.setContentSize(host.view.fittingSize)
+        show(popover, appearance: appearance, settle: 0.8)
+        save(popover, prefix + name, appearance: appearance)
+        resetPopoverChoices(glance)
+    }
     world.model.popoverSection = .today
     popover.orderOut(nil)
 

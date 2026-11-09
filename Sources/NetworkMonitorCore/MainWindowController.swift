@@ -82,7 +82,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                 connections connectionsModel: ConnectionsViewModel, ads adsModel: AdsViewModel) {
         self.historyModel = historyModel
         self.adsModel = adsModel
-        glance = model.glance
+        glance = model.todayGlance
         history = HistoryWindowController(model: historyModel, standalone: false)
         connections = ConnectionsWindowController(model: connectionsModel, standalone: false)
         ads = AdsWindowController(model: adsModel, standalone: false)
@@ -107,7 +107,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
             case .connections:
                 view = AnyView(ConnectionsSettingsPane(model: connectionsModel, filter: model.filter,
                                                        firewall: model.firewall, geoData: model.geoData,
-                                                       lookups: model.lookups, glance: model.glance,
+                                                       lookups: model.lookups, glance: model.todayGlance,
                                                        onOpen: { back() }))
             case .ads:
                 view = AnyView(AdsSettingsPane(ads: adsModel, connections: connectionsModel, filter: model.filter,

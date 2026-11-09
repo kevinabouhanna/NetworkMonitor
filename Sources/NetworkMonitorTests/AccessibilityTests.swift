@@ -139,6 +139,22 @@ func runAccessibilityTests() {
                 model.popoverSection = section
                 check(popover, "The popover › \(section.rawValue)\(language)")
             }
+            // Each view's other groupings, over a week (#449).
+            let glance = model.glance
+            let saved = (glance.period, glance.dataGrouping, glance.connectionsGrouping, glance.adsGrouping)
+            glance.period = .week
+            model.popoverSection = .today
+            glance.dataGrouping = .networks
+            check(popover, "The popover › today by networks, this week\(language)")
+            model.popoverSection = .companies
+            for grouping in [ConnectionsGrouping.countries, .apps] {
+                glance.connectionsGrouping = grouping
+                check(popover, "The popover › companies by \(grouping.rawValue), this week\(language)")
+            }
+            model.popoverSection = .blocked
+            glance.adsGrouping = .apps
+            check(popover, "The popover › blocked by apps, this week\(language)")
+            (glance.period, glance.dataGrouping, glance.connectionsGrouping, glance.adsGrouping) = saved
             model.popoverSection = .today
         }
         Localization.shared.showForThisRun(Localization.source)

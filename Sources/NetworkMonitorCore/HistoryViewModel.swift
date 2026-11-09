@@ -106,6 +106,12 @@ public final class HistoryViewModel: ObservableObject {
 
     public var title: String { period.title(now: Date(), calendar: calendar) }
 
+    /// The period of `scale` that holds now, as the popover's period chose
+    /// (#449), so Open … shows the window on the numbers the popover showed.
+    public func showPresent(_ scale: HistoryScale) {
+        show(HistoryPeriod(scale: scale, containing: Date(), calendar: calendar), filter: filter)
+    }
+
     public var isCurrent: Bool { period.contains(Date()) }
 
     public var canStepForward: Bool { period.end <= Date() }

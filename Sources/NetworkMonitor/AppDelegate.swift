@@ -227,9 +227,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         let root = MenuBarPopoverView(
             model: model,
             onSettings: { [weak self] in self?.showSettings() },
-            onHistory: { [weak self] in self?.showHistory() },
-            onConnections: { [weak self] in self?.showConnections() },
-            onAds: { [weak self] in self?.showAds() },
+            // On the popover's period (#449).
+            onHistory: { [weak self] in
+                guard let self else { return }
+                self.historyModel.showPresent(self.model.glance.period.scale)
+                self.showHistory()
+            },
+            onConnections: { [weak self] in
+                guard let self else { return }
+                self.connectionsModel.showPresent(self.model.glance.period.scale)
+                self.showConnections()
+            },
+            onAds: { [weak self] in
+                guard let self else { return }
+                self.adsModel.showPresent(self.model.glance.period.scale)
+                self.showAds()
+            },
             onHotspotSettings: { [weak self] in self?.showNetwork() })
         let host = NSHostingController(rootView: root.localizedRoot())
         // Keeps `preferredContentSize` in step with what SwiftUI lays out.

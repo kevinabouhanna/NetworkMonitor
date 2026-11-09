@@ -121,9 +121,12 @@ public final class MonitorViewModel: ObservableObject {
     /// Which of the popover's four buttons is chosen (#436). Not `@State`;
     /// see `SettingsPaneState`.
     @Published public var popoverSection: PopoverSection = .today
-    /// Today at a glance, for the popover and the lines heading Settings'
-    /// panes (#436).
-    public private(set) lazy var glance = TodayGlance(history: { [weak self] in self?.store.history })
+    /// The popover's numbers, for the period and groupings last chosen
+    /// there (#436, #449).
+    public private(set) lazy var glance = TodayGlance(history: { [weak self] in self?.store.history },
+                                                      defaults: .standard)
+    /// Today at a glance, for the line heading Settings › Connections.
+    public private(set) lazy var todayGlance = TodayGlance(history: { [weak self] in self?.store.history })
     /// Updating NetworkMonitor itself (#132).
     public let updates = UpdateController()
     private var firewallPolicy: AnyCancellable?
@@ -624,7 +627,10 @@ public final class MonitorViewModel: ObservableObject {
                                   localBytesIn: summary.localIn, localBytesOut: summary.localOut,
                                   now: now)
 
-            if self.popoverIsOpen { self.rebuildRows(now: now) }
+            if self.popoverIsOpen {
+                self.rebuildRows(now: now)
+                if self.popoverSection == .today { self.glance.tick(now: now) }
+            }
         }
     }
 

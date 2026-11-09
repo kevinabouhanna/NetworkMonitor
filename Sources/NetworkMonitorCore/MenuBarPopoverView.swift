@@ -99,18 +99,18 @@ public struct MenuBarPopoverView: View {
     /// Deriving the height instead makes the very first layout correct, so the
     /// popover is placed once against a size that is already final.
     private var listHeight: CGFloat {
-        PopoverMetrics.listHeight(appRows: model.rows.count,
+        PopoverMetrics.listHeight(appRows: appRows.count,
                                   expandedChildRows: expandedChildRows,
-                                  systemRowCount: model.systemRows.count,
+                                  systemRowCount: systemRows.count,
                                   systemExpanded: model.systemExpanded,
                                   cap: listCap)
     }
 
     /// True only when there are genuinely more rows than fit.
     private var listScrolls: Bool {
-        PopoverMetrics.scrolls(appRows: model.rows.count,
+        PopoverMetrics.scrolls(appRows: appRows.count,
                                expandedChildRows: expandedChildRows,
-                               systemRowCount: model.systemRows.count,
+                               systemRowCount: systemRows.count,
                                systemExpanded: model.systemExpanded,
                                cap: listCap)
     }
@@ -123,11 +123,11 @@ public struct MenuBarPopoverView: View {
     /// is what keeps it honest: a row whose figure merely ticked up redraws in
     /// place, and only an app actually overtaking another makes the list move.
     private var rowOrderKey: [String] {
-        model.rows.map(\.id)
+        appRows.map(\.id)
     }
 
     private var expandedChildRows: Int {
-        model.rows
+        appRows
             .filter { model.expandedApps.contains($0.id) }
             .reduce(0) { $0 + $1.children.count }
     }
@@ -152,10 +152,35 @@ public struct MenuBarPopoverView: View {
         .frame(width: 320)
     }
 
-    /// Today: the apps, and the way to Usage History (#436).
+    // MARK: Data
+
+    /// The period's apps, from Usage History on every network (#449), or the
+    /// live list until History has answered for the first time.
+    private var appRows: [UsageRow] { glance.report?.apps ?? model.rows }
+    private var systemRows: [UsageRow] { glance.report?.systemRows ?? model.systemRows }
+    private var systemTotal: Int64 { glance.report?.systemTotal ?? model.systemTotal }
+
+    /// The apps moving bytes right now, which History can't know: their rows
+    /// keep the live dot.
+    private var activeApps: Set<String> {
+        Set((model.rows + model.systemRows).flatMap { [$0] + $0.children }.filter(\.isActive).map(\.id))
+    }
+
+    private var dataTotal: String {
+        guard let report = glance.report else {
+            return glance.period == .today ? ByteFormat.bytes(model.totalBytes) : "–"
+        }
+        return ByteFormat.bytes(report.bytesIn + report.bytesOut)
+    }
+
+    /// Data: the apps or the networks, and the way to Usage History (#436, #449).
     private var today: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if model.rows.isEmpty && model.systemRows.isEmpty {
+            PopoverGroupingRow(options: PopoverDataGrouping.allCases, selection: $glance.dataGrouping,
+                               label: { $0.label }, count: dataCount)
+            if glance.dataGrouping == .networks {
+                networks
+            } else if appRows.isEmpty && systemRows.isEmpty {
                 emptyState
             } else {
                 list
@@ -193,25 +218,66 @@ public struct MenuBarPopoverView: View {
         }
     }
 
+    private var dataCount: String {
+        if glance.dataGrouping == .networks {
+            let count = glance.report?.networks.count ?? 0
+            return count == 1 ? L("1 network") : L("%@ networks", String(count))
+        }
+        let count = appRows.count
+        return count == 1 ? L("1 app") : L("%@ apps", String(count))
+    }
+
+    /// What each network used in the period, biggest first (#449): in place
+    /// of the counter that started over on joining a network.
+    @ViewBuilder
+    private var networks: some View {
+        let rows = glance.report?.networks ?? []
+        if rows.isEmpty {
+            emptyState
+        } else {
+            let total = max(rows.reduce(0) { $0 + $1.bytes }, 1)
+            PopoverList(rows: rows.count) {
+                ForEach(rows) { network in
+                    PopoverRow(title: model.store.displayLabel(for: network.id, defaultLabel: network.defaultLabel),
+                               value: ByteFormat.bytes(network.bytes),
+                               icon: .symbol(Self.symbol(network), network.isMetered ? PopoverPalette.hotspot
+                                                                                    : PopoverPalette.data),
+                               fraction: Double(network.bytes) / Double(total),
+                               barColor: network.isMetered ? PopoverPalette.hotspot : PopoverPalette.data)
+                }
+            }
+        }
+    }
+
+    /// Today's count is the filter's own, which moves as it blocks; a week's
+    /// or a month's is read from History.
+    private var blockedTotal: String {
+        if firewall.lists.isEmpty { return L("Off") }
+        if glance.period == .today { return max(Int64(listBlocks.today), glance.ads.total).formatted() }
+        return glance.hasLoaded ? glance.ads.total.formatted() : "–"
+    }
+
+    private static func symbol(_ network: HistoryReport.NetworkTotal) -> String {
+        if network.isMetered { return "personalhotspot" }
+        switch network.kind {
+        case .ethernet: return "cable.connector"
+        case .offline:  return "wifi.slash"
+        default:        return "wifi"
+        }
+    }
+
     // MARK: Header
 
-    /// The four buttons with Settings' gear beside them, then anything that
-    /// needs saying (#436). One combined total: live download/upload rates are
-    /// already in the menu bar.
+    /// The period, with Settings' gear beside it; the four buttons; then
+    /// anything that needs saying (#436, #449). One combined total: live
+    /// download/upload rates are already in the menu bar.
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .top, spacing: 2) {
-                PopoverButtons(selection: Binding(get: { model.popoverSection },
-                                                  set: { section in
-                                                      model.popoverSection = section
-                                                      if section == .companies || section == .blocked { glance.refresh() }
-                                                  }),
-                               today: ByteFormat.bytes(model.totalBytes),
-                               companies: glance.hasLoaded ? glance.summary.companies.formatted() : "–",
-                               blocked: firewall.lists.isEmpty ? L("Off") : listBlocks.today.formatted(),
-                               blockedIsOn: !firewall.lists.isEmpty,
-                               connection: PopoverConnection.word(model.connection, metering: metering),
-                               isHotspot: metering.verdict.isMetered)
+            HStack(spacing: 4) {
+                PopoverSwitch(name: L("Period"), options: PopoverPeriod.allCases, selection: $glance.period,
+                              label: { $0.label })
+                    .help(L("What Data, Connections and Ads blocked count: today, this week or this month so far, on every network"))
+                Spacer(minLength: 0)
                 Button(action: onSettings) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 13))
@@ -223,9 +289,22 @@ public struct MenuBarPopoverView: View {
                 .help(L("Settings (⌘,)"))
                 .accessibilityLabel(L("Settings"))
             }
-            .padding(.leading, 8)
+            .padding(.leading, 12)
             .padding(.trailing, 6)
-            .padding(.top, 8)
+            .padding(.top, 6)
+            PopoverButtons(selection: Binding(get: { model.popoverSection },
+                                              set: { section in
+                                                  model.popoverSection = section
+                                                  if section == .companies || section == .blocked { glance.refresh() }
+                                              }),
+                           period: glance.period,
+                           data: dataTotal,
+                           connections: glance.hasLoaded ? glance.connections.formatted() : "–",
+                           blocked: blockedTotal,
+                           blockedIsOn: !firewall.lists.isEmpty,
+                           connection: PopoverConnection.word(model.connection, metering: metering),
+                           isHotspot: metering.verdict.isMetered)
+                .padding(.horizontal, 6)
             VStack(alignment: .leading, spacing: 2) {
                     if let standby = metering.standbyHotspot {
                         StandbyHotspotLine(message: standby.message,
@@ -290,10 +369,10 @@ public struct MenuBarPopoverView: View {
     private var list: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(model.rows) { row in
+                ForEach(appRows) { row in
                     appRow(row)
                 }
-                if !model.systemRows.isEmpty { systemSection }
+                if !systemRows.isEmpty { systemSection }
             }
             .padding(.vertical, PopoverMetrics.listVerticalPadding / 2)
             // Applied here rather than to the ScrollView so it animates the rows
@@ -316,7 +395,7 @@ public struct MenuBarPopoverView: View {
     /// but could not attribute to any process, and a set of bars that visibly
     /// fails to fill the row reads as a bug rather than as that distinction.
     private var barTotal: Int64 {
-        max(model.rows.reduce(0) { $0 + $1.total } + model.systemTotal, 1)
+        max(appRows.reduce(0) { $0 + $1.total } + systemTotal, 1)
     }
 
     private func fraction(of bytes: Int64) -> Double {
@@ -331,9 +410,11 @@ public struct MenuBarPopoverView: View {
     @ViewBuilder
     private func appRow(_ row: UsageRow) -> some View {
         let isExpanded = model.expandedApps.contains(row.id)
+        let active = activeApps
         PopoverRow(row: row,
                    icon: model.icon(for: row),
                    fraction: fraction(of: row.total),
+                   isActive: active.contains(row.id) || row.children.contains { active.contains($0.id) },
                    isExpanded: isExpanded,
                    onToggle: row.hasChildren
                        ? { withAnimation(.easeInOut(duration: 0.15)) {
@@ -343,7 +424,8 @@ public struct MenuBarPopoverView: View {
         if isExpanded {
             ForEach(row.children) { child in
                 PopoverRow(row: child, icon: model.icon(for: child),
-                           fraction: fraction(of: child.total), indented: true)
+                           fraction: fraction(of: child.total), isActive: active.contains(child.id),
+                           indented: true)
             }
         }
     }
@@ -360,15 +442,17 @@ public struct MenuBarPopoverView: View {
         // Own bytes stay zero and the daemons hang off it as children, so
         // `total` is the group's total without stating it twice.
         let summary = UsageRow(id: "\u{1}system",
-                               displayName: L("System (%@)", String(model.systemRows.count)),
+                               displayName: L("System (%@)", String(systemRows.count)),
                                bytesIn: 0, bytesOut: 0,
                                bundlePath: nil, isSystem: true,
-                               isActive: model.systemRows.contains(where: \.isActive),
-                               children: model.systemRows)
+                               isActive: false,
+                               children: systemRows)
+        let active = activeApps
         return VStack(alignment: .leading, spacing: 0) {
             PopoverRow(row: summary,
                        icon: model.icon(for: summary),
-                       fraction: fraction(of: model.systemTotal),
+                       fraction: fraction(of: systemTotal),
+                       isActive: systemRows.contains { active.contains($0.id) },
                        isMuted: true,
                        isExpanded: model.systemExpanded,
                        onToggle: {
@@ -377,9 +461,10 @@ public struct MenuBarPopoverView: View {
                            }
                        })
             if model.systemExpanded {
-                ForEach(model.systemRows) { row in
+                ForEach(systemRows) { row in
                     PopoverRow(row: row, icon: model.icon(for: row),
-                               fraction: fraction(of: row.total), indented: true)
+                               fraction: fraction(of: row.total), isActive: active.contains(row.id),
+                               indented: true)
                 }
             }
         }
@@ -391,7 +476,7 @@ public struct MenuBarPopoverView: View {
         VStack(spacing: 4) {
             Text(L("No network activity yet"))
                 .font(.system(size: 12)).foregroundStyle(.secondary)
-            Text(L("Counting since you joined this network"))
+            Text(L("Counted while NetworkMonitor is running, on every network"))
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)
@@ -608,6 +693,8 @@ public enum PopoverMetrics {
 enum PopoverRowIcon {
     case image(NSImage)
     case symbol(String, Color)
+    /// A country's flag (#449).
+    case text(String)
 }
 
 /// One row of the popover's lists, Today's apps, Companies and Ads blocked
@@ -644,9 +731,11 @@ struct PopoverRow: View {
     }
 
     /// An app's row in Today.
-    init(row: UsageRow, icon: NSImage, fraction: Double, indented: Bool = false, isMuted: Bool = false,
-         isExpanded: Bool = false, onToggle: (() -> Void)? = nil) {
-        self.init(title: row.displayName, value: ByteFormat.bytes(row.total), isActive: row.isActive,
+    /// `isActive` overrides the row's own, for a row read from History, which
+    /// can't know what's moving now (#449).
+    init(row: UsageRow, icon: NSImage, fraction: Double, isActive: Bool? = nil, indented: Bool = false,
+         isMuted: Bool = false, isExpanded: Bool = false, onToggle: (() -> Void)? = nil) {
+        self.init(title: row.displayName, value: ByteFormat.bytes(row.total), isActive: isActive ?? row.isActive,
                   icon: .image(icon), fraction: fraction, indented: indented, isMuted: isMuted,
                   isExpanded: isExpanded, onToggle: onToggle)
     }
@@ -752,6 +841,10 @@ struct PopoverRow: View {
                 .foregroundStyle(color)
                 .frame(width: size - 4, height: size - 4)
                 .background(RoundedRectangle(cornerRadius: 7).fill(color.opacity(0.15)))
+                .frame(width: size, height: size)
+        case .text(let text):
+            Text(text)
+                .font(.system(size: size * 0.6))
                 .frame(width: size, height: size)
         }
     }
