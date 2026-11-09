@@ -369,49 +369,59 @@
         "main-shield",
         "speed-test-result",
         "main-network"
-      ]
+      ],
+      "made": "1.26.7",
+      "stale": "#458"
     },
     {
       "file": "assets/brag-poster.jpg",
       "shows": [
         "popover"
-      ]
+      ],
+      "made": "1.26.7"
     },
     {
       "file": "assets/live.mp4",
       "shows": [
         "popover"
-      ]
+      ],
+      "made": "1.28.0"
     },
     {
       "file": "assets/live-poster.jpg",
       "shows": [
         "popover"
-      ]
+      ],
+      "made": "1.28.0"
     },
     {
       "file": "assets/zh-Hans/live.mp4",
       "shows": [
         "popover"
-      ]
+      ],
+      "made": "1.28.0"
     },
     {
       "file": "assets/zh-Hans/live-poster.jpg",
       "shows": [
         "popover"
-      ]
+      ],
+      "made": "1.28.0"
     },
     {
       "file": "assets/social-card.png",
       "shows": [
         "popover"
-      ]
+      ],
+      "made": "1.4.1",
+      "stale": "#420"
     },
     {
       "file": "assets/zh-Hans/social-card.png",
       "shows": [
         "popover"
-      ]
+      ],
+      "made": "1.27.0"
     },
     {
       "file": "assets/menubar.png",
