@@ -1,4 +1,4 @@
-.PHONY: all build test hooks design-shots app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check site-shots site-audit clean
+.PHONY: all build test hooks design-shots review app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check site-shots site-audit clean
 
 all: test app
 
@@ -34,6 +34,11 @@ dmg: universal
 run: app
 	@./Scripts/mac-lane.sh /bin/sh -c 'pkill -f "NetworkMonitor.app/Contents/MacOS"; sleep 1; open build/NetworkMonitor.app'
 	@echo "Running — look for ↓/↑ in the menu bar. Right-click the item for the menu."
+
+# This branch's build in the menu bar instead of the installed app, for a
+# review before a release; the installed app comes back when it quits.
+review: app
+	@./Scripts/review-build.sh
 
 # Installs to /Applications and enables launch at login. No Developer ID needed.
 install:

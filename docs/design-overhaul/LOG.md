@@ -5,8 +5,10 @@ numbers, with their setup behind a gear. Tracked in #437. This file is the recor
 the app looked like, what was planned and done, where ideas came from, what was decided
 and by whom, and what's left.
 
-**Status (2026-11-09):** Phases 0–2 are done. **Waiting on Kevin's go-ahead on the final
-plan (Phase 3, decisions D6–D10)** on the comparison page:
+**Status (2026-11-09):** Kevin approved the plan (D6–D10) and asked for it built, not
+released, and run on his Mac for review. **Built (Phase 4) and audited (Phase 5);
+waiting on Kevin's review** of the running build (`make review`) and of the before and
+after on the comparison page:
 https://claude.ai/artifact/GooXLRsHfm6a6CRRTsNu92 (private to Kevin). Nothing merges or
 releases until Kevin has reviewed it: both pull requests are drafts.
 
@@ -122,8 +124,8 @@ Neither merges until Kevin has reviewed it.
 | 1. Context | `PRODUCT.md` and `DESIGN.md` | **Done**: working notes, not a review gate (changed below) |
 | 2. Research | Inspo, 3–5 references, plus native Mac apps described in words | **Done** (2026-11-09): [Inspiration](#3-inspiration) |
 | 3. Define | 2–3 options for the stats view and for the settings entry; a recommendation | **Options drawn; C chosen, then revised (D6) after Kevin's concerns; waiting on his review** |
-| 4. Build | #436 in small commits, then Impeccable's layout, typeset, clarify, distill, and polish last | Pull request 2 |
-| 5. Critique | Audit again against the baseline; contrast, keyboard, VoiceOver, minimum size, light and dark, long names, empty and first-launch states | Pull request 2 |
+| 4. Build | #436 in small commits, then Impeccable's layout, typeset, clarify, distill, and polish last | **Built** in pull request 2. Impeccable's refine passes were applied as checklists by hand (see [Audit](#6-audit)); its detector can't read Swift |
+| 5. Critique | Audit again against the baseline; contrast, keyboard, VoiceOver, minimum size, light and dark, long names, empty and first-launch states | **Done**: 16/20 from 15; what's left is listed, ranked, in [Audit](#6-audit) |
 
 ### What changed from the brief, and why
 
@@ -249,7 +251,62 @@ toolbars.
 
 ## 5. After
 
-Phase 5: the same states as [Before](#1-before), side by side.
+Pull request 2, drawn by `make design-shots` from the same made-up data as the before
+pictures. Every after picture, light and dark, is also on the comparison page.
+
+**What changed:**
+
+- **The popover:** four buttons across the header, Today, Companies, Ads blocked and
+  Connection, each showing its view in place: the apps, then *Open Usage History ⌘Y*;
+  today's top companies, then *Open Connections ⌘K*; the top blocked sites, then *Open
+  Ads and Trackers ⌘B*; the network, with a *This is a hotspot* switch on every kind of
+  network, then *Hotspot Settings*. The chosen button looks raised in neutral grey.
+  The network's name and the speed test icon share a slim line above; *Settings…* is
+  named at the bottom.
+- **The windows:** Connections, Ads and Trackers and a new **Usage History** window share
+  one toolbar: Day, Week, Month, Year, ‹ Today ›, and a gear to that feature's Settings
+  pane. Ads and Trackers keeps Overview and Log; its Lists and Rules are in Settings ›
+  Ads. Connections' minimum width is 816 pt, what its toolbar needs with the gear.
+- **Settings:** General, History, Connections, Ads, Hotspot, Speed Test, About. Each
+  feature's pane is headed by today's number and a button to its window; Settings ›
+  History keeps *Keep history for* and *Clear History*; Settings › Ads has the switch,
+  the weekly update, and the lists and your rules.
+
+| State | Before | After |
+|---|---|---|
+| Settings › General | <img src="before/settings-general-dark.png" width="340" alt="Settings › General, before"> | <img src="after/settings-general-dark.png" width="340" alt="Settings › General, after"> |
+| Settings › Connections | <img src="before/settings-connections-dark.png" width="340" alt="Settings › Connections, before"> | <img src="after/settings-connections-dark.png" width="340" alt="Settings › Connections, after"> |
+| Settings › Ads | <img src="before/settings-ads-dark.png" width="340" alt="Settings › Ads, before"> | <img src="after/settings-ads-dark.png" width="340" alt="Settings › Ads, after"> |
+| Settings › History → Usage History window | <img src="before/settings-history-dark.png" width="340" alt="Settings › History → Usage History window, before"> | <img src="after/history-dark.png" width="340" alt="Settings › History → Usage History window, after"> |
+| Connections, list | <img src="before/connections-list-dark.png" width="340" alt="Connections, list, before"> | <img src="after/connections-list-dark.png" width="340" alt="Connections, list, after"> |
+| Connections, list and map | <img src="before/connections-both-dark.png" width="340" alt="Connections, list and map, before"> | <img src="after/connections-both-dark.png" width="340" alt="Connections, list and map, after"> |
+| Connections, map | <img src="before/connections-map-dark.png" width="340" alt="Connections, map, before"> | <img src="after/connections-map-dark.png" width="340" alt="Connections, map, after"> |
+| Ads and Trackers › Overview | <img src="before/ads-overview-dark.png" width="340" alt="Ads and Trackers › Overview, before"> | <img src="after/ads-overview-dark.png" width="340" alt="Ads and Trackers › Overview, after"> |
+| Ads and Trackers › Log | <img src="before/ads-log-dark.png" width="340" alt="Ads and Trackers › Log, before"> | <img src="after/ads-log-dark.png" width="340" alt="Ads and Trackers › Log, after"> |
+| Ads and Trackers › Lists → Settings › Ads | <img src="before/ads-lists-dark.png" width="340" alt="Ads and Trackers › Lists → Settings › Ads, before"> | <img src="after/settings-ads-dark.png" width="340" alt="Ads and Trackers › Lists → Settings › Ads, after"> |
+| Ads and Trackers › Rules → Settings › Ads › Your Rules | <img src="before/ads-rules-dark.png" width="340" alt="Ads and Trackers › Rules → Settings › Ads › Your Rules, before"> | <img src="after/settings-ads-rules-dark.png" width="340" alt="Ads and Trackers › Rules → Settings › Ads › Your Rules, after"> |
+
+New views, which had no before:
+
+| View | Dark | Light |
+|---|---|---|
+| The popover › Today | <img src="after/popover-today-dark.png" width="300" alt="The popover › Today, dark"> | <img src="after/popover-today-light.png" width="300" alt="The popover › Today, light"> |
+| The popover › Companies | <img src="after/popover-companies-dark.png" width="300" alt="The popover › Companies, dark"> | <img src="after/popover-companies-light.png" width="300" alt="The popover › Companies, light"> |
+| The popover › Ads blocked | <img src="after/popover-blocked-dark.png" width="300" alt="The popover › Ads blocked, dark"> | <img src="after/popover-blocked-light.png" width="300" alt="The popover › Ads blocked, light"> |
+| The popover › Connection | <img src="after/popover-connection-dark.png" width="300" alt="The popover › Connection, dark"> | <img src="after/popover-connection-light.png" width="300" alt="The popover › Connection, light"> |
+| Settings › History | <img src="after/settings-history-dark.png" width="300" alt="Settings › History, dark"> | <img src="after/settings-history-light.png" width="300" alt="Settings › History, light"> |
+| Settings › Hotspot | <img src="after/settings-hotspot-dark.png" width="300" alt="Settings › Hotspot, dark"> | <img src="after/settings-hotspot-light.png" width="300" alt="Settings › Hotspot, light"> |
+
+With no data, and on a first launch (dark):
+
+| View | No data | First launch |
+|---|---|---|
+| The popover › Today | <img src="after/empty-popover-today-dark.png" width="300" alt="The popover › Today, no data"> | <img src="after/first-popover-today-dark.png" width="300" alt="The popover › Today, first launch"> |
+| The popover › Ads blocked | <img src="after/empty-popover-blocked-dark.png" width="300" alt="The popover › Ads blocked, no data"> | <img src="after/first-popover-blocked-dark.png" width="300" alt="The popover › Ads blocked, first launch"> |
+| The popover › Companies | <img src="after/empty-popover-companies-dark.png" width="300" alt="The popover › Companies, no data"> | <img src="after/first-popover-companies-dark.png" width="300" alt="The popover › Companies, first launch"> |
+| Settings › Ads | <img src="after/empty-settings-ads-dark.png" width="300" alt="Settings › Ads, no data"> | <img src="after/first-settings-ads-dark.png" width="300" alt="Settings › Ads, first launch"> |
+| Usage History | <img src="after/empty-history-dark.png" width="300" alt="Usage History, no data"> | <img src="after/first-history-dark.png" width="300" alt="Usage History, first launch"> |
+| Connections, list and map | <img src="after/empty-connections-both-dark.png" width="300" alt="Connections, list and map, no data"> | <img src="after/first-connections-both-dark.png" width="300" alt="Connections, list and map, first launch"> |
 
 ## 6. Audit
 
@@ -297,6 +354,44 @@ Transparency and Reduce Motion, and the windows in Chinese.
 list); figures right-aligned in tabular digits; colours always named in words (BLOCKED,
 ALWAYS ALLOWED); explanations behind an ⓘ; Ads and Trackers' empty state.
 
+### After: 16/20, Good (adapted)
+
+The same rubric, on pull request 2's code and the after pictures.
+
+| # | Dimension | Before | After | What changed |
+|---|---|---|---|---|
+| 1 | Accessibility | 3 | 3 | Every new view is checked by `make test` in English and Chinese: the popover's four views, Usage History, the new Settings panes. The four buttons say their value and that one is selected. Tags still 8 pt; VoiceOver's order not yet heard |
+| 2 | Performance | 3 | 3 | Today's companies and blocked sites are read when the popover opens or a button is chosen, never on a timer. The blocked sites are read on the main thread: short, but worth moving |
+| 3 | Appearance & theming | 3 | 3 | System colours only, teal added for companies; light and dark drawn for every view |
+| 4 | Platform conformance | 3 | 4 | Settings holds setup only; every switch, list and rule has one home; a gear always means settings and opens the right pane; one toolbar shape for the three windows |
+| 5 | Adaptivity | 3 | 3 | Toolbar widths measured again (`--measure`): Connections 812 pt, so its minimum is 816; Ads and Trackers and Usage History 654, under their 700. New text has its Chinese |
+| **Total** | | **15** | **16** | **Good** |
+
+**Checked:** light and dark (every view), a long app name ("Northwind Field Operations
+Companion"), no data and a first launch (the popover's four views, Settings, the windows),
+the minimum widths, VoiceOver names (`make test`), Chinese text present for every string.
+
+**Still open, most important first:**
+
+1. **[P1] The user docs** describe Settings › History, the Lists and Rules tabs and the
+   popover's icons (`docs/usage-history.md`, `docs/connections.md`, `docs/privacy.md`,
+   `docs/decisions.md`, and their Chinese copies). To update once the look is approved,
+   before merging.
+2. **[P2] The three charts still differ** (pain point 4). D10 asked for one style; not
+   done in this pass. Connections' timeline has no axis; History's and Ads and Trackers'
+   have their own.
+3. **[P2] The review build can't show ad blocking.** Built without the signing keys, it
+   has no content filter, so Ads blocked reads "–" and Settings › Ads says it isn't in
+   this build. The pictures show those views with made-up data.
+4. **[P2] "Today" counts since the totals last started over**, which is midnight, or a
+   network change, as the popover's total always has. A network change mid-day makes it
+   less than the day.
+5. **[P2] #402** (the ad blocking numbers disagree) now shows on the popover's front.
+6. **[P3] The new Chinese** follows the agreed terms (拦截 for ad blocking, 阻止 for the
+   firewall, 连接时段), but hasn't been read by a native speaker yet.
+7. **[P3] Not yet checked by hand:** VoiceOver's reading order, a keyboard-only pass,
+   Increase Contrast and Reduce Transparency.
+
 ## 7. My own touches
 
 Beyond what the tools suggested. **Review these separately.**
@@ -322,11 +417,28 @@ Beyond what the tools suggested. **Review these separately.**
 6. **The *(inferred)* lines in `PRODUCT.md`**: the metered-connection user, the
    positioning, how long a visit lasts, and principles 4 and 5.
 
+In the build (pull request 2):
+
+7. **"Ads blocked", not "Blocked", under the red number.** "Blocked" already means the
+   firewall's 阻止 in Chinese; ad blocking is 拦截. A label of its own lets the Chinese
+   say the right thing. It shrinks a little to fit the button.
+8. **Turning off a hotspot you marked yourself goes back to detecting it**, rather than
+   saying "isn't a hotspot". Only a network detection takes for a hotspot gets your
+   "isn't" when you switch it off.
+9. **`make review`** (`Scripts/review-build.sh`): runs this branch's build in the menu bar
+   in place of the installed app, in the Mac lane, and brings the installed app back when
+   you quit it. Nothing is installed or replaced.
+10. **`make design-shots` with `--measure`** finds the narrowest each window's toolbar fits,
+    for #315's rule, instead of guessing.
+11. **The popover's list holds about six and a half apps before scrolling** (was eight and a
+    half), so the popover stays about as tall as before with its new header, the Open row
+    and the Settings footer.
+
 ## 8. Open questions
 
 For Kevin, on the comparison page:
 
-1. **The final plan (D6–D10):** go ahead and build it, or change something?
+1. **The build:** does it look and work as you expected in the review build and the pictures? Anything to change before the docs are updated?
 
 Smaller ones, with what happens if there's no answer:
 
