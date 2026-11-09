@@ -6,7 +6,7 @@ the app looked like, what was planned and done, where ideas came from, what was 
 and by whom, and what's left.
 
 **Status (2026-11-09):** Phases 0–2 are done. **Waiting on Kevin's go-ahead on the final
-plan (Phase 3, decisions D6–D8)** on the comparison page:
+plan (Phase 3, decisions D6–D9)** on the comparison page:
 https://claude.ai/artifact/GooXLRsHfm6a6CRRTsNu92 (private to Kevin). Nothing merges or
 releases until Kevin has reviewed it: both pull requests are drafts.
 
@@ -200,6 +200,14 @@ Superlist, all marketing pages with nothing to say about an app's stats or setti
 
 | D8 | **Final round** (changes D7). The four numbers are **Today, Companies, Blocked, Hotspot**; This week goes. Today ends with *Open Usage History ⌘Y*. Hotspot's summary is one big switch, *Stop apps updating on hotspots*, and a sentence on what it's doing now, then *Hotspot Settings*. The chosen number looks raised in neutral grey, with no coloured line; each number keeps one colour: blue for data, teal for companies, red for blocked. The speed test is an icon right after the network's name. Settings panes: General, History, Connections, Ads, Hotspot, Speed Test, About | — | **Waiting on Kevin's go-ahead**, 2026-11-09 |
 
+| D9 | **Connection, not Hotspot** (changes D8's fourth button). It reads **Wi-Fi**, **Ethernet** or **Hotspot** (orange, as the popover already marks a hotspot), labelled *Connection*. Its view shows the network, and on every kind of network a **This is a hotspot** switch, set for that network: the same choice as Settings › Hotspot's *This network*, with *Detect automatically* to undo it. Then what it's doing now, and *Hotspot Settings* | — | **Waiting on Kevin's go-ahead**, 2026-11-09 |
+
+**Connection (Kevin, 2026-11-09).** "Hotspot On" could read as the person's own phone
+sharing its connection. And detection isn't reliable: an iPhone's hotspot is recognised,
+but a Samsung phone's was taken for ordinary Wi-Fi. So the button names what the Mac is
+on, and the switch to mark a hotspot is there whatever the detection says. (A phone
+tethered over USB can also look like Ethernet, so the switch is there too.)
+
 **Final round (Kevin, 2026-11-09).** History had no way in from the popover once This
 week was a summary, and This week sat oddly beside three things about today. The blue
 line under the chosen number used a statistic's colour for a state; companies needed a
@@ -311,7 +319,7 @@ Beyond what the tools suggested. **Review these separately.**
 
 For Kevin, on the comparison page:
 
-1. **The final plan (D6, D7 and D8):** go ahead and build it, or change something?
+1. **The final plan (D6–D9):** go ahead and build it, or change something?
 
 Smaller ones, with what happens if there's no answer:
 
