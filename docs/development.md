@@ -446,18 +446,42 @@ Each must be one of these:
 It also fails on an entry that nothing uses, a file that doesn't exist, or a window that
 isn't a shot. CI runs it on every pull request into `main` and into `gh-pages`. So a new
 section's picture, or a GIF of a feature, can't merge without saying which window it
-shows:
+shows, and which version of the app it was made from:
 
 ```json
-{ "file": "assets/hotspot.gif", "shows": ["settings-hotspot", "popover"] }
+{ "file": "assets/hotspot.gif", "shows": ["main-network", "popover"], "made": "1.28.1" }
 ```
+
+**Check `shows` frame by frame** (#422). The check trusts the list: a window left out
+is never compared, so a change to it never names the asset. Before listing an asset, or
+after remaking one, step through it and name every window any frame shows, a sheet, a
+section or a list opened in it included. A pull request that adds or remakes one says
+it was checked (the pull request template asks).
+
+**`made`: the version it was made from** (#421). Every entry with `shows` needs it.
+Each window's record has a version too: `shots/trees/versions.json` gives, for each
+tree file, the version of the app it was taken from. `site-shots` keeps a record's
+version while its tree stays the same, and sets the installed app's when it changes.
+The check fails on an asset made from a version older than the record of a window it
+shows. That record is `<name>.made.txt` when there is one (the tree what's made by hand
+was last remade from), the window's own tree otherwise. So an asset already out of
+date the day it's listed fails, where a comparison of trees alone would pass it.
+
+- **Remade it?** Set `made` to the version it was made from.
+- **Can't remake it yet?** Set `stale` to the issue its remake waits on
+  (`"stale": "#458"`). The check names it, and passes. Once the asset is remade and
+  `made` is as new as its windows, `stale` has to come out.
+- **A window known to look the same in an earlier version** can have that version in
+  `versions.json`, written by hand, when the release notes show it didn't change.
 
 When one of those windows changes, `site-check` names everything made by hand from it,
 on either branch, until it's remade:
 
 - **The reminder stays after a retake.** Retaking the window's own picture doesn't end
   it. The tree each was made from is kept in `shots/trees/<name>.made.txt`.
-- **To end it:** remake them, then run `make site-shots NAMES=<window>`.
+- **To end it:** remake them, set their `made`, then run `make site-shots NAMES=<window>`.
+  That records the window as it is today, for everything made by hand from it, so
+  anything left unremade fails the check, unless it's marked `stale`.
 
 Rewrite the alt text of any picture whose interface changed.
 

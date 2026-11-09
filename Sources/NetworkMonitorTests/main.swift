@@ -72,5 +72,6 @@ runWindowStackTests()
 runWiFiNamesTests()
 runLocalizationTests()
 runAccessibilityTests()
+runAssetCheckTests()
 
 exit(Check.summarize())
