@@ -72,7 +72,7 @@
 - <strong>“设置”会显示它是否生效。</strong> 它会读回连接的状态，一旦 macOS 自己报告连接受限，就会显示 *macOS 已确认*。如果 macOS 不断关闭它，NetworkMonitor 会在五分钟内尝试三次后停止，并说明情况，而不是和 macOS 较劲。
 - <strong>大多数 Electron 应用会忽略它。</strong> Chromium 的网络部分不关注低数据模式。
 
-## 未涵盖的情况，以及仍然下载的更新
+## 未涵盖的情况，以及未能暂停的更新
 
 “设置”中的 <strong>不能暂停</strong> 列出了 *你的* Mac 上那些以 NetworkMonitor 无法关闭的方式自行更新的应用，并附上原因：
 
@@ -85,7 +85,7 @@
 
 这些应用是根据更新方式找到的，而不是根据名称列表，所以列表和你实际安装的应用一致。低数据模式会让遵循它的应用放慢更新；使用热点时退出它们，才是唯一可靠的办法。
 
-当你使用按流量计费的连接时，NetworkMonitor 还会通过三个迹象发现 <strong>仍然下载的更新</strong>：
+当你使用按流量计费的连接时，NetworkMonitor 还会通过三个迹象发现 <strong>未能暂停的更新</strong>：
 
 - 在 Electron 和 Sparkle 应用存放下载的位置，或 Claude Code 下载和保存各个版本的位置（`~/.cache/claude/staging` 和 `~/.local/share/claude/versions`），出现超过 1 MB 的文件；
 - 一个名称像更新程序的程序在使用连接，显示时用它所更新的应用来命名：*Google Chrome*，而不是 *GoogleUpdater*（#94）；
