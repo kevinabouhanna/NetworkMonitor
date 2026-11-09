@@ -665,7 +665,7 @@ private struct HistoryListRow: View {
     var isMuted = false
     /// The network type's colour on the Networks and Sessions lists, so a row
     /// matches its part of the chart. Apps take theirs from `kinds`.
-    var barColor: Color = .accentColor
+    var barColor: Color = AppPalette.data
     let isSelected: Bool
     /// nil for a row with nothing to expand; otherwise whether it is open.
     var disclosure: Bool?
@@ -825,7 +825,7 @@ struct FilterChip: View {
 enum HistoryMetrics {
     /// The Usage History window (#436): wide enough for its toolbar and the
     /// scope row with search open, measured on the app as #315 asks.
-    static let windowMinWidth: CGFloat = 804
+    static let windowMinWidth: CGFloat = 894
     static let windowMinHeight: CGFloat = 560
     /// The list's least height, under the chart.
     static let listMinHeight: CGFloat = 160
@@ -855,10 +855,12 @@ public enum HistoryPalette {
     public static func color(for kind: NetworkFingerprint.Kind, dimmed: Bool = false) -> Color {
         let fade: CGFloat = dimmed ? 0.55 : 0
         switch kind.charted {
-        case .wifi:     return dynamic(light: 0x2A78D6, dark: 0x3987E5, fade: fade)
-        case .hotspot:  return dynamic(light: 0xEB6834, dark: 0xD95926, fade: fade)
-        case .ethernet: return dynamic(light: 0x1BAF7A, dark: 0x199E70, fade: fade)
-        default:        return dynamic(light: 0xEDA100, dark: 0xC98500, fade: fade)
+        // Data is blue everywhere (#436): the kinds of network are shades
+        // of it, and a hotspot, the one that costs, is orange.
+        case .wifi:     return AppPalette.dynamic(light: 0x1A6BD8, dark: 0x5AA9FF, fade: fade)
+        case .hotspot:  return AppPalette.dynamic(light: 0xD9570F, dark: 0xFF9A3D, fade: fade)
+        case .ethernet: return AppPalette.dynamic(light: 0x0F4C9E, dark: 0x2F7BE0, fade: fade)
+        default:        return AppPalette.dynamic(light: 0x7EA6DA, dark: 0x9CC7FF, fade: fade)
         }
     }
 

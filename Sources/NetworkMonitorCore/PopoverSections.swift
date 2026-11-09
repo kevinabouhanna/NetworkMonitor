@@ -9,15 +9,12 @@ public enum PopoverSection: String, CaseIterable, Identifiable {
     public var id: String { rawValue }
 }
 
-/// The colours the popover's numbers keep everywhere they appear (#436):
-/// data in the accent colour, companies in teal, blocked in red. A hotspot is
-/// orange, as the popover already marks one. The chosen button is marked by
-/// looking raised, never by a colour.
+/// The popover's colours: the app's own (#436).
 enum PopoverPalette {
-    static let data = Color.accentColor
-    static let companies = Color.teal
-    static let blocked = Color.red
-    static let hotspot = Color.orange
+    static let data = AppPalette.data
+    static let companies = AppPalette.connections
+    static let blocked = AppPalette.blocked
+    static let hotspot = AppPalette.hotspot
 }
 
 extension PopoverMetrics {
@@ -89,9 +86,12 @@ struct PopoverButtons: View {
             .background {
                 if chosen {
                     // Raised, in the control's own grey: no colour for a state.
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(nsColor: .controlColor))
-                        .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(color.opacity(0.14))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .strokeBorder(color.opacity(0.35), lineWidth: 1)
+                        }
                         .matchedGeometryEffect(id: "raised", in: raised)
                 }
             }

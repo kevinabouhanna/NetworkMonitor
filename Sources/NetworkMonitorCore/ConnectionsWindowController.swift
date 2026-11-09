@@ -191,7 +191,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         (standalone ? [] : MainWindowController.sidebarItems)
             + [Self.layoutItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem,
-               search.restingIdentifier, SettingsGear.identifier]
+               search.restingIdentifier, .space, SettingsGear.identifier]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {

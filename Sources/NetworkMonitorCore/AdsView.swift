@@ -192,7 +192,7 @@ struct AdsView: View {
         return Chart(model.bins) { bin in
             BarMark(x: .value(L("Time"), bin.interval.start, unit: model.scale.binComponent),
                     y: .value(L("Blocked"), bin.count))
-                .foregroundStyle(Color.red.opacity(0.75))
+                .foregroundStyle(AppPalette.blocked.opacity(0.85))
                 .cornerRadius(2)
         }
         .chartXScale(domain: model.period.start...model.period.end)
@@ -288,7 +288,7 @@ private struct AdsRow: View {
             }
             Spacer(minLength: 8)
             GeometryReader { geometry in
-                Capsule().fill(Color.red.opacity(0.6))
+                Capsule().fill(AppPalette.blocked.opacity(0.75))
                     .frame(width: max(2, geometry.size.width * fraction), height: 4)
                     .frame(maxHeight: .infinity)
             }
@@ -570,7 +570,7 @@ private struct AdsLogRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Text(entry.isBlocked ? L("Blocked") : L("Let through"))
-                .foregroundStyle(entry.isBlocked ? Color.red : Color.secondary)
+                .foregroundStyle(entry.isBlocked ? AppPalette.blocked : Color.secondary)
                 .frame(width: AdsMetrics.logDecision, alignment: .leading)
             Text(reason).lineLimit(1).truncationMode(.tail).foregroundStyle(.secondary)
                 .frame(width: AdsMetrics.logWhy, alignment: .leading)

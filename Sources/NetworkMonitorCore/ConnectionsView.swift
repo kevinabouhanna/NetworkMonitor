@@ -565,7 +565,7 @@ private struct ConnectionsRow: View {
 
     private var bar: some View {
         RoundedRectangle(cornerRadius: 2)
-            .fill(Color.accentColor.opacity(indent > 0 ? 0.55 : 0.85))
+            .fill(AppPalette.connections.opacity(indent > 0 ? 0.55 : 0.85))
             .frame(width: max(3, ConnectionsMetrics.rowBarWidth * min(max(fraction, 0), 1)), height: 6)
     }
 }
@@ -632,8 +632,8 @@ private struct ConnectionsTimeline: View {
 
     private func color(for index: Int) -> Color {
         let picked = model.dragging ?? model.span
-        guard let picked else { return Color.accentColor.opacity(0.75) }
-        return picked.contains(index) ? Color.accentColor : Color.secondary.opacity(0.3)
+        guard let picked else { return AppPalette.connections.opacity(0.75) }
+        return picked.contains(index) ? AppPalette.connections : Color.secondary.opacity(0.3)
     }
 }
 

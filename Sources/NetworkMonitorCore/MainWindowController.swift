@@ -25,6 +25,17 @@ public enum MainSection: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The section's colour, as its figure in the popover (#436).
+    var color: Color {
+        switch self {
+        case .history:     return AppPalette.data
+        case .connections: return AppPalette.connections
+        case .ads:         return AppPalette.blocked
+        case .network:     return .primary
+        case .settings:    return .secondary
+        }
+    }
+
     public var symbol: String {
         switch self {
         case .history:     return "chart.bar.xaxis"
@@ -455,7 +466,7 @@ struct MainSidebar: View {
             HStack(spacing: 9) {
                 Image(systemName: section.symbol)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(section.color)
                     .frame(width: 20)
                     .accessibilityHidden(true)
                 Text(section.title)

@@ -152,7 +152,7 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         (standalone ? [] : MainWindowController.sidebarItems)
             + [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, search.restingIdentifier,
-               SettingsGear.identifier]
+               .space, SettingsGear.identifier]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {

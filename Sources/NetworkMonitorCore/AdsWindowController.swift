@@ -182,7 +182,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
         // last, where it stays put when the period hides on Log.
         (standalone ? [] : MainWindowController.sidebarItems)
             + [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, search.restingIdentifier,
-               SettingsGear.identifier]
+               .space, SettingsGear.identifier]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {

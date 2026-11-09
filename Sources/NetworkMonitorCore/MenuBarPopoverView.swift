@@ -716,7 +716,7 @@ struct PopoverRow: View {
     let icon: PopoverRowIcon
     /// This row's share of everything the list accounts for, 0...1.
     let fraction: Double
-    var barColor: Color = .accentColor
+    var barColor: Color = AppPalette.data
     var indented = false
     /// The System group, which is a heading over other rows rather than an app.
     var isMuted = false
@@ -725,7 +725,7 @@ struct PopoverRow: View {
     var onToggle: (() -> Void)?
 
     init(title: String, value: String, isActive: Bool = false, icon: PopoverRowIcon, fraction: Double,
-         barColor: Color = .accentColor, indented: Bool = false, isMuted: Bool = false, isExpanded: Bool = false,
+         barColor: Color = AppPalette.data, indented: Bool = false, isMuted: Bool = false, isExpanded: Bool = false,
          onToggle: (() -> Void)? = nil) {
         self.title = title
         self.value = value
@@ -788,7 +788,7 @@ struct PopoverRow: View {
 
                     // Live indicator: moved bytes within the last 2 seconds.
                     Circle()
-                        .fill(Color.accentColor)
+                        .fill(AppPalette.data)
                         .frame(width: 5, height: 5)
                         .opacity(isActive ? 1 : 0)
                     Spacer(minLength: 0)

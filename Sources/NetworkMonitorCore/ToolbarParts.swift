@@ -30,56 +30,47 @@ enum PeriodControl {
     static let segmentWidth: CGFloat = 64
 }
 
-/// Search in a section's toolbar (#436): a magnifying glass button until
-/// it's clicked or ⌘F is pressed, then a search field in its place, as in
-/// Mail and Finder.
+/// Search in a section's toolbar (#436): a magnifying glass until it's
+/// clicked or ⌘F is pressed, then a field, as in Mail and Finder.
 ///
-/// - Clicking anywhere else, or Escape, puts the glass back while the field
-///   is empty.
+/// - It grows out of the glass and shrinks back into it, in one movement.
+/// - Clicking anywhere else, or Escape, closes it while it's empty.
 /// - Escape with a search in it clears the search first; again, it closes.
-/// - Holding a search, the field stays, so what narrows the list stays in
+/// - Holding a search, it stays open, so what narrows the list stays in
 ///   sight; the row under the toolbar shows it as a chip too, cleared with
 ///   one click like any other filter.
 ///
-/// Two toolbar items swapped in one place, rather than one search item
-/// asked to fold itself: `NSSearchToolbarItem` folds only when the toolbar
-/// runs out of room, and stayed open after a click elsewhere.
+/// One `NSSearchToolbarItem` whose width the app sets: at the glass's width
+/// AppKit draws it as the glass itself. Left to AppKit, it folded only when
+/// the toolbar ran out of room, and opened in two steps.
 public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
     static let width: CGFloat = 240
+    /// The glass's width, at which the field draws as the glass.
+    static let glassWidth: CGFloat = 30
 
-    let glassID: NSToolbarItem.Identifier
-    let fieldID: NSToolbarItem.Identifier
-    private let glass: NSToolbarItem
-    private let fieldItem: NSSearchToolbarItem
-    private weak var toolbar: NSToolbar?
+    public let item: NSSearchToolbarItem
     var onChange: (String) -> Void = { _ in }
+    /// Whether the field is open, or opening, rather than the glass.
+    public private(set) var isOpen = false
+    private let size: NSLayoutConstraint
     private var clicks: Any?
-    /// Holds the field to the glass's width: the size it opens from and
-    /// closes to, so it grows out of the glass and shrinks back into it.
-    private var shrink: NSLayoutConstraint!
-    private var isClosing = false
-    /// The glass's width, which the field draws as the glass itself.
-    private static let glassWidth: CGFloat = 30
 
     init(_ identifier: NSToolbarItem.Identifier) {
-        fieldID = identifier
-        glassID = NSToolbarItem.Identifier(identifier.rawValue + ".glass")
-        glass = NSToolbarItem(itemIdentifier: glassID)
-        fieldItem = NSSearchToolbarItem(itemIdentifier: identifier)
+        item = NSSearchToolbarItem(itemIdentifier: identifier)
+        item.preferredWidthForSearchField = Self.width
+        item.resignsFirstResponderWithCancel = true
+        let field = item.searchField
+        field.translatesAutoresizingMaskIntoConstraints = false
+        size = field.widthAnchor.constraint(equalToConstant: Self.glassWidth)
+        // Just under required: the app's say over the field's width, without
+        // fighting the toolbar's own constraints.
+        size.priority = NSLayoutConstraint.Priority(999)
+        size.isActive = true
         super.init()
-        glass.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: L("Search"))
-        glass.isBordered = true
-        glass.target = self
-        glass.action = #selector(glassClicked)
-        fieldItem.preferredWidthForSearchField = Self.width
-        fieldItem.resignsFirstResponderWithCancel = true
-        fieldItem.searchField.delegate = self
-        shrink = fieldItem.searchField.widthAnchor.constraint(equalToConstant: Self.glassWidth)
-        // A click outside the empty field closes it, wherever it lands: the
-        // list, the chart and empty space don't take the keyboard from it.
+        field.delegate = self
         clicks = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
-            self?.clicked(event)
-            return event
+            guard let self else { return event }
+            return self.clicked(event) ? nil : event
         }
     }
 
@@ -87,39 +78,27 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
         if let clicks { NSEvent.removeMonitor(clicks) }
     }
 
-    public var field: NSSearchField { fieldItem.searchField }
+    public var field: NSSearchField { item.searchField }
 
     // MARK: For the toolbar's delegate
 
-    /// What the toolbar starts with: the field when there's a search.
-    var restingIdentifier: NSToolbarItem.Identifier { field.stringValue.isEmpty ? glassID : fieldID }
-
-    var identifiers: [NSToolbarItem.Identifier] { [glassID, fieldID] }
+    var restingIdentifier: NSToolbarItem.Identifier { item.itemIdentifier }
+    var identifiers: [NSToolbarItem.Identifier] { [item.itemIdentifier] }
 
     func item(for identifier: NSToolbarItem.Identifier, in toolbar: NSToolbar) -> NSToolbarItem? {
-        guard identifier == glassID || identifier == fieldID else { return nil }
-        self.toolbar = toolbar
-        return identifier == glassID ? glass : fieldItem
+        identifier == item.itemIdentifier ? item : nil
     }
 
     /// The words, from `init` and when the language changes.
     func name(placeholder: String, help: String) {
         field.placeholderString = placeholder
-        // Named for what it searches, not "Search" alone, which is only the
-        // glass's own name to VoiceOver.
-        glass.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: placeholder)
-        for item in [glass, fieldItem] as [NSToolbarItem] {
-            item.label = L("Search")
-            item.paletteLabel = L("Search")
-            item.toolTip = help
-        }
-        glass.label = placeholder
+        field.setAccessibilityLabel(placeholder)
+        item.label = L("Search")
+        item.paletteLabel = L("Search")
+        item.toolTip = help
     }
 
     // MARK: Opening and closing
-
-    /// Whether the field is showing rather than the glass.
-    public var isOpen: Bool { toolbar?.items.contains { $0.itemIdentifier == fieldID } ?? false }
 
     /// The model's search, put back in the field: a section shown again, or
     /// a search cleared from its chip.
@@ -127,77 +106,69 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
         guard field.stringValue != text else { return }
         field.stringValue = text
         if !text.isEmpty {
-            shrink.isActive = false
-            place(fieldID)
+            open(focus: false)
         } else if !hasFocus {
             finish()
         }
     }
 
-    /// ⌘F, or the glass clicked: the field, growing out of the glass with
-    /// the cursor in it. The field starts at the glass's width, where it
-    /// draws as the glass, and `beginSearchInteraction` opens it with
-    /// AppKit's own animation.
-    public func begin() {
-        isClosing = false
-        if !isOpen {
-            shrink.isActive = true
-            place(fieldID)
-        }
-        DispatchQueue.main.async { [weak self] in
-            guard let self, self.isOpen, !self.isClosing else { return }
-            self.shrink.isActive = false
-            self.fieldItem.beginSearchInteraction()
-        }
+    /// ⌘F, or the glass clicked: the field, with the cursor in it.
+    public func begin() { open(focus: true) }
+
+    /// Back to the glass, if the field holds no search.
+    public func finish() {
+        guard isOpen, field.stringValue.isEmpty else { return }
+        isOpen = false
+        if hasFocus { field.window?.makeFirstResponder(nil) }
+        resize(to: Self.glassWidth)
     }
 
-    /// Back to the glass, if the field holds no search: it shrinks into the
-    /// glass, then the glass takes its place.
-    public func finish() {
-        guard field.stringValue.isEmpty, isOpen, !isClosing else { return }
-        if hasFocus { field.window?.makeFirstResponder(nil) }
-        fieldItem.endSearchInteraction()
-        guard field.window?.isVisible == true, field.frame.width > Self.glassWidth else {
-            place(glassID)
+    private func open(focus: Bool) {
+        if !isOpen {
+            isOpen = true
+            resize(to: Self.width)
+        }
+        if focus { field.window?.makeFirstResponder(field) }
+    }
+
+    /// One movement from the glass to the field or back, as Motion says.
+    private func resize(to width: CGFloat) {
+        guard field.window?.isVisible == true, !Motion.isReduced else {
+            size.constant = width
             return
         }
-        isClosing = true
-        shrink.constant = field.frame.width
-        shrink.isActive = true
-        field.superview?.layoutSubtreeIfNeeded()
         NSAnimationContext.runAnimationGroup { context in
             context.duration = Motion.duration
             context.timingFunction = Motion.timing
             context.allowsImplicitAnimation = true
-            shrink.animator().constant = Self.glassWidth
-        } completionHandler: { [weak self] in
-            guard let self, self.isClosing else { return }
-            self.isClosing = false
-            self.shrink.constant = Self.glassWidth
-            self.place(self.glassID)
+            size.animator().constant = width
         }
     }
 
-    @objc private func glassClicked() { begin() }
-
     private var hasFocus: Bool { field.currentEditor() != nil }
 
-    private func place(_ identifier: NSToolbarItem.Identifier) {
-        guard let toolbar,
-              let index = toolbar.items.firstIndex(where: { $0.itemIdentifier == glassID || $0.itemIdentifier == fieldID }),
-              toolbar.items[index].itemIdentifier != identifier else { return }
-        toolbar.removeItem(at: index)
-        toolbar.insertItem(withItemIdentifier: identifier, at: index)
-    }
-
-    private func clicked(_ event: NSEvent) {
-        guard isOpen, field.stringValue.isEmpty, let window = field.window, event.window === window,
-              !field.convert(field.bounds, to: nil).contains(event.locationInWindow) else { return }
-        // After the click is handled, so a click on a control still works.
-        DispatchQueue.main.async { [weak self] in self?.finish() }
+    /// Clicks on the glass open it; clicks anywhere else close an empty
+    /// field. True when the click is taken here.
+    private func clicked(_ event: NSEvent) -> Bool {
+        guard let window = field.window, event.window === window else { return false }
+        let inField = field.convert(field.bounds, to: nil).contains(event.locationInWindow)
+        if !isOpen && inField {
+            begin()
+            return true
+        }
+        if isOpen && !inField && field.stringValue.isEmpty {
+            // After the click is handled, so a click on a control still works.
+            DispatchQueue.main.async { [weak self] in self?.finish() }
+        }
+        return false
     }
 
     // MARK: NSSearchFieldDelegate
+
+    /// Typed into without a click, as with VoiceOver or Tab: opened too.
+    public func controlTextDidBeginEditing(_ notification: Notification) {
+        open(focus: false)
+    }
 
     public func controlTextDidChange(_ notification: Notification) {
         onChange(field.stringValue)
