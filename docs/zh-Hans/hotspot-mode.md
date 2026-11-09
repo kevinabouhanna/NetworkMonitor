@@ -22,7 +22,7 @@
 以下条件按顺序检查，第一个符合的条件说了算。每项检查都不需要特权，<strong>设置 › 热点 › 当前</strong> 始终会说明是哪一项起了作用。
 
 1. <strong>你自己说了算。</strong> <strong>设置 › 热点 › 此网络</strong> 默认是 *自动检测*，直到你选择 *是热点* 或 *不是热点*。你的选择会为该网络记住，并且优先于下面所有条件。
-2. <strong>macOS 说是。</strong> macOS 把连接标记为昂贵，就像它对识别出的 iPhone 热点所做的那样。
+2. <strong>macOS 说是。</strong> macOS 将此连接标记为按流量计费，就像它对识别出的 iPhone 热点所做的那样。
 3. <strong>Android 手机说是。</strong> Android 的热点和 USB 网络共享会在 DHCP 回复中把分配的每个地址标记为按流量计费：厂商选项 43，`ANDROID_METERED`。macOS 会忽略它；NetworkMonitor 从 configd 保存的租约副本中读取它（#109）。
 4. <strong>路由器看起来像 iPhone 的个人热点</strong>：它的地址在 `172.20.10.0/28` 中。
 5. <strong>路由器看起来像较旧的 Android 手机在共享网络</strong>：`192.168.42.0/24` 或 `192.168.43.0/24`。较新的手机会随机选择子网，这就是第 3 项排在前面的原因。
@@ -64,7 +64,7 @@
 
 ## 低数据模式：顾及没有设置可改的应用
 
-上面的列表只涵盖 NetworkMonitor 知道其更新设置的应用，而你的 Mac 上还有它不知道的应用。所以安装辅助程序后，同一个开关还会让热点进入 <strong>低数据模式</strong>，也就是 macOS 在识别出 iPhone 热点时自己设置的那个标记。所有关注这个标记的东西都会收敛：iCloud 和“照片”同步、 macOS 安排的后台下载，以及任何遵循低数据模式的应用，无论 NetworkMonitor 是否知道它。
+上面的列表只涵盖 NetworkMonitor 知道其更新设置的应用，而你的 Mac 上还有它不知道的应用。所以安装辅助程序后，同一个开关还会让热点进入 <strong>低数据模式</strong>，也就是 macOS 在识别出 iPhone 热点时自己设置的那个标记。遵循低数据模式的应用和服务会减少后台数据传输：iCloud 和“照片”同步、macOS 安排的后台下载，以及任何遵循低数据模式的应用，无论 NetworkMonitor 是否知道它。
 
 - <strong>它是连接上的一个标记，不是保存在某处的设置。</strong> 不会向磁盘写入任何内容，你自己在“系统设置”中的低数据模式选择不会被改动，而且无论发生什么，重新启动都会清除它。
 - <strong>它只撤下自己设置的标记。</strong> 如果 macOS 或你已经为某个连接打开了低数据模式，离开时它会保持打开。
@@ -72,7 +72,7 @@
 - <strong>“设置”会显示它是否生效。</strong> 它会读回连接的状态，一旦 macOS 自己报告连接受限，就会显示 *macOS 已确认*。如果 macOS 不断关闭它，NetworkMonitor 会在五分钟内尝试三次后停止，并说明情况，而不是和 macOS 较劲。
 - <strong>大多数 Electron 应用会忽略它。</strong> Chromium 的网络部分不关注低数据模式。
 
-## 未涵盖的情况，以及仍然下载的更新
+## 未涵盖的情况，以及未能暂停的更新
 
 “设置”中的 <strong>不能暂停</strong> 列出了 *你的* Mac 上那些以 NetworkMonitor 无法关闭的方式自行更新的应用，并附上原因：
 
@@ -85,7 +85,7 @@
 
 这些应用是根据更新方式找到的，而不是根据名称列表，所以列表和你实际安装的应用一致。低数据模式会让遵循它的应用放慢更新；使用热点时退出它们，才是唯一可靠的办法。
 
-当你使用按流量计费的连接时，NetworkMonitor 还会通过三个迹象发现 <strong>仍然下载的更新</strong>：
+当你使用按流量计费的连接时，NetworkMonitor 还会通过三个迹象发现 <strong>未能暂停的更新</strong>：
 
 - 在 Electron 和 Sparkle 应用存放下载的位置，或 Claude Code 下载和保存各个版本的位置（`~/.cache/claude/staging` 和 `~/.local/share/claude/versions`），出现超过 1 MB 的文件；
 - 一个名称像更新程序的程序在使用连接，显示时用它所更新的应用来命名：*Google Chrome*，而不是 *GoogleUpdater*（#94）；

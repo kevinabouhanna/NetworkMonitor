@@ -355,7 +355,7 @@ public final class ConnectionsViewModel: ObservableObject {
         if let parent = item.subtitle { parts.append(parent) }
         if let maker = detail?.maker { parts.append(L("By %@", maker)) }
         if let others = detail?.others, !others.isEmpty {
-            let shown = others.prefix(3).joined(separator: ", ")
+            let shown = others.prefix(3).joined(separator: L(", "))
             parts.append(others.count > 3 ? L("also %@ and %@ more", shown, String(others.count - 3))
                                           : L("also %@", shown))
         }

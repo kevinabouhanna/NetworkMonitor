@@ -7,7 +7,7 @@
 <p align="center"><a href="README.md">English</a> · 简体中文</p>
 
 <p align="center">
-  <b>在 Mac 菜单栏中显示实时网速，告诉你哪些应用用掉了流量，并提供防火墙来阻止它们连接的对象。</b>
+  <b>在 Mac 菜单栏中显示实时网速，告诉你哪些应用用掉了流量，还可通过防火墙控制各应用的网络连接。</b>
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@
 
 <p align="center">
   <img src="Resources/README/demo.gif" width="404"
-       alt="下载过程中的真实应用：菜单栏显示下载速度约 1.1 MB/s，点按后打开弹出窗口，显示当天的总计、正在使用的连接和今天阻止的广告，下面是按流量排序的应用列表。随后 Warp 展开，显示它启动的进程，其中 curl 下载的流量不断增加。">
+       alt="下载过程中的真实应用：菜单栏显示下载速度约 1.1 MB/s，点按后打开弹出窗口，显示当天的总计、正在使用的连接和今天的拦截次数，下面是按流量排序的应用列表。随后 Warp 展开，显示它启动的进程，其中 curl 下载的流量不断增加。">
 </p>
 
 ## ✨ 功能
@@ -34,7 +34,7 @@
 - ⚡ <strong>实时网速</strong>显示在菜单栏中，包括下载和上传，单位可选 MB/s 或 Mbps，颜色由你选择。
 - 📊 <strong>哪些应用用掉了流量</strong>：显示当前连接上各应用的用量，从多到少排列。
 - 🌐 <strong>连接</strong>：每个应用在和哪些公司、国家或地区、服务器通信，以列表和世界地图显示，无需在线查询。你可以阻止其中任何一个，或者让它先询问你。
-- 🛡️ <strong>阻止广告、跟踪器和恶意软件</strong>：一个开关即可在所有应用中生效，Chrome 也不例外。
+- 🛡️ <strong>拦截广告、跟踪器和恶意软件</strong>：一个开关即可在所有应用中生效，Chrome 也不例外。
 - 🏠 <strong>只统计互联网流量。</strong>隔空播放、时间机器和其他家庭网络内的流量不计入。
 - 📱 <strong>热点模式</strong>：使用移动热点时暂停应用更新，离开热点后恢复。
 - 🗓️ <strong>流量历史</strong>：按日、周、月或年查看，可按应用和网络细分。
@@ -63,7 +63,8 @@
 
 右键点按菜单栏读数，然后选择 <strong>卸载 NetworkMonitor…</strong>（或者 <strong>设置 › 关于 › 卸载…</strong>）。它会恢复它更改过的每项设置，然后把自己移到废纸篓。
 
-> [!WARNING] > 不要直接把它拖到废纸篓：热点模式在没有辅助程序的情况下关闭的更新设置会一直保持关闭。如果你已经这样做了，请把它拖回来，打开它，再从菜单中卸载。
+> [!WARNING]
+> 不要直接把它拖到废纸篓：热点模式在没有辅助程序的情况下关闭的更新设置会一直保持关闭。如果你已经这样做了，请把它拖回来，打开它，再从菜单中卸载。
 
 ## 🖱️ 使用方法
 
@@ -75,7 +76,7 @@
 
 [文档](docs/zh-Hans/README.md)介绍了每项功能是如何工作的，以及为什么这样设计。这些内容也在 [Wiki](https://github.com/kevinabouhanna/NetworkMonitor/wiki) 上。
 
-- <strong>使用：</strong>[安装](docs/zh-Hans/installing.md) · [功能](docs/zh-Hans/features.md) · [连接](docs/zh-Hans/connections.md) · [流量历史](docs/zh-Hans/usage-history.md) · [网速测试](docs/zh-Hans/speed-test.md) · [热点模式](docs/zh-Hans/hotspot-mode.md) · [准确性和电池](docs/zh-Hans/accuracy-and-battery.md) · [隐私](docs/zh-Hans/privacy.md)
+- <strong>使用：</strong>[安装](docs/zh-Hans/installing.md) · [功能](docs/zh-Hans/features.md) · [连接](docs/zh-Hans/connections.md) · [流量历史](docs/zh-Hans/usage-history.md) · [网速测试](docs/zh-Hans/speed-test.md) · [热点模式](docs/zh-Hans/hotspot-mode.md) · [统计准确性与耗电量](docs/zh-Hans/accuracy-and-battery.md) · [隐私](docs/zh-Hans/privacy.md)
 - <strong>开发（英文）：</strong>[架构](docs/architecture.md) · [构建与发布](docs/development.md) · [决策](docs/decisions.md) · [路线图](docs/roadmap.md)
 
 ## 🤝 参与贡献
