@@ -940,8 +940,10 @@ struct SiteShots {
                     }
                 } catch { status = 2; print("site-shots: \(error)") }
             }
-            // Put the app back as it was.
-            if wasRunning { try? session.launch([]) } else { session.quit() }
+            // Put the app back as it was: the installed one, even after a run
+            // with another copy (`--app`).
+            let installed = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
+            if wasRunning { try? Session(manifest: installed).launch([]) } else { session.quit() }
             exit(status)
         } catch {
             print("site-shots: \(error)")
