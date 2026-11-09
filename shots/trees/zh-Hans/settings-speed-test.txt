@@ -1,0 +1,30 @@
+AXWindow (AXStandardWindow) title="网速测试" 720x608
+  AXGroup h520
+    AXGroup (AXHostingView) h520
+      AXScrollArea h520
+        AXScrollArea h520
+          AXGroup h60
+            AXImage description="带圆点且指针位于#%处的仪表" identifier="gauge.with.dots.needle.#percent" h28
+            AXStaticText value="测试你的网速" h16
+            AXStaticText value="立即测量下载、上传、延迟和抖动。" h16
+            AXButton description="立即测试" 76x24
+          AXStaticText value="使用 macOS 内置的 networkQuality，只在你开始测试时运行：先测下载，再测上传。每次都会重新测量，所以每次都会消耗流量 — 通常为 #–# ‹unit›，网速很快时会更多。速度使用“通用”中选择的单位。" h28
+          AXGroup h328
+            AXStaticText value="在弹出窗口中显示测试的样式" h16
+            AXButton description="卡片" help="一张带仪表盘和所有数值的卡片，显示在应用列表的位置。" 200x272
+            AXButton description="紧凑" help="在应用列表上方显示两行，应用列表仍然可见。" 200x272
+          AXStaticText value="一张带仪表盘和所有数值的卡片，显示在应用列表的位置。" h16
+  AXToolbar 720x56
+    AXButton title="通用" description="通用" 56x56
+    AXButton title="网速测试" description="网速测试" 56x56
+    AXButton title="历史记录" description="历史记录" 56x56
+    AXButton title="连接" description="连接" 56x56
+    AXButton title="广告" description="广告" 56x56
+    AXButton title="热点" description="热点" 56x56
+    AXButton title="关于" description="关于" 56x56
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXZoomButton) 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText value="网速测试" h16

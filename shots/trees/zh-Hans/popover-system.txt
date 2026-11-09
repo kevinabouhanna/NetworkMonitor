@@ -1,0 +1,12 @@
+AXPopover 348
+  AXGroup (AXHostingView)
+    AXStaticText value="总计" h12
+    AXButton description="网速测试" identifier="gauge.with.dots.needle.#percent" help="测试网速" 12x12
+    AXButton description="连接" identifier="globe" help="连接" 12x12
+    AXButton description="流量历史" identifier="chart.bar.xaxis" help="流量历史" 12x12
+    AXButton description="设置" identifier="gearshape.fill" help="设置" 12x12
+    AXStaticText value="# ‹unit›" h20
+    AXStaticText value="正在使用 以太网" h12
+    AXButton description="今天已阻止 # 个广告和跟踪器" help="今天阻止的广告和跟踪器。查看阻止了什么，以及在哪里阻止的" h12
+    AXScrollArea
+      data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText

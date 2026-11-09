@@ -1,0 +1,52 @@
+AXWindow (AXStandardWindow) title="连接" 1120
+  AXGroup (AXHostingView)
+    AXStaticText value="分组方式" h16
+    AXRadioGroup description="分组方式" help="按公司、应用或国家或地区对列表分组。点按组内的一行，窗口将只显示该项。" 224x20
+      AXRadioButton (AXSegment) description="公司" 76x20
+      AXRadioButton (AXSegment) description="应用" 76x20
+      AXRadioButton (AXSegment) description="国家或地区" 76x20
+    AXRadioGroup description="网络" help="所有连接、仅 Wi-Fi 或仅热点" 144x20
+      AXRadioButton (AXSegment) description="全部" 48x20
+      AXRadioButton (AXSegment) description="Wi-Fi" 48x20
+      AXRadioButton (AXSegment) description="热点" 48x20
+    AXStaticText value="今天" h24
+    AXStaticText value="# ‹unit›" h16
+    AXStaticText value="与服务器往来" h16
+    AXStaticText value="·" h16
+    AXStaticText value="# 个公司 · # 个国家或地区 · # 个应用 · # 个服务器" h16
+    data: AXUnknown
+    AXStaticText value="凌晨#时" h12
+    AXStaticText value="中午#时" h12
+    AXStaticText value="晚上#时" h12
+    AXScrollArea
+      data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+    data: AXUnknown
+    AXLink description="IP 地理位置数据由 DB-IP 提供" 136x12
+    AXStaticText value="·" h16
+    AXStaticText value="所有名称都在这台 Mac 上识别，不会在线查询。" h12
+  AXToolbar 1120x52
+    AXGroup help="列表、两者并排，或地图" h52
+      AXRadioGroup description="视图" 116x40
+        AXRadioButton (AXSegment) description="列表" help="列表" 36x36
+        AXRadioButton (AXSegment) description="两者" help="两者" 40x36
+        AXRadioButton (AXSegment) description="地图" help="地图" 40x36
+    AXGroup help="每次显示一天、一周、一个月或一年" h52
+      AXRadioGroup description="统计周期" 140x40
+        AXRadioButton (AXSegment) description="日" 36x36
+        AXRadioButton (AXSegment) description="周" 36x36
+        AXRadioButton (AXSegment) description="月" 36x36
+        AXRadioButton (AXSegment) description="年" 36x36
+    AXGroup help="按时间前后翻看" h52
+      AXGroup description="前往" h40
+        AXButton (AXSegment) description="上一个" help="上一个（⌘←）" 36x36
+        AXButton (AXSegment) description="今天" help="回到当前" 48x36
+        AXButton (AXSegment) description="下一个" help="下一个（⌘→）" 36x36
+    AXGroup h52
+      AXTextField (AXSearchField) 328x40
+        AXButton description="Search" 28x36
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText value="连接" h52

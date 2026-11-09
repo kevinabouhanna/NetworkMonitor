@@ -1,0 +1,38 @@
+AXWindow (AXStandardWindow) title="连接" 720x380
+  AXGroup h292
+    AXGroup (AXHostingView) h292
+      AXScrollArea h292
+        AXScrollArea h292
+          AXGroup h44
+            AXStaticText value="以列表和世界地图显示你的应用与哪些公司、国家或地区以及服务器通信。" h16
+            AXButton description="打开“连接”…" help="也可以按 ⌘K，或点按弹出窗口中的地球图标" 96x24
+          AXGroup h40
+            AXStaticText value="打开时显示" h16
+            AXRadioGroup description="打开时显示" 152x24
+              AXRadioButton (AXSegment) description="列表" 52x24
+              AXRadioButton (AXSegment) description="两者" 52x24
+              AXRadioButton (AXSegment) description="地图" 52x24
+          AXGroup h112
+            AXStaticText value="国家或地区与网络" h16
+            AXStaticText value="DB-IP Lite，#年#月" h16
+              AXStaticText value="DB-IP Lite，#年#月" h16
+            AXStaticText value="每月更新" h16
+            AXCheckBox (AXSwitch) 36x16
+            AXStaticText value="保留时长" h16
+            AXStaticText value="与流量历史相同" h16
+              AXStaticText value="与流量历史相同" h16
+          AXStaticText value="所有名称都在这台 Mac 上识别，不会在线查询。NetworkMonitor 每月从 GitHub 下载一次 DB-IP 的新数据，每个人下载的都是同一个文件，且从不在热点上下载。IP 地理位置数据由 DB-IP 提供，CC BY #。" h28
+  AXToolbar 720x56
+    AXButton title="通用" description="通用" 56x56
+    AXButton title="网速测试" description="网速测试" 56x56
+    AXButton title="历史记录" description="历史记录" 56x56
+    AXButton title="连接" description="连接" 56x56
+    AXButton title="广告" description="广告" 56x56
+    AXButton title="热点" description="热点" 56x56
+    AXButton title="关于" description="关于" 56x56
+  AXButton (AXCloseButton) 16x16
+  AXButton (AXZoomButton) 16x16
+    AXGroup h16
+      AXGroup h16
+  AXButton (AXMinimizeButton) 16x16
+  AXStaticText value="连接" h16
