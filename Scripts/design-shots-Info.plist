@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- build/DesignShots.app (#437): its own identifier, so its settings are its own, never the app's. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.networkmonitor.designshots</string>
+	<key>CFBundleExecutable</key>
+	<string>DesignShots</string>
+	<key>CFBundleName</key>
+	<string>DesignShots</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>LSUIElement</key>
+	<true/>
+</dict>
+</plist>

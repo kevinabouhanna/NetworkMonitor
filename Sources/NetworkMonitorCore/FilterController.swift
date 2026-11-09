@@ -133,6 +133,17 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         super.init()
     }
 
+    #if DEBUG
+    /// For DesignShots' pictures (#437): says the filter is in `state`
+    /// without asking macOS anything, and watches nothing. Debug builds only;
+    /// the app is always built for release.
+    public func showForPictures(_ state: State) {
+        self.state = state
+        hasResolved = true
+        stopWatching()
+    }
+    #endif
+
     /// At launch: if the filter was left on, reconnect to it, and bring it up
     /// to this build's. And from then on, follow it being switched off or on
     /// in System Settings.

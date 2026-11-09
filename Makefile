@@ -1,4 +1,4 @@
-.PHONY: all build test hooks app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check site-shots site-audit clean
+.PHONY: all build test hooks design-shots app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check site-shots site-audit clean
 
 all: test app
 
@@ -123,6 +123,23 @@ site-shots: build/site-shots
 # rules (#346).
 site-audit: build/site-shots
 	@./Scripts/mac-lane.sh build/site-shots audit --site $(SITE) $(NAMES)
+
+# Pictures of every window from a made-up dataset, at 2x in light and dark,
+# for the design work (#437): no real connections, sites or rules, and no
+# screen or installed app, so it needs no Mac lane. OUT is where they go;
+# ONLY narrows them to some names. In English for the United States, so they
+# look the same whoever takes them, and the map's home isn't theirs.
+OUT ?= build/design-shots
+DESIGN_APP := build/DesignShots.app/Contents
+design-shots:
+	@./Scripts/swiftpm.sh build --product DesignShots
+	@mkdir -p $(DESIGN_APP)/MacOS $(DESIGN_APP)/Resources
+	@bin="$$(./Scripts/swiftpm.sh build --product DesignShots --show-bin-path 2>/dev/null | tail -1)"; \
+	  cp "$$bin/DesignShots" $(DESIGN_APP)/MacOS/ && cp -R "$$bin/Sparkle.framework" $(DESIGN_APP)/MacOS/
+	@cp -R Resources/Geo Resources/Blocklists Resources/Localization/*.lproj $(DESIGN_APP)/Resources/
+	@cp Scripts/design-shots-Info.plist $(DESIGN_APP)/Info.plist
+	@$(DESIGN_APP)/MacOS/DesignShots --out "$(OUT)" $(if $(ONLY),--only $(ONLY)) \
+	  -AppleLanguages '(en)' -AppleLocale en_US
 
 clean:
 	swift package clean
