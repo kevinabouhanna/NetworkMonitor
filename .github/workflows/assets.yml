@@ -19,10 +19,26 @@ jobs:
       - name: Check out the site
         uses: actions/checkout@v4
 
+      # main, or for a change to both branches, main's branch this one is
+      # named after: scanner-425 for scanner-425-site. Each pull request is
+      # then checked against the other (#426,
+      # docs/development.md#changing-both-branches on main).
+      - name: Find the app's branch
+        id: app
+        env:
+          HEAD: ${{ github.head_ref }}
+        run: |
+          ref=main
+          if [[ "$HEAD" == *-site ]] && git ls-remote --exit-code --heads origin "${HEAD%-site}" >/dev/null; then
+            ref="${HEAD%-site}"
+          fi
+          echo "The app from $ref"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
       - name: Check out the app, for the check and the README's list
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ steps.app.outputs.ref }}
           path: app
 
       - name: Build the check
