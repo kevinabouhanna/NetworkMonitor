@@ -22,6 +22,9 @@
 //   readme           copies the site's pictures the README uses into it, in
 //                    every language (#434). Files only. `update` copies each
 //                    one it retakes
+//   record <names>   records the named windows' trees as they read now,
+//                    without retaking their pictures: after marking more of
+//                    a window as data or ignored (#416)
 //
 // It needs Accessibility and Screen Recording for the terminal it runs in. It
 // quits and relaunches the installed app, and puts it back running at the end.
@@ -262,6 +265,10 @@ struct DataRegion: Decodable {
     /// siblings; "run" for the siblings right after it with the same role, like
     /// a chart's bars. Absent, the region is the `from` element alone.
     var until: String?
+    /// Lines that come and go with the Mac's state, such as Network's status
+    /// lines on a hotspot (#416): the region may be empty, and only that it's
+    /// there is kept, not its roles.
+    var optional: Bool?
 }
 
 struct Crop: Decodable {
@@ -444,7 +451,10 @@ func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = []) -> [
                     // The label itself stays interface.
                     for k in i..<min(i + skip, kids.count) { if walk(kids[k], depth + 1) { holdsData = true } }
                     i += skip
-                    guard i < kids.count else { break }
+                    guard i < kids.count else {
+                        if region.optional == true { out.append(pad + "  data: optional"); holdsData = true }
+                        break
+                    }
                 }
                 var end = i + 1
                 if let until = region.until {
@@ -454,7 +464,8 @@ func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = []) -> [
                     default:    end = kids[(i + 1)...].firstIndex { matches($0, until) } ?? kids.count
                     }
                 }
-                out.append(pad + "  data: " + roles(in: Array(kids[i..<end])).joined(separator: " "))
+                out.append(pad + "  data: " + (region.optional == true ? "optional"
+                                               : roles(in: Array(kids[i..<end])).joined(separator: " ")))
                 holdsData = true
                 i = end
             } else {
@@ -948,11 +959,15 @@ struct SiteShots {
         if let i = args.firstIndex(of: "--language"), i + 1 < args.count {
             only = args[i + 1]; args.removeSubrange(i...(i + 1))
         }
-        guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "readme"].contains(command) else {
-            print("usage: site-shots check|update|audit [names…]|tree <name>|coverage|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
+        guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "readme", "record"].contains(command) else {
+            print("usage: site-shots check|update|audit [names…]|tree <name>|record <names…>|coverage|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
             exit(2)
         }
         let names = Set(args.dropFirst())
+        if command == "record", names.isEmpty {
+            print("record: name the windows whose marks changed; recording every tree would hide a real change")
+            exit(2)
+        }
         let repoAssets = try? JSONDecoder().decode(RepoAssets.self, from: Data(contentsOf: repo.appendingPathComponent(repoAssetsPath)))
 
         // Files only, so first, before anything that needs the app.
@@ -1067,6 +1082,16 @@ struct SiteShots {
                 // A costly shot follows its base window: retaken only when the
                 // base's tree differs from the one it was last taken with.
                 var baseTree: [String]?
+                if let base = shot.when, command == "record" {
+                    // Can't be read without taking it (a speed test): record
+                    // only that it was taken with the base window as it reads
+                    // now, so a new mark there doesn't retake it.
+                    guard let now = current[base] else { print("\(shot.name): name \(base) too, to record its base"); continue }
+                    try (now.joined(separator: "\n") + "\n").write(
+                        to: trees.appendingPathComponent("\(shot.name).base.txt"), atomically: true, encoding: .utf8)
+                    print("\(shot.name): recorded \(base) as it was taken with")
+                    continue
+                }
                 if let base = shot.when {
                     let baseFile = trees.appendingPathComponent("\(shot.name).base.txt")
                     let taken = (try? String(contentsOf: baseFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
@@ -1128,6 +1153,10 @@ struct SiteShots {
                 let treeFile = trees.appendingPathComponent("\(shot.name).txt")
                 let before = (try? String(contentsOf: treeFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
                 let differs = before != now
+                if command == "record" {
+                    try record(shot, now: now, before: before, handMade: handMade[shot.name] ?? [], trees: trees)
+                    continue
+                }
                 if let before, differs {
                     print("\(shot.name): the interface changed")
                     diff(before, now).prefix(40).forEach { print($0) }
@@ -1214,7 +1243,33 @@ struct SiteShots {
             for p in problems where seen.insert(p).inserted { print("  " + p) }
         }
         if !failed.isEmpty { return 2 }
+        if command == "record" { return 0 }
         if command == "audit" { return problems.isEmpty ? 0 : 1 }
         return command == "check" && !(changed.isEmpty && flagged.isEmpty) ? 1 : 0
+    }
+
+    /// Records a window's tree as it reads now, without retaking its picture
+    /// (#416): for after a mark in the manifest changed what's data or left
+    /// out, such as the Mac's connection. The diff it prints should be only
+    /// what the new marks cover. A reminder to remake what's made by hand
+    /// stays: the tree each was made from is updated only if it was the
+    /// window's tree, and a window that only flags videos keeps its old tree
+    /// while they're waiting to be remade.
+    static func record(_ shot: Shot, now: [String], before: [String]?, handMade: [String], trees: URL) throws {
+        let treeFile = trees.appendingPathComponent("\(shot.name).txt")
+        let madeFile = trees.appendingPathComponent("\(shot.name).made.txt")
+        if shot.file == nil, !handMade.isEmpty, let before, before != now {
+            print("\(shot.name): kept, as what's made from it is waiting to be remade (\(handMade.joined(separator: ", ")))")
+            return
+        }
+        if let before, before == now { print("\(shot.name): unchanged"); return }
+        print("\(shot.name): recorded" + (before == nil ? "" : ", as it reads now:"))
+        if let before { diff(before, now).prefix(40).forEach { print($0) } }
+        let text = now.joined(separator: "\n") + "\n"
+        if let made = (try? String(contentsOf: madeFile, encoding: .utf8))?.split(separator: "\n").map(String.init),
+           made == before {
+            try text.write(to: madeFile, atomically: true, encoding: .utf8)
+        }
+        try text.write(to: treeFile, atomically: true, encoding: .utf8)
     }
 }
