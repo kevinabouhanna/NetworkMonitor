@@ -639,6 +639,7 @@ A development build reads a few launch arguments for that run only; nothing pers
 |---|---|
 | `-powerProfile balanced` (or `performance`, `saver`) | measures a power profile without unplugging (below) |
 | `-open history` (or `connections`, `ads`, `network`), `-open ads -tab log` (or `rules`, `lists`, in its settings), `-open welcome`, `-open popover`, `-open about`, `-open settings`, `-open settings -pane history` (a section's settings; `hotspot` opens Network, `speedTest` Network's settings) | opens a window straight away, for a screenshot or a check |
+| `-background YES`, with `-open` | opens the window behind every other one and doesn't activate the app, so a check never takes focus (#475; `site-shots check`, `audit` and `tree` pass it). The popover still activates the app |
 | `-open popover -popoverScreen retina` | opens the popover on a Retina screen's menu bar rather than the main screen's, for a full-resolution capture (#360) |
 | `-geoDataURL http://127.0.0.1:PORT/ -geoDataCheckNow YES` | fetches the monthly data from a local package, at once (#121) |
 | `-updateFeedURL http://127.0.0.1:PORT/appcast.xml -checkForUpdatesNow YES` | checks a local appcast for an update, at once (#132) |
@@ -661,14 +662,14 @@ Measure a power profile without unplugging, using a launch argument that's read 
 that run:
 
 ```sh
-open -n build/NetworkMonitor.app --args -powerProfile balanced   # or performance, saver
+open -g -n build/NetworkMonitor.app --args -powerProfile balanced   # or performance, saver
 ```
 
 Open a window straight away, for a screenshot or a quick check, the same way:
 
 ```sh
-open -n build/NetworkMonitor.app --args -open connections
-open -n build/NetworkMonitor.app --args -open settings -pane history   # any section's settings
+open -g -n build/NetworkMonitor.app --args -open connections
+open -g -n build/NetworkMonitor.app --args -open settings -pane history   # any section's settings
 ```
 
 Then time the CPU of the app and its `nettop` child with `ps -o time=` over a couple of

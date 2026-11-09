@@ -182,6 +182,11 @@ release of its own:
   for how long. Hold a lane only while you touch the Mac, never while building or
   notarizing. Never hand Mac work to launchd, `nohup` or `at` to run after your session.
   Other apps' lanes (`home-control`…) don't wait on ours.
+- **Stay off Kevin's two screens (#475).** Open the app with `open -g`, never a plain
+  `open`, and pass `-background YES` with `-open` when only the accessibility tree is
+  needed. Anything that brings a window forward or moves the real pointer waits until
+  he steps away: `make site-shots` does (`MAC_LANE_IDLE=90`: no keyboard or mouse for
+  90 s, or the screen locked); for your own, take `screen` with `MAC_LANE_IDLE=90`.
 - **Computer use has its own lock, held until the session exits.** Check windows
   with the accessibility tree (`make site-check`, `build/site-shots tree <name>`)
   first. Use computer use only for what that can't show, from a short session that

@@ -876,6 +876,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// an accessory app, frontmost and key through the same reveal as a
     /// regular one.
     private func present(_ window: NSWindow, reposition: Bool = true) {
+        // `-background YES` (#475): a check that only reads the window's
+        // accessibility tree opens it behind every other window, and the app
+        // stays an accessory app that never takes focus.
+        if UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)["background"] != nil {
+            if reposition { position(window) }
+            window.orderBack(nil)
+            return
+        }
         NSApp.mainMenu = mainMenu
         NSApp.setActivationPolicy(.regular)
 

@@ -538,10 +538,38 @@ func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = []) -> [
     return out
 }
 
+// MARK: - Kevin's screens
+
+/// When this run last clicked with the real pointer: that click counts as input.
+nonisolated(unsafe) var lastOwnInput: Date?
+
+/// Seconds since anyone used the keyboard or mouse; infinite while the screen is locked.
+func secondsIdle() -> Double {
+    if let session = CGSessionCopyCurrentDictionary() as? [String: Any],
+       session["CGSSessionScreenIsLocked"] as? Bool == true { return .infinity }
+    let idle = CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
+    // No input since this run's own click, which it made only while Kevin was away.
+    if let last = lastOwnInput, idle >= Date().timeIntervalSince(last) - 1 { return .infinity }
+    return idle
+}
+
+/// Waits until Kevin has stepped away (#475) before taking focus or moving the
+/// pointer: MAC_LANE_IDLE seconds (90) with no keyboard or mouse, or the screen
+/// locked. MAC_LANE_IDLE=0 doesn't wait.
+func awaitAway(_ what: String) {
+    let need = Double(ProcessInfo.processInfo.environment["MAC_LANE_IDLE"] ?? "") ?? 90
+    guard need > 0, secondsIdle() < need else { return }
+    print("  waiting until the keyboard and mouse have been idle \(Int(need))s, to \(what)")
+    while secondsIdle() < need { sleep(5) }
+}
+
 // MARK: - The app
 
 struct Session {
     let manifest: Manifest
+    /// Opens windows behind the others without activating the app
+    /// (`-background YES`, #475), for commands that only read the tree.
+    var background = false
 
     var running: NSRunningApplication? {
         NSRunningApplication.runningApplications(withBundleIdentifier: manifest.bundle).first
@@ -561,7 +589,8 @@ struct Session {
         for attempt in 1...3 {
             let open = Process()
             open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            open.arguments = ["-a", manifest.app, "--args"] + arguments
+            // -g: never brings the app forward by itself (#475).
+            open.arguments = ["-g", "-a", manifest.app, "--args"] + arguments + (background ? ["-background", "YES"] : [])
             try open.run()
             open.waitUntilExit()
             for _ in 0..<40 where running == nil { usleep(250_000) }
@@ -588,6 +617,7 @@ struct Session {
     }
 
     func bringForward(_ window: AXUIElement) {
+        awaitAway("bring a window forward")
         guard let app = running else { return }
         let ax = AXUIElementCreateApplication(app.processIdentifier)
         for _ in 0..<3 {
@@ -623,6 +653,7 @@ struct Session {
                 CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
                 usleep(60_000)
             }
+            lastOwnInput = Date()
             if let saved { CGWarpMouseCursorPosition(saved) }
             usleep(1_200_000)
             if before == nil || text(element, kAXValueAttribute) != before { return }
@@ -1356,7 +1387,9 @@ struct SiteShots {
             guard AXIsProcessTrusted() else { throw Failure("give this terminal Accessibility in System Settings › Privacy & Security") }
             var manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
             if let app { manifest.app = app }
-            let session = Session(manifest: manifest)
+            var session = Session(manifest: manifest)
+            // Reading the tree needs no focus; a picture shows the window active.
+            session.background = ["check", "tree", "audit"].contains(command)
             let wasRunning = session.running != nil
             var status: Int32 = 0
             // English, then each language's page with the same shots in it.
