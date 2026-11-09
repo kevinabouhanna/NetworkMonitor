@@ -1,0 +1,1 @@
+AXMenuBarItem (AXMenuExtra) description="NetworkMonitor" value="下载 # ‹unit›，上传 # ‹unit›" 84x24
