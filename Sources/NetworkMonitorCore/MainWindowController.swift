@@ -506,7 +506,7 @@ struct MainSidebar: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 // ↑ and ↓ move through the sections, as in a sidebar list.
-                .focusable()
+                .keyboardFocusable()
                 .onMoveCommand { direction in
                     let all = MainSection.allCases
                     guard let index = all.firstIndex(of: navigation.section) else { return }
