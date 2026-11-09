@@ -353,6 +353,17 @@ with the picture (`shots/trees/<name>.txt`), the interface changed, and the diff
 New numbers, a longer list or a switch turned off change nothing. Because the check reads
 the tree rather than looking at the picture, it costs nothing to run and never tires.
 
+**The look too** (#423). A change only to how something looks (a colour, an icon,
+spacing, a font) leaves the tree the same, so each picture also keeps its look:
+`shots/trees/<name>.look`, a thumbnail 64 cells across of the picture's average colour,
+four bits a channel. Cells over anything the tree masks (data regions, a number, a
+setting's value, an ignored line) are left out (`---`). `site-check` takes a fresh
+capture, masks it the same way, and names the windows where more than
+`Look.threshold` cells differ by more than one level in a channel, or whose size
+changed. `update` retakes those too, and keeps each new picture's look; `make
+site-trees` keeps the look from the picture as it is, without retaking it.
+LOOK_TUNING
+
 ```sh
 make site-check                         # what changed; exits 1 if anything did
 make site-shots                         # retake what changed, update index.html
