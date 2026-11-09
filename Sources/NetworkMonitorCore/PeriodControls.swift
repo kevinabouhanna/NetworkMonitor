@@ -59,7 +59,7 @@ struct PeriodHeading: View {
             .font(.system(size: 13))
         }
     }
-
+}
 
 /// ‹ Today ›, as Calendar has it, with ⌘← and ⌘→.
 struct PeriodStepper: View {
