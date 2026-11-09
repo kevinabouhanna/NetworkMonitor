@@ -5,8 +5,8 @@ numbers, with their setup behind a gear. Tracked in #437. This file is the recor
 the app looked like, what was planned and done, where ideas came from, what was decided
 and by whom, and what's left.
 
-**Status (2026-11-09):** Phases 0–2 are done. **Waiting on Kevin's review of round 3 of the
-plan (Phase 3, decisions D6 and D7)** on the comparison page:
+**Status (2026-11-09):** Phases 0–2 are done. **Waiting on Kevin's go-ahead on the final
+plan (Phase 3, decisions D6–D8)** on the comparison page:
 https://claude.ai/artifact/GooXLRsHfm6a6CRRTsNu92 (private to Kevin). Nothing merges or
 releases until Kevin has reviewed it: both pull requests are drafts.
 
@@ -198,6 +198,13 @@ Superlist, all marketing pages with nothing to say about an app's stats or setti
 
 | D7 | **Round 3** (builds on D6). The popover's header becomes **four numbers that are the buttons**: Today (the apps, as now, and where it opens), Companies, Blocked and This week. Each shows its summary in place, ending with *Open Connections ⌘K*, *Open Ads and Trackers ⌘B* or *Open Usage History ⌘Y*. The network and the speed test (with its last result) share a slim line above; *Settings…* is named at the bottom. Settings panes follow the popover's order: General, Connections, Ads, History, Speed Test, Hotspot, About; each window's gear opens its own pane, *Settings…* the last one used | A slim header with a tab bar (Apps, Connections, Blocked, History): plainer, one number | **Waiting on Kevin's review**, 2026-11-09 |
 
+| D8 | **Final round** (changes D7). The four numbers are **Today, Companies, Blocked, Hotspot**; This week goes. Today ends with *Open Usage History ⌘Y*. Hotspot's summary is one big switch, *Stop apps updating on hotspots*, and a sentence on what it's doing now, then *Hotspot Settings*. The chosen number looks raised in neutral grey, with no coloured line; each number keeps one colour: blue for data, teal for companies, red for blocked. The speed test is an icon right after the network's name. Settings panes: General, History, Connections, Ads, Hotspot, Speed Test, About | — | **Waiting on Kevin's go-ahead**, 2026-11-09 |
+
+**Final round (Kevin, 2026-11-09).** History had no way in from the popover once This
+week was a summary, and This week sat oddly beside three things about today. The blue
+line under the chosen number used a statistic's colour for a state; companies needed a
+colour of their own; and the speed test deserved a clearer place than a pill.
+
 **Round 3 (Kevin, 2026-11-09).** Kevin liked the gear and the windows, and asked for the
 popover to load each place's summary in place, as it does for apps, with a way to the
 full picture from there; and found the header too big, with empty space beside the
@@ -304,7 +311,7 @@ Beyond what the tools suggested. **Review these separately.**
 
 For Kevin, on the comparison page:
 
-1. **The plan, round 3 (D6 and D7):** go ahead and build it, or change something?
+1. **The final plan (D6, D7 and D8):** go ahead and build it, or change something?
 
 Smaller ones, with what happens if there's no answer:
 
