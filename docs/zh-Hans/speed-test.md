@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="../../Resources/README/zh-Hans/speed-test.png" width="320"
-       alt="网速测试完成后的弹出窗口：一个表盘，中央显示下载速度；通过以太网下载 2.00 MB/s、上传 3.63 MB/s，使用了 105.4 MB；延迟 40.6 ms，抖动 0.7 ms，下载时的延迟 40.4 ms，上传时的延迟 40.3 ms；“返回应用”和“再测一次”按钮。">
+       alt="网速测试完成后弹出窗口中的“网络”视图，上方是“今天”、“周”、“月”和四个数字：中央显示下载速度的表盘，下载和上传速度、网络、测试用了多少流量以及测试时间，然后是延迟、抖动、下载时的延迟和上传时的延迟；“返回”和“再测一次”按钮。">
 </p>
 
 点按弹出窗口“网络”视图中的 <strong>测试网速</strong>，从右键菜单中选择 <strong>测试网速</strong>，或者点按主窗口 <strong>网络</strong> 页面上的 <strong>立即测试</strong>。它测试的是你正在使用的连接。NetworkMonitor 会运行 `networkQuality`，这是 Apple 自 Monterey 起随每台 Mac 附带的网速测试工具，测试对象是离你最近的 Apple 服务器。
