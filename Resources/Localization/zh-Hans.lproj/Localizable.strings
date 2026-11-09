@@ -61,25 +61,11 @@
 "let through" = "已放行";
 
 /* AdsSettingsPane.swift */
-"Ads, trackers and malware sites stopped in every app, and what was stopped, when and where." = "在所有应用中拦截广告、跟踪器和恶意软件网站，并查看拦截了什么、何时以及在哪里。";
 "Open Ads and Trackers…" = "打开广告与跟踪器…";
-"Also ⌘B, and the blocked-today line in the popover" = "也可按 ⌘B，或点按弹出窗口中“今天已拦截”那一行";
 "Ad blocking needs the content filter, which this build of NetworkMonitor doesn't have." = "广告拦截需要内容过滤器，但此版本的 NetworkMonitor 没有内容过滤器。";
 "Block ads and trackers" = "拦截广告和跟踪器";
-"Blocked today" = "今天已拦截";
-"Update them weekly" = "每周更新列表";
 "Lists" = "列表";
-"More lists" = "更多列表";
-"Choose…" = "选择…";
-"HaGeZi, OISD, AdGuard's and others, or any list by its address" = "HaGeZi、OISD、AdGuard 等列表，或按地址添加任意列表";
-"Your rules" = "你的规则";
-"Edit…" = "编辑…";
-"Never block a site, always block one, or leave an app alone; import from uBlock Origin or AdGuard" = "永不阻止某个网站、始终阻止某个网站，或不过滤某个应用；可从 uBlock Origin 或 AdGuard 导入";
-"Yours" = "自定义";
 "Recommended" = "推荐";
-"None" = "无";
-"%@ chosen by you" = "你选择了 %@ 个";
-"%@ · %@ sites" = "%@ · %@ 个网站";
 "Lists: StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC0)." = "列表：StevenBlack 的 hosts（MIT）和 malware-filter 的 URLhaus（CC0）。";
 "Lists from %@: StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC0)." = "列表更新于 %@：StevenBlack 的 hosts（MIT）和 malware-filter 的 URLhaus（CC0）。";
 "Connections to sites on these lists are blocked in every app, after your own rules: Always Allow on a site in Connections lets it through. Allowing an app or a company lets it connect, and its ads are still blocked. Ads served from a site's own servers, like YouTube's, can't be told apart from the site, so they aren't blocked." = "在所有应用中，连接这些列表上网站的连接都会被拦截，但你自己的规则优先：在“连接”中对某个网站设为“始终允许”就会放行它。允许某个应用或公司后，它可以连接，但它的广告仍会被拦截。由网站自己的服务器提供的广告（例如 YouTube 的广告）无法与网站本身区分开，因此不会被拦截。";
@@ -87,7 +73,6 @@
 
 /* AdsView.swift */
 "View" = "视图";
-"What was blocked, every connection as it's decided, the lists, and your rules" = "拦截了什么、每个连接在作出决定时的情况、列表，以及你的规则";
 "Sites" = "网站";
 "Never Block %@" = "永不阻止 %@";
 "Apps" = "应用";
@@ -354,9 +339,7 @@
 "Also %@ and %@ more" = "也称 %@ 及另外 %@ 个名称";
 
 /* ConnectionsSettingsPane.swift */
-"Which companies, countries and servers your apps talk to, on a list and a world map." = "以列表和世界地图显示你的应用与哪些公司、国家或地区以及服务器通信。";
 "Open Connections…" = "打开“连接”…";
-"Also ⌘K, and the globe in the popover" = "也可以按 ⌘K，或点按弹出窗口中的地球图标";
 "Opens with" = "打开时显示";
 "Countries and networks" = "国家或地区与网络";
 "Update them monthly" = "每月更新";
@@ -577,15 +560,11 @@
 "up to %@" = "最多 %@";
 "%@ is updating" = "%@ 正在更新";
 "%@ updates got through · %@" = "%@ 个更新未能暂停 · %@";
-"Total" = "总计";
 "Downloaded over this connection anyway. Settings › Hotspot lists what NetworkMonitor can't stop." = "仍通过此连接下载了。“设置 › 热点”列出了 NetworkMonitor 无法阻止的项目。";
 "Everything is blocked" = "已全部阻止";
 "Turn Off" = "关闭";
 "Block Everything is on: every app's new connections stop, apart from looking up names, the clock and your own network" = "“全部阻止”已打开：所有应用的新连接都会被阻止，域名查询、时间同步和你自己的网络除外";
 "Open Ads and Trackers to resume" = "打开“广告与跟踪器”以继续";
-"%@ ads blocked today" = "今天已拦截 %@ 次";
-"Ads and trackers blocked today. See what was blocked, and where" = "今天拦截的广告和跟踪器。查看拦截了什么，以及在哪里拦截的";
-"%@ ads and trackers blocked today" = "今天已拦截 %@ 次";
 "Per-app figures paused" = "按应用统计已暂停";
 "macOS's nettop isn't reporting per-app figures (%@). The total is still counted, and NetworkMonitor keeps trying." = "macOS 的 nettop 没有报告按应用的数据（%@）。总量仍在统计，NetworkMonitor 会继续尝试。";
 "Settings" = "设置";
@@ -840,3 +819,52 @@
 
 /* WelcomeWindowController.swift */
 "Welcome to NetworkMonitor" = "欢迎使用 NetworkMonitor";
+
+/* The popover's four buttons, the windows' gears and Settings' status lines (#436). */
+"%@ companies today" = "今天 %@ 个公司";
+"%@ connections blocked" = "已阻止 %@ 个连接";
+"%@ used today" = "今天已用 %@";
+"1 company today" = "今天 1 个公司";
+"1 connection blocked" = "已阻止 1 个连接";
+"Ad blocking isn't in this build" = "此版本不含广告拦截";
+"Ads blocked" = "已拦截";
+"Ads, trackers and malware sites blocked today" = "今天拦截的广告、跟踪器和恶意软件网站";
+"Ads, trackers and malware sites stopped in every app" = "在所有应用中拦截广告、跟踪器和恶意软件网站";
+"Also ⌘B" = "也可按 ⌘B";
+"Also ⌘K, and Companies in the popover" = "也可按 ⌘K，或点按弹出窗口中的“公司”";
+"Also ⌘Y" = "也可按 ⌘Y";
+"Apps, networks or each visit to a network. A row narrows the window to it." = "应用、网络或每个连接时段。点按一行即可只看这一项。";
+"Connection" = "连接方式";
+"Connections are counted while NetworkMonitor is running." = "NetworkMonitor 运行时会统计连接。";
+"Data used today, by app" = "今天各应用使用的数据量";
+"Every hour is kept on this Mac, per app and per network" = "每小时的数据都按应用和网络保存在这台 Mac 上";
+"Every hour is kept on this Mac, per app and per network." = "每小时的数据都按应用和网络保存在这台 Mac 上。";
+"Hotspot Settings" = "热点设置";
+"It needs the content filter, which only the signed app has." = "它需要内容过滤器，只有已签名的 App 才有。";
+"Marked by you for this network." = "已由你为此网络标记。";
+"No connections yet today" = "今天还没有连接";
+"Nothing blocked yet today" = "今天还没有拦截任何内容";
+"Off" = "已关闭";
+"Offline" = "离线";
+"Open Ads and Trackers" = "打开广告与跟踪器";
+"Open Connections" = "打开“连接”";
+"Open Usage History" = "打开流量历史";
+"Open Usage History…" = "打开流量历史…";
+"Pauses app updates and iCloud downloads while you're on this network." = "连接此网络时，暂停应用更新和 iCloud 下载。";
+"Reading today…" = "正在读取今天的数据…";
+"Settings (⌘,)" = "设置（⌘,）";
+"Settings for Connections" = "“连接”的设置";
+"Settings for Usage History" = "流量历史的设置";
+"Settings for ads and trackers: the lists and your rules" = "广告与跟踪器的设置：列表和你的规则";
+"Sites the lists stop show here, busiest first." = "列表拦截的网站会显示在这里，次数最多的在前。";
+"Stopping app updates on hotspots is off in Hotspot Settings." = "“停止热点下的应用更新”已在热点设置中关闭。";
+"Switch it on below to stop ads, trackers and malware sites in every app." = "在下方打开它，即可在所有应用中拦截广告、跟踪器和恶意软件网站。";
+"This is a hotspot" = "这是热点";
+"Today · %@" = "今天 · %@";
+"Today · by site" = "今天 · 按网站";
+"Update the lists weekly" = "每周更新列表";
+"Usage History never leaves this Mac. Clearing it can't be undone." = "流量历史不会离开这台 Mac。清除后无法撤销。";
+"What the Mac is connected to, and whether it's a hotspot" = "这台 Mac 连接的网络，以及它是否是热点";
+"What was blocked, and every connection as it's decided" = "拦截了什么，以及每个连接在作出决定时的情况";
+"Which companies, countries and servers your apps talk to, on a list and a world map" = "以列表和世界地图显示你的应用与哪些公司、国家或地区以及服务器通信";
+"Who your apps talked to today" = "今天你的应用与谁通信";

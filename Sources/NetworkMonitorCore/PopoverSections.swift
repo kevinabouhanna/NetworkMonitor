@@ -47,7 +47,7 @@ struct PopoverButtons: View {
                    help: L("Data used today, by app"))
             button(.companies, value: companies, label: L("Companies"), color: PopoverPalette.companies,
                    help: L("Who your apps talked to today"))
-            button(.blocked, value: blocked, label: L("Blocked"),
+            button(.blocked, value: blocked, label: L("Ads blocked"),
                    color: blockedIsOn ? PopoverPalette.blocked : .primary,
                    help: L("Ads, trackers and malware sites blocked today"))
             button(.connection, value: connection, label: L("Connection"),
@@ -73,9 +73,10 @@ struct PopoverButtons: View {
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 7)
+            .padding(.horizontal, 5)
             .padding(.vertical, 5)
             .background {
                 if chosen {

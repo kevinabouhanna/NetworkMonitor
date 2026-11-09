@@ -244,9 +244,11 @@ func makeWorld(_ scenario: Scenario, filter: FilterController.State) -> World {
         // Stopping updates on hotspots is on, as for most people who set it up.
         metering.isEnabled = true
         // Today's apps, for the popover's list.
-        let elapsed = max(1, Double(calendar.component(.hour, from: now)))
+        // One more hour's worth, so the store's own hour doesn't stand out
+        // in History's chart.
+        let level = activity(calendar.component(.hour, from: now), 0)
         let entries = talkers.map { talker -> (identity: AppIdentity, bytesIn: Int64, bytesOut: Int64) in
-            let bytes = talker.megabytesPerHour * 0.6 * elapsed * 1_000_000
+            let bytes = talker.megabytesPerHour * level * 1_000_000
             return (talker.app, Int64(bytes * 0.92), Int64(bytes * 0.08))
         }
         store.recordApps(entries, now: now)
@@ -406,6 +408,41 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     }
     historyWindow.windowWillClose()
     historyWindow.window.orderOut(nil)
+}
+
+/// The narrowest each window can be with every toolbar item showing (#315):
+/// shrunk a point at a time until AppKit starts moving items into the »
+/// overflow. `--measure` prints them; the windows' minimum widths must be
+/// at least these.
+func measureToolbars(_ world: World) {
+    let windows: [(String, NSWindow)] = [
+        ("Connections", ConnectionsWindowController(model: world.connections).window),
+        ("Ads and Trackers", AdsWindowController(model: world.ads).window),
+        ("Usage History", HistoryWindowController(model: world.historyModel).window),
+    ]
+    for (name, window) in windows {
+        window.contentMinSize = NSSize(width: 300, height: 300)
+        show(window, appearance: .darkAqua, settle: 0.6)
+        var width: CGFloat = 1400
+        var fits = width
+        while width >= 300 {
+            window.setContentSize(NSSize(width: width, height: 700))
+            window.layoutIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+            let items = window.toolbar?.items.filter { ![.flexibleSpace, .space].contains($0.itemIdentifier) } ?? []
+            let visible = window.toolbar?.visibleItems?.filter { ![.flexibleSpace, .space].contains($0.itemIdentifier) } ?? []
+            if visible.count < items.count { break }
+            fits = width
+            width -= 2
+        }
+        print("\(name): toolbar fits from \(Int(fits)) pt")
+        window.orderOut(nil)
+    }
+}
+
+if arguments.contains("--measure") {
+    measureToolbars(makeWorld(.full, filter: .on))
+    exit(0)
 }
 
 if #available(macOS 14.0, *) {
