@@ -835,7 +835,9 @@ enum Coverage {
     }
 
     /// What's wrong, one line each; empty when every asset is accounted for.
-    static func problems(manifest: Manifest, site: URL, repoAssets: RepoAssets?, repo: URL?) throws -> (problems: [String], summary: String) {
+    /// The site's come first, fixed on `gh-pages`; from `onMain` on, the
+    /// README's and the docs', fixed on `main` (#426).
+    static func problems(manifest: Manifest, site: URL, repoAssets: RepoAssets?, repo: URL?) throws -> (problems: [String], onMain: Int, summary: String) {
         var problems: [String] = []
         let shotNames = Set(manifest.shots.map(\.name))
 
@@ -850,7 +852,8 @@ enum Coverage {
                     problems.append("\(file) in \(listName) needs either `shows` (the windows it shows) or `none` (why it shows none), not both")
                 }
                 for name in shows where !shotNames.contains(name) {
-                    problems.append("\(file) in \(listName) shows \"\(name)\", which isn't a shot in shots/shots.json")
+                    problems.append("\(file) in \(listName) shows \"\(name)\", which isn't a shot in shots/shots.json"
+                                    + (listName == repoAssetsPath ? renamedOnSite : ""))
                 }
                 if !FileManager.default.fileExists(atPath: root.appendingPathComponent(file).path) {
                     problems.append("\(file) is listed in \(listName) but doesn't exist")
@@ -885,6 +888,7 @@ enum Coverage {
         var summary = "\(siteUses.count) assets on the site"
 
         // The README and the docs.
+        let onMain = problems.count
         if let repo {
             let uses = try repoUses(repo)
             // A copy of a shot's picture is listed once, in English; each
@@ -893,7 +897,8 @@ enum Coverage {
             for asset in repoAssets?.assets ?? [] {
                 guard let name = asset.copy else { continue }
                 if manifest.shots.first(where: { $0.name == name })?.file == nil {
-                    problems.append("\(asset.file) in \(repoAssetsPath) is a copy of \"\(name)\", which isn't a shot with a picture in shots/shots.json")
+                    problems.append("\(asset.file) in \(repoAssetsPath) is a copy of \"\(name)\", which isn't a shot with a picture in shots/shots.json"
+                                    + renamedOnSite)
                 }
                 for language in manifest.languages ?? [] {
                     let file = repoFile(asset.file, in: language)
@@ -906,7 +911,37 @@ enum Coverage {
             checkList(repoAssets?.assets ?? [], root: repo, listName: repoAssetsPath, uses: uses, taken: copies)
             summary += " and \(uses.count) in the README and docs"
         }
-        return (problems, summary)
+        return (problems, onMain, summary)
+    }
+
+    /// A shot `main` names, gone from `gh-pages`: the usual cause is a change
+    /// there, so say where to follow it (#426).
+    static let renamedOnSite = " on gh-pages. If a change there renamed or removed it, change \(repoAssetsPath) on main to match"
+
+    /// Each branch's problems under its name, so a failure says which branch to
+    /// fix. `checking` is the branch the check runs for, from GitHub's
+    /// variables; where it's the other one, a note says the problems come from
+    /// across the branches (#426).
+    static func report(_ problems: [String], onMain: Int, checking: String?, head: String?) -> [String] {
+        let groups: [(branch: String, what: String, problems: ArraySlice<String>)] = [
+            ("gh-pages", "the site's pages and shots/shots.json", problems[..<onMain]),
+            ("main", "the README, the docs and \(repoAssetsPath)", problems[onMain...]),
+        ]
+        var lines: [String] = []
+        for group in groups where !group.problems.isEmpty {
+            lines.append("On \(group.branch) (\(group.what)), fixed in a pull request into \(group.branch):")
+            if let checking, checking != group.branch {
+                let this = head == nil ? "this push" : "this pull request"
+                let pair = group.branch == "gh-pages"
+                    ? "name that branch \(head ?? "<main's branch>")-site"
+                    : "name this branch after that one, with -site"
+                lines.append("  Not in \(this)'s files: \(group.branch) changed, or \(this) changes what \(group.branch) has to match. "
+                             + "Fix them in a pull request into \(group.branch). To land both at once, \(pair), and each is "
+                             + "checked against the other (docs/development.md#changing-both-branches).")
+            }
+            lines += group.problems.map { "  " + $0 }
+        }
+        return lines
     }
 }
 
@@ -968,7 +1003,12 @@ struct SiteShots {
                     exit(0)
                 }
                 print("coverage: every image, GIF and video a page uses must be listed, so a change to the window it shows can't leave it stale (#413):")
-                found.problems.forEach { print("  " + $0) }
+                // The branch a pull request goes into, or a push went to, on GitHub.
+                let env = ProcessInfo.processInfo.environment
+                let checking = [env["GITHUB_BASE_REF"], env["GITHUB_REF_NAME"]]
+                    .compactMap { $0 }.first { !$0.isEmpty }.flatMap { ["main", "gh-pages"].contains($0) ? $0 : nil }
+                let head = env["GITHUB_HEAD_REF"].flatMap { $0.isEmpty ? nil : $0 }
+                Coverage.report(found.problems, onMain: found.onMain, checking: checking, head: head).forEach { print($0) }
                 exit(1)
             } catch {
                 print("coverage: \(error)")

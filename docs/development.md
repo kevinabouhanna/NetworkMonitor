@@ -210,7 +210,9 @@ even in dark mode. The file name has no version, so
 must be green before a merge.
 
 - **`build-and-test`:** on a pull request, `make translation-check` first; then build,
-  `make test` (live tests skipped), `make asset-check`, `make app`, checks on the bundle
+  `make test` (live tests skipped), `make asset-check` (against `gh-pages`, or the
+  pull request's branch with `-site`:
+  [Changing both branches](#changing-both-branches)), `make app`, checks on the bundle
   (signature, plist, icon), and the smoke test.
 - **`universal`:** `make universal`, and checks that both architectures are there.
 
@@ -419,7 +421,8 @@ isn't one of these:
   bar strip, the disk image's window.
 
 It also fails on an entry that nothing uses, a file that doesn't exist, or a window that
-isn't a shot. CI runs it on every pull request into `main` and into `gh-pages`. So a new
+isn't a shot. CI runs it on every pull request into `main` and into `gh-pages`, and
+`gh-pages` takes nothing but a pull request that passes it (a ruleset, #426). So a new
 section's picture, or a GIF of a feature, can't merge without saying which window it
 shows:
 
@@ -452,6 +455,36 @@ Rewrite the alt text of any picture whose interface changed.
 - **Videos.** Real behaviour, like `live.mp4`, is a screen recording of the app. Designed
   videos, like the hero, are made with Hyperframes (`/hyperframes`) or `/brag`, which is
   built on it, or Remotion when it suits; all three are installed as Claude Code skills.
+
+#### Changing both branches
+
+The check spans both branches (#426). `main`'s CI reads `shots/shots.json` on `gh-pages`,
+and the site's `asset-check` builds `main`'s `site-shots` and reads
+`Resources/README/assets.json`. So a change on one branch can fail the other's check,
+on a pull request that touched neither. A failure lists its problems under the branch
+each is fixed on. Where that's the other branch, it says the problems came from there.
+
+**When it can go one branch at a time, go in order.** The side that defines something goes
+first, and removes it last:
+
+- **A new shot:** add it on `gh-pages`, then name it in `assets.json` on `main`.
+- **A shot renamed:** add the new name on `gh-pages`, then change `assets.json` on
+  `main`, then remove the old name.
+- **A shot removed:** take it out of `assets.json` on `main`, then out of `gh-pages`.
+
+**When neither order passes, change them together.** A change to what `site-shots`
+finds or requires is one: neither branch passes against the other's old copy. So the
+two branches are paired by name:
+
+1. Branch `main` as usual (`scanner-425`), and `gh-pages` with the same name and
+   `-site` (`scanner-425-site`). Each pull request's asset check then runs against the
+   other branch: `main`'s CI checks out `scanner-425-site` as the site, and the site's
+   check builds `site-shots` from `scanner-425`.
+2. Push both before opening the pull requests. After pushing to one, run the other's
+   check again (`gh run rerun`).
+3. Merge `main`'s pull request first, then the site's straight after. Its check has
+   already passed against `main`'s branch. Checks that run in between fail, `main`'s
+   own included: run them again once both are in.
 
 ## The wiki
 
