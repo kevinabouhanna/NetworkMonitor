@@ -378,7 +378,8 @@
       "shows": [
         "popover"
       ],
-      "made": "1.26.7"
+      "made": "1.26.7",
+      "stale": "#458"
     },
     {
       "file": "assets/live.mp4",
@@ -413,15 +414,14 @@
       "shows": [
         "popover"
       ],
-      "made": "1.4.1",
-      "stale": "#420"
+      "made": "1.28.1"
     },
     {
       "file": "assets/zh-Hans/social-card.png",
       "shows": [
         "popover"
       ],
-      "made": "1.27.0"
+      "made": "1.28.1"
     },
     {
       "file": "assets/menubar.png",
