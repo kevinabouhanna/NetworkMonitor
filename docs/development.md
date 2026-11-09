@@ -235,17 +235,26 @@ are kept apart differently:
   and `git checkout` or `git switch`, until the session has entered a worktree, and from
   then on Claude Code keeps the session out of the main checkout itself. Each worktree
   builds into its own `.build/` and `build/`.
-- **The Mac itself: one at a time, in the Mac lane.** A worktree doesn't keep apart the
-  one app in /Applications, its content filter and helper daemon, its settings (which a
-  development build shares), the pointer and the screen, or a `pkill` that stops every
-  copy of the app. `Scripts/mac-lane.sh` runs whatever touches those one at a time,
-  across every worktree and session: `install.sh`, `uninstall.sh`, `install-helper.sh`
-  and `smoke-test.sh` take it themselves, and so do `make run`, `make site-check` and
-  `make site-shots`. A second caller waits, and is told who holds the lane and since
-  when; the lock is the kernel's, so it goes when its holder dies.
-  `Scripts/mac-lane.sh status` says whether it's free. `install.sh` builds and notarizes
-  before taking the lane, so the lane is held only for stopping, copying and starting
-  the app.
+- **The Mac itself: one at a time, in Mac lanes (#342, #451).** A worktree doesn't keep
+  these apart:
+  - the one app in /Applications, its content filter and helper daemon;
+  - its settings (which a development build shares);
+  - a `pkill` that stops every copy of the app;
+  - the pointer and the screen.
+
+  `Scripts/mac-lane.sh` runs whatever touches those one at a time, across every worktree,
+  session and project, with one lane per shared part:
+  - **`networkmonitor`**: the app, filter, helper and settings. `install.sh`,
+    `uninstall.sh`, `install-helper.sh`, `smoke-test.sh`, `review-build.sh` and `make run`
+    take it themselves.
+  - **`screen`**: the pointer, screen captures and recordings. `make site-check` and
+    `make site-shots` take it as well as `networkmonitor`.
+
+  Other projects have their own app lanes (`home-control`), so a review build here
+  doesn't hold up their installs. A second caller waits, and is told who holds the lane
+  and for how long. The lock is the kernel's, so it goes when its holder dies.
+  `Scripts/mac-lane.sh status` lists every lane. `install.sh` builds and notarizes before
+  taking the lane, so the lane is held only for stopping, copying and starting the app.
 - **Ports.** Local test servers take a port the system picks (see
   [Launch arguments](#launch-arguments)).
 - **Overlaps.** [Worktrunk](https://worktrunk.dev)'s `wt list` (`brew install worktrunk`)
@@ -485,8 +494,8 @@ folder holding it prints `Serving HTTP on 127.0.0.1 port N`, and `N` is the `POR
 above (#342).
 
 A development build shares its settings and data with the installed app, so run it
-in the Mac lane (`Scripts/mac-lane.sh`, see [Working in parallel](#working-in-parallel)):
-`Scripts/mac-lane.sh open -W -n build/NetworkMonitor.app --args …` holds the lane
+in its Mac lane (`Scripts/mac-lane.sh`, see [Working in parallel](#working-in-parallel)):
+`MAC_LANE=networkmonitor Scripts/mac-lane.sh open -W -n build/NetworkMonitor.app --args …` holds the lane
 until that copy quits.
 
 ## Measuring power

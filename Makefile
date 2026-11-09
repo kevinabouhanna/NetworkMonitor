@@ -32,7 +32,7 @@ dmg: universal
 # Stops every running copy, the installed one too, so it waits its turn in the
 # Mac lane (#342) like everything else that uses the Mac as a whole.
 run: app
-	@./Scripts/mac-lane.sh /bin/sh -c 'pkill -f "NetworkMonitor.app/Contents/MacOS"; sleep 1; open build/NetworkMonitor.app'
+	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh /bin/sh -c 'pkill -f "NetworkMonitor.app/Contents/MacOS"; sleep 1; open build/NetworkMonitor.app'
 	@echo "Running — look for ↓/↑ in the menu bar. Right-click the item for the menu."
 
 # This branch's build in the menu bar instead of the installed app, for a
@@ -113,7 +113,7 @@ build/site-shots: Scripts/site-shots.swift Sources/NetworkMonitorCore/Accessibil
 
 site-check: build/site-shots
 	@build/site-shots coverage --site $(SITE)
-	@./Scripts/mac-lane.sh build/site-shots check --site $(SITE) $(NAMES)
+	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh env MAC_LANE=screen ./Scripts/mac-lane.sh build/site-shots check --site $(SITE) $(NAMES)
 
 # Every image, GIF and video the site, the README and the docs use is listed
 # with the window it shows, or why it shows none (#413). Files only, no app:
@@ -122,12 +122,12 @@ asset-check: build/site-shots
 	@build/site-shots coverage --site $(SITE)
 
 site-shots: build/site-shots
-	@./Scripts/mac-lane.sh build/site-shots update --site $(SITE) $(NAMES)
+	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh env MAC_LANE=screen ./Scripts/mac-lane.sh build/site-shots update --site $(SITE) $(NAMES)
 
 # The installed app's windows, with real data, against the tests' accessibility
 # rules (#346).
 site-audit: build/site-shots
-	@./Scripts/mac-lane.sh build/site-shots audit --site $(SITE) $(NAMES)
+	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh env MAC_LANE=screen ./Scripts/mac-lane.sh build/site-shots audit --site $(SITE) $(NAMES)
 
 # Pictures of every window from a made-up dataset, at 2x in light and dark,
 # for the design work (#437): no real connections, sites or rules, and no

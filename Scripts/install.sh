@@ -69,7 +69,7 @@ fi
 # app keeps running. From here on this uses the Mac as a whole, so it waits its
 # turn in the Mac lane (#342).
 . Scripts/mac-lane.sh
-MAC_LANE_WHAT="install.sh $*" mac_lane_enter
+MAC_LANE=networkmonitor MAC_LANE_WHAT="install.sh $*" mac_lane_enter
 
 echo "==> Stopping any running copy"
 # Older installs used a LaunchAgent; boot it out first so launchd does not

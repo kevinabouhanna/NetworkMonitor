@@ -16,7 +16,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . Scripts/mac-lane.sh
-mac_lane_enter
+MAC_LANE=networkmonitor MAC_LANE_WHAT="review-build.sh (until the review build is quit)" mac_lane_enter
 
 installed="/Applications/NetworkMonitor.app"
 build="build/NetworkMonitor.app"

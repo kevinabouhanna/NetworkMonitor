@@ -146,16 +146,21 @@ release of its own:
   `ObservableObject` instead; see `SettingsPaneState`.
 - **The real speed test uses 70–200 MB per run.** Test against the stand-in
   script in `SpeedTestTests` rather than running it again and again.
-- **The Mac lane: one at a time on the Mac itself.** Whatever uses the Mac as a
-  whole goes through `Scripts/mac-lane.sh`, one at a time across every worktree and
-  session. That covers the installed app, the filter, the helper, settings, the
-  pointer and screen, and `pkill`. The install, uninstall, helper and smoke-test
-  scripts and `make run`, `site-check` and `site-shots` take the lane themselves.
-  Launch a development build through it too:
-  `Scripts/mac-lane.sh open -W -n build/NetworkMonitor.app --args …` holds the lane
-  until that copy quits. A busy lane waits and names its holder. Run those commands
-  in the background so a wait can't time out. `Scripts/mac-lane.sh status` says
-  whether the lane is free.
+- **Mac lanes: one at a time per shared part of the Mac (#451).** `Scripts/mac-lane.sh`
+  runs work one at a time across every worktree, session and project, with a lane per part:
+  - `networkmonitor`: the installed app, the filter, the helper, settings, a development
+    build and `pkill`. The install, uninstall, helper, smoke-test and review-build scripts and
+    `make run` take it themselves. Launch a development build through it too:
+    `MAC_LANE=networkmonitor Scripts/mac-lane.sh open -W -n build/NetworkMonitor.app --args …`
+    holds the lane until that copy quits.
+  - `screen`: the pointer, screen captures and recordings. `make site-check` and
+    `site-shots` take both `screen` and `networkmonitor`.
+
+  A busy lane waits and names its holder. Run those commands in the background so a
+  wait can't time out. `Scripts/mac-lane.sh status` lists every lane, who holds it and
+  for how long. Hold a lane only while you touch the Mac, never while building or
+  notarizing. Never hand Mac work to launchd, `nohup` or `at` to run after your session.
+  Other apps' lanes (`home-control`…) don't wait on ours.
 - **Computer use has its own lock, held until the session exits.** Check windows
   with the accessibility tree (`make site-check`, `build/site-shots tree <name>`)
   first. Use computer use only for what that can't show, from a short session that
@@ -163,7 +168,7 @@ release of its own:
 - **Local test servers take a port the system picks**
   (`python3 -m http.server 0 --bind 127.0.0.1`), never a fixed one.
 - **Measure a power profile without unplugging:**
-  `Scripts/mac-lane.sh open -W -n build/NetworkMonitor.app --args -powerProfile balanced`
+  `MAC_LANE=networkmonitor Scripts/mac-lane.sh open -W -n build/NetworkMonitor.app --args -powerProfile balanced`
   (or `performance`, `saver`). Only launch arguments are read, so nothing persists.
   Time CPU with `ps -o time=` on the app and its `nettop` child, in the
   foreground: `top -l` hangs when run in the background.

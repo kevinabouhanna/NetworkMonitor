@@ -15,7 +15,7 @@ cd "$(dirname "$0")/.."
 
 # Uses the Mac as a whole, so it waits its turn in the Mac lane (#342).
 . Scripts/mac-lane.sh
-MAC_LANE_WHAT="uninstall.sh $*" mac_lane_enter
+MAC_LANE=networkmonitor MAC_LANE_WHAT="uninstall.sh $*" mac_lane_enter
 
 APP_NAME="NetworkMonitor"
 BUNDLE_ID="com.kevinabouhanna.NetworkMonitor"
