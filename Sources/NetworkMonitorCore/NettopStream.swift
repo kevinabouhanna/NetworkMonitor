@@ -35,7 +35,7 @@ public final class NettopStream {
     }
 
     private let executable: String
-    private let queue = DispatchQueue(label: "com.networkmonitor.nettop")
+    private let queue = DispatchQueue(label: "com.networkmonitor.nettop")  // untranslated: queue label
 
     private var process: Process?
     private var parser = NettopParser()
@@ -186,7 +186,7 @@ public final class NettopStream {
         stalls += 1
         let unreadable = bytesSinceDelivery > 0
         if unreadable || stalls > 1 {
-            onFailure?(unreadable ? "its output couldn't be read" : "it stopped reporting")
+            onFailure?(unreadable ? L("its output couldn't be read") : L("it stopped reporting"))
         }
         lastDelivery = Self.uptime()
         bytesSinceDelivery = 0
@@ -291,7 +291,7 @@ public final class NettopStream {
         // Retried like every other failure to launch, not given up on: a stream
         // that never comes back would stop the app list for the rest of the run.
         guard FileManager.default.isExecutableFile(atPath: executable) else {
-            onFailure?("nettop not found at \(executable)")
+            onFailure?(L("nettop not found at %@", executable))
             scheduleRestart()
             return
         }
@@ -302,7 +302,7 @@ public final class NettopStream {
         // for one far wider than any row nettop produces.
         var size = winsize(ws_row: 200, ws_col: 2000, ws_xpixel: 0, ws_ypixel: 0)
         guard openpty(&master, &slave, nil, nil, &size) == 0 else {
-            onFailure?("openpty failed: \(String(cString: strerror(errno)))")
+            onFailure?(L("openpty failed: %@", String(cString: strerror(errno))))
             scheduleRestart()
             return
         }
@@ -320,7 +320,7 @@ public final class NettopStream {
         var stdinFDs: [Int32] = [-1, -1]
         guard pipe(&stdinFDs) == 0 else {
             close(master); close(slave)
-            onFailure?("pipe failed: \(String(cString: strerror(errno)))")
+            onFailure?(L("pipe failed: %@", String(cString: strerror(errno))))
             scheduleRestart()
             return
         }
@@ -359,7 +359,7 @@ public final class NettopStream {
             close(slave)
             close(stdinFDs[0])
             teardown()
-            onFailure?("could not launch nettop: \(error.localizedDescription)")
+            onFailure?(L("could not launch nettop: %@", error.localizedDescription))
             scheduleRestart()
         }
     }

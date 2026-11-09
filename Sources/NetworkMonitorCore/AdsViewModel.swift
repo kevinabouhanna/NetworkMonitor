@@ -90,13 +90,36 @@ public struct AdsReport: Equatable {
     public static func listed(_ names: [String], shown: Int = 2) -> String? {
         guard !names.isEmpty else { return nil }
         let head = names.prefix(shown).joined(separator: ", ")
-        return names.count > shown ? "\(head) and \(names.count - shown) more" : head
+        return names.count > shown ? L("%@ and %@ more", head, String(names.count - shown)) : head
     }
 
     /// A list's name as people read it.
     public static func title(ofList id: String) -> String {
-        if id == BlockReason.ownList { return "Your Rules" }
-        return BlocklistTopic(rawValue: id)?.title ?? ListLibrary.title(of: id) ?? id
+        if id == BlockReason.ownList { return L("Your Rules") }
+        return BlocklistTopic(rawValue: id)?.shownTitle ?? ListLibrary.title(of: id) ?? id
+    }
+}
+
+extension BlocklistTopic {
+    /// `title` in the language shown: FirewallPolicy can't call `L` (#433).
+    var shownTitle: String {
+        switch self {
+        case .ads:     return L("Ads and trackers")
+        case .malware: return L("Malware and phishing")
+        }
+    }
+}
+
+extension AdRule {
+    /// `summary` in the language shown: FirewallPolicy can't call `L` (#433).
+    var shownSummary: String {
+        let app = appTitle ?? appKey.map { ($0 as NSString).lastPathComponent }
+        if skipsApp { return app.map { L("Don't filter %@", $0) } ?? L("Don't filter this app") }
+        let site = site ?? ""
+        if let app {
+            return kind == .neverBlock ? L("Never block %@ in %@", site, app) : L("Always block %@ in %@", site, app)
+        }
+        return kind == .neverBlock ? L("Never block %@", site) : L("Always block %@", site)
     }
 }
 
@@ -119,10 +142,10 @@ public final class AdsViewModel: ObservableObject {
         public var id: String { rawValue }
         public var label: String {
             switch self {
-            case .overview: return "Overview"
-            case .log:      return "Log"
-            case .lists:    return "Lists"
-            case .rules:    return "Rules"
+            case .overview: return L("Overview")
+            case .log:      return L("Log")
+            case .lists:    return L("Lists")
+            case .rules:    return L("Rules")
             }
         }
 
@@ -259,8 +282,8 @@ public final class AdsViewModel: ObservableObject {
     public func addSite(_ kind: AdRule.Kind) -> Bool {
         guard let site = AdRule.site(from: newSite) else {
             ruleError = newSite.trimmingCharacters(in: .whitespaces).isEmpty
-                ? "Type a site first, like example.com."
-                : "\"\(newSite)\" isn't a site name. Type one like example.com."
+                ? L("Type a site first, like example.com.")
+                : L("\"%@\" isn't a site name. Type one like example.com.", newSite)
             return false
         }
         firewall.add(AdRule(kind: kind, site: site, appKey: newSiteApp?.key, appTitle: newSiteApp?.name))
@@ -331,7 +354,7 @@ public final class AdsViewModel: ObservableObject {
             importError = nil
         } catch {
             importPreview = nil
-            importError = "That isn't a uBlock Origin backup, AdGuard's settings, or rules NetworkMonitor can read."
+            importError = L("That isn't a uBlock Origin backup, AdGuard's settings, or rules NetworkMonitor can read.")
         }
     }
 
@@ -437,8 +460,10 @@ public final class AdsViewModel: ObservableObject {
     public func shippedDetail(_ topic: BlocklistTopic) -> String {
         let lists = monitor.blocklists.lists
         let count = lists?.tables[topic]?.count ?? 0
-        let date = BlocklistUpdater.displayDate(lists?.version).map { ", from \($0)" } ?? ""
-        return "\(count.formatted()) sites\(date)"
+        guard let date = BlocklistUpdater.displayDate(lists?.version) else {
+            return L("%@ sites", count.formatted())
+        }
+        return L("%@ sites, from %@", count.formatted(), date)
     }
 
     public func setList(_ id: String, _ on: Bool) {
@@ -468,10 +493,10 @@ public final class AdsViewModel: ObservableObject {
             return true
         case .failure(.notAnAddress):
             listError = newListURL.trimmingCharacters(in: .whitespaces).isEmpty
-                ? "Paste a list's address first, starting https://."
-                : "That isn't a list's address. It needs to start https://."
+                ? L("Paste a list's address first, starting https://.")
+                : L("That isn't a list's address. It needs to start https://.")
         case .failure(.alreadyThere(let title)):
-            listError = "That list is here already, as \(title)."
+            listError = L("That list is here already, as %@.", title)
         }
         return false
     }
@@ -482,15 +507,18 @@ public final class AdsViewModel: ObservableObject {
 
     /// "219,320 sites, updated 6 Nov", what's under way, or why it isn't there.
     public func listDetail(_ id: String) -> (text: String, isProblem: Bool) {
-        if library.downloading.contains(id) { return ("Downloading…", false) }
+        if library.downloading.contains(id) { return (L("Downloading…"), false) }
         let status = library.status[id]
+        // The reason is kept in English with the list's status, and shown in
+        // the language shown.
+        let error = status?.error.map(ListLibrary.shownError)
         if let updated = status?.updated, let names = status?.names {
             let date = updated.formatted(.dateTime.day().month(.abbreviated))
-            if let error = status?.error { return ("\(names.formatted()) sites, from \(date). \(error)", true) }
-            return ("\(names.formatted()) sites, updated \(date)", false)
+            if let error { return (L("%@ sites, from %@. %@", names.formatted(), date, error), true) }
+            return (L("%@ sites, updated %@", names.formatted(), date), false)
         }
-        if let error = status?.error { return (error, true) }
-        return library.isEnabled(id) ? ("Not downloaded yet", false) : ("", false)
+        if let error { return (error, true) }
+        return library.isEnabled(id) ? (L("Not downloaded yet"), false) : ("", false)
     }
 
     public var firewall: FirewallRules { monitor.firewall }

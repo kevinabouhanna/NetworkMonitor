@@ -23,7 +23,7 @@ public struct ConnectionStatus: Equatable {
                             verdict: MeteredHeuristic.Verdict,
                             name: String?) -> ConnectionStatus {
         guard network.kind != .offline else {
-            return ConnectionStatus(line: "No connection", isHighlighted: false, medium: nil, kind: .offline)
+            return ConnectionStatus(line: L("No connection"), isHighlighted: false, medium: nil, kind: .offline)
         }
         let medium = medium(of: network)
         func joined(_ parts: String?...) -> String { parts.compactMap { $0 }.joined(separator: " · ") }
@@ -31,25 +31,25 @@ public struct ConnectionStatus: Equatable {
         switch verdict {
         case .constrained:
             // Low Data Mode is a statement about cost, not about a phone.
-            return ConnectionStatus(line: joined("Using \(medium)", name, "Low Data Mode"),
+            return ConnectionStatus(line: joined(L("Using %@", medium), name, L("Low Data Mode")),
                                     isHighlighted: true, medium: medium, kind: network.kind)
         case _ where verdict.isMetered:
             // A tether has no Wi-Fi name, and the interface is what names it.
             let tether = network.kind == .hotspot && network.interfaceDisplayName != "Wi-Fi"
                 ? network.interfaceDisplayName : nil
-            return ConnectionStatus(line: joined("Using hotspot", name ?? tether),
+            return ConnectionStatus(line: joined(L("Using hotspot"), name ?? tether),
                                     isHighlighted: true, medium: medium, kind: network.kind)
         default:
-            return ConnectionStatus(line: joined("Using \(medium)", name),
+            return ConnectionStatus(line: joined(L("Using %@", medium), name),
                                     isHighlighted: false, medium: medium, kind: network.kind)
         }
     }
 
     private static func medium(of network: NetworkFingerprint) -> String {
         switch network.kind {
-        case .ethernet: return "Ethernet"
-        case .wifi:     return "Wi-Fi"
-        default:        return network.interfaceDisplayName ?? "a network"
+        case .ethernet: return L("Ethernet")
+        case .wifi:     return L("Wi-Fi")
+        default:        return network.interfaceDisplayName ?? L("a network")
         }
     }
 }
@@ -70,30 +70,30 @@ public struct StandbyHotspot: Equatable {
     /// "Not using Kevin's iPhone", under "Using Ethernet". Short enough for
     /// one line in the popover's header, beside its buttons.
     public var message: String {
-        "Not using \(name ?? "the hotspot")"
+        name.map { L("Not using %@", $0) } ?? L("Not using the hotspot")
     }
 
     private var connected: String {
-        "\(name ?? "A hotspot") is connected, but isn't being used"
+        name.map { L("%@ is connected, but isn't being used", $0) } ?? L("A hotspot is connected, but isn't being used")
     }
 
     /// Why, and how to change it, behind the ⓘ.
     public func explanation(inUse connection: ConnectionStatus) -> String {
-        let move = "move \(service ?? "the hotspot") above \(connection.medium ?? "it") "
-            + "in Network settings › Set Service Order"
+        let move = L("move %@ above %@ in Network settings › Set Service Order",
+                     service ?? L("the hotspot"), connection.medium ?? L("it"))
         let how: String
         switch connection.kind {
-        case .ethernet: how = "unplug the cable, or \(move)"
-        case .wifi:     how = "disconnect from that Wi-Fi network, or \(move)"
+        case .ethernet: how = L("unplug the cable, or %@", move)
+        case .wifi:     how = L("disconnect from that Wi-Fi network, or %@", move)
         default:        how = move
         }
-        return "\(connected). Your Mac sends everything over the connection ranked highest in macOS, "
-            + "and that's \(connection.medium ?? "another connection"). To use the hotspot, \(how)."
+        return L("%@. Your Mac sends everything over the connection ranked highest in macOS, and that's %@. To use the hotspot, %@.",
+                 connected, connection.medium ?? L("another connection"), how)
     }
 
     /// Settings › Hotspot › Right now, which has room for the whole sentence.
     public func rightNow(inUse connection: ConnectionStatus) -> String {
-        "You're on \(connection.medium ?? "another connection"). \(connected)."
+        L("You're on %@. %@.", connection.medium ?? L("another connection"), connected)
     }
 }
 

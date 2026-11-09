@@ -26,7 +26,7 @@ public final class AskController: ObservableObject {
         public var label: String {
             switch self {
             case .site(let site):                  return site
-            case .company(_, let name, let isHost): return isHost ? "All of \(name)'s network" : "All of \(name)"
+            case .company(_, let name, let isHost): return isHost ? L("All of %@'s network", name) : L("All of %@", name)
             case .server(let address):             return address
             }
         }
@@ -104,13 +104,13 @@ public final class AskController: ObservableObject {
             if question.hostname != nil { detail.append(name) } else { detail.append(question.address) }
         case (let name?, true):
             // A host's name says whose computers, not whose service.
-            target = question.hostname ?? "a server on \(name)'s network"
-            detail.append(question.hostname == nil ? question.address : "on \(name)'s network")
+            target = question.hostname ?? L("a server on %@'s network", name)
+            detail.append(question.hostname == nil ? question.address : L("on %@'s network", name))
         case (nil, _):
             target = question.hostname ?? question.address
         }
         if let country { detail.append(country) }
-        if let port = question.port { detail.append("port \(port)") }
+        if let port = question.port { detail.append(L("port %@", String(port))) }
 
         var scopes: [Scope] = []
         if let hostname = question.hostname, let site = SiteName.normalized(hostname).map(SiteName.site(of:)) {
@@ -222,7 +222,7 @@ public final class AskController: ObservableObject {
         panel.becomesKeyOnlyIfNeeded = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
-        let host = NSHostingController(rootView: AskView(controller: self))
+        let host = NSHostingController(rootView: AskView(controller: self).localizedRoot())
         host.sizingOptions = [.preferredContentSize]
         panel.contentViewController = host
         panel.setContentSize(host.view.fittingSize)
@@ -257,7 +257,7 @@ struct AskView: View {
             HStack(alignment: .top, spacing: 12) {
                 icon(item)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("\(item.appName) wants to connect to \(item.target)")
+                    Text(L("%@ wants to connect to %@", item.appName, item.target))
                         .font(.system(size: 13, weight: .semibold))
                         .fixedSize(horizontal: false, vertical: true)
                     if !item.detail.isEmpty {
@@ -268,17 +268,17 @@ struct AskView: View {
                 }
             }
             if item.expired {
-                Text("Allowed, since there was no answer in 30 seconds. NetworkMonitor asks again in an hour.")
+                Text(L("Allowed, since there was no answer in 30 seconds. NetworkMonitor asks again in an hour."))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 choices(item)
                 HStack(spacing: 8) {
-                    Button("Block") { controller.answer(item, .block) }
-                        .help("Blocks it from now on, for \(item.appName)")
+                    Button(L("Block")) { controller.answer(item, .block) }
+                        .help(L("Blocks it from now on, for %@", item.appName))
                     Spacer(minLength: 8)
-                    Menu("Allow") {
-                        Button("Always Allow \(item.appName) Anywhere") { controller.answer(item, .allowAnywhere) }
+                    Menu(L("Allow")) {
+                        Button(L("Always Allow %@ Anywhere", item.appName)) { controller.answer(item, .allowAnywhere) }
                     } primaryAction: {
                         controller.answer(item, .allow)
                     }
@@ -296,8 +296,8 @@ struct AskView: View {
         VStack(alignment: .leading, spacing: 8) {
             if item.scopes.count > 1 {
                 HStack(spacing: 8) {
-                    Text("For").foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
-                    Picker("For", selection: $controller.scopeIndex) {
+                    Text(L("For")).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+                    Picker(L("For"), selection: $controller.scopeIndex) {
                         ForEach(item.scopes.indices, id: \.self) { Text(item.scopes[$0].label).tag($0) }
                     }
                     .pickerStyle(.segmented)
@@ -305,17 +305,17 @@ struct AskView: View {
                 }
             }
             HStack(spacing: 8) {
-                Text("Allow").foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
-                Picker("Allow", selection: $controller.lifetime) {
-                    Text("Once").tag(AskController.Lifetime.once)
+                Text(L("Allow")).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+                Picker(L("Allow"), selection: $controller.lifetime) {
+                    Text(L("Once")).tag(AskController.Lifetime.once)
                     if item.canLastUntilQuit {
-                        Text("Until It Quits").tag(AskController.Lifetime.untilQuit)
+                        Text(L("Until It Quits")).tag(AskController.Lifetime.untilQuit)
                     }
-                    Text("Always").tag(AskController.Lifetime.always)
+                    Text(L("Always")).tag(AskController.Lifetime.always)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .help("Once lets it connect and asks again in an hour")
+                .help(L("Once lets it connect and asks again in an hour"))
             }
         }
         .font(.system(size: 12))
@@ -326,7 +326,8 @@ struct AskView: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let seconds = max(0, Int(item.question.deadline.timeIntervalSince(context.date).rounded(.up)))
             let more = controller.items.count - 1
-            Text("Allowed in \(seconds) s if you don't answer" + (more > 0 ? " · \(more) more" : ""))
+            Text(more > 0 ? L("Allowed in %@ s if you don't answer · %@ more", String(seconds), String(more))
+                          : L("Allowed in %@ s if you don't answer", String(seconds)))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()

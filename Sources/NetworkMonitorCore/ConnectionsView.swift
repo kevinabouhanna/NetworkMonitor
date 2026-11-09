@@ -63,21 +63,20 @@ public struct ConnectionsView: View {
     /// (`ConnectionsWindowController`).
     private var scopeBar: some View {
         HStack(spacing: 10) {
-            LabelledControl("Group by") {
-                Picker("Group by", selection: Binding(get: { model.grouping }, set: { model.grouping = $0 })) {
+            LabelledControl(L("Group by")) {
+                Picker(L("Group by"), selection: Binding(get: { model.grouping }, set: { model.grouping = $0 })) {
                     ForEach(ConnectionsGrouping.allCases) { Text($0.label).tag($0) }
                 }
-                .help("Group the list by company, app or country. A row inside a group narrows "
-                      + "the window to it.")
+                .help(L("Group the list by company, app or country. A row inside a group narrows the window to it."))
             }
             // What was blocked (#114), once there's a filter to block anything.
             if model.filter.state != .unavailable {
-                LabelledControl("Show") {
-                    Picker("Show", selection: Binding(get: { model.measure }, set: { model.measure = $0 })) {
-                        Text("Traffic").tag(ServerMeasure.bytes)
-                        Text("Blocked").tag(ServerMeasure.blocked)
+                LabelledControl(L("Show")) {
+                    Picker(L("Show"), selection: Binding(get: { model.measure }, set: { model.measure = $0 })) {
+                        Text(L("Traffic")).tag(ServerMeasure.bytes)
+                        Text(L("Blocked")).tag(ServerMeasure.blocked)
                     }
-                    .help("What your apps sent and received, or the connections that were blocked")
+                    .help(L("What your apps sent and received, or the connections that were blocked"))
                 }
             }
             if model.spanTitle != nil || !model.chips.isEmpty {
@@ -93,8 +92,8 @@ public struct ConnectionsView: View {
             }
             Spacer(minLength: 12)
             // All, Wi-Fi and Hotspot say what they are; no label needed.
-            Picker("Networks", selection: Binding(get: { model.kind }, set: { model.setKind($0) })) {
-                Text("All").tag(NetworkFingerprint.Kind?.none)
+            Picker(L("Networks"), selection: Binding(get: { model.kind }, set: { model.setKind($0) })) {
+                Text(L("All")).tag(NetworkFingerprint.Kind?.none)
                 ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
                     Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
                 }
@@ -103,7 +102,7 @@ public struct ConnectionsView: View {
             .labelsHidden()
             .fixedSize()
             .controlSize(.small)
-            .help("Every connection, Wi-Fi only, or hotspots only")
+            .help(L("Every connection, Wi-Fi only, or hotspots only"))
         }
         .frame(height: 24)
     }
@@ -114,24 +113,24 @@ public struct ConnectionsView: View {
     private var header: some View {
         let summary = model.summary
         return PeriodHeading(
-            title: model.spanTitle.map { "\(model.title), \($0)" } ?? model.title,
+            title: model.spanTitle.map { L("%@, %@", model.title, $0) } ?? model.title,
             figure: model.measure == .bytes ? ByteFormat.bytes(summary.total) : summary.total.formatted(),
-            caption: model.measure == .bytes ? "to and from servers"
-                : (summary.total == 1 ? "connection blocked" : "connections blocked"),
-            details: [PeriodHeading.count(summary.companies, "company", "companies"),
-                      PeriodHeading.count(summary.countries, "country", "countries"),
-                      PeriodHeading.count(summary.apps, "app", "apps"),
-                      PeriodHeading.count(summary.servers, "server", "servers")])
+            caption: model.measure == .bytes ? L("to and from servers")
+                : (summary.total == 1 ? L("connection blocked") : L("connections blocked")),
+            details: [summary.companies == 1 ? L("1 company") : L("%@ companies", String(summary.companies)),
+                      summary.countries == 1 ? L("1 country") : L("%@ countries", String(summary.countries)),
+                      summary.apps == 1 ? L("1 app") : L("%@ apps", String(summary.apps)),
+                      summary.servers == 1 ? L("1 server") : L("%@ servers", String(summary.servers))])
     }
 
     /// ⌘← and ⌘→ step through periods, as in History. The toolbar's arrows do
     /// the same with the pointer.
     private var periodShortcuts: some View {
         ZStack {
-            Button("Previous") { model.step(-1) }
+            Button(L("Previous")) { model.step(-1) }
                 .keyboardShortcut(.leftArrow, modifiers: [.command])
                 .disabled(!model.canStepBack)
-            Button("Next") { model.step(1) }
+            Button(L("Next")) { model.step(1) }
                 .keyboardShortcut(.rightArrow, modifiers: [.command])
                 .disabled(!model.canStepForward)
         }
@@ -176,19 +175,19 @@ public struct ConnectionsView: View {
     }
 
     private var emptyTitle: String {
-        if !model.hasLoaded { return "Loading…" }
-        if !model.search.isEmpty || !model.chips.isEmpty { return "Nothing matches" }
-        let when = model.span == nil ? model.scale.label.lowercased() : "span"
-        return model.measure == .blocked ? "Nothing blocked in this \(when)" : "No connections in this \(when)"
+        if !model.hasLoaded { return L("Loading…") }
+        if !model.search.isEmpty || !model.chips.isEmpty { return L("Nothing matches") }
+        let when = model.span == nil ? model.scale.label.lowercased() : L("span")
+        return model.measure == .blocked ? L("Nothing blocked in this %@", when) : L("No connections in this %@", when)
     }
 
     private var emptyDetail: String {
         if !model.hasLoaded { return "" }
-        if !model.search.isEmpty || !model.chips.isEmpty { return "Clear the search or a chip to see more." }
+        if !model.search.isEmpty || !model.chips.isEmpty { return L("Clear the search or a chip to see more.") }
         if model.measure == .blocked {
-            return "Right-click a company, app, country or server under Traffic to block it."
+            return L("Right-click a company, app, country or server under Traffic to block it.")
         }
-        return "Connections are recorded from this version on, while NetworkMonitor is running."
+        return L("Connections are recorded from this version on, while NetworkMonitor is running.")
     }
 
     @ViewBuilder
@@ -200,7 +199,7 @@ public struct ConnectionsView: View {
                        listed: model.listed(group.item),
                        onToggleDisclosure: { model.toggle(group.id) },
                        onSelect: { model.toggle(group.id) },
-                       help: isOpen ? "Click to close" : "Click to see its \(sectionNames(group))",
+                       help: isOpen ? L("Click to close") : L("Click to see its %@", sectionNames(group)),
                        format: model.format)
             .contextMenu { ruleMenu(for: group.item) }
         if isOpen {
@@ -216,7 +215,7 @@ public struct ConnectionsView: View {
         let showingAll = model.showingAll.contains(sectionID)
         let shown = showingAll ? section.items : Array(section.items.prefix(ConnectionsViewModel.sectionPreview))
         let largest = section.items.first?.total ?? 1
-        Text("\(section.dimension.plural) · \(section.items.count)")
+        Text(L("%@ · %@", section.dimension.plural, String(section.items.count)))
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(.secondary)
             .padding(.leading, 38)
@@ -227,11 +226,11 @@ public struct ConnectionsView: View {
                            fraction: fraction(item.total, of: largest), indent: 1, disclosure: nil,
                            rule: firewall.rule(for: item), listed: model.listed(item),
                            onToggleDisclosure: {}, onSelect: { model.narrow(to: item, in: group.item) },
-                           help: "Click to see only \(item.title)", format: model.format)
+                           help: L("Click to see only %@", item.title), format: model.format)
                 .contextMenu { ruleMenu(for: item) }
         }
         if section.items.count > shown.count {
-            Button("Show all \(section.items.count)") { model.showingAll.insert(sectionID) }
+            Button(L("Show all %@", String(section.items.count))) { model.showingAll.insert(sectionID) }
                 .buttonStyle(.link)
                 .font(.system(size: 11))
                 .padding(.leading, 46)
@@ -260,7 +259,7 @@ public struct ConnectionsView: View {
             }
             // Only on the network the Mac is on (#200).
             if let network = model.currentNetwork {
-                Toggle("Block “\(item.title)” on “\(network.name)”", isOn: Binding(
+                Toggle(L("Block “%@” on “%@”", item.title, network.name), isOn: Binding(
                     get: { current?.action == .block && current?.network == network.id },
                     set: { isOn in
                         if isOn {
@@ -272,7 +271,7 @@ public struct ConnectionsView: View {
             }
             if let current {
                 Divider()
-                Button("Remove Rule") { firewall.remove(current) }
+                Button(L("Remove Rule")) { firewall.remove(current) }
             }
         }
     }
@@ -289,7 +288,7 @@ public struct ConnectionsView: View {
             } else {
                 Menu(Self.menuTitle(action)) {
                     ForEach(scopes, id: \.self) { domain in
-                        Toggle(domain == name ? name : "All of *.\(domain)",
+                        Toggle(domain == name ? name : L("All of *.%@", domain),
                                isOn: siteBinding(action, domain, name, current))
                     }
                 }
@@ -298,12 +297,12 @@ public struct ConnectionsView: View {
         // Only on the network the Mac is on (#200).
         if let network = model.currentNetwork {
             if scopes.count == 1 {
-                Toggle("Block “\(name)” on “\(network.name)”",
+                Toggle(L("Block “%@” on “%@”", name, network.name),
                        isOn: siteBinding(.block, scopes[0], name, current, network: network))
             } else {
-                Menu("Block on “\(network.name)”") {
+                Menu(L("Block on “%@”", network.name)) {
                     ForEach(scopes, id: \.self) { domain in
-                        Toggle(domain == name ? name : "All of *.\(domain)",
+                        Toggle(domain == name ? name : L("All of *.%@", domain),
                                isOn: siteBinding(.block, domain, name, current, network: network))
                     }
                 }
@@ -311,7 +310,7 @@ public struct ConnectionsView: View {
         }
         if let current {
             Divider()
-            Button("Remove Rule") { firewall.remove(current) }
+            Button(L("Remove Rule")) { firewall.remove(current) }
         }
     }
 
@@ -334,17 +333,17 @@ public struct ConnectionsView: View {
     /// A submenu's title, whose items name what it applies to.
     static func menuTitle(_ action: RuleAction) -> String {
         switch action {
-        case .block:           return "Block"
-        case .blockOnHotspots: return "Block on Hotspots"
-        case .allow:           return "Always Allow"
+        case .block:           return L("Block")
+        case .blockOnHotspots: return L("Block on Hotspots")
+        case .allow:           return L("Always Allow")
         }
     }
 
     static func menuTitle(_ action: RuleAction, _ title: String) -> String {
         switch action {
-        case .block:           return "Block “\(title)”"
-        case .blockOnHotspots: return "Block “\(title)” on Hotspots"
-        case .allow:           return "Always Allow “\(title)”"
+        case .block:           return L("Block “%@”", title)
+        case .blockOnHotspots: return L("Block “%@” on Hotspots", title)
+        case .allow:           return L("Always Allow “%@”", title)
         }
     }
 
@@ -364,10 +363,10 @@ public struct ConnectionsView: View {
 
     private var footer: some View {
         HStack(spacing: 6) {
-            Link(ServerDirectory.credit, destination: ServerDirectory.creditURL)
+            Link(GeoDataUpdater.credit, destination: ServerDirectory.creditURL)
                 .font(.system(size: 10))
             Text("·").foregroundStyle(.tertiary)
-            Text("Everything is named on this Mac: nothing is looked up online.")
+            Text(L("Everything is named on this Mac: nothing is looked up online."))
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -396,7 +395,7 @@ private struct WebsiteNamesOffer: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help("Close. Settings › Connections still has it.")
+                .help(L("Close. Settings › Connections still has it."))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
@@ -413,7 +412,7 @@ struct RuleBadge: View {
     var networkTitle: String? = nil
 
     var body: some View {
-        Text((networkTitle.map { "\(action.badge) on \($0)" } ?? action.badge).uppercased())
+        Text((networkTitle.map { L("%@ on %@", action.badge, $0) } ?? action.badge).uppercased())
             .font(.system(size: 8, weight: .bold))
             .padding(.horizontal, 4).padding(.vertical, 1)
             .background(color.opacity(0.18), in: Capsule())
@@ -437,12 +436,20 @@ struct ListTag: View {
     let topic: BlocklistTopic
 
     var body: some View {
-        Text(topic.tag)
+        Text(tag)
             .font(.system(size: 8, weight: .bold))
             .padding(.horizontal, 4).padding(.vertical, 1)
             .background(color.opacity(0.18), in: Capsule())
             .foregroundStyle(color)
-            .help("On the \(topic.title.lowercased()) list, from \(topic.source)")
+            .help(L("On the %@ list, from %@", topic.shownTitle.lowercased(), topic.source))
+    }
+
+    /// `topic.tag` in the language shown: FirewallPolicy can't call `L` (#433).
+    private var tag: String {
+        switch topic {
+        case .ads:     return L("ADS")
+        case .malware: return L("MALWARE")
+        }
     }
 
     private var color: Color { topic == .malware ? .purple : .red }
@@ -480,7 +487,7 @@ private struct ConnectionsRow: View {
                         .frame(width: 14, height: 14)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(disclosure ? "Collapse" : "Expand")
+                .accessibilityLabel(disclosure ? L("Collapse") : L("Expand"))
                 .foregroundStyle(.secondary)
             } else {
                 Spacer().frame(width: 14)
@@ -496,12 +503,12 @@ private struct ConnectionsRow: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if item.isHost {
-                        Text("HOST")
+                        Text(L("HOST"))
                             .font(.system(size: 8, weight: .bold))
                             .padding(.horizontal, 4).padding(.vertical, 1)
                             .background(Color.secondary.opacity(0.18), in: Capsule())
                             .foregroundStyle(.secondary)
-                            .help("A network that carries many companies' traffic")
+                            .help(L("A network that carries many companies' traffic"))
                     }
                     if let listed { ListTag(topic: listed) }
                     if let rule { RuleBadge(action: rule.action, networkTitle: rule.networkTitle) }
@@ -585,8 +592,8 @@ private struct ConnectionsTimeline: View {
                                        ? max(2, geometry.size.height * CGFloat(Double(bin.bytes) / Double(largest)))
                                        : 1)
                             .frame(width: width, height: geometry.size.height, alignment: .bottom)
-                            .help("\(HistoryFormat.binTitle(bin.interval, scale: model.scale)): "
-                                  + model.format(bin.bytes))
+                            .help(L("%@: %@", HistoryFormat.binTitle(bin.interval, scale: model.scale),
+                                    model.format(bin.bytes)))
                     }
                 }
                 .contentShape(Rectangle())

@@ -37,11 +37,11 @@ public enum UpdaterScan {
         public var whyNotPaused: String {
             switch self {
             case .squirrel, .electronUpdater:
-                return "Updates from inside the app, with no setting NetworkMonitor can turn off"
+                return L("Updates from inside the app, with no setting NetworkMonitor can turn off")
             case .sparkle:
-                return "macOS keeps its update setting where NetworkMonitor can't change it"
+                return L("macOS keeps its update setting where NetworkMonitor can't change it")
             case .ownUpdater:
-                return "Has its own updater, with no setting NetworkMonitor can turn off"
+                return L("Has its own updater, with no setting NetworkMonitor can turn off")
             }
         }
     }

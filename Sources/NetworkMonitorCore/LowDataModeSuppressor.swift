@@ -188,7 +188,7 @@ public final class LowDataModeSuppressor: UpdateSuppressor {
         recentAsserts.removeAll { current.timeIntervalSince($0) > Self.reassertWindow }
         if let hold = ownership.hold, hold.interface == primary,
            recentAsserts.count >= Self.reassertLimit {
-            state = .failed("macOS keeps turning Low Data Mode off on this connection")
+            state = .failed(L("macOS keeps turning Low Data Mode off on this connection"))
             return result
         }
 
@@ -199,7 +199,7 @@ public final class LowDataModeSuppressor: UpdateSuppressor {
                                                      appliedValue: .string("held")))
             } catch {
                 // No durable record, no guaranteed undo, so nothing is changed.
-                state = .failed("Couldn't record the change, so nothing was changed")
+                state = .failed(L("Couldn't record the change, so nothing was changed"))
                 return result
             }
         }
@@ -213,7 +213,7 @@ public final class LowDataModeSuppressor: UpdateSuppressor {
             // Asking is one call, and it keeps the masking honest.
             resync()
             if ownership.hold == nil { journal.clear(.lowDataMode) }
-            state = .failed("The helper couldn't turn Low Data Mode on")
+            state = .failed(L("The helper couldn't turn Low Data Mode on"))
             return result
         }
 
@@ -228,7 +228,7 @@ public final class LowDataModeSuppressor: UpdateSuppressor {
             // otherwise be told it is on when it is not.
             state = readFlags(hold.interface) == .both
                 ? .on(interface: hold.interface)
-                : .failed("Low Data Mode didn't stay on for \(hold.interface)")
+                : .failed(L("Low Data Mode didn't stay on for %@", hold.interface))
         }
         result.applied.append(name)
         return result
@@ -268,7 +268,7 @@ public final class LowDataModeSuppressor: UpdateSuppressor {
             // Kept, and the masking with it: until the helper confirms the flags
             // are down they are still ours, and the heuristic must keep not
             // counting them. `MeteringController.evaluate` retries.
-            state = .failed("Couldn't turn Low Data Mode off yet — it will be retried")
+            state = .failed(L("Couldn't turn Low Data Mode off yet — it will be retried"))
         }
     }
 

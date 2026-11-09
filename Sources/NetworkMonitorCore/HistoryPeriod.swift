@@ -8,10 +8,10 @@ public enum HistoryScale: String, CaseIterable, Identifiable {
 
     public var label: String {
         switch self {
-        case .day:   return "Day"
-        case .week:  return "Week"
-        case .month: return "Month"
-        case .year:  return "Year"
+        case .day:   return L("Day")
+        case .week:  return L("Week")
+        case .month: return L("Month")
+        case .year:  return L("Year")
         }
     }
 
@@ -116,12 +116,12 @@ public struct HistoryPeriod: Equatable {
 
         switch scale {
         case .day:
-            if current == self { return "Today" }
-            if current.shifted(by: -1, calendar: calendar) == self { return "Yesterday" }
+            if current == self { return L("Today") }
+            if current.shifted(by: -1, calendar: calendar) == self { return L("Yesterday") }
             return Self.format(interval.start, sameYear ? "EEEEMMMd" : "yMMMd", calendar, locale)
         case .week:
-            if current == self { return "This Week" }
-            if current.shifted(by: -1, calendar: calendar) == self { return "Last Week" }
+            if current == self { return L("This Week") }
+            if current.shifted(by: -1, calendar: calendar) == self { return L("Last Week") }
             let formatter = DateIntervalFormatter()
             formatter.calendar = calendar
             formatter.locale = locale

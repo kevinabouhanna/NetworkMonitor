@@ -124,7 +124,7 @@ public final class EncryptedLookups: ObservableObject {
                             guard self.state == .checking else { return }
                             if router == true {
                                 Self.log.error("names stopped resolving with encrypted lookups on; switching them off")
-                                self.turnOff(reason: "Names stopped resolving with it on, so it's off again.")
+                                self.turnOff(reason: L("Names stopped resolving with it on, so it's off again."))
                             } else {
                                 // No network to tell by: leave it, and look again later.
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 30) { self.check(attempt: 1) }
@@ -171,7 +171,7 @@ public final class EncryptedLookups: ObservableObject {
     private static func describe(_ error: Error) -> String {
         let error = error as NSError
         if error.domain == NEDNSProxyErrorDomain, error.code == NEDNSProxyManagerError.configurationCannotBeRemoved.rawValue {
-            return "Another app's DNS settings are in charge. Switch them off to use this."
+            return L("Another app's DNS settings are in charge. Switch them off to use this.")
         }
         return error.localizedDescription
     }

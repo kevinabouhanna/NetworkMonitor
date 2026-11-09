@@ -33,7 +33,7 @@ import Foundation
 /// metered too, as it does for the apps whose update server the helper blocks.
 public final class UpdateFolderSuppressor: UpdateSuppressor {
 
-    public let name = "Through their update folders"
+    public var name: String { L("Through their update folders") }
 
     /// One switch for every folder, like the helper's: the apps it covers are
     /// listed under one row rather than beside the rows other tiers give them.
@@ -107,7 +107,7 @@ public final class UpdateFolderSuppressor: UpdateSuppressor {
             items.append(CoveredItem(id: Self.tierID,
                                      displayName: folder.displayName,
                                      mechanism: "Update folder",
-                                     effect: "Locks the folder its updates download to",
+                                     effect: L("Locks the folder its updates download to"),
                                      bundleIdentifiers: folder.bundleIdentifier.map { [$0] } ?? []))
         }
         return items

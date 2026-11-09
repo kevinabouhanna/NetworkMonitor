@@ -44,8 +44,8 @@ struct ConnectionsMap: View {
         .background(Color.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("World map of \(model.geography.countries.count) countries your apps reached. "
-                            + "The list has the same, country by country.")
+        .accessibilityLabel(L("World map of %@ countries your apps reached. The list has the same, country by country.",
+                              String(model.geography.countries.count)))
         .onAppear { model.mapDidAppear() }
         .onDisappear { model.mapDidDisappear() }
     }
@@ -158,9 +158,9 @@ struct ConnectionsMap: View {
             HStack {
                 Spacer()
                 HStack(spacing: 2) {
-                    zoomButton("minus.magnifyingglass", help: "Zoom out") { state.setZoom(state.zoom / 1.5, size: frame.size) }
-                    zoomButton("plus.magnifyingglass", help: "Zoom in") { state.setZoom(state.zoom * 1.5, size: frame.size) }
-                    zoomButton("arrow.down.right.and.arrow.up.left", help: "The whole world") { state.reset() }
+                    zoomButton("minus.magnifyingglass", help: L("Zoom out")) { state.setZoom(state.zoom / 1.5, size: frame.size) }
+                    zoomButton("plus.magnifyingglass", help: L("Zoom in")) { state.setZoom(state.zoom * 1.5, size: frame.size) }
+                    zoomButton("arrow.down.right.and.arrow.up.left", help: L("The whole world")) { state.reset() }
                         .disabled(state.zoom == 1 && state.pan == .zero)
                 }
             }
@@ -173,8 +173,7 @@ struct ConnectionsMap: View {
                         .padding(6)
                         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
                         .frame(maxWidth: 280, alignment: .leading)
-                        .help("These networks answer each address from whichever of their data centres is "
-                              + "nearest, so no one country is where it went.")
+                        .help(L("These networks answer each address from whichever of their data centres is nearest, so no one country is where it went."))
                 }
                 Spacer()
             }
@@ -189,13 +188,19 @@ struct ConnectionsMap: View {
 
     private var everywhereNote: String {
         let names = model.geography.everywhereCompanies
-        let shown = names.prefix(2).joined(separator: " and ") + (names.count > 2 ? " and others" : "")
-        if model.measure == .blocked {
-            return "\(shown): \(model.format(model.geography.everywhere)) blocked, not placed on the map: "
-                + "they answer from many places at once."
+        let shown: String
+        switch names.count {
+        case 0:  shown = ""
+        case 1:  shown = names[0]
+        case 2:  shown = L("%@ and %@", names[0], names[1])
+        default: shown = L("%@ and %@ and others", names[0], names[1])
         }
-        return "\(shown): \(model.format(model.geography.everywhere)) answered from nearby data "
-            + "centres, so not placed on the map."
+        if model.measure == .blocked {
+            return L("%@: %@ blocked, not placed on the map: they answer from many places at once.",
+                     shown, model.format(model.geography.everywhere))
+        }
+        return L("%@: %@ answered from nearby data centres, so not placed on the map.",
+                 shown, model.format(model.geography.everywhere))
     }
 
     private func zoomButton(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
@@ -217,7 +222,7 @@ struct ConnectionsMap: View {
                 Text(model.format(bytes)).font(.system(size: 11)).monospacedDigit()
             }
             if companies.isEmpty {
-                Text(model.measure == .blocked ? "Nothing blocked here" : "Nothing went here").font(.system(size: 10)).foregroundStyle(.secondary)
+                Text(model.measure == .blocked ? L("Nothing blocked here") : L("Nothing went here")).font(.system(size: 10)).foregroundStyle(.secondary)
             } else {
                 ForEach(companies.prefix(4), id: \.item.id) { company in
                     HStack {
@@ -229,9 +234,9 @@ struct ConnectionsMap: View {
                     .foregroundStyle(.secondary)
                 }
                 if companies.count > 4 {
-                    Text("and \(companies.count - 4) more").font(.system(size: 10)).foregroundStyle(.tertiary)
+                    Text(L("and %@ more", String(companies.count - 4))).font(.system(size: 10)).foregroundStyle(.tertiary)
                 }
-                Text("Click to see only \(ConnectionsReport.countryName(code))")
+                Text(L("Click to see only %@", ConnectionsReport.countryName(code)))
                     .font(.system(size: 9)).foregroundStyle(.tertiary)
             }
         }

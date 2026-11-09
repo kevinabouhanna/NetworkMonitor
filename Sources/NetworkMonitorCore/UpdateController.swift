@@ -96,6 +96,6 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
     public func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
         guard updateCheck == .updatesInBackground, isMetered() else { return }
         throw NSError(domain: "com.kevinabouhanna.NetworkMonitor", code: 1,
-                      userInfo: [NSLocalizedDescriptionKey: "On a metered connection: the check waits."])
+                      userInfo: [NSLocalizedDescriptionKey: L("On a metered connection: the check waits.")])
     }
 }

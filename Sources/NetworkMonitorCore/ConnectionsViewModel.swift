@@ -31,9 +31,9 @@ public final class ConnectionsViewModel: ObservableObject {
         public var id: String { rawValue }
         public var label: String {
             switch self {
-            case .list: return "List"
-            case .both: return "Both"
-            case .map:  return "Map"
+            case .list: return L("List")
+            case .both: return L("Both")
+            case .map:  return L("Map")
             }
         }
     }
@@ -118,7 +118,7 @@ public final class ConnectionsViewModel: ObservableObject {
     public static func format(_ value: Int64, _ measure: ServerMeasure) -> String {
         switch measure {
         case .bytes:   return ByteFormat.bytes(value)
-        case .blocked: return value == 1 ? "1 time" : "\(value.formatted()) times"
+        case .blocked: return value == 1 ? L("1 time") : L("%@ times", value.formatted())
         }
     }
 
@@ -182,7 +182,7 @@ public final class ConnectionsViewModel: ObservableObject {
     private var icons: [String: NSImage] = [:]
     private var generation = 0
     private var refreshTimer: Timer?
-    private let naming = DispatchQueue(label: "com.kevinabouhanna.NetworkMonitor.connections",
+    private let naming = DispatchQueue(label: "com.kevinabouhanna.NetworkMonitor.connections", // untranslated: a queue's identifier
                                        qos: .userInitiated)
     /// Opened on first use, off the main thread: mapping the files is quick,
     /// but there's no reason to do it before the window is ever opened.
@@ -353,10 +353,11 @@ public final class ConnectionsViewModel: ObservableObject {
         let detail = appDetails[item.key]
         var parts: [String] = []
         if let parent = item.subtitle { parts.append(parent) }
-        if let maker = detail?.maker { parts.append("By \(maker)") }
+        if let maker = detail?.maker { parts.append(L("By %@", maker)) }
         if let others = detail?.others, !others.isEmpty {
             let shown = others.prefix(3).joined(separator: ", ")
-            parts.append("also " + shown + (others.count > 3 ? " and \(others.count - 3) more" : ""))
+            parts.append(others.count > 3 ? L("also %@ and %@ more", shown, String(others.count - 3))
+                                          : L("also %@", shown))
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }

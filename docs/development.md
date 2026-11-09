@@ -417,6 +417,33 @@ docs here, never the wiki.
 - To rebuild it by hand, run the workflow from the Actions tab, or
   `python3 Scripts/wiki.py <wiki checkout>` and push.
 
+## Languages
+
+The app opens in the Mac's language when it has a table for it, and English
+otherwise; Settings › General › Language chooses one for the app alone (#433). The
+choice is the app's own `AppleLanguages`, the setting System Settings › General ›
+Language & Region › Applications writes, so the two are one setting.
+
+- **Text goes through `L("…")`.** Every piece of text the interface shows, VoiceOver's
+  included, is written in English where it's used, inside `L("…")`. The English is
+  the key. Its argument is one plain literal, never built with `+` or `\(…)`; what
+  varies is a `%@`, filled in order from `String`s: `L("Apps paused (%@ of %@)",
+  String(on), String(total))`. A table can number them (`%2$@ … %1$@`) where its
+  language puts them the other way round.
+- **One table per language**, `Resources/Localization/<code>.lproj/Localizable.strings`,
+  English text to its translation. `bundle.sh` copies the folders into the app, which
+  is also how macOS knows which languages to offer for it. Adding a language is
+  adding its folder: Settings lists it by its own name, with no code to change.
+  English has an empty table; a string a table lacks shows in English.
+- **The language changes at once.** Each window's SwiftUI root carries
+  `.localizedRoot()`, which rebuilds it in the new language; what AppKit shows
+  (window titles, toolbar labels, menus) is set again on `Localization.didChange`.
+- **Checked by `make test`:** every `L()` is a plain literal; no text reaches a
+  `Text`, `Button`, `.help`, `.accessibilityLabel`, a title or a tooltip without
+  `L()` (a line that only looks that way ends `// untranslated: why`); every table
+  has every key, with the same placeholders, and none the app no longer uses; and
+  every window passes the accessibility checks in every language.
+
 ## Launch arguments
 
 A development build reads a few launch arguments for that run only; nothing persists.
@@ -429,6 +456,7 @@ A development build reads a few launch arguments for that run only; nothing pers
 | `-geoDataURL http://127.0.0.1:PORT/ -geoDataCheckNow YES` | fetches the monthly data from a local package, at once (#121) |
 | `-updateFeedURL http://127.0.0.1:PORT/appcast.xml -checkForUpdatesNow YES` | checks a local appcast for an update, at once (#132) |
 | `-historyDatabase ~/tmp/history.sqlite` | reads and writes Usage History, Connections and Ads and Trackers from another file, for test data (#251) |
+| `-language zh-Hans` (or `en`) | shows the app in that language for that run, whatever the Mac's or the one chosen in Settings (#433) |
 
 Serve local test data on a port the system picks, so sessions working in parallel
 never ask for the same one: `python3 -m http.server 0 --bind 127.0.0.1` in the

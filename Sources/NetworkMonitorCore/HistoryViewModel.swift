@@ -16,9 +16,9 @@ public final class HistoryViewModel: ObservableObject {
         public var id: String { rawValue }
         public var label: String {
             switch self {
-            case .apps:     return "Apps"
-            case .networks: return "Networks"
-            case .sessions: return "Sessions"
+            case .apps:     return L("Apps")
+            case .networks: return L("Networks")
+            case .sessions: return L("Sessions")
             }
         }
     }
@@ -161,7 +161,7 @@ public final class HistoryViewModel: ObservableObject {
             if row.id == key { return row.displayName }
             if let child = row.children.first(where: { $0.id == key }) { return child.displayName }
         }
-        return "App"
+        return L("App")
     }
 
     public var filteredSession: HistorySession? {
@@ -179,7 +179,7 @@ public final class HistoryViewModel: ObservableObject {
 
     public var filteredNetworkName: String? {
         guard let id = filter.networkID else { return nil }
-        let fallback = report.networks.first { $0.id == id }?.defaultLabel ?? "Network"
+        let fallback = report.networks.first { $0.id == id }?.defaultLabel ?? L("Network")
         return networkName(id, defaultLabel: fallback)
     }
 
@@ -189,15 +189,14 @@ public final class HistoryViewModel: ObservableObject {
         let fallback = monitor.store.wifiLabel(for: id)
             ?? monitor.store.displayLabel(for: id, defaultLabel: defaultLabel)
         let alert = NSAlert()
-        alert.messageText = "Rename Network"
-        alert.informativeText = "The name is used in Usage History and its exports. "
-            + "Leave it empty to go back to “\(fallback)”."
+        alert.messageText = L("Rename Network")
+        alert.informativeText = L("The name is used in Usage History and its exports. Leave it empty to go back to “%@”.", fallback)
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         field.stringValue = monitor.store.customLabel(for: id) ?? ""
         field.placeholderString = fallback
         alert.accessoryView = field
-        alert.addButton(withTitle: "Rename")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: L("Rename"))
+        alert.addButton(withTitle: L("Cancel"))
         alert.window.initialFirstResponder = field
         let apply: (NSApplication.ModalResponse) -> Void = { [weak self] response in
             guard response == .alertFirstButtonReturn, let self else { return }
@@ -241,12 +240,12 @@ public final class HistoryViewModel: ObservableObject {
 
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Delete history older than \(next.label.lowercased())?"
-        alert.informativeText = "Everything recorded before "
-            + cutoff.formatted(date: .abbreviated, time: .omitted)
-            + " is deleted now, and from then on history is kept for \(next.label.lowercased())."
-        alert.addButton(withTitle: "Delete")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = L("Delete history older than %@?", next.label.lowercased())
+        alert.informativeText = L("Everything recorded before %@ is deleted now, and from then on history is kept for %@.",
+                                  cutoff.formatted(date: .abbreviated, time: .omitted),
+                                  next.label.lowercased())
+        alert.addButton(withTitle: L("Delete"))
+        alert.addButton(withTitle: L("Cancel"))
         let decide: (NSApplication.ModalResponse) -> Void = { [weak self] response in
             if response == .alertFirstButtonReturn { commit() } else { self?.objectWillChange.send() }
         }
@@ -257,15 +256,15 @@ public final class HistoryViewModel: ObservableObject {
     public func confirmClear(in window: NSWindow?) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Clear all usage history?"
-        var detail = "Every hour NetworkMonitor has recorded is deleted. "
+        alert.messageText = L("Clear all usage history?")
+        var detail = L("Every hour NetworkMonitor has recorded is deleted. The totals in the menu bar are not affected.")
         if let since = report.recordingSince {
-            detail = "Everything recorded since "
-                + since.formatted(date: .abbreviated, time: .omitted) + " is deleted. "
+            detail = L("Everything recorded since %@ is deleted. The totals in the menu bar are not affected.",
+                       since.formatted(date: .abbreviated, time: .omitted))
         }
-        alert.informativeText = detail + "The totals in the menu bar are not affected."
-        alert.addButton(withTitle: "Clear History")
-        alert.addButton(withTitle: "Cancel")
+        alert.informativeText = detail
+        alert.addButton(withTitle: L("Clear History"))
+        alert.addButton(withTitle: L("Cancel"))
         let decide: (NSApplication.ModalResponse) -> Void = { [weak self] response in
             guard response == .alertFirstButtonReturn, let self else { return }
             self.history?.clear()
@@ -281,7 +280,7 @@ public final class HistoryViewModel: ObservableObject {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.commaSeparatedText]
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "NetworkMonitor Usage – \(title).csv"
+        panel.nameFieldStringValue = L("NetworkMonitor Usage – %@.csv", title)
             .replacingOccurrences(of: "/", with: "-")
         let period = period, filter = filter
         let save: (NSApplication.ModalResponse) -> Void = { [weak self] response in

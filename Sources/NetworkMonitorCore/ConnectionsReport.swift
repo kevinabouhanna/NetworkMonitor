@@ -40,10 +40,10 @@ public enum ConnectionsDimension: String, CaseIterable, Identifiable {
     /// A section's heading inside a group.
     public var plural: String {
         switch self {
-        case .company: return "Companies"
-        case .app:     return "Apps"
-        case .country: return "Countries"
-        case .server:  return "Servers"
+        case .company: return L("Companies")
+        case .app:     return L("Apps")
+        case .country: return L("Countries")
+        case .server:  return L("Servers")
         }
     }
 }
@@ -189,19 +189,19 @@ public enum ConnectionsReport {
         switch dimension {
         case .company:
             if connection.isOtherServers {
-                return ConnectionsItem(dimension: dimension, key: key, title: "Other servers",
-                                       subtitle: "Past an app's \(UsageHistory.serversPerAppPerHour) in an hour",
+                return ConnectionsItem(dimension: dimension, key: key, title: L("Other servers"),
+                                       subtitle: L("Past an app's %@ in an hour", String(UsageHistory.serversPerAppPerHour)),
                                        isHost: false, symbol: nil, bundlePath: nil)
             }
             guard let company = connection.company else {
-                return ConnectionsItem(dimension: dimension, key: key, title: "Unknown network",
-                                       subtitle: "A private, carrier or VPN address, or one the data doesn't list",
+                return ConnectionsItem(dimension: dimension, key: key, title: L("Unknown network"),
+                                       subtitle: L("A private, carrier or VPN address, or one the data doesn't list"),
                                        isHost: false, symbol: nil, bundlePath: nil)
             }
             if company.isHost {
                 return ConnectionsItem(dimension: dimension, key: key,
-                                       title: "Hosted on \(company.name)",
-                                       subtitle: "Company unknown",
+                                       title: L("Hosted on %@", company.name),
+                                       subtitle: L("Company unknown"),
                                        isHost: true, symbol: nil, bundlePath: nil)
             }
             return ConnectionsItem(dimension: dimension, key: key, title: company.name,
@@ -209,11 +209,11 @@ public enum ConnectionsReport {
         case .app:
             let usage = connection.usage
             return ConnectionsItem(dimension: dimension, key: key, title: usage.appName,
-                                   subtitle: usage.parentName.map { "Started by \($0)" },
+                                   subtitle: usage.parentName.map { L("Started by %@", $0) },
                                    isHost: false, symbol: nil, bundlePath: usage.bundlePath)
         case .country:
             guard let code = connection.country else {
-                return ConnectionsItem(dimension: dimension, key: key, title: "Unknown country",
+                return ConnectionsItem(dimension: dimension, key: key, title: L("Unknown country"),
                                        subtitle: nil, isHost: false, symbol: nil, bundlePath: nil)
             }
             return ConnectionsItem(dimension: dimension, key: key,
@@ -221,7 +221,7 @@ public enum ConnectionsReport {
                                    subtitle: nil, isHost: false, symbol: flag(code), bundlePath: nil)
         case .server:
             if connection.isOtherServers {
-                return ConnectionsItem(dimension: dimension, key: key, title: "Other servers",
+                return ConnectionsItem(dimension: dimension, key: key, title: L("Other servers"),
                                        subtitle: nil, isHost: false, symbol: nil, bundlePath: nil)
             }
             let place = connection.country.map { countryName($0, locale: locale) }
@@ -232,8 +232,8 @@ public enum ConnectionsReport {
             let others = connection.usage.otherNames
             let also: String? = switch others.count {
             case 0: nil
-            case 1: "Also \(others[0])"
-            default: "Also \(others[0]) and \(others.count - 1) more"
+            case 1: L("Also %@", others[0])
+            default: L("Also %@ and %@ more", others[0], String(others.count - 1))
             }
             return ConnectionsItem(dimension: dimension, key: key,
                                    title: connection.usage.name ?? connection.usage.address,

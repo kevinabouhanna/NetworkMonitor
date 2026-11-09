@@ -19,6 +19,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
     private var searchField: NSSearchField?
     private var observation: AnyCancellable?
     private var occlusion: AnyCancellable?
+    private var languageObservation: AnyCancellable?
 
     private static let layoutItem = NSToolbarItem.Identifier("layout")
     private static let scaleItem = NSToolbarItem.Identifier("scale")
@@ -31,12 +32,11 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
         super.init()
-        let host = NSHostingController(rootView: ConnectionsView(model: model))
+        let host = NSHostingController(rootView: ConnectionsView(model: model).localizedRoot())
         // The window keeps the size it's given or dragged to. Sized to its
         // content, it would jump each time the list grew or shrank.
         host.sizingOptions = []
         window.contentViewController = host
-        window.title = "Connections"
         window.setContentSize(NSSize(width: 1120, height: 760))
         window.contentMinSize = NSSize(width: ConnectionsMetrics.minWidth, height: ConnectionsMetrics.minHeight)
         window.isReleasedWhenClosed = false
@@ -49,6 +49,12 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         toolbar.centeredItemIdentifiers = [Self.scaleItem]
         window.toolbar = toolbar
         window.toolbarStyle = .unified
+        nameControls()
+        // The words follow a language chosen while the window is open (#433).
+        languageObservation = NotificationCenter.default
+            .publisher(for: Localization.didChange)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.nameControls() }
 
         // `objectWillChange` fires before the change lands, so the controls
         // are brought in step on the next turn of the run loop.
@@ -77,35 +83,63 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         let layouts = ConnectionsViewModel.Layout.allCases
         layoutControl.segmentCount = layouts.count
         layoutControl.trackingMode = .selectOne
-        for (index, layout) in layouts.enumerated() {
-            layoutControl.setImage(NSImage(systemSymbolName: Self.symbol(for: layout),
-                                           accessibilityDescription: layout.label), forSegment: index)
-            layoutControl.setToolTip(layout.label, forSegment: index)
-        }
         layoutControl.target = self
         layoutControl.action = #selector(layoutChosen)
 
         let scales = HistoryScale.allCases
         scaleControl.segmentCount = scales.count
         scaleControl.trackingMode = .selectOne
-        for (index, scale) in scales.enumerated() {
-            scaleControl.setLabel(scale.label, forSegment: index)
-        }
         scaleControl.target = self
         scaleControl.action = #selector(scaleChosen)
 
         stepControl.segmentCount = 3
         stepControl.trackingMode = .momentary
-        stepControl.setImage(NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Previous"),
-                             forSegment: 0)
-        stepControl.setLabel("Today", forSegment: 1)
-        stepControl.setImage(NSImage(systemSymbolName: "chevron.right", accessibilityDescription: "Next"),
-                             forSegment: 2)
-        stepControl.setToolTip("Previous (⌘←)", forSegment: 0)
-        stepControl.setToolTip("Back to the present", forSegment: 1)
-        stepControl.setToolTip("Next (⌘→)", forSegment: 2)
         stepControl.target = self
         stepControl.action = #selector(stepped)
+    }
+
+    /// Sets every word AppKit shows, from `init` and again when the language
+    /// changes: the title, the segments' labels and tooltips, the toolbar
+    /// items' names and the search field's placeholder.
+    private func nameControls() {
+        window.title = L("Connections")
+
+        for (index, layout) in ConnectionsViewModel.Layout.allCases.enumerated() {
+            layoutControl.setImage(NSImage(systemSymbolName: Self.symbol(for: layout),
+                                           accessibilityDescription: layout.label), forSegment: index)
+            layoutControl.setToolTip(layout.label, forSegment: index)
+        }
+
+        for (index, scale) in HistoryScale.allCases.enumerated() {
+            scaleControl.setLabel(scale.label, forSegment: index)
+        }
+
+        stepControl.setImage(NSImage(systemSymbolName: "chevron.left", accessibilityDescription: L("Previous")),
+                             forSegment: 0)
+        stepControl.setLabel(L("Today"), forSegment: 1)
+        stepControl.setImage(NSImage(systemSymbolName: "chevron.right", accessibilityDescription: L("Next")),
+                             forSegment: 2)
+        stepControl.setToolTip(L("Previous (⌘←)"), forSegment: 0)
+        stepControl.setToolTip(L("Back to the present"), forSegment: 1)
+        stepControl.setToolTip(L("Next (⌘→)"), forSegment: 2)
+
+        for item in window.toolbar?.items ?? [] {
+            if let names = Self.names(for: item.itemIdentifier) {
+                item.label = names.label
+                item.toolTip = names.help
+            }
+        }
+        searchField?.placeholderString = L("Company, app, country or address")
+    }
+
+    /// A toolbar item's name and tooltip, in the language shown.
+    private static func names(for identifier: NSToolbarItem.Identifier) -> (label: String, help: String)? {
+        switch identifier {
+        case layoutItem: return (L("View"), L("The list, both side by side, or the map"))
+        case scaleItem:  return (L("Period"), L("A day, week, month or year at a time"))
+        case stepItem:   return (L("Go"), L("Move through time"))
+        default:         return nil
+        }
     }
 
     private func refreshControls() {
@@ -161,17 +195,15 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
                         willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         switch identifier {
         case Self.layoutItem:
-            return item(identifier, label: "View", control: layoutControl,
-                        help: "The list, both side by side, or the map")
+            return item(identifier, control: layoutControl)
         case Self.scaleItem:
-            return item(identifier, label: "Period", control: scaleControl,
-                        help: "A day, week, month or year at a time")
+            return item(identifier, control: scaleControl)
         case Self.stepItem:
-            return item(identifier, label: "Go", control: stepControl, help: "Move through time")
+            return item(identifier, control: stepControl)
         case Self.searchItem:
             let item = NSSearchToolbarItem(itemIdentifier: identifier)
             item.searchField.delegate = self
-            item.searchField.placeholderString = "Company, app, country or address"
+            item.searchField.placeholderString = L("Company, app, country or address")
             item.preferredWidthForSearchField = 240
             searchField = item.searchField
             return item
@@ -180,12 +212,11 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         }
     }
 
-    private func item(_ identifier: NSToolbarItem.Identifier, label: String, control: NSControl,
-                      help: String) -> NSToolbarItem {
+    private func item(_ identifier: NSToolbarItem.Identifier, control: NSControl) -> NSToolbarItem {
         let item = NSToolbarItem(itemIdentifier: identifier)
         item.view = control
-        item.label = label
-        item.toolTip = help
+        item.label = Self.names(for: identifier)?.label ?? ""
+        item.toolTip = Self.names(for: identifier)?.help
         return item
     }
 }

@@ -41,7 +41,7 @@ public struct HistoryView: View {
     /// One row, one size.
     private var controls: some View {
         HStack(spacing: 10) {
-            Picker("Show", selection: Binding(get: { model.scale }, set: { model.scale = $0 })) {
+            Picker(L("Show"), selection: Binding(get: { model.scale }, set: { model.scale = $0 })) {
                 ForEach(HistoryScale.allCases) { scale in
                     Text(scale.label).tag(scale)
                 }
@@ -49,14 +49,14 @@ public struct HistoryView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .fixedSize()
-            .help("A day, week, month or year at a time")
+            .help(L("A day, week, month or year at a time"))
             PeriodStepper(canStepBack: model.canStepBack, canStepForward: model.canStepForward,
                           onStep: model.step, onToday: model.goToPresent)
             Spacer(minLength: 12)
             // Wi-Fi and Hotspot, the two kinds asked for in #70. Ethernet and
             // Other stay under All, and on the Networks list.
-            Picker("Networks", selection: Binding(get: { model.kind }, set: { model.kind = $0 })) {
-                Text("All").tag(NetworkFingerprint.Kind?.none)
+            Picker(L("Networks"), selection: Binding(get: { model.kind }, set: { model.kind = $0 })) {
+                Text(L("All")).tag(NetworkFingerprint.Kind?.none)
                 ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
                     Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
                 }
@@ -64,7 +64,7 @@ public struct HistoryView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .fixedSize()
-            .help("Every connection, Wi-Fi only, or hotspots only")
+            .help(L("Every connection, Wi-Fi only, or hotspots only"))
         }
     }
 
@@ -86,7 +86,7 @@ public struct HistoryView: View {
                            + " · " + HistoryFormat.sessionSpan(session),
                        onClear: model.clearSession)
         } else if model.filter.sessionID != nil {
-            FilterChip(label: "Session", onClear: model.clearSession)
+            FilterChip(label: L("Session"), onClear: model.clearSession)
         }
     }
 
@@ -98,14 +98,14 @@ public struct HistoryView: View {
         var details: [String] = []
         // Only when there's some: "0 B on metered connections" says nothing.
         if model.kind == nil && report.meteredBytes > 0 {
-            details.append("\(ByteFormat.bytes(report.meteredBytes)) on metered connections")
+            details.append(L("%@ on metered connections", ByteFormat.bytes(report.meteredBytes)))
         }
         if model.scale != .day {
             let days = report.period.elapsedDays(now: Date())
-            if days > 0 { details.append("\(ByteFormat.bytes(report.total / Int64(days))) a day on average") }
+            if days > 0 { details.append(L("%@ a day on average", ByteFormat.bytes(report.total / Int64(days)))) }
         }
         return PeriodHeading(title: model.title, figure: ByteFormat.bytes(report.total),
-                             caption: "used", details: details)
+                             caption: L("used"), details: details)
     }
 
     // MARK: Legend
@@ -138,7 +138,7 @@ public struct HistoryView: View {
     private var lists: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                Picker("List", selection: $model.tab) {
+                Picker(L("List"), selection: $model.tab) {
                     ForEach(HistoryViewModel.Tab.allCases) { tab in
                         Text(tab.label).tag(tab)
                     }
@@ -177,13 +177,13 @@ public struct HistoryView: View {
     private var emptyList: some View {
         VStack(spacing: 4) {
             if report.recordingSince == nil {
-                Text("No history yet")
+                Text(L("No history yet"))
                     .font(.system(size: 13, weight: .medium))
-                Text("NetworkMonitor keeps every hour from now on, per app and per network.")
+                Text(L("NetworkMonitor keeps every hour from now on, per app and per network."))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             } else {
-                Text("Nothing used in this period")
+                Text(L("Nothing used in this period"))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
@@ -210,7 +210,7 @@ public struct HistoryView: View {
             HistoryListRow(
                 leading: { AnyView(Image(nsImage: model.icon(for: systemSummary))
                     .resizable().frame(width: 18, height: 18).accessibilityHidden(true)) },
-                title: "System (\(report.systemRows.count))",
+                title: L("System (%@)", String(report.systemRows.count)),
                 subtitle: nil,
                 bytes: report.systemTotal,
                 fraction: fraction(report.systemTotal, of: largest),
@@ -266,7 +266,7 @@ public struct HistoryView: View {
                 isSelected: model.filter.networkID == network.id,
                 onSelect: { model.toggleNetwork(network.id) })
             .contextMenu {
-                Button("Rename…") {
+                Button(L("Rename…")) {
                     model.rename(networkID: network.id, defaultLabel: network.defaultLabel,
                                  in: NSApp.keyWindow)
                 }
@@ -311,16 +311,16 @@ public struct HistoryView: View {
     }
 
     static func gotThrough(_ count: Int) -> String {
-        count == 1 ? "1 update got through" : "\(count) updates got through"
+        count == 1 ? L("1 update got through") : L("%@ updates got through", String(count))
     }
 
     // MARK: Footer
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Text("Keep history for")
+            Text(L("Keep history for"))
                 .font(.system(size: 12))
-            Picker("Keep history for",
+            Picker(L("Keep history for"),
                    selection: Binding(get: { model.retention },
                                       set: { model.requestRetention($0, in: NSApp.keyWindow) })) {
                 ForEach(HistoryRetention.allCases) { retention in
@@ -330,8 +330,8 @@ public struct HistoryView: View {
             .labelsHidden()
             .fixedSize()
             Spacer()
-            Button("Clear History…") { model.confirmClear(in: NSApp.keyWindow) }
-            Button("Export CSV…") { model.export(in: NSApp.keyWindow) }
+            Button(L("Clear History…")) { model.confirmClear(in: NSApp.keyWindow) }
+            Button(L("Export CSV…")) { model.export(in: NSApp.keyWindow) }
         }
     }
 }
@@ -396,7 +396,7 @@ private struct HistoryChart: View {
             }
         }
         .frame(height: HistoryMetrics.chartHeight)
-        .accessibilityLabel("Usage by \(model.scale.binComponent == .hour ? "hour" : model.scale == .year ? "month" : "day")")
+        .accessibilityLabel(model.scale.binComponent == .hour ? L("Usage by hour") : model.scale == .year ? L("Usage by month") : L("Usage by day"))
     }
 
     // MARK: Geometry
@@ -625,7 +625,7 @@ private struct HistoryListRow: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                     if isMetered {
-                        Text("METERED")
+                        Text(L("METERED"))
                             .font(.system(size: 8, weight: .bold))
                             .padding(.horizontal, 4).padding(.vertical, 1)
                             .background(Color.orange.opacity(0.2), in: Capsule())
@@ -656,7 +656,7 @@ private struct HistoryListRow: View {
         .contentShape(Rectangle())
         .onHover { hover.isHovering = $0 }
         .onTapGesture(perform: onSelect)
-        .help(isSelected ? "Click to show everything again" : "Click to see only \(title)")
+        .help(isSelected ? L("Click to show everything again") : L("Click to see only %@", title))
     }
 
     /// The row's share of the biggest row. Split by network type, it reads as
@@ -703,7 +703,7 @@ private struct HistoryListRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(open ? "Collapse" : "Expand")
+            .accessibilityLabel(open ? L("Collapse") : L("Expand"))
             .foregroundStyle(.secondary)
         } else {
             Spacer().frame(width: 12)
@@ -744,7 +744,7 @@ struct FilterChip: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .help("Show everything again")
+            .help(L("Show everything again"))
         }
         .font(.system(size: 11))
         .padding(.leading, 8)
@@ -853,8 +853,8 @@ enum HistoryFormat {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         if Calendar.current.isDate(session.start, inSameDayAs: session.end) {
-            let day = Calendar.current.isDateInToday(session.start) ? "Today"
-                : Calendar.current.isDateInYesterday(session.start) ? "Yesterday"
+            let day = Calendar.current.isDateInToday(session.start) ? L("Today")
+                : Calendar.current.isDateInYesterday(session.start) ? L("Yesterday")
                 : session.start.formatted(.dateTime.month(.abbreviated).day())
             formatter.dateStyle = .none
             return day + ", " + formatter.string(from: session.start, to: session.end)
@@ -864,7 +864,7 @@ enum HistoryFormat {
 
     /// "3 h 28 min", "12 min", "under a minute".
     static func duration(_ seconds: TimeInterval) -> String {
-        guard seconds >= 60 else { return "under a minute" }
+        guard seconds >= 60 else { return L("under a minute") }
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = seconds >= 86_400 ? [.day, .hour] : [.hour, .minute]
         formatter.unitsStyle = .abbreviated

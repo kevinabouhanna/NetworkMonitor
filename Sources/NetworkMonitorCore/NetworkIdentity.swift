@@ -180,7 +180,7 @@ public struct NetworkFingerprint: Equatable {
 public final class NetworkIdentityWatcher {
 
     private let monitor = NWPathMonitor()
-    private let queue = DispatchQueue(label: "com.networkmonitor.path")
+    private let queue = DispatchQueue(label: "com.networkmonitor.path")  // untranslated: queue label
     private var debounce: DispatchWorkItem?
     private var current: NetworkFingerprint = .offline
 

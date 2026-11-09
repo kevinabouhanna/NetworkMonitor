@@ -12,35 +12,30 @@ import SwiftUI
 /// The words, in one place, so every row says the same thing and a test can
 /// keep them plain.
 public enum SetupCopy {
-    public static let welcome = "It lives in your menu bar: click it to see which apps are using the "
-        + "internet. Two more things it can do, if you'd like:"
-    public static let later = "Not now? You can turn these on later in Settings. Nothing leaves your Mac."
+    public static var welcome: String { L("It lives in your menu bar: click it to see which apps are using the internet. Two more things it can do, if you'd like:") }
+    public static var later: String { L("Not now? You can turn these on later in Settings. Nothing leaves your Mac.") }
 
-    public static let websitesTitle = "See which websites your apps visit"
-    public static let websitesSummary = "Slack shows up as slack.com, not just as Amazon, whose computers it "
-        + "runs on. It also lets you block any app, company or country."
+    public static var websitesTitle: String { L("See which websites your apps visit") }
+    public static var websitesSummary: String { L("Slack shows up as slack.com, not just as Amazon, whose computers it runs on. It also lets you block any app, company or country.") }
 
     /// The same switch, offered in Settings › Hotspot for what it does there (#98).
-    public static let hotspotUpdatesTitle = "Stop every app's updates on hotspots"
-    public static let hotspotUpdatesSummary = "Not only the apps listed here: any app's updater is stopped "
-        + "while you're on a hotspot. It turns on the same thing as seeing which websites your apps visit."
-    public static let hotspotUpdatesOn = "Any app's updater is stopped while you're on a hotspot, "
-        + "including ones listed as can't be paused when they update with a program of their own. "
-        + "Choose Blocked in Connections to see them."
+    public static var hotspotUpdatesTitle: String { L("Stop every app's updates on hotspots") }
+    public static var hotspotUpdatesSummary: String { L("Not only the apps listed here: any app's updater is stopped while you're on a hotspot. It turns on the same thing as seeing which websites your apps visit.") }
+    public static var hotspotUpdatesOn: String { L("Any app's updater is stopped while you're on a hotspot, including ones listed as can't be paused when they update with a program of their own. Choose Blocked in Connections to see them.") }
 
-    public static let wifiTitle = "Know your Wi-Fi networks by name"
-    public static let wifiSummary = "Usage History calls them Home and Office, not “Wi-Fi · 3f2a”. macOS "
-        + "calls this Location, but NetworkMonitor never looks up where you are."
+    public static var wifiTitle: String { L("Know your Wi-Fi networks by name") }
+    public static var wifiSummary: String { L("Usage History calls them Home and Office, not “Wi-Fi · 3f2a”. macOS calls this Location, but NetworkMonitor never looks up where you are.") }
 
     // The steps name what macOS shows, word for word, so they can be followed.
-    public static let websitesSteps = [
-        "In System Settings, scroll down to Network Extensions, click ⓘ, and switch on NetworkMonitor.",
-        "Click Allow when macOS asks.",
-    ]
-    public static let wifiStep = "In System Settings, switch on Location Services for NetworkMonitor."
-    public static let needsApplications = "Move NetworkMonitor to your Applications folder, open it from "
-        + "there, and try again."
-    public static let failed = "It didn't turn on. Try again, or restart your Mac if it keeps happening."
+    public static var websitesSteps: [String] {
+        [
+            L("In System Settings, scroll down to Network Extensions, click ⓘ, and switch on NetworkMonitor."),
+            L("Click Allow when macOS asks."),
+        ]
+    }
+    public static var wifiStep: String { L("In System Settings, switch on Location Services for NetworkMonitor.") }
+    public static var needsApplications: String { L("Move NetworkMonitor to your Applications folder, open it from there, and try again.") }
+    public static var failed: String { L("It didn't turn on. Try again, or restart your Mac if it keeps happening.") }
 
     /// Everything the person reads before a step: what they get, never how.
     public static var plain: [String] {
@@ -94,7 +89,7 @@ struct SetupSteps: View {
                 .foregroundStyle(index == current ? HierarchicalShapeStyle.primary : .secondary)
             }
             if let onOpenSettings {
-                Button("Open System Settings", action: onOpenSettings)
+                Button(L("Open System Settings"), action: onOpenSettings)
                     .padding(.top, 4)
             }
         }
@@ -104,7 +99,7 @@ struct SetupSteps: View {
 
 struct OnBadge: View {
     var body: some View {
-        Label("On", systemImage: "checkmark.circle.fill")
+        Label(L("On"), systemImage: "checkmark.circle.fill")
             .foregroundStyle(.green)
     }
 }
@@ -132,11 +127,11 @@ struct WebsiteNamesRow: View {
         case .unavailable:
             EmptyView()
         case .off:
-            Button("Turn On…") { filter.turnOn() }
+            Button(L("Turn On…")) { filter.turnOn() }
         case .failed:
-            Button("Try Again") { filter.turnOn() }
+            Button(L("Try Again")) { filter.turnOn() }
         case .needsApplicationsFolder:
-            Button("Turn On…") {}.disabled(true)
+            Button(L("Turn On…")) {}.disabled(true)
         case .starting, .waitingForApproval, .confirming:
             ProgressView().controlSize(.small)
         case .on:
@@ -176,7 +171,7 @@ struct WiFiNamesRow: View {
             } else {
                 // macOS asks once. Once it's been told no, only System Settings
                 // can change that.
-                Button("Turn On…") {
+                Button(L("Turn On…")) {
                     if !wifiNames.ask() { Self.openSystemSettings() }
                 }
             }

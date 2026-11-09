@@ -60,7 +60,7 @@ public final class SpeedTestRunner {
     }
 
     private let executable: String
-    private let queue = DispatchQueue(label: "com.networkmonitor.speedtest")
+    private let queue = DispatchQueue(label: "com.networkmonitor.speedtest") // untranslated: queue label
 
     private var process: Process?
     private var masterFD: Int32 = -1
@@ -141,7 +141,7 @@ public final class SpeedTestRunner {
     /// polls it can spin; see `NettopStream.spawn()` for the measurements.
     private func spawn(generation: Int) {
         guard FileManager.default.isExecutableFile(atPath: executable) else {
-            finish(.failure(.toolError("networkQuality is not available on this Mac")))
+            finish(.failure(.toolError(L("networkQuality is not available on this Mac"))))
             return
         }
 
@@ -151,7 +151,7 @@ public final class SpeedTestRunner {
             try FileManager.default.createDirectory(at: directory,
                                                     withIntermediateDirectories: true)
         } catch {
-            finish(.failure(.toolError("Could not create a working folder")))
+            finish(.failure(.toolError(L("Could not create a working folder"))))
             return
         }
         workDirectory = directory
@@ -162,7 +162,7 @@ public final class SpeedTestRunner {
         // Wide, so the ~170-character status line is never wrapped mid-number.
         var size = winsize(ws_row: 50, ws_col: 1000, ws_xpixel: 0, ws_ypixel: 0)
         guard openpty(&master, &slave, nil, nil, &size) == 0 else {
-            finish(.failure(.toolError("Could not open a terminal for the test")))
+            finish(.failure(.toolError(L("Could not open a terminal for the test"))))
             return
         }
         var settings = termios()
@@ -176,7 +176,7 @@ public final class SpeedTestRunner {
         var stdinFDs: [Int32] = [-1, -1]
         guard pipe(&stdinFDs) == 0 else {
             close(master); close(slave)
-            finish(.failure(.toolError("Could not open a terminal for the test")))
+            finish(.failure(.toolError(L("Could not open a terminal for the test"))))
             return
         }
 
@@ -214,14 +214,14 @@ public final class SpeedTestRunner {
             close(slave)
             close(stdinFDs[0])
             teardown()
-            finish(.failure(.toolError("Could not start networkQuality")))
+            finish(.failure(.toolError(L("Could not start networkQuality"))))
             return
         }
 
         let timeout = DispatchWorkItem { [weak self] in
             guard let self, self.generation == generation, self.process != nil else { return }
             self.endChild()
-            self.finish(.failure(.toolError("The test took too long and was stopped")))
+            self.finish(.failure(.toolError(L("The test took too long and was stopped"))))
         }
         timeoutWork = timeout
         queue.asyncAfter(deadline: .now() + Self.timeout, execute: timeout)
@@ -265,7 +265,7 @@ public final class SpeedTestRunner {
 
         guard let data else {
             teardown()
-            let message = parser.lastMessage ?? "networkQuality exited with status \(status)"
+            let message = parser.lastMessage ?? L("networkQuality exited with status %@", String(status))
             finish(.failure(.toolError(message)))
             return
         }

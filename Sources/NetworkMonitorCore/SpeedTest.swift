@@ -172,9 +172,9 @@ public struct SpeedTestResult: Equatable {
               })?.key
         else { return nil }
         switch busiest {
-        case "wired":    return "Ethernet"
-        case "wifi":     return "Wi-Fi"
-        case "cellular": return "Cellular"
+        case "wired":    return L("Ethernet")
+        case "wifi":     return L("Wi-Fi")
+        case "cellular": return L("Cellular")
         default:         return busiest.capitalized
         }
     }

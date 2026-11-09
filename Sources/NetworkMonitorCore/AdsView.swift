@@ -22,13 +22,13 @@ struct AdsView: View {
     }
 
     private var tabs: some View {
-        Picker("View", selection: $model.tab) {
+        Picker(L("View"), selection: $model.tab) {
             ForEach(AdsViewModel.Tab.allCases) { tab in Text(tab.label).tag(tab) }
         }
         .pickerStyle(.segmented)
         .labelsHidden()
         .fixedSize()
-        .help("What was blocked, every connection as it's decided, the lists, and your rules")
+        .help(L("What was blocked, every connection as it's decided, the lists, and your rules"))
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
     }
@@ -55,16 +55,16 @@ struct AdsView: View {
                         .padding(.vertical, 14)
                     Divider()
                     HStack(alignment: .top, spacing: 0) {
-                        AdsList(title: "Sites", items: model.report.sites, total: model.report.total, model: model) {
+                        AdsList(title: L("Sites"), items: model.report.sites, total: model.report.total, model: model) {
                             item in
                             if !item.onlyThreats {
-                                Button("Never Block \(item.id)") { model.setSite(.neverBlock, site: item.id, app: nil) }
+                                Button(L("Never Block %@", item.id)) { model.setSite(.neverBlock, site: item.id, app: nil) }
                             }
                         }
                         Divider()
-                        AdsList(title: "Apps", items: model.report.apps, total: model.report.total, model: model) {
+                        AdsList(title: L("Apps"), items: model.report.apps, total: model.report.total, model: model) {
                             item in
-                            Button("Don't Filter Ads in \(item.title)") {
+                            Button(L("Don't Filter Ads in %@", item.title)) {
                                 model.dontFilter(.init(key: item.id, name: item.title))
                             }
                         }
@@ -103,7 +103,7 @@ struct AdsView: View {
     private var total: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Text("\(model.report.total.formatted()) blocked")
+                Text(L("%@ blocked", model.report.total.formatted()))
                     .font(.system(size: 22, weight: .semibold))
                     .monospacedDigit()
                 RowInfoButton(help: Self.explanation, state: info) { Text(Self.explanation) }
@@ -130,51 +130,46 @@ struct AdsView: View {
     @ViewBuilder private var pause: some View {
         if let until = model.pausedUntil {
             HStack(spacing: 8) {
-                Text("Paused until \(until.formatted(date: .omitted, time: .shortened))")
+                Text(L("Paused until %@", until.formatted(date: .omitted, time: .shortened)))
                     .font(.system(size: 12))
                     .foregroundStyle(.orange)
-                Button("Resume") { model.resume() }
+                Button(L("Resume")) { model.resume() }
             }
         } else if let network = model.pausedHere, let id = model.currentNetwork?.id {
             HStack(spacing: 8) {
-                Text("Off on \(network)")
+                Text(L("Off on %@", network))
                     .font(.system(size: 12))
                     .foregroundStyle(.orange)
                     .lineLimit(1)
-                Button("Turn On Here") { model.resumeOnNetwork(id) }
+                Button(L("Turn On Here")) { model.resumeOnNetwork(id) }
             }
         } else {
-            Menu("Pause") {
-                Button("For 1 Hour") { model.pause(for: 3600) }
-                Button("Until Tomorrow") { model.pauseUntilTomorrow() }
+            Menu(L("Pause")) {
+                Button(L("For 1 Hour")) { model.pause(for: 3600) }
+                Button(L("Until Tomorrow")) { model.pauseUntilTomorrow() }
                 if let network = model.currentNetwork {
                     Divider()
-                    Button("Whenever on \(network.name)") { model.pauseOnThisNetwork() }
+                    Button(L("Whenever on %@", network.name)) { model.pauseOnThisNetwork() }
                 }
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
-            .help("Let ads through for a while, in every app")
+            .help(L("Let ads through for a while, in every app"))
         }
     }
 
     /// Every refused try is counted, as Little Snitch, Pi-hole and AdGuard
     /// Home count theirs; the ⓘ says so, since a retrying app's total reads
     /// as far more tracking than it is (#348, #388).
-    static let explanation = "Connections to sites on the lists you chose in the Lists tab, stopped "
-        + "before they started, in every app. Each try counts: an app that keeps trying a blocked site, "
-        + "as many do to send their usage reports, counts every time, so one app can reach thousands a day. "
-        + "NetworkMonitor reads only each connection's site name, from the "
-        + "app or from the opening of a secure connection, never what's sent. Ads served from a site's own "
-        + "servers, like YouTube's, can't be told apart from the site by name."
+    static var explanation: String { L("Connections to sites on the lists you chose in the Lists tab, stopped before they started, in every app. Each try counts: an app that keeps trying a blocked site, as many do to send their usage reports, counts every time, so one app can reach thousands a day. NetworkMonitor reads only each connection's site name, from the app or from the opening of a secure connection, never what's sent. Ads served from a site's own servers, like YouTube's, can't be told apart from the site by name.") }
 
     // MARK: Chart
 
     private var chart: some View {
         let top = max(model.bins.map(\.count).max() ?? 0, 1)
         return Chart(model.bins) { bin in
-            BarMark(x: .value("Time", bin.interval.start, unit: model.scale.binComponent),
-                    y: .value("Blocked", bin.count))
+            BarMark(x: .value(L("Time"), bin.interval.start, unit: model.scale.binComponent),
+                    y: .value(L("Blocked"), bin.count))
                 .foregroundStyle(Color.red.opacity(0.75))
                 .cornerRadius(2)
         }
@@ -197,9 +192,9 @@ struct AdsView: View {
     private var empty: some View {
         VStack(spacing: 6) {
             Image(systemName: "shield.lefthalf.filled").font(.system(size: 28)).foregroundStyle(.secondary)
-            Text("Nothing blocked \(model.period.contains(Date()) ? "yet" : "in this period")")
+            Text(model.period.contains(Date()) ? L("Nothing blocked yet") : L("Nothing blocked in this period"))
                 .font(.system(size: 14, weight: .medium))
-            Text("Ads and trackers your apps try to reach show here as they're stopped.")
+            Text(L("Ads and trackers your apps try to reach show here as they're stopped."))
                 .font(.system(size: 12)).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -208,10 +203,10 @@ struct AdsView: View {
     private var off: some View {
         VStack(spacing: 8) {
             Image(systemName: "shield.slash").font(.system(size: 28)).foregroundStyle(.secondary)
-            Text("Ad blocking is off").font(.system(size: 14, weight: .medium))
-            Text("Turn it on to stop ads, trackers and malware sites in every app.")
+            Text(L("Ad blocking is off")).font(.system(size: 14, weight: .medium))
+            Text(L("Turn it on to stop ads, trackers and malware sites in every app."))
                 .font(.system(size: 12)).foregroundStyle(.secondary)
-            Button("Turn On") { model.turnOn() }.padding(.top, 4)
+            Button(L("Turn On")) { model.turnOn() }.padding(.top, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -285,7 +280,7 @@ private struct AdsRow: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 5)
         .contentShape(Rectangle())
-        .help(item.detail.map { "\(item.title): \($0)" } ?? item.title)
+        .help(item.detail.map { L("%@: %@", item.title, $0) } ?? item.title)
     }
 }
 
@@ -387,9 +382,9 @@ struct AdsLogView: View {
             Divider()
             if entries.isEmpty {
                 VStack(spacing: 6) {
-                    Text(model.logIsPaused ? "Paused" : "Nothing yet")
+                    Text(model.logIsPaused ? L("Paused") : L("Nothing yet"))
                         .font(.system(size: 14, weight: .medium))
-                    Text("Each connection your apps open shows here as it's decided, while NetworkMonitor runs.")
+                    Text(L("Each connection your apps open shows here as it's decided, while NetworkMonitor runs."))
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -408,7 +403,7 @@ struct AdsLogView: View {
     }
 
     private var show: some View {
-        Picker("Show", selection: $model.logShow) {
+        Picker(L("Show"), selection: $model.logShow) {
             ForEach(AdsLog.Show.allCases) { Text($0.label).tag($0) }
         }
         .pickerStyle(.segmented)
@@ -417,19 +412,19 @@ struct AdsLogView: View {
     }
 
     private var search: some View {
-        TextField("Search apps, sites and addresses", text: $model.logSearch)
-            .accessibilityLabel("Search the log")
+        TextField(L("Search apps, sites and addresses"), text: $model.logSearch)
+            .accessibilityLabel(L("Search the log"))
             .textFieldStyle(.roundedBorder)
     }
 
     @ViewBuilder private var buttons: some View {
-        Button(model.logIsPaused ? "Resume" : "Pause") { model.toggleLogPause() }
-            .help(model.logIsPaused ? "Show new connections again" : "Stop the list moving while you read it")
+        Button(model.logIsPaused ? L("Resume") : L("Pause")) { model.toggleLogPause() }
+            .help(model.logIsPaused ? L("Show new connections again") : L("Stop the list moving while you read it"))
             .fixedSize()
-        Button("Clear") { model.clearLog() }
+        Button(L("Clear")) { model.clearLog() }
             .fixedSize()
-        Button("Export…") { export() }
-            .help("Save what's shown as a text file")
+        Button(L("Export…")) { export() }
+            .help(L("Save what's shown as a text file"))
             .fixedSize()
     }
 
@@ -439,18 +434,18 @@ struct AdsLogView: View {
         let neverBlocks = entry.lists.isEmpty || !entry.lists.allSatisfy(ListCatalogue.isThreat)
         if let name = entry.name {
             ForEach(FirewallRules.siteScopes(for: name), id: \.self) { site in
-                Section(site == name ? site : "\(site) and every name under it") {
+                Section(site == name ? site : L("%@ and every name under it", site)) {
                     if neverBlocks {
-                        Button("Never Block \(site)") { model.setSite(.neverBlock, site: site, app: nil) }
+                        Button(L("Never Block %@", site)) { model.setSite(.neverBlock, site: site, app: nil) }
                     }
-                    Button("Always Block \(site)") { model.setSite(.alwaysBlock, site: site, app: nil) }
+                    Button(L("Always Block %@", site)) { model.setSite(.alwaysBlock, site: site, app: nil) }
                     if let app {
                         if neverBlocks {
-                            Button("Never Block \(site) in \(app.name)") {
+                            Button(L("Never Block %@ in %@", site, app.name)) {
                                 model.setSite(.neverBlock, site: site, app: app)
                             }
                         }
-                        Button("Always Block \(site) in \(app.name)") {
+                        Button(L("Always Block %@ in %@", site, app.name)) {
                             model.setSite(.alwaysBlock, site: site, app: app)
                         }
                     }
@@ -459,7 +454,7 @@ struct AdsLogView: View {
         }
         if let app {
             Divider()
-            Button("Don't Filter Ads in \(app.name)") { model.dontFilter(app) }
+            Button(L("Don't Filter Ads in %@", app.name)) { model.dontFilter(app) }
         }
         let adRules = model.adRules(for: entry)
         let firewallRules = (entry.name.map(FirewallRules.siteScopes(for:)) ?? []).flatMap { domain in
@@ -468,16 +463,25 @@ struct AdsLogView: View {
         if !adRules.isEmpty || !firewallRules.isEmpty {
             Divider()
             ForEach(adRules) { rule in
-                Button("Remove Your Rule: \(rule.summary)") { model.remove(rule) }
+                Button(L("Remove Your Rule: %@", rule.shownSummary)) { model.remove(rule) }
             }
             ForEach(firewallRules) { rule in
-                Button("Remove Your Rule: \(rule.action == .allow ? "Allow" : "Block") \(rule.title)"
-                       + (rule.appTitle.map { " in \($0)" } ?? "")) { model.remove(rule) }
+                Button(Self.removeTitle(rule)) { model.remove(rule) }
             }
         }
         Divider()
-        if let name = entry.name { Button("Copy Name") { copy(name) } }
-        Button("Copy Address") { copy(entry.address) }
+        if let name = entry.name { Button(L("Copy Name")) { copy(name) } }
+        Button(L("Copy Address")) { copy(entry.address) }
+    }
+
+    /// "Remove Your Rule: Block example.com in Safari", for a firewall rule.
+    private static func removeTitle(_ rule: FirewallRule) -> String {
+        let allow = rule.action == .allow
+        if let app = rule.appTitle {
+            return allow ? L("Remove Your Rule: Allow %@ in %@", rule.title, app)
+                : L("Remove Your Rule: Block %@ in %@", rule.title, app)
+        }
+        return allow ? L("Remove Your Rule: Allow %@", rule.title) : L("Remove Your Rule: Block %@", rule.title)
     }
 
     private func copy(_ text: String) {
@@ -487,7 +491,7 @@ struct AdsLogView: View {
 
     private func export() {
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = "NetworkMonitor log.txt"
+        panel.nameFieldStringValue = L("NetworkMonitor log.txt")
         panel.allowedContentTypes = [.plainText]
         let text = model.logText()
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -498,11 +502,11 @@ struct AdsLogView: View {
 private struct AdsLogHeader: View {
     var body: some View {
         HStack(spacing: 10) {
-            Text("Time").frame(width: AdsMetrics.logTime, alignment: .leading)
-            Text("App").frame(width: AdsMetrics.logApp, alignment: .leading)
-            Text("Site").frame(maxWidth: .infinity, alignment: .leading)
-            Text("Decision").frame(width: AdsMetrics.logDecision, alignment: .leading)
-            Text("Why").frame(width: AdsMetrics.logWhy, alignment: .leading)
+            Text(L("Time")).frame(width: AdsMetrics.logTime, alignment: .leading)
+            Text(L("App")).frame(width: AdsMetrics.logApp, alignment: .leading)
+            Text(L("Site")).frame(maxWidth: .infinity, alignment: .leading)
+            Text(L("Decision")).frame(width: AdsMetrics.logDecision, alignment: .leading)
+            Text(L("Why")).frame(width: AdsMetrics.logWhy, alignment: .leading)
         }
         .font(.system(size: 11, weight: .semibold))
         .foregroundStyle(.secondary)
@@ -532,21 +536,19 @@ private struct AdsLogRow: View {
                     Text(name).lineLimit(1).truncationMode(.middle)
                 } else {
                     Text(entry.address).lineLimit(1).foregroundStyle(.secondary)
-                    Text("NO NAME")
+                    Text(L("NO NAME"))
                         .font(.system(size: 8, weight: .bold))
                         .padding(.horizontal, 4).padding(.vertical, 1)
                         .background(Color.secondary.opacity(0.18), in: Capsule())
                         .foregroundStyle(.secondary)
-                        .help("Its site couldn't be read, so no list can match it. The app connected by address, "
-                              + "and the start of the connection didn't name the site, or named only the "
-                              + "service in front of it.")
+                        .help(L("Its site couldn't be read, so no list can match it. The app connected by address, and the start of the connection didn't name the site, or named only the service in front of it."))
                 }
                 ForEach(entry.lists, id: \.self) { list in
                     if let topic = BlocklistTopic(rawValue: list) { ListTag(topic: topic) }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text(entry.isBlocked ? "Blocked" : "Let through")
+            Text(entry.isBlocked ? L("Blocked") : L("Let through"))
                 .foregroundStyle(entry.isBlocked ? Color.red : Color.secondary)
                 .frame(width: AdsMetrics.logDecision, alignment: .leading)
             Text(reason).lineLimit(1).truncationMode(.tail).foregroundStyle(.secondary)
@@ -575,7 +577,7 @@ struct AdsListsView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    group("Built in", note: "Updated weekly by NetworkMonitor, and signed.") {
+                    group(L("Built in"), note: L("Updated weekly by NetworkMonitor, and signed.")) {
                         ForEach(BlocklistTopic.allCases.sorted { $0.rawValue < $1.rawValue }, id: \.self) { topic in
                             shippedRow(topic)
                         }
@@ -587,7 +589,7 @@ struct AdsListsView: View {
             }
             if !model.isOn {
                 Divider()
-                Text("Lists block only while ad blocking is on: switch on a built-in list.")
+                Text(L("Lists block only while ad blocking is on: switch on a built-in list."))
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 20)
@@ -602,15 +604,15 @@ struct AdsListsView: View {
         return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
                 // One switch for the pair, where each list's own would be.
-                Toggle("Use the recommended lists", isOn: Binding(get: { on }, set: { model.setUsesRecommended($0) }))
+                Toggle(L("Use the recommended lists"), isOn: Binding(get: { on }, set: { model.setUsesRecommended($0) }))
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.mini)
-                    .help(on ? "Choose your own lists under Advanced instead" : "Use the recommended lists again")
+                    .help(on ? L("Choose your own lists under Advanced instead") : L("Use the recommended lists again"))
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("Recommended").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
-                    Text(on ? "Block most ads, and rarely break a site."
-                            : "Off: the lists you choose under Advanced are used instead.")
+                    Text(L("Recommended")).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    Text(on ? L("Block most ads, and rarely break a site.")
+                            : L("Off: the lists you choose under Advanced are used instead."))
                         .font(.system(size: 11)).foregroundStyle(.tertiary)
                     RowInfoButton(help: Self.recommendedExplanation, state: recommendedInfo) {
                         Text(Self.recommendedExplanation)
@@ -640,8 +642,8 @@ struct AdsListsView: View {
                         .font(.system(size: 10, weight: .semibold))
                         .rotationEffect(.degrees(model.showsAdvancedLists ? 90 : 0))
                         .frame(width: 10)
-                    Text("Advanced").font(.system(size: 12, weight: .semibold))
-                    Text("Choose your own lists, or add one by its address.")
+                    Text(L("Advanced")).font(.system(size: 12, weight: .semibold))
+                    Text(L("Choose your own lists, or add one by its address."))
                         .font(.system(size: 11)).foregroundStyle(.tertiary)
                 }
                 .foregroundStyle(.secondary)
@@ -659,22 +661,18 @@ struct AdsListsView: View {
         }
     }
 
-    static let recommendedExplanation = "HaGeZi Normal and OISD Big, on top of the built-in lists. Between them "
-        + "they block most ads and trackers, and both are made to keep mistakes rare: OISD's aim is to block ads "
-        + "without breaking sites, and HaGeZi Normal is HaGeZi's all-round list, a step below its stricter Pro. "
-        + "They overlap rather than conflict. NetworkMonitor downloads them from their makers weekly, and a "
-        + "later version may change the pair."
+    static var recommendedExplanation: String { L("HaGeZi Normal and OISD Big, on top of the built-in lists. Between them they block most ads and trackers, and both are made to keep mistakes rare: OISD's aim is to block ads without breaking sites, and HaGeZi Normal is HaGeZi's all-round list, a step below its stricter Pro. They overlap rather than conflict. NetworkMonitor downloads them from their makers weekly, and a later version may change the pair.") }
 
     private var form: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
                 // Verbatim: a key would show the address as a link.
-                TextField(text: $model.newListURL) { Text(verbatim: "A list's address, like https://example.com/hosts.txt") }
-                    .accessibilityLabel("A list's address")
+                TextField(text: $model.newListURL) { Text(verbatim: L("A list's address, like https://example.com/hosts.txt")) }
+                    .accessibilityLabel(L("A list's address"))
                     .textFieldStyle(.roundedBorder)
                     .frame(minWidth: 300)
                     .onSubmit { model.addList() }
-                Button("Add List") { model.addList() }
+                Button(L("Add List")) { model.addList() }
                 RowInfoButton(help: Self.explanation, state: info) { Text(Self.explanation) }
                 Spacer(minLength: 0)
             }
@@ -687,21 +685,15 @@ struct AdsListsView: View {
         .onChange(of: model.newListURL) { _ in model.clearListError() }
     }
 
-    static let explanation = "A list names sites to block, and covers every name under each: listing "
-        + "example.com blocks ads.example.com. NetworkMonitor downloads each list you switch on from its "
-        + "makers, weekly, never on a hotspot or a metered connection, and keeps the last good copy. It reads "
-        + "hosts files, plain lists of names, and Adblock rules about whole sites (||example.com^, with @@ "
-        + "exceptions). Rules about parts of pages are for the Chrome extension. Each list you add blocks more, "
-        + "and makes it likelier that one blocks something a site needs to work. If a site stops working, "
-        + "today's counts show which list blocked what."
+    static var explanation: String { L("A list names sites to block, and covers every name under each: listing example.com blocks ads.example.com. NetworkMonitor downloads each list you switch on from its makers, weekly, never on a hotspot or a metered connection, and keeps the last good copy. It reads hosts files, plain lists of names, and Adblock rules about whole sites (||example.com^, with @@ exceptions). Rules about parts of pages are for the Chrome extension. Each list you add blocks more, and makes it likelier that one blocks something a site needs to work. If a site stops working, today's counts show which list blocked what.") }
 
     private func note(for topic: ListTopic) -> String {
         switch topic {
-        case .ads:          return "Each one you add blocks more, but makes it likelier a site stops working."
-        case .trackers:     return "Sites that follow you from page to page."
-        case .annoyances:   return "Cookie notices and other parts of pages are for the Chrome extension."
-        case .malware:      return "On top of the built-in malware list."
-        case .added:        return "Downloaded from the address you gave."
+        case .ads:          return L("Each one you add blocks more, but makes it likelier a site stops working.")
+        case .trackers:     return L("Sites that follow you from page to page.")
+        case .annoyances:   return L("Cookie notices and other parts of pages are for the Chrome extension.")
+        case .malware:      return L("On top of the built-in malware list.")
+        case .added:        return L("Downloaded from the address you gave.")
         }
     }
 
@@ -721,15 +713,15 @@ struct AdsListsView: View {
         HStack(spacing: 10) {
             Toggle("", isOn: Binding(get: { model.isShippedOn(topic) }, set: { model.setShipped(topic, $0) }))
                 .labelsHidden()
-                .accessibilityLabel(topic.title)
+                .accessibilityLabel(topic.shownTitle)
                 .toggleStyle(.switch)
                 .controlSize(.mini)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
-                    Text(topic.title)
+                    Text(topic.shownTitle)
                     ListTag(topic: topic)
                 }
-                Text("\(topic.source), \(model.shippedDetail(topic))")
+                Text(L("%@, %@", topic.source, model.shippedDetail(topic)))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
@@ -737,7 +729,7 @@ struct AdsListsView: View {
         }
         .font(.system(size: 13))
         .padding(.vertical, 3)
-        .help("\(topic.source), \(topic.licence) licence")
+        .help(L("%@, %@ licence", topic.source, topic.licence))
     }
 
     private func row(_ list: ListSource) -> some View { listRow(list, showsSwitch: true) }
@@ -776,30 +768,31 @@ struct AdsListsView: View {
                     Image(systemName: "minus.circle")
                 }
                 .buttonStyle(.borderless)
-                .help("Remove this list")
+                .help(L("Remove this list"))
             }
         }
         .font(.system(size: 13))
         .padding(.vertical, 3)
         .contentShape(Rectangle())
-        .help("\(list.source), \(list.licence == "Its own terms" ? "on its own terms" : list.licence + " licence")")
+        .help(list.licence == "Its own terms" ? L("%@, on its own terms", list.source) // untranslated: the saved licence it matches
+              : L("%@, %@ licence", list.source, list.licence))
         .contextMenu {
             if model.library.isEnabled(list.id) {
-                Button("Update Now") { model.library.download(list.id) }
+                Button(L("Update Now")) { model.library.download(list.id) }
             }
-            Button("Copy Address") {
+            Button(L("Copy Address")) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(list.url.absoluteString, forType: .string)
             }
             if list.isAdded {
                 Divider()
-                Button("Remove") { model.library.remove(list.id) }
+                Button(L("Remove")) { model.library.remove(list.id) }
             }
         }
     }
 
     private func blocked(_ count: Int64) -> some View {
-        Text(count > 0 ? "\(count.formatted()) blocked today" : "")
+        Text(count > 0 ? L("%@ blocked today", count.formatted()) : "")
             .font(.system(size: 12)).monospacedDigit().foregroundStyle(.secondary)
     }
 }
@@ -820,20 +813,20 @@ struct AdsRulesView: View {
             if model.adRules.isEmpty && model.pausedNetworks.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "list.bullet.rectangle").font(.system(size: 28)).foregroundStyle(.secondary)
-                    Text("No rules yet").font(.system(size: 14, weight: .medium))
-                    Text("Add a site above, or right-click one in the Overview or the Log.")
+                    Text(L("No rules yet")).font(.system(size: 14, weight: .medium))
+                    Text(L("Add a site above, or right-click one in the Overview or the Log."))
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        section("Never blocked", rules: model.neverBlocked,
-                                note: "Let through even when a list has them.")
-                        section("Always blocked", rules: model.alwaysBlocked,
-                                note: "Blocked even when no list has them.")
-                        section("Apps not filtered", rules: model.unfilteredApps,
-                                note: "The lists leave these apps' connections alone.")
+                        section(L("Never blocked"), rules: model.neverBlocked,
+                                note: L("Let through even when a list has them."))
+                        section(L("Always blocked"), rules: model.alwaysBlocked,
+                                note: L("Blocked even when no list has them."))
+                        section(L("Apps not filtered"), rules: model.unfilteredApps,
+                                note: L("The lists leave these apps' connections alone."))
                         networks
                     }
                     .padding(20)
@@ -841,16 +834,16 @@ struct AdsRulesView: View {
             }
             Divider()
             HStack(spacing: 12) {
-                Button("Don't Filter an App…") { chooseApp() }
-                    .help("Choose an app whose connections the lists should leave alone, such as a bank's app that breaks")
+                Button(L("Don't Filter an App…")) { chooseApp() }
+                    .help(L("Choose an app whose connections the lists should leave alone, such as a bank's app that breaks"))
                 Spacer()
-                Button("Import…") { model.beginImport() }
-                    .help("Bring rules over from uBlock Origin, AdGuard, or a list of rules")
-                Button("Export…") { export() }
+                Button(L("Import…")) { model.beginImport() }
+                    .help(L("Bring rules over from uBlock Origin, AdGuard, or a list of rules"))
+                Button(L("Export…")) { export() }
                     .disabled(model.adRules.isEmpty)
-                    .help("Save your rules in the format uBlock Origin and AdGuard read")
+                    .help(L("Save your rules in the format uBlock Origin and AdGuard read"))
                 if !model.isOn {
-                    Text("Rules apply while ad blocking is on.").font(.system(size: 12)).foregroundStyle(.secondary)
+                    Text(L("Rules apply while ad blocking is on.")).font(.system(size: 12)).foregroundStyle(.secondary)
                 }
             }
             .padding(.horizontal, 20)
@@ -861,24 +854,24 @@ struct AdsRulesView: View {
     private var form: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
-                TextField("A site, like example.com", text: $model.newSite)
-                    .accessibilityLabel("Site")
+                TextField(L("A site, like example.com"), text: $model.newSite)
+                    .accessibilityLabel(L("Site"))
                     .textFieldStyle(.roundedBorder)
                     .frame(minWidth: 220)
                     .onSubmit { model.addSite(.neverBlock) }
-                Menu(model.newSiteApp.map { "In \($0.name)" } ?? "In Every App") {
-                    Button("Every App") { model.newSiteApp = nil }
+                Menu(model.newSiteApp.map { L("In %@", $0.name) } ?? L("In Every App")) {
+                    Button(L("Every App")) { model.newSiteApp = nil }
                     let apps = model.knownApps
                     if !apps.isEmpty { Divider() }
                     ForEach(apps) { app in Button(app.name) { model.newSiteApp = app } }
                     Divider()
-                    Button("Choose an App…") {
+                    Button(L("Choose an App…")) {
                         if let app = Self.pickApp() { model.newSiteApp = app }
                     }
                 }
                 .fixedSize()
-                Button("Never Block") { model.addSite(.neverBlock) }
-                Button("Always Block") { model.addSite(.alwaysBlock) }
+                Button(L("Never Block")) { model.addSite(.neverBlock) }
+                Button(L("Always Block")) { model.addSite(.alwaysBlock) }
                 RowInfoButton(help: Self.explanation, state: info) { Text(Self.explanation) }
                 Spacer(minLength: 0)
             }
@@ -894,11 +887,7 @@ struct AdsRulesView: View {
         .sheet(isPresented: $model.isImporting) { AdsImportSheet(model: model) }
     }
 
-    static let explanation = "A rule covers the site and every name under it: example.com covers ads.example.com. "
-        + "Rules change only what the ad and tracker lists do. Never block lets a listed site through, and "
-        + "always block stops one no list has. Malware and phishing lists still block whatever these rules say. A rule for one app wins over one for every app. In Connections, "
-        + "a block still blocks and Always Allow on a site lets it through; allowing a whole app or company "
-        + "doesn't let its ads through."
+    static var explanation: String { L("A rule covers the site and every name under it: example.com covers ads.example.com. Rules change only what the ad and tracker lists do. Never block lets a listed site through, and always block stops one no list has. Malware and phishing lists still block whatever these rules say. A rule for one app wins over one for every app. In Connections, a block still blocks and Always Allow on a site lets it through; allowing a whole app or company doesn't let its ads through.") }
 
     @ViewBuilder private func section(_ title: String, rules: [AdRule], note: String) -> some View {
         if !rules.isEmpty {
@@ -918,8 +907,8 @@ struct AdsRulesView: View {
         if !networks.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("Networks").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
-                    Text("Ad blocking is off whenever the Mac is on these.")
+                    Text(L("Networks")).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    Text(L("Ad blocking is off whenever the Mac is on these."))
                         .font(.system(size: 11)).foregroundStyle(.tertiary)
                 }
                 .padding(.bottom, 2)
@@ -928,7 +917,7 @@ struct AdsRulesView: View {
                         Image(systemName: "wifi").foregroundStyle(.secondary).frame(width: 18, height: 18)
                         Text(network.name).lineLimit(1)
                         if network.id == model.currentNetwork?.id {
-                            Text("the network you're on").foregroundStyle(.secondary)
+                            Text(L("the network you're on")).foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 8)
                         Button {
@@ -937,7 +926,7 @@ struct AdsRulesView: View {
                             Image(systemName: "minus.circle")
                         }
                         .buttonStyle(.borderless)
-                        .help("Block ads on this network again")
+                        .help(L("Block ads on this network again"))
                     }
                     .font(.system(size: 13))
                     .padding(.vertical, 3)
@@ -958,7 +947,7 @@ struct AdsRulesView: View {
             Text(rule.site ?? rule.appTitle ?? rule.appKey ?? "")
                 .lineLimit(1).truncationMode(.middle)
             if rule.site != nil {
-                Text(rule.appTitle.map { "in \($0)" } ?? "in every app")
+                Text(rule.appTitle.map { L("in %@", $0) } ?? L("in every app"))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
@@ -968,15 +957,15 @@ struct AdsRulesView: View {
                 Image(systemName: "minus.circle")
             }
             .buttonStyle(.borderless)
-            .help("Remove this rule")
+            .help(L("Remove this rule"))
         }
         .font(.system(size: 13))
         .padding(.vertical, 3)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("Remove") { model.remove(rule) }
+            Button(L("Remove")) { model.remove(rule) }
             if let site = rule.site {
-                Button(rule.kind == .neverBlock ? "Always Block Instead" : "Never Block Instead") {
+                Button(rule.kind == .neverBlock ? L("Always Block Instead") : L("Never Block Instead")) {
                     model.setSite(rule.kind == .neverBlock ? .alwaysBlock : .neverBlock, site: site,
                                   app: rule.appKey.map { .init(key: $0, name: rule.appTitle ?? $0) })
                 }
@@ -990,7 +979,7 @@ struct AdsRulesView: View {
 
     private func export() {
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = "NetworkMonitor ad rules.txt"
+        panel.nameFieldStringValue = L("NetworkMonitor ad rules.txt")
         panel.allowedContentTypes = [.plainText]
         let text = model.exportText()
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -1002,7 +991,7 @@ struct AdsRulesView: View {
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.allowedContentTypes = [.application]
         panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
+        panel.prompt = L("Choose")
         guard panel.runModal() == .OK, let url = panel.url else { return nil }
         return AdsViewModel.ruleApp(at: url)
     }
@@ -1027,9 +1016,8 @@ private struct AdsImportSheet: View {
 
     private var entry: some View {
         Group {
-            Text("Bring Rules Over").font(.system(size: 15, weight: .semibold))
-            Text("Choose uBlock Origin's backup (its Settings › Back up to file), AdGuard's exported settings, "
-                 + "or a file of rules. Or paste rules below, one a line.")
+            Text(L("Bring Rules Over")).font(.system(size: 15, weight: .semibold))
+            Text(L("Choose uBlock Origin's backup (its Settings › Back up to file), AdGuard's exported settings, or a file of rules. Or paste rules below, one a line."))
                 .font(.system(size: 12)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             TextEditor(text: $model.importText)
@@ -1040,10 +1028,10 @@ private struct AdsImportSheet: View {
                 Text(error).font(.system(size: 11)).foregroundStyle(.red)
             }
             HStack {
-                Button("Choose File…") { chooseFile() }
+                Button(L("Choose File…")) { chooseFile() }
                 Spacer()
-                Button("Cancel") { model.cancelImport() }.keyboardShortcut(.cancelAction)
-                Button("Continue") { model.readImportText() }
+                Button(L("Cancel")) { model.cancelImport() }.keyboardShortcut(.cancelAction)
+                Button(L("Continue")) { model.readImportText() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.importText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -1052,9 +1040,9 @@ private struct AdsImportSheet: View {
 
     private func summary(_ preview: AdImport) -> some View {
         Group {
-            Text("From \(preview.source)").font(.system(size: 15, weight: .semibold))
+            Text(L("From %@", preview.source)).font(.system(size: 15, weight: .semibold))
             if preview.summary.isEmpty {
-                Text("Nothing new to bring over.").font(.system(size: 13))
+                Text(L("Nothing new to bring over.")).font(.system(size: 13))
             } else {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(preview.summary, id: \.self) { Text("• " + $0) }
@@ -1062,13 +1050,12 @@ private struct AdsImportSheet: View {
                 .font(.system(size: 13))
             }
             if preview.hasTrustedSites {
-                Text("Trusted sites become never blocked: connections to the site itself go through. Ads its pages "
-                     + "load from other sites are still blocked, since the filter can't tell which page asked.")
+                Text(L("Trusted sites become never blocked: connections to the site itself go through. Ads its pages load from other sites are still blocked, since the filter can't tell which page asked."))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if !preview.leftOut.isEmpty {
-                Text("Left out").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                Text(L("Left out")).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
                     .padding(.top, 4)
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(preview.leftOut, id: \.self) { Text("• " + $0) }
@@ -1077,10 +1064,10 @@ private struct AdsImportSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
             HStack {
-                Button("Back") { model.editImport() }
+                Button(L("Back")) { model.editImport() }
                 Spacer()
-                Button("Cancel") { model.cancelImport() }.keyboardShortcut(.cancelAction)
-                Button("Import") { model.applyImport() }
+                Button(L("Cancel")) { model.cancelImport() }.keyboardShortcut(.cancelAction)
+                Button(L("Import")) { model.applyImport() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(preview.isEmpty)
             }

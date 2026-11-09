@@ -67,7 +67,7 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                                 key: sparkleKey,
                                 suppressedValue: .bool(false),
                                 mechanism: "Sparkle",
-                                effect: "Turns off its automatic update check",
+                                effect: L("Turns off its automatic update check"),
                                 bundleIdentifiers: [identifier]))
         }
 
@@ -81,7 +81,7 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                                 key: "DisableUpdater",
                                 suppressedValue: .bool(true),
                                 mechanism: "Figma",
-                                effect: "Turns off its updater",
+                                effect: L("Turns off its updater"),
                                 bundleIdentifiers: ["com.figma.Desktop"]))
         }
 
@@ -110,7 +110,7 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                                 key: "checkInterval",
                                 suppressedValue: .int(0),
                                 mechanism: "Keystone",
-                                effect: "Tells Google's updater not to check",
+                                effect: L("Tells Google's updater not to check"),
                                 bundleIdentifiers: chromes.map(\.bundleID)))
         }
 
@@ -120,7 +120,7 @@ public final class PreferenceSuppressor: UpdateSuppressor {
                                 key: "HowToCheck",
                                 suppressedValue: .string("Manual"),
                                 mechanism: "Microsoft AutoUpdate",
-                                effect: "Sets Microsoft's apps to update only when you ask",
+                                effect: L("Sets Microsoft's apps to update only when you ask"),
                                 bundleIdentifiers: mauRegisteredApps()))
         }
 

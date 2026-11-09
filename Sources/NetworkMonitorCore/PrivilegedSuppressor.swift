@@ -14,7 +14,7 @@ import Foundation
 /// and C need no privileges at all — it simply does not cover the largest item.
 public final class PrivilegedSuppressor: UpdateSuppressor {
 
-    public let name = "Through NetworkMonitor's helper"
+    public var name: String { L("Through NetworkMonitor's helper") }
 
     public static let helperPath =
         "/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper"
@@ -65,27 +65,27 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
     /// Canva's `bundleID` is left nil — it is not installed on the development
     /// machine to read it from, and a guessed identifier would make the scan
     /// claim coverage on a guess — so Canva is matched by its name instead.
-    public static let coveredApplications: [CoveredApplication] = [
-        CoveredApplication(app: "macOS updates", mechanism: "System setting",
-                           effect: "Turns off automatic downloads and installs",
+    public static var coveredApplications: [CoveredApplication] { [
+        CoveredApplication(app: L("macOS updates"), mechanism: "System setting",
+                           effect: L("Turns off automatic downloads and installs"),
                            isSystem: true),
-        CoveredApplication(app: "App Store apps", mechanism: "System setting",
-                           effect: "Turns off automatic updates", isSystem: true),
+        CoveredApplication(app: L("App Store apps"), mechanism: "System setting",
+                           effect: L("Turns off automatic updates"), isSystem: true),
         CoveredApplication(app: "Claude", mechanism: "Managed policy",
-                           effect: "Turns off updates with the setting IT departments use",
+                           effect: L("Turns off updates with the setting IT departments use"),
                            bundleID: "com.anthropic.claudefordesktop"),
         CoveredApplication(app: "Slack", mechanism: "Managed policy",
-                           effect: "Turns off updates with the setting IT departments use",
+                           effect: L("Turns off updates with the setting IT departments use"),
                            bundleID: "com.tinyspeck.slackmacgap"),
         CoveredApplication(app: "Canva", mechanism: "Update endpoint",
-                           effect: "Blocks its update server"),
+                           effect: L("Blocks its update server")),
         // Figma is covered twice over: its own `DisableUpdater` preference is the
         // primary lever, but that write is deferred while Figma is running — which
         // it usually is — so the helper also blocks its update endpoint. Listed
         // here because that second mechanism edits /etc/hosts, and this list is
         // what the settings pane reports.
         CoveredApplication(app: "Figma", mechanism: "Update endpoint",
-                           effect: "Blocks its update server",
+                           effect: L("Blocks its update server"),
                            bundleID: "com.figma.Desktop"),
         // Chrome, through GoogleUpdater's update check. Where Keystone still
         // does the updating, `PreferenceSuppressor` covers it as well (#92).
@@ -93,18 +93,18 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
         // same blocked host covers them.
     ] + PreferenceSuppressor.chromeChannels.map {
         CoveredApplication(app: $0.name, mechanism: "Update endpoint",
-                           effect: "Blocks its update server", bundleID: $0.bundleID)
+                           effect: L("Blocks its update server"), bundleID: $0.bundleID)
     } + [
         // A command-line tool, so found by where its installers put it: the
         // native installer and its data, the older local install, npm or
         // Homebrew, and its config file, which every install method leaves,
         // nvm's and Volta's included (#97).
         CoveredApplication(app: "Claude Code", mechanism: "Managed settings",
-                           effect: "Turns off updates with the setting IT departments use",
+                           effect: L("Turns off updates with the setting IT departments use"),
                            paths: ["~/.local/bin/claude", "~/.local/share/claude",
                                    "~/.claude/local/claude", "/opt/homebrew/bin/claude",
                                    "/usr/local/bin/claude", "~/.claude.json"]),
-    ]
+    ] }
 
     /// The entries that apply to this Mac: macOS itself, and the apps that are
     /// installed. The helper pauses all of them regardless; this only keeps
@@ -183,16 +183,16 @@ public final class PrivilegedSuppressor: UpdateSuppressor {
                                                      priorValue: .absent,
                                                      appliedValue: .string("suppressed")))
             } catch {
-                result.failed.append("macOS updates")
+                result.failed.append(L("macOS updates"))
                 return result
             }
         }
 
         if runHelper("suppress") {
-            result.applied.append("macOS updates")
+            result.applied.append(L("macOS updates"))
         } else {
             journal.clear(target)
-            result.failed.append("macOS updates")
+            result.failed.append(L("macOS updates"))
         }
         return result
     }
