@@ -5,6 +5,10 @@
       "shows": ["popover", "popover-subprocesses"]
     },
     {
+      "file": "Resources/README/zh-Hans/demo.gif",
+      "shows": ["popover", "popover-subprocesses"]
+    },
+    {
       "file": "Resources/README/speed-test.png",
       "shows": ["speed-test-result"]
     },

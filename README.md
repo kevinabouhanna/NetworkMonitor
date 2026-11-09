@@ -26,7 +26,7 @@
 
 <p align="center">
   <img src="Resources/README/demo.gif" width="404"
-       alt="The real app during a download: the menu bar reads about 1.1 MB/s down, and a click opens the popover with the day's total, the connection in use and the ads blocked today, over a list of apps by data used. Warp opens to show the processes it started, its curl download climbing.">
+       alt="The real app during a download: a click on the menu bar readout opens the popover, with Today, Week and Month at the top, then Data, Connections, Ads blocked and Network, over the apps by data used. Warp opens to show the processes it started, its curl download climbing.">
 </p>
 
 ## ✨ Features
