@@ -1,5 +1,7 @@
 # Features
 
+English · [简体中文](zh-Hans/features.md)
+
 Everything NetworkMonitor does, and where to find it.
 
 ## The menu bar readout

@@ -1,5 +1,7 @@
 # Installing, updating and removing
 
+English · [简体中文](zh-Hans/installing.md)
+
 NetworkMonitor runs on macOS 13 or later, on Apple silicon and Intel. It comes as
 one universal disk image, `NetworkMonitor.dmg`, attached to every
 [GitHub release](https://github.com/kevinabouhanna/NetworkMonitor/releases).

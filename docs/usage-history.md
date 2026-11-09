@@ -1,5 +1,7 @@
 # Usage History
 
+English · [简体中文](zh-Hans/usage-history.md)
+
 The popover's total starts over when you join a different network, and at midnight.
 Usage History is where those totals go: every hour, per app and per network, for as
 long as you choose.

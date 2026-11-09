@@ -1,5 +1,7 @@
 # Speed test
 
+English · [简体中文](zh-Hans/speed-test.md)
+
 <p align="center">
   <img src="../Resources/README/speed-test.png" width="320"
        alt="The popover after a speed test: a dial with the download speed in its centre, 1.00 MB/s down and 2.10 MB/s up over Ethernet, using 60.0 MB; ping 40.7 ms, jitter 0.9 ms, ping while downloading and while uploading 40.6 ms; Back to Apps and Test Again buttons.">
@@ -80,7 +82,7 @@ down:
 
 It runs inside a **pseudo-terminal**, because through a pipe the tool prints nothing
 until the end. That's the same reason `nettop` runs in one; see
-[architecture](architecture.md#nettop). The live line is redrawn about five times a
+[architecture](architecture.md#nettop-who-used-it). The live line is redrawn about five times a
 second and parsed as it comes. A run that takes over 90 seconds is stopped.
 
 Then a short **ping-only pass** (`-d -u`, under a second, no test data) adds eight more

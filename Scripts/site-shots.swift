@@ -618,11 +618,16 @@ enum Coverage {
     /// `/assets/` isn't ours.
     static func siteUses(_ site: URL) throws -> [String: Set<String>] {
         let regex = try NSRegularExpression(
-            pattern: #"(?:^|["'(=,\s]|github\.io/NetworkMonitor/)(assets/[A-Za-z0-9_./-]+\.(?:"# + media + #"))"#,
+            pattern: #"(?:^|["'(=,\s]|github\.io/NetworkMonitor/)(?:\.\./)*(assets/[A-Za-z0-9_./-]+\.(?:"# + media + #"))"#,
             options: [.caseInsensitive, .anchorsMatchLines])
         var uses: [String: Set<String>] = [:]
-        let pages = try FileManager.default.contentsOfDirectory(atPath: site.path)
-            .filter { $0.hasSuffix(".html") }.sorted()
+        // The pages at the top, and each language's page in a folder of its
+        // own (zh/index.html, #430), whose links climb out with ../.
+        let entries = try FileManager.default.contentsOfDirectory(atPath: site.path)
+        let pages = (entries.filter { $0.hasSuffix(".html") }
+            + entries.map { "\($0)/index.html" }.filter {
+                FileManager.default.fileExists(atPath: site.appendingPathComponent($0).path)
+            }).sorted()
         for page in pages {
             let text = try String(contentsOf: site.appendingPathComponent(page), encoding: .utf8)
             let ns = text as NSString
@@ -640,8 +645,16 @@ enum Coverage {
             pattern: #"(?:(?:src|poster)\s*=\s*["']([^"']+)["']|!\[[^\]]*\]\(\s*<?([^)\s>]+))"#)
         let mediaRegex = try NSRegularExpression(pattern: #"\.(?:"# + media + #")$"#, options: .caseInsensitive)
         var pages = ["README.md", "SECURITY.md"]
+        // Translations too (#430): README.<code>.md, and docs/<code>/.
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: repo.path)) ?? []
+        pages += files.filter { $0.hasPrefix("README.") && $0.hasSuffix(".md") && $0 != "README.md" }.sorted()
         let docs = (try? FileManager.default.contentsOfDirectory(atPath: repo.appendingPathComponent("docs").path)) ?? []
         pages += docs.filter { $0.hasSuffix(".md") }.sorted().map { "docs/" + $0 }
+        for folder in docs.sorted() {
+            let inner = (try? FileManager.default.contentsOfDirectory(
+                atPath: repo.appendingPathComponent("docs/\(folder)").path)) ?? []
+            pages += inner.filter { $0.hasSuffix(".md") }.sorted().map { "docs/\(folder)/" + $0 }
+        }
         var uses: [String: Set<String>] = [:]
         for page in pages {
             guard let text = try? String(contentsOf: repo.appendingPathComponent(page), encoding: .utf8) else { continue }

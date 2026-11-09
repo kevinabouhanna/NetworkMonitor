@@ -1,5 +1,7 @@
 # Hotspot mode
 
+English · [简体中文](zh-Hans/hotspot-mode.md)
+
 One switch, in **Settings › Hotspot**: **Stop apps updating on hotspots**. Turn it on and
 NetworkMonitor switches off automatic updates whenever you're on a mobile hotspot, then
 switches them back on when you leave. Apps keep working normally: Chrome still browses,
