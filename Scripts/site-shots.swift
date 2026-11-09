@@ -1155,9 +1155,80 @@ enum CoverageTests {
              expect: [:]),
     ]
 
+    /// A change on one branch that fails the other's check says which branch
+    /// to fix, and that the problem came from there (#426). Each case is the
+    /// branch the check runs for, the pull request's branch, and what each
+    /// group must say, or must not.
+    static let branches: [(name: String, checking: String?, head: String?, site: [String], main: [String], notSite: [String], notMain: [String])] = [
+        ("a pull request into main", "main", "scanner-425",
+         ["Not in this pull request's files: gh-pages changed", "name that branch scanner-425-site"], [],
+         [], ["Not in this"]),
+        ("a pull request into gh-pages", "gh-pages", "rename-12-site",
+         [], ["Not in this pull request's files: main changed", "name this branch after that one, with -site"],
+         ["Not in this"], []),
+        ("a push to main", "main", nil, ["Not in this push's files"], [], [], ["Not in this"]),
+        ("this Mac", nil, nil, [], [], ["Not in this"], ["Not in this"]),
+    ]
+
+    /// gh-pages renamed two shots main's list names, and added a picture it
+    /// didn't list: what each branch's check says.
+    static func runBranches() throws -> [String] {
+        var failures: [String] = []
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("coverage-test-" + UUID().uuidString)
+        defer { try? fm.removeItem(at: root) }
+        let site = root.appendingPathComponent("site"), repo = root.appendingPathComponent("app")
+        for (path, text) in [
+            "site/index.html": #"<img src="assets/popover.png"><img src="assets/extra.png">"#,
+            "site/assets/popover.png": "", "site/assets/extra.png": "",
+            "app/README.md": #"![Demo](Resources/README/demo.gif) ![Speed](Resources/README/speed.png)"#,
+            "app/Resources/README/demo.gif": "", "app/Resources/README/speed.png": "",
+        ] {
+            let file = root.appendingPathComponent(path)
+            try fm.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try text.write(to: file, atomically: true, encoding: .utf8)
+        }
+        let manifest = try JSONDecoder().decode(Manifest.self, from: Data("""
+            {"app": "/Applications/NetworkMonitor.app", "bundle": "x",
+             "shots": [{"name": "popover", "file": "assets/popover.png", "open": [], "window": "x"}]}
+            """.utf8))
+        let repoAssets = try JSONDecoder().decode(RepoAssets.self, from: Data("""
+            {"assets": [{"file": "Resources/README/demo.gif", "shows": ["popover-subprocesses"]},
+                        {"file": "Resources/README/speed.png", "copy": "speed-test-result"}]}
+            """.utf8))
+        let found = try Coverage.problems(manifest: manifest, site: site, repoAssets: repoAssets, repo: repo)
+        let renamed = "in shots/shots.json on gh-pages. If a change there renamed or removed it, "
+            + "change \(repoAssetsPath) on main to match"
+        if !(found.problems[..<found.onMain].count == 1 && found.problems[0].hasPrefix("assets/extra.png (index.html) isn't listed")) {
+            failures.append("branches: gh-pages' problems are \(found.problems[..<found.onMain]); expected assets/extra.png isn't listed")
+        }
+        if !(found.problems[found.onMain...].count == 2 && found.problems[found.onMain...].allSatisfy { $0.contains(renamed) }) {
+            failures.append("branches: main's problems are \(found.problems[found.onMain...]); expected two saying \"\(renamed)\"")
+        }
+        for test in branches {
+            let lines = Coverage.report(found.problems, onMain: found.onMain, checking: test.checking, head: test.head)
+            guard let siteAt = lines.firstIndex(where: { $0.hasPrefix("On gh-pages ") }),
+                  let mainAt = lines.firstIndex(where: { $0.hasPrefix("On main ") }), siteAt < mainAt else {
+                failures.append("branches, \(test.name): no group for each branch, gh-pages first: \(lines)")
+                continue
+            }
+            let groups = [("gh-pages", lines[siteAt..<mainAt].joined(separator: "\n"), test.site, test.notSite),
+                          ("main", lines[mainAt...].joined(separator: "\n"), test.main, test.notMain)]
+            for (branch, text, says, never) in groups {
+                for line in says where !text.contains(line) {
+                    failures.append("branches, \(test.name): \(branch)'s group doesn't say \"\(line)\": \(text)")
+                }
+                for line in never where text.contains(line) {
+                    failures.append("branches, \(test.name): \(branch)'s group says \"\(line)\": \(text)")
+                }
+            }
+        }
+        return failures
+    }
+
     /// What failed, one line each.
     static func run() throws -> [String] {
-        var failures: [String] = []
+        var failures = try runBranches()
         let fm = FileManager.default
         for (kind, cases) in [("site", site), ("README and docs", repo)] {
             for test in cases {
@@ -1231,7 +1302,7 @@ struct SiteShots {
         if command == "coverage-test" {
             do {
                 let failures = try CoverageTests.run()
-                let count = CoverageTests.site.count + CoverageTests.repo.count
+                let count = CoverageTests.site.count + CoverageTests.repo.count + CoverageTests.branches.count
                 if failures.isEmpty {
                     print("coverage-test: \(count) cases passed")
                     exit(0)
