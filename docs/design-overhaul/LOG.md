@@ -13,7 +13,7 @@ waiting on Kevin's review** of the running build (`make review`) and of the befo
 after on the comparison page:
 https://claude.ai/artifact/GooXLRsHfm6a6CRRTsNu92 (private to Kevin). Nothing merges or
 releases until Kevin has reviewed it: both pull requests are drafts.
-Latest (D12): each setting has one home; the Settings window is General alone.
+Latest (D13): one window; Settings is at the bottom of its sidebar, and each setting has one home.
 
 Kevin reviews visually, on that page, not by reading files (2026-11-09).
 [`PRODUCT.md`](../../PRODUCT.md) and [`DESIGN.md`](../../DESIGN.md) are working notes for
@@ -229,6 +229,12 @@ colour of their own; and the speed test deserved a clearer place than a pill.
 
 | D12 | **One home for every setting.** Feature settings only behind their section's gear; the Settings window is General alone, pointing to each section; About is the standard About window; updates in General | A: keep both ways in; B: no Settings window, ⌘, opens the main window | **Kevin chose C (this)**, 2026-11-09; built, waiting on his review |
 
+| D13 | **Settings in the sidebar, no Settings window.** Settings pinned to the bottom of the main window's sidebar: General, then a row to each section's settings; ⌘, and the popover's gear open it | Keep the one-pane Settings window | **Kevin asked for it**, 2026-11-09; built, waiting on his review |
+
+**Settings in the sidebar (Kevin, 2026-11-09).** Even with one pane, the Settings
+window was a second window beside the main one. ⌘, and Settings… still open the app's
+settings, which is what Mac users rely on; they just open in the main window.
+
 **One home for every setting (Kevin, 2026-11-09).** With the sidebar, the same panes
 were reachable from the Settings window and from each section's gear: two places for
 one switch. Removing the Settings window entirely would break ⌘,, which Mac users rely
@@ -289,19 +295,19 @@ pictures. Every after picture, light and dark, is also on the comparison page.
   shows the section's settings in place, with a back button before the title**, as
   System Settings goes deeper, rather than a Settings window on top. Ads and Trackers
   keeps Overview and Log.
-- **One home for every setting** (D12): each feature's settings live only behind its
-  section's gear in the main window. **The Settings window (⌘, and the popover's gear)
-  is General alone**, what applies to the whole app, with no toolbar of tabs, and opens
-  with a line and a button to each section's settings. Updates moved into General;
-  About is the standard About window, with the links its pane had. Hotspot and the speed
-  test's popover style are Network's settings.
+- **One window, one home for every setting** (D12, D13): each feature's settings live
+  only behind its section's gear. **Settings is an item pinned to the bottom of the main
+  window's sidebar**: General (language, start at login, units, colours, popover
+  totals, updates), then a row to each section's settings, the same pages its gear shows.
+  ⌘,, Settings… in both menus and the popover's gear open it; there's no separate
+  Settings window. About is the standard About window, with the links its pane had.
 - **Widths, measured** (`make design-shots`, `--measure`): beside the 190 pt sidebar,
   Connections' toolbar fits from 914 pt, the others from 756; each section's minimum
   is the sidebar and its content's own.
 
 | State | Before | After |
 |---|---|---|
-| Settings › General (the Settings window, now its only pane) | <img src="before/settings-general-dark.png" width="340" alt="Settings › General (the Settings window, now its only pane), before"> | <img src="after/settings-general-dark.png" width="340" alt="Settings › General (the Settings window, now its only pane), after"> |
+| Settings › General → Settings, at the bottom of the main window's sidebar | <img src="before/settings-general-dark.png" width="340" alt="Settings › General → Settings, at the bottom of the main window's sidebar, before"> | <img src="after/settings-general-dark.png" width="340" alt="Settings › General → Settings, at the bottom of the main window's sidebar, after"> |
 | Settings › Connections → Connections' settings, in place | <img src="before/settings-connections-dark.png" width="340" alt="Settings › Connections → Connections' settings, in place, before"> | <img src="after/main-connections-settings-dark.png" width="340" alt="Settings › Connections → Connections' settings, in place, after"> |
 | Settings › Ads → Ads and Trackers' settings, in place | <img src="before/settings-ads-dark.png" width="340" alt="Settings › Ads → Ads and Trackers' settings, in place, before"> | <img src="after/main-ads-settings-dark.png" width="340" alt="Settings › Ads → Ads and Trackers' settings, in place, after"> |
 | Settings › History → Usage History, a section of the main window | <img src="before/settings-history-dark.png" width="340" alt="Settings › History → Usage History, a section of the main window, before"> | <img src="after/history-dark.png" width="340" alt="Settings › History → Usage History, a section of the main window, after"> |
