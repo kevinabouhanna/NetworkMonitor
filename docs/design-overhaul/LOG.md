@@ -13,6 +13,7 @@ waiting on Kevin's review** of the running build (`make review`) and of the befo
 after on the comparison page:
 https://claude.ai/artifact/GooXLRsHfm6a6CRRTsNu92 (private to Kevin). Nothing merges or
 releases until Kevin has reviewed it: both pull requests are drafts.
+Latest (D12): each setting has one home; the Settings window is General alone.
 
 Kevin reviews visually, on that page, not by reading files (2026-11-09).
 [`PRODUCT.md`](../../PRODUCT.md) and [`DESIGN.md`](../../DESIGN.md) are working notes for
@@ -226,6 +227,13 @@ colour of their own; and the speed test deserved a clearer place than a pill.
 
 | D11 | **One main window with a sidebar; settings in place.** Usage History, Connections, Ads and Trackers and Network (the connection, the hotspot switch, the speed test) as sections of one window. Each section's gear shows its settings in place, with a back button, instead of the Settings window on top; the Settings window stays for ⌘, and the popover's gear. The popover's fourth button is Network; its gear sits beside the buttons, its footer and its network line go, and the speed test moves into Network | Network and Hotspot as two sections; keep the three windows | **Kevin approved the sidebar** ("I liked it"), 2026-11-09; built, waiting on his review |
 
+| D12 | **One home for every setting.** Feature settings only behind their section's gear; the Settings window is General alone, pointing to each section; About is the standard About window; updates in General | A: keep both ways in; B: no Settings window, ⌘, opens the main window | **Kevin chose C (this)**, 2026-11-09; built, waiting on his review |
+
+**One home for every setting (Kevin, 2026-11-09).** With the sidebar, the same panes
+were reachable from the Settings window and from each section's gear: two places for
+one switch. Removing the Settings window entirely would break ⌘,, which Mac users rely
+on, so it stays, holding only what applies to the whole app.
+
 **One window with a sidebar (Kevin, 2026-11-09).** A Settings window opening on top of
 the window being read felt like a dialogue above a dialogue. Apple's apps keep a
 separate Settings window for ⌘, (a menu bar popover closes first, so that's fine), but
@@ -281,26 +289,29 @@ pictures. Every after picture, light and dark, is also on the comparison page.
   shows the section's settings in place, with a back button before the title**, as
   System Settings goes deeper, rather than a Settings window on top. Ads and Trackers
   keeps Overview and Log.
-- **Settings (⌘, and the popover's gear):** setup only, in the popover's order: General,
-  History, Connections, Ads, Hotspot, Speed Test, About. The same panes the main window
-  shows in place.
+- **One home for every setting** (D12): each feature's settings live only behind its
+  section's gear in the main window. **The Settings window (⌘, and the popover's gear)
+  is General alone**, what applies to the whole app, with no toolbar of tabs, and opens
+  with a line and a button to each section's settings. Updates moved into General;
+  About is the standard About window, with the links its pane had. Hotspot and the speed
+  test's popover style are Network's settings.
 - **Widths, measured** (`make design-shots`, `--measure`): beside the 190 pt sidebar,
   Connections' toolbar fits from 914 pt, the others from 756; each section's minimum
   is the sidebar and its content's own.
 
 | State | Before | After |
 |---|---|---|
-| Settings › General | <img src="before/settings-general-dark.png" width="340" alt="Settings › General, before"> | <img src="after/settings-general-dark.png" width="340" alt="Settings › General, after"> |
-| Settings › Connections | <img src="before/settings-connections-dark.png" width="340" alt="Settings › Connections, before"> | <img src="after/settings-connections-dark.png" width="340" alt="Settings › Connections, after"> |
-| Settings › Ads | <img src="before/settings-ads-dark.png" width="340" alt="Settings › Ads, before"> | <img src="after/settings-ads-dark.png" width="340" alt="Settings › Ads, after"> |
-| Settings › History → the main window's Usage History | <img src="before/settings-history-dark.png" width="340" alt="Settings › History → the main window's Usage History, before"> | <img src="after/history-dark.png" width="340" alt="Settings › History → the main window's Usage History, after"> |
+| Settings › General (the Settings window, now its only pane) | <img src="before/settings-general-dark.png" width="340" alt="Settings › General (the Settings window, now its only pane), before"> | <img src="after/settings-general-dark.png" width="340" alt="Settings › General (the Settings window, now its only pane), after"> |
+| Settings › Connections → Connections' settings, in place | <img src="before/settings-connections-dark.png" width="340" alt="Settings › Connections → Connections' settings, in place, before"> | <img src="after/main-connections-settings-dark.png" width="340" alt="Settings › Connections → Connections' settings, in place, after"> |
+| Settings › Ads → Ads and Trackers' settings, in place | <img src="before/settings-ads-dark.png" width="340" alt="Settings › Ads → Ads and Trackers' settings, in place, before"> | <img src="after/main-ads-settings-dark.png" width="340" alt="Settings › Ads → Ads and Trackers' settings, in place, after"> |
+| Settings › History → Usage History, a section of the main window | <img src="before/settings-history-dark.png" width="340" alt="Settings › History → Usage History, a section of the main window, before"> | <img src="after/history-dark.png" width="340" alt="Settings › History → Usage History, a section of the main window, after"> |
 | Connections, list | <img src="before/connections-list-dark.png" width="340" alt="Connections, list, before"> | <img src="after/connections-list-dark.png" width="340" alt="Connections, list, after"> |
 | Connections, list and map | <img src="before/connections-both-dark.png" width="340" alt="Connections, list and map, before"> | <img src="after/connections-both-dark.png" width="340" alt="Connections, list and map, after"> |
 | Connections, map | <img src="before/connections-map-dark.png" width="340" alt="Connections, map, before"> | <img src="after/connections-map-dark.png" width="340" alt="Connections, map, after"> |
 | Ads and Trackers › Overview | <img src="before/ads-overview-dark.png" width="340" alt="Ads and Trackers › Overview, before"> | <img src="after/ads-overview-dark.png" width="340" alt="Ads and Trackers › Overview, after"> |
 | Ads and Trackers › Log | <img src="before/ads-log-dark.png" width="340" alt="Ads and Trackers › Log, before"> | <img src="after/ads-log-dark.png" width="340" alt="Ads and Trackers › Log, after"> |
 | Ads and Trackers › Lists → its settings, in place | <img src="before/ads-lists-dark.png" width="340" alt="Ads and Trackers › Lists → its settings, in place, before"> | <img src="after/main-ads-settings-dark.png" width="340" alt="Ads and Trackers › Lists → its settings, in place, after"> |
-| Ads and Trackers › Rules → Settings › Ads › Your Rules | <img src="before/ads-rules-dark.png" width="340" alt="Ads and Trackers › Rules → Settings › Ads › Your Rules, before"> | <img src="after/settings-ads-rules-dark.png" width="340" alt="Ads and Trackers › Rules → Settings › Ads › Your Rules, after"> |
+| Ads and Trackers › Rules → its settings › Your Rules | <img src="before/ads-rules-dark.png" width="340" alt="Ads and Trackers › Rules → its settings › Your Rules, before"> | <img src="after/main-ads-settings-rules-dark.png" width="340" alt="Ads and Trackers › Rules → its settings › Your Rules, after"> |
 
 New views, which had no before:
 
@@ -312,10 +323,7 @@ New views, which had no before:
 | The popover › Network | <img src="after/popover-connection-dark.png" width="300" alt="The popover › Network, dark"> | <img src="after/popover-connection-light.png" width="300" alt="The popover › Network, light"> |
 | Main window › Network | <img src="after/network-dark.png" width="300" alt="Main window › Network, dark"> | <img src="after/network-light.png" width="300" alt="Main window › Network, light"> |
 | Main window › Usage History's settings, in place | <img src="after/main-history-settings-dark.png" width="300" alt="Main window › Usage History's settings, in place, dark"> | <img src="after/main-history-settings-light.png" width="300" alt="Main window › Usage History's settings, in place, light"> |
-| Main window › Connections' settings, in place | <img src="after/main-connections-settings-dark.png" width="300" alt="Main window › Connections' settings, in place, dark"> | <img src="after/main-connections-settings-light.png" width="300" alt="Main window › Connections' settings, in place, light"> |
-| Main window › Network's settings, in place | <img src="after/main-network-settings-dark.png" width="300" alt="Main window › Network's settings, in place, dark"> | <img src="after/main-network-settings-light.png" width="300" alt="Main window › Network's settings, in place, light"> |
-| Settings › History | <img src="after/settings-history-dark.png" width="300" alt="Settings › History, dark"> | <img src="after/settings-history-light.png" width="300" alt="Settings › History, light"> |
-| Settings › Hotspot | <img src="after/settings-hotspot-dark.png" width="300" alt="Settings › Hotspot, dark"> | <img src="after/settings-hotspot-light.png" width="300" alt="Settings › Hotspot, light"> |
+| Main window › Network's settings (Hotspot, the speed test's style), in place | <img src="after/main-network-settings-dark.png" width="300" alt="Main window › Network's settings (Hotspot, the speed test's style), in place, dark"> | <img src="after/main-network-settings-light.png" width="300" alt="Main window › Network's settings (Hotspot, the speed test's style), in place, light"> |
 
 With no data, and on a first launch (dark):
 
@@ -324,7 +332,7 @@ With no data, and on a first launch (dark):
 | The popover › Today | <img src="after/empty-popover-today-dark.png" width="300" alt="The popover › Today, no data"> | <img src="after/first-popover-today-dark.png" width="300" alt="The popover › Today, first launch"> |
 | The popover › Ads blocked | <img src="after/empty-popover-blocked-dark.png" width="300" alt="The popover › Ads blocked, no data"> | <img src="after/first-popover-blocked-dark.png" width="300" alt="The popover › Ads blocked, first launch"> |
 | The popover › Companies | <img src="after/empty-popover-companies-dark.png" width="300" alt="The popover › Companies, no data"> | <img src="after/first-popover-companies-dark.png" width="300" alt="The popover › Companies, first launch"> |
-| Settings › Ads | <img src="after/empty-settings-ads-dark.png" width="300" alt="Settings › Ads, no data"> | <img src="after/first-settings-ads-dark.png" width="300" alt="Settings › Ads, first launch"> |
+| Ads and Trackers' settings | <img src="after/empty-main-ads-settings-dark.png" width="300" alt="Ads and Trackers' settings, no data"> | <img src="after/first-main-ads-settings-dark.png" width="300" alt="Ads and Trackers' settings, first launch"> |
 | Usage History | <img src="after/empty-history-dark.png" width="300" alt="Usage History, no data"> | <img src="after/first-history-dark.png" width="300" alt="Usage History, first launch"> |
 | Connections, list and map | <img src="after/empty-connections-both-dark.png" width="300" alt="Connections, list and map, no data"> | <img src="after/first-connections-both-dark.png" width="300" alt="Connections, list and map, first launch"> |
 
