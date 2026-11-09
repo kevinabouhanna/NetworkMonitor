@@ -15,7 +15,7 @@ Contents: [1. Before](#1-before) · [2. Plan](#2-plan) · [3. Inspiration](#3-in
 
 ## 1. Before
 
-Version 1.26.7 (`main` at a9fba33), drawn by `make design-shots` from made-up data (see
+`main` at 5c1bfb8 (1.26.7 and the language choice, #433), drawn by `make design-shots` from made-up data (see
 [7](#7-my-own-touches)): none of Kevin's connections, sites or rules. Every picture is at
 2x. Drawn at about 5 AM, so today's charts have five hours in them; the made-up day is
 shifted so those hours are busy.
