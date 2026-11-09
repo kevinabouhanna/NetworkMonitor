@@ -70,46 +70,54 @@ func runAccessibilityTests() {
             window.orderOut(nil)
         }
 
-        let settings = SettingsWindowController(model: model, history: HistoryViewModel(monitor: model),
-                                                connections: connections, onOpenConnections: {},
-                                                onUninstall: {}, defaults: defaults)
-        for pane in SettingsPane.allCases {
-            settings.select(pane)
-            check(settings.window, "Settings › \(pane.title)")
-        }
-
-        // The popover styles are pictures to click (#398). Each reads as a
-        // button named after its style; the sample card inside is left out.
-        Check.test("Settings › Speed Test reads each style's picture as one button") {
-            settings.select(.speedTest)
-            settings.window.alphaValue = 0
-            settings.window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-            settings.window.orderFrontRegardless()
-            RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-            let outline = AccessibilityAudit.outlineOwnWindow(titled: settings.window.title)
-            for style in ["Card", "Compact"] {
-                Check.expectTrue(outline.contains { $0.hasPrefix("AXButton name=\(style) ") },
-                                 "no \(style) button in \(outline)")
+        // Every window in every language the app has (#433): a name that fits
+        // in English can still go missing from a translation.
+        for code in Localization.shared.available {
+            Localization.shared.showForThisRun(code)
+            let language = code == Localization.source ? "" : " (\(code))"
+            let settings = SettingsWindowController(model: model, history: HistoryViewModel(monitor: model),
+                                                    connections: connections, onOpenConnections: {},
+                                                    onUninstall: {}, defaults: defaults)
+            for pane in SettingsPane.allCases {
+                settings.select(pane)
+                check(settings.window, "Settings › \(pane.title)\(language)")
             }
-            Check.expectTrue(!outline.contains { $0.contains("Back to Apps") },
-                             "the picture's sample buttons reach VoiceOver: \(outline)")
-            settings.window.orderOut(nil)
+
+            // The popover styles are pictures to click (#398). Each reads as a
+            // button named after its style; the sample card inside is left out.
+            // The style names it looks for are English.
+            if code == Localization.source { Check.test("Settings › Speed Test reads each style's picture as one button") {
+                settings.select(.speedTest)
+                settings.window.alphaValue = 0
+                settings.window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
+                settings.window.orderFrontRegardless()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                let outline = AccessibilityAudit.outlineOwnWindow(titled: settings.window.title)
+                for style in ["Card", "Compact"] {
+                    Check.expectTrue(outline.contains { $0.hasPrefix("AXButton name=\(style) ") },
+                                     "no \(style) button in \(outline)")
+                }
+                Check.expectTrue(!outline.contains { $0.contains("Back to Apps") },
+                                 "the picture's sample buttons reach VoiceOver: \(outline)")
+                settings.window.orderOut(nil)
+            } }
+
+            check(ConnectionsWindowController(model: connections).window, "Connections\(language)")
+
+            let adsController = AdsWindowController(model: AdsViewModel(monitor: model))
+            for tab in AdsViewModel.Tab.allCases {
+                adsController.select(tab)
+                check(adsController.window, "Ads and Trackers › \(tab.label)\(language)")
+            }
+
+            let popover = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 480),
+                                   styleMask: [.titled], backing: .buffered, defer: false)
+            popover.title = "Popover"
+            popover.contentView = NSHostingView(rootView: MenuBarPopoverView(
+                model: model, onSettings: {}, onHistory: {}, onConnections: {}, onAds: {}))
+            check(popover, "The popover\(language)")
         }
-
-        check(ConnectionsWindowController(model: connections).window, "Connections")
-
-        let adsController = AdsWindowController(model: AdsViewModel(monitor: model))
-        for tab in AdsViewModel.Tab.allCases {
-            adsController.select(tab)
-            check(adsController.window, "Ads and Trackers › \(tab.label)")
-        }
-
-        let popover = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 480),
-                               styleMask: [.titled], backing: .buffered, defer: false)
-        popover.title = "Popover"
-        popover.contentView = NSHostingView(rootView: MenuBarPopoverView(
-            model: model, onSettings: {}, onHistory: {}, onConnections: {}, onAds: {}))
-        check(popover, "The popover")
+        Localization.shared.showForThisRun(Localization.source)
     }
 }
 

@@ -89,15 +89,15 @@ public enum MeteredHeuristic {
         /// Shown in Settings › Hotspot, beside the choice that overrules it.
         public var explanation: String {
             switch self {
-            case .userMarked:          return "You said this network is a hotspot."
-            case .userCleared:         return "You said this network isn't a hotspot."
-            case .expensive:           return "macOS reports this connection as a hotspot."
-            case .androidAnnounced:    return "An Android phone is sharing its connection."
-            case .iOSHotspotSubnet:    return "This looks like an iPhone Personal Hotspot."
-            case .androidTetherSubnet: return "This looks like a phone sharing its connection."
-            case .tetherInterface:     return "You're tethered through a phone."
-            case .constrained:         return "This network is in Low Data Mode."
-            case .unmetered:           return "This doesn't look like a hotspot."
+            case .userMarked:          return L("You said this network is a hotspot.")
+            case .userCleared:         return L("You said this network isn't a hotspot.")
+            case .expensive:           return L("macOS reports this connection as a hotspot.")
+            case .androidAnnounced:    return L("An Android phone is sharing its connection.")
+            case .iOSHotspotSubnet:    return L("This looks like an iPhone Personal Hotspot.")
+            case .androidTetherSubnet: return L("This looks like a phone sharing its connection.")
+            case .tetherInterface:     return L("You're tethered through a phone.")
+            case .constrained:         return L("This network is in Low Data Mode.")
+            case .unmetered:           return L("This doesn't look like a hotspot.")
             }
         }
     }

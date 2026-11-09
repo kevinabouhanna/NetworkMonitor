@@ -1,0 +1,3 @@
+/* English is the source language (#433). Every key in the other tables is the
+   English text itself, written where it's used inside L("…"), so this table
+   stays empty. Its folder tells macOS the app is available in English. */

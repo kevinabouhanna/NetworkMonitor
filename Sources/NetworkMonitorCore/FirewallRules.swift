@@ -194,8 +194,21 @@ public final class FirewallRules: ObservableObject {
     /// applies only there (#200).
     public func set(_ action: RuleAction, for item: ConnectionsItem, network: CurrentNetwork? = nil) {
         guard Self.canHaveRule(item), let subject = Self.subject(of: item) else { return }
-        add(FirewallRule(subject: subject, key: item.key, title: item.title, action: action,
+        add(FirewallRule(subject: subject, key: item.key, title: Self.savedTitle(of: item), action: action,
                          network: network?.id, networkTitle: network?.name))
+    }
+
+    /// The title a rule is saved with: in English, whatever language the row
+    /// is shown in (#433). Only a host's row has words of the app's own,
+    /// "Hosted on …"; every other title is a name from the data.
+    static func savedTitle(of item: ConnectionsItem) -> String {
+        guard item.isHost else { return item.title }
+        let marker = "\u{1}"
+        let parts = L("Hosted on %@", marker).components(separatedBy: marker)
+        guard parts.count == 2, item.title.hasPrefix(parts[0]), item.title.hasSuffix(parts[1]),
+              item.title.count >= parts[0].count + parts[1].count else { return item.title }
+        let name = item.title.dropFirst(parts[0].count).dropLast(parts[1].count)
+        return "Hosted on " + name // untranslated: saved with the rule
     }
 
     /// The network a rule can be made for (#200): its identity and its name.
@@ -279,9 +292,11 @@ public final class FirewallRules: ObservableObject {
 
     /// "Added 3 rules. 2 were already here."
     public static func importSummary(added: Int, alreadyHere: Int) -> String {
-        let first = added == 0 ? "No new rules." : "Added \(added) rule\(added == 1 ? "" : "s")."
+        let first = added == 0 ? L("No new rules.")
+            : added == 1 ? L("Added 1 rule.") : L("Added %@ rules.", String(added))
         guard alreadyHere > 0 else { return first }
-        return first + " \(alreadyHere) \(alreadyHere == 1 ? "was" : "were") already here."
+        let rest = alreadyHere == 1 ? L("1 was already here.") : L("%@ were already here.", String(alreadyHere))
+        return first + " " + rest
     }
 
     public func policy(onHotspot: Bool) -> FirewallPolicy {
@@ -302,9 +317,20 @@ extension RuleAction {
     /// What a row with this rule says about itself.
     public var badge: String {
         switch self {
-        case .block:           return "Blocked"
-        case .blockOnHotspots: return "Blocked on hotspots"
-        case .allow:           return "Always allowed"
+        case .block:           return L("Blocked")
+        case .blockOnHotspots: return L("Blocked on hotspots")
+        case .allow:           return L("Always allowed")
         }
+    }
+}
+
+extension FirewallRule {
+    /// The rule's title as Settings shows it. The title is saved with the
+    /// rule in English; the one Ask Me writes for a host's network, "Hosted
+    /// on …", is put in the language shown here (#433).
+    public var shownTitle: String {
+        let hosted = "Hosted on "
+        guard subject == .company, title.hasPrefix(hosted) else { return title }
+        return L("Hosted on %@", String(title.dropFirst(hosted.count)))
     }
 }

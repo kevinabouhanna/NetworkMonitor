@@ -7,13 +7,13 @@ public enum SettingsPane: String, CaseIterable {
 
     public var title: String {
         switch self {
-        case .general:   return "General"
-        case .speedTest: return "Speed Test"
-        case .history:   return "History"
-        case .connections: return "Connections"
-        case .ads:       return "Ads"
-        case .hotspot:   return "Hotspot"
-        case .about:     return "About"
+        case .general:   return L("General")
+        case .speedTest: return L("Speed Test")
+        case .history:   return L("History")
+        case .connections: return L("Connections")
+        case .ads:       return L("Ads")
+        case .hotspot:   return L("Hotspot")
+        case .about:     return L("About")
         }
     }
 
@@ -116,13 +116,11 @@ public final class SettingsWindowController: NSObject {
             case .hotspot:   host = Self.paneHost(HotspotSettingsPane(metering: model.metering, state: state, filter: model.filter), width: SettingsMetrics.paneWidth)
             case .about:     host = Self.paneHost(AboutSettingsPane(updates: model.updates, onUninstall: onUninstall), width: SettingsMetrics.paneWidth)
             }
-            host.title = pane.title
             let item = NSTabViewItem(viewController: host)
-            item.label = pane.title
             item.identifier = pane.rawValue
-            item.image = NSImage(systemSymbolName: pane.symbol, accessibilityDescription: pane.title)
             tabs.addTabViewItem(item)
         }
+        nameTabs()
         window.contentViewController = tabs
         // Only once the tabs are in the window: loading them selects the first
         // pane by itself, and that is not a choice to remember. Heard earlier, it
@@ -149,11 +147,27 @@ public final class SettingsWindowController: NSObject {
             center.addObserver(forName: NSWindow.didChangeScreenNotification, object: window, queue: .main) { [weak self] _ in
                 self?.keepOnScreen()
             },
+            // The panes rebuild themselves; the toolbar and title are AppKit's.
+            center.addObserver(forName: Localization.didChange, object: nil, queue: .main) { [weak self] _ in
+                self?.nameTabs()
+            },
         ]
     }
 
     deinit {
         screenObservers.forEach(NotificationCenter.default.removeObserver)
+    }
+
+    /// Names each pane's toolbar item, and the window after the pane showing,
+    /// in the app's language.
+    private func nameTabs() {
+        for item in tabs.tabViewItems {
+            guard let pane = (item.identifier as? String).flatMap(SettingsPane.init) else { continue }
+            item.label = pane.title
+            item.viewController?.title = pane.title
+            item.image = NSImage(systemSymbolName: pane.symbol, accessibilityDescription: pane.title)
+            if item === tabs.tabView.selectedTabViewItem { window.title = pane.title }
+        }
     }
 
     /// How one pane gives way to the next: at once.
@@ -357,7 +371,7 @@ struct PaneScrollView<Content: View>: View {
     var body: some View {
         ScrollView(.vertical) {
             // Scroll views inside the pane, History's lists, keep their own.
-            content.scrollIndicators(.automatic)
+            content.scrollIndicators(.automatic).localizedRoot()
         }
         .scrollIndicators(scrolling.scrolls ? .automatic : .never)
         .frame(width: width)

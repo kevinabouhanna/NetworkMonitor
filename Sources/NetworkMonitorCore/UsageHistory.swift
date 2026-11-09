@@ -32,13 +32,13 @@ public struct HistoryUpdate: Identifiable, Equatable {
 
     /// As Settings › Hotspot says it: "Slack updated to 4.41".
     public var label: String {
-        version.map { "\(appName) updated to \($0)" } ?? "\(appName) downloaded an update"
+        version.map { L("%@ updated to %@", appName, $0) } ?? L("%@ downloaded an update", appName)
     }
 
     /// "120 MB", or "up to 272 MB".
     public var amount: String {
         guard bytes > 0 else { return "—" }
-        return (isUpperBound ? "up to " : "") + ByteFormat.bytes(bytes)
+        return isUpperBound ? L("up to %@", ByteFormat.bytes(bytes)) : ByteFormat.bytes(bytes)
     }
 }
 
@@ -78,10 +78,10 @@ public enum HistoryRetention: String, CaseIterable, Identifiable {
 
     public var label: String {
         switch self {
-        case .oneMonth:    return "1 Month"
-        case .threeMonths: return "3 Months"
-        case .oneYear:     return "1 Year"
-        case .forever:     return "Forever"
+        case .oneMonth:    return L("1 Month")
+        case .threeMonths: return L("3 Months")
+        case .oneYear:     return L("1 Year")
+        case .forever:     return L("Forever")
         }
     }
 
@@ -107,11 +107,11 @@ extension NetworkFingerprint.Kind {
 
     public var historyLabel: String {
         switch self {
-        case .wifi:     return "Wi-Fi"
-        case .hotspot:  return "Hotspot"
-        case .ethernet: return "Ethernet"
-        case .other:    return "Other"
-        case .offline:  return "No Connection"
+        case .wifi:     return L("Wi-Fi")
+        case .hotspot:  return L("Hotspot")
+        case .ethernet: return L("Ethernet")
+        case .other:    return L("Other")
+        case .offline:  return L("No Connection")
         }
     }
 }
@@ -304,7 +304,7 @@ public final class UsageHistory {
     static let provisionalWindow: TimeInterval = 30
 
     private let database: SQLiteDatabase?
-    private let queue = DispatchQueue(label: "com.networkmonitor.history", qos: .utility)
+    private let queue = DispatchQueue(label: "com.networkmonitor.history", qos: .utility)  // untranslated: queue label
     private let calendar: Calendar
 
     /// Consulted for the open session each time it is written, so a verdict that
@@ -1334,8 +1334,9 @@ public final class UsageHistory {
     /// process owned, so the file adds up to the same total as the window.
     public func exportCSV(for period: HistoryPeriod, filter: HistoryFilter = HistoryFilter(),
                           networkName: (String) -> String? = { _ in nil }) -> String {
-        var lines = ["Hour,Network,Network Type,Metered,App,Downloaded (bytes),Uploaded (bytes),"
-                     + "Update That Got Through"]
+        var lines = [[L("Hour"), L("Network"), L("Network Type"), L("Metered"), L("App"),
+                      L("Downloaded (bytes)"), L("Uploaded (bytes)"), L("Update That Got Through")]
+                        .map(Self.csvField).joined(separator: ",")]
         guard let database else { return lines.joined(separator: "\n") + "\n" }
         flush()
 
@@ -1355,7 +1356,7 @@ public final class UsageHistory {
                     let date = Date(timeIntervalSince1970: TimeInterval(hour))
                     let kindLabel = (NetworkFingerprint.Kind(rawValue: kind) ?? .other).historyLabel
                     return [formatter.string(from: date), networkName(networkID) ?? label, kindLabel,
-                            metered ? "Yes" : "No", app, String(bytesIn), String(bytesOut), note]
+                            metered ? L("Yes") : L("No"), app, String(bytesIn), String(bytesOut), note]
                         .map(Self.csvField).joined(separator: ",")
                 }
 
@@ -1447,7 +1448,7 @@ public final class UsageHistory {
                     if restIn > 0 || restOut > 0 {
                         lines.append(line(totals.int64(0), totals.string(2) ?? "",
                                           totals.string(3) ?? "", totals.string(4) ?? "",
-                                          totals.int64(5) != 0, "Not attributed to an app",
+                                          totals.int64(5) != 0, L("Not attributed to an app"),
                                           restIn, restOut))
                     }
                 }

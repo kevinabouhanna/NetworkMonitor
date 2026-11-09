@@ -130,6 +130,9 @@ cp Resources/AppIcon.icns "${APP}/Contents/Resources/AppIcon.icns"
 cp -R Resources/Geo "${APP}/Contents/Resources/Geo"
 # The ad, tracker and malware lists (#176), until a newer week is downloaded.
 cp -R Resources/Blocklists "${APP}/Contents/Resources/Blocklists"
+# One folder per language the app speaks (#433). The folders are also how macOS
+# knows which languages to offer for it in System Settings.
+cp -R Resources/Localization/*.lproj "${APP}/Contents/Resources/"
 printf 'APPL????' > "${APP}/Contents/PkgInfo"
 
 # Sparkle (#132), which the app links, so every build carries it. Its two XPC

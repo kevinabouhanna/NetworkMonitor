@@ -130,7 +130,7 @@ public final class MonitorViewModel: ObservableObject {
 
     private var sampleTimer: DispatchSourceTimer?
     private var lastSampleTime = MonotonicClock.now()
-    private let sampleQueue = DispatchQueue(label: "com.networkmonitor.sampler")
+    private let sampleQueue = DispatchQueue(label: "com.networkmonitor.sampler")  // untranslated: queue label
 
     /// Interval for the interface sampler, from the profile and whether anyone can
     /// see the menu bar.
@@ -556,7 +556,7 @@ public final class MonitorViewModel: ObservableObject {
             let name = flow.serverName
             let listed = (name.flatMap { lists?.topics(listing: $0) }?.sorted().map(\.rawValue) ?? [])
                 + (name.map(self.listLibrary.listed) ?? [])
-            return (flow.time, identity?.key, identity?.displayName ?? "Process \(flow.pid)", identity?.bundlePath,
+            return (flow.time, identity?.key, identity?.displayName ?? L("Process %@", String(flow.pid)), identity?.bundlePath,
                     FirewallPolicy.serverAddress(flow.address), flow.port, name, flow.blockedBy, listed)
         })
     }

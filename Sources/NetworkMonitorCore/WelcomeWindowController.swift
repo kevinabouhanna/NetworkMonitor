@@ -18,11 +18,11 @@ public enum Welcome {
 
 public final class WelcomeWindowController {
     public let window: NSWindow
+    private var languageObserver: NSObjectProtocol?
 
     public init(filter: FilterController, wifiNames: WiFiNames) {
         let window = NSWindow(contentRect: .zero, styleMask: [.titled, .closable, .fullSizeContentView],
                               backing: .buffered, defer: true)
-        window.title = "Welcome to NetworkMonitor"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
@@ -31,13 +31,26 @@ public final class WelcomeWindowController {
         window.standardWindowButton(.zoomButton)?.isHidden = true
         let host = NSHostingController(rootView: WelcomeView(filter: filter, wifiNames: wifiNames) {
             [weak window] in window?.performClose(nil)
-        })
+        }.localizedRoot())
         // Grows when a row shows its steps, and shrinks back.
         host.sizingOptions = [.preferredContentSize]
         window.contentViewController = host
         // Its real size before it's centred.
         window.setContentSize(host.view.fittingSize)
         self.window = window
+        nameControls()
+        languageObserver = NotificationCenter.default.addObserver(
+            forName: Localization.didChange, object: nil, queue: .main
+        ) { [weak self] _ in self?.nameControls() }
+    }
+
+    deinit {
+        if let languageObserver { NotificationCenter.default.removeObserver(languageObserver) }
+    }
+
+    /// The window's AppKit text, set again when the language changes.
+    private func nameControls() {
+        window.title = L("Welcome to NetworkMonitor")
     }
 }
 
@@ -53,7 +66,7 @@ struct WelcomeView: View {
                     .resizable()
                     .frame(width: 72, height: 72)
                     .accessibilityHidden(true)
-                Text("Welcome to NetworkMonitor")
+                Text(L("Welcome to NetworkMonitor"))
                     .font(.system(size: 20, weight: .semibold))
                 Text(SetupCopy.welcome)
                     .foregroundStyle(.secondary)
@@ -82,7 +95,7 @@ struct WelcomeView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
-                Button("Done", action: onDone)
+                Button(L("Done"), action: onDone)
                     .keyboardShortcut(.defaultAction)
                     .controlSize(.large)
             }

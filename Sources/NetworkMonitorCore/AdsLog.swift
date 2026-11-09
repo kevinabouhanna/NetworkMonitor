@@ -51,10 +51,10 @@ public final class AdsLog: ObservableObject {
 
         public var label: String {
             switch self {
-            case .all:     return "All"
-            case .blocked: return "Blocked"
-            case .listed:  return "On a List"
-            case .unnamed: return "No Name"
+            case .all:     return L("All")
+            case .blocked: return L("Blocked")
+            case .listed:  return L("On a List")
+            case .unnamed: return L("No Name")
             }
         }
 
@@ -112,30 +112,30 @@ public final class AdsLog: ObservableObject {
     /// Why it was blocked or let through, in plain words.
     public static func reason(for entry: AdsLogEntry, rules: [FirewallRule], adRules: [AdRule] = []) -> String {
         guard let blockedBy = entry.blockedBy else {
-            guard !entry.lists.isEmpty else { return "Let through" }
+            guard !entry.lists.isEmpty else { return L("Let through") }
             // Your own rule said never (#253).
             if let rule = AdRule.deciding(adRules, name: entry.name, appKeys: entry.appKey.map { [$0] } ?? []),
                rule.kind == .neverBlock {
-                return "Your rule: \(rule.summary.lowercasedFirst)"
+                return L("Your rule: %@", rule.shownSummary.lowercasedFirst)
             }
-            return "Let through, though it's on a list"
+            return L("Let through, though it's on a list")
         }
         if let id = BlockReason.adRuleID(inReport: blockedBy) {
-            return adRules.first { $0.id == id }.map { "Your rule: \($0.summary.lowercasedFirst)" } ?? "Your rule"
+            return adRules.first { $0.id == id }.map { L("Your rule: %@", $0.shownSummary.lowercasedFirst) } ?? L("Your rule")
         }
         if let list = BlockReason.list(inReport: blockedBy) {
             // A downloaded list goes by its own name (#254).
-            if let title = ListLibrary.title(of: list) { return "On \(title)" }
-            return "On the \(AdsReport.title(ofList: list).lowercased()) list"
+            if let title = ListLibrary.title(of: list) { return L("On %@", title) }
+            return L("On the %@ list", AdsReport.title(ofList: list).lowercased())
         }
         switch blockedBy {
-        case "mode":            return "Only where you allow"
-        case "everything":      return "Block Everything"
-        case "ask":             return "Ask Me"
-        case "hotspot-updates": return "An update, on a hotspot"
+        case "mode":            return L("Only where you allow")
+        case "everything":      return L("Block Everything")
+        case "ask":             return L("Ask Me")
+        case "hotspot-updates": return L("An update, on a hotspot")
         default:
-            guard let rule = rules.first(where: { $0.id == blockedBy }) else { return "A rule" }
-            return "Your rule: \(rule.title)" + (rule.appTitle.map { " in \($0)" } ?? "")
+            guard let rule = rules.first(where: { $0.id == blockedBy }) else { return L("A rule") }
+            return rule.appTitle.map { L("Your rule: %@ in %@", rule.title, $0) } ?? L("Your rule: %@", rule.title)
         }
     }
 
@@ -143,10 +143,10 @@ public final class AdsLog: ObservableObject {
     public static func text(_ entries: [AdsLogEntry], reason: (AdsLogEntry) -> String) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        var lines = ["time\tapp\tname\taddress\tport\tdecision\twhy\tlists"]
+        var lines = [L("time\tapp\tname\taddress\tport\tdecision\twhy\tlists")]
         for entry in entries.reversed() {
-            lines.append([formatter.string(from: entry.time), entry.appName, entry.name ?? "(no name)",
-                          entry.address, String(entry.port), entry.isBlocked ? "blocked" : "let through",
+            lines.append([formatter.string(from: entry.time), entry.appName, entry.name ?? L("(no name)"),
+                          entry.address, String(entry.port), entry.isBlocked ? L("blocked") : L("let through"),
                           reason(entry), entry.lists.joined(separator: ",")].joined(separator: "\t"))
         }
         return lines.joined(separator: "\n") + "\n"

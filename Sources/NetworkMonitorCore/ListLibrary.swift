@@ -8,11 +8,11 @@ public enum ListTopic: String, Codable, CaseIterable {
 
     public var title: String {
         switch self {
-        case .ads:          return "More ad and tracker lists"
-        case .trackers:     return "Trackers"
-        case .annoyances:   return "Pop-ups"
-        case .malware:      return "Malware and phishing"
-        case .added:        return "Added by you"
+        case .ads:          return L("More ad and tracker lists")
+        case .trackers:     return L("Trackers")
+        case .annoyances:   return L("Pop-ups")
+        case .malware:      return L("Malware and phishing")
+        case .added:        return L("Added by you")
         }
     }
 }
@@ -60,41 +60,42 @@ public enum ListCatalogue {
 
     /// No list that blocks encrypted DNS: it would stop Private Relay and
     /// browsers' own, and let the internet provider see the sites (#246, #287).
-    public static let all: [ListSource] = [
-        ListSource(id: "hagezi-light", title: "HaGeZi Light", topic: .ads, source: "HaGeZi", licence: "GPL-3.0",
+    /// Made each time, so what each is for reads in the language shown (#433).
+    public static var all: [ListSource] { [
+        ListSource(id: "hagezi-light", title: "HaGeZi Light", topic: .ads, source: "HaGeZi", licence: "GPL-3.0", // untranslated: the list's own name
                    url: hagezi("light"),
-                   about: "Ads, trackers and metrics, from the sites people actually visit. Rarely breaks anything."),
-        ListSource(id: "hagezi-normal", title: "HaGeZi Normal", topic: .ads, source: "HaGeZi", licence: "GPL-3.0",
+                   about: L("Ads, trackers and metrics, from the sites people actually visit. Rarely breaks anything.")),
+        ListSource(id: "hagezi-normal", title: "HaGeZi Normal", topic: .ads, source: "HaGeZi", licence: "GPL-3.0", // untranslated: the list's own name
                    url: hagezi("multi"),
-                   about: "Ads, trackers, metrics and telemetry. A good everyday choice."),
-        ListSource(id: "hagezi-pro", title: "HaGeZi Pro", topic: .ads, source: "HaGeZi", licence: "GPL-3.0",
+                   about: L("Ads, trackers, metrics and telemetry. A good everyday choice.")),
+        ListSource(id: "hagezi-pro", title: "HaGeZi Pro", topic: .ads, source: "HaGeZi", licence: "GPL-3.0", // untranslated: the list's own name
                    url: hagezi("pro"),
-                   about: "More thorough: blocks more, and now and then something a site needs to work."),
-        ListSource(id: "oisd-small", title: "OISD Small", topic: .ads, source: "OISD", licence: "GPL-3.0",
+                   about: L("More thorough: blocks more, and now and then something a site needs to work.")),
+        ListSource(id: "oisd-small", title: "OISD Small", topic: .ads, source: "OISD", licence: "GPL-3.0", // untranslated: the list's own name
                    url: URL(string: "https://small.oisd.nl/domainswild2")!,
-                   about: "Ads and trackers, kept small so nothing breaks."),
-        ListSource(id: "oisd-big", title: "OISD Big", topic: .ads, source: "OISD", licence: "GPL-3.0",
+                   about: L("Ads and trackers, kept small so nothing breaks.")),
+        ListSource(id: "oisd-big", title: "OISD Big", topic: .ads, source: "OISD", licence: "GPL-3.0", // untranslated: the list's own name
                    url: URL(string: "https://big.oisd.nl/domainswild2")!,
-                   about: "Ads, trackers, malware and scams, made from dozens of other lists."),
-        ListSource(id: "adguard-dns", title: "AdGuard DNS filter", topic: .ads, source: "AdGuard",
+                   about: L("Ads, trackers, malware and scams, made from dozens of other lists.")),
+        ListSource(id: "adguard-dns", title: "AdGuard DNS filter", topic: .ads, source: "AdGuard", // untranslated: the list's own name
                    licence: "GPL-3.0",
                    url: URL(string: "https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt")!,
-                   about: "AdGuard's own ad and tracker lists, with EasyList and EasyPrivacy, as site names."),
-        ListSource(id: "peter-lowe", title: "Peter Lowe's list", topic: .ads, source: "Peter Lowe",
-                   licence: "Its own terms",
+                   about: L("AdGuard's own ad and tracker lists, with EasyList and EasyPrivacy, as site names.")),
+        ListSource(id: "peter-lowe", title: "Peter Lowe's list", topic: .ads, source: "Peter Lowe", // untranslated: the list's own name
+                   licence: "Its own terms", // untranslated: matched where shown
                    url: URL(string: "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext")!,
-                   about: "A small, careful list of ad and tracking servers, kept since 2001."),
-        ListSource(id: "easylist-privacy", title: "EasyPrivacy", topic: .trackers, source: "EasyList, by Firebog",
+                   about: L("A small, careful list of ad and tracking servers, kept since 2001.")),
+        ListSource(id: "easylist-privacy", title: "EasyPrivacy", topic: .trackers, source: "EasyList, by Firebog", // untranslated: the list's own name
                    licence: "GPL-3.0",
                    url: URL(string: "https://v.firebog.net/hosts/Easyprivacy.txt")!,
-                   about: "The tracker sites from EasyPrivacy, which uBlock Origin uses, as Firebog extracts them."),
-        ListSource(id: "hagezi-popups", title: "HaGeZi Pop-up Ads", topic: .annoyances, source: "HaGeZi",
+                   about: L("The tracker sites from EasyPrivacy, which uBlock Origin uses, as Firebog extracts them.")),
+        ListSource(id: "hagezi-popups", title: "HaGeZi Pop-up Ads", topic: .annoyances, source: "HaGeZi", // untranslated: the list's own name
                    licence: "GPL-3.0", url: hagezi("popupads"),
-                   about: "Sites that open pop-ups and pop-unders."),
-        ListSource(id: "hagezi-threats", title: "HaGeZi Threat Intelligence", topic: .malware, source: "HaGeZi",
+                   about: L("Sites that open pop-ups and pop-unders.")),
+        ListSource(id: "hagezi-threats", title: "HaGeZi Threat Intelligence", topic: .malware, source: "HaGeZi", // untranslated: the list's own name
                    licence: "GPL-3.0", url: hagezi("tif.mini"),
-                   about: "Malware, phishing, scams and cryptojacking sites, seen recently."),
-    ]
+                   about: L("Malware, phishing, scams and cryptojacking sites, seen recently.")),
+    ] }
 
     public static func source(_ id: String) -> ListSource? { all.first { $0.id == id } }
 
@@ -282,7 +283,7 @@ public final class ListLibrary: ObservableObject {
         else { return .failure(.notAnAddress) }
         if let existing = all.first(where: { $0.url == url }) { return .failure(.alreadyThere(existing.title)) }
         let id = ListSource.id(forURL: url)
-        let list = ListSource(id: id, title: host, topic: .added, source: host, licence: "Its own terms",
+        let list = ListSource(id: id, title: host, topic: .added, source: host, licence: "Its own terms", // untranslated: saved with the list, and matched where shown
                               url: url, about: url.absoluteString)
         added.append(list)
         saveAdded()
@@ -337,7 +338,7 @@ public final class ListLibrary: ObservableObject {
         guard let source = source(id), !downloading.contains(id) else { return }
         guard mayDownload() else {
             if lists[id] == nil {
-                record(id, error: "Waiting for a network that isn't a hotspot or metered.", tried: false)
+                record(id, error: Self.waiting, tried: false)
             }
             return
         }
@@ -365,7 +366,7 @@ public final class ListLibrary: ObservableObject {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 try DownloadedList.encode([list]).write(to: file(for: id), options: .atomic)
             } catch {
-                record(id, error: "Couldn't keep a copy: \(error.localizedDescription)")
+                record(id, error: Self.notKept + error.localizedDescription)
                 return
             }
             lists[id] = list
@@ -399,7 +400,7 @@ public final class ListLibrary: ObservableObject {
         do {
             let (data, response) = try await URLSession(configuration: .ephemeral).data(for: request)
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-            guard code == 200 else { return .failed("The site answered \(code).") }
+            guard code == 200 else { return .failed(answered + "\(code).") } // untranslated: kept in the status, shown through shownError
             return read(data)
         } catch {
             return .failed(error.localizedDescription)
@@ -408,18 +409,52 @@ public final class ListLibrary: ObservableObject {
 
     /// What a download holds, if it's a list of sites.
     public static func read(_ data: Data) -> Fetched {
-        guard data.count <= sizeLimit else { return .failed("It's larger than 40 MB.") }
+        guard data.count <= sizeLimit else { return .failed("It's larger than 40 MB.") } // untranslated: kept in the status, shown through shownError
         guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
-            return .failed("It isn't text.")
+            return .failed("It isn't text.") // untranslated: kept in the status, shown through shownError
         }
-        if text.drop(while: \.isWhitespace).hasPrefix("<") { return .failed("It's a web page, not a list.") }
+        if text.drop(while: \.isWhitespace).hasPrefix("<") { return .failed("It's a web page, not a list.") } // untranslated: kept in the status, shown through shownError
         let parsed = BlocklistParser.read(text)
         guard !parsed.names.isEmpty else {
             return .failed(parsed.skipped > 0
-                ? "It has no rules about whole sites. Rules about parts of pages need the Chrome extension."
-                : "It has no site names in it.")
+                ? "It has no rules about whole sites. Rules about parts of pages need the Chrome extension." // untranslated: kept in the status, shown through shownError
+                : "It has no site names in it.") // untranslated: kept in the status, shown through shownError
         }
         return .list(parsed)
+    }
+
+    /// Why a download failed is kept in English with the list's status (an
+    /// older copy's too), so these are its words.
+    static let waiting = "Waiting for a network that isn't a hotspot or metered." // untranslated: kept in the status, shown through shownError
+    static let notKept = "Couldn't keep a copy: " // untranslated: kept in the status, shown through shownError
+    static let answered = "The site answered " // untranslated: kept in the status, shown through shownError
+
+    /// A failed download's reason, kept in English, in the language shown
+    /// (#433). One from the system (`localizedDescription`) is in the Mac's
+    /// language already, and shows as it is.
+    public static func shownError(_ stored: String) -> String {
+        switch stored {
+        case waiting:
+            return L("Waiting for a network that isn't a hotspot or metered.")
+        case "It's larger than 40 MB.": // untranslated: the stored English it matches
+            return L("It's larger than 40 MB.")
+        case "It isn't text.": // untranslated: the stored English it matches
+            return L("It isn't text.")
+        case "It's a web page, not a list.": // untranslated: the stored English it matches
+            return L("It's a web page, not a list.")
+        case "It has no rules about whole sites. Rules about parts of pages need the Chrome extension.": // untranslated: the stored English it matches
+            return L("It has no rules about whole sites. Rules about parts of pages need the Chrome extension.")
+        case "It has no site names in it.": // untranslated: the stored English it matches
+            return L("It has no site names in it.")
+        default:
+            if stored.hasPrefix(notKept) {
+                return L("Couldn't keep a copy: %@", String(stored.dropFirst(notKept.count)))
+            }
+            if stored.hasPrefix(answered), stored.hasSuffix(".") {
+                return L("The site answered %@.", String(stored.dropFirst(answered.count).dropLast()))
+            }
+            return stored
+        }
     }
 
     // MARK: The filter's copy

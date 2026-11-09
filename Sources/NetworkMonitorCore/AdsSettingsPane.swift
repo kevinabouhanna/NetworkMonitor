@@ -19,17 +19,17 @@ struct AdsSettingsPane: View {
         Form {
             Section {
                 HStack(alignment: .center, spacing: 12) {
-                    Text("Ads, trackers and malware sites stopped in every app, and what was stopped, when and where.")
+                    Text(L("Ads, trackers and malware sites stopped in every app, and what was stopped, when and where."))
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 12)
-                    Button("Open Ads and Trackers…") { onOpenAds(.overview) }
-                        .help("Also ⌘B, and the blocked-today line in the popover")
+                    Button(L("Open Ads and Trackers…")) { onOpenAds(.overview) }
+                        .help(L("Also ⌘B, and the blocked-today line in the popover"))
                 }
             }
 
             if filter.state == .unavailable {
                 Section {
-                    Text("Ad blocking needs the content filter, which this build of NetworkMonitor doesn't have.")
+                    Text(L("Ad blocking needs the content filter, which this build of NetworkMonitor doesn't have."))
                         .foregroundStyle(.secondary)
                 }
             } else {
@@ -43,8 +43,8 @@ struct AdsSettingsPane: View {
     /// The switch and the built-in lists (#176).
     private var listsSection: some View {
         Section {
-            ExplainedRow("Block ads and trackers", Self.listsExplanation) {
-                Toggle("Block ads and trackers", isOn: Binding(
+            ExplainedRow(L("Block ads and trackers"), Self.listsExplanation) {
+                Toggle(L("Block ads and trackers"), isOn: Binding(
                     get: { !firewall.lists.isEmpty },
                     set: { connections.setLists($0 ? Set(BlocklistTopic.allCases) : []) }))
                     .toggleStyle(.switch)
@@ -55,7 +55,7 @@ struct AdsSettingsPane: View {
                     LabeledContent {
                         HStack(spacing: 10) {
                             Text(siteCount(topic)).foregroundStyle(.secondary).monospacedDigit()
-                            Toggle(topic.title, isOn: Binding(
+                            Toggle(topic.shownTitle, isOn: Binding(
                                 get: { firewall.lists.contains(topic) },
                                 set: { isOn in
                                     var lists = firewall.lists
@@ -68,21 +68,21 @@ struct AdsSettingsPane: View {
                     } label: {
                         HStack(spacing: 6) {
                             ListTag(topic: topic)
-                            Text(topic.title)
+                            Text(topic.shownTitle)
                         }
                     }
                 }
-                LabeledContent("Blocked today") {
+                LabeledContent(L("Blocked today")) {
                     Text(listBlocks.today.formatted()).foregroundStyle(.secondary).monospacedDigit()
                 }
-                ExplainedRow("Update them weekly", Self.updatesExplanation) {
-                    Toggle("Update them weekly", isOn: $blocklists.isEnabled)
+                ExplainedRow(L("Update them weekly"), Self.updatesExplanation) {
+                    Toggle(L("Update them weekly"), isOn: $blocklists.isEnabled)
                         .toggleStyle(.switch)
                         .labelsHidden()
                 }
             }
         } header: {
-            Text("Lists")
+            Text(L("Lists"))
         } footer: {
             SettingsFootnote(listsFootnote)
         }
@@ -91,50 +91,49 @@ struct AdsSettingsPane: View {
     /// More lists (#254) and your rules (#253), kept in Ads and Trackers.
     private var yoursSection: some View {
         Section {
-            LabeledContent("More lists") {
+            LabeledContent(L("More lists")) {
                 HStack(spacing: 10) {
                     Text(moreLists).foregroundStyle(.secondary)
-                    Button("Choose…") { onOpenAds(.lists) }
-                        .help("HaGeZi, OISD, AdGuard's and others, or any list by its address")
+                    Button(L("Choose…")) { onOpenAds(.lists) }
+                        .help(L("HaGeZi, OISD, AdGuard's and others, or any list by its address"))
                 }
             }
-            LabeledContent("Your rules") {
+            LabeledContent(L("Your rules")) {
                 HStack(spacing: 10) {
                     Text(rules).foregroundStyle(.secondary)
-                    Button("Edit…") { onOpenAds(.rules) }
-                        .help("Never block a site, always block one, or leave an app alone; import from uBlock Origin or AdGuard")
+                    Button(L("Edit…")) { onOpenAds(.rules) }
+                        .help(L("Never block a site, always block one, or leave an app alone; import from uBlock Origin or AdGuard"))
                 }
             }
         } header: {
-            Text("Yours")
+            Text(L("Yours"))
         }
     }
 
     private var moreLists: String {
-        if library.usesRecommended { return "Recommended" }
+        if library.usesRecommended { return L("Recommended") }
         let count = library.enabled.count
-        return count == 0 ? "None" : "\(count) chosen by you"
+        return count == 0 ? L("None") : L("%@ chosen by you", String(count))
     }
 
     private var rules: String {
         let count = firewall.adRules.count + firewall.listsPausedNetworks.count
-        return count == 0 ? "None" : "\(count) rule\(count == 1 ? "" : "s")"
+        if count == 0 { return L("None") }
+        return count == 1 ? L("1 rule") : L("%@ rules", String(count))
     }
 
     private func siteCount(_ topic: BlocklistTopic) -> String {
         let count = blocklists.lists?.tables[topic]?.count ?? 0
-        return "\(topic.source) · \(count.formatted()) sites"
+        return L("%@ · %@ sites", topic.source, count.formatted())
     }
 
     private var listsFootnote: String {
-        let date = BlocklistUpdater.displayDate(blocklists.lists?.version).map { "Lists from \($0): " } ?? "Lists: "
-        return date + "StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC0)."
+        guard let date = BlocklistUpdater.displayDate(blocklists.lists?.version) else {
+            return L("Lists: StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC0).")
+        }
+        return L("Lists from %@: StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC0).", date)
     }
 
-    static let listsExplanation = "Connections to sites on these lists are blocked in every app, after your own "
-        + "rules: Always Allow on a site in Connections lets it through. Allowing an app or a company lets it "
-        + "connect, and its ads are still blocked. Ads served from a site's own servers, "
-        + "like YouTube's, can't be told apart from the site, so they aren't blocked."
-    static let updatesExplanation = "Once a week, NetworkMonitor downloads the lists from GitHub, the same signed "
-        + "file for everyone, never on a hotspot."
+    static var listsExplanation: String { L("Connections to sites on these lists are blocked in every app, after your own rules: Always Allow on a site in Connections lets it through. Allowing an app or a company lets it connect, and its ads are still blocked. Ads served from a site's own servers, like YouTube's, can't be told apart from the site, so they aren't blocked.") }
+    static var updatesExplanation: String { L("Once a week, NetworkMonitor downloads the lists from GitHub, the same signed file for everyone, never on a hotspot.") }
 }

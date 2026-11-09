@@ -37,10 +37,10 @@ public struct MenuBarPopoverView: View {
     /// Ad blocking paused for a while (#251), or off on this network (#253).
     private var adsPausedText: String? {
         if let until = firewall.listsPausedUntil {
-            return "Ad blocking paused until \(until.formatted(date: .omitted, time: .shortened))"
+            return L("Ad blocking paused until %@", until.formatted(date: .omitted, time: .shortened))
         }
         guard !firewall.lists.isEmpty, let network = model.adsPausedHere else { return nil }
-        return "Ad blocking off on \(network)"
+        return L("Ad blocking off on %@", network)
     }
 
     /// One line under the total, while metered, when an update came through
@@ -49,16 +49,16 @@ public struct MenuBarPopoverView: View {
     private var gotThroughSummary: String? {
         let sightings = metering.updatesGotThrough
         guard metering.isSuppressing, let first = sightings.first else { return nil }
-        let total = (sightings.contains(where: \.isUpperBound) ? "up to " : "")
-            + ByteFormat.bytes(sightings.reduce(0) { $0 + $1.bytes })
+        let bytes = ByteFormat.bytes(sightings.reduce(0) { $0 + $1.bytes })
+        let total = sightings.contains(where: \.isUpperBound) ? L("up to %@", bytes) : bytes
         if sightings.count == 1 {
             // The app, not its updater's process (#94).
             let what = first.source == .traffic && first.version == nil
-                ? "\(first.appName) is updating"
+                ? L("%@ is updating", first.appName)
                 : HotspotSettingsPane.label(for: first)
             return first.bytes > 0 ? "\(what) · \(total)" : what
         }
-        return "\(sightings.count) updates got through · \(total)"
+        return L("%@ updates got through · %@", String(sightings.count), total)
     }
 
     private var showsCard: Bool {
@@ -153,7 +153,7 @@ public struct MenuBarPopoverView: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
-                Text("Total")
+                Text(L("Total"))
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                 Text(ByteFormat.bytes(model.totalBytes))
@@ -181,20 +181,18 @@ public struct MenuBarPopoverView: View {
                     }
                     .font(.system(size: 10))
                     .foregroundStyle(.orange)
-                    .help("Downloaded over this connection anyway. Settings › Hotspot "
-                          + "lists what NetworkMonitor can't stop.")
+                    .help(L("Downloaded over this connection anyway. Settings › Hotspot lists what NetworkMonitor can't stop."))
                 }
                 if firewall.blocksEverything {
                     HStack(spacing: 6) {
                         Image(systemName: "hand.raised.fill")
-                        Text("Everything is blocked")
-                        Button("Turn Off") { model.setBlocksEverything(false) }
+                        Text(L("Everything is blocked"))
+                        Button(L("Turn Off")) { model.setBlocksEverything(false) }
                             .buttonStyle(.link)
                     }
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.red)
-                    .help("Block Everything is on: every app's new connections stop, apart from looking up "
-                          + "names, the clock and your own network")
+                    .help(L("Block Everything is on: every app's new connections stop, apart from looking up names, the clock and your own network"))
                 }
                 if let paused = adsPausedText {
                     Button(action: onAds) {
@@ -206,7 +204,7 @@ public struct MenuBarPopoverView: View {
                     .buttonStyle(.plain)
                     .font(.system(size: 10))
                     .foregroundStyle(.orange)
-                    .help("Open Ads and Trackers to resume")
+                    .help(L("Open Ads and Trackers to resume"))
                 } else if listBlocks.today > 0 {
                     Button(action: onAds) {
                         HStack(spacing: 4) {
@@ -214,27 +212,26 @@ public struct MenuBarPopoverView: View {
                             // Short enough for one line beside the header's
                             // buttons (#390); the tooltip and VoiceOver say
                             // trackers too.
-                            Text("\(listBlocks.today.formatted()) ads blocked today")
+                            Text(L("%@ ads blocked today", listBlocks.today.formatted()))
                                 .lineLimit(1)
                         }
                     }
                     .buttonStyle(.plain)
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
-                    .help("Ads and trackers blocked today. See what was blocked, and where")
-                    .accessibilityLabel("\(listBlocks.today.formatted()) ads and trackers blocked today")
+                    .help(L("Ads and trackers blocked today. See what was blocked, and where"))
+                    .accessibilityLabel(L("%@ ads and trackers blocked today", listBlocks.today.formatted()))
                 }
                 if let failure = model.perAppFailure {
                     // Grey, not orange: the total above is still right. Only the
                     // list has stopped, and saying so beats a list gone quiet.
                     HStack(spacing: 4) {
                         Image(systemName: "exclamationmark.triangle")
-                        Text("Per-app figures paused")
+                        Text(L("Per-app figures paused"))
                     }
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
-                    .help("macOS's nettop isn't reporting per-app figures (\(failure)). The "
-                          + "total is still counted, and NetworkMonitor keeps trying.")
+                    .help(L("macOS's nettop isn't reporting per-app figures (%@). The total is still counted, and NetworkMonitor keeps trying.", failure))
                 }
             }
             Spacer()
@@ -247,8 +244,8 @@ public struct MenuBarPopoverView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .help("Connections")
-            .accessibilityLabel("Connections")
+            .help(L("Connections"))
+            .accessibilityLabel(L("Connections"))
             // The way back to the totals this header starts over at midnight
             // and on every network change.
             Button(action: onHistory) {
@@ -256,15 +253,15 @@ public struct MenuBarPopoverView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .help("Usage History")
-            .accessibilityLabel("Usage History")
+            .help(L("Usage History"))
+            .accessibilityLabel(L("Usage History"))
             Button(action: onSettings) {
                 Image(systemName: "gearshape.fill").font(.system(size: 12))
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .help("Settings")
-            .accessibilityLabel("Settings")
+            .help(L("Settings"))
+            .accessibilityLabel(L("Settings"))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -348,7 +345,7 @@ public struct MenuBarPopoverView: View {
         // Own bytes stay zero and the daemons hang off it as children, so
         // `total` is the group's total without stating it twice.
         let summary = UsageRow(id: "\u{1}system",
-                               displayName: "System (\(model.systemRows.count))",
+                               displayName: L("System (%@)", String(model.systemRows.count)),
                                bytesIn: 0, bytesOut: 0,
                                bundlePath: nil, isSystem: true,
                                isActive: model.systemRows.contains(where: \.isActive),
@@ -377,9 +374,9 @@ public struct MenuBarPopoverView: View {
     /// message in a 320 pt window was mostly empty space.
     private var emptyState: some View {
         VStack(spacing: 4) {
-            Text("No network activity yet")
+            Text(L("No network activity yet"))
                 .font(.system(size: 12)).foregroundStyle(.secondary)
-            Text("Counting since you joined this network")
+            Text(L("Counting since you joined this network"))
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)

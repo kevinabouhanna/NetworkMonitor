@@ -9,6 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private var popover: NSPopover!
     private let model = MonitorViewModel()
     private var titleObserver: AnyCancellable?
+    /// Builds the menu bar again in the new language (#433).
+    private var languageObserver: AnyCancellable?
     private var popoverMonitor: Any?
     /// Pointer watchers that exist only while a revealed menu bar holds focus
     /// the popover had. See `restoreFocusWhenMenuBarHides()`.
@@ -105,6 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         askController = AskController(filter: model.filter, firewall: model.firewall)
         showUpdatesGently()
         observeTitle()
+        observeLanguage()
         showWelcomeIfNeeded()
         openWindowFromLaunchArgument()
     }
@@ -235,7 +238,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             onHistory: { [weak self] in self?.showHistory() },
             onConnections: { [weak self] in self?.showConnections() },
             onAds: { [weak self] in self?.showAds() })
-        let host = NSHostingController(rootView: root)
+        let host = NSHostingController(rootView: root.localizedRoot())
         // Keeps `preferredContentSize` in step with what SwiftUI lays out.
         //
         // Without it the controller reports (0, 0) until after the first show, and
@@ -621,7 +624,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
         if SpeedTestRunner.isAvailable {
             let running = model.speedTest.phase.isRunning
-            menu.addItem(withTitle: running ? "Stop Speed Test" : "Test Internet Speed",
+            menu.addItem(withTitle: running ? L("Stop Speed Test") : L("Test Internet Speed"),
                          action: #selector(toggleSpeedTest), keyEquivalent: "")
             // The last result on this connection, as a line to read rather than
             // an item to choose. Gone after a network change; see
@@ -629,8 +632,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             if let result = model.speedTest.lastResult, !running {
                 let time = result.finishedAt.formatted(date: .omitted, time: .shortened)
                 let unit = model.speedTest.unit
-                let summary = "↓ \(ByteFormat.speed(result.downloadBitsPerSecond, unit: unit))   "
-                    + "↑ \(ByteFormat.speed(result.uploadBitsPerSecond, unit: unit))   at \(time)"
+                let summary = L("↓ %@   ↑ %@   at %@",
+                                ByteFormat.speed(result.downloadBitsPerSecond, unit: unit),
+                                ByteFormat.speed(result.uploadBitsPerSecond, unit: unit), time)
                 let item = NSMenuItem(title: summary, action: nil, keyEquivalent: "")
                 item.isEnabled = false
                 menu.addItem(item)
@@ -641,30 +645,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // A way out (#198): every app's new connections stop until it's
         // turned off again. Only where the content filter can enforce it.
         if model.filter.state != .unavailable {
-            let item = menu.addItem(withTitle: "Block Everything",
+            let item = menu.addItem(withTitle: L("Block Everything"),
                                     action: #selector(toggleBlockEverything), keyEquivalent: "")
             item.state = model.firewall.blocksEverything ? .on : .off
-            item.toolTip = "Stops every app's new connections, apart from what's needed to turn this off"
+            item.toolTip = L("Stops every app's new connections, apart from what's needed to turn this off")
             menu.addItem(.separator())
         }
 
-        menu.addItem(withTitle: "Connections…",
+        menu.addItem(withTitle: L("Connections…"),
                      action: #selector(showConnections), keyEquivalent: "k")
-        menu.addItem(withTitle: "Ads and Trackers…",
+        menu.addItem(withTitle: L("Ads and Trackers…"),
                      action: #selector(showAds), keyEquivalent: "b")
-        menu.addItem(withTitle: "Usage History…",
+        menu.addItem(withTitle: L("Usage History…"),
                      action: #selector(showHistory), keyEquivalent: "y")
-        menu.addItem(withTitle: "Settings…",
+        menu.addItem(withTitle: L("Settings…"),
                      action: #selector(showSettings), keyEquivalent: ",")
         if model.updates.isAvailable {
-            menu.addItem(withTitle: "Check for Updates…",
+            menu.addItem(withTitle: L("Check for Updates…"),
                          action: #selector(checkForUpdates), keyEquivalent: "")
         }
 
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Uninstall NetworkMonitor…",
+        menu.addItem(withTitle: L("Uninstall NetworkMonitor…"),
                      action: #selector(uninstall), keyEquivalent: "")
-        menu.addItem(withTitle: "Quit",
+        menu.addItem(withTitle: L("Quit"),
                      action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         for item in menu.items where item.action != nil { item.target = self }
@@ -735,11 +739,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
         let confirm = NSAlert()
         confirm.alertStyle = .warning
-        confirm.messageText = "Uninstall NetworkMonitor?"
-        confirm.informativeText = "Every setting it changed is put back, its helper is "
-            + "removed, your usage history is deleted, and the app is moved to the Trash."
-        confirm.addButton(withTitle: "Uninstall")
-        confirm.addButton(withTitle: "Cancel")
+        confirm.messageText = L("Uninstall NetworkMonitor?")
+        confirm.informativeText = L("Every setting it changed is put back, its helper is removed, your usage history is deleted, and the app is moved to the Trash.")
+        confirm.addButton(withTitle: L("Uninstall"))
+        confirm.addButton(withTitle: L("Cancel"))
         guard confirm.runModal() == .alertFirstButtonReturn else { return }
 
         // The content filter goes first: its extension is removed by the app
@@ -758,9 +761,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         case .failed(let message):
             let failure = NSAlert()
             failure.alertStyle = .critical
-            failure.messageText = "NetworkMonitor couldn't finish uninstalling"
-            failure.informativeText = message + "\n\nNothing was removed, so every "
-                + "setting it changed can still be put back. Try again later."
+            failure.messageText = L("NetworkMonitor couldn't finish uninstalling")
+            failure.informativeText = L("%@\n\nNothing was removed, so every setting it changed can still be put back. Try again later.", message)
             failure.runModal()
         }
     }
@@ -872,42 +874,63 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// a stand-in window: open after ⌘W without the menu, closed with it). Kept
     /// out of the popover's way: ⌘Q there quitting the app would be a new
     /// behaviour nobody asked for.
-    private lazy var mainMenu: NSMenu = {
+    private var mainMenu: NSMenu {
+        if let builtMainMenu { return builtMainMenu }
+        let menu = makeMainMenu()
+        builtMainMenu = menu
+        return menu
+    }
+    /// Built on first use, and again after the language changes.
+    private var builtMainMenu: NSMenu?
+
+    /// A language chosen while a window is open renames its menu bar at once;
+    /// otherwise the next window to open builds it in the new language.
+    private func observeLanguage() {
+        languageObserver = NotificationCenter.default.publisher(for: Localization.didChange)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                let old = self.builtMainMenu
+                self.builtMainMenu = nil
+                if let old, NSApp.mainMenu === old { NSApp.mainMenu = self.mainMenu }
+            }
+    }
+
+    private func makeMainMenu() -> NSMenu {
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About NetworkMonitor",
+        appMenu.addItem(withTitle: L("About NetworkMonitor"),
                         action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
                         keyEquivalent: "")
         if model.updates.isAvailable {
-            appMenu.addItem(withTitle: "Check for Updates…",
+            appMenu.addItem(withTitle: L("Check for Updates…"),
                             action: #selector(checkForUpdates), keyEquivalent: "").target = self
         }
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Settings…",
+        appMenu.addItem(withTitle: L("Settings…"),
                         action: #selector(showSettings), keyEquivalent: ",").target = self
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Hide NetworkMonitor",
+        appMenu.addItem(withTitle: L("Hide NetworkMonitor"),
                         action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        appMenu.addItem(withTitle: "Hide Others",
+        appMenu.addItem(withTitle: L("Hide Others"),
                         action: #selector(NSApplication.hideOtherApplications(_:)),
                         keyEquivalent: "h").keyEquivalentModifierMask = [.command, .option]
-        appMenu.addItem(withTitle: "Show All",
+        appMenu.addItem(withTitle: L("Show All"),
                         action: #selector(NSApplication.unhideAllApplications(_:)),
                         keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit NetworkMonitor",
+        appMenu.addItem(withTitle: L("Quit NetworkMonitor"),
                         action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
-        let windowMenu = NSMenu(title: "Window")
-        windowMenu.addItem(withTitle: "Close",
+        let windowMenu = NSMenu(title: L("Window"))
+        windowMenu.addItem(withTitle: L("Close"),
                            action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        windowMenu.addItem(withTitle: "Minimize",
+        windowMenu.addItem(withTitle: L("Minimize"),
                            action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowMenu.addItem(.separator())
-        windowMenu.addItem(withTitle: "Connections",
+        windowMenu.addItem(withTitle: L("Connections"),
                            action: #selector(showConnections), keyEquivalent: "k").target = self
-        windowMenu.addItem(withTitle: "Ads and Trackers",
+        windowMenu.addItem(withTitle: L("Ads and Trackers"),
                            action: #selector(showAds), keyEquivalent: "b").target = self
-        windowMenu.addItem(withTitle: "Usage History",
+        windowMenu.addItem(withTitle: L("Usage History"),
                            action: #selector(showHistory), keyEquivalent: "y").target = self
 
         let menuBar = NSMenu()
@@ -917,7 +940,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             menuBar.addItem(item)
         }
         return menuBar
-    }()
+    }
 
     /// Centres a window, keeping its title bar clear of the menu bar.
     ///

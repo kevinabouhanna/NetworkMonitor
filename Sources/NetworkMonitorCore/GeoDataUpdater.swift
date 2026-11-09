@@ -109,8 +109,14 @@ public final class GeoDataUpdater: ObservableObject {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM"
-        guard let month, let date = formatter.date(from: month) else { return "DB-IP Lite" }
-        return "DB-IP Lite, " + date.formatted(.dateTime.month(.wide).year())
+        guard let month, let date = formatter.date(from: month) else { return "DB-IP Lite" } // untranslated: a product's name
+        return L("DB-IP Lite, %@", date.formatted(.dateTime.month(.wide).year().locale(Localization.shared.locale)))
+    }
+
+    /// `ServerDirectory.credit` in the language shown: ServerDirectory can't
+    /// call `L` (#433).
+    public static var credit: String {
+        ServerDirectory.credit == "IP geolocation by DB-IP" ? L("IP geolocation by DB-IP") : ServerDirectory.credit
     }
 
     public func checkIfDue() {

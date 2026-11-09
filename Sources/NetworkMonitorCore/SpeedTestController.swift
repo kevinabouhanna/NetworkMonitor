@@ -12,16 +12,16 @@ public enum SpeedTestStyle: String, CaseIterable, Identifiable {
 
     public var label: String {
         switch self {
-        case .card:    return "Card"
-        case .compact: return "Compact"
+        case .card:    return L("Card")
+        case .compact: return L("Compact")
         }
     }
 
     /// What the style does, under its picture in Settings.
     public var summary: String {
         switch self {
-        case .card:    return "A card with a dial and every figure, in place of your apps."
-        case .compact: return "Two lines above your apps, which stay in view."
+        case .card:    return L("A card with a dial and every figure, in place of your apps.")
+        case .compact: return L("Two lines above your apps, which stay in view.")
         }
     }
 }
@@ -187,7 +187,7 @@ public final class SpeedTestController: ObservableObject {
         endMenuBarHold()
         switch phase {
         case .running:
-            phase = .failed("The network changed during the test")
+            phase = .failed(L("The network changed during the test"))
         case .finished, .confirming:
             phase = .idle
         case .idle, .failed:
@@ -272,7 +272,7 @@ public final class SpeedTestController: ObservableObject {
             competing.removeAll()
             switch failure {
             case .unreadable:
-                phase = .failed("networkQuality returned a result this app could not read")
+                phase = .failed(L("networkQuality returned a result this app could not read"))
             case .toolError(let message):
                 phase = .failed(message)
             }

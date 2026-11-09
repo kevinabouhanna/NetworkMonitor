@@ -60,10 +60,6 @@ struct PeriodHeading: View {
         }
     }
 
-    static func count(_ value: Int, _ one: String, _ many: String) -> String {
-        "\(value) \(value == 1 ? one : many)"
-    }
-}
 
 /// ‹ Today ›, as Calendar has it, with ⌘← and ⌘→.
 struct PeriodStepper: View {
@@ -75,17 +71,17 @@ struct PeriodStepper: View {
     var body: some View {
         ControlGroup {
             Button { onStep(-1) } label: { Image(systemName: "chevron.left") }
-                .accessibilityLabel("Previous")
+                .accessibilityLabel(L("Previous"))
                 .keyboardShortcut(.leftArrow, modifiers: [.command])
                 .disabled(!canStepBack)
-                .help("Previous (⌘←)")
-            Button("Today", action: onToday)
-                .help("Back to the present")
+                .help(L("Previous (⌘←)"))
+            Button(L("Today"), action: onToday)
+                .help(L("Back to the present"))
             Button { onStep(1) } label: { Image(systemName: "chevron.right") }
-                .accessibilityLabel("Next")
+                .accessibilityLabel(L("Next"))
                 .keyboardShortcut(.rightArrow, modifiers: [.command])
                 .disabled(!canStepForward)
-                .help("Next (⌘→)")
+                .help(L("Next (⌘→)"))
         }
         .fixedSize()
     }

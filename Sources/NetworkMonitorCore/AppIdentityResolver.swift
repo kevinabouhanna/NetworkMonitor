@@ -355,7 +355,7 @@ public final class AppIdentityResolver {
 
     private static func systemDaemonIcon() -> NSImage {
         if let image = NSImage(systemSymbolName: "gearshape.fill",
-                               accessibilityDescription: "System process") {
+                               accessibilityDescription: L("System process")) {
             return image
         }
         return NSWorkspace.shared.icon(for: .unixExecutable)

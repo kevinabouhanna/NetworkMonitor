@@ -36,23 +36,11 @@ public enum LoginItem {
         public var errorDescription: String? {
             switch self {
             case .notInstalledInApplications(let path):
-                return """
-                    Launch at Login needs the app to live in a fixed location, but \
-                    it is running from:
-
-                    \(path)
-
-                    Move NetworkMonitor.app to /Applications (or run \
-                    'make install') and try again.
-                    """
+                return L("Launch at Login needs the app to live in a fixed location, but it is running from:\n\n%@\n\nMove NetworkMonitor.app to /Applications (or run 'make install') and try again.", path)
             case .requiresApproval:
-                return """
-                    macOS is holding this login item for approval. Open System \
-                    Settings > General > Login Items and switch NetworkMonitor \
-                    on there.
-                    """
+                return L("macOS is holding this login item for approval. Open System Settings > General > Login Items and switch NetworkMonitor on there.")
             case .registrationFailed(let detail):
-                return "Could not change the login item: \(detail)"
+                return L("Could not change the login item: %@", detail)
             }
         }
     }

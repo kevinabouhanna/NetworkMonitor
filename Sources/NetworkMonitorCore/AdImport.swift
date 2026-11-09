@@ -87,7 +87,7 @@ public struct AdImport: Identifiable, Equatable {
             throw ReadError.notRules
         }
         guard let text = String(data: data, encoding: .utf8) else { throw ReadError.notRules }
-        var result = AdImport(source: "a list of rules")
+        var result = AdImport(source: L("a list of rules"))
         result.add(lines: text, existing: existing, findApp: findApp)
         // A file with nothing that reads as a rule at all isn't rules.
         if result.rules.isEmpty && result.alreadyHere == 0 && result.forExtension.isEmpty
@@ -99,7 +99,7 @@ public struct AdImport: Identifiable, Equatable {
 
     /// uBlock Origin's Settings › Back up to file.
     static func uBlockOrigin(_ json: [String: Any], existing: [AdRule], findApp: AppFinder) -> AdImport {
-        var result = AdImport(source: "uBlock Origin backup")
+        var result = AdImport(source: L("uBlock Origin backup"))
         let trusted = (json["whitelist"] as? [String]) ?? (json["trustedSiteDirectives"] as? [String])
             ?? (json["netWhitelist"] as? String)?.components(separatedBy: "\n") ?? []
         result.addTrusted(trusted, existing: existing)
@@ -118,19 +118,19 @@ public struct AdImport: Identifiable, Equatable {
 
     /// AdGuard's Settings › Export settings, from its browser extension.
     static func adGuard(_ json: [String: Any], existing: [AdRule], findApp: AppFinder) -> AdImport {
-        var result = AdImport(source: "AdGuard settings")
+        var result = AdImport(source: L("AdGuard settings"))
         let filters = json["filters"] as? [String: Any] ?? [:]
         if let allow = (filters["whitelist"] ?? filters["allowlist"]) as? [String: Any],
            allow["enabled"] as? Bool ?? true, !(allow["inverted"] as? Bool ?? false) {
             result.addTrusted(allow["domains"] as? [String] ?? [], existing: existing)
         }
         for id in filters["enabled-filters"] as? [Int] ?? [] {
-            result.addList(named: adGuardNames[id] ?? "AdGuard filter \(id)", topic: adGuardTopics[id],
+            result.addList(named: adGuardNames[id] ?? L("AdGuard filter %@", String(id)), topic: adGuardTopics[id],
                            catalogue: adGuardCatalogue[id])
         }
         for custom in filters["custom-filters"] as? [[String: Any]] ?? [] where custom["enabled"] as? Bool ?? true {
             let address = custom["customUrl"] as? String
-            result.addList(named: custom["title"] as? String ?? address ?? "A custom list", topic: nil,
+            result.addList(named: custom["title"] as? String ?? address ?? L("A custom list"), topic: nil,
                            url: address.flatMap { $0.hasPrefix("https://") ? URL(string: $0) : nil })
         }
         if let user = filters["user-filter"] as? [String: Any], user["enabled"] as? Bool ?? true {
@@ -202,9 +202,9 @@ public struct AdImport: Identifiable, Equatable {
             case "app":
                 let names = value.split(separator: "|").map(String.init)
                 guard names.count == 1, !option.hasPrefix("~") else {
-                    return .skipped("it names several apps, or every app but some")
+                    return .skipped(L("it names several apps, or every app but some"))
                 }
-                guard let found = findApp(names[0]) else { return .skipped("\(names[0]) isn't on this Mac") }
+                guard let found = findApp(names[0]) else { return .skipped(L("%@ isn't on this Mac", names[0])) }
                 app = found
             case "important", "all", "document", "doc", "popup", "match-case":
                 continue
@@ -226,7 +226,7 @@ public struct AdImport: Identifiable, Equatable {
         if name.hasSuffix("^") || name.hasSuffix("^|") { name = String(name.prefix { $0 != "^" }) }
         if name.isEmpty || name == "*" {
             if allow, let app { return .rule(AdRule(kind: .neverBlock, site: nil, appKey: app.key, appTitle: app.name)) }
-            return .skipped("it's about every site")
+            return .skipped(L("it's about every site"))
         }
         // A path or a part of an address is narrower than the site.
         let hostPart: String
@@ -237,7 +237,7 @@ public struct AdImport: Identifiable, Equatable {
         let host = hostPart.prefix { $0 != "/" }
         if host.contains("*") && !host.hasPrefix("*.") { return .enhancedOnly }
         guard let site = AdRule.site(from: String(host)) else {
-            return .skipped("it doesn't name a site")
+            return .skipped(L("it doesn't name a site"))
         }
         return .rule(AdRule(kind: allow ? .neverBlock : .alwaysBlock, site: site, appKey: app?.key, appTitle: app?.name))
     }
@@ -259,7 +259,7 @@ public struct AdImport: Identifiable, Equatable {
             // uBlock Origin's own: browser pages, not sites.
             if entry.hasSuffix("-scheme") || entry.hasPrefix("#") { continue }
             guard !entry.hasPrefix("/"), let site = AdRule.site(from: entry) else {
-                skipped.append(Skipped(line: entry, why: "it isn't one site"))
+                skipped.append(Skipped(line: entry, why: L("it isn't one site")))
                 continue
             }
             hasTrustedSites = true
@@ -327,11 +327,12 @@ public struct AdImport: Identifiable, Equatable {
     /// AdGuard's User rules take, and this reads back. An app is named by its
     /// bundle ID where it has one.
     public static func export(_ rules: [AdRule], bundleID: (String) -> String?) -> String {
-        var lines = ["! NetworkMonitor ad-blocking rules", "! \(rules.count) rule\(rules.count == 1 ? "" : "s")"]
+        var lines = ["! " + L("NetworkMonitor ad-blocking rules"),
+                     "! " + (rules.count == 1 ? L("1 rule") : L("%@ rules", String(rules.count)))]
         for rule in rules {
             let app = rule.appKey.map { "$app=" + (bundleID($0) ?? $0) }
             if rule.skipsApp, let app {
-                lines.append("! Don't filter \(rule.appTitle ?? "this app")")
+                lines.append("! " + (rule.appTitle.map { L("Don't filter %@", $0) } ?? L("Don't filter this app")))
                 lines.append("@@*" + app)
                 continue
             }
@@ -349,20 +350,26 @@ public struct AdImport: Identifiable, Equatable {
         let never = rules.filter { $0.kind == .neverBlock && !$0.skipsApp }.count
         let always = rules.filter { $0.kind == .alwaysBlock }.count
         let apps = rules.filter(\.skipsApp).count
-        if never > 0 { lines.append("\(Self.count(never, "site")) never blocked") }
-        if always > 0 { lines.append("\(Self.count(always, "site")) always blocked") }
-        if apps > 0 { lines.append("\(Self.count(apps, "app")) not filtered") }
-        let titles = lists.sorted { $0.rawValue < $1.rawValue }.map(\.title)
+        if never > 0 { lines.append(never == 1 ? L("1 site never blocked") : L("%@ sites never blocked", String(never))) }
+        if always > 0 {
+            lines.append(always == 1 ? L("1 site always blocked") : L("%@ sites always blocked", String(always)))
+        }
+        if apps > 0 { lines.append(apps == 1 ? L("1 app not filtered") : L("%@ apps not filtered", String(apps))) }
+        let titles = lists.sorted { $0.rawValue < $1.rawValue }.map(\.shownTitle)
             + downloadedLists.compactMap { ListCatalogue.source($0)?.title }
-        if !titles.isEmpty {
-            let last = titles.count > 1 ? " and " + titles[titles.count - 1] : ""
-            lines.append("Switch on " + titles.dropLast(titles.count > 1 ? 1 : 0).joined(separator: ", ") + last)
+        if titles.count > 1 {
+            lines.append(L("Switch on %@ and %@", titles.dropLast().joined(separator: ", "), titles[titles.count - 1]))
+        } else if let title = titles.first {
+            lines.append(L("Switch on %@", title))
         }
         if !addedLists.isEmpty {
-            lines.append("Add \(Self.count(addedLists.count, "list")) by address: "
-                         + (AdsReport.listed(addedLists.compactMap(\.host), shown: 2) ?? ""))
+            let hosts = AdsReport.listed(addedLists.compactMap(\.host), shown: 2) ?? ""
+            lines.append(addedLists.count == 1 ? L("Add 1 list by address: %@", hosts)
+                         : L("Add %@ lists by address: %@", String(addedLists.count), hosts))
         }
-        if alreadyHere > 0 { lines.append("\(Self.count(alreadyHere, "rule")) already here") }
+        if alreadyHere > 0 {
+            lines.append(alreadyHere == 1 ? L("1 rule already here") : L("%@ rules already here", String(alreadyHere)))
+        }
         return lines
     }
 
@@ -370,27 +377,27 @@ public struct AdImport: Identifiable, Equatable {
     public var leftOut: [String] {
         var lines: [String] = []
         if !forExtension.isEmpty {
-            let one = forExtension.count == 1
-            lines.append("\(Self.count(forExtension.count, "rule")) that \(one ? "hides" : "hide") parts of a page "
-                         + "\(one ? "waits" : "wait") for the browser extension")
+            lines.append(forExtension.count == 1
+                         ? L("1 rule that hides parts of a page waits for the browser extension")
+                         : L("%@ rules that hide parts of a page wait for the browser extension",
+                             String(forExtension.count)))
         }
         if !forEnhanced.isEmpty {
-            let one = forEnhanced.count == 1
-            lines.append("\(Self.count(forEnhanced.count, "rule")) about part of a site \(one ? "waits" : "wait") "
-                         + "for Enhanced ad blocking")
+            lines.append(forEnhanced.count == 1
+                         ? L("1 rule about part of a site waits for Enhanced ad blocking")
+                         : L("%@ rules about part of a site wait for Enhanced ad blocking", String(forEnhanced.count)))
         }
         if !listsNotHere.isEmpty {
-            lines.append("Not offered here yet: " + (AdsReport.listed(listsNotHere, shown: 3) ?? ""))
+            lines.append(L("Not offered here yet: %@", AdsReport.listed(listsNotHere, shown: 3) ?? ""))
         }
         if !skipped.isEmpty {
-            let examples = skipped.prefix(3).map { "\($0.line) (\($0.why))" }
-            lines.append("\(Self.count(skipped.count, "line")) can't be used: " + examples.joined(separator: "; ")
-                         + (skipped.count > 3 ? "…" : ""))
+            let examples = skipped.prefix(3).map { L("%@ (%@)", $0.line, $0.why) }.joined(separator: "; ")
+                + (skipped.count > 3 ? "…" : "")
+            lines.append(skipped.count == 1 ? L("1 line can't be used: %@", examples)
+                         : L("%@ lines can't be used: %@", String(skipped.count), examples))
         }
         return lines
     }
-
-    static func count(_ n: Int, _ noun: String) -> String { "\(n) \(noun)\(n == 1 ? "" : "s")" }
 }
 
 private extension Array where Element == String {
