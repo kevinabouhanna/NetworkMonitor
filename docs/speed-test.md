@@ -65,7 +65,7 @@ down:
 
 | Option | Why not |
 |---|---|
-| Ookla's CLI | needs installing, and its licence doesn't allow bundling in an MIT app |
+| Ookla's CLI | needs installing, and its licence doesn't allow bundling it with the app |
 | M-Lab NDT | publishes every tester's IP address and result as open data |
 | Cloudflare's endpoints, or our own | would mean owning a measurement engine worse than the one already on every Mac |
 | fast.com | no API |

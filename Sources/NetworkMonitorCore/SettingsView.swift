@@ -874,7 +874,7 @@ struct AboutSettingsPane: View {
                 link(L("Source code"), L("On GitHub"),
                      "https://github.com/kevinabouhanna/NetworkMonitor")
             } footer: {
-                SettingsFootnote(L("Free and open source, under the MIT licence."))
+                SettingsFootnote(L("Free and open source, under the Apache 2.0 licence."))
             }
 
             // Updating itself (#132): its one network access besides the

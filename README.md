@@ -14,7 +14,7 @@
   <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest"><img src="https://img.shields.io/github/v/release/kevinabouhanna/NetworkMonitor?color=51FF70&label=release" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/macOS-13%2B-1d1d1f" alt="macOS 13 or later">
   <a href="https://github.com/kevinabouhanna/NetworkMonitor/actions/workflows/ci.yml"><img src="https://github.com/kevinabouhanna/NetworkMonitor/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
-  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT licence">
+  <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="Apache 2.0 licence">
 </p>
 
 <p align="center">
@@ -93,4 +93,4 @@ See [docs/development.md](docs/development.md) for the rest.
 
 ## 📄 License
 
-[MIT](LICENSE)
+[Apache License 2.0](LICENSE)
