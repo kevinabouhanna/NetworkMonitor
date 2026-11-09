@@ -885,6 +885,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         NSApp.mainMenu = mainMenu
         NSApp.setActivationPolicy(.regular)
 
+        // `-background YES` (#475): a check that only reads the window's
+        // accessibility tree opens it behind every other window and never
+        // activates the app. It still turns regular, as an accessory app's
+        // window has a zoom button where this one has full screen, and the
+        // tree would differ from the one recorded with the picture.
+        if UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)["background"] != nil {
+            if reposition { position(window) }
+            window.orderBack(nil)
+            return
+        }
+
         // Re-position on every open: the window may have been moved, or opened on
         // a different screen since last time.
         if reposition { position(window) }

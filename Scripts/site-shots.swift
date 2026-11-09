@@ -10,9 +10,10 @@
 // with the tree recorded when the picture was taken (`shots/trees/<name>.txt`):
 //
 //   check            reports what changed, and which videos or staged pictures
-//                    show a window that changed (they're remade by hand). And,
-//                    as advice, the windows that look different from their
-//                    pictures, outside what's masked (`<name>.look`, #423)
+//                    show a window that changed (they're remade by hand).
+//                    With --look, and on `update`, also as advice the windows
+//                    that look different from their pictures, outside what's
+//                    masked (`<name>.look`, #423)
 //   update [names]   retakes the pictures whose window changed (or the ones
 //                    named), records their trees, and updates the page: each
 //                    picture's size, the clickable areas laid over it, and the
@@ -664,6 +665,10 @@ struct Look {
     }
 }
 
+/// Whether `check` compares looks too (`--look`): it needs the windows in
+/// front, so it's asked for; `update` always does.
+nonisolated(unsafe) var compareLooks = false
+
 /// What the tree masks in `window`, in screen points: each element's frame.
 func maskedFrames(_ window: AXUIElement, _ shot: Shot) -> [CGRect] {
     var frames: [CGRect] = []
@@ -673,10 +678,38 @@ func maskedFrames(_ window: AXUIElement, _ shot: Shot) -> [CGRect] {
     return frames
 }
 
+// MARK: - Kevin's screens
+
+/// When this run last clicked with the real pointer: that click counts as input.
+nonisolated(unsafe) var lastOwnInput: Date?
+
+/// Seconds since anyone used the keyboard or mouse; infinite while the screen is locked.
+func secondsIdle() -> Double {
+    if let session = CGSessionCopyCurrentDictionary() as? [String: Any],
+       session["CGSSessionScreenIsLocked"] as? Bool == true { return .infinity }
+    let idle = CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
+    // No input since this run's own click, which it made only while Kevin was away.
+    if let last = lastOwnInput, idle >= Date().timeIntervalSince(last) - 1 { return .infinity }
+    return idle
+}
+
+/// Waits until Kevin has stepped away (#475) before taking focus or moving the
+/// pointer: MAC_LANE_IDLE seconds (90) with no keyboard or mouse, or the screen
+/// locked. MAC_LANE_IDLE=0 doesn't wait.
+func awaitAway(_ what: String) {
+    let need = Double(ProcessInfo.processInfo.environment["MAC_LANE_IDLE"] ?? "") ?? 90
+    guard need > 0, secondsIdle() < need else { return }
+    print("  waiting until the keyboard and mouse have been idle \(Int(need))s, to \(what)")
+    while secondsIdle() < need { sleep(5) }
+}
+
 // MARK: - The app
 
 struct Session {
     let manifest: Manifest
+    /// Opens windows behind the others without activating the app
+    /// (`-background YES`, #475), for commands that only read the tree.
+    var background = false
 
     var running: NSRunningApplication? {
         NSRunningApplication.runningApplications(withBundleIdentifier: manifest.bundle).first
@@ -696,7 +729,8 @@ struct Session {
         for attempt in 1...3 {
             let open = Process()
             open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            open.arguments = ["-a", manifest.app, "--args"] + arguments
+            // -g: never brings the app forward by itself (#475).
+            open.arguments = ["-g", "-a", manifest.app, "--args"] + arguments + (background ? ["-background", "YES"] : [])
             try open.run()
             open.waitUntilExit()
             for _ in 0..<40 where running == nil { usleep(250_000) }
@@ -726,6 +760,7 @@ struct Session {
     }
 
     func bringForward(_ window: AXUIElement) {
+        awaitAway("bring a window forward")
         guard let app = running else { return }
         let ax = AXUIElementCreateApplication(app.processIdentifier)
         for _ in 0..<3 {
@@ -761,6 +796,7 @@ struct Session {
                 CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
                 usleep(60_000)
             }
+            lastOwnInput = Date()
             if let saved { CGWarpMouseCursorPosition(saved) }
             usleep(1_200_000)
             if before == nil || text(element, kAXValueAttribute) != before { return }
@@ -1433,11 +1469,14 @@ struct SiteShots {
         }
         // One language only: `en`, or a language's code (#431). All of them otherwise.
         var only: String?
+        // A check compares looks too (#423), which needs each window in
+        // front and active, so it waits until Kevin has stepped away (#475).
+        if let i = args.firstIndex(of: "--look") { compareLooks = true; args.remove(at: i) }
         if let i = args.firstIndex(of: "--language"), i + 1 < args.count {
             only = args[i + 1]; args.removeSubrange(i...(i + 1))
         }
         guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "coverage-test", "readme", "record"].contains(command) else {
-            print("usage: site-shots check|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
+            print("usage: site-shots check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
             exit(2)
         }
         let names = Set(args.dropFirst())
@@ -1516,7 +1555,9 @@ struct SiteShots {
             guard AXIsProcessTrusted() else { throw Failure("give this terminal Accessibility in System Settings › Privacy & Security") }
             var manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
             if let app { manifest.app = app }
-            let session = Session(manifest: manifest)
+            var session = Session(manifest: manifest)
+            // Reading the tree needs no focus; a picture shows the window active.
+            session.background = ["check", "tree", "audit"].contains(command) && !(command == "check" && compareLooks)
             let wasRunning = session.running != nil
             var status: Int32 = 0
             // English, then each language's page with the same shots in it.
@@ -1676,7 +1717,8 @@ struct SiteShots {
                     }
                 } else if shot.file != nil,
                           // An update compares what it won't retake anyway.
-                          command == "check" || (command == "update" && !(differs || names.contains(shot.name) || shot.always == true)),
+                          (command == "check" && compareLooks)
+                            || (command == "update" && !(differs || names.contains(shot.name) || shot.always == true)),
                           let kept = (try? String(contentsOf: lookFile, encoding: .utf8)).flatMap(Look.init(text:)) {
                     let fresh = try await session.look(window, shot)
                     if let d = fresh.look.differing(from: kept) {

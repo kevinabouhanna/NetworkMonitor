@@ -108,7 +108,7 @@ else
 fi
 
 echo "==> Starting ${APP_NAME}"
-open "$DEST"
+open -g "$DEST"
 
 echo
 echo "==> Done."

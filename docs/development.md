@@ -268,8 +268,11 @@ are kept apart differently:
   - a `pkill` that stops every copy of the app;
   - the pointer and the screen.
 
-  `Scripts/mac-lane.sh` runs whatever touches those one at a time, across every worktree,
-  session and project, with one lane per shared part:
+  `mac-lane` runs whatever touches those one at a time, across every worktree, session and
+  project, with one lane per shared part. It's on PATH from the `shared-mac` plugin
+  (kevinabouhanna/claude-parallel-sessions#3), one copy for every project;
+  `Scripts/mac-lane.sh` is the fallback for GitHub's runners and hands over to it when it's
+  there:
   - **`networkmonitor`**: the app, filter, helper and settings. `install.sh`,
     `uninstall.sh`, `install-helper.sh`, `smoke-test.sh`, `review-build.sh` and `make run`
     take it themselves.
@@ -279,7 +282,7 @@ are kept apart differently:
   Other projects have their own app lanes (`home-control`), so a review build here
   doesn't hold up their installs. A second caller waits, and is told who holds the lane
   and for how long. The lock is the kernel's, so it goes when its holder dies.
-  `Scripts/mac-lane.sh status` lists every lane. `install.sh` builds and notarizes before
+  `mac-lane status` lists every lane. `install.sh` builds and notarizes before
   taking the lane, so the lane is held only for stopping, copying and starting the app.
 - **Ports.** Local test servers take a port the system picks (see
   [Launch arguments](#launch-arguments)).
@@ -366,13 +369,16 @@ spacing, a font) leaves the tree the same, so each picture also keeps its look:
 `shots/trees/<name>.look`, a thumbnail 128 cells along the picture's longer side, each
 cell's average colour at five bits a channel. Cells over anything the tree masks (data
 regions, a number, a setting's value, an ignored line, a scroll bar) are left out
-(`----`). `site-check` takes a fresh capture, masks it the same way, and names the
-windows where more than one cell differs by more than one level in a channel, or whose
-size changed.
+(`----`). `make site-shots` (for each window it doesn't retake) and `make site-check
+LOOK=1` take a fresh capture, mask it the same way, and name the windows where more
+than one cell differs by more than one level in a channel, or whose size changed. A
+plain `site-check` doesn't: it reads trees behind the other windows, without focus
+(#475), and a look needs each window in front and active, so with `LOOK=1` it waits,
+as `site-shots` does, until the keyboard and mouse have been idle.
 
 - **Advice, not a failure.** It's listed after the tree's changes and doesn't change
-  `site-check`'s exit status, and `update` doesn't retake a window for it: look at
-  the two, and retake the ones that changed with `make site-shots NAMES=…`. Pixels
+  the exit status, and `site-shots` doesn't retake a window for it: look at the two,
+  and retake the ones that changed with `make site-shots NAMES=…`. Pixels
   follow things the app doesn't (the wallpaper behind a translucent sidebar, the
   screen a window is on), which a few hours' captures on one Mac can't rule out.
 - **How it was tuned** (#423): fresh captures of all fourteen windows, in English and
@@ -679,6 +685,7 @@ A development build reads a few launch arguments for that run only; nothing pers
 |---|---|
 | `-powerProfile balanced` (or `performance`, `saver`) | measures a power profile without unplugging (below) |
 | `-open history` (or `connections`, `ads`, `network`), `-open ads -tab log` (or `rules`, `lists`, in its settings), `-open welcome`, `-open popover`, `-open about`, `-open settings`, `-open settings -pane history` (a section's settings; `hotspot` opens Network, `speedTest` Network's settings) | opens a window straight away, for a screenshot or a check |
+| `-background YES`, with `-open` | opens the window behind every other one and doesn't activate the app, so a check never takes focus (it shows in the Dock meanwhile) (#475; `site-shots check`, `audit` and `tree` pass it). The popover still activates the app |
 | `-open popover -popoverScreen retina` | opens the popover on a Retina screen's menu bar rather than the main screen's, for a full-resolution capture (#360) |
 | `-geoDataURL http://127.0.0.1:PORT/ -geoDataCheckNow YES` | fetches the monthly data from a local package, at once (#121) |
 | `-updateFeedURL http://127.0.0.1:PORT/appcast.xml -checkForUpdatesNow YES` | checks a local appcast for an update, at once (#132) |
@@ -692,7 +699,7 @@ above (#342).
 
 A development build shares its settings and data with the installed app, so run it
 in its Mac lane (`Scripts/mac-lane.sh`, see [Working in parallel](#working-in-parallel)):
-`MAC_LANE=networkmonitor Scripts/mac-lane.sh open -W -n build/NetworkMonitor.app --args …` holds the lane
+`MAC_LANE=networkmonitor mac-lane open -W -n build/NetworkMonitor.app --args …` holds the lane
 until that copy quits.
 
 ## Measuring power
@@ -701,14 +708,14 @@ Measure a power profile without unplugging, using a launch argument that's read 
 that run:
 
 ```sh
-open -n build/NetworkMonitor.app --args -powerProfile balanced   # or performance, saver
+open -g -n build/NetworkMonitor.app --args -powerProfile balanced   # or performance, saver
 ```
 
 Open a window straight away, for a screenshot or a quick check, the same way:
 
 ```sh
-open -n build/NetworkMonitor.app --args -open connections
-open -n build/NetworkMonitor.app --args -open settings -pane history   # any section's settings
+open -g -n build/NetworkMonitor.app --args -open connections
+open -g -n build/NetworkMonitor.app --args -open settings -pane history   # any section's settings
 ```
 
 Then time the CPU of the app and its `nettop` child with `ps -o time=` over a couple of

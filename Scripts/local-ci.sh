@@ -122,7 +122,7 @@ smoke() {
   pgrep -qf "/Applications/NetworkMonitor.app/Contents/MacOS" && was=true
   local ok=0
   ./Scripts/smoke-test.sh || ok=$?
-  if $was; then sleep 1; open /Applications/NetworkMonitor.app; fi
+  if $was; then sleep 1; open -g /Applications/NetworkMonitor.app; fi
   return $ok
 }
 
