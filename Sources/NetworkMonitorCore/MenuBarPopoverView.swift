@@ -85,47 +85,6 @@ public struct MenuBarPopoverView: View {
                    : PopoverMetrics.maxListHeight
     }
 
-    /// Height the list wants for the rows currently on screen, capped.
-    ///
-    /// Computed from the row count rather than measured from the laid-out
-    /// content, and that distinction is the whole fix. Measuring means feeding a
-    /// height back into the view that produced it, so the first layout pass
-    /// necessarily runs at the wrong size — zero — and `NSPopover` places its
-    /// window from whatever size the controller reports *at show time*. A
-    /// popover shown against a zero-height list is positioned for a window that
-    /// does not exist yet, which is the same class of bug as the (0, 0)
-    /// `preferredContentSize` described in `AppDelegate.setUpPopover`.
-    ///
-    /// Deriving the height instead makes the very first layout correct, so the
-    /// popover is placed once against a size that is already final.
-    private var listHeight: CGFloat {
-        PopoverMetrics.listHeight(appRows: appRows.count,
-                                  expandedChildRows: expandedChildRows,
-                                  systemRowCount: systemRows.count,
-                                  systemExpanded: model.systemExpanded,
-                                  cap: listCap)
-    }
-
-    /// True only when there are genuinely more rows than fit.
-    private var listScrolls: Bool {
-        PopoverMetrics.scrolls(appRows: appRows.count,
-                               expandedChildRows: expandedChildRows,
-                               systemRowCount: systemRows.count,
-                               systemExpanded: model.systemExpanded,
-                               cap: listCap)
-    }
-
-    /// What the reorder animation watches: the order itself, nothing else.
-    ///
-    /// The list is rebuilt from scratch on every sample, so there is no
-    /// transaction for `withAnimation` to attach to — the animation has to hang
-    /// off a value, exactly as each bar's width does. Comparing ids and not rows
-    /// is what keeps it honest: a row whose figure merely ticked up redraws in
-    /// place, and only an app actually overtaking another makes the list move.
-    private var rowOrderKey: [String] {
-        appRows.map(\.id)
-    }
-
     private var expandedChildRows: Int {
         appRows
             .filter { model.expandedApps.contains($0.id) }
@@ -284,6 +243,25 @@ public struct MenuBarPopoverView: View {
 
     // MARK: Header
 
+    /// The window section for the view shown, from the button by the gear.
+    private func openWindow() {
+        switch model.popoverSection {
+        case .today:      onHistory()
+        case .companies:  onConnections()
+        case .blocked:    onAds()
+        case .connection: onHotspotSettings()
+        }
+    }
+
+    private var openWindowHelp: String {
+        switch model.popoverSection {
+        case .today:      return L("Open Usage History (⌘Y)")
+        case .companies:  return L("Open Connections (⌘K)")
+        case .blocked:    return L("Open Ads and Trackers (⌘B)")
+        case .connection: return L("Open Network")
+        }
+    }
+
     /// The period, with Settings' gear beside it; the four buttons; then
     /// anything that needs saying (#436, #449). One combined total: live
     /// download/upload rates are already in the menu bar.
@@ -294,6 +272,16 @@ public struct MenuBarPopoverView: View {
                               label: { $0.label })
                     .help(L("What Data, Connections and Ads blocked count: today, this week or this month so far, on every network"))
                 Spacer(minLength: 0)
+                Button(action: openWindow) {
+                    Image(systemName: "macwindow")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 26, height: 26)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(openWindowHelp)
+                .accessibilityLabel(openWindowHelp)
                 Button(action: onSettings) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 13))
@@ -383,26 +371,31 @@ public struct MenuBarPopoverView: View {
     /// `LazyVStack` is safe again now that the height no longer comes from
     /// measuring this content: laziness cannot influence a number derived from
     /// the row count.
+    /// The same list as every other view's (#436), so Apps and Networks
+    /// cross as Connections' and Ads blocked's groupings do. Rows sliding past
+    /// each other as figures arrive animate with the figures (`TodayGlance`),
+    /// never the frame, which sets the popover's size; see
+    /// `PopoverMetrics.maxListHeight`.
     private var list: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(appRows) { row in
-                    appRow(row)
-                }
-                if !systemRows.isEmpty { systemSection }
+        PopoverList(rows: dataRowCount, cap: listCap) {
+            ForEach(appRows) { row in
+                appRow(row)
             }
-            .padding(.vertical, PopoverMetrics.listVerticalPadding / 2)
-            // Applied here rather than to the ScrollView so it animates the rows
-            // sliding past each other and never the frame below, which sets the
-            // popover's size — animating that would re-anchor the window on every
-            // overtake. See `PopoverMetrics.maxListHeight`.
-            .animation(.easeInOut(duration: 0.3), value: rowOrderKey)
+            if !systemRows.isEmpty { systemSection }
         }
-        .frame(height: listHeight)
-        // Stated, not inferred. Left to AppKit, a list that exactly fits its
-        // frame is scrollable-or-not depending on rounding, and the overlay bar
-        // flickered on every republish.
-        .scrollIndicators(listScrolls ? .automatic : .never)
+    }
+
+    /// Every row on screen: the apps, those opened, and the System group.
+    ///
+    /// The list's height is computed from this count rather than measured
+    /// from the laid-out content: measured, the first layout runs at zero,
+    /// and `NSPopover` places its window from the size it's given at show
+    /// time, against a window that doesn't exist yet (see
+    /// `AppDelegate.setUpPopover`).
+    private var dataRowCount: Int {
+        var rows = appRows.count + expandedChildRows
+        if !systemRows.isEmpty { rows += 1 + (model.systemExpanded ? systemRows.count : 0) }
+        return rows
     }
 
     /// What every bar is measured against: everything the rows account for.

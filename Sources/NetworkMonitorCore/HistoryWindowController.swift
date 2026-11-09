@@ -127,6 +127,7 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
         stepControl.setEnabled(model.canStepBack, forSegment: 0)
         stepControl.setEnabled(model.canStepForward, forSegment: 2)
         search.show(model.search)
+        search.fitGlass()
     }
 
     private func nameSearch() {

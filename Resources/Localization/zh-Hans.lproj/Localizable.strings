@@ -886,3 +886,7 @@
 "“%@”" = "“%@”";
 "Hide Sidebar" = "隐藏边栏";
 "Show Sidebar" = "显示边栏";
+"Network…" = "网络…";
+"Open Usage History (⌘Y)" = "打开流量历史（⌘Y）";
+"Open Connections (⌘K)" = "打开“连接”（⌘K）";
+"Open Ads and Trackers (⌘B)" = "打开广告与跟踪器（⌘B）";

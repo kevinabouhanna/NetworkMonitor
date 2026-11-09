@@ -209,7 +209,14 @@ private struct SummaryMessage: View {
 struct PopoverList<Content: View>: View {
     /// The rows on screen, the open ones' children included.
     let rows: Int
+    var cap: CGFloat = PopoverMetrics.maxListHeight
     @ViewBuilder let content: Content
+
+    init(rows: Int, cap: CGFloat = PopoverMetrics.maxListHeight, @ViewBuilder content: () -> Content) {
+        self.rows = rows
+        self.cap = cap
+        self.content = content()
+    }
 
     var body: some View {
         ScrollView {
@@ -217,9 +224,9 @@ struct PopoverList<Content: View>: View {
                 .padding(.vertical, PopoverMetrics.listVerticalPadding / 2)
         }
         .frame(height: PopoverMetrics.listHeight(appRows: rows, expandedChildRows: 0, systemRowCount: 0,
-                                                 systemExpanded: false))
+                                                 systemExpanded: false, cap: cap))
         .scrollIndicators(PopoverMetrics.scrolls(appRows: rows, expandedChildRows: 0, systemRowCount: 0,
-                                                 systemExpanded: false) ? .automatic : .never)
+                                                 systemExpanded: false, cap: cap) ? .automatic : .never)
     }
 }
 

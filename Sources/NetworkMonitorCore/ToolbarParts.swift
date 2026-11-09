@@ -126,7 +126,7 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
         isOpen = false
         if hasFocus { field.window?.makeFirstResponder(nil) }
         field.placeholderString = nil
-        resize(to: Self.glassWidth)
+        resize(to: glassWidth)
     }
 
     private func open(focus: Bool) {
@@ -158,6 +158,18 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
     }
 
     private var hasFocus: Bool { field.currentEditor() != nil }
+
+    /// Round: as wide as the field is tall where it's drawn, the toolbar's
+    /// buttons being taller on some displays than others.
+    private var glassWidth: CGFloat {
+        field.frame.height > 0 ? field.frame.height : Self.glassWidth
+    }
+
+    /// Kept round as the toolbar lays out, while it's the glass.
+    func fitGlass() {
+        guard !isOpen, size.constant != glassWidth else { return }
+        size.constant = glassWidth
+    }
 
     /// Clicks on the glass open it; clicks anywhere else close an empty
     /// field. True when the click is taken here.

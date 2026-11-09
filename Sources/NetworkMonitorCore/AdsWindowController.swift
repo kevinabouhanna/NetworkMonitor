@@ -132,6 +132,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
         stepControl.setEnabled(model.canStepForward, forSegment: 2)
         showPeriod(model.tab.hasPeriod)
         search.show(model.logSearch)
+        search.fitGlass()
         if model.tab != shownTab {
             shownTab = model.tab
             nameSearch()

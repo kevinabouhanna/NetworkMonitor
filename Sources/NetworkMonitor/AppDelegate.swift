@@ -661,12 +661,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             menu.addItem(.separator())
         }
 
+        // In the sidebar's order (#436).
+        menu.addItem(withTitle: L("Usage History…"),
+                     action: #selector(showHistory), keyEquivalent: "y")
         menu.addItem(withTitle: L("Connections…"),
                      action: #selector(showConnections), keyEquivalent: "k")
         menu.addItem(withTitle: L("Ads and Trackers…"),
                      action: #selector(showAds), keyEquivalent: "b")
-        menu.addItem(withTitle: L("Usage History…"),
-                     action: #selector(showHistory), keyEquivalent: "y")
+        menu.addItem(withTitle: L("Network…"),
+                     action: #selector(showNetwork), keyEquivalent: "")
         menu.addItem(withTitle: L("Settings…"),
                      action: #selector(showSettings), keyEquivalent: ",")
         menu.addItem(withTitle: L("About NetworkMonitor"),
@@ -992,12 +995,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         windowMenu.addItem(withTitle: L("Minimize"),
                            action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowMenu.addItem(.separator())
+        windowMenu.addItem(withTitle: L("Usage History"),
+                           action: #selector(showHistory), keyEquivalent: "y").target = self
         windowMenu.addItem(withTitle: L("Connections"),
                            action: #selector(showConnections), keyEquivalent: "k").target = self
         windowMenu.addItem(withTitle: L("Ads and Trackers"),
                            action: #selector(showAds), keyEquivalent: "b").target = self
-        windowMenu.addItem(withTitle: L("Usage History"),
-                           action: #selector(showHistory), keyEquivalent: "y").target = self
+        windowMenu.addItem(withTitle: L("Network"),
+                           action: #selector(showNetwork), keyEquivalent: "").target = self
 
         let menuBar = NSMenu()
         for submenu in [appMenu, editMenu, viewMenu, windowMenu] {

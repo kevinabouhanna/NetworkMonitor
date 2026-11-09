@@ -158,6 +158,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
         stepControl.setEnabled(model.canStepBack, forSegment: 0)
         stepControl.setEnabled(model.canStepForward, forSegment: 2)
         search.show(model.search)
+        search.fitGlass()
     }
 
     @objc private func layoutChosen(_ sender: NSSegmentedControl) {
