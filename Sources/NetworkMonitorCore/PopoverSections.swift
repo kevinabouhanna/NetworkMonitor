@@ -38,6 +38,8 @@ extension PopoverMetrics {
 /// about now.
 struct PopoverButtons: View {
     @Binding var selection: PopoverSection
+    /// Not `@State`; see `SettingsPaneState`. A property wrapper, not a macro.
+    @Namespace private var raised
     let period: PopoverPeriod
     let data: String
     let connections: String
@@ -65,11 +67,13 @@ struct PopoverButtons: View {
     private func button(_ section: PopoverSection, value: String, label: String, period: PopoverPeriod?,
                         color: Color, help: String) -> some View {
         let chosen = selection == section
-        return Button { selection = section } label: {
+        return Button { withAnimation(Motion.choice) { selection = section } } label: {
             VStack(alignment: .leading, spacing: 1) {
                 Text(value)
                     .font(.system(size: 15, weight: .semibold))
                     .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(Motion.content, value: value)
                     .foregroundStyle(color)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
@@ -88,6 +92,7 @@ struct PopoverButtons: View {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color(nsColor: .controlColor))
                         .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
+                        .matchedGeometryEffect(id: "raised", in: raised)
                 }
             }
             .contentShape(RoundedRectangle(cornerRadius: 8))
@@ -233,6 +238,7 @@ struct PopoverCompanies: View {
         VStack(spacing: 0) {
             PopoverGroupingRow(options: Self.groupings, selection: $glance.connectionsGrouping,
                                label: { $0.label }, count: count)
+Group {
             if glance.groups.isEmpty {
                 SummaryMessage(title: glance.hasLoaded ? L("No connections yet") : L("Reading…"),
                                detail: L("Connections are counted while NetworkMonitor is running."))
@@ -248,7 +254,7 @@ struct PopoverCompanies: View {
                                    fraction: fraction(item.total), barColor: PopoverPalette.companies,
                                    isExpanded: open,
                                    onToggle: parts.isEmpty ? nil : {
-                                       withAnimation(.easeInOut(duration: 0.15)) { glance.toggle(item.id) }
+                                       withAnimation(Motion.content) { glance.toggle(item.id) }
                                    })
                         if open {
                             ForEach(parts) { part in
@@ -261,6 +267,9 @@ struct PopoverCompanies: View {
                     }
                 }
             }
+}
+.id(glance.connectionsGrouping)
+.transition(Motion.swap)
             Divider()
             PopoverOpenRow(title: L("Open Connections"), shortcut: "⌘K", action: onOpen)
         }
@@ -332,6 +341,7 @@ struct PopoverBlocked: View {
                 PopoverGroupingRow(options: PopoverAdsGrouping.allCases, selection: $glance.adsGrouping,
                                    label: { $0.label }, count: count)
                 if let pausedText { SummaryCaption(text: pausedText) }
+Group {
                 if items.isEmpty {
                     SummaryMessage(title: L("Nothing blocked yet"),
                                    detail: L("Sites the lists stop show here, busiest first."))
@@ -346,7 +356,7 @@ struct PopoverBlocked: View {
                                        fraction: fraction(item.count), barColor: PopoverPalette.blocked,
                                        isExpanded: open,
                                        onToggle: parts.isEmpty ? nil : {
-                                           withAnimation(.easeInOut(duration: 0.15)) { glance.toggle(rowID(item)) }
+                                           withAnimation(Motion.content) { glance.toggle(rowID(item)) }
                                        })
                             if open {
                                 ForEach(parts) { part in
@@ -359,6 +369,9 @@ struct PopoverBlocked: View {
                         }
                     }
                 }
+}
+.id(glance.adsGrouping)
+.transition(Motion.swap)
             }
             Divider()
             PopoverOpenRow(title: L("Open Ads and Trackers"), shortcut: "⌘B", action: onOpen)

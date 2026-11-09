@@ -169,6 +169,9 @@ public struct HistoryView: View {
         .overlay {
             if isListEmpty { emptyList }
         }
+        // Another tab's list fades in as the switch's pill slides (#436).
+        .id(model.tab)
+        .transition(Motion.swap)
     }
 
     private var isListEmpty: Bool {

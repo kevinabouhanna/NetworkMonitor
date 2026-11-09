@@ -54,6 +54,12 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
     private weak var toolbar: NSToolbar?
     var onChange: (String) -> Void = { _ in }
     private var clicks: Any?
+    /// Holds the field to the glass's width: the size it opens from and
+    /// closes to, so it grows out of the glass and shrinks back into it.
+    private var shrink: NSLayoutConstraint!
+    private var isClosing = false
+    /// The glass's width, which the field draws as the glass itself.
+    private static let glassWidth: CGFloat = 30
 
     init(_ identifier: NSToolbarItem.Identifier) {
         fieldID = identifier
@@ -68,6 +74,7 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
         fieldItem.preferredWidthForSearchField = Self.width
         fieldItem.resignsFirstResponderWithCancel = true
         fieldItem.searchField.delegate = self
+        shrink = fieldItem.searchField.widthAnchor.constraint(equalToConstant: Self.glassWidth)
         // A click outside the empty field closes it, wherever it lands: the
         // list, the chart and empty space don't take the keyboard from it.
         clicks = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
@@ -119,20 +126,56 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
     public func show(_ text: String) {
         guard field.stringValue != text else { return }
         field.stringValue = text
-        if !text.isEmpty { place(fieldID) } else if !hasFocus { place(glassID) }
+        if !text.isEmpty {
+            shrink.isActive = false
+            place(fieldID)
+        } else if !hasFocus {
+            finish()
+        }
     }
 
-    /// ⌘F, or the glass clicked: the field, with the cursor in it.
+    /// ⌘F, or the glass clicked: the field, growing out of the glass with
+    /// the cursor in it. The field starts at the glass's width, where it
+    /// draws as the glass, and `beginSearchInteraction` opens it with
+    /// AppKit's own animation.
     public func begin() {
-        place(fieldID)
-        DispatchQueue.main.async { [weak self] in self?.fieldItem.beginSearchInteraction() }
+        isClosing = false
+        if !isOpen {
+            shrink.isActive = true
+            place(fieldID)
+        }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isOpen, !self.isClosing else { return }
+            self.shrink.isActive = false
+            self.fieldItem.beginSearchInteraction()
+        }
     }
 
-    /// Back to the glass, if the field holds no search.
+    /// Back to the glass, if the field holds no search: it shrinks into the
+    /// glass, then the glass takes its place.
     public func finish() {
-        guard field.stringValue.isEmpty, isOpen else { return }
+        guard field.stringValue.isEmpty, isOpen, !isClosing else { return }
         if hasFocus { field.window?.makeFirstResponder(nil) }
-        place(glassID)
+        fieldItem.endSearchInteraction()
+        guard field.window?.isVisible == true, field.frame.width > Self.glassWidth else {
+            place(glassID)
+            return
+        }
+        isClosing = true
+        shrink.constant = field.frame.width
+        shrink.isActive = true
+        field.superview?.layoutSubtreeIfNeeded()
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Motion.duration
+            context.timingFunction = Motion.timing
+            context.allowsImplicitAnimation = true
+            shrink.animator().constant = Self.glassWidth
+        } completionHandler: { [weak self] in
+            guard let self, self.isClosing else { return }
+            self.isClosing = false
+            self.shrink.constant = Self.glassWidth
+            self.place(self.glassID)
+        }
     }
 
     @objc private func glassClicked() { begin() }

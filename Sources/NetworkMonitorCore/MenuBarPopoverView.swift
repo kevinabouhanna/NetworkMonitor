@@ -136,6 +136,7 @@ public struct MenuBarPopoverView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
+Group {
             switch model.popoverSection {
             case .today:
                 today
@@ -148,6 +149,9 @@ public struct MenuBarPopoverView: View {
             case .connection:
                 connection
             }
+}
+.id(model.popoverSection)
+.transition(Motion.swap)
         }
         .frame(width: 320)
     }
@@ -178,6 +182,7 @@ public struct MenuBarPopoverView: View {
         VStack(alignment: .leading, spacing: 0) {
             PopoverGroupingRow(options: PopoverDataGrouping.allCases, selection: $glance.dataGrouping,
                                label: { $0.label }, count: dataCount)
+Group {
             if glance.dataGrouping == .networks {
                 networks
             } else if appRows.isEmpty && systemRows.isEmpty {
@@ -185,6 +190,9 @@ public struct MenuBarPopoverView: View {
             } else {
                 list
             }
+}
+.id(glance.dataGrouping)
+.transition(Motion.swap)
             Divider()
             PopoverOpenRow(title: L("Open Usage History"), shortcut: "⌘Y", action: onHistory)
         }
@@ -295,7 +303,7 @@ public struct MenuBarPopoverView: View {
             .padding(.bottom, 4)
             PopoverButtons(selection: Binding(get: { model.popoverSection },
                                               set: { section in
-                                                  model.popoverSection = section
+                                                  withAnimation(Motion.content) { model.popoverSection = section }
                                                   if section == .companies || section == .blocked { glance.refresh() }
                                               }),
                            period: glance.period,
@@ -418,7 +426,7 @@ public struct MenuBarPopoverView: View {
                    isActive: active.contains(row.id) || row.children.contains { active.contains($0.id) },
                    isExpanded: isExpanded,
                    onToggle: row.hasChildren
-                       ? { withAnimation(.easeInOut(duration: 0.15)) {
+                       ? { withAnimation(Motion.content) {
                              model.toggleExpanded(row.id)
                          } }
                        : nil)
@@ -457,7 +465,7 @@ public struct MenuBarPopoverView: View {
                        isMuted: true,
                        isExpanded: model.systemExpanded,
                        onToggle: {
-                           withAnimation(.easeInOut(duration: 0.15)) {
+                           withAnimation(Motion.content) {
                                model.systemExpanded.toggle()
                            }
                        })

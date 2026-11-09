@@ -44,7 +44,7 @@ struct GlassSegmented<Value: Hashable>: View {
     private func segment(_ option: Value) -> some View {
         let chosen = option == selection
         return Button {
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) { selection = option }
+            withAnimation(Motion.choice) { selection = option }
         } label: {
             Text(label(option))
                 .font(.system(size: fontSize, weight: .medium))

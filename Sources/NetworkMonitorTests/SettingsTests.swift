@@ -54,7 +54,7 @@ func runSettingsTests() {
             // answered by the window itself, so it works with nothing focused.
             for section in MainSection.allCases {
                 main.show(section)
-                let buttons = main.window.toolbar?.items.filter { $0.itemIdentifier.rawValue == "sidebarButton" } ?? []
+                let buttons = main.window.toolbar?.items.filter { $0.itemIdentifier == .toggleSidebar } ?? []
                 Check.expectEqual(buttons.count, 1, "\(section.rawValue) has the sidebar button")
                 // AppKit's own button greyed itself out once the sidebar
                 // couldn't hide away entirely; this one goes to the window.

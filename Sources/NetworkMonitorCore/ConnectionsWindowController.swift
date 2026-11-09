@@ -200,7 +200,6 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
 
     public func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                         willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        if let item = MainWindowController.sidebarButton(identifier) { return item }
         if let item = search.item(for: identifier, in: toolbar) { return item }
         switch identifier {
         case Self.layoutItem:

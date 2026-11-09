@@ -165,7 +165,6 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
             return SettingsGear.item(target: self, action: #selector(openSettings),
                                      help: L("Settings for Usage History"))
         }
-        if let item = MainWindowController.sidebarButton(identifier) { return item }
         if let item = search.item(for: identifier, in: toolbar) { return item }
         let item = NSToolbarItem(itemIdentifier: identifier)
         switch identifier {

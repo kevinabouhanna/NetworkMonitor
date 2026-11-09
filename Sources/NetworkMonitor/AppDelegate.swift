@@ -927,7 +927,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             return mainController?.window.isKeyWindow == true
         case #selector(toggleSidebar):
             guard let mainController, mainController.window.isKeyWindow else { return false }
-            item.title = mainController.sidebarIsCollapsed ? L("Expand Sidebar") : L("Collapse Sidebar")
+            item.title = mainController.sidebarIsCollapsed ? L("Show Sidebar") : L("Hide Sidebar")
             return true
         default:
             return true
@@ -973,7 +973,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
         // View: the sidebar, as every Mac window with one has it.
         let viewMenu = NSMenu(title: L("View"))
-        let sidebar = viewMenu.addItem(withTitle: L("Collapse Sidebar"), action: #selector(toggleSidebar),
+        let sidebar = viewMenu.addItem(withTitle: L("Hide Sidebar"), action: #selector(toggleSidebar),
                                        keyEquivalent: "s")
         sidebar.keyEquivalentModifierMask = [.command, .control]
         sidebar.target = self

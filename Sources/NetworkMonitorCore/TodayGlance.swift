@@ -1,5 +1,6 @@
 import FirewallPolicy
 import Foundation
+import SwiftUI
 import ServerDirectory
 
 /// A period at a glance (#436, #449): what the apps used, who they talked to
@@ -147,11 +148,13 @@ public final class TodayGlance: ObservableObject {
                 let count = report.servers.filter { $0.address != UsageHistory.otherServers }.count
                 DispatchQueue.main.async {
                     guard request == self.generation else { return }
-                    self.named = named
-                    self.summary = summary
-                    self.connections = count
-                    self.regroup()
-                    self.hasLoaded = true
+                    Motion.content {
+                        self.named = named
+                        self.summary = summary
+                        self.connections = count
+                        self.regroup()
+                        self.hasLoaded = true
+                    }
                 }
             }
         }
@@ -162,7 +165,7 @@ public final class TodayGlance: ObservableObject {
         guard let history = history() else { return }
         history.loadReport(for: period.period(containing: now, calendar: calendar)) { [weak self] report in
             guard let self, report.period.scale == self.period.scale else { return }
-            self.report = report
+            Motion.content { self.report = report }
         }
     }
 
