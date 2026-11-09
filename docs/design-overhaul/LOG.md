@@ -6,7 +6,7 @@ the app looked like, what was planned and done, where ideas came from, what was 
 and by whom, and what's left.
 
 **Status (2026-11-09):** Phases 0–2 are done. **Waiting on Kevin's go-ahead on the final
-plan (Phase 3, decisions D6–D9)** on the comparison page:
+plan (Phase 3, decisions D6–D10)** on the comparison page:
 https://claude.ai/artifact/GooXLRsHfm6a6CRRTsNu92 (private to Kevin). Nothing merges or
 releases until Kevin has reviewed it: both pull requests are drafts.
 
@@ -202,6 +202,13 @@ Superlist, all marketing pages with nothing to say about an app's stats or setti
 
 | D9 | **Connection, not Hotspot** (changes D8's fourth button). It reads **Wi-Fi**, **Ethernet** or **Hotspot** (orange, as the popover already marks a hotspot), labelled *Connection*. Its view shows the network, and on every kind of network a **This is a hotspot** switch, set for that network: the same choice as Settings › Hotspot's *This network*, with *Detect automatically* to undo it. Then what it's doing now, and *Hotspot Settings* | — | **Waiting on Kevin's go-ahead**, 2026-11-09 |
 
+| D10 | **The switch explains itself; the windows match.** *This is a hotspot*'s subtext says what it does: "Pauses app updates and iCloud downloads while you're on this network", plus "Marked by you for this network" once set. No status lines under it (the Connection button shows the status) and no *Detect automatically* link (detection works from the start; turning a hand-set switch back is the build's job). The Usage History window gets the same toolbar as Connections and Ads and Trackers (Day, Week, Month, Year, ‹ Today ›, gear), the same row for what it shows and which networks, and the same chart; Export CSV at the bottom | — | **Waiting on Kevin's go-ahead**, 2026-11-09 |
+
+**The switch and History (Kevin, 2026-11-09).** The status lines under the switch
+repeated the button and read as confusing, and *Detect automatically* didn't say what it
+would do. The History mockup had no gear and its own period controls, unlike the other
+two windows.
+
 **Connection (Kevin, 2026-11-09).** "Hotspot On" could read as the person's own phone
 sharing its connection. And detection isn't reliable: an iPhone's hotspot is recognised,
 but a Samsung phone's was taken for ordinary Wi-Fi. So the button names what the Mac is
@@ -319,7 +326,7 @@ Beyond what the tools suggested. **Review these separately.**
 
 For Kevin, on the comparison page:
 
-1. **The final plan (D6–D9):** go ahead and build it, or change something?
+1. **The final plan (D6–D10):** go ahead and build it, or change something?
 
 Smaller ones, with what happens if there's no answer:
 
