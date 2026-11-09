@@ -34,7 +34,7 @@ struct GlassSegmented<Value: Hashable>: View {
         .fixedSize()
         // One stop for the keyboard, ← and → moving the choice, as a native
         // segmented control has it.
-        .focusable()
+        .keyboardFocusable()
         .onMoveCommand { direction in
             guard let index = options.firstIndex(of: selection) else { return }
             switch direction {

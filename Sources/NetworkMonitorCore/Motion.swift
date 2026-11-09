@@ -35,3 +35,18 @@ enum Motion {
         withAnimation(content) { changes() }
     }
 }
+
+extension View {
+    /// Focusable as a button is (#452): only through keyboard navigation,
+    /// Tab with System Settings › Keyboard › Keyboard navigation on, and
+    /// never from a click. Plain `.focusable()` lets a click focus it as a
+    /// text field is focused, and the focus ring showed round the sidebar.
+    @ViewBuilder
+    func keyboardFocusable() -> some View {
+        if #available(macOS 14, *) {
+            focusable(interactions: .activate)
+        } else {
+            focusable(NSApp.isFullKeyboardAccessEnabled)
+        }
+    }
+}
