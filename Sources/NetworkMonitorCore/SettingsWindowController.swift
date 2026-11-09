@@ -1,9 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// One area of Settings, shown as a button in the window's toolbar.
+/// One area of Settings, shown as a button in the window's toolbar. In the
+/// popover's order after General (#436): History (Today), Connections
+/// (Companies), Ads (Blocked), Hotspot (Connection), then Speed Test and About.
 public enum SettingsPane: String, CaseIterable {
-    case general, speedTest, history, connections, ads, hotspot, about
+    case general, history, connections, ads, hotspot, speedTest, about
 
     public var title: String {
         switch self {
@@ -64,6 +66,8 @@ public final class SettingsWindowController: NSObject {
 
     public let window: NSWindow
     private let tabs = PaneTabViewController()
+    private let ads: AdsViewModel
+    private let glance: TodayGlance
     private let history: HistoryViewModel
     private let defaults: UserDefaults
     private var sizeObservation: NSKeyValueObservation?
@@ -81,10 +85,15 @@ public final class SettingsWindowController: NSObject {
     public var highestTop: (NSScreen) -> CGFloat = { $0.visibleFrame.maxY }
 
     public init(model: MonitorViewModel, history: HistoryViewModel,
-                connections: ConnectionsViewModel, onOpenConnections: @escaping () -> Void,
-                onOpenAds: @escaping (AdsViewModel.Tab) -> Void = { _ in },
+                connections: ConnectionsViewModel, ads: AdsViewModel? = nil,
+                onOpenConnections: @escaping () -> Void,
+                onOpenAds: @escaping () -> Void = {},
+                onOpenHistory: @escaping () -> Void = {},
                 onUninstall: @escaping () -> Void, defaults: UserDefaults = .standard) {
         self.history = history
+        self.glance = model.glance
+        let ads = ads ?? AdsViewModel(monitor: model)
+        self.ads = ads
         self.defaults = defaults
         let state = SettingsPaneState()
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: SettingsMetrics.paneWidth, height: 400),
@@ -98,20 +107,20 @@ public final class SettingsWindowController: NSObject {
             switch pane {
             case .general:   host = Self.paneHost(GeneralSettingsPane(model: model, state: state), width: SettingsMetrics.paneWidth)
             case .speedTest: host = Self.paneHost(SpeedTestSettingsPane(speedTest: model.speedTest), width: SettingsMetrics.paneWidth)
-            case .history:   host = Self.paneHost(HistoryView(model: history), width: SettingsMetrics.paneWidth)
+            case .history:   host = Self.paneHost(HistorySettingsPane(model: history, onOpen: onOpenHistory), width: SettingsMetrics.paneWidth)
             case .connections:
                 host = Self.paneHost(ConnectionsSettingsPane(model: connections,
                                                              filter: model.filter,
                                                              firewall: model.firewall,
                                                              geoData: model.geoData,
                                                              lookups: model.lookups,
+                                                             glance: model.glance,
                                                              onOpen: onOpenConnections),
                                      width: SettingsMetrics.paneWidth)
             case .ads:
-                host = Self.paneHost(AdsSettingsPane(connections: connections, filter: model.filter,
+                host = Self.paneHost(AdsSettingsPane(ads: ads, connections: connections, filter: model.filter,
                                                      firewall: model.firewall, blocklists: model.blocklists,
-                                                     listBlocks: model.listBlocks, library: model.listLibrary,
-                                                     onOpenAds: onOpenAds),
+                                                     listBlocks: model.listBlocks, onOpenAds: onOpenAds),
                                      width: SettingsMetrics.paneWidth)
             case .hotspot:   host = Self.paneHost(HotspotSettingsPane(metering: model.metering, state: state, filter: model.filter), width: SettingsMetrics.paneWidth)
             case .about:     host = Self.paneHost(AboutSettingsPane(updates: model.updates, onUninstall: onUninstall), width: SettingsMetrics.paneWidth)
@@ -238,6 +247,7 @@ public final class SettingsWindowController: NSObject {
         pane.remember(in: defaults)
         window.title = pane.title
         setHistoryOnScreen(pane == .history)
+        refreshAds(pane)
         guard let child = tabs.tabViewItems.first(where: { $0.identifier as? String == pane.rawValue })?
             .viewController else { return }
         // The window follows the pane's size as its content changes (a list
@@ -330,11 +340,19 @@ public final class SettingsWindowController: NSObject {
         return frame
     }
 
+    /// Settings › History and › Ads head with today's number, fetched when
+    /// the pane is shown (#436). The history itself is in its own window.
     private func setHistoryOnScreen(_ onScreen: Bool) {
         let shown = onScreen && window.isVisible
         guard shown != historyOnScreen else { return }
         historyOnScreen = shown
-        if shown { history.windowDidOpen() } else { history.windowDidClose() }
+        if shown { history.refreshToday() }
+    }
+
+    private func refreshAds(_ pane: SettingsPane) {
+        guard window.isVisible else { return }
+        if pane == .ads { ads.reloadToday() }
+        if pane == .connections || pane == .ads { glance.refresh() }
     }
 
     /// Re-run after the window is shown, since `isVisible` was false when the
@@ -343,6 +361,7 @@ public final class SettingsWindowController: NSObject {
         if let id = tabs.tabView.selectedTabViewItem?.identifier as? String,
            let pane = SettingsPane(rawValue: id) {
             setHistoryOnScreen(pane == .history)
+            refreshAds(pane)
         }
     }
 }

@@ -32,6 +32,8 @@ public final class HistoryViewModel: ObservableObject {
     @Published public var expandedApps: Set<String> = []
     @Published public var systemExpanded = false
     @Published public private(set) var retention: HistoryRetention
+    /// Today's total, for the line heading Settings › History (#436).
+    @Published public private(set) var todayTotal: Int64 = 0
 
     public static let retentionKey = "historyRetention"
 
@@ -72,6 +74,16 @@ public final class HistoryViewModel: ObservableObject {
     public func windowDidClose() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+    }
+
+    /// Today's total and how long history is kept, for Settings › History,
+    /// whether or not the window is open.
+    public func refreshToday() {
+        retention = history?.retention ?? .forever
+        history?.loadReport(for: HistoryPeriod(scale: .day, containing: Date(), calendar: calendar),
+                            filter: HistoryFilter()) { [weak self] report in
+            self?.todayTotal = report.total
+        }
     }
 
     // MARK: Navigation

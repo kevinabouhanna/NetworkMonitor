@@ -32,6 +32,8 @@ public final class MeteringController: ObservableObject {
     /// What the person said about the current network, if anything: `true`
     /// for a hotspot, `false` for not one. Settings › Hotspot's choice.
     @Published public private(set) var override: Bool?
+    /// Whether detection alone takes this network for a hotspot.
+    @Published public private(set) var detectsHotspot = false
     /// A hotspot the Mac has joined but isn't using (#355). Only ever said, not
     /// acted on: pauses and History follow the connection in use.
     @Published public private(set) var standbyHotspot: StandbyHotspot?
@@ -180,6 +182,12 @@ public final class MeteringController: ObservableObject {
         signals.userOverride = store.currentMeteredOverride
         override = signals.userOverride
         verdict = MeteredHeuristic.verdict(for: signals)
+        // What detection says without your say, so the popover's switch
+        // knows whether turning it off means "back to detecting" (#436).
+        var detected = signals
+        detected.userOverride = nil
+        let detectedHotspot = MeteredHeuristic.verdict(for: detected).isMetered
+        if detectsHotspot != detectedHotspot { detectsHotspot = detectedHotspot }
 
         let shouldSuppress = isEnabled && verdict.isMetered
         if shouldSuppress {

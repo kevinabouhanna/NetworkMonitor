@@ -20,38 +20,39 @@ public struct HistoryView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            controls
+            scopeBar
             heading
             HistoryChart(model: model)
             legend
             Divider()
-            lists
+            list
             Divider()
             footer
         }
         .padding(20)
-        // Up to, as Settings' forms are: see `SettingsWindowController.paneHost`.
-        .frame(maxWidth: SettingsMetrics.paneWidth)
+        .background(periodShortcuts)
+        .frame(minWidth: HistoryMetrics.windowMinWidth, minHeight: HistoryMetrics.windowMinHeight)
     }
 
-    // MARK: Controls
+    // MARK: Scope
 
-    /// The period and ‹ Today › side by side, as the Connections window has
-    /// them in its toolbar (#125), and which networks on the trailing side.
-    /// One row, one size.
-    private var controls: some View {
+    /// What the list shows and which networks, in one row under the toolbar,
+    /// as Connections has it (#436). The period, ‹ Today › and the gear are in
+    /// the window's toolbar (`HistoryWindowController`).
+    private var scopeBar: some View {
         HStack(spacing: 10) {
-            Picker(L("Show"), selection: Binding(get: { model.scale }, set: { model.scale = $0 })) {
-                ForEach(HistoryScale.allCases) { scale in
-                    Text(scale.label).tag(scale)
+            LabelledControl(L("Show")) {
+                Picker(L("Show"), selection: $model.tab) {
+                    ForEach(HistoryViewModel.Tab.allCases) { tab in
+                        Text(tab.label).tag(tab)
+                    }
                 }
+                .help(L("Apps, networks or each visit to a network. A row narrows the window to it."))
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .help(L("A day, week, month or year at a time"))
-            PeriodStepper(canStepBack: model.canStepBack, canStepForward: model.canStepForward,
-                          onStep: model.step, onToday: model.goToPresent)
+            if hasChips {
+                Divider().frame(height: 16)
+                HStack(spacing: 6) { chips }
+            }
             Spacer(minLength: 12)
             // Wi-Fi and Hotspot, the two kinds asked for in #70. Ethernet and
             // Other stay under All, and on the Networks list.
@@ -64,8 +65,30 @@ public struct HistoryView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .fixedSize()
+            .controlSize(.small)
             .help(L("Every connection, Wi-Fi only, or hotspots only"))
         }
+        .frame(height: 24)
+    }
+
+    private var hasChips: Bool {
+        model.filteredAppName != nil || model.filteredNetworkName != nil || model.filter.sessionID != nil
+    }
+
+    /// ⌘← and ⌘→ step through periods, as in Connections. The toolbar's arrows
+    /// do the same with the pointer.
+    private var periodShortcuts: some View {
+        ZStack {
+            Button(L("Previous")) { model.step(-1) }
+                .keyboardShortcut(.leftArrow, modifiers: [.command])
+                .disabled(!model.canStepBack)
+            Button(L("Next")) { model.step(1) }
+                .keyboardShortcut(.rightArrow, modifiers: [.command])
+                .disabled(!model.canStepForward)
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
     }
 
     // MARK: Filters
@@ -135,34 +158,19 @@ public struct HistoryView: View {
 
     // MARK: Lists
 
-    private var lists: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                Picker(L("List"), selection: $model.tab) {
-                    ForEach(HistoryViewModel.Tab.allCases) { tab in
-                        Text(tab.label).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                Spacer(minLength: 12)
-                HStack(spacing: 6) { chips }
-            }
-
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    switch model.tab {
-                    case .apps:     appRows
-                    case .networks: networkRows
-                    case .sessions: sessionRows
-                    }
+    private var list: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                switch model.tab {
+                case .apps:     appRows
+                case .networks: networkRows
+                case .sessions: sessionRows
                 }
             }
-            .frame(height: HistoryMetrics.listHeight)
-            .overlay {
-                if isListEmpty { emptyList }
-            }
+        }
+        .frame(minHeight: HistoryMetrics.listMinHeight, maxHeight: .infinity)
+        .overlay {
+            if isListEmpty { emptyList }
         }
     }
 
@@ -318,21 +326,48 @@ public struct HistoryView: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Text(L("Keep history for"))
-                .font(.system(size: 12))
-            Picker(L("Keep history for"),
-                   selection: Binding(get: { model.retention },
-                                      set: { model.requestRetention($0, in: NSApp.keyWindow) })) {
-                ForEach(HistoryRetention.allCases) { retention in
-                    Text(retention.label).tag(retention)
-                }
-            }
-            .labelsHidden()
-            .fixedSize()
+            Text(L("Every hour is kept on this Mac, per app and per network."))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
             Spacer()
-            Button(L("Clear History…")) { model.confirmClear(in: NSApp.keyWindow) }
             Button(L("Export CSV…")) { model.export(in: NSApp.keyWindow) }
         }
+    }
+}
+
+/// Settings › History (#436): how long to keep it, and clearing it. The
+/// history itself is in the Usage History window.
+struct HistorySettingsPane: View {
+    @ObservedObject var model: HistoryViewModel
+    let onOpen: () -> Void
+
+    var body: some View {
+        Form {
+            Section {
+                SettingsStatusLine(title: L("%@ used today", ByteFormat.bytes(model.todayTotal)),
+                                   detail: L("Every hour is kept on this Mac, per app and per network"),
+                                   action: L("Open Usage History…"), help: L("Also ⌘Y"), onAction: onOpen)
+            }
+            Section {
+                LabeledContent(L("Keep history for")) {
+                    Picker(L("Keep history for"),
+                           selection: Binding(get: { model.retention },
+                                              set: { model.requestRetention($0, in: NSApp.keyWindow) })) {
+                        ForEach(HistoryRetention.allCases) { retention in
+                            Text(retention.label).tag(retention)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                }
+                LabeledContent(L("Clear History")) {
+                    Button(L("Clear History…")) { model.confirmClear(in: NSApp.keyWindow) }
+                }
+            } footer: {
+                SettingsFootnote(L("Usage History never leaves this Mac. Clearing it can't be undone."))
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 
@@ -759,6 +794,12 @@ struct FilterChip: View {
 // MARK: - Shared values
 
 enum HistoryMetrics {
+    /// The Usage History window (#436): wide enough for its toolbar and the
+    /// scope row, measured on the app as #315 asks.
+    static let windowMinWidth: CGFloat = 700
+    static let windowMinHeight: CGFloat = 560
+    /// The list's least height, under the chart.
+    static let listMinHeight: CGFloat = 160
     static let chartHeight: CGFloat = 200
     static let xAxisHeight: CGFloat = 22
     static let yAxisWidth: CGFloat = 46

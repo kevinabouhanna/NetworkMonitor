@@ -56,6 +56,11 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     public func select(_ tab: AdsViewModel.Tab) { model.tab = tab }
 
+    /// The toolbar's gear: Settings › Ads, where the lists and rules are (#436).
+    public var onSettings: () -> Void = {}
+
+    @objc private func openSettings() { onSettings() }
+
     public func windowDidShow() {
         model.windowDidOpen()
         refreshControls()
@@ -108,6 +113,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
         switch identifier {
         case scaleItem: return (L("Period"), L("A day, week, month or year at a time"))
         case stepItem:  return (L("Go"), L("Move through time"))
+        case SettingsGear.identifier: return (L("Settings"), L("Settings for ads and trackers: the lists and your rules"))
         default:        return nil
         }
     }
@@ -148,8 +154,9 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     // MARK: NSToolbarDelegate
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        // As Connections: the period centred, ‹ Today › trailing.
-        [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem]
+        // As Connections: the period centred, ‹ Today › trailing, and the gear
+        // last, where it stays put when the period hides on Log.
+        [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, SettingsGear.identifier]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -158,6 +165,10 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     public func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                         willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        if identifier == SettingsGear.identifier {
+            return SettingsGear.item(target: self, action: #selector(openSettings),
+                                     help: L("Settings for ads and trackers: the lists and your rules"))
+        }
         let item = NSToolbarItem(itemIdentifier: identifier)
         switch identifier {
         case Self.scaleItem:

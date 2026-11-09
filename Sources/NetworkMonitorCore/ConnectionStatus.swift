@@ -15,6 +15,9 @@ public struct ConnectionStatus: Equatable {
     /// nil offline.
     public let medium: String?
     public let kind: NetworkFingerprint.Kind
+    /// The network's name, the user's or its Wi-Fi name, or a tether's
+    /// interface: "Kevin's iPhone". nil when there's none to show.
+    public var name: String? = nil
 
     /// - Parameter name: the name to show, if there is one: the user's, or the
     ///   Wi-Fi network's. Not a remembered Wi-Fi name, which belongs to the
@@ -32,16 +35,16 @@ public struct ConnectionStatus: Equatable {
         case .constrained:
             // Low Data Mode is a statement about cost, not about a phone.
             return ConnectionStatus(line: joined(L("Using %@", medium), name, L("Low Data Mode")),
-                                    isHighlighted: true, medium: medium, kind: network.kind)
+                                    isHighlighted: true, medium: medium, kind: network.kind, name: name)
         case _ where verdict.isMetered:
             // A tether has no Wi-Fi name, and the interface is what names it.
             let tether = network.kind == .hotspot && network.interfaceDisplayName != "Wi-Fi"
                 ? network.interfaceDisplayName : nil
             return ConnectionStatus(line: joined(L("Using hotspot"), name ?? tether),
-                                    isHighlighted: true, medium: medium, kind: network.kind)
+                                    isHighlighted: true, medium: medium, kind: network.kind, name: name ?? tether)
         default:
             return ConnectionStatus(line: joined(L("Using %@", medium), name),
-                                    isHighlighted: false, medium: medium, kind: network.kind)
+                                    isHighlighted: false, medium: medium, kind: network.kind, name: name)
         }
     }
 

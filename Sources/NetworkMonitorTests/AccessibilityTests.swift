@@ -104,6 +104,9 @@ func runAccessibilityTests() {
 
             check(ConnectionsWindowController(model: connections).window, "Connections\(language)")
 
+            // Usage History, a window of its own (#436).
+            check(HistoryWindowController(model: HistoryViewModel(monitor: model)).window, "Usage History\(language)")
+
             let adsController = AdsWindowController(model: AdsViewModel(monitor: model))
             for tab in AdsViewModel.Tab.allCases {
                 adsController.select(tab)
@@ -115,7 +118,12 @@ func runAccessibilityTests() {
             popover.title = "Popover"
             popover.contentView = NSHostingView(rootView: MenuBarPopoverView(
                 model: model, onSettings: {}, onHistory: {}, onConnections: {}, onAds: {}))
-            check(popover, "The popover\(language)")
+            // Each of its four views (#436).
+            for section in PopoverSection.allCases {
+                model.popoverSection = section
+                check(popover, "The popover › \(section.rawValue)\(language)")
+            }
+            model.popoverSection = .today
         }
         Localization.shared.showForThisRun(Localization.source)
     }

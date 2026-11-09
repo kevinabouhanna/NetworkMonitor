@@ -240,6 +240,19 @@ func makeWorld(_ scenario: Scenario, filter: FilterController.State) -> World {
                                       suppressors: [], defaults: defaults)
     let model = MonitorViewModel(store: store, metering: metering)
     model.filter.showForPictures(filter)
+    if scenario == .full {
+        // Stopping updates on hotspots is on, as for most people who set it up.
+        metering.isEnabled = true
+        // Today's apps, for the popover's list.
+        let elapsed = max(1, Double(calendar.component(.hour, from: now)))
+        let entries = talkers.map { talker -> (identity: AppIdentity, bytesIn: Int64, bytesOut: Int64) in
+            let bytes = talker.megabytesPerHour * 0.6 * elapsed * 1_000_000
+            return (talker.app, Int64(bytes * 0.92), Int64(bytes * 0.08))
+        }
+        store.recordApps(entries, now: now)
+        let total = entries.reduce(Int64(0)) { $0 + $1.bytesIn + $1.bytesOut }
+        store.recordInterface(bytesIn: Int64(Double(total) * 0.92), bytesOut: Int64(Double(total) * 0.08), now: now)
+    }
     let connections = ConnectionsViewModel(monitor: model, defaults: defaults)
 
     if scenario == .full, filter == .on {
@@ -261,6 +274,7 @@ func makeWorld(_ scenario: Scenario, filter: FilterController.State) -> World {
                     "www.theguardian.com", nil, []))
         model.adsLog.append(log)
     }
+    model.glance.refresh()
     return World(model: model, connections: connections, historyModel: HistoryViewModel(monitor: model, calendar: calendar),
                  ads: AdsViewModel(monitor: model, calendar: calendar))
 }
@@ -320,12 +334,38 @@ func wanted(_ name: String) -> Bool { only.map { $0.contains(name) } ?? true }
 
 @available(macOS 14.0, *)
 func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
+    // The popover, each of its four views (#436), in a plain window of its width.
+    let popover = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 480),
+                           styleMask: [.borderless], backing: .buffered, defer: false)
+    popover.backgroundColor = .windowBackgroundColor
+    let host = NSHostingController(rootView: MenuBarPopoverView(model: world.model, onSettings: {}, onHistory: {},
+                                                                onConnections: {}, onAds: {}))
+    host.sizingOptions = [.preferredContentSize]
+    popover.contentViewController = host
+    world.model.setPopoverOpen(true)
+    // On a home Wi-Fi network, named as the popover names it.
+    let home = NetworkFingerprint(id: "design-home", kind: .wifi, gatewayMAC: "design-home",
+                                  defaultLabel: "Home Wi-Fi", isExpensive: false, isConstrained: false)
+    world.model.showConnectionForPictures(ConnectionStatus.make(network: home, verdict: .unmetered, name: "Home Wi-Fi"))
+    for section in PopoverSection.allCases where wanted(prefix + "popover-\(section.rawValue)") {
+        world.model.popoverSection = section
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        popover.setContentSize(host.view.fittingSize)
+        show(popover, appearance: appearance, settle: 0.8)
+        save(popover, prefix + "popover-\(section.rawValue)", appearance: appearance)
+    }
+    world.model.popoverSection = .today
+    popover.orderOut(nil)
+
     let settings = SettingsWindowController(model: world.model, history: world.historyModel,
-                                            connections: world.connections, onOpenConnections: {},
+                                            connections: world.connections, ads: world.ads, onOpenConnections: {},
                                             onUninstall: {}, defaults: .standard)
-    for (pane, name) in [(SettingsPane.general, "settings-general"), (.connections, "settings-connections"),
-                         (.ads, "settings-ads"), (.history, "settings-history")]
+    for (pane, name, setup) in [(SettingsPane.general, "settings-general", AdsViewModel.SetupTab.lists),
+                                (.connections, "settings-connections", .lists),
+                                (.ads, "settings-ads", .lists), (.ads, "settings-ads-rules", .rules),
+                                (.history, "settings-history", .lists), (.hotspot, "settings-hotspot", .lists)]
     where wanted(prefix + name) {
+        world.ads.setupTab = setup
         settings.select(pane)
         show(settings.window, appearance: appearance)
         settings.windowDidShow()
@@ -355,6 +395,17 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     }
     adsWindow.windowWillClose()
     adsWindow.window.orderOut(nil)
+
+    // Usage History, a window of its own (#436).
+    let historyWindow = HistoryWindowController(model: world.historyModel)
+    if wanted(prefix + "history") {
+        show(historyWindow.window, appearance: appearance)
+        historyWindow.windowDidShow()
+        RunLoop.main.run(until: Date().addingTimeInterval(1.5))
+        save(historyWindow.window, prefix + "history", appearance: appearance)
+    }
+    historyWindow.windowWillClose()
+    historyWindow.window.orderOut(nil)
 }
 
 if #available(macOS 14.0, *) {

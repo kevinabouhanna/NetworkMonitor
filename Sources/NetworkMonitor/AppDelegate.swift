@@ -15,19 +15,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Pointer watchers that exist only while a revealed menu bar holds focus
     /// the popover had. See `restoreFocusWhenMenuBarHides()`.
     private var menuBarMonitors: [Any] = []
-    /// Settings: toolbar panes for General, Speed Test, History, Connections,
-    /// Ads, Hotspot and About. Created on first use.
+    /// Settings: toolbar panes for General, History, Connections, Ads,
+    /// Hotspot, Speed Test and About, setup only (#436). Created on first use.
     private var settingsController: SettingsWindowController?
     private var settings: SettingsWindowController {
         if let settingsController { return settingsController }
         let controller = SettingsWindowController(
-            model: model, history: HistoryViewModel(monitor: model),
-            connections: connectionsModel,
+            model: model, history: historyModel,
+            connections: connectionsModel, ads: adsModel,
             onOpenConnections: { [weak self] in self?.showConnections() },
-            onOpenAds: { [weak self] tab in
-                self?.ads.select(tab)
-                self?.showAds()
-            },
+            onOpenAds: { [weak self] in self?.showAds() },
+            onOpenHistory: { [weak self] in self?.showHistory() },
             onUninstall: { [weak self] in self?.uninstall() })
         controller.window.delegate = self
         controller.highestTop = { [weak self] screen in
@@ -46,16 +44,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if let connectionsController { return connectionsController }
         let controller = ConnectionsWindowController(model: connectionsModel)
         controller.window.delegate = self
+        controller.onSettings = { [weak self] in self?.show(pane: .connections) }
         connectionsController = controller
         return controller
     }
     /// What the ad, tracker and malware lists blocked (#251). Created on first use.
     private var adsController: AdsWindowController?
+    /// One model for the window and Settings › Ads, where its lists and rules
+    /// are (#436).
+    private lazy var adsModel = AdsViewModel(monitor: model)
     private var ads: AdsWindowController {
         if let adsController { return adsController }
-        let controller = AdsWindowController(model: AdsViewModel(monitor: model))
+        let controller = AdsWindowController(model: adsModel)
         controller.window.delegate = self
+        controller.onSettings = { [weak self] in self?.show(pane: .ads) }
         adsController = controller
+        return controller
+    }
+    /// The Usage History window (#436), and Settings › History's model too.
+    private var historyController: HistoryWindowController?
+    private lazy var historyModel = HistoryViewModel(monitor: model)
+    private var historyWindow: HistoryWindowController {
+        if let historyController { return historyController }
+        let controller = HistoryWindowController(model: historyModel)
+        controller.window.delegate = self
+        controller.onSettings = { [weak self] in self?.show(pane: .history) }
+        historyController = controller
         return controller
     }
     /// Ask Me's questions (#129), in a panel of their own.
@@ -67,7 +81,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// creating any to find out.
     private var ourWindows: [NSWindow] {
         [settingsController?.window, connectionsController?.window, adsController?.window,
-         welcomeController?.window].compactMap { $0 }
+         historyController?.window, welcomeController?.window].compactMap { $0 }
     }
     /// Those that are open, front to back.
     private var openWindows: [NSWindow] {
@@ -146,8 +160,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         switch arguments["open"] as? String {
         case "connections": showConnections()
         case "ads":
-            if let tab = (arguments["tab"] as? String).flatMap(AdsViewModel.Tab.init) { ads.select(tab) }
-            showAds()
+            // The lists and your rules are in Settings › Ads now (#436).
+            if let setup = (arguments["tab"] as? String).flatMap(AdsViewModel.SetupTab.init) {
+                adsModel.setupTab = setup
+                show(pane: .ads)
+            } else {
+                if let tab = (arguments["tab"] as? String).flatMap(AdsViewModel.Tab.init) { ads.select(tab) }
+                showAds()
+            }
+        case "history":     showHistory()
         case "welcome":     showWelcome()
         // A moment later, once the status item has a place in the menu bar to
         // anchor to.
@@ -237,7 +258,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             onSettings: { [weak self] in self?.showSettings() },
             onHistory: { [weak self] in self?.showHistory() },
             onConnections: { [weak self] in self?.showConnections() },
-            onAds: { [weak self] in self?.showAds() })
+            onAds: { [weak self] in self?.showAds() },
+            onHotspotSettings: { [weak self] in self?.show(pane: .hotspot) })
         let host = NSHostingController(rootView: root.localizedRoot())
         // Keeps `preferredContentSize` in step with what SwiftUI lays out.
         //
@@ -775,10 +797,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         show(pane: nil)
     }
 
-    /// Settings, on History: from the popover's chart button, Usage History… in
-    /// the right-click menu, and ⌘Y while a window is open.
+    /// The Usage History window (#436): from Open Usage History in the
+    /// popover, Usage History… in the right-click menu, Settings › History,
+    /// and ⌘Y while a window is open.
     @objc private func showHistory() {
-        show(pane: .history)
+        if popover.isShown { closePopover() }
+        let wasVisible = historyWindow.isVisible
+        present(historyWindow.window, reposition: !wasVisible)
+        guard !wasVisible else { return }
+        historyWindow.windowDidShow()
+        DispatchQueue.main.async { [weak self] in self?.historyWindow.window.makeFirstResponder(nil) }
     }
 
     /// The Connections window: from the popover's globe, Connections… in the
@@ -859,6 +887,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if closing === settingsController?.window { settingsController?.windowWillClose() }
         if closing === connectionsController?.window { connectionsController?.windowWillClose() }
         if closing === adsController?.window { adsController?.windowWillClose() }
+        if closing === historyController?.window { historyController?.windowWillClose() }
         // Still a regular app while another window is open.
         let stillOpen = ourWindows.contains { $0 !== closing && $0.isVisible }
         guard !stillOpen else { return }

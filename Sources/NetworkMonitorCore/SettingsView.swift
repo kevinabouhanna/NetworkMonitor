@@ -13,6 +13,9 @@ import SwiftUI
 /// 768 pt History had.
 enum SettingsMetrics {
     static let paneWidth: CGFloat = 720
+    /// The lists and your rules in Settings › Ads (#436): they scroll inside
+    /// this height, so the pane is the same size whichever is shown.
+    static let adsSetupHeight: CGFloat = 420
 }
 
 // MARK: - General

@@ -28,7 +28,7 @@ struct AdsView: View {
         .pickerStyle(.segmented)
         .labelsHidden()
         .fixedSize()
-        .help(L("What was blocked, every connection as it's decided, the lists, and your rules"))
+        .help(L("What was blocked, and every connection as it's decided"))
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
     }
@@ -37,10 +37,6 @@ struct AdsView: View {
         VStack(spacing: 0) {
             if model.tab == .log {
                 AdsLogView(model: model)
-            } else if model.tab == .rules {
-                AdsRulesView(model: model)
-            } else if model.tab == .lists {
-                AdsListsView(model: model)
             } else if !model.isOn {
                 off
             } else {

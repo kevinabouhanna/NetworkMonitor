@@ -112,6 +112,18 @@ public final class MonitorViewModel: ObservableObject {
     public let lookups = EncryptedLookups()
     /// Each decision the filter reported, for the Ads window's log (#252).
     public let adsLog = AdsLog()
+    #if DEBUG
+    /// For DesignShots' pictures (#437): the connection the popover names,
+    /// without a network watcher. Debug builds only.
+    public func showConnectionForPictures(_ status: ConnectionStatus) { connection = status }
+    #endif
+
+    /// Which of the popover's four buttons is chosen (#436). Not `@State`;
+    /// see `SettingsPaneState`.
+    @Published public var popoverSection: PopoverSection = .today
+    /// Today at a glance, for the popover and the lines heading Settings'
+    /// panes (#436).
+    public private(set) lazy var glance = TodayGlance(history: { [weak self] in self?.store.history })
     /// Updating NetworkMonitor itself (#132).
     public let updates = UpdateController()
     private var firewallPolicy: AnyCancellable?
@@ -627,6 +639,9 @@ public final class MonitorViewModel: ObservableObject {
         popoverIsOpen = open
         expandedApps.removeAll()
         if open {
+            // Always opens on Today, the apps (#436).
+            popoverSection = .today
+            glance.refresh()
             refreshHeader()
             rebuildRows(now: Date())
         } else {

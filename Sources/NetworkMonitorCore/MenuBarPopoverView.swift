@@ -1,4 +1,5 @@
 import AppKit
+import FirewallPolicy
 import SwiftUI
 
 public struct MenuBarPopoverView: View {
@@ -15,23 +16,30 @@ public struct MenuBarPopoverView: View {
     @ObservedObject var listBlocks: ListBlockCount
     /// Whether Block Everything is on (#198).
     @ObservedObject var firewall: FirewallRules
+    /// Today's companies, for the Companies button and view (#436).
+    @ObservedObject var glance: TodayGlance
+    @ObservedObject var filter: FilterController
     var onSettings: () -> Void
     var onHistory: () -> Void
     var onConnections: () -> Void
     var onAds: () -> Void
+    var onHotspotSettings: () -> Void
 
     public init(model: MonitorViewModel, onSettings: @escaping () -> Void,
                 onHistory: @escaping () -> Void, onConnections: @escaping () -> Void,
-                onAds: @escaping () -> Void = {}) {
+                onAds: @escaping () -> Void = {}, onHotspotSettings: @escaping () -> Void = {}) {
         self.model = model
         self.speedTest = model.speedTest
         self.metering = model.metering
         self.listBlocks = model.listBlocks
         self.firewall = model.firewall
+        self.glance = model.glance
+        self.filter = model.filter
         self.onSettings = onSettings
         self.onHistory = onHistory
         self.onConnections = onConnections
         self.onAds = onAds
+        self.onHotspotSettings = onHotspotSettings
     }
 
     /// Ad blocking paused for a while (#251), or off on this network (#253).
@@ -128,143 +136,146 @@ public struct MenuBarPopoverView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
-            if showsCard {
-                SpeedTestCard(speedTest: speedTest)
-            } else {
-                if showsStrip {
-                    SpeedTestStrip(speedTest: speedTest)
-                    Divider()
-                }
-                if model.rows.isEmpty && model.systemRows.isEmpty {
-                    emptyState
-                } else {
-                    list
-                }
+            switch model.popoverSection {
+            case .today:
+                today
+            case .companies:
+                PopoverCompanies(glance: glance, onOpen: onConnections)
+            case .blocked:
+                PopoverBlocked(glance: glance, firewall: firewall, filter: filter, pausedText: adsPausedText,
+                               onTurnOn: turnOnAdBlocking, onOpen: onAds)
+            case .connection:
+                PopoverConnection(metering: metering, status: model.connection,
+                                  onHotspotSettings: onHotspotSettings)
             }
+            Divider()
+            PopoverFooter(onSettings: onSettings)
         }
         .frame(width: 320)
     }
 
+    /// Today: the speed test while one is shown, the apps, and the way to
+    /// Usage History (#436).
+    private var today: some View {
+        VStack(alignment: .leading, spacing: 0) {
+                if showsCard {
+                    SpeedTestCard(speedTest: speedTest)
+                } else {
+                    if showsStrip {
+                        SpeedTestStrip(speedTest: speedTest)
+                        Divider()
+                    }
+                    if model.rows.isEmpty && model.systemRows.isEmpty {
+                        emptyState
+                    } else {
+                        list
+                    }
+                }
+
+            Divider()
+            PopoverOpenRow(title: L("Open Usage History"), shortcut: "⌘Y", action: onHistory)
+        }
+    }
+
+    /// As Ads and Trackers' Turn On: every built-in list, and the filter.
+    private func turnOnAdBlocking() {
+        firewall.lists = Set(BlocklistTopic.allCases)
+        switch filter.state {
+        case .off, .failed: filter.turnOn()
+        default: break
+        }
+    }
+
     // MARK: Header
 
-    /// One combined total. The per-direction split lived here and in every row,
-    /// but it was never asked for and doubled the numbers on screen; live
+    /// The connection and the speed test on one slim line, anything that needs
+    /// saying, then the four buttons (#436). One combined total: live
     /// download/upload rates are already in the menu bar.
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(L("Total"))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                Text(ByteFormat.bytes(model.totalBytes))
-                    .font(.system(size: 17, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                // Which connection that total is for. Joining a network doesn't
-                // mean using it, and nothing else here says which is in use.
-                // Orange when it's the case where the total matters most.
-                Text(model.connection.line)
-                    .font(.system(size: 10))
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                // Which connection the totals are for. Orange when it's the
+                // case where they matter most.
+                Text(model.connection.name ?? model.connection.medium ?? L("No connection"))
+                    .font(.system(size: 11))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .foregroundStyle(model.connection.isHighlighted ? AnyShapeStyle(.orange)
                                                                     : AnyShapeStyle(.secondary))
-                if let standby = metering.standbyHotspot {
-                    StandbyHotspotLine(message: standby.message,
-                                       explanation: standby.explanation(inUse: model.connection))
+                    .help(model.connection.line)
+                // The speed test, right after the connection it tests (#436).
+                if SpeedTestRunner.isAvailable {
+                    SpeedTestButton(speedTest: speedTest)
                 }
-                if let summary = gotThroughSummary {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.down.circle.fill")
-                        Text(summary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 9)
+            VStack(alignment: .leading, spacing: 2) {
+                    if let standby = metering.standbyHotspot {
+                        StandbyHotspotLine(message: standby.message,
+                                           explanation: standby.explanation(inUse: model.connection))
                     }
-                    .font(.system(size: 10))
-                    .foregroundStyle(.orange)
-                    .help(L("Downloaded over this connection anyway. Settings › Hotspot lists what NetworkMonitor can't stop."))
-                }
-                if firewall.blocksEverything {
-                    HStack(spacing: 6) {
-                        Image(systemName: "hand.raised.fill")
-                        Text(L("Everything is blocked"))
-                        Button(L("Turn Off")) { model.setBlocksEverything(false) }
-                            .buttonStyle(.link)
-                    }
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.red)
-                    .help(L("Block Everything is on: every app's new connections stop, apart from looking up names, the clock and your own network"))
-                }
-                if let paused = adsPausedText {
-                    Button(action: onAds) {
+                    if let summary = gotThroughSummary {
                         HStack(spacing: 4) {
-                            Image(systemName: "shield.slash")
-                            Text(paused).lineLimit(1)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.orange)
-                    .help(L("Open Ads and Trackers to resume"))
-                } else if listBlocks.today > 0 {
-                    Button(action: onAds) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "shield.lefthalf.filled")
-                            // Short enough for one line beside the header's
-                            // buttons (#390); the tooltip and VoiceOver say
-                            // trackers too.
-                            Text(L("%@ ads blocked today", listBlocks.today.formatted()))
+                            Image(systemName: "arrow.down.circle.fill")
+                            Text(summary)
                                 .lineLimit(1)
+                                .truncationMode(.middle)
                         }
+                        .font(.system(size: 10))
+                        .foregroundStyle(.orange)
+                        .help(L("Downloaded over this connection anyway. Settings › Hotspot lists what NetworkMonitor can't stop."))
                     }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .help(L("Ads and trackers blocked today. See what was blocked, and where"))
-                    .accessibilityLabel(L("%@ ads and trackers blocked today", listBlocks.today.formatted()))
-                }
-                if let failure = model.perAppFailure {
-                    // Grey, not orange: the total above is still right. Only the
-                    // list has stopped, and saying so beats a list gone quiet.
-                    HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.triangle")
-                        Text(L("Per-app figures paused"))
+                    if firewall.blocksEverything {
+                        HStack(spacing: 6) {
+                            Image(systemName: "hand.raised.fill")
+                            Text(L("Everything is blocked"))
+                            Button(L("Turn Off")) { model.setBlocksEverything(false) }
+                                .buttonStyle(.link)
+                        }
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.red)
+                        .help(L("Block Everything is on: every app's new connections stop, apart from looking up names, the clock and your own network"))
                     }
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .help(L("macOS's nettop isn't reporting per-app figures (%@). The total is still counted, and NetworkMonitor keeps trying.", failure))
-                }
+                    if let paused = adsPausedText {
+                        Button(action: onAds) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "shield.slash")
+                                Text(paused).lineLimit(1)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.orange)
+                        .help(L("Open Ads and Trackers to resume"))
+                    }
+                    if let failure = model.perAppFailure {
+                        // Grey, not orange: the total above is still right. Only the
+                        // list has stopped, and saying so beats a list gone quiet.
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.triangle")
+                            Text(L("Per-app figures paused"))
+                        }
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                        .help(L("macOS's nettop isn't reporting per-app figures (%@). The total is still counted, and NetworkMonitor keeps trying.", failure))
+                    }
             }
-            Spacer()
-            if SpeedTestRunner.isAvailable {
-                SpeedTestButton(speedTest: speedTest)
-            }
-            // Who the apps below sent their data to.
-            Button(action: onConnections) {
-                Image(systemName: "globe").font(.system(size: 12))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help(L("Connections"))
-            .accessibilityLabel(L("Connections"))
-            // The way back to the totals this header starts over at midnight
-            // and on every network change.
-            Button(action: onHistory) {
-                Image(systemName: "chart.bar.xaxis").font(.system(size: 12))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help(L("Usage History"))
-            .accessibilityLabel(L("Usage History"))
-            Button(action: onSettings) {
-                Image(systemName: "gearshape.fill").font(.system(size: 12))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help(L("Settings"))
-            .accessibilityLabel(L("Settings"))
+            .padding(.horizontal, 12)
+            PopoverButtons(selection: Binding(get: { model.popoverSection },
+                                              set: { section in
+                                                  model.popoverSection = section
+                                                  if section == .companies || section == .blocked { glance.refresh() }
+                                              }),
+                           today: ByteFormat.bytes(model.totalBytes),
+                           companies: glance.hasLoaded ? glance.summary.companies.formatted() : "–",
+                           blocked: filter.state == .unavailable ? "–"
+                               : firewall.lists.isEmpty ? L("Off") : listBlocks.today.formatted(),
+                           blockedIsOn: !firewall.lists.isEmpty && filter.state != .unavailable,
+                           connection: PopoverConnection.word(model.connection, metering: metering),
+                           isHotspot: metering.verdict.isMetered)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
     }
 
     // MARK: List
@@ -512,11 +523,12 @@ public enum PopoverMetrics {
     /// list long enough to reach it, which is where a day's traffic ends up,
     /// stops resizing altogether.
     ///
-    /// Sized so the popover stands 428.5 pt overall — the list plus 56.5 of
-    /// header and divider. That holds eight rows whole and part of a ninth,
-    /// which is deliberate: a row cut off at the bottom edge is what says there
-    /// is more below without spending a whole row saying it.
-    public static let maxListHeight: CGFloat = 372
+    /// Sized so the popover stands about as tall as it did before its header
+    /// gained the four buttons, the Open Usage History row and the Settings
+    /// footer (#436). That holds six rows whole and part of a seventh, which
+    /// is deliberate: a row cut off at the bottom edge is what says there is
+    /// more below without spending a whole row saying it.
+    public static let maxListHeight: CGFloat = 290
 
     /// Kept between the content and the frame that holds it, so a list that fits
     /// is never *exactly* the height of its own content.

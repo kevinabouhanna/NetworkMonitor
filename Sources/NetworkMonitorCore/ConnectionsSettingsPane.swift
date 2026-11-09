@@ -5,28 +5,26 @@ import ServerDirectory
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Settings › Connections (#126): where Connections is found, like every other
-/// feature. What it is, website names while they're off, the rules, which
-/// layout the window opens with, and where the names come from. The window
-/// itself is where it's read, so today's companies are there, not here (#189).
+/// Settings › Connections (#126): its setup only (#436). A line with today's
+/// companies and the way to the window heads it; then website names while
+/// they're off, the rules, encrypted lookups, which layout the window opens
+/// with, and where the names come from. The window is where it's read (#189).
 struct ConnectionsSettingsPane: View {
     @ObservedObject var model: ConnectionsViewModel
     @ObservedObject var filter: FilterController
     @ObservedObject var firewall: FirewallRules
     @ObservedObject var geoData: GeoDataUpdater
     @ObservedObject var lookups: EncryptedLookups
+    @ObservedObject var glance: TodayGlance
     let onOpen: () -> Void
 
     var body: some View {
         Form {
             Section {
-                HStack(alignment: .center, spacing: 12) {
-                    Text(L("Which companies, countries and servers your apps talk to, on a list and a world map."))
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 12)
-                    Button(L("Open Connections…"), action: onOpen)
-                        .help(L("Also ⌘K, and the globe in the popover"))
-                }
+                SettingsStatusLine(title: statusTitle,
+                                   detail: L("Which companies, countries and servers your apps talk to, on a list and a world map"),
+                                   action: L("Open Connections…"), help: L("Also ⌘K, and Companies in the popover"),
+                                   onAction: onOpen)
             }
 
             // Where anyone who said "not now" in the welcome window finds it
@@ -68,6 +66,11 @@ struct ConnectionsSettingsPane: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private var statusTitle: String {
+        let count = glance.summary.companies
+        return count == 1 ? L("1 company today") : L("%@ companies today", String(count))
     }
 
     /// Encrypted lookups (#291): the system extension that filters also

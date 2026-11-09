@@ -73,6 +73,9 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
 
     public var isVisible: Bool { window.isVisible }
 
+    /// The toolbar's gear: Settings › Connections (#436).
+    public var onSettings: () -> Void = {}
+
     public func windowDidShow() { model.windowDidOpen() }
 
     public func windowWillClose() { model.windowDidClose() }
@@ -138,6 +141,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         case layoutItem: return (L("View"), L("The list, both side by side, or the map"))
         case scaleItem:  return (L("Period"), L("A day, week, month or year at a time"))
         case stepItem:   return (L("Go"), L("Move through time"))
+        case SettingsGear.identifier: return (L("Settings"), L("Settings for Connections"))
         default:         return nil
         }
     }
@@ -168,6 +172,8 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         }
     }
 
+    @objc private func openSettings() { onSettings() }
+
     public func controlTextDidChange(_ notification: Notification) {
         guard let field = notification.object as? NSSearchField else { return }
         model.search = field.stringValue
@@ -184,7 +190,8 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
     // MARK: NSToolbarDelegate
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Self.layoutItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, Self.searchItem]
+        [Self.layoutItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, Self.searchItem,
+         SettingsGear.identifier]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -207,6 +214,9 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
             item.preferredWidthForSearchField = 240
             searchField = item.searchField
             return item
+        case SettingsGear.identifier:
+            return SettingsGear.item(target: self, action: #selector(openSettings),
+                                     help: L("Settings for Connections"))
         default:
             return nil
         }

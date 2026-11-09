@@ -8,9 +8,10 @@ func runSettingsTests() {
 
         // The toolbar's order: what people open most first, About last. Ad
         // blocking is a feature of its own, so a pane of its own.
-        Check.test("the toolbar runs General, Speed Test, History, Connections, Ads, Hotspot, About") {
+        // The popover's order after General (#436).
+        Check.test("the toolbar runs General, History, Connections, Ads, Hotspot, Speed Test, About") {
             Check.expectEqual(SettingsPane.allCases.map(\.title),
-                              ["General", "Speed Test", "History", "Connections", "Ads", "Hotspot", "About"])
+                              ["General", "History", "Connections", "Ads", "Hotspot", "Speed Test", "About"])
         }
 
         // A missing symbol draws an empty toolbar button, silently.

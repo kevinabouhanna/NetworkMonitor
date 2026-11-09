@@ -221,9 +221,11 @@ func runPopoverMetricsTests() {
         }
 
         Check.test("a list that fits reports no scrolling") {
-            Check.expectFalse(PopoverMetrics.scrolls(appRows: 6, expandedChildRows: 1,
+            // The case that strobed was 6 apps with one child open; with the
+            // shorter list of #436 the same shape, two apps fewer, fits.
+            Check.expectFalse(PopoverMetrics.scrolls(appRows: 4, expandedChildRows: 1,
                                                     systemRowCount: 10, systemExpanded: false),
-                              "the case that strobed: 6 apps, one child open")
+                              "4 apps, one child open, System closed")
             Check.expectFalse(PopoverMetrics.scrolls(appRows: 0, expandedChildRows: 0,
                                                     systemRowCount: 0, systemExpanded: false))
         }
