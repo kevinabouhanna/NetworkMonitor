@@ -254,7 +254,7 @@ struct PopoverCompanies: View {
                                        detail: L("Connections are counted while NetworkMonitor is running."))
                             .frame(height: PopoverMetrics.sectionHeight)
                     } else {
-                        PopoverList(rows: rowCount) {
+                        PopoverList(rows: max(rowCount, tallestGrouping)) {
                             ForEach(glance.groups) { group in
                                 let item = group.item
                                 let parts = self.parts(of: group)
@@ -322,6 +322,13 @@ struct PopoverCompanies: View {
         }
     }
 
+    /// One height whichever grouping is shown (#436): the most rows any of
+    /// them has, so switching never shrinks the popover and grows it again.
+    private var tallestGrouping: Int {
+        let summary = glance.summary
+        return min(max(summary.companies, summary.countries, summary.apps), TodayGlance.rows)
+    }
+
     /// Each bar is a share of all the period's traffic to servers.
     private func fraction(_ bytes: Int64) -> Double {
         let total = glance.summary.bytesIn + glance.summary.bytesOut
@@ -361,7 +368,7 @@ struct PopoverBlocked: View {
                                            detail: L("Sites the lists stop show here, busiest first."))
                                 .frame(height: PopoverMetrics.sectionHeight)
                         } else {
-                            PopoverList(rows: rowCount) {
+                            PopoverList(rows: max(rowCount, tallestGrouping)) {
                                 ForEach(items) { item in
                                     let parts = self.parts(of: item)
                                     let open = glance.expanded.contains(rowID(item))
@@ -425,6 +432,11 @@ struct PopoverBlocked: View {
         items.reduce(0) { count, item in
             count + 1 + (glance.expanded.contains(rowID(item)) ? parts(of: item).count : 0)
         }
+    }
+
+    /// One height for Sites and Apps (#436), as for Connections' groupings.
+    private var tallestGrouping: Int {
+        min(max(glance.ads.sites.count, glance.ads.apps.count), TodayGlance.rows)
     }
 
     /// Each bar is a share of everything blocked in the period.

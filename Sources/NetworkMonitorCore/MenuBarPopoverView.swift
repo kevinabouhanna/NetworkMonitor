@@ -211,7 +211,7 @@ public struct MenuBarPopoverView: View {
             emptyState
         } else {
             let total = max(rows.reduce(0) { $0 + $1.bytes }, 1)
-            PopoverList(rows: rows.count) {
+            PopoverList(rows: max(rows.count, appsRowCount), cap: listCap) {
                 ForEach(rows) { network in
                     PopoverRow(title: model.store.displayLabel(for: network.id, defaultLabel: network.defaultLabel),
                                value: ByteFormat.bytes(network.bytes),
@@ -273,7 +273,7 @@ public struct MenuBarPopoverView: View {
                     .help(L("What Data, Connections and Ads blocked count: today, this week or this month so far, on every network"))
                 Spacer(minLength: 0)
                 Button(action: openWindow) {
-                    Image(systemName: "macwindow")
+                    Image(systemName: "square.grid.2x2")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                         .frame(width: 26, height: 26)
@@ -377,13 +377,22 @@ public struct MenuBarPopoverView: View {
     /// never the frame, which sets the popover's size; see
     /// `PopoverMetrics.maxListHeight`.
     private var list: some View {
-        PopoverList(rows: dataRowCount, cap: listCap) {
+        PopoverList(rows: max(dataRowCount, networksRowCount), cap: listCap) {
             ForEach(appRows) { row in
                 appRow(row)
             }
             if !systemRows.isEmpty { systemSection }
         }
     }
+
+    /// The list keeps one height across Apps and Networks (#436): the taller
+    /// of the two, up to the cap. Sized to each, the popover shrank to a
+    /// couple of networks and grew back for the apps at every switch. It
+    /// still grows with the data, from a first launch's few rows.
+    private var networksRowCount: Int { glance.report?.networks.count ?? 0 }
+
+    /// The apps, closed, and the System group: Networks' share of the height.
+    private var appsRowCount: Int { appRows.count + (systemRows.isEmpty ? 0 : 1) }
 
     /// Every row on screen: the apps, those opened, and the System group.
     ///
