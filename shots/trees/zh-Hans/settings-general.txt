@@ -27,9 +27,7 @@ AXWindow (AXStandardWindow) title="通用" 720
             AXColorWell value="rgb # # # #" h24
             AXStaticText value="网速测试期间" h16
             AXStaticText value="↓" help="网速测试的数值使用自己的颜色，与这些颜色区分开，因此不会被误认为是实时速度。" h16
-              AXStaticText value="↓" h16
             AXStaticText value="↑" help="网速测试的数值使用自己的颜色，与这些颜色区分开，因此不会被误认为是实时速度。" h16
-              AXStaticText value="↑" h16
             AXButton description="使用默认颜色" 100x24
           AXHeading description="弹出窗口中的累计值" 116x16
           AXGroup

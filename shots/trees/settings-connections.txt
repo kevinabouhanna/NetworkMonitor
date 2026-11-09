@@ -18,8 +18,8 @@ AXWindow (AXStandardWindow) title="Connections" 720x780
             AXButton description="Export…" 76x24
             AXButton description="Import…" 76x24
           AXStaticText value="Everything connects except what you block. A rule applies from an app's next connection: one already open carries on until it closes." h28
-          AXHeading description="Lookups" 56x16
-          AXGroup h80
+          AXHeading description="Lookups" 52x16
+          AXGroup h76
             AXStaticText value="Encrypt lookups" h16
             AXCheckBox (AXToggle) description="Encrypt lookups" help="Before an app connects to a site, your Mac looks its name up. Those lookups normally travel unencrypted, so your internet provider and anyone on the Wi-Fi can read every name. Switched on, NetworkMonitor sends each lookup encrypted to the resolver you pick, over DNS over HTTPS, and gives the answer back unchanged. Names only your network knows, like the router's, still go to it. If the resolver doesn't answer, lookups go to your network as before, so names keep working. Apps that encrypt their own lookups, like Chrome with Secure DNS, aren't affected." 36x16
             AXStaticText value="Sent to" h16
@@ -27,7 +27,7 @@ AXWindow (AXStandardWindow) title="Connections" 720x780
           AXStaticText value="Off: lookups go to your network's DNS server unencrypted, as on any Mac." h16
           AXGroup h40
             AXStaticText value="Opens with" h16
-            AXRadioGroup description="Opens with" 160x24
+            AXRadioGroup description="Opens with" 156x24
               AXRadioButton (AXSegment) description="List" 52x24
               AXRadioButton (AXSegment) description="Both" 52x24
               AXRadioButton (AXSegment) description="Map" 52x24

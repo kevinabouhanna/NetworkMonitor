@@ -1,12 +1,11 @@
-AXWindow (AXStandardWindow) title="关于" 720x564
-  AXGroup h476
-    AXGroup (AXHostingView) h476
-      AXScrollArea h476
-        AXScrollArea h476
+AXWindow (AXStandardWindow) title="关于" 720x712
+  AXGroup h620
+    AXGroup (AXHostingView) h620
+      AXScrollArea h620
+        AXScrollArea h620
           AXGroup h200
             AXStaticText value="NetworkMonitor" h24
             AXStaticText value="版本 #（#）" h16
-              AXStaticText value="版本 #（#）" h16
             AXStaticText value="在菜单栏中显示实时网速，以及哪个应用用了你的流量。" h16
           AXGroup h112
             AXStaticText value="网站" h16
@@ -16,6 +15,12 @@ AXWindow (AXStandardWindow) title="关于" 720x564
             AXStaticText value="源代码" h16
             AXLink description="在 GitHub 上" 96x16
           AXStaticText value="免费开源，采用 MIT 许可证。" h16
+          AXGroup h76
+            AXStaticText value="自动检查更新" h16
+            AXCheckBox (AXSwitch) 36x16
+            AXStaticText value="更新" h16
+            AXButton description="立即检查" 76x24
+          AXStaticText value="NetworkMonitor 每天向 GitHub 查询一次是否有新版本，使用热点时从不查询。只有在你同意时才会安装更新，而且只安装由 NetworkMonitor 签名的更新。" h28
           AXGroup h40
             AXStaticText value="移除 NetworkMonitor" h16
             AXButton description="卸载…" 60x24

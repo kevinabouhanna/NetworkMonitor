@@ -18,7 +18,9 @@ AXWindow (AXStandardWindow) title="热点" 720
             AXDisclosureTriangle description="不能暂停（#）" h16
           AXStaticText value="使用热点时请退出这些应用，以确保它们不会更新。对于遵循低数据模式的应用，低数据模式会让它们放慢更新。" h16
           AXGroup h36
-            AXStaticText value="将 NetworkMonitor 移到“应用程序”文件夹，即可同时暂停 macOS 更新并使用低数据模式。" h16
+            AXStaticText value="所有应用的更新程序" h16
+            AXStaticText value="使用热点时停止" h16
+          AXStaticText value="使用热点时，任何应用的更新程序都会被停止，包括那些用自己的程序更新、被列为“不能暂停”的应用。在“连接”中选择“已阻止”即可查看。" h28
   AXToolbar 720x56
     AXButton title="通用" description="通用" 56x56
     AXButton title="网速测试" description="网速测试" 56x56

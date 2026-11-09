@@ -5,6 +5,10 @@ AXWindow (AXStandardWindow) title="连接" 1120
       AXRadioButton (AXSegment) description="公司" 76x20
       AXRadioButton (AXSegment) description="应用" 76x20
       AXRadioButton (AXSegment) description="国家或地区" 76x20
+    AXStaticText value="显示" h16
+    AXRadioGroup description="显示" help="你的应用发送和接收的数据，或被阻止的连接" 108x20
+      AXRadioButton (AXSegment) description="流量" 52x20
+      AXRadioButton (AXSegment) description="已阻止" 52x20
     AXRadioGroup description="网络" help="所有连接、仅 Wi-Fi 或仅热点" 144x20
       AXRadioButton (AXSegment) description="全部" 48x20
       AXRadioButton (AXSegment) description="Wi-Fi" 48x20

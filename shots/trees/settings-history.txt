@@ -19,14 +19,14 @@ AXWindow (AXStandardWindow) title="History" 720
         AXStaticText value="# ‹unit›" h16
         AXStaticText value="used" h16
         data: AXGroup AXStaticText AXUnknown
-        AXRadioGroup description="List" 248x24
-          AXRadioButton (AXSegment) description="Apps" 84x24
-          AXRadioButton (AXSegment) description="Networks" 84x24
-          AXRadioButton (AXSegment) description="Sessions" 84x24
+        AXRadioGroup description="List" 244x24
+          AXRadioButton (AXSegment) description="Apps" 80x24
+          AXRadioButton (AXSegment) description="Networks" 80x24
+          AXRadioButton (AXSegment) description="Sessions" 80x24
         AXScrollArea
           data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
         AXStaticText value="Keep history for" h16
-        AXPopUpButton description="Keep history for" 108x24
+        AXPopUpButton description="Keep history for" 104x24
         AXButton description="Clear History…" 112x24
         AXButton description="Export CSV…" 104x24
   AXToolbar 720x56
