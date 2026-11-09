@@ -19,7 +19,17 @@ through without asking. What's particular to NetworkMonitor:
   `ExitWorktree` with `remove` and `discard_changes: true` (the squash commit on `main`
   holds the work), `git pull --ff-only` in the main checkout so it has the latest hooks,
   and delete the branch: `git branch -D <branch>`, `git push origin --delete <branch>`.
-- CI checks: `build-and-test`, `universal`.
+- CI checks: `build-and-test`, `universal`. Merge once both pass.
+  - They run on GitHub Actions first. The repo is public, so its macOS runners cost
+    nothing, and the shared Mac stays free.
+  - If GitHub can't run them, run `Scripts/local-ci.sh --fallback <pr>` in the background
+    (#456). That covers a billing or spending-limit error, no checks appearing, or a job
+    still queued after 15 minutes.
+  - The script watches GitHub's checks, and runs both jobs on this Mac only when GitHub
+    can't. It records each result under the same check name, so the merge rule doesn't
+    change.
+  - Releases stay on GitHub's Release workflow: the signing, notary and Sparkle keys are
+    GitHub secrets, not on this Mac.
 - **Release it and update the app on this Mac.**
   - Write its What's new in `ReleaseNotes/X.Y.Z.md`, merged with a pull
     request before tagging: short bullets, each a bold lead and the issue,
