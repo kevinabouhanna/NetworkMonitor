@@ -55,6 +55,8 @@ make run     # build build/NetworkMonitor.app and open it
 | `make site-check` | Says which of the website's pictures show a window whose interface changed (below) |
 | `make site-shots` | Retakes those pictures, or the ones in `NAMES`, and updates the page |
 | `make asset-check` | Fails on any image, GIF or video the site, README or docs use that isn't listed with the window it shows (below) |
+| `make translation-check` | Fails when this branch changes an English page for people using the app but not its translation ([Languages](#languages)) |
+| `make translation-review FROM=vX.Y.Z` | The text added or changed since that release in each language, as a table for its native reviewer ([Adding a language](#adding-a-language)) |
 | `make site-audit` | Checks the installed app's windows, with real data, for what VoiceOver can't name |
 | `make hooks` | Points git at `Scripts/hooks`, so `pre-push` runs the tests |
 | `make clean` | Removes `.build` and `build` |
@@ -207,8 +209,9 @@ even in dark mode. The file name has no version, so
 `.github/workflows/ci.yml` runs on every push to `main` and every pull request. Both jobs
 must be green before a merge.
 
-- **`build-and-test`:** build, `make test` (live tests skipped), `make app`, checks on
-  the bundle (signature, plist, icon), and the smoke test.
+- **`build-and-test`:** on a pull request, `make translation-check` first; then build,
+  `make test` (live tests skipped), `make asset-check`, `make app`, checks on the bundle
+  (signature, plist, icon), and the smoke test.
 - **`universal`:** `make universal`, and checks that both architectures are there.
 
 **When GitHub can't run it** (a billing or spending-limit error, or no runner for 15 minutes),
@@ -294,6 +297,12 @@ are kept apart differently:
    the disk image as *Notarized Developer ID*.
 4. Install it with `make install` from the tag.
 5. Update the website (below), including `make site-shots` against the new install.
+6. **The native review**, when the release changes text in a language (#434). Post
+   `make translation-review FROM=<the last release's tag>` on the release's issue, or on
+   the pull request with its release notes. It's a table of each language's new and
+   changed text, English beside the translation, with the language's reviewer (its
+   glossary's `reviewer`) mentioned. They read it in the updated app; their changes
+   follow on that issue, in a pull request of their own. Nothing waits on the review.
 
 The keys behind these secrets are never committed. The update key's public half is
 `SUPublicEDKey` in `bundle.sh`, and the data key's is `GeoDataUpdater.publicKey`; the
@@ -382,6 +391,16 @@ names any label it couldn't translate. `--language zh-Hans` (or `en`) takes one 
 only; `--app` takes them from another copy of the app, such as a development build of a
 version not released yet.
 
+**The README's pictures too** (#434). A picture in the README or the docs that is a
+shot's picture is listed in `Resources/README/assets.json` with `copy` and the shot's
+name, once, in English. Each time `site-shots` retakes that shot, it copies the
+picture into the checkout it runs from: the English one to the listed file, and each
+language's to the same folder under the language's code (`Resources/README/zh-Hans/`).
+A language's copy needn't be listed; it's made once a page uses it.
+`build/site-shots readme --site <site>` copies them all, from files only.
+So one run changes two branches: the site's pictures on `gh-pages`, and the README's
+on the `main` worktree it ran from. Each goes in its own pull request.
+
 #### Every asset is listed
 
 Every image, GIF and video that the site, the README, `SECURITY.md` and `docs/` use
@@ -390,8 +409,10 @@ in the pages, including the social preview in `<meta>` tags, and fails on any th
 isn't one of these:
 
 - **A picture this tool takes:** a shot's `file`.
+- **Copied from a shot's picture:** a README or docs picture listed with `copy`
+  (above), and each language's copy of it.
 - **Made by hand from the app's windows:** videos, GIFs, the social image, the README's
-  pictures. Each is listed under `assets` with the shots whose windows it `shows`:
+  other pictures. Each is listed under `assets` with the shots whose windows it `shows`:
   - in `shots/shots.json` on `gh-pages`, for the site's;
   - in `Resources/README/assets.json` on `main`, for the README's and the docs'.
 - **Showing no window this tool can check:** listed with `none` and why. Icons, the menu
@@ -484,6 +505,81 @@ Language & Region › Applications writes, so the two are one setting.
   a page per language too: `zh/index.html` on `gh-pages`. In Chinese pages, bold is
   `<strong>…</strong>`, and a paragraph is one line: GitHub's Markdown leaves `**`
   showing next to Chinese punctuation, and turns a line break into a space.
+- **A glossary per language** (#434), `Resources/Localization/<code>.lproj/Glossary.json`:
+  the language's words for the app's windows, sections, features and settings, its style
+  rules, and words no translation uses. The app's table, the docs, the README, the wiki
+  and the website all use them. `make test` holds the app's table to it (below); the
+  pages follow it by hand. `bundle.sh` leaves it out of the app.
+- **Nothing drifts** (#434). A pull request that changes English changes every language
+  with it, rather than in a catch-up later:
+  - **The app's text:** `make test` fails until each new or changed `L("…")` has a
+    translation in every table.
+  - **The pages:** `make translation-check`, run by CI on every pull request, fails when
+    the branch changes `README.md`, `SECURITY.md` or a page in `docs/` with a copy, but
+    not the copy (`README.<code>.md`, `docs/<code>/security.md`, `docs/<code>/<page>`),
+    or adds a page to `docs/` with no copy. Pages for working on the app, like this one,
+    have no copy, so they ask for nothing.
+  - **English only on purpose** (a typo, a link, a page for developers): a line in the
+    pull request's description says so and why, `No translation needed: <why>`. The check
+    reads the description when it runs, so re-run the job after adding it.
+
+## Adding a language
+
+From an empty table to a release, in order (#434). Chinese (`zh-Hans`, #428) went this
+way, and its files are the examples. `<code>` is the language's code as macOS writes it:
+`fr`, `pt-BR`, `zh-Hant`.
+
+1. **The glossary, first.** Copy `Resources/Localization/zh-Hans.lproj/Glossary.json` to
+   `<code>.lproj/`. Keep each term's `en` and write its `text`; set `language`, the
+   language's own `name` (the wiki's sidebar uses it), its `style` rules and `avoid`
+   words, and `reviewer`: the GitHub login of the native speaker who asked for it.
+   Settle the words with them on the language's issue before translating anything
+   else, since everything after uses them. `make test` then holds the app's table to it:
+   - a term whose English is a whole piece of the app's text translates to exactly the
+     term;
+   - with `"everywhere": true`, every piece of the app's text that says the English, as a
+     whole word, holds the term too;
+   - no translation uses an `avoid` word;
+   - a term the app no longer says fails, unless it's marked `"where": "docs"`, a name
+     only the docs and the website use.
+2. **The text, in one pass, with the glossary's words.** One pull request into `main`,
+   and one into `gh-pages` for the website:
+   - **The app:** `<code>.lproj/Localizable.strings`, a translation for every key in
+     `zh-Hans.lproj/Localizable.strings`. `make test` names any missing, and runs every
+     window's accessibility checks in it. Settings › Language lists it once its folder
+     is there. Look at each window in it for width and toolbar, with a build launched
+     with `-language <code>` ([Launch arguments](#launch-arguments)).
+   - **The README:** `README.<code>.md`, linked to and from `README.md` under the title.
+   - **The docs:** a copy in `docs/<code>/` of each page in `docs/zh-Hans/`, its index
+     included, each linked to and from its English page.
+   - **The wiki:** nothing to do. `Scripts/wiki.py` publishes each copy, and gives the
+     language a section of the sidebar, under its glossary's `name`.
+   - **The website:** a page in a folder of its own (`zh/index.html` for Chinese) on
+     `gh-pages`, with the language switch and `hreflang` on every page. Add the language
+     to `shots/shots.json`'s `languages`, with its page and its pictures' folder
+     (`assets/<code>/`). Until its pictures are taken (step 5), the page uses the
+     English ones.
+   - `make translation-check` and `make asset-check` pass.
+3. **Release it** ([Releasing](#releasing)) once it's merged. Nothing waits on a review.
+4. **The native review, after the release.** Post
+   `make translation-review FROM=<the last release's tag>` on the language's issue: the
+   first time, that's every piece of text in the language, English beside it, with the
+   reviewer mentioned. They read it in the updated app. Their changes follow on the
+   issue, in pull requests like any other, and go into the glossary where they name
+   something. From then on, each release does the same with what it changed
+   ([Releasing](#releasing), step 6).
+5. **Pictures, by command.** Once the release is installed, `make site-shots` (from a
+   `main` worktree, with `SITE=` a `gh-pages` worktree) takes every shot in the new
+   language too, since it has no trees yet, and copies the README's into
+   `Resources/README/<code>/`. Check the run names no label it couldn't translate, and
+   add any to the language's `specs`. Then a pull request on each branch.
+6. **Videos, only if Kevin wants them.** Videos and GIFs are recordings made by hand:
+   the README's `demo.gif`, the site's `live.mp4` and `brag.mp4`. Until one is remade,
+   the language's pages show the English one. Ask Kevin before remaking any (#432 did
+   Chinese's).
+
+After that there are no phases. Each pull request that changes English changes every
+language with it, held there by `make test` and `make translation-check`.
 
 ## Launch arguments
 

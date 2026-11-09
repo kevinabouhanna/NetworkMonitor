@@ -20,6 +20,7 @@
 # Usage:
 #   python3 Scripts/wiki.py <wiki checkout> [commit]    commit defaults to HEAD
 
+import json
 import os
 import pathlib
 import re
@@ -41,8 +42,12 @@ ATTRIBUTE = re.compile(r'(src|href)="([^"]+)"')
 ISSUE = re.compile(r"(?<![\w/&\[])#(\d{1,4})\b(?!\])")
 
 
-# Each translation's folder in docs/, and the language's own name for itself.
-LANGUAGES = {"zh-Hans": "简体中文"}
+# Each translation's folder in docs/, and the language's own name for itself,
+# from its glossary (#434), so a new language needs nothing here.
+LANGUAGES = {
+    glossary.parent.name.removesuffix(".lproj"): json.loads(glossary.read_text(encoding="utf-8"))["name"]
+    for glossary in sorted((ROOT / "Resources/Localization").glob("*.lproj/Glossary.json"))
+}
 
 
 def tracked_docs() -> list[str]:

@@ -133,6 +133,8 @@ cp -R Resources/Blocklists "${APP}/Contents/Resources/Blocklists"
 # One folder per language the app speaks (#433). The folders are also how macOS
 # knows which languages to offer for it in System Settings.
 cp -R Resources/Localization/*.lproj "${APP}/Contents/Resources/"
+# Each language's glossary (#434) is for whoever translates, not the app.
+rm -f "${APP}"/Contents/Resources/*.lproj/Glossary.json
 printf 'APPL????' > "${APP}/Contents/PkgInfo"
 
 # Sparkle (#132), which the app links, so every build carries it. Its two XPC

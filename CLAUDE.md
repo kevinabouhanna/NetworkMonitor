@@ -56,9 +56,14 @@ through without asking. What's particular to NetworkMonitor:
       prints, describing the interface, not its numbers.
     - videos it names as showing a changed window: ask Kevin before
       remaking them, since they take real work. The pictures, the popover's
-      and the speed test's included, it retakes itself.
+      and the speed test's included, it retakes itself, and copies the
+      README's into the `main` worktree it ran from: commit those in a pull
+      request into `main`.
   - `make site-audit` against the new install: every window, with real data
     in its lists, checked for what VoiceOver can't name. Fix what it finds.
+  - The native review: when the release changes text in a language, post
+    `make translation-review FROM=<last tag>` on the release's issue (it
+    mentions the reviewer). Nothing waits on it; their changes follow there.
 
 ## Accessibility
 
@@ -96,6 +101,12 @@ problems; Kevin answers what it can't judge (#346).
   docs (`docs/zh-Hans/`) and the website (`zh/index.html`) have a Chinese copy: a
   change to the English changes the copy too, using the app's own words
   (`docs/development.md#languages`).
+- **Each language's glossary** (`<code>.lproj/Glossary.json`) names features and
+  settings; `make test` holds the app's table to it, and the docs and site use the
+  same words. `make translation-check` (CI) fails a pull request that changes an
+  English page but not its copy; when that's deliberate, the description says
+  `No translation needed: <why>`. A new language follows
+  `docs/development.md#adding-a-language`.
 
 ## Layout
 

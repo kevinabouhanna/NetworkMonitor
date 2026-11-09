@@ -862,7 +862,7 @@
 "Nothing matches “%@”" = "没有与“%@”匹配的内容";
 "Not filtering connections" = "未在过滤连接";
 "The log shows each connection as the filter decides it. It fills once ad blocking or a rule is on, and starts afresh each time NetworkMonitor opens." = "日志会在过滤器判定每个连接时显示它。打开广告拦截或某条规则后才会有内容，每次打开 NetworkMonitor 时都会重新开始。";
-"Settings for the speed test" = "速度测试的设置";
+"Settings for the speed test" = "网速测试的设置";
 "Stopping app updates on hotspots is off: switch it on below." = "“停止热点下的应用更新”已关闭：可在下方打开。";
 "Stopping app updates on hotspots is off: switch it on in Network." = "“停止热点下的应用更新”已关闭：可在“网络”中打开。";
 
