@@ -5,8 +5,8 @@ numbers, with their setup behind a gear. Tracked in #437. This file is the recor
 the app looked like, what was planned and done, where ideas came from, what was decided
 and by whom, and what's left.
 
-**Status (2026-11-09):** Phases 0–2 are done. **Waiting on Kevin to choose a layout
-(Phase 3)** on the comparison page, where the three options are drawn as Mac windows:
+**Status (2026-11-09):** Phases 0–2 are done. **Waiting on Kevin's review of the revised
+plan (Phase 3, decision D6)** on the comparison page:
 https://claude.ai/artifact/GooXLRsHfm6a6CRRTsNu92 (private to Kevin). Nothing merges or
 releases until Kevin has reviewed it: both pull requests are drafts.
 
@@ -121,7 +121,7 @@ Neither merges until Kevin has reviewed it.
 | 0. Baseline | Pictures of every state; structure and pain points; baseline audit | **Done** (2026-11-09) |
 | 1. Context | `PRODUCT.md` and `DESIGN.md` | **Done**: working notes, not a review gate (changed below) |
 | 2. Research | Inspo, 3–5 references, plus native Mac apps described in words | **Done** (2026-11-09): [Inspiration](#3-inspiration) |
-| 3. Define | 2–3 options for the stats view and for the settings entry; a recommendation | **Drawn; waiting on Kevin's choice** on the comparison page |
+| 3. Define | 2–3 options for the stats view and for the settings entry; a recommendation | **Options drawn; C chosen, then revised (D6) after Kevin's concerns; waiting on his review** |
 | 4. Build | #436 in small commits, then Impeccable's layout, typeset, clarify, distill, and polish last | Pull request 2 |
 | 5. Critique | Audit again against the baseline; contrast, keyboard, VoiceOver, minimum size, light and dark, long names, empty and first-launch states | Pull request 2 |
 
@@ -193,7 +193,17 @@ Superlist, all marketing pages with nothing to say about an app's stats or setti
 | D2 | Two draft pull requests and a comparison page | One pull request; two | **Approved by Kevin**, 2026-11-09 |
 | D3 | How to use tools made for the web | Use them as they are; adapt them to the Mac (above) | Proposed 2026-11-09; Kevin didn't object |
 | D4 | Review visually, in the artifact, not by reading files | — | **Kevin's instruction**, 2026-11-09 |
-| D5 | The layout and where the settings go | **C** (recommended): Settings opens on today's numbers at a glance, setup in one Options… sheet that the windows' gear opens too, Lists folds into it. **A**: full stats in Settings like History, setup in a sheet, windows unchanged. **B**: the windows are home, setup in a toolbar inspector, Connections and Ads leave Settings | **Waiting on Kevin's choice** |
+| D5 | The layout and where the settings go | **C** (recommended): Settings opens on today's numbers at a glance, setup in one Options… sheet that the windows' gear opens too, Lists folds into it. **A**: full stats in Settings like History, setup in a sheet, windows unchanged. **B**: the windows are home, setup in a toolbar inspector, Connections and Ads leave Settings | Kevin: "if you feel C is good, go with it", with concerns that led to D6 |
+| D6 | **The revised plan** (replaces C): three places, one job each. **Popover = glance and the way in**: four named tiles with today's numbers (Connections, Ads blocked, History, Speed Test), Settings… apart at the bottom. **Windows = what happened**, every view kept, plus a gear that opens that feature's Settings pane. **Settings = what should happen**: switches, lists and rules only, each pane under a one-line status with a button to its window. Ads and Trackers' Lists and Rules tabs move into Settings › Ads; Usage History moves from Settings into its own window | — | **Waiting on Kevin's review** on the comparison page, 2026-11-09 |
+
+**Why the plan changed (Kevin, 2026-11-09).** The option mockups drew Connections
+without its map, which read as losing features: the aim is to lay things out by
+importance, never to drop any. The popover's four icons (Speed Test, Connections,
+History, Settings) say nothing until clicked, and ad blocking has no icon at all, only a
+grey line that appears once something is blocked. And under C, the gear would have
+opened numbers, when a gear should mean settings. So the numbers live in the popover and
+the windows, Settings holds only setup, and the popover names every way in. The page's
+**Nothing lost** tab lists every feature and where it lives after.
 
 **Why C.** Stats first on every surface, and each setting in one place. It follows
 macOS's own Battery and Screen Time panes, keeps Settings to one calm screen, and leaves
@@ -286,8 +296,7 @@ Beyond what the tools suggested. **Review these separately.**
 
 For Kevin, on the comparison page:
 
-1. **Which layout: C, A or B**, or a mix? (Whether numbers belong in Settings at all is
-   now answered by the options themselves: A and C keep them there, B doesn't.)
+1. **The revised plan (D6):** go ahead and build it, or change something?
 
 Smaller ones, with what happens if there's no answer:
 
