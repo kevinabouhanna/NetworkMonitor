@@ -5,7 +5,7 @@ numbers, with their setup behind a gear. Tracked in #437. This file is the recor
 the app looked like, what was planned and done, where ideas came from, what was decided
 and by whom, and what's left.
 
-**Status (2026-11-09):** Phases 0–2 are done. **Waiting on Kevin's review of the revised
+**Status (2026-11-09):** Phases 0–2 are done. **Waiting on Kevin's review of round 3 of the
 plan (Phase 3, decision D6)** on the comparison page:
 https://claude.ai/artifact/GooXLRsHfm6a6CRRTsNu92 (private to Kevin). Nothing merges or
 releases until Kevin has reviewed it: both pull requests are drafts.
@@ -196,6 +196,14 @@ Superlist, all marketing pages with nothing to say about an app's stats or setti
 | D5 | The layout and where the settings go | **C** (recommended): Settings opens on today's numbers at a glance, setup in one Options… sheet that the windows' gear opens too, Lists folds into it. **A**: full stats in Settings like History, setup in a sheet, windows unchanged. **B**: the windows are home, setup in a toolbar inspector, Connections and Ads leave Settings | Kevin: "if you feel C is good, go with it", with concerns that led to D6 |
 | D6 | **The revised plan** (replaces C): three places, one job each. **Popover = glance and the way in**: four named tiles with today's numbers (Connections, Ads blocked, History, Speed Test), Settings… apart at the bottom. **Windows = what happened**, every view kept, plus a gear that opens that feature's Settings pane. **Settings = what should happen**: switches, lists and rules only, each pane under a one-line status with a button to its window. Ads and Trackers' Lists and Rules tabs move into Settings › Ads; Usage History moves from Settings into its own window | — | **Waiting on Kevin's review** on the comparison page, 2026-11-09 |
 
+| D7 | **Round 3** (builds on D6). The popover's header becomes **four numbers that are the buttons**: Today (the apps, as now, and where it opens), Companies, Blocked and This week. Each shows its summary in place, ending with *Open Connections ⌘K*, *Open Ads and Trackers ⌘B* or *Open Usage History ⌘Y*. The network and the speed test (with its last result) share a slim line above; *Settings…* is named at the bottom. Settings panes follow the popover's order: General, Connections, Ads, History, Speed Test, Hotspot, About; each window's gear opens its own pane, *Settings…* the last one used | A slim header with a tab bar (Apps, Connections, Blocked, History): plainer, one number | **Waiting on Kevin's review**, 2026-11-09 |
+
+**Round 3 (Kevin, 2026-11-09).** Kevin liked the gear and the windows, and asked for the
+popover to load each place's summary in place, as it does for apps, with a way to the
+full picture from there; and found the header too big, with empty space beside the
+total. Numbers as buttons fill that space with something worth reading, and each says
+what clicking it shows.
+
 **Why the plan changed (Kevin, 2026-11-09).** The option mockups drew Connections
 without its map, which read as losing features: the aim is to lay things out by
 importance, never to drop any. The popover's four icons (Speed Test, Connections,
@@ -296,7 +304,7 @@ Beyond what the tools suggested. **Review these separately.**
 
 For Kevin, on the comparison page:
 
-1. **The revised plan (D6):** go ahead and build it, or change something?
+1. **The plan, round 3 (D6 and D7):** go ahead and build it, or change something?
 
 Smaller ones, with what happens if there's no answer:
 
