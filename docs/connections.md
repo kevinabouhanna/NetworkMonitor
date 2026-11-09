@@ -3,19 +3,21 @@
 English · [简体中文](zh-Hans/connections.md)
 
 Which companies your apps send data to, from which apps, in which countries, and to which
-servers. Click the 🌐 in the popover, choose **Connections…** (⌘K) from the right-click
-menu, or open **Settings › Connections**, which also sets the layout the window opens
-with.
+servers. It's a section of the main window: open it from **Open Connections** under
+Connections in the popover, the four squares beside the popover's gear, **Connections…**
+(⌘K) in the right-click menu, or the sidebar. Its settings, behind the gear in its
+toolbar, also set the layout it opens with.
 
 It runs quietly: until you make a rule or choose **Ask Me** (see [Blocking](#blocking)),
 nothing pops up and nothing is blocked. NetworkMonitor records the servers each app talks
-to as it already counts their data, and the window shows them whenever you look.
+to as it already counts their data, and Connections shows them whenever you look.
 
 ## Reading the window
 
-The toolbar holds the view (**List | Both | Map**), the period (**Day, Week, Month, Year**),
-**‹ Today ›**, and search. The row under it says what the list is grouped by and narrowed
-to, and which networks it covers. Then the period's name, its total, and the counts.
+The toolbar holds the view (**List | Both | Map**), the period (**Day, Week, Month, Year**)
+in the middle, **‹ Today ›**, search (⌘F) and the gear. The row under it says what's shown
+(**Traffic** or **Blocked**), what the list is grouped by and narrowed to, and which
+networks it covers. Then the period's name, its total, and the counts.
 
 - **Group by Companies, Apps or Countries.** Companies is the default, because that's the
   question: who gets your data.
@@ -23,35 +25,36 @@ to, and which networks it covers. Then the period's name, its total, and the cou
   it, the countries its servers are in, and the servers themselves. An app opens into
   its companies, countries and servers. A country opens into its companies, apps and
   servers.
-- **Click a row inside a group** to narrow the whole window to it. Choosing Teams inside
+- **Click a row inside a group** to narrow everything to it. Choosing Teams inside
   Microsoft reads *Microsoft › Teams*, and each chip's ✕ undoes its part.
 - **Drag across the timeline**, or click a bar, to see one part of the day: what your
   apps contacted in the hour after a call, say. Click the same bar again, or the chip's
   ✕, for the whole period.
-- **Search** finds a company, a network's registered name, an app, a country or an
-  address.
-- **Day, Week, Month, Year**, the arrows and ⌘← ⌘→ move through time, as in Usage
-  History, and **Networks: All / Wi-Fi / Hotspot** narrows it to one kind of network.
+- **Search**, the magnifying glass in the toolbar, finds a company, a network's
+  registered name, an app, a country or an address.
+- **Day, Week, Month, Year**, the arrows and ⌘← ⌘→ move through time, as in every
+  section, and **Networks: All / Wi-Fi / Hotspot** narrows it to one kind of network.
 - **Under each app is who made it**, read from its code signature, and the companies it
   talks to besides its maker. Hosts aren't counted: an app on Amazon's network isn't
   talking to Amazon.
 
 ## The map
 
-The window shows the list, the map, or both side by side (**List | Both | Map**). Both is
-the default, and whichever you choose is remembered. Too narrow for both, the window shows
-the list until you widen it.
+Connections shows the list, the map, or both side by side (**List | Both | Map**). Both is
+the default, and whichever you choose is remembered. Too narrow for both, it shows
+the list until you widen the window.
 
 - **Countries are shaded by how much data went there**, on a logarithmic scale, so a
   country with a few kilobytes still shows beside one with gigabytes.
-- **Hover a country** for a card with its top companies. **Click it** to narrow the whole
-  window to it.
+- **Hover a country** for a card with its top companies. **Click it** to narrow
+  everything to it.
 - **Narrow to a company, app or server**, and lines run from your country to where its
   data went. Your country comes from the Mac's Region setting, never from Location.
 - **Lines pulse to the countries your apps reach right now** whenever the map shows
   traffic for a period that includes now, with no switch to turn on (#182). Only the
-  pulses redraw on their own, and nothing runs while the window is closed, minimised or
-  covered, while it shows Blocked or a past period, or while nothing is answering.
+  pulses redraw on their own, and nothing runs while Connections isn't on screen
+  (another section, or the window closed, minimised or covered), while it shows Blocked
+  or a past period, or while nothing is answering.
 - **Drag to move, pinch or use the buttons to zoom.** Places too small to see at the
   current zoom, and places drawn inside another country such as Réunion, show as a dot
   when something went there.
@@ -67,7 +70,7 @@ used and nothing is downloaded.
 A server is an address. NetworkMonitor names it from data shipped inside the app: the
 country DB-IP places the address in, and the network it belongs to. Nothing is looked up
 online. The data is refreshed once a month, the same signed file for everyone, never on a
-hotspot; **Update them monthly** in Settings › Connections switches that off, and the
+hotspot; **Update them monthly** in Connections' settings switches that off, and the
 month in use is shown there (#121). See
 [privacy](privacy.md#naming-servers-without-asking-anyone).
 
@@ -75,7 +78,7 @@ month in use is shown there (#121). See
   companies that run their own networks: Google, Microsoft, Meta, Apple and many more.
 - **Hosted on Amazon** (or Cloudflare, Akamai, Fastly, Google Cloud and others), marked
   **HOST**, means the server is on a network that carries thousands of companies'
-  traffic. The data can't tell which one, so the window doesn't guess.
+  traffic. The data can't tell which one, so NetworkMonitor doesn't guess.
 - **Unknown network** is an address the data doesn't list: a private, carrier or VPN
   address such as Tailscale's.
 - **Other servers** is what an app talked to past 500 servers in one hour, added up as
@@ -93,15 +96,15 @@ connected by. Then `wss-primary.slack.com` on Amazon's network reads as **Slack*
 Servers list shows names, with the address underneath.
 
 - **Offered when you first open NetworkMonitor**, in the welcome window, and optional. Said
-  no? **Turn On…** is in Settings › Connections, and above the list in the Connections
-  window until you close it there (#134).
+  no? **Turn On…** is in Connections' settings, and above the list in Connections until
+  you close it there (#134).
 - **macOS asks twice:** once in System Settings (General › Login Items & Extensions ›
   Network Extensions ⓘ), then once in a dialog. The row shows each step while it waits.
 - **It runs in the background** from then on, with nothing to manage.
 - **It blocks only what you block** (see below).
 - **It fails open:** if the filter stops, nothing is cut off.
-- **Once it's on, Settings says nothing about it** (#181). It's switched off in System
-  Settings › Network › Filters, and then Settings › Connections offers **Turn On…** again.
+- **Once it's on, the settings say nothing about it** (#181). It's switched off in System
+  Settings › Network › Filters, and then Connections' settings offer **Turn On…** again.
   Uninstall removes it.
 - **Apps that connect by address are named from the handshake** (#196). Chrome, Figma
   and other Chromium apps look addresses up themselves, often over encrypted DNS, so the
@@ -114,9 +117,9 @@ Servers list shows names, with the address underneath.
 
 ## Blocking
 
-Right-click a company, app, country or server in the Connections window and choose
+Right-click a company, app, country or server in Connections and choose
 **Block**, **Block on Hotspots** or **Always Allow** (#114). The row says so beside its name,
-and Settings › Connections lists every rule, each with a button to take it back.
+and Connections' settings list every rule, each with a button to take it back.
 
 - **A server with a name is ruled by name** (#197), since a CDN moves a name from address to
   address. Each choice opens onto the name itself or its whole site: *stats.wp.com*, or
@@ -129,7 +132,7 @@ and Settings › Connections lists every rule, each with a button to take it bac
 - **A connection that opens without a name is decided once its handshake names it** (#196,
   #197): Chrome's, for example. Its first bytes wait for that, and a name never found leaves
   it decided as it was without one.
-- **On Hotspots** means while the Mac is on a hotspot, as the popover judges it.
+- **On Hotspots** means while the Mac is on a hotspot, as the Network page judges it.
 - **On "this network"** (#200): the menu also offers **Block "…" on "Office Wi-Fi"**, for the
   network the Mac is on. The rule applies only there, keyed by the router's identity as
   Usage History tells networks apart, never by the Wi-Fi name; elsewhere, the next rule
@@ -142,7 +145,7 @@ and Settings › Connections lists every rule, each with a button to take it bac
   setting instead. What it stopped shows under Blocked.
 - **Never blocked:** the local network, looking up names (DNS), the clock, and getting an
   address. Without them nothing else works.
-- **Export… and Import…** beside the rules in Settings › Connections (#201) save every rule
+- **Export… and Import…** beside the rules in Connections' settings (#201) save every rule
   to a JSON file, for a backup or another Mac. Import adds the rules that aren't there yet,
   never replaces one that is, and says how many it added.
 - **Block Everything,** in the menu bar item's right-click menu (#198), stops every app's
@@ -166,10 +169,10 @@ and Settings › Connections lists every rule, each with a button to take it bac
 
 ## Ads and trackers
 
-**Settings › Ads › Block ads and trackers** (#176) blocks, in every app, the sites on two
-lists. Ad blocking has a Settings pane of its own, beside Connections: the switch, the built-in
-lists, blocked today, the weekly update, and how many more lists and rules you keep in Ads and
-Trackers, with buttons to its Lists and Rules tabs.
+**Block ads and trackers** (#176) blocks, in every app, the sites on two lists. Ad blocking
+is a section of its own in the main window, **Ads and Trackers**, and its settings, behind
+the gear in its toolbar, hold the switch, **Update the lists weekly**, and **Lists** and
+**Your Rules**.
 
 | List | What it holds | From | Licence |
 |---|---|---|---|
@@ -196,9 +199,10 @@ Trackers, with buttons to its Lists and Rules tabs.
   for every app or one keeps an alias from counting for the ad lists. Lookups an app
   encrypts itself, such as Chrome's Secure DNS, can't be read.
 - **Connections tags each listed server** ADS or MALWARE, whether the lists are on or
-  not, so the window shows what's tracking you either way. **Show: Blocked** lists what
+  not, so it shows what's tracking you either way. **Show: Blocked** lists what
   they stopped.
-- **The popover** says how many they blocked today; click it to open **Ads and Trackers**.
+- **The popover's Ads blocked** button counts them for its period, by site or by app, in
+  red; **Open Ads and Trackers** (⌘B) at the bottom of its view opens the section.
 - **What it can't block:** ads served from a site's own servers, like YouTube's, since
   they can't be told apart from the site; empty boxes in a page where an ad would have
   been; and anything without a name (another port, or not TLS or QUIC). It's not an ad
@@ -209,27 +213,28 @@ Trackers, with buttons to its Lists and Rules tabs.
   fetches them weekly while they're on, never on a hotspot (**Update them weekly**). It
   ships with a copy, so they work offline.
 
-### The Ads and Trackers window
+### The Ads and Trackers section
 
-A window of its own (#251), from the popover's *blocked today* line, **Ads and Trackers…**
-in the right-click menu, Settings › Ads, or ⌘B while a window is open:
+A section of the main window (#251, #436), from **Open Ads and Trackers** under Ads blocked
+in the popover, the four squares beside the popover's gear, **Ads and Trackers…** in the
+right-click menu, the sidebar, or ⌘B while a window is open. **Overview | Log** heads it,
+and the toolbar's search (⌘F) covers both.
+
+**Overview:**
 
 - **How many were blocked** in the period (a day, week, month or year, with ‹ Today ›), by
   list, with an ⓘ saying how it works. The period is in the toolbar on Overview only: the
-  other tabs have none, so it's hidden there (#311). The tabs, Overview, Log, Lists and
-  Rules, head the window's content rather than the toolbar (#358), so the toolbar fits down
-  to 620 pt; the window's minimum is 700, where Overview's counts by list flow under the
-  total instead of beside it, and the Sites and Apps names still read.
+  Log is the present, so it's hidden there (#311).
 - **A chart** of blocks over the period, by hour or by day.
 - **Sites**, by the part of the name a person would call the site (`doubleclick.net`), with
   the names under it that were blocked; and **Apps**, with the sites each tried most.
 - **Pause:** for an hour or until tomorrow, in every app. The lists stay chosen, the filter
   is sent none until then, and the popover says it's paused. Kept across a relaunch.
   **Whenever on** *this network* (#253) turns ad blocking off on the network the Mac is on,
-  by the router's identity as History knows it, every time it's there; the Rules tab lists
+  by the router's identity as History knows it, every time it's there; Your Rules lists
   those networks, and **Turn On Here** undoes it.
 
-**Log** (#252), the tab beside Overview: every connection the filter decides, live,
+**Log** (#252), beside Overview: every connection the filter decides, live,
 newest first, with the time, the app, the site (or its address, marked **No Name** when
 nothing named it), Blocked or Let through, and why in plain words (*On the ads and trackers
 list*, *Your rule: never block example.com*, *Let through, though it's on a list*). Show
@@ -237,13 +242,13 @@ All, Blocked, On a List or No Name, and search. Right-click a row to never or al
 its name or its whole site, in every app or only that one, to stop filtering its app, or to
 remove a rule you made. **Pause**
 holds the list still, **Clear** empties it, and **Export…** saves what's shown as text. It
-keeps the last 5,000 in memory only; lookups aren't listed. When the window is too narrow
-for search to be 240 pt wide beside the rest, search takes a row of its own under them
-(#370), so no button loses its words.
+keeps the last 5,000 in memory only; lookups aren't listed. It fills once ad blocking or
+a rule is on, and starts afresh each time NetworkMonitor opens.
 
-**Lists** (#254), the third tab: which lists block, and what each blocked today (#311).
+**Lists** (#254), in Ads and Trackers' settings: which lists block, and what each blocked
+today (#311).
 
-- **Built in:** the two above, switched on and off here as in Settings.
+- **Built in:** the two above, switched on and off here.
 - **Recommended** (#314), on by default: **HaGeZi Normal** and **OISD Big**, chosen by the app
   so nobody has to weigh lists against broken sites. Between them they block most ads and
   trackers; OISD is made to block ads without breaking sites and HaGeZi Normal is HaGeZi's
@@ -279,11 +284,11 @@ for search to be 240 pt wide beside the rest, search takes a row of its own unde
 - **They block only alongside a built-in list**, after it: a site on StevenBlack's list counts
   as *Ads and trackers*. The Overview and the Log name the list that blocked each connection,
   so one that blocks too much can be found and switched off.
-- **Import…** on the Rules tab switches on the lists a uBlock Origin backup or AdGuard's
+- **Import…** under Your Rules switches on the lists a uBlock Origin backup or AdGuard's
   settings had that are here (Peter Lowe's, EasyPrivacy, AdGuard DNS filter), and adds the
   ones they had by address.
 
-**Rules** (#253), the fourth tab: your own say over what the lists do.
+**Your Rules** (#253), beside Lists in Ads and Trackers' settings: your own say over what the lists do.
 
 - **Never block** a site, and every name under it: it goes through though a list has it.
 - **Always block** a site that no list has.
@@ -311,7 +316,7 @@ for search to be 240 pt wide beside the rest, search takes a row of its own unde
     site's pages"; here, connections to the site itself go through, since the filter can't tell
     which page asked.
   - The lists it had on switch on the ones NetworkMonitor has (ads and trackers, malware, and
-    those on the Lists tab), lists it had added by address are added the same way (#254), and
+    those under Lists), lists it had added by address are added the same way (#254), and
     the rest are named as not offered yet.
   - Rules that hide parts of a page (`##`, scriptlets) are counted as waiting for the browser
     extension (#257); rules about part of a site (a path, `$third-party`, `$domain=`) as waiting
@@ -332,7 +337,7 @@ long as History, and Clear History clears it.
 period, grouping, search and map, counting connections rather than bytes. Right-click one to
 allow it.
 
-**Let apps connect**, in Settings › Connections, is one of three:
+**Let apps connect**, in Connections' settings, is one of three:
 
 - **Anywhere**, the default: everything connects except what you block.
 - **Ask Me** (#129): the first time an app connects to a company, it waits while a small
@@ -344,14 +349,14 @@ allow it.
   - **For:** the site (`segment.io` and every name under it) or the whole company.
   - **Allow:** **Once** lets it go and asks again in an hour; **Until It Quits** lasts until
     that app quits; **Always** makes a rule. **Block** makes a rule. Rules from answers are
-    for that app only and listed in Settings ("\*.segment.io · for Figma, until it quits").
+    for that app only and listed in Connections' settings ("\*.segment.io · for Figma, until it quits").
     The Allow button's menu also offers the app anywhere.
   - Every connection between the same app and company or site waits on the one question,
     and with no answer in 30 seconds they go ahead, and the panel says so. Nothing is asked
     about macOS or Apple's apps, or while NetworkMonitor isn't running.
 - **Only Where I Allow**: every app is blocked until you allow it, apart from macOS and
   Apple's own apps, which can always connect unless you block them. It asks first, since
-  that includes your browser, and the window then opens on Blocked, where you allow each app
+  that includes your browser, and Connections then opens on Blocked, where you allow each app
   or company with a right-click.
 
 A rule for one app comes before any rule for every app: *Amazon · for Slack* allowed with
@@ -359,7 +364,7 @@ A rule for one app comes before any rule for every app: *Amazon · for Slack* al
 
 ## Encrypted lookups
 
-**Settings › Connections › Lookups › Encrypt lookups** (#291), off until switched on, sends the
+**Encrypt lookups**, under Lookups in Connections' settings (#291), off until switched on, sends the
 Mac's DNS lookups encrypted, over DNS over HTTPS, to **Cloudflare** (1.1.1.1), **Quad9**
 (9.9.9.9) or **Google** (8.8.8.8). Without it they travel unencrypted to the network's DNS
 server, so the internet provider and anyone on the Wi-Fi can read every name looked up.
@@ -382,5 +387,5 @@ server, so the internet provider and anyone on the Wi-Fi can read every name loo
 ## What it costs
 
 Nothing you'd notice. Recording uses rows `nettop` already reports, and measured no extra
-CPU. The record is kept as long as Usage History (**Keep history for** in Settings ›
-History) and cleared with it. The data that names servers adds about 5.5 MB to the download.
+CPU. The record is kept as long as Usage History (**Keep history for** in Usage History's
+settings) and cleared with it. The data that names servers adds about 5.5 MB to the download.

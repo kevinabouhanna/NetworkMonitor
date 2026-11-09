@@ -2,21 +2,23 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// The Connections window: its own, not a Settings pane, because it's read
+/// Connections, a section of the main window (#436); a window of its own only
+/// for the accessibility tests. Once its own window, not a Settings pane, because it's read
 /// beside other work and wants room for the list and the map side by side.
 ///
 /// Its controls are a real window toolbar (#123), laid out as Apple's own
 /// windows lay theirs out: the view on the leading side as in Finder, the
 /// period centred and ‹ Today › trailing as in Calendar, then search. What the
 /// list is grouped by and narrowed to is a labelled row in the window.
-public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
+public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
 
     public let window: NSWindow
     private let model: ConnectionsViewModel
     private let layoutControl = NSSegmentedControl()
     private let scaleControl = NSSegmentedControl()
     private let stepControl = NSSegmentedControl()
-    private var searchField: NSSearchField?
+    /// Search, in the toolbar: a magnifying glass until it's used (#436).
+    public let search = ToolbarSearch(NSToolbarItem.Identifier("search"))
     private var observation: AnyCancellable?
     private var occlusion: AnyCancellable?
     private var languageObservation: AnyCancellable?
@@ -24,31 +26,40 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
     private static let layoutItem = NSToolbarItem.Identifier("layout")
     private static let scaleItem = NSToolbarItem.Identifier("scale")
     private static let stepItem = NSToolbarItem.Identifier("step")
-    private static let searchItem = NSToolbarItem.Identifier("search")
 
-    public init(model: ConnectionsViewModel) {
+    /// The content and the toolbar, for the window of its own or for a
+    /// section of the main window (#436), which shows them in its place.
+    public let content: NSViewController
+    public let toolbar: NSToolbar
+    private let standalone: Bool
+
+    public init(model: ConnectionsViewModel, standalone: Bool = true) {
         self.model = model
+        self.standalone = standalone
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 760),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
-        super.init()
         let host = NSHostingController(rootView: ConnectionsView(model: model).localizedRoot())
+        content = host
+        toolbar = NSToolbar(identifier: standalone ? "Connections" : "Main.connections")
+        super.init()
         // The window keeps the size it's given or dragged to. Sized to its
         // content, it would jump each time the list grew or shrank.
         host.sizingOptions = []
-        window.contentViewController = host
+        if standalone { window.contentViewController = host }
         window.setContentSize(NSSize(width: 1120, height: 760))
         window.contentMinSize = NSSize(width: ConnectionsMetrics.minWidth, height: ConnectionsMetrics.minHeight)
         window.isReleasedWhenClosed = false
 
         configureControls()
-        let toolbar = NSToolbar(identifier: "Connections")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
         toolbar.centeredItemIdentifiers = [Self.scaleItem]
-        window.toolbar = toolbar
-        window.toolbarStyle = .unified
+        if standalone {
+            window.toolbar = toolbar
+            window.toolbarStyle = .unified
+        }
         nameControls()
         // The words follow a language chosen while the window is open (#433).
         languageObservation = NotificationCenter.default
@@ -73,7 +84,11 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
 
     public var isVisible: Bool { window.isVisible }
 
-    public func windowDidShow() { model.windowDidOpen() }
+    /// The toolbar's gear: Connections' settings (#436).
+    public var onSettings: () -> Void = {}
+
+    /// `fresh` false: shown again in the open main window, as it was (#436).
+    public func windowDidShow(fresh: Bool = true) { model.windowDidOpen(reset: fresh) }
 
     public func windowWillClose() { model.windowDidClose() }
 
@@ -86,11 +101,8 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         layoutControl.target = self
         layoutControl.action = #selector(layoutChosen)
 
-        let scales = HistoryScale.allCases
-        scaleControl.segmentCount = scales.count
-        scaleControl.trackingMode = .selectOne
-        scaleControl.target = self
-        scaleControl.action = #selector(scaleChosen)
+        PeriodControl.configure(scaleControl, target: self, action: #selector(scaleChosen))
+        search.onChange = { [weak self] in self?.model.search = $0 }
 
         stepControl.segmentCount = 3
         stepControl.trackingMode = .momentary
@@ -110,9 +122,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
             layoutControl.setToolTip(layout.label, forSegment: index)
         }
 
-        for (index, scale) in HistoryScale.allCases.enumerated() {
-            scaleControl.setLabel(scale.label, forSegment: index)
-        }
+        PeriodControl.name(scaleControl)
 
         stepControl.setImage(NSImage(systemSymbolName: "chevron.left", accessibilityDescription: L("Previous")),
                              forSegment: 0)
@@ -123,13 +133,14 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         stepControl.setToolTip(L("Back to the present"), forSegment: 1)
         stepControl.setToolTip(L("Next (⌘→)"), forSegment: 2)
 
-        for item in window.toolbar?.items ?? [] {
+        for item in toolbar.items {
             if let names = Self.names(for: item.itemIdentifier) {
                 item.label = names.label
                 item.toolTip = names.help
             }
         }
-        searchField?.placeholderString = L("Company, app, country or address")
+        search.name(placeholder: L("Company, app, country or address"),
+                    help: L("Search companies, apps, countries and addresses (⌘F)"))
     }
 
     /// A toolbar item's name and tooltip, in the language shown.
@@ -138,6 +149,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         case layoutItem: return (L("View"), L("The list, both side by side, or the map"))
         case scaleItem:  return (L("Period"), L("A day, week, month or year at a time"))
         case stepItem:   return (L("Go"), L("Move through time"))
+        case SettingsGear.identifier: return (L("Settings"), L("Settings for Connections"))
         default:         return nil
         }
     }
@@ -147,9 +159,8 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         scaleControl.selectedSegment = HistoryScale.allCases.firstIndex(of: model.scale) ?? 0
         stepControl.setEnabled(model.canStepBack, forSegment: 0)
         stepControl.setEnabled(model.canStepForward, forSegment: 2)
-        if let searchField, searchField.stringValue != model.search {
-            searchField.stringValue = model.search
-        }
+        search.show(model.search)
+        search.fitGlass()
     }
 
     @objc private func layoutChosen(_ sender: NSSegmentedControl) {
@@ -168,10 +179,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         }
     }
 
-    public func controlTextDidChange(_ notification: Notification) {
-        guard let field = notification.object as? NSSearchField else { return }
-        model.search = field.stringValue
-    }
+    @objc private func openSettings() { onSettings() }
 
     static func symbol(for layout: ConnectionsViewModel.Layout) -> String {
         switch layout {
@@ -184,15 +192,18 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
     // MARK: NSToolbarDelegate
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Self.layoutItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, Self.searchItem]
+        (standalone ? [] : MainWindowController.sidebarItems)
+            + [Self.layoutItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem,
+               search.restingIdentifier, .space, SettingsGear.identifier]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        toolbarDefaultItemIdentifiers(toolbar)
+        toolbarDefaultItemIdentifiers(toolbar).filter { !search.identifiers.contains($0) } + search.identifiers
     }
 
     public func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                         willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        if let item = search.item(for: identifier, in: toolbar) { return item }
         switch identifier {
         case Self.layoutItem:
             return item(identifier, control: layoutControl)
@@ -200,13 +211,9 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
             return item(identifier, control: scaleControl)
         case Self.stepItem:
             return item(identifier, control: stepControl)
-        case Self.searchItem:
-            let item = NSSearchToolbarItem(itemIdentifier: identifier)
-            item.searchField.delegate = self
-            item.searchField.placeholderString = L("Company, app, country or address")
-            item.preferredWidthForSearchField = 240
-            searchField = item.searchField
-            return item
+        case SettingsGear.identifier:
+            return SettingsGear.item(target: self, action: #selector(openSettings),
+                                     help: L("Settings for Connections"))
         default:
             return nil
         }

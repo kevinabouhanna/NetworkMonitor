@@ -134,25 +134,35 @@ public final class AdsViewModel: ObservableObject {
         public var id: Date { interval.start }
     }
 
-    /// Overview, the log (#252), the lists (#254) or your rules (#253), from
-    /// the window's toolbar.
+    /// Overview or the log (#252), at the top of the window. The lists (#254)
+    /// and your rules (#253) are setup, so they're in Ads and Trackers' settings (#436).
     public enum Tab: String, CaseIterable, Identifiable {
-        case overview, log, lists, rules
+        case overview, log
 
         public var id: String { rawValue }
         public var label: String {
             switch self {
             case .overview: return L("Overview")
             case .log:      return L("Log")
-            case .lists:    return L("Lists")
-            case .rules:    return L("Rules")
             }
         }
 
         /// Whether the toolbar shows the period (#311). Only Overview has one:
-        /// the log is the present, rules have no period, and the lists count
-        /// today's blocks.
+        /// the log is the present.
         public var hasPeriod: Bool { self == .overview }
+    }
+
+    /// The lists or your rules, in Ads and Trackers' settings (#436).
+    public enum SetupTab: String, CaseIterable, Identifiable {
+        case lists, rules
+
+        public var id: String { rawValue }
+        public var label: String {
+            switch self {
+            case .lists: return L("Lists")
+            case .rules: return L("Your Rules")
+            }
+        }
     }
 
     /// An app a rule can be for: its key and its name.
@@ -168,6 +178,7 @@ public final class AdsViewModel: ObservableObject {
     }
 
     @Published public var tab: Tab = .overview
+    @Published public var setupTab: SetupTab = .lists
     @Published public var logShow: AdsLog.Show = .all
     @Published public var logSearch = ""
     /// What the log showed when it was paused; nil while it's live.
@@ -527,8 +538,9 @@ public final class AdsViewModel: ObservableObject {
 
     // MARK: Window lifecycle
 
-    public func windowDidOpen() {
-        period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar)
+    /// `reset` false: the section shown again in the open window (#436).
+    public func windowDidOpen(reset: Bool = true) {
+        if reset { period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar) }
         reload()
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
@@ -555,6 +567,12 @@ public final class AdsViewModel: ObservableObject {
     }
 
     public var title: String { period.title(now: Date(), calendar: calendar) }
+
+    /// The period of `scale` that holds now, as the popover's period chose
+    /// (#449), so Open … shows the window on the numbers the popover showed.
+    public func showPresent(_ scale: HistoryScale) {
+        show(HistoryPeriod(scale: scale, containing: Date(), calendar: calendar))
+    }
     public var canStepForward: Bool { period.end <= Date() }
     public var canStepBack: Bool { recordingSince.map { period.start > $0 } ?? false }
 
@@ -577,7 +595,8 @@ public final class AdsViewModel: ObservableObject {
         reloadToday()
     }
 
-    private func reloadToday() {
+    /// What each list blocked today, for the lists in Ads and Trackers' settings.
+    public func reloadToday() {
         guard let history = monitor.store.history else { return }
         let now = Date()
         let blocks = history.listBlocks(from: calendar.startOfDay(for: now), to: now.addingTimeInterval(3600))

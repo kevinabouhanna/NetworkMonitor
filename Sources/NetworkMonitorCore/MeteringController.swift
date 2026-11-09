@@ -30,8 +30,10 @@ public final class MeteringController: ObservableObject {
     /// Why the current connection was judged metered or not.
     @Published public private(set) var verdict: MeteredHeuristic.Verdict = .unmetered
     /// What the person said about the current network, if anything: `true`
-    /// for a hotspot, `false` for not one. Settings › Hotspot's choice.
+    /// for a hotspot, `false` for not one. Network's hotspot switch.
     @Published public private(set) var override: Bool?
+    /// Whether detection alone takes this network for a hotspot.
+    @Published public private(set) var detectsHotspot = false
     /// A hotspot the Mac has joined but isn't using (#355). Only ever said, not
     /// acted on: pauses and History follow the connection in use.
     @Published public private(set) var standbyHotspot: StandbyHotspot?
@@ -180,6 +182,12 @@ public final class MeteringController: ObservableObject {
         signals.userOverride = store.currentMeteredOverride
         override = signals.userOverride
         verdict = MeteredHeuristic.verdict(for: signals)
+        // What detection says without your say, so the popover's switch
+        // knows whether turning it off means "back to detecting" (#436).
+        var detected = signals
+        detected.userOverride = nil
+        let detectedHotspot = MeteredHeuristic.verdict(for: detected).isMetered
+        if detectsHotspot != detectedHotspot { detectsHotspot = detectedHotspot }
 
         let shouldSuppress = isEnabled && verdict.isMetered
         if shouldSuppress {
@@ -243,13 +251,13 @@ public final class MeteringController: ObservableObject {
         evaluate()
     }
 
-    /// What Settings › Hotspot lists.
+    /// What the Network page lists.
     public struct Listing {
         public var items: [ToggleItem]
         public var uncovered: [UpdaterScan.Finding]
     }
 
-    /// `refresh()`, and the two lists Settings › Hotspot shows, with the slow
+    /// `refresh()`, and the two lists the Network page shows, with the slow
     /// parts off the main thread (#65). `done` gets the lists on the main thread,
     /// after the re-check.
     ///
@@ -623,8 +631,8 @@ public final class MeteringController: ObservableObject {
         if let lowData {
             switch lowData.refreshAvailability() {
             case .available:      lines.append("  helper: ready")
-            case .helperMissing:  lines.append("  helper: not installed (Settings › Allow…)")
-            case .helperOutdated: lines.append("  helper: too old for Low Data Mode (Settings › Allow…)")
+            case .helperMissing:  lines.append("  helper: not installed (Network › Allow…)")
+            case .helperOutdated: lines.append("  helper: too old for Low Data Mode (Network › Allow…)")
             }
             if let hold = ownership.hold {
                 lines.append("  held on \(hold.interface): " + [

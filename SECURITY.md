@@ -17,7 +17,7 @@ Don't open a public issue or pull request for it.
 
 Include:
 
-- the NetworkMonitor version (Settings › About) and the macOS version;
+- the NetworkMonitor version (About NetworkMonitor, in the right-click menu) and the macOS version;
 - what an attacker can do, and what they need first (a local account, admin rights,
   being on the same network);
 - the steps to reproduce it.

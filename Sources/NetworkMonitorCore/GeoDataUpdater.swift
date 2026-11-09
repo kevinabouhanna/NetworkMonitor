@@ -14,7 +14,7 @@ import ServerDirectory
 ///   below, each table's size and SHA-256 match, and the tables open;
 /// - anything less keeps the copy already there, and the shipped copy is
 ///   always the fallback;
-/// - on by default, with a switch in Settings › Connections.
+/// - on by default, with a switch in Connections' settings.
 public final class GeoDataUpdater: ObservableObject {
 
     @Published public var isEnabled: Bool {

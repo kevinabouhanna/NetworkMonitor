@@ -23,9 +23,9 @@ If you'd rather not take a binary on trust, the code is all in this repository, 
    open it, and drag **NetworkMonitor** into **Applications**.
 2. Open NetworkMonitor from Applications.
 
-The ↓ ↑ readout appears in the menu bar. NetworkMonitor has no Dock icon and no
-window of its own; everything starts from the readout. It registers itself to
-start at login, which you can turn off in **Settings › General**.
+The ↓ ↑ readout appears in the menu bar. NetworkMonitor has no Dock icon until you
+open its window; everything starts from the readout. It registers itself to
+start at login, which you can turn off in **Settings**.
 
 The first time, a welcome window offers two things, both optional (#134):
 
@@ -36,14 +36,14 @@ The first time, a welcome window offers two things, both optional (#134):
   *Wi-Fi · 3f2a*.
 
 Neither is asked for again on its own. Skip either, and it has a **Turn On…** where it's
-used: website names in Settings › Connections, Wi-Fi names in Settings › General.
+used: website names in Connections' settings, Wi-Fi names in Settings.
 
 ## Update
 
 From 1.15 on, NetworkMonitor updates itself with Sparkle (#132). Once a day it asks
 GitHub whether there's a newer version, never on a hotspot, and offers it: what's new,
 and **Install Update** when you're ready. **Check for Updates…** in its menu asks at
-once, and Settings › About switches the daily check off. An update installs only if its
+once, and **Check for updates automatically** in Settings switches the daily check off. An update installs only if its
 disk image is signed with the key built into the app.
 
 Before 1.15, or to do it by hand:
@@ -67,8 +67,7 @@ reinstalls, with the tests first so a bad pull can't replace a working copy.
 
 ## Uninstall
 
-Right-click the menu bar readout and choose **Uninstall NetworkMonitor…**, or open
-**Settings › About** and click **Uninstall…**. In order, it:
+Right-click the menu bar readout and choose **Uninstall NetworkMonitor…**, or click it at the bottom of Settings. In order, it:
 
 1. removes the content filter, if you turned on website names: its settings at once, and
    the extension itself, which macOS may finish at the next restart;

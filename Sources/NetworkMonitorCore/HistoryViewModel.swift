@@ -31,7 +31,12 @@ public final class HistoryViewModel: ObservableObject {
     @Published public var hoveredBin: Date?
     @Published public var expandedApps: Set<String> = []
     @Published public var systemExpanded = false
+    /// The toolbar's search (#436): narrows the list, not the chart or the
+    /// totals, by an app's or a network's name.
+    @Published public var search = ""
     @Published public private(set) var retention: HistoryRetention
+    /// Today's total, for the line heading Usage History's settings (#436).
+    @Published public private(set) var todayTotal: Int64 = 0
 
     public static let retentionKey = "historyRetention"
 
@@ -55,13 +60,19 @@ public final class HistoryViewModel: ObservableObject {
 
     /// Each opening starts at the present, at the scale last used, unfiltered
     /// or on Hotspot while the Mac is on one: see `HistoryFilter.opening(on:)`.
-    public func windowDidOpen() {
+    /// `reset` false: the section shown again in the open window (#436),
+    /// read again with its period, filters and search as they were.
+    public func windowDidOpen(reset: Bool = true) {
         retention = history?.retention ?? .forever
-        hoveredBin = nil
-        expandedApps.removeAll()
-        systemExpanded = false
-        show(HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar),
-             filter: .opening(on: monitor.store.currentNetwork.kind))
+        if reset {
+            hoveredBin = nil
+            expandedApps.removeAll()
+            systemExpanded = false
+            show(HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar),
+                 filter: .opening(on: monitor.store.currentNetwork.kind))
+        } else {
+            reload()
+        }
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             guard let self, self.period.contains(Date()) else { return }
@@ -72,6 +83,16 @@ public final class HistoryViewModel: ObservableObject {
     public func windowDidClose() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+    }
+
+    /// Today's total and how long history is kept, for Usage History's settings,
+    /// whether or not the window is open.
+    public func refreshToday() {
+        retention = history?.retention ?? .forever
+        history?.loadReport(for: HistoryPeriod(scale: .day, containing: Date(), calendar: calendar),
+                            filter: HistoryFilter()) { [weak self] report in
+            self?.todayTotal = report.total
+        }
     }
 
     // MARK: Navigation
@@ -90,6 +111,12 @@ public final class HistoryViewModel: ObservableObject {
     }
 
     public var title: String { period.title(now: Date(), calendar: calendar) }
+
+    /// The period of `scale` that holds now, as the popover's period chose
+    /// (#449), so Open … shows the window on the numbers the popover showed.
+    public func showPresent(_ scale: HistoryScale) {
+        show(HistoryPeriod(scale: scale, containing: Date(), calendar: calendar), filter: filter)
+    }
 
     public var isCurrent: Bool { period.contains(Date()) }
 

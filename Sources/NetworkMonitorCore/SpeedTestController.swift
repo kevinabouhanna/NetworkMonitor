@@ -5,7 +5,7 @@ import Foundation
 public enum SpeedTestStyle: String, CaseIterable, Identifiable {
     /// Takes the app list's place: a dial and the full breakdown.
     case card
-    /// Two lines above the app list, which stays in view.
+    /// Two lines above Network's view, which stays in view.
     case compact
 
     public var id: String { rawValue }

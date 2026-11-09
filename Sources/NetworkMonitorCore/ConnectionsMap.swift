@@ -88,9 +88,9 @@ struct ConnectionsMap: View {
                 if shape.isDot || shape.extent * frame.scale < 4 {
                     let centre = frame.point(shape.label)
                     context.stroke(Path(ellipseIn: CGRect(x: centre.x - 6, y: centre.y - 6, width: 12, height: 12)),
-                                   with: .color(.accentColor), lineWidth: 1.5)
+                                   with: .color(AppPalette.connections), lineWidth: 1.5)
                 } else {
-                    context.stroke(shape.path.applying(transform), with: .color(.accentColor), lineWidth: 1.5)
+                    context.stroke(shape.path.applying(transform), with: .color(AppPalette.connections), lineWidth: 1.5)
                 }
             }
 
@@ -103,7 +103,7 @@ struct ConnectionsMap: View {
                 where code != home.code {
                     guard let shape = shapes.byCode[code] else { continue }
                     context.stroke(Self.arc(from: origin, to: frame.point(shape.label)),
-                                   with: .color(.accentColor.opacity(0.7)), lineWidth: 1.2)
+                                   with: .color(AppPalette.connections.opacity(0.7)), lineWidth: 1.2)
                 }
             }
         }
@@ -125,7 +125,7 @@ struct ConnectionsMap: View {
     static func fill(_ bytes: Int64, of largest: Int64, minimum: Double = 0.22) -> Color {
         guard bytes > 0, largest > 0 else { return Color.secondary.opacity(0.18) }
         let share = log(1 + Double(bytes)) / log(1 + Double(largest))
-        return Color.accentColor.opacity(minimum + (0.92 - minimum) * share)
+        return AppPalette.connections.opacity(minimum + (0.92 - minimum) * share)
     }
 
     /// A curve that bows away from the straight line, like a flight path.

@@ -70,61 +70,10 @@ enum SpeedTestPalette {
     }
 }
 
-// MARK: - Header button
-
-/// The popover's way in: one press, one fresh measurement.
-///
-/// When the card has been put away mid-test, the button carries the live
-/// reading and brings the card back, so a test sent out of sight is never lost.
-struct SpeedTestButton: View {
-    @ObservedObject var speedTest: SpeedTestController
-
-    private var isHiddenRun: Bool {
-        speedTest.phase != .idle && !speedTest.isPresented
-    }
-
-    var body: some View {
-        Button {
-            if isHiddenRun { speedTest.present() } else { speedTest.run() }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "gauge.with.dots.needle.67percent")
-                    .font(.system(size: 13))
-                if isHiddenRun, speedTest.phase.isRunning {
-                    HeaderLiveReading(live: speedTest.live, unit: speedTest.unit)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(L("Speed test"))
-        .foregroundStyle(speedTest.phase == .idle
-                         ? AnyShapeStyle(.secondary) : AnyShapeStyle(SpeedTestPalette.download))
-        .disabled(speedTest.phase.isRunning && !isHiddenRun)
-        .help(isHiddenRun ? L("Show the speed test")
-              : speedTest.phase.isRunning ? L("Speed test running") : L("Test internet speed"))
-    }
-}
-
-/// "↓ 17.2" beside the gauge while a hidden test runs.
-private struct HeaderLiveReading: View {
-    @ObservedObject var live: SpeedTestController.Live
-    let unit: SpeedUnit
-
-    var body: some View {
-        let uploading = live.progress.stage == .upload
-        let bits = uploading ? live.progress.uploadBitsPerSecond
-                             : live.progress.downloadBitsPerSecond
-        Text("\(uploading ? "↑" : "↓") \(SpeedTestPalette.parts(bits, unit).number)") // untranslated: arrow and figure
-            .font(.system(size: 10, weight: .semibold))
-            .monospacedDigit()
-            .foregroundStyle(uploading ? SpeedTestPalette.upload : SpeedTestPalette.download)
-    }
-}
-
 // MARK: - Card
 
 /// Takes the list's place while a test is on screen, with a dial and the
-/// full breakdown. "Back to Apps" returns the list.
+/// full breakdown. "Back" returns to the Connection view (#436).
 ///
 /// Running and finished share one layout, the tiles filling in as figures
 /// arrive, so the result lands in place instead of the card rearranging itself
@@ -188,7 +137,7 @@ struct SpeedTestCard: View {
         HStack {
             // Leaves the card, never the test: a run in progress carries on and
             // the header button brings it back. Stop is the button that stops.
-            Button(L("Back to Apps")) { speedTest.hide() }
+            Button(L("Back")) { speedTest.hide() }
                 .controlSize(.small)
             Spacer()
             Button(primary, action: primaryAction)
@@ -200,7 +149,7 @@ struct SpeedTestCard: View {
 
 // MARK: - Compact
 
-/// The compact style: the test as two lines above the app list, which stays in
+/// The compact style: the test as two lines above Network's view, which stays in
 /// view.
 ///
 /// Download and upload are thin gauges on the dial's log scale with their
@@ -221,7 +170,7 @@ struct SpeedTestStrip: View {
             case .running(let startedAt):
                 StripBody(live: speedTest.live, result: nil, startedAt: startedAt,
                           unit: speedTest.unit) {
-                    // No "Back to Apps" here: the apps never left.
+                    // No "Back" here: Network's view never left.
                     iconButton("stop.circle.fill", L("Stop the test")) { speedTest.dismiss() }
                 }
             case .finished(let result):
@@ -697,7 +646,7 @@ private struct SpeedTestStylePicture: View {
                     CardBody(live: Self.live, result: Self.sample, startedAt: nil, unit: unit)
                     Spacer(minLength: 0)
                     HStack {
-                        pill(L("Back to Apps"), prominent: false)
+                        pill(L("Back"), prominent: false)
                         Spacer()
                         pill(L("Test Again"), prominent: true)
                     }

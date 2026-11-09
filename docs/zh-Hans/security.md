@@ -12,7 +12,7 @@
 
 请包括：
 
-- NetworkMonitor 的版本（设置 › 关于）和 macOS 的版本；
+- NetworkMonitor 的版本（右键菜单中的“关于 NetworkMonitor”）和 macOS 的版本；
 - 攻击者能做什么，以及需要先具备什么条件（本地账户、管理员权限、处于同一网络中）；
 - 重现步骤。
 

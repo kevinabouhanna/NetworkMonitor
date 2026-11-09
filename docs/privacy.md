@@ -41,14 +41,14 @@ Four things, and nothing else:
   - It's used only if the manifest's signature checks out against the key built into the
     app, and each table's size and SHA-256 match. Anything less keeps the copy already
     there.
-  - On by default. Switch it off in Settings › Connections › **Update them monthly**.
+  - On by default. Switch it off with **Update them monthly** in Connections' settings.
 
 - **Once a week, while you've switched them on, the ad, tracker and malware lists**
   (#176), from this repository's `blocklists` release: a signed manifest and two
   compressed lists, about 0.6 MB. The same file for everyone, signed with the same key as
   the country data, never on a hotspot, and used only if the signature and each list's
-  size and SHA-256 match. Off until you switch the lists on; then Settings › Ads ›
-  **Update them weekly** switches the download off. The app ships with a copy, so the
+  size and SHA-256 match. Off until you switch the lists on; then **Update the lists
+  weekly**, in Ads and Trackers' settings, switches the download off. The app ships with a copy, so the
   lists work without it.
 
 - **Once a day, whether there's a newer version** (#132). Sparkle, the updater many Mac
@@ -56,7 +56,8 @@ Four things, and nothing else:
   version. GitHub sees your IP address and which version of NetworkMonitor asked. Never
   on a hotspot or metered connection, unless you choose **Check for Updates…**. An update
   downloads and installs only when you say so, and only if its disk image is signed with
-  the key built into the app. Switch the daily check off in Settings › About.
+  the key built into the app. Switch the daily check off with **Check for updates
+  automatically** in Settings.
 
 There is no analytics, no telemetry, no crash reporting and no account.
 
@@ -80,7 +81,7 @@ Everything stays on your Mac:
 The speed test works in a temporary folder that is deleted as soon as the result is
 read. The last result is kept in memory only, and dropped when you change network.
 
-**Clear History** in Settings › History deletes Usage History, servers included, and the
+**Clear History**, in Usage History's settings, deletes Usage History, servers included, and the
 **Keep history for** setting applies to them too.
 [Uninstalling](installing.md#uninstall) deletes all of it.
 
@@ -97,12 +98,12 @@ it every server your Mac talks to. The data is
 ## Permissions
 
 - **Location, to read the Wi-Fi network's name.** Offered in the welcome window when the
-  app first opens, and in Settings › General after that (#134). Leave it off and
+  app first opens, and in Settings after that (#134). Leave it off and
   everything works, with networks named like *Wi-Fi · 3f2a*.
   Updates keep the answer: every release is signed with the same Developer ID.
   Updating from 1.13 or earlier asks once more, because that signature is new (#119).
 - **A content filter, only if you allow it** (#128), in the welcome window or
-  Settings › Connections. It's the part of macOS made for apps like this one: it sees
+  Connections' settings. It's the part of macOS made for apps like this one: it sees
   each connection as it opens, the process that opened it and the server's address and
   name, and tells NetworkMonitor, which keeps the name with that server in Usage History.
   When an app connects by address, as Chrome does, it reads the site's name from the

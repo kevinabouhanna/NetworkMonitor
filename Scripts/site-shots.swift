@@ -760,7 +760,8 @@ enum Coverage {
             pattern: #"(?:(?:src|poster)\s*=\s*["']([^"']+)["']|!\[[^\]]*\]\(\s*<?([^)\s>]+))"#)
         let mediaRegex = try NSRegularExpression(pattern: #"\.(?:"# + media + #")$"#, options: .caseInsensitive)
         var pages = ["README.md", "SECURITY.md"]
-        // Translations too (#430): README.<code>.md, and docs/<code>/.
+        // Translations too (#430): README.<code>.md, and docs/<code>/. The
+        // folders' pages include the design log's, docs/design-overhaul (#437).
         let files = (try? FileManager.default.contentsOfDirectory(atPath: repo.path)) ?? []
         pages += files.filter { $0.hasPrefix("README.") && $0.hasSuffix(".md") && $0 != "README.md" }.sorted()
         let docs = (try? FileManager.default.contentsOfDirectory(atPath: repo.appendingPathComponent("docs").path)) ?? []

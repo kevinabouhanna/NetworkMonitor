@@ -3,16 +3,19 @@ import SwiftUI
 
 // Settings' panes, each a grouped form in the shape of System Settings: labels on
 // the left, controls on the right, sections with a line of explanation beneath.
-// `SettingsWindowController` puts them behind a toolbar; History is `HistoryView`.
+// The main window shows them: General under Settings, the rest behind each section's gear (#436).
 //
 // Quit is deliberately not here. It is a menu bar app, and the menu bar is where
 // a Mac user looks to quit one — it stays on the status item's right-click menu.
 
-/// Width every pane shares, History included, so switching panes only ever
-/// changes the window's height (#61). Between the 648 pt the forms had and the
-/// 768 pt History had.
+/// The width a settings page is read at in the main window (#436), from
+/// the leading edge: between the 648 pt the forms had and the 768 pt the
+/// History pane had (#61).
 enum SettingsMetrics {
     static let paneWidth: CGFloat = 720
+    /// The lists and your rules in Ads and Trackers' settings (#436): they scroll inside
+    /// this height, so the pane is the same size whichever is shown.
+    static let adsSetupHeight: CGFloat = 420
 }
 
 // MARK: - General
@@ -23,13 +26,22 @@ struct GeneralSettingsPane: View {
     @ObservedObject var colors: MenuBarColors
     @ObservedObject var wifiNames: WiFiNames
     @ObservedObject var state: SettingsPaneState
+    @ObservedObject var updates: UpdateController
+    /// Opens a section's settings in the main window (#436).
+    let onOpenSection: (MainSection) -> Void
+    /// Uninstall…, which the old About pane had.
+    let onUninstall: () -> Void
 
-    init(model: MonitorViewModel, state: SettingsPaneState) {
+    init(model: MonitorViewModel, state: SettingsPaneState, onOpenSection: @escaping (MainSection) -> Void = { _ in },
+         onUninstall: @escaping () -> Void = {}) {
         self.model = model
         self.speedTest = model.speedTest
         self.colors = model.menuBarColors
         self.wifiNames = model.wifiNames
         self.state = state
+        self.updates = model.updates
+        self.onOpenSection = onOpenSection
+        self.onUninstall = onUninstall
     }
 
     var body: some View {
@@ -142,6 +154,48 @@ struct GeneralSettingsPane: View {
                         .foregroundStyle(.red)
                 }
             }
+
+            // Updating itself (#132), from what was About (#436): its one
+            // network access besides the monthly data, with its switch.
+            if updates.isAvailable {
+                Section {
+                    Toggle(L("Check for updates automatically"), isOn: $updates.checksAutomatically)
+                        .toggleStyle(.switch)
+                    LabeledContent(L("Updates")) {
+                        Button(L("Check Now")) { updates.checkForUpdates() }
+                    }
+                } footer: {
+                    SettingsFootnote(L("Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor."))
+                }
+            }
+
+            // Each section's own settings (#436): the same pages its gear
+            // shows, one home each, reached from here too.
+            Section {
+                ForEach(MainSection.features) { section in
+                    Button { onOpenSection(section) } label: {
+                        HStack {
+                            Label(section.title, systemImage: section.symbol)
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(L("Open the settings for %@", section.title))
+                }
+            } header: {
+                Text(L("Sections"))
+            } footer: {
+                SettingsFootnote(L("Also behind the gear in each section."))
+            }
+
+            Section {
+                LabeledContent(L("Remove NetworkMonitor and everything it set up")) {
+                    Button(L("Uninstall NetworkMonitor…"), action: onUninstall)
+                }
+            }
         }
         .settingsForm()
     }
@@ -183,25 +237,12 @@ private struct ColorSwatch: View {
 
 // MARK: - Speed Test
 
-/// The speed test, runnable from Settings as well as from the popover's gauge,
-/// with its one setting beside it.
-struct SpeedTestSettingsPane: View {
+/// How the popover shows the speed test, in Network's settings (#436).
+struct SpeedTestStylePane: View {
     @ObservedObject var speedTest: SpeedTestController
 
     var body: some View {
         Form {
-            Section {
-                if SpeedTestRunner.isAvailable {
-                    SpeedTestPanel(speedTest: speedTest)
-                } else {
-                    Label(L("This Mac has no networkQuality, which the test runs on."),
-                          systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.secondary)
-                }
-            } footer: {
-                SettingsFootnote(L("Runs macOS's built-in networkQuality, only when you start it: download first, then upload. Every run measures afresh, so it uses data each time — typically 50–500 MB, more on a very fast line. Speeds use the unit chosen in General."))
-            }
-
             Section {
                 // Each choice is a picture of the popover showing it, so there's
                 // no running a test to see what a style looks like (#398).
@@ -218,6 +259,8 @@ struct SpeedTestSettingsPane: View {
                     .frame(maxWidth: .infinity)
                 }
                 .padding(.vertical, 4)
+            } header: {
+                Text(L("Speed test"))
             } footer: {
                 SettingsFootnote(speedTest.style.summary)
             }
@@ -228,7 +271,7 @@ struct SpeedTestSettingsPane: View {
 
 /// The test inside Settings: a button to start it, then the same dial and figures
 /// the popover's card shows.
-private struct SpeedTestPanel: View {
+struct SpeedTestPanel: View {
     @ObservedObject var speedTest: SpeedTestController
 
     var body: some View {
@@ -319,36 +362,10 @@ struct HotspotSettingsPane: View {
                         guard enabled else { return }
                         DispatchQueue.main.async { askForHelper() }
                     }
-                // The verdict, always shown: the commonest confusion with a
-                // feature like this is not knowing whether it decided the
-                // connection counts, and the answer is one line long. Green when
-                // it has decided the connection costs money.
-                if let standby = metering.standbyHotspot {
-                    // A hotspot's connected, so "doesn't look like one" would
-                    // read as the app having missed it (#355).
-                    ExplainedRow(L("Right now"), standby.explanation(inUse: metering.connection)) {
-                        Label(standby.rightNow(inUse: metering.connection),
-                              systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                    }
-                } else {
-                    LabeledContent(L("Right now")) {
-                        Label(metering.verdict.explanation,
-                              systemImage: metering.verdict.isMetered
-                                  ? "antenna.radiowaves.left.and.right" : "wifi")
-                            .foregroundStyle(metering.verdict.isMetered
-                                             ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
-                    }
-                }
-                // Right under the verdict, so a wrong one is settled where
-                // it's read: a phone that isn't recognised (#109), or a hotel
-                // that charges by the gigabyte. Remembered for this network.
-                Picker(L("This network"), selection: Binding(get: { metering.override },
-                                                          set: { metering.setOverride($0) })) {
-                    Text(L("Detect automatically")).tag(Bool?.none)
-                    Text(L("Is a hotspot")).tag(Bool?.some(true))
-                    Text(L("Isn't a hotspot")).tag(Bool?.some(false))
-                }
+                // What it decided about this network, and the switch to settle
+                // it, are above it on the Network page (#436).
+            } header: {
+                Text(L("Hotspots"))
             } footer: {
                 // Said once, plainly, because Low Data Mode does a little more
                 // than the switch's name: iCloud Photos waits too.
@@ -833,84 +850,6 @@ final class RowInfoState: ObservableObject {
 
 /// Who made it, which version this is, where to read more, and the way out —
 /// uninstalling, which lived only on the right-click menu before.
-struct AboutSettingsPane: View {
-    @ObservedObject var updates: UpdateController
-    let onUninstall: () -> Void
-
-    private var version: String {
-        let info = Bundle.main.infoDictionary
-        guard let short = info?["CFBundleShortVersionString"] as? String else {
-            return L("Development build")
-        }
-        let build = info?["CFBundleVersion"] as? String
-        return build.map { L("Version %@ (%@)", short, $0) } ?? L("Version %@", short)
-    }
-
-    var body: some View {
-        Form {
-            Section {
-                VStack(spacing: 6) {
-                    Image(nsImage: NSApp.applicationIconImage)
-                        .resizable()
-                        .frame(width: 88, height: 88)
-                        .accessibilityHidden(true)
-                    Text("NetworkMonitor").font(.system(size: 20, weight: .semibold)) // untranslated: app name
-                    Text(version).font(.system(size: 12)).foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                    Text(L("Live network speed in your menu bar, and which app used your data."))
-                        .font(.system(size: 12)).foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 2)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-            }
-
-            Section {
-                link(L("Website"), "kevinabouhanna.github.io",
-                     "https://kevinabouhanna.github.io/NetworkMonitor/")
-                link(L("What's new"), L("Release notes"),
-                     "https://github.com/kevinabouhanna/NetworkMonitor/releases/latest")
-                link(L("Source code"), L("On GitHub"),
-                     "https://github.com/kevinabouhanna/NetworkMonitor")
-            } footer: {
-                SettingsFootnote(L("Free and open source, under the Apache 2.0 licence."))
-            }
-
-            // Updating itself (#132): its one network access besides the
-            // monthly data, said as plainly, with its switch.
-            if updates.isAvailable {
-                Section {
-                    Toggle(L("Check for updates automatically"), isOn: $updates.checksAutomatically)
-                        .toggleStyle(.switch)
-                    LabeledContent(L("Updates")) {
-                        Button(L("Check Now")) { updates.checkForUpdates() }
-                    }
-                } footer: {
-                    SettingsFootnote(L("Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor."))
-                }
-            }
-
-            Section {
-                LabeledContent(L("Remove NetworkMonitor")) {
-                    Button(L("Uninstall…"), role: .destructive) { onUninstall() }
-                }
-            } footer: {
-                SettingsFootnote(L("Puts back every setting it changed, removes its helper and your usage history, and moves the app to the Trash."))
-            }
-        }
-        .settingsForm()
-    }
-
-    private func link(_ title: String, _ text: String, _ address: String) -> some View {
-        LabeledContent(title) {
-            Link(destination: URL(string: address)!) {
-                Label(text, systemImage: "arrow.up.right.square").labelStyle(.titleAndIcon)
-            }
-        }
-    }
-}
-
 // MARK: - Shared
 
 /// The plain-words line under a row's name: how an app is paused, or why it

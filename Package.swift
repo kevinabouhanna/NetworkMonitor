@@ -112,6 +112,14 @@ let package = Package(
             dependencies: ["ServerDirectory"],
             path: "Sources/MapDataBuilder"
         ),
+        // Pictures of every window from a made-up dataset, for the design
+        // work (#437). Built into build/DesignShots.app by `make design-shots`;
+        // never part of the app.
+        .executableTarget(
+            name: "DesignShots",
+            dependencies: ["NetworkMonitorCore", "FirewallPolicy", "ServerDirectory"],
+            path: "Sources/DesignShots"
+        ),
         // An executable, not a .testTarget: neither XCTest nor swift-testing is
         // available with Command Line Tools alone (both ship inside Xcode), so
         // `swift test` cannot run here. Run with `swift run NetworkMonitorTests`.

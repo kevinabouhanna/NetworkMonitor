@@ -10,7 +10,7 @@ feature works, and why it was built that way.
 | Page | What's in it |
 |---|---|
 | [Installing, updating and removing](installing.md) | Every step, how it updates itself, and what uninstalling puts back |
-| [Features](features.md) | The menu bar readout, the popover, per-connection totals, Settings |
+| [Features](features.md) | The menu bar readout, the popover, per-connection totals, the main window, Settings |
 | [Connections](connections.md) | Which companies, countries and servers your apps talk to, and what the names mean |
 | [Usage History](usage-history.md) | Looking back by day, week, month or year; sessions; CSV export |
 | [Speed test](speed-test.md) | What it measures, how it shows, and what it costs in data |

@@ -15,47 +15,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Pointer watchers that exist only while a revealed menu bar holds focus
     /// the popover had. See `restoreFocusWhenMenuBarHides()`.
     private var menuBarMonitors: [Any] = []
-    /// Settings: toolbar panes for General, Speed Test, History, Connections,
-    /// Ads, Hotspot and About. Created on first use.
-    private var settingsController: SettingsWindowController?
-    private var settings: SettingsWindowController {
-        if let settingsController { return settingsController }
-        let controller = SettingsWindowController(
-            model: model, history: HistoryViewModel(monitor: model),
-            connections: connectionsModel,
-            onOpenConnections: { [weak self] in self?.showConnections() },
-            onOpenAds: { [weak self] tab in
-                self?.ads.select(tab)
-                self?.showAds()
-            },
-            onUninstall: { [weak self] in self?.uninstall() })
-        controller.window.delegate = self
-        controller.highestTop = { [weak self] screen in
-            screen.frame.maxY - (self?.menuBarHeight(on: screen) ?? 0)
-        }
-        settingsController = controller
-        return controller
-    }
-    /// Which companies, countries and servers the apps talk to. Created on
-    /// first use.
-    private var connectionsController: ConnectionsWindowController?
-    /// One model for the window and Settings › Connections, so the layout
-    /// chosen in one is the layout shown in the other.
+    /// One model for the Connections section and Connections' settings, so
+    /// the layout chosen in one is the layout shown in the other.
     private lazy var connectionsModel = ConnectionsViewModel(monitor: model)
-    private var connections: ConnectionsWindowController {
-        if let connectionsController { return connectionsController }
-        let controller = ConnectionsWindowController(model: connectionsModel)
+    /// One model for the Ads and Trackers section and Ads and Trackers' settings, where
+    /// its lists and rules are (#436).
+    private lazy var adsModel = AdsViewModel(monitor: model)
+    /// The Usage History section's model, and Usage History's settings's.
+    private lazy var historyModel = HistoryViewModel(monitor: model)
+    /// The main window (#436): Usage History, Connections, Ads and Trackers
+    /// and Network, with a sidebar. Created on first use.
+    private var mainController: MainWindowController?
+    private var main: MainWindowController {
+        if let mainController { return mainController }
+        let controller = MainWindowController(model: model, history: historyModel,
+                                              connections: connectionsModel, ads: adsModel)
         controller.window.delegate = self
-        connectionsController = controller
-        return controller
-    }
-    /// What the ad, tracker and malware lists blocked (#251). Created on first use.
-    private var adsController: AdsWindowController?
-    private var ads: AdsWindowController {
-        if let adsController { return adsController }
-        let controller = AdsWindowController(model: AdsViewModel(monitor: model))
-        controller.window.delegate = self
-        adsController = controller
+        controller.onUninstall = { [weak self] in self?.uninstall() }
+        mainController = controller
         return controller
     }
     /// Ask Me's questions (#129), in a panel of their own.
@@ -66,8 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Settings, Connections and the welcome window, whichever exist, without
     /// creating any to find out.
     private var ourWindows: [NSWindow] {
-        [settingsController?.window, connectionsController?.window, adsController?.window,
-         welcomeController?.window].compactMap { $0 }
+        [mainController?.window, welcomeController?.window].compactMap { $0 }
     }
     /// Those that are open, front to back.
     private var openWindows: [NSWindow] {
@@ -137,8 +113,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     }
 
     /// `open NetworkMonitor.app --args -open connections`, `-open welcome`,
-    /// `-open popover`, `-open ads` with `-tab rules` (any tab), or
-    /// `-open settings` with `-pane history` (any pane), for a screenshot or a
+    /// `-open popover`, `-open ads` with `-tab rules` (any tab), `-open history`,
+    /// `-open network`, `-open about`, or `-open settings` with `-pane history`
+    /// (a section's settings), for a screenshot or a
     /// check of a development build without clicking the menu bar. Only the
     /// launch arguments are read, so it never outlives the run.
     private func openWindowFromLaunchArgument() {
@@ -146,8 +123,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         switch arguments["open"] as? String {
         case "connections": showConnections()
         case "ads":
-            if let tab = (arguments["tab"] as? String).flatMap(AdsViewModel.Tab.init) { ads.select(tab) }
-            showAds()
+            // The lists and your rules are in Ads and Trackers' settings now (#436).
+            if let setup = (arguments["tab"] as? String).flatMap(AdsViewModel.SetupTab.init) {
+                adsModel.setupTab = setup
+                showSectionSettings(.ads, from: nil)
+            } else {
+                if let tab = (arguments["tab"] as? String).flatMap(AdsViewModel.Tab.init) { main.ads.select(tab) }
+                showAds()
+            }
+        case "history":     showHistory()
+        case "network":     showNetwork()
+        case "about":       showAbout()
         case "welcome":     showWelcome()
         // A moment later, once the status item has a place in the menu bar to
         // anchor to.
@@ -156,7 +142,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                 popoverScreen = NSScreen.screens.first { $0.backingScaleFactor >= 2 }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.togglePopover() }
-        case "settings":    show(pane: (arguments["pane"] as? String).flatMap(SettingsPane.init))
+        // `-pane history` (or connections, ads, network): that section's
+        // settings in the main window (#436); `hotspot`, the Network page,
+        // where hotspots are; otherwise Settings.
+        case "settings":
+            let pane = arguments["pane"] as? String
+            if pane == "hotspot" {
+                showNetwork()
+            } else if pane == "speedTest" || pane == "speed-test" {
+                // How the popover shows the test: Network's settings.
+                showSectionSettings(.network, from: nil)
+            } else if let section = MainSection(rawValue: pane ?? ""), section != .settings {
+                showSectionSettings(section, from: nil)
+            } else {
+                showSettings()
+            }
         default:            break
         }
     }
@@ -235,9 +235,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         let root = MenuBarPopoverView(
             model: model,
             onSettings: { [weak self] in self?.showSettings() },
-            onHistory: { [weak self] in self?.showHistory() },
-            onConnections: { [weak self] in self?.showConnections() },
-            onAds: { [weak self] in self?.showAds() })
+            // On the popover's period (#449).
+            onHistory: { [weak self] in
+                guard let self else { return }
+                self.historyModel.showPresent(self.model.glance.period.scale)
+                self.showHistory()
+            },
+            onConnections: { [weak self] in
+                guard let self else { return }
+                self.connectionsModel.showPresent(self.model.glance.period.scale)
+                self.showConnections()
+            },
+            onAds: { [weak self] in
+                guard let self else { return }
+                self.adsModel.showPresent(self.model.glance.period.scale)
+                self.showAds()
+            },
+            onHotspotSettings: { [weak self] in self?.showNetwork() })
         let host = NSHostingController(rootView: root.localizedRoot())
         // Keeps `preferredContentSize` in step with what SwiftUI lays out.
         //
@@ -319,7 +333,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
     /// Opens the popover with nothing focused.
     ///
-    /// The gear is the only focusable control in there, so on becoming key the
+    /// The popover's switches and buttons are focusable, so on becoming key the
     /// window hands it first responder and it opens wearing a focus ring the
     /// user never asked for. Dropping first responder is deliberately not the
     /// same as making the button unfocusable: the key view loop still reaches
@@ -453,11 +467,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// behind, focus goes back to that app. Left here, it would make Settings
     /// key from behind that app's window, and the keyboard would go to a
     /// window nobody can see.
-    private func closePopover(returningFocus: Bool = false) {
+    /// `parking`: keeps the open windows where they are as it closes (#71).
+    /// Off when the popover closes because one of them is coming forward:
+    /// parked, it vanished and came back before it came forward (#399).
+    private func closePopover(returningFocus: Bool = false, parking: Bool = true) {
         let returnTo = returningFocus && NSApp.isActive ? appUnderPopover : nil
         appUnderPopover = nil
         closingPopover = true
-        if NSApp.isActive {
+        if NSApp.isActive && parking {
             keepingWindowsInPlace { popover.performClose(nil) }
         } else {
             popover.performClose(nil)
@@ -584,10 +601,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// nothing else brings the window forward.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         guard let frontmost = openWindows.first else { return true }
-        if frontmost === connectionsController?.window {
-            showConnections()
-        } else if frontmost === adsController?.window {
-            showAds()
+        if let mainController, frontmost === mainController.window {
+            present(mainController.window, reposition: false)
         } else {
             showSettings()
         }
@@ -652,14 +667,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             menu.addItem(.separator())
         }
 
+        // In the sidebar's order (#436).
+        menu.addItem(withTitle: L("Usage History…"),
+                     action: #selector(showHistory), keyEquivalent: "y")
         menu.addItem(withTitle: L("Connections…"),
                      action: #selector(showConnections), keyEquivalent: "k")
         menu.addItem(withTitle: L("Ads and Trackers…"),
                      action: #selector(showAds), keyEquivalent: "b")
-        menu.addItem(withTitle: L("Usage History…"),
-                     action: #selector(showHistory), keyEquivalent: "y")
+        menu.addItem(withTitle: L("Network…"),
+                     action: #selector(showNetwork), keyEquivalent: "")
         menu.addItem(withTitle: L("Settings…"),
                      action: #selector(showSettings), keyEquivalent: ",")
+        menu.addItem(withTitle: L("About NetworkMonitor"),
+                     action: #selector(showAbout), keyEquivalent: "")
         if model.updates.isAvailable {
             menu.addItem(withTitle: L("Check for Updates…"),
                          action: #selector(checkForUpdates), keyEquivalent: "")
@@ -767,62 +787,80 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
     }
 
-    // MARK: Settings window
+    // MARK: The main window
 
-    /// Settings, on the pane last viewed — the HIG's "restore the most
-    /// recently viewed pane".
-    @objc private func showSettings() {
-        show(pane: nil)
+    /// Settings, at the bottom of the main window's sidebar (#436): from ⌘,,
+    /// Settings… in both menus, and the popover's gear.
+    @objc private func showSettings() { show(section: .settings) }
+
+    /// Usage History, in the main window (#436): from Open Usage History in
+    /// the popover, Usage History… in the right-click menu, its row in
+    /// Settings, and ⌘Y while a window is open.
+    @objc private func showHistory() { show(section: .history) }
+
+    /// Connections, in the main window: from Open Connections in the popover,
+    /// Connections… in the right-click menu, and ⌘K while a window is open.
+    @objc private func showConnections() { show(section: .connections) }
+
+    /// Ads and Trackers, in the main window (#251): from Open Ads and Trackers
+    /// in the popover, Ads and Trackers… in the right-click menu, its row in
+    /// Settings, and ⌘B while a window is open.
+    @objc private func showAds() { show(section: .ads) }
+
+    /// Network, in the main window (#436): from Open Network in the popover.
+    @objc private func showNetwork() { show(section: .network) }
+
+    /// A section's settings, in place in the main window (#436), going back
+    /// to `origin` (the section itself when nil).
+    private func showSectionSettings(_ section: MainSection, from origin: MainSection?) {
+        show(section: section)
+        main.showSettings(for: section, from: origin)
     }
 
-    /// Settings, on History: from the popover's chart button, Usage History… in
-    /// the right-click menu, and ⌘Y while a window is open.
-    @objc private func showHistory() {
-        show(pane: .history)
-    }
-
-    /// The Connections window: from the popover's globe, Connections… in the
-    /// right-click menu, and ⌘K while a window is open.
-    @objc private func showConnections() {
+    /// The standard About window, with what the old Settings' About pane had (#436): the
+    /// version, and links to the website, the release notes and the source.
+    @objc private func showAbout() {
         if popover.isShown { closePopover() }
-        let wasVisible = connections.isVisible
-        present(connections.window, reposition: !wasVisible)
-        guard !wasVisible else { return }
-        connections.windowDidShow()
-        // Nothing focused, as Settings opens: see `show(pane:)`.
-        DispatchQueue.main.async { [weak self] in self?.connections.window.makeFirstResponder(nil) }
+        let credits = NSMutableAttributedString()
+        let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        func line(_ text: String, link: String? = nil) {
+            var attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
+            if let link { attributes[.link] = URL(string: link) }
+            credits.append(NSAttributedString(string: text + "\n", attributes: attributes))
+        }
+        line(L("Live network speed in your menu bar, and which app used your data."))
+        line("")
+        line(L("Website"), link: "https://kevinabouhanna.github.io/NetworkMonitor/")
+        line(L("What's new"), link: "https://github.com/kevinabouhanna/NetworkMonitor/releases/latest")
+        line(L("Source code"), link: "https://github.com/kevinabouhanna/NetworkMonitor")
+        line("")
+        line(L("Free and open source, under the Apache 2.0 licence."))
+        let style = NSMutableParagraphStyle()
+        style.alignment = .center
+        credits.addAttribute(.paragraphStyle, value: style, range: NSRange(location: 0, length: credits.length))
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
     }
 
-    /// The Ads and Trackers window (#251): from the popover's line of ads
-    /// blocked today, Ads and Trackers… in the right-click menu, Settings ›
-    /// Ads, and ⌘B while a window is open.
-    @objc private func showAds() {
-        if popover.isShown { closePopover() }
-        let wasVisible = ads.isVisible
-        present(ads.window, reposition: !wasVisible)
-        guard !wasVisible else { return }
-        ads.windowDidShow()
-        DispatchQueue.main.async { [weak self] in self?.ads.window.makeFirstResponder(nil) }
-    }
-
-    private func show(pane: SettingsPane?) {
-        if popover.isShown { closePopover() }
-        let wasVisible = settings.isVisible
-        settings.select(pane)
-        // Sized to the pane before it is placed, so it is centred at its real size.
-        settings.fitSelectedPane()
-        // Not re-centred if it is already up: it may have been moved, and the
-        // request is only to bring it forward or change pane.
-        present(settings.window, reposition: !wasVisible)
-        settings.windowDidShow()
-        // Opens with nothing focused, for the reason the popover does: the window
-        // would otherwise hand first responder to its first control, which then
-        // wears a focus ring nobody asked for. Tab still reaches it. Deferred,
-        // since SwiftUI assigns focus after the window is shown.
+    private func show(section: MainSection) {
+        let wasVisible = main.isVisible
+        main.show(section)
+        // Forward first, then the popover closes, leaving it where it is:
+        // closed first, the window left the screen and came back before it
+        // came forward, a flash each time (#399).
+        present(main.window, reposition: !wasVisible)
+        main.fitToScreen()
+        if popover.isShown { closePopover(parking: false) }
+        main.windowDidShow()
+        // Opens with nothing focused, for the reason the popover does: the
+        // window would otherwise hand first responder to its first control,
+        // which then wears a focus ring nobody asked for. Tab still reaches it.
+        // Deferred, since SwiftUI assigns focus after the window is shown.
         if !wasVisible {
-            DispatchQueue.main.async { [weak self] in self?.settings.window.makeFirstResponder(nil) }
+            DispatchQueue.main.async { [weak self] in self?.main.window.makeFirstResponder(nil) }
         }
     }
+
 
     /// Brings one of the app's windows forward.
     ///
@@ -856,9 +894,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// macOS 27.
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow else { return }
-        if closing === settingsController?.window { settingsController?.windowWillClose() }
-        if closing === connectionsController?.window { connectionsController?.windowWillClose() }
-        if closing === adsController?.window { adsController?.windowWillClose() }
+        if closing === mainController?.window { mainController?.windowWillClose() }
         // Still a regular app while another window is open.
         let stillOpen = ourWindows.contains { $0 !== closing && $0.isVisible }
         guard !stillOpen else { return }
@@ -895,11 +931,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             }
     }
 
+    /// ⌘F: the main window's section opens its search.
+    @objc private func beginSearch() {
+        guard mainController?.window.isKeyWindow == true else { return }
+        main.beginSearch()
+    }
+
+    @objc private func toggleSidebar() { mainController?.toggleSidebar() }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        switch item.action {
+        case #selector(beginSearch):
+            return mainController?.window.isKeyWindow == true && mainController?.canSearch == true
+        case #selector(toggleSidebar):
+            guard let mainController, mainController.window.isKeyWindow else { return false }
+            item.title = mainController.sidebarIsCollapsed ? L("Show Sidebar") : L("Hide Sidebar")
+            return true
+        default:
+            return true
+        }
+    }
+
     private func makeMainMenu() -> NSMenu {
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: L("About NetworkMonitor"),
-                        action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
-                        keyEquivalent: "")
+                        action: #selector(showAbout), keyEquivalent: "").target = self
         if model.updates.isAvailable {
             appMenu.addItem(withTitle: L("Check for Updates…"),
                             action: #selector(checkForUpdates), keyEquivalent: "").target = self
@@ -920,21 +976,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         appMenu.addItem(withTitle: L("Quit NetworkMonitor"),
                         action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
+        // Edit: the text fields' own commands, and Find (⌘F), which opens the
+        // section's search in the toolbar (#436).
+        let editMenu = NSMenu(title: L("Edit"))
+        editMenu.addItem(withTitle: L("Undo"), action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: L("Redo"), action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: L("Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: L("Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: L("Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: L("Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: L("Find…"), action: #selector(beginSearch), keyEquivalent: "f").target = self
+
+        // View: the sidebar, as every Mac window with one has it.
+        let viewMenu = NSMenu(title: L("View"))
+        let sidebar = viewMenu.addItem(withTitle: L("Hide Sidebar"), action: #selector(toggleSidebar),
+                                       keyEquivalent: "s")
+        sidebar.keyEquivalentModifierMask = [.command, .control]
+        sidebar.target = self
+
         let windowMenu = NSMenu(title: L("Window"))
         windowMenu.addItem(withTitle: L("Close"),
                            action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         windowMenu.addItem(withTitle: L("Minimize"),
                            action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowMenu.addItem(.separator())
+        windowMenu.addItem(withTitle: L("Usage History"),
+                           action: #selector(showHistory), keyEquivalent: "y").target = self
         windowMenu.addItem(withTitle: L("Connections"),
                            action: #selector(showConnections), keyEquivalent: "k").target = self
         windowMenu.addItem(withTitle: L("Ads and Trackers"),
                            action: #selector(showAds), keyEquivalent: "b").target = self
-        windowMenu.addItem(withTitle: L("Usage History"),
-                           action: #selector(showHistory), keyEquivalent: "y").target = self
+        windowMenu.addItem(withTitle: L("Network"),
+                           action: #selector(showNetwork), keyEquivalent: "").target = self
 
         let menuBar = NSMenu()
-        for submenu in [appMenu, windowMenu] {
+        for submenu in [appMenu, editMenu, viewMenu, windowMenu] {
             let item = NSMenuItem()
             item.submenu = submenu
             menuBar.addItem(item)
@@ -950,8 +1028,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// whenever the menu bar appears. The top edge is therefore clamped to exactly
     /// one menu bar height below the top of the screen.
     private func position(_ window: NSWindow) {
-        // Sizing is the settings controller's job (`fitSelectedPane`), done before
-        // this runs, so the frame centred here is already the pane's.
+        // Sizing is the window's own job (the main window's `fitToScreen`),
+        // done before this runs, so the frame centred here is already its own.
         guard let screen = window.screen ?? NSScreen.main else { return }
 
         var frame = window.frame

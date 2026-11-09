@@ -11,7 +11,7 @@ import SystemExtensions
 /// what it saw.
 ///
 /// Nothing happens until someone turns it on, in the welcome window or
-/// Settings › Connections (#134). Then macOS asks twice: once to allow the
+/// Connections' settings (#134). Then macOS asks twice: once to allow the
 /// system extension (in System Settings), once to allow the filter. From then
 /// on it runs in the background. Turned off, which is done in System Settings
 /// (#181), the extension stays installed but filters nothing; uninstalling
@@ -132,6 +132,17 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         hasResolved = !Self.isBundled
         super.init()
     }
+
+    #if DEBUG
+    /// For DesignShots' pictures (#437): says the filter is in `state`
+    /// without asking macOS anything, and watches nothing. Debug builds only;
+    /// the app is always built for release.
+    public func showForPictures(_ state: State) {
+        self.state = state
+        hasResolved = true
+        stopWatching()
+    }
+    #endif
 
     /// At launch: if the filter was left on, reconnect to it, and bring it up
     /// to this build's. And from then on, follow it being switched off or on

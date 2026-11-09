@@ -26,13 +26,13 @@
 
 <p align="center">
   <img src="Resources/README/demo.gif" width="404"
-       alt="The real app during a download: the menu bar reads about 1.1 MB/s down, and a click opens the popover with the day's total, the connection in use and the ads blocked today, over a list of apps by data used. Warp opens to show the processes it started, its curl download climbing.">
+       alt="The real app during a download: a click on the menu bar readout opens the popover, with Today, Week and Month at the top, then Data, Connections, Ads blocked and Network, over the apps by data used. Warp opens to show the processes it started, its curl download climbing.">
 </p>
 
 ## ✨ Features
 
 - ⚡ **Live speed** in the menu bar, download and upload, in MB/s or Mbps, in colours you choose.
-- 📊 **Which apps used your data** on this connection, biggest first.
+- 📊 **Which apps used your data** today, this week or this month, biggest first, and on which networks.
 - 🌐 **Connections:** which companies, countries and servers each app talks to, on a list and a world map, without looking anything up online. Block any of them, or have it ask.
 - 🛡️ **Block ads, trackers and malware** in every app, Chrome included, with one switch.
 - 🏠 **Internet only.** AirPlay, Time Machine and other home-network traffic don't count.
@@ -61,16 +61,16 @@ Before that, download the new DMG and drag NetworkMonitor into Applications, cho
 
 ### 🗑️ Uninstall
 
-Right-click the menu bar readout and choose **Uninstall NetworkMonitor…** (or **Settings › About › Uninstall…**). It puts back every setting it changed, then moves itself to the Trash.
+Right-click the menu bar readout and choose **Uninstall NetworkMonitor…**, or click it at the bottom of Settings. It puts back every setting it changed, then moves itself to the Trash.
 
 > [!WARNING]
 > Don't just drag it to the Trash: the update settings that Hotspot mode changed without its helper would stay off. If you already did, drag it back, open it, and uninstall from the menu.
 
 ## 🖱️ Using it
 
-- **Click** the readout for this connection's total and the apps behind it. The 🌐 there opens Connections.
-- **Right-click** it for the speed test, Block Everything, Connections, Usage History, Settings, Check for Updates, Uninstall and Quit.
-- **Settings** has a pane each for General, Speed Test, History, Connections, Hotspot and About.
+- **Click** the readout for today, this week or this month: the data your apps used, who they connected to, the ads blocked, and the network you're on.
+- **Right-click** it for the speed test, Block Everything, Usage History, Connections, Ads and Trackers, Network, Settings, About, Check for Updates, Uninstall and Quit.
+- **The main window** has a sidebar: Usage History, Connections, Ads and Trackers and Network, with Settings at the bottom. The gear in each section's toolbar holds that section's settings.
 
 ## 📚 Learn more
 

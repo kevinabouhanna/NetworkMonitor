@@ -1,12 +1,22 @@
 import SwiftUI
 
-// The parts Usage History and Connections share (#123, #125), so the two
-// windows read the same way and can't drift apart: a control with its name,
-// the period's heading, and ‹ Today › for History, which lives in Settings and
-// so has no window toolbar of its own.
+// The parts the main window's sections share (#123, #125, #436), so they read
+// the same way and can't drift apart: the row under the toolbar, a control
+// with its name, and the period's heading.
 
-/// A segmented control with its name beside it: on its own, a segmented
-/// control doesn't say what it chooses.
+/// Where the row under a section's toolbar sits, the same in Usage History,
+/// Connections and Ads and Trackers, so it doesn't move as you go from one
+/// to the next (#436).
+enum ScopeMetrics {
+    static let inset: CGFloat = 20
+    static let top: CGFloat = 12
+    static let height: CGFloat = 24
+    /// Between the row and what's under it.
+    static let below: CGFloat = 14
+}
+
+/// A control with its name beside it: on its own, a segmented control
+/// doesn't say what it chooses.
 struct LabelledControl<Control: View>: View {
     let label: String
     @ViewBuilder let control: Control
@@ -58,31 +68,5 @@ struct PeriodHeading: View {
             }
             .font(.system(size: 13))
         }
-    }
-}
-
-/// ‹ Today ›, as Calendar has it, with ⌘← and ⌘→.
-struct PeriodStepper: View {
-    let canStepBack: Bool
-    let canStepForward: Bool
-    let onStep: (Int) -> Void
-    let onToday: () -> Void
-
-    var body: some View {
-        ControlGroup {
-            Button { onStep(-1) } label: { Image(systemName: "chevron.left") }
-                .accessibilityLabel(L("Previous"))
-                .keyboardShortcut(.leftArrow, modifiers: [.command])
-                .disabled(!canStepBack)
-                .help(L("Previous (⌘←)"))
-            Button(L("Today"), action: onToday)
-                .help(L("Back to the present"))
-            Button { onStep(1) } label: { Image(systemName: "chevron.right") }
-                .accessibilityLabel(L("Next"))
-                .keyboardShortcut(.rightArrow, modifiers: [.command])
-                .disabled(!canStepForward)
-                .help(L("Next (⌘→)"))
-        }
-        .fixedSize()
     }
 }

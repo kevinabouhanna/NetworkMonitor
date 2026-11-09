@@ -2,25 +2,25 @@
 
 English · [简体中文](zh-Hans/usage-history.md)
 
-The popover's total starts over when you join a different network, and at midnight.
-Usage History is where those totals go: every hour, per app and per network, for as
-long as you choose.
+The popover shows today, this week or this month. Usage History keeps every hour behind
+those figures, per app and per network, for as long as you choose.
 
-Open it from the popover's **chart icon**, from **Usage History…** (⌘Y) in the
-right-click menu, or from **Settings › History**. It's the History pane of Settings,
-not a window of its own, so nothing exists twice.
+It's the first section of the main window. Open it from **Open Usage History** under
+Data in the popover, or the four squares beside the popover's gear: both open it on the
+popover's period. Or choose **Usage History…** (⌘Y) in the right-click menu, or Usage
+History in the main window's sidebar.
 
 ## Using it
 
-- **Day, Week, Month or Year**, with **‹ Today ›** beside it (⌘← and ⌘→ step too), as
-  the Connections window has them in its toolbar. Periods are
+- **Day, Week, Month or Year**, in the toolbar, with **‹ Today ›** beside it (⌘← and ⌘→
+  step too), as every section has them. Periods are
   calendar periods, not rolling windows, so "October" means the same bytes every time
   you look, the way Screen Time and carriers count. A day shows hours, a week or month
   shows days, a year shows months. Click a bar to open it.
 - **Stacked by network type**: Wi-Fi, Hotspot, Ethernet and Other. Each type keeps its
   colour whatever else is in the period. The legend under the chart gives each type's
   total, so no figure is readable only by hovering.
-- **All, Wi-Fi or Hotspot**, at the end of the same row, narrows everything to that
+- **All, Wi-Fi or Hotspot**, at the end of the row under the toolbar, narrows everything to that
   kind of network: the chart, the totals and the lists. It opens on **Hotspot** while
   you're on one, and on **All** otherwise. Ethernet and Other are under All, and on the
   Networks list.
@@ -31,20 +31,24 @@ not a window of its own, so nothing exists twice.
   metered connections and the daily average as one quieter line. The daily average
   divides by the days elapsed so far, not by the length of the month. Metered is shown
   under All, and only when something went over a metered connection.
-- **Apps, Networks and Sessions.** Apps are grouped exactly as in the popover. A
-  session is one visit to a network.
+- **Show: Apps, Networks or Sessions**, at the start of that row. Apps are grouped
+  exactly as in the popover. A session is one visit to a network.
 - **The lists are the filters.** Click a row to see only that app, network or session,
   and the chart and totals follow; click it again, or its chip at the end of the lists'
   row (#192), to undo. Filters combine, with each other and with the switch.
-- **Name a network** by right-clicking it under Networks. The name is used in History
+- **Search** (⌘F), the magnifying glass in the toolbar, finds apps and networks, and
+  shows as a chip like the other filters.
+- **Name a network** by right-clicking it under Networks and choosing **Rename…**. The name is used in History
   and in exports, for every past visit too.
-- **Keep history for** a month, three months, a year, or forever (the default).
-  Shortening it asks first if it would delete anything.
-- **Export CSV…** saves the period on screen, with its filter, hour by hour and app by
-  app, in bytes.
-- **Clear History…** deletes it all. The menu bar totals aren't affected.
+- **Export CSV…**, at the bottom, saves the period on screen, with its filter, hour by
+  hour and app by app, in bytes.
+- **Keep history for** a month, three months, a year, or forever (the default), in
+  Usage History's settings, behind the gear. Shortening it asks first if it would
+  delete anything.
+- **Clear History…**, there too, deletes it all. The menu bar totals aren't
+  affected.
 
-While the pane is open on a period that includes now, it refreshes every 30 seconds.
+While Usage History is shown on a period that includes now, it refreshes every 30 seconds.
 
 ## What counts
 
@@ -148,14 +152,14 @@ same clamp the popover uses, so the formula lives in one place:
 
 **Feeding.** `UsageStore` forwards every byte and every network change to
 `UsageHistory`, so History and the popover can never disagree about which network a
-byte used. Reset Now and midnight clear the popover's counter, never History.
+byte used. Reset Now and midnight clear the current connection's counter, never History.
 
 **Writing.** Batched in memory and written when the usage file is saved (about every
 15 seconds, on a network change, on sleep and on quit), in one transaction of upserts
 that add to existing rows. Synchronous, because quit calls it, and well under a
 millisecond. It's also flushed before every read, so the current hour is never
 missing. A failed batch is dropped, not retried, because a database that refuses one
-write will refuse the next; the popover's totals are unaffected.
+write will refuse the next; the current connection's counter is unaffected.
 
 **Reading** happens on its own serial queue, so stepping through a year never stalls
 the menu bar. Measured on a generated 400-day database (5.5 MB): a year's per-app

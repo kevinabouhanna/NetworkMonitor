@@ -44,14 +44,15 @@ rows and the kernel's count.
 ## Why it won't match Activity Monitor
 
 Activity Monitor's Network tab counts bytes since each process **started**, often days ago.
-NetworkMonitor reports what it saw on the connection you're on, since you joined it, or
+NetworkMonitor reports what it saw today, this week or this month, from the period's start,
+and on the Network page what it saw on the connection you're on, since you joined it or
 since midnight. Neither is wrong; they answer different questions.
 
 ## Battery
 
 NetworkMonitor samples less often when it can, and never counts less. Both sources report
 the bytes moved **between** samples, so sampling less often changes how fresh the figures
-are, not how complete. There's nothing to configure, and **Settings › General › Sampling**
+are, not how complete. There's nothing to configure, and **Settings › Sampling**
 says which mode is in force.
 
 | | Readout updates | App list updates | While nobody can see the menu bar |

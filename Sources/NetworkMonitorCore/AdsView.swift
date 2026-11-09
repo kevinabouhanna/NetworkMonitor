@@ -14,33 +14,43 @@ struct AdsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            tabs
-            Divider()
+            scopeBar
+                .padding(.horizontal, ScopeMetrics.inset)
+                .padding(.top, ScopeMetrics.top)
+            if model.tab == .log { Spacer().frame(height: ScopeMetrics.below) }
             page
         }
         .frame(minWidth: AdsMetrics.minWidth, minHeight: AdsMetrics.minHeight)
     }
 
-    private var tabs: some View {
-        Picker(L("View"), selection: $model.tab) {
-            ForEach(AdsViewModel.Tab.allCases) { tab in Text(tab.label).tag(tab) }
+    /// Overview or the log, in the row every section has under its toolbar,
+    /// at the same place (#436); on Log, which decisions and its buttons too.
+    private var scopeBar: some View {
+        HStack(spacing: 10) {
+            LabelledControl(L("Show")) {
+                GlassSegmented(name: L("Show"), options: AdsViewModel.Tab.allCases, selection: $model.tab,
+                               label: { $0.label }, size: .small)
+                    .help(L("What was blocked, and every connection as it's decided"))
+            }
+            // The toolbar's search, as a filter like the others (#436).
+            let query = model.logSearch.trimmingCharacters(in: .whitespaces)
+            if !query.isEmpty {
+                FilterChip(label: L("“%@”", query), onClear: { model.logSearch = "" })
+            }
+            if model.tab == .log {
+                Divider().frame(height: 16)
+                AdsLogControls(model: model)
+            } else {
+                Spacer(minLength: 0)
+            }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .fixedSize()
-        .help(L("What was blocked, every connection as it's decided, the lists, and your rules"))
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
+        .frame(height: ScopeMetrics.height)
     }
 
     @ViewBuilder private var page: some View {
         VStack(spacing: 0) {
             if model.tab == .log {
                 AdsLogView(model: model)
-            } else if model.tab == .rules {
-                AdsRulesView(model: model)
-            } else if model.tab == .lists {
-                AdsListsView(model: model)
             } else if !model.isOn {
                 off
             } else {
@@ -55,14 +65,16 @@ struct AdsView: View {
                         .padding(.vertical, 14)
                     Divider()
                     HStack(alignment: .top, spacing: 0) {
-                        AdsList(title: L("Sites"), items: model.report.sites, total: model.report.total, model: model) {
+                        AdsList(title: L("Sites"), items: searched(model.report.sites), total: model.report.total,
+                                model: model) {
                             item in
                             if !item.onlyThreats {
                                 Button(L("Never Block %@", item.id)) { model.setSite(.neverBlock, site: item.id, app: nil) }
                             }
                         }
                         Divider()
-                        AdsList(title: L("Apps"), items: model.report.apps, total: model.report.total, model: model) {
+                        AdsList(title: L("Apps"), items: searched(model.report.apps), total: model.report.total,
+                                model: model) {
                             item in
                             Button(L("Don't Filter Ads in %@", item.title)) {
                                 model.dontFilter(.init(key: item.id, name: item.title))
@@ -71,6 +83,16 @@ struct AdsView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// The toolbar's search, on Overview: a site, a name under it, or an app.
+    private func searched(_ items: [AdsItem]) -> [AdsItem] {
+        let query = model.logSearch.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return items }
+        return items.filter {
+            $0.title.localizedCaseInsensitiveContains(query) || $0.id.localizedCaseInsensitiveContains(query)
+                || ($0.detail?.localizedCaseInsensitiveContains(query) ?? false)
         }
     }
 
@@ -170,7 +192,7 @@ struct AdsView: View {
         return Chart(model.bins) { bin in
             BarMark(x: .value(L("Time"), bin.interval.start, unit: model.scale.binComponent),
                     y: .value(L("Blocked"), bin.count))
-                .foregroundStyle(Color.red.opacity(0.75))
+                .foregroundStyle(AppPalette.blocked.opacity(0.85))
                 .cornerRadius(2)
         }
         .chartXScale(domain: model.period.start...model.period.end)
@@ -266,7 +288,7 @@ private struct AdsRow: View {
             }
             Spacer(minLength: 8)
             GeometryReader { geometry in
-                Capsule().fill(Color.red.opacity(0.6))
+                Capsule().fill(AppPalette.blocked.opacity(0.75))
                     .frame(width: max(2, geometry.size.width * fraction), height: 4)
                     .frame(maxHeight: .infinity)
             }
@@ -356,37 +378,20 @@ struct AdsLogView: View {
     var body: some View {
         let entries = model.logEntries
         VStack(spacing: 0) {
-            // One row while search can be 240 wide; else search gets a row of
-            // its own rather than being squeezed, and every button keeps its
-            // words (#370).
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
-                    show
-                    search.frame(width: 240)
-                    Spacer(minLength: 8)
-                    buttons
-                }
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 12) {
-                        show
-                        Spacer(minLength: 8)
-                        buttons
-                    }
-                    search
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
+            // Which decisions, and the buttons, are in the scope row above;
+            // search is in the toolbar, as in every section (#436).
             Divider()
             AdsLogHeader()
             Divider()
             if entries.isEmpty {
                 VStack(spacing: 6) {
-                    Text(model.logIsPaused ? L("Paused") : L("Nothing yet"))
+                    Text(emptyTitle)
                         .font(.system(size: 14, weight: .medium))
-                    Text(L("Each connection your apps open shows here as it's decided, while NetworkMonitor runs."))
+                    Text(emptyDetail)
                         .font(.system(size: 12)).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
+                .padding(.horizontal, 40)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
@@ -402,30 +407,21 @@ struct AdsLogView: View {
         }
     }
 
-    private var show: some View {
-        Picker(L("Show"), selection: $model.logShow) {
-            ForEach(AdsLog.Show.allCases) { Text($0.label).tag($0) }
+    /// Why the log is empty: it's live, so it fills only while the filter
+    /// decides connections, from the moment NetworkMonitor starts (#436).
+    private var emptyTitle: String {
+        let query = model.logSearch.trimmingCharacters(in: .whitespaces)
+        if model.logIsPaused { return L("Paused") }
+        if !query.isEmpty { return L("Nothing matches “%@”", query) }
+        if model.monitor.filter.state != .on { return L("Not filtering connections") }
+        return L("Nothing yet")
+    }
+
+    private var emptyDetail: String {
+        if model.monitor.filter.state != .on && !model.logIsPaused {
+            return L("The log shows each connection as the filter decides it. It fills once ad blocking or a rule is on, and starts afresh each time NetworkMonitor opens.")
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .fixedSize()
-    }
-
-    private var search: some View {
-        TextField(L("Search apps, sites and addresses"), text: $model.logSearch)
-            .accessibilityLabel(L("Search the log"))
-            .textFieldStyle(.roundedBorder)
-    }
-
-    @ViewBuilder private var buttons: some View {
-        Button(model.logIsPaused ? L("Resume") : L("Pause")) { model.toggleLogPause() }
-            .help(model.logIsPaused ? L("Show new connections again") : L("Stop the list moving while you read it"))
-            .fixedSize()
-        Button(L("Clear")) { model.clearLog() }
-            .fixedSize()
-        Button(L("Export…")) { export() }
-            .help(L("Save what's shown as a text file"))
-            .fixedSize()
+        return L("Each connection your apps open shows here as it's decided, while NetworkMonitor runs.")
     }
 
     @ViewBuilder private func menu(for entry: AdsLogEntry) -> some View {
@@ -489,6 +485,31 @@ struct AdsLogView: View {
         NSPasteboard.general.setString(text, forType: .string)
     }
 
+}
+
+/// The log's own controls, in the scope row: which decisions, then Pause,
+/// Clear and Export.
+struct AdsLogControls: View {
+    @ObservedObject var model: AdsViewModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            GlassSegmented(name: L("Decisions"), options: AdsLog.Show.allCases, selection: $model.logShow,
+                           label: { $0.label }, size: .small)
+                .help(L("Every decision, or only some"))
+            Spacer(minLength: 8)
+            Button(model.logIsPaused ? L("Resume") : L("Pause")) { model.toggleLogPause() }
+                .help(model.logIsPaused ? L("Show new connections again") : L("Stop the list moving while you read it"))
+                .fixedSize()
+            Button(L("Clear")) { model.clearLog() }
+                .fixedSize()
+            Button(L("Export…")) { export() }
+                .help(L("Save what's shown as a text file"))
+                .fixedSize()
+        }
+        .controlSize(.small)
+    }
+
     private func export() {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = L("NetworkMonitor log.txt")
@@ -549,7 +570,7 @@ private struct AdsLogRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Text(entry.isBlocked ? L("Blocked") : L("Let through"))
-                .foregroundStyle(entry.isBlocked ? Color.red : Color.secondary)
+                .foregroundStyle(entry.isBlocked ? AppPalette.blocked : Color.secondary)
                 .frame(width: AdsMetrics.logDecision, alignment: .leading)
             Text(reason).lineLimit(1).truncationMode(.tail).foregroundStyle(.secondary)
                 .frame(width: AdsMetrics.logWhy, alignment: .leading)

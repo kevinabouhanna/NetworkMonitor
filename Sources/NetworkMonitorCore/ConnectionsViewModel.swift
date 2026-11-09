@@ -102,7 +102,7 @@ public final class ConnectionsViewModel: ObservableObject {
     /// Where the map's lines start: the Mac's Region setting, never Location.
     public let homeCountry: String? = Locale.current.region?.identifier
     /// The offer of website names above the list, until it's taken or closed
-    /// (#134). Closed, it stays closed: Settings › Connections still has it.
+    /// (#134). Closed, it stays closed: Connections' settings still has it.
     @Published public var offersWebsiteNames: Bool {
         didSet { defaults.set(!offersWebsiteNames, forKey: Self.websiteNamesOfferClosedKey) }
     }
@@ -210,18 +210,22 @@ public final class ConnectionsViewModel: ObservableObject {
 
     /// Each opening starts on the present, unfiltered, or on Hotspot while the
     /// Mac is on one, as History does.
-    public func windowDidOpen() {
-        selected = [:]
-        span = nil
-        dragging = nil
-        search = ""
-        expanded.removeAll()
-        showingAll.removeAll()
-        kind = HistoryFilter.opening(on: monitor.store.currentNetwork.kind).kind
-        period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar)
-        // Traffic, unless only what's allowed may connect: then what was
-        // blocked is where someone looks to allow it.
-        measure = firewall.mode == .onlyAllowed ? .blocked : .bytes
+    /// `reset` false: the section shown again in the open window (#436),
+    /// read again with its period, filters and search as they were.
+    public func windowDidOpen(reset: Bool = true) {
+        if reset {
+            selected = [:]
+            span = nil
+            dragging = nil
+            search = ""
+            expanded.removeAll()
+            showingAll.removeAll()
+            kind = HistoryFilter.opening(on: monitor.store.currentNetwork.kind).kind
+            period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar)
+            // Traffic, unless only what's allowed may connect: then what was
+            // blocked is where someone looks to allow it.
+            measure = firewall.mode == .onlyAllowed ? .blocked : .bytes
+        }
         reload()
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
@@ -253,6 +257,12 @@ public final class ConnectionsViewModel: ObservableObject {
     }
 
     public var title: String { period.title(now: Date(), calendar: calendar) }
+
+    /// The period of `scale` that holds now, as the popover's period chose
+    /// (#449), so Open … shows the window on the numbers the popover showed.
+    public func showPresent(_ scale: HistoryScale) {
+        show(HistoryPeriod(scale: scale, containing: Date(), calendar: calendar))
+    }
     public var isCurrent: Bool { period.contains(Date()) }
     public var canStepForward: Bool { period.end <= Date() }
 

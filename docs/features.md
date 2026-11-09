@@ -7,9 +7,9 @@ Everything NetworkMonitor does, and where to find it.
 ## The menu bar readout
 
 Two lines, always visible: **↓ download** in green over **↑ upload** in light grey, in
-**MB/s** or **Mbps** (**Settings › General › Show speeds in**). Mbps matches how your line
+**MB/s** or **Mbps** (**Settings › Show speeds in**). Mbps matches how your line
 is sold; MB/s matches the data totals. Amounts of data are always in MB and GB, the way
-data plans are sold. Pick other colours under **Settings › General › Menu bar colors**.
+data plans are sold. Pick other colours under **Settings › Menu bar colors**.
 
 The readout keeps a **fixed width**, so nothing beside it in the menu bar jumps around as
 the numbers change. It updates up to twice a second, less often on battery and in Low Power
@@ -19,53 +19,71 @@ looks like the live rates.
 
 - **Click** it for the popover.
 - **Right-click** (or Control-click) it for **Test Internet Speed**, the last result,
-  **Block Everything** (#198), **Connections…** (⌘K), **Usage History…** (⌘Y), **Settings…** (⌘,), **Check for
+  **Block Everything** (#198), **Usage History…** (⌘Y), **Connections…** (⌘K), **Ads and
+  Trackers…** (⌘B), **Network…**, **Settings…** (⌘,), **About NetworkMonitor**, **Check for
   Updates…**, **Uninstall NetworkMonitor…** and **Quit**.
 
 ## The popover
 
-- **Total**: what this connection has used since you joined it, or since midnight, in one
-  combined figure. A line under it says which connection is in use, in orange on a hotspot.
-  If you've joined a hotspot but the Mac is using another connection, it says so, and the ⓘ
-  says how to switch.
-- **The apps behind it**, biggest first, each with a bar for its share. The list re-sorts
-  live as apps overtake each other, and a dot marks apps moving data right now.
-- **Helpers fold into their app**: Chrome's dozen helper processes are one *Google Chrome*
-  row.
-- **Commands break out beneath the app that started them.** Click iTerm2 or VS Code to see
-  the `node`, `git` or `curl` it launched, each with its own figure. More than four become
-  *Other (n)*.
-- **System**: macOS's own daemons collapse into one row at the bottom. Open it when you're
-  curious.
-- **Got through**: on a hotspot with [Hotspot mode](hotspot-mode.md) on, one line under the
-  total says if an update downloaded anyway.
-- **Per-app figures paused**: if macOS's `nettop` can't be started, a grey line says so
-  while NetworkMonitor keeps retrying. The total keeps counting regardless.
-- **Header buttons**: the gauge runs a [speed test](speed-test.md), the globe opens
-  [Connections](connections.md), the chart opens [Usage History](usage-history.md), and
-  the gear opens Settings.
+- **Today | Week | Month**, at the top, sets the period for every figure under it: today,
+  this week or this month so far, on every network, read from Usage History. The popover
+  opens on the period you chose last.
+- **Four buttons**: **Data**, **Connections**, **Ads blocked** and **Network**, each with
+  its figure. Click one to see its view underneath. The colours are the same everywhere in
+  the app: data blue, connections teal, blocked red, hotspots orange.
+- **Data** lists the **Apps** or the **Networks** that used it, biggest first, each with a
+  bar for its share. The apps re-sort live as they overtake each other, and a dot marks
+  apps moving data right now.
+  - **Helpers fold into their app**: Chrome's dozen helper processes are one *Google
+    Chrome* row.
+  - **Commands break out beneath the app that started them.** Open iTerm2 or VS Code to
+    see the `node`, `git` or `curl` it launched, each with its own figure. More than four
+    become *Other (n)*.
+  - **System**: macOS's own daemons collapse into one row at the bottom. Open it when
+    you're curious.
+- **Connections** groups who your apps talked to by **Companies**, **Countries** or
+  **Apps**. Each app talking to a server counts once. A company or country opens into its
+  apps, an app into its companies.
+- **Ads blocked** lists the **Sites** or the **Apps**, busiest first. A site opens into the
+  apps that tried it, an app into the sites it tried. While ad blocking is off, it offers
+  **Turn On**.
+- **Network** shows the connection the Mac is on, a **This is a hotspot** switch, on every
+  network because some phones aren't recognised, and the [speed test](speed-test.md): the
+  last result and **Test Speed**.
+- **Open …**, at the bottom of each view, opens that section of the main window on the same
+  period: **Open Usage History** (⌘Y), **Open Connections** (⌘K), **Open Ads and Trackers**
+  (⌘B) or **Open Network**. The **four squares** beside the gear do the same, and the
+  **gear** opens Settings.
+- **Lines under the buttons** say what needs saying:
+  - a hotspot you've joined that the Mac isn't using, with how to switch behind an ⓘ;
+  - on a hotspot with [Hotspot mode](hotspot-mode.md) on, an update that downloaded anyway;
+  - **Everything is blocked**, with **Turn Off**, while Block Everything is on;
+  - ad blocking paused, or off on this network;
+  - **Per-app figures paused**, in grey, if macOS's `nettop` can't be started.
+    NetworkMonitor keeps retrying, and the total keeps counting regardless.
 
-The list holds eight rows and part of a ninth, so a cut-off row tells you there's more.
-Esc or a click elsewhere closes it.
+A list holds six rows and part of a seventh, so a cut-off row tells you there's more. It
+keeps one height whichever grouping you choose. Esc or a click elsewhere closes it.
 
 ## A total per connection
 
-Join a different Wi-Fi network or hotspot and the total starts from zero, so what you see
-is what *this* connection has used. Open your hotspot somewhere new and you know exactly
-what each app spent on it.
+The popover counts every network. The **Network** page counts the one you're on: join a
+different Wi-Fi network or hotspot and its total starts from zero, so what you see is what
+*this* connection has used. Open your hotspot somewhere new and you know exactly what it
+cost. To compare networks over a period, choose **Networks** under Data in the popover.
 
 - **A dropout and a reconnect** to the same network picks up where it left off.
 - **It resets at midnight** too, for a connection you never leave.
 - **It survives restarts**, and a relaunch on the same network carries on.
-- **Reset Now** (Settings › General) starts the current network's total over.
-- **Counting since** (Settings › General) shows when the current total began.
+- **Reset Now** (Settings › Popover totals) starts the current network's total over.
+- **Counting since** (Settings › Popover totals) shows when the current total began.
 
 Networks are told apart by their router's hardware address, which needs no permission,
 and named after their Wi-Fi network. macOS shares the name only with Location
 permission, which the app asks for once; refused, a network is named like
 *Wi-Fi · 3f2a*.
 
-Totals from earlier networks and days go to [Usage History](usage-history.md).
+Every hour of every network goes to [Usage History](usage-history.md).
 
 ## Internet only
 
@@ -86,8 +104,14 @@ Which companies your apps send data to, from which apps, in which countries, and
 servers: grouped by company, app or country, narrowed by clicking, searched, read hour by
 hour on a timeline, and shaded on a world map that pulses to where your apps reach right now. Nothing is looked up
 online. Block a company, app, country, site or server, or have it ask the first time an app
-connects, and block ads, trackers and malware in every app with one switch. See
-[Connections](connections.md).
+connects. See [Connections](connections.md).
+
+## Ads and Trackers
+
+One switch blocks ads, trackers and malware sites in every app. **Overview** shows what was
+blocked in the period, on a chart and by site and app; **Log** shows each connection live,
+as the filter decides it. The lists and your own rules are in its settings. See
+[Ads and Trackers](connections.md#ads-and-trackers).
 
 ## Speed test
 
@@ -97,36 +121,58 @@ line, the result names it. On a hotspot it asks first. See [Speed test](speed-te
 
 ## Hotspot mode
 
-One switch stops your apps updating while you're on a mobile hotspot, puts the connection in
-Low Data Mode, and tells you which apps it can't stop. See [Hotspot mode](hotspot-mode.md).
+One switch, on the Network page, stops your apps updating while you're on a mobile hotspot,
+puts the connection in Low Data Mode, and tells you which apps it can't stop. See
+[Hotspot mode](hotspot-mode.md).
+
+## The main window
+
+One window with a sidebar: **Usage History**, **Connections**, **Ads and Trackers** and
+**Network**, in the popover's order, with **Settings** pinned at the bottom. Hide the sidebar
+with its button or **View › Hide Sidebar** (⌃⌘S).
+
+Each section's toolbar has the period (**Day, Week, Month, Year**) in the middle, then
+**‹ Today ›**, a search button that opens into a field (⌘F), and a **gear**. The gear shows
+that section's own settings in place, with a back button. Network is about now, so it has
+only the gear.
+
+| Section | What's in it | Behind its gear |
+|---|---|---|
+| **Usage History** | The period's use by network type, then its apps, networks or sessions · Export CSV… | Keep history for · Clear History… |
+| **Connections** | Who your apps talked to, on a list and a map, or what was blocked | Website names, Turn On… while they're off · Let apps connect, every rule you've made, Export… and Import… · Encrypt lookups · Opens with List, Both or Map · Where the names come from, and Update them monthly |
+| **Ads and Trackers** | Overview: the period, a chart, sites and apps · Log: each connection as the filter decides it | Block ads and trackers · Update the lists weekly · Lists · Your Rules |
+| **Network** | The connection you're on · This is a hotspot, and what it's detected as Right now · Stop apps updating on hotspots, what's paused and what can't be paused · the speed test | Show the test in the popover as Card or Compact |
 
 ## Settings
 
-One window with a pane for each area. It's titled and sized after the pane, up to the
-height of the screen, where the pane scrolls instead. It reopens on the pane you used last.
+**Settings** (⌘,), at the bottom of the sidebar, holds what applies to the whole app.
 What a row means is behind an ⓘ beside it, which appears when you point at the row (#185,
 #189).
 
-| Pane | What's in it |
-|---|---|
-| **General** | Language: the Mac's, or one chosen for the app · Start at login · Show speeds in MB/s or Mbps · Wi-Fi names, until they're on · Menu bar colors: Download, Upload, the speed test's colours, Use Default Colors · Popover totals: Counting since, Sampling, Reset Now |
-| **Speed Test** | Run a test right there · Show the test in the popover as a Card or Compact |
-| **History** | [Usage History](usage-history.md) |
-| **Connections** | What it is, and Open Connections… · Website names, Turn On… while they're off · Let apps connect, every rule you've made, Export… and Import… · Ads and trackers: Block ads and trackers, each list, Blocked today, Update them weekly · Opens with List, Both or Map · Where the names come from, and Update them monthly |
-| **Hotspot** | Stop apps updating on hotspots · what it decided about the connection you're on · Paused on a hotspot, each app with its own switch and how behind an ⓘ · Can't be paused, each with why behind an ⓘ · Low Data Mode · what got through |
-| **About** | Version · website, release notes and source · Check for updates automatically, Check Now · Uninstall… |
+- **Language**: the Mac's, or one chosen for the app
+- **Start at login**
+- **Show speeds in** MB/s or Mbps
+- **Wi-Fi names**, until they're on
+- **Menu bar colors**: Download, Upload, the speed test's colours, Use Default Colors
+- **Popover totals**: Counting since, Sampling, Reset Now
+- **Check for updates automatically**, and Check Now
+- **Sections**: a row to each section's settings, the same pages its gear shows
 
-While Settings is open, NetworkMonitor has a Dock icon and a menu, so ⌘W, ⌘, and ⌘Y work
-and ⌘-Tab can find it. It goes back to living in the menu bar when you close it.
+**About NetworkMonitor**, in the right-click menu and the app menu, is the standard About
+window: the version, links to the website, what's new and the source code, and the licence.
 
-With Settings open behind another app, a click on the menu bar item shows only the popover,
-and Settings stays behind. ⌘-Tab or the Dock icon shows Settings on its own.
+While the main window is open, NetworkMonitor has a Dock icon and a menu, so ⌘W, ⌘,, ⌘Y,
+⌘K, ⌘B and ⌘F work and ⌘-Tab can find it. It goes back to living in the menu bar when you
+close it.
+
+With the main window open behind another app, a click on the menu bar item shows only the
+popover, and the window stays behind. ⌘-Tab or the Dock icon shows the window on its own.
 
 ## Staying out of the way
 
 - No Dock icon, no app switcher entry, no window to manage. Just the menu bar.
-- **Starts at login** by default, once. Turn it off in Settings › General and it stays off.
+- **Starts at login** by default, once. Turn it off in Settings and it stays off.
 - **Quit stays quit.** Quitting ends it for the session without turning off Start at
   login, and turning that off doesn't quit the running app.
 - Works with the menu bar set to hide automatically: the popover stays open while the bar
-  hides, and Settings stays in front.
+  hides, and the main window stays in front.

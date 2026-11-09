@@ -1,4 +1,5 @@
 import AppKit
+import FirewallPolicy
 import SwiftUI
 
 public struct MenuBarPopoverView: View {
@@ -15,23 +16,30 @@ public struct MenuBarPopoverView: View {
     @ObservedObject var listBlocks: ListBlockCount
     /// Whether Block Everything is on (#198).
     @ObservedObject var firewall: FirewallRules
+    /// Today's companies, for the Companies button and view (#436).
+    @ObservedObject var glance: TodayGlance
+    @ObservedObject var filter: FilterController
     var onSettings: () -> Void
     var onHistory: () -> Void
     var onConnections: () -> Void
     var onAds: () -> Void
+    var onHotspotSettings: () -> Void
 
     public init(model: MonitorViewModel, onSettings: @escaping () -> Void,
                 onHistory: @escaping () -> Void, onConnections: @escaping () -> Void,
-                onAds: @escaping () -> Void = {}) {
+                onAds: @escaping () -> Void = {}, onHotspotSettings: @escaping () -> Void = {}) {
         self.model = model
         self.speedTest = model.speedTest
         self.metering = model.metering
         self.listBlocks = model.listBlocks
         self.firewall = model.firewall
+        self.glance = model.glance
+        self.filter = model.filter
         self.onSettings = onSettings
         self.onHistory = onHistory
         self.onConnections = onConnections
         self.onAds = onAds
+        self.onHotspotSettings = onHotspotSettings
     }
 
     /// Ad blocking paused for a while (#251), or off on this network (#253).
@@ -39,8 +47,13 @@ public struct MenuBarPopoverView: View {
         if let until = firewall.listsPausedUntil {
             return L("Ad blocking paused until %@", until.formatted(date: .omitted, time: .shortened))
         }
-        guard !firewall.lists.isEmpty, let network = model.adsPausedHere else { return nil }
-        return L("Ad blocking off on %@", network)
+        guard !firewall.lists.isEmpty else { return nil }
+        if let network = model.adsPausedHere { return L("Ad blocking off on %@", network) }
+        // Lists chosen, but nothing to block with: the filter is off, still
+        // waiting for your OK, or failed (#436). Said, so a 0 isn't taken for
+        // a quiet day.
+        if filter.state.isOffered { return L("Not blocking now: the content filter isn't running.") }
+        return nil
     }
 
     /// One line under the total, while metered, when an update came through
@@ -70,56 +83,9 @@ public struct MenuBarPopoverView: View {
         speedTest.phase != .idle && speedTest.isPresented && speedTest.style == .compact
     }
 
-    /// The list gives up the strip's height while it is shown, so the popover's
-    /// tallest size is the same with a test on screen as without.
-    private var listCap: CGFloat {
-        showsStrip ? PopoverMetrics.maxListHeight - PopoverMetrics.speedStripHeight - 1
-                   : PopoverMetrics.maxListHeight
-    }
-
-    /// Height the list wants for the rows currently on screen, capped.
-    ///
-    /// Computed from the row count rather than measured from the laid-out
-    /// content, and that distinction is the whole fix. Measuring means feeding a
-    /// height back into the view that produced it, so the first layout pass
-    /// necessarily runs at the wrong size — zero — and `NSPopover` places its
-    /// window from whatever size the controller reports *at show time*. A
-    /// popover shown against a zero-height list is positioned for a window that
-    /// does not exist yet, which is the same class of bug as the (0, 0)
-    /// `preferredContentSize` described in `AppDelegate.setUpPopover`.
-    ///
-    /// Deriving the height instead makes the very first layout correct, so the
-    /// popover is placed once against a size that is already final.
-    private var listHeight: CGFloat {
-        PopoverMetrics.listHeight(appRows: model.rows.count,
-                                  expandedChildRows: expandedChildRows,
-                                  systemRowCount: model.systemRows.count,
-                                  systemExpanded: model.systemExpanded,
-                                  cap: listCap)
-    }
-
-    /// True only when there are genuinely more rows than fit.
-    private var listScrolls: Bool {
-        PopoverMetrics.scrolls(appRows: model.rows.count,
-                               expandedChildRows: expandedChildRows,
-                               systemRowCount: model.systemRows.count,
-                               systemExpanded: model.systemExpanded,
-                               cap: listCap)
-    }
-
-    /// What the reorder animation watches: the order itself, nothing else.
-    ///
-    /// The list is rebuilt from scratch on every sample, so there is no
-    /// transaction for `withAnimation` to attach to — the animation has to hang
-    /// off a value, exactly as each bar's width does. Comparing ids and not rows
-    /// is what keeps it honest: a row whose figure merely ticked up redraws in
-    /// place, and only an app actually overtaking another makes the list move.
-    private var rowOrderKey: [String] {
-        model.rows.map(\.id)
-    }
 
     private var expandedChildRows: Int {
-        model.rows
+        appRows
             .filter { model.expandedApps.contains($0.id) }
             .reduce(0) { $0 + $1.children.count }
     }
@@ -128,143 +94,278 @@ public struct MenuBarPopoverView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
-            if showsCard {
-                SpeedTestCard(speedTest: speedTest)
-            } else {
-                if showsStrip {
-                    SpeedTestStrip(speedTest: speedTest)
-                    Divider()
+            // Overlapping while they cross (#436): stacked, the popover
+            // grew by the incoming view's height, then shrank again.
+            ZStack(alignment: .top) {
+                Group {
+                    switch model.popoverSection {
+                    case .today:
+                        today
+                    case .companies:
+                        PopoverCompanies(glance: glance, icon: model.icon(forApp:name:bundlePath:), onOpen: onConnections)
+                    case .blocked:
+                        PopoverBlocked(glance: glance, firewall: firewall, filter: filter, pausedText: adsPausedText,
+                                       icon: model.icon(forApp:name:bundlePath:),
+                                       onTurnOn: turnOnAdBlocking, onOpen: onAds)
+                    case .connection:
+                        connection
+                    }
                 }
-                if model.rows.isEmpty && model.systemRows.isEmpty {
-                    emptyState
-                } else {
-                    list
-                }
+                .id(model.popoverSection)
+                .transition(Motion.swap)
             }
         }
         .frame(width: 320)
     }
 
+    // MARK: Data
+
+    /// The period's apps, from Usage History on every network (#449), or the
+    /// live list until History has answered for the first time.
+    private var appRows: [UsageRow] { glance.report?.apps ?? model.rows }
+    private var systemRows: [UsageRow] { glance.report?.systemRows ?? model.systemRows }
+    private var systemTotal: Int64 { glance.report?.systemTotal ?? model.systemTotal }
+
+    /// The apps moving bytes right now, which History can't know: their rows
+    /// keep the live dot.
+    private var activeApps: Set<String> {
+        Set((model.rows + model.systemRows).flatMap { [$0] + $0.children }.filter(\.isActive).map(\.id))
+    }
+
+    private var dataTotal: String {
+        guard let report = glance.report else {
+            return glance.period == .today ? ByteFormat.bytes(model.totalBytes) : "–"
+        }
+        return ByteFormat.bytes(report.bytesIn + report.bytesOut)
+    }
+
+    /// Data: the apps or the networks, and the way to Usage History (#436, #449).
+    private var today: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            PopoverGroupingRow(options: PopoverDataGrouping.allCases, selection: $glance.dataGrouping,
+                               label: { $0.label }, count: dataCount)
+            // Overlapping while they cross (#436): stacked, the popover
+            // grew by the incoming view's height, then shrank again.
+            ZStack(alignment: .top) {
+                Group {
+                    if glance.dataGrouping == .networks {
+                        networks
+                    } else if appRows.isEmpty && systemRows.isEmpty {
+                        emptyState
+                    } else {
+                        list
+                    }
+                }
+                .id(glance.dataGrouping)
+                .transition(Motion.swap)
+            }
+            Divider()
+            PopoverOpenRow(title: L("Open Usage History"), shortcut: "⌘Y", action: onHistory)
+        }
+    }
+
+    /// Connection: the network, the hotspot switch and the speed test, which
+    /// tests this connection and so runs here (#436). A test shown as a card
+    /// takes the view's place while it runs; the compact one sits above it.
+    @ViewBuilder
+    private var connection: some View {
+        if showsCard {
+            SpeedTestCard(speedTest: speedTest)
+        } else {
+            VStack(spacing: 0) {
+                if showsStrip {
+                    SpeedTestStrip(speedTest: speedTest)
+                    Divider()
+                }
+                PopoverConnection(metering: metering, speedTest: speedTest, status: model.connection,
+                                  onHotspotSettings: onHotspotSettings)
+            }
+        }
+    }
+
+    /// As Ads and Trackers' Turn On: every built-in list, and the filter.
+    private func turnOnAdBlocking() {
+        firewall.lists = Set(BlocklistTopic.allCases)
+        switch filter.state {
+        case .off, .failed: filter.turnOn()
+        default: break
+        }
+    }
+
+    private var dataCount: String {
+        if glance.dataGrouping == .networks {
+            let count = glance.report?.networks.count ?? 0
+            return count == 1 ? L("1 network") : L("%@ networks", String(count))
+        }
+        let count = appRows.count
+        return count == 1 ? L("1 app") : L("%@ apps", String(count))
+    }
+
+    /// What each network used in the period, biggest first (#449): in place
+    /// of the counter that started over on joining a network.
+    @ViewBuilder
+    private var networks: some View {
+        let rows = glance.report?.networks ?? []
+        if rows.isEmpty {
+            emptyState
+        } else {
+            let total = max(rows.reduce(0) { $0 + $1.bytes }, 1)
+            PopoverList(rows: max(rows.count, appsRowCount)) {
+                ForEach(rows) { network in
+                    PopoverRow(title: model.store.displayLabel(for: network.id, defaultLabel: network.defaultLabel),
+                               value: ByteFormat.bytes(network.bytes),
+                               icon: .symbol(Self.symbol(network), network.isMetered ? PopoverPalette.hotspot
+                                                                                    : PopoverPalette.data),
+                               fraction: Double(network.bytes) / Double(total),
+                               barColor: network.isMetered ? PopoverPalette.hotspot : PopoverPalette.data)
+                }
+            }
+        }
+    }
+
+    /// Today's count is the filter's own, which moves as it blocks; a week's
+    /// or a month's is read from History.
+    private var blockedTotal: String {
+        if firewall.lists.isEmpty { return L("Off") }
+        if glance.period == .today { return max(Int64(listBlocks.today), glance.ads.total).formatted() }
+        return glance.hasLoaded ? glance.ads.total.formatted() : "–"
+    }
+
+    private static func symbol(_ network: HistoryReport.NetworkTotal) -> String {
+        if network.isMetered { return "personalhotspot" }
+        switch network.kind {
+        case .ethernet: return "cable.connector"
+        case .offline:  return "wifi.slash"
+        default:        return "wifi"
+        }
+    }
+
     // MARK: Header
 
-    /// One combined total. The per-direction split lived here and in every row,
-    /// but it was never asked for and doubled the numbers on screen; live
+    /// The window section for the view shown, from the button by the gear.
+    private func openWindow() {
+        switch model.popoverSection {
+        case .today:      onHistory()
+        case .companies:  onConnections()
+        case .blocked:    onAds()
+        case .connection: onHotspotSettings()
+        }
+    }
+
+    private var openWindowHelp: String {
+        switch model.popoverSection {
+        case .today:      return L("Open Usage History (⌘Y)")
+        case .companies:  return L("Open Connections (⌘K)")
+        case .blocked:    return L("Open Ads and Trackers (⌘B)")
+        case .connection: return L("Open Network")
+        }
+    }
+
+    /// The period, with Settings' gear beside it; the four buttons; then
+    /// anything that needs saying (#436, #449). One combined total: live
     /// download/upload rates are already in the menu bar.
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(L("Total"))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                Text(ByteFormat.bytes(model.totalBytes))
-                    .font(.system(size: 17, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                // Which connection that total is for. Joining a network doesn't
-                // mean using it, and nothing else here says which is in use.
-                // Orange when it's the case where the total matters most.
-                Text(model.connection.line)
-                    .font(.system(size: 10))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .foregroundStyle(model.connection.isHighlighted ? AnyShapeStyle(.orange)
-                                                                    : AnyShapeStyle(.secondary))
-                if let standby = metering.standbyHotspot {
-                    StandbyHotspotLine(message: standby.message,
-                                       explanation: standby.explanation(inUse: model.connection))
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                PopoverSwitch(name: L("Period"), options: PopoverPeriod.allCases, selection: $glance.period,
+                              label: { $0.label })
+                    .help(L("What Data, Connections and Ads blocked count: today, this week or this month so far, on every network"))
+                Spacer(minLength: 0)
+                Button(action: openWindow) {
+                    Image(systemName: "square.grid.2x2")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 26, height: 26)
+                        .contentShape(Rectangle())
                 }
-                if let summary = gotThroughSummary {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.down.circle.fill")
-                        Text(summary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                .buttonStyle(.plain)
+                .help(openWindowHelp)
+                .accessibilityLabel(openWindowHelp)
+                Button(action: onSettings) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 26, height: 26)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(L("Settings (⌘,)"))
+                // The popover's own: with no window open, the app has no menu
+                // for ⌘, to come from.
+                .keyboardShortcut(",", modifiers: .command)
+                .accessibilityLabel(L("Settings"))
+            }
+            .padding(.leading, PopoverMetrics.edge)
+            .padding(.trailing, 6)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
+            PopoverButtons(selection: Binding(get: { model.popoverSection },
+                                              set: { section in
+                                                  withAnimation(Motion.content) { model.popoverSection = section }
+                                                  if section == .companies || section == .blocked { glance.refresh() }
+                                              }),
+                           period: glance.period,
+                           data: dataTotal,
+                           connections: glance.hasLoaded ? glance.connections.formatted() : "–",
+                           blocked: blockedTotal,
+                           blockedIsOn: !firewall.lists.isEmpty,
+                           connection: PopoverConnection.word(model.connection, metering: metering),
+                           isHotspot: metering.verdict.isMetered)
+                .padding(.horizontal, PopoverMetrics.edge)
+            VStack(alignment: .leading, spacing: 2) {
+                    if let standby = metering.standbyHotspot {
+                        StandbyHotspotLine(message: standby.message,
+                                           explanation: standby.explanation(inUse: model.connection))
                     }
-                    .font(.system(size: 10))
-                    .foregroundStyle(.orange)
-                    .help(L("Downloaded over this connection anyway. Settings › Hotspot lists what NetworkMonitor can't stop."))
-                }
-                if firewall.blocksEverything {
-                    HStack(spacing: 6) {
-                        Image(systemName: "hand.raised.fill")
-                        Text(L("Everything is blocked"))
-                        Button(L("Turn Off")) { model.setBlocksEverything(false) }
-                            .buttonStyle(.link)
-                    }
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.red)
-                    .help(L("Block Everything is on: every app's new connections stop, apart from looking up names, the clock and your own network"))
-                }
-                if let paused = adsPausedText {
-                    Button(action: onAds) {
+                    if let summary = gotThroughSummary {
                         HStack(spacing: 4) {
-                            Image(systemName: "shield.slash")
-                            Text(paused).lineLimit(1)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.orange)
-                    .help(L("Open Ads and Trackers to resume"))
-                } else if listBlocks.today > 0 {
-                    Button(action: onAds) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "shield.lefthalf.filled")
-                            // Short enough for one line beside the header's
-                            // buttons (#390); the tooltip and VoiceOver say
-                            // trackers too.
-                            Text(L("%@ ads blocked today", listBlocks.today.formatted()))
+                            Image(systemName: "arrow.down.circle.fill")
+                            Text(summary)
                                 .lineLimit(1)
+                                .truncationMode(.middle)
                         }
+                        .font(.system(size: 10))
+                        .foregroundStyle(.orange)
+                        .help(L("Downloaded over this connection anyway. The Network page lists what NetworkMonitor can't stop."))
                     }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .help(L("Ads and trackers blocked today. See what was blocked, and where"))
-                    .accessibilityLabel(L("%@ ads and trackers blocked today", listBlocks.today.formatted()))
-                }
-                if let failure = model.perAppFailure {
-                    // Grey, not orange: the total above is still right. Only the
-                    // list has stopped, and saying so beats a list gone quiet.
-                    HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.triangle")
-                        Text(L("Per-app figures paused"))
+                    if firewall.blocksEverything {
+                        HStack(spacing: 6) {
+                            Image(systemName: "hand.raised.fill")
+                            Text(L("Everything is blocked"))
+                            Button(L("Turn Off")) { model.setBlocksEverything(false) }
+                                .buttonStyle(.link)
+                        }
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.red)
+                        .help(L("Block Everything is on: every app's new connections stop, apart from looking up names, the clock and your own network"))
                     }
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .help(L("macOS's nettop isn't reporting per-app figures (%@). The total is still counted, and NetworkMonitor keeps trying.", failure))
-                }
+                    if let paused = adsPausedText {
+                        Button(action: onAds) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "shield.slash")
+                                Text(paused).lineLimit(1)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.orange)
+                        .help(L("Open Ads and Trackers to resume"))
+                    }
+                    if let failure = model.perAppFailure {
+                        // Grey, not orange: the total above is still right. Only the
+                        // list has stopped, and saying so beats a list gone quiet.
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.triangle")
+                            Text(L("Per-app figures paused"))
+                        }
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                        .help(L("macOS's nettop isn't reporting per-app figures (%@). The total is still counted, and NetworkMonitor keeps trying.", failure))
+                    }
             }
-            Spacer()
-            if SpeedTestRunner.isAvailable {
-                SpeedTestButton(speedTest: speedTest)
-            }
-            // Who the apps below sent their data to.
-            Button(action: onConnections) {
-                Image(systemName: "globe").font(.system(size: 12))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help(L("Connections"))
-            .accessibilityLabel(L("Connections"))
-            // The way back to the totals this header starts over at midnight
-            // and on every network change.
-            Button(action: onHistory) {
-                Image(systemName: "chart.bar.xaxis").font(.system(size: 12))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help(L("Usage History"))
-            .accessibilityLabel(L("Usage History"))
-            Button(action: onSettings) {
-                Image(systemName: "gearshape.fill").font(.system(size: 12))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help(L("Settings"))
-            .accessibilityLabel(L("Settings"))
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
     }
 
     // MARK: List
@@ -272,26 +373,40 @@ public struct MenuBarPopoverView: View {
     /// `LazyVStack` is safe again now that the height no longer comes from
     /// measuring this content: laziness cannot influence a number derived from
     /// the row count.
+    /// The same list as every other view's (#436), so Apps and Networks
+    /// cross as Connections' and Ads blocked's groupings do. Rows sliding past
+    /// each other as figures arrive animate with the figures (`TodayGlance`),
+    /// never the frame, which sets the popover's size; see
+    /// `PopoverMetrics.maxListHeight`.
     private var list: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(model.rows) { row in
-                    appRow(row)
-                }
-                if !model.systemRows.isEmpty { systemSection }
+        PopoverList(rows: max(dataRowCount, networksRowCount)) {
+            ForEach(appRows) { row in
+                appRow(row)
             }
-            .padding(.vertical, PopoverMetrics.listVerticalPadding / 2)
-            // Applied here rather than to the ScrollView so it animates the rows
-            // sliding past each other and never the frame below, which sets the
-            // popover's size — animating that would re-anchor the window on every
-            // overtake. See `PopoverMetrics.maxListHeight`.
-            .animation(.easeInOut(duration: 0.3), value: rowOrderKey)
+            if !systemRows.isEmpty { systemSection }
         }
-        .frame(height: listHeight)
-        // Stated, not inferred. Left to AppKit, a list that exactly fits its
-        // frame is scrollable-or-not depending on rounding, and the overlay bar
-        // flickered on every republish.
-        .scrollIndicators(listScrolls ? .automatic : .never)
+    }
+
+    /// The list keeps one height across Apps and Networks (#436): the taller
+    /// of the two, up to the cap. Sized to each, the popover shrank to a
+    /// couple of networks and grew back for the apps at every switch. It
+    /// still grows with the data, from a first launch's few rows.
+    private var networksRowCount: Int { glance.report?.networks.count ?? 0 }
+
+    /// The apps, closed, and the System group: Networks' share of the height.
+    private var appsRowCount: Int { appRows.count + (systemRows.isEmpty ? 0 : 1) }
+
+    /// Every row on screen: the apps, those opened, and the System group.
+    ///
+    /// The list's height is computed from this count rather than measured
+    /// from the laid-out content: measured, the first layout runs at zero,
+    /// and `NSPopover` places its window from the size it's given at show
+    /// time, against a window that doesn't exist yet (see
+    /// `AppDelegate.setUpPopover`).
+    private var dataRowCount: Int {
+        var rows = appRows.count + expandedChildRows
+        if !systemRows.isEmpty { rows += 1 + (model.systemExpanded ? systemRows.count : 0) }
+        return rows
     }
 
     /// What every bar is measured against: everything the rows account for.
@@ -301,7 +416,7 @@ public struct MenuBarPopoverView: View {
     /// but could not attribute to any process, and a set of bars that visibly
     /// fails to fill the row reads as a bug rather than as that distinction.
     private var barTotal: Int64 {
-        max(model.rows.reduce(0) { $0 + $1.total } + model.systemTotal, 1)
+        max(appRows.reduce(0) { $0 + $1.total } + systemTotal, 1)
     }
 
     private func fraction(of bytes: Int64) -> Double {
@@ -316,19 +431,22 @@ public struct MenuBarPopoverView: View {
     @ViewBuilder
     private func appRow(_ row: UsageRow) -> some View {
         let isExpanded = model.expandedApps.contains(row.id)
-        AppRowView(row: row,
+        let active = activeApps
+        PopoverRow(row: row,
                    icon: model.icon(for: row),
                    fraction: fraction(of: row.total),
+                   isActive: active.contains(row.id) || row.children.contains { active.contains($0.id) },
                    isExpanded: isExpanded,
                    onToggle: row.hasChildren
-                       ? { withAnimation(.easeInOut(duration: 0.15)) {
+                       ? { withAnimation(Motion.content) {
                              model.toggleExpanded(row.id)
                          } }
                        : nil)
         if isExpanded {
             ForEach(row.children) { child in
-                AppRowView(row: child, icon: model.icon(for: child),
-                           fraction: fraction(of: child.total), indented: true)
+                PopoverRow(row: child, icon: model.icon(for: child),
+                           fraction: fraction(of: child.total), isActive: active.contains(child.id),
+                           indented: true)
             }
         }
     }
@@ -337,7 +455,7 @@ public struct MenuBarPopoverView: View {
     /// 263 MB against a top real app of 6 MB — left inline it would bury
     /// everything the user cares about.
     ///
-    /// Rendered through `AppRowView` like any other row, so the group carries a
+    /// Rendered through `PopoverRow` like any other row, so the group carries a
     /// bar for its share of the total and puts its chevron on the right where
     /// the app rows put theirs. It used to be the one row shaped differently,
     /// which made it read as a different kind of control than it is.
@@ -345,26 +463,29 @@ public struct MenuBarPopoverView: View {
         // Own bytes stay zero and the daemons hang off it as children, so
         // `total` is the group's total without stating it twice.
         let summary = UsageRow(id: "\u{1}system",
-                               displayName: L("System (%@)", String(model.systemRows.count)),
+                               displayName: L("System (%@)", String(systemRows.count)),
                                bytesIn: 0, bytesOut: 0,
                                bundlePath: nil, isSystem: true,
-                               isActive: model.systemRows.contains(where: \.isActive),
-                               children: model.systemRows)
+                               isActive: false,
+                               children: systemRows)
+        let active = activeApps
         return VStack(alignment: .leading, spacing: 0) {
-            AppRowView(row: summary,
+            PopoverRow(row: summary,
                        icon: model.icon(for: summary),
-                       fraction: fraction(of: model.systemTotal),
+                       fraction: fraction(of: systemTotal),
+                       isActive: systemRows.contains { active.contains($0.id) },
                        isMuted: true,
                        isExpanded: model.systemExpanded,
                        onToggle: {
-                           withAnimation(.easeInOut(duration: 0.15)) {
+                           withAnimation(Motion.content) {
                                model.systemExpanded.toggle()
                            }
                        })
             if model.systemExpanded {
-                ForEach(model.systemRows) { row in
-                    AppRowView(row: row, icon: model.icon(for: row),
-                               fraction: fraction(of: row.total), indented: true)
+                ForEach(systemRows) { row in
+                    PopoverRow(row: row, icon: model.icon(for: row),
+                               fraction: fraction(of: row.total), isActive: active.contains(row.id),
+                               indented: true)
                 }
             }
         }
@@ -376,7 +497,7 @@ public struct MenuBarPopoverView: View {
         VStack(spacing: 4) {
             Text(L("No network activity yet"))
                 .font(.system(size: 12)).foregroundStyle(.secondary)
-            Text(L("Counting since you joined this network"))
+            Text(L("Counted while NetworkMonitor is running, on every network"))
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)
@@ -420,7 +541,7 @@ private struct StandbyHotspotLine: View {
 /// The constants are calibrated against what SwiftUI actually lays out — see
 /// `runPopoverMetricsTests`, which pins every one of them. They are only correct
 /// as long as the row views keep their current padding, so a change to
-/// `AppRowView`'s insets is a change here too, and the tests say so.
+/// `PopoverRow`'s insets is a change here too, and the tests say so.
 public enum PopoverMetrics {
 
     /// Every row in the list, whatever its level.
@@ -504,6 +625,13 @@ public enum PopoverMetrics {
     /// x and a long app name truncates instead of shoving the row about.
     public static let detailWidth: CGFloat = 220
 
+    /// The same, less what an indented row gives to its indent and keeps
+    /// back of its smaller icon, so an opened row is no wider than the
+    /// popover: at 220 it was 340 pt wide in a 320 pt popover (#436).
+    public static func detailWidth(indented: Bool) -> CGFloat {
+        indented ? detailWidth - childIndent - (iconSize - childIconSize) - 2 : detailWidth
+    }
+
     /// Tallest the list may grow before it scrolls instead.
     ///
     /// A ceiling rather than a fixed height. `NSPopover` re-anchors itself
@@ -512,11 +640,12 @@ public enum PopoverMetrics {
     /// list long enough to reach it, which is where a day's traffic ends up,
     /// stops resizing altogether.
     ///
-    /// Sized so the popover stands 428.5 pt overall — the list plus 56.5 of
-    /// header and divider. That holds eight rows whole and part of a ninth,
-    /// which is deliberate: a row cut off at the bottom edge is what says there
-    /// is more below without spending a whole row saying it.
-    public static let maxListHeight: CGFloat = 372
+    /// Sized so the popover stands about as tall as it did before its header
+    /// gained the four buttons, the Open Usage History row and the Settings
+    /// footer (#436). That holds six rows whole and part of a seventh, which
+    /// is deliberate: a row cut off at the bottom edge is what says there is
+    /// more below without spending a whole row saying it.
+    public static let maxListHeight: CGFloat = 290
 
     /// Kept between the content and the frame that holds it, so a list that fits
     /// is never *exactly* the height of its own content.
@@ -580,17 +709,57 @@ public enum PopoverMetrics {
     }
 }
 
-private struct AppRowView: View {
-    let row: UsageRow
-    let icon: NSImage
+/// What a row of the popover's lists shows beside its name: an app's icon, or
+/// a symbol in a tinted square for a company or a site.
+enum PopoverRowIcon {
+    case image(NSImage)
+    case symbol(String, Color)
+    /// A country's flag (#449).
+    case text(String)
+}
+
+/// One row of the popover's lists, Today's apps, Companies and Ads blocked
+/// alike (#436): an icon, the name over a bar, the figure, and a chevron
+/// where there's something to open, so all three read and open the same way.
+struct PopoverRow: View {
+    let title: String
+    let value: String
+    var isActive = false
+    let icon: PopoverRowIcon
     /// This row's share of everything the list accounts for, 0...1.
     let fraction: Double
+    var barColor: Color = AppPalette.data
     var indented = false
     /// The System group, which is a heading over other rows rather than an app.
     var isMuted = false
     var isExpanded = false
     /// Non-nil only when the row has a breakdown to show.
     var onToggle: (() -> Void)?
+
+    init(title: String, value: String, isActive: Bool = false, icon: PopoverRowIcon, fraction: Double,
+         barColor: Color = AppPalette.data, indented: Bool = false, isMuted: Bool = false, isExpanded: Bool = false,
+         onToggle: (() -> Void)? = nil) {
+        self.title = title
+        self.value = value
+        self.isActive = isActive
+        self.icon = icon
+        self.fraction = fraction
+        self.barColor = barColor
+        self.indented = indented
+        self.isMuted = isMuted
+        self.isExpanded = isExpanded
+        self.onToggle = onToggle
+    }
+
+    /// An app's row in Today.
+    /// `isActive` overrides the row's own, for a row read from History, which
+    /// can't know what's moving now (#449).
+    init(row: UsageRow, icon: NSImage, fraction: Double, isActive: Bool? = nil, indented: Bool = false,
+         isMuted: Bool = false, isExpanded: Bool = false, onToggle: (() -> Void)? = nil) {
+        self.init(title: row.displayName, value: ByteFormat.bytes(row.total), isActive: isActive ?? row.isActive,
+                  icon: .image(icon), fraction: fraction, indented: indented, isMuted: isMuted,
+                  isExpanded: isExpanded, onToggle: onToggle)
+    }
 
     /// Not `@State`, which needs Xcode from the macOS 27 SDK on — see
     /// `SettingsPaneState`.
@@ -613,17 +782,14 @@ private struct AppRowView: View {
     private var content: some View {
         HStack(spacing: PopoverMetrics.iconSpacing) {
             if indented { Spacer().frame(width: PopoverMetrics.childIndent) }
-            Image(nsImage: icon)
-                .resizable()
-                .frame(width: PopoverMetrics.iconSize(indented: indented),
-                       height: PopoverMetrics.iconSize(indented: indented))
-                // The app's name is beside it.
+            iconView
+                // The name is beside it.
                 .accessibilityHidden(true)
 
             // Name over bar, vertically centred against the icon.
             VStack(alignment: .leading, spacing: PopoverMetrics.detailSpacing) {
                 HStack(spacing: 6) {
-                    Text(row.displayName)
+                    Text(title)
                         .font(.system(size: indented ? PopoverMetrics.childNameFontSize
                                                      : PopoverMetrics.nameFontSize))
                         // Dimmer than a top-level app: a child is a part of the
@@ -634,15 +800,15 @@ private struct AppRowView: View {
 
                     // Live indicator: moved bytes within the last 2 seconds.
                     Circle()
-                        .fill(Color.accentColor)
+                        .fill(AppPalette.data)
                         .frame(width: 5, height: 5)
-                        .opacity(row.isActive ? 1 : 0)
+                        .opacity(isActive ? 1 : 0)
                     Spacer(minLength: 0)
                 }
 
                 HStack(spacing: 8) {
                     bar
-                    Text(ByteFormat.bytes(row.total))
+                    Text(value)
                         .font(.system(size: indented ? PopoverMetrics.childTotalFontSize
                                                      : PopoverMetrics.totalFontSize,
                                       weight: .medium))
@@ -654,7 +820,7 @@ private struct AppRowView: View {
             }
             // Held to the stack's own height and centred, so the name and the bar
             // stay vertically centred on the icon beside them.
-            .frame(width: PopoverMetrics.detailWidth,
+            .frame(width: PopoverMetrics.detailWidth(indented: indented),
                    height: PopoverMetrics.detailStackHeight(indented: indented),
                    alignment: .leading)
 
@@ -682,6 +848,28 @@ private struct AppRowView: View {
         .contentShape(Rectangle())
     }
 
+    @ViewBuilder
+    private var iconView: some View {
+        let size = PopoverMetrics.iconSize(indented: indented)
+        switch icon {
+        case .image(let image):
+            Image(nsImage: image)
+                .resizable()
+                .frame(width: size, height: size)
+        case .symbol(let name, let color):
+            Image(systemName: name)
+                .font(.system(size: size * 0.42, weight: .medium))
+                .foregroundStyle(color)
+                .frame(width: size - 4, height: size - 4)
+                .background(RoundedRectangle(cornerRadius: 7).fill(color.opacity(0.15)))
+                .frame(width: size, height: size)
+        case .text(let text):
+            Text(text)
+                .font(.system(size: size * 0.6))
+                .frame(width: size, height: size)
+        }
+    }
+
     /// This row's share of the total, drawn to scale.
     ///
     /// Animated on width so a figure ticking up slides the bar out rather than
@@ -691,7 +879,7 @@ private struct AppRowView: View {
     /// being replaced.
     private var bar: some View {
         Capsule()
-            .fill(Color.accentColor.opacity(isMuted ? 0.5 : 1))
+            .fill(barColor.opacity(isMuted ? 0.5 : 1))
             .frame(width: barWidth, height: PopoverMetrics.barHeight)
             .animation(.easeOut(duration: 0.45), value: barWidth)
     }
@@ -727,7 +915,7 @@ private struct AppRowView: View {
     }
 }
 
-/// Whether the pointer is over one row. A class so that `AppRowView` can own it
+/// Whether the pointer is over one row. A class so that `PopoverRow` can own it
 /// with `@StateObject`; see its `hover` property.
 private final class HoverState: ObservableObject {
     @Published var isHovering = false

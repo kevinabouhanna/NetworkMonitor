@@ -75,47 +75,87 @@ func runAccessibilityTests() {
         for code in Localization.shared.available {
             Localization.shared.showForThisRun(code)
             let language = code == Localization.source ? "" : " (\(code))"
-            let settings = SettingsWindowController(model: model, history: HistoryViewModel(monitor: model),
-                                                    connections: connections, onOpenConnections: {},
-                                                    onUninstall: {}, defaults: defaults)
-            for pane in SettingsPane.allCases {
-                settings.select(pane)
-                check(settings.window, "Settings › \(pane.title)\(language)")
-            }
-
-            // The popover styles are pictures to click (#398). Each reads as a
-            // button named after its style; the sample card inside is left out.
-            // The style names it looks for are English.
-            if code == Localization.source { Check.test("Settings › Speed Test reads each style's picture as one button") {
-                settings.select(.speedTest)
-                settings.window.alphaValue = 0
-                settings.window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-                settings.window.orderFrontRegardless()
-                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-                let outline = AccessibilityAudit.outlineOwnWindow(titled: settings.window.title)
+            // They're in Network's settings now, in the main window (#436).
+            if code == Localization.source { Check.test("Network's settings read each speed test style's picture as one button") {
+                let main = MainWindowController(model: model, history: HistoryViewModel(monitor: model),
+                                                connections: connections, ads: AdsViewModel(monitor: model))
+                let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 900),
+                                      styleMask: [.titled], backing: .buffered, defer: false)
+                window.title = "Network settings"
+                window.contentViewController = main.settingsPage(for: .network)
+                window.setContentSize(NSSize(width: 760, height: 900))
+                window.alphaValue = 0
+                window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
+                window.orderFrontRegardless()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+                let outline = AccessibilityAudit.outlineOwnWindow(titled: window.title)
                 for style in ["Card", "Compact"] {
                     Check.expectTrue(outline.contains { $0.hasPrefix("AXButton name=\(style) ") },
                                      "no \(style) button in \(outline)")
                 }
-                Check.expectTrue(!outline.contains { $0.contains("Back to Apps") },
+                // The pictures' sample card has a Test Again button; the page
+                // has none of its own, so finding one means the sample leaked.
+                Check.expectTrue(!outline.contains { $0.contains("name=Test Again ") },
                                  "the picture's sample buttons reach VoiceOver: \(outline)")
-                settings.window.orderOut(nil)
+                window.orderOut(nil)
             } }
 
+            // The main window (#436). Its split view can't be read through from
+            // this process (AppKit lays it out on the asking thread), so each
+            // part is checked in a window of its own: the sections, with their
+            // toolbars, as the windows they were; the sidebar; Network; and
+            // each section's settings page.
             check(ConnectionsWindowController(model: connections).window, "Connections\(language)")
-
+            check(HistoryWindowController(model: HistoryViewModel(monitor: model)).window, "Usage History\(language)")
             let adsController = AdsWindowController(model: AdsViewModel(monitor: model))
             for tab in AdsViewModel.Tab.allCases {
                 adsController.select(tab)
                 check(adsController.window, "Ads and Trackers › \(tab.label)\(language)")
             }
-
+            let main = MainWindowController(model: model, history: HistoryViewModel(monitor: model),
+                                            connections: connections, ads: AdsViewModel(monitor: model))
+            func part(_ controller: NSViewController, _ title: String, width: CGFloat = 760, height: CGFloat = 640) -> NSWindow {
+                let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: height),
+                                      styleMask: [.titled], backing: .buffered, defer: false)
+                window.title = title
+                window.contentViewController = controller
+                window.setContentSize(NSSize(width: width, height: height))
+                return window
+            }
+            check(part(main.sidebarController, "Main window sidebar", width: 220), "The main window's sidebar\(language)")
+            check(part(main.networkController, "Main window Network"), "The main window › Network\(language)")
+            check(part(main.generalController, "Main window Settings"), "The main window › Settings\(language)")
+            for section in MainSection.features {
+                check(part(main.settingsPage(for: section), "Main window \(section.rawValue) settings"),
+                      "The main window › \(section.rawValue) › settings\(language)")
+            }
             let popover = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 480),
                                    styleMask: [.titled], backing: .buffered, defer: false)
             popover.title = "Popover"
             popover.contentView = NSHostingView(rootView: MenuBarPopoverView(
                 model: model, onSettings: {}, onHistory: {}, onConnections: {}, onAds: {}))
-            check(popover, "The popover\(language)")
+            // Each of its four views (#436).
+            for section in PopoverSection.allCases {
+                model.popoverSection = section
+                check(popover, "The popover › \(section.rawValue)\(language)")
+            }
+            // Each view's other groupings, over a week (#449).
+            let glance = model.glance
+            let saved = (glance.period, glance.dataGrouping, glance.connectionsGrouping, glance.adsGrouping)
+            glance.period = .week
+            model.popoverSection = .today
+            glance.dataGrouping = .networks
+            check(popover, "The popover › today by networks, this week\(language)")
+            model.popoverSection = .companies
+            for grouping in [ConnectionsGrouping.countries, .apps] {
+                glance.connectionsGrouping = grouping
+                check(popover, "The popover › companies by \(grouping.rawValue), this week\(language)")
+            }
+            model.popoverSection = .blocked
+            glance.adsGrouping = .apps
+            check(popover, "The popover › blocked by apps, this week\(language)")
+            (glance.period, glance.dataGrouping, glance.connectionsGrouping, glance.adsGrouping) = saved
+            model.popoverSection = .today
         }
         Localization.shared.showForThisRun(Localization.source)
     }

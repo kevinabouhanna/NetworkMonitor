@@ -96,7 +96,7 @@ public final class MonitorViewModel: ObservableObject {
     /// notice other apps competing with it.
     public let speedTest: SpeedTestController
     /// The content filter (#128): off until turned on in the welcome window or
-    /// Settings › Connections (#134).
+    /// Connections' settings (#134).
     public let filter = FilterController()
     private var filterNames: AnyCancellable?
     /// What the filter blocks or always allows (#114), made in Connections.
@@ -112,6 +112,21 @@ public final class MonitorViewModel: ObservableObject {
     public let lookups = EncryptedLookups()
     /// Each decision the filter reported, for the Ads window's log (#252).
     public let adsLog = AdsLog()
+    #if DEBUG
+    /// For DesignShots' pictures (#437): the connection the popover names,
+    /// without a network watcher. Debug builds only.
+    public func showConnectionForPictures(_ status: ConnectionStatus) { connection = status }
+    #endif
+
+    /// Which of the popover's four buttons is chosen (#436). Not `@State`;
+    /// see `SettingsPaneState`.
+    @Published public var popoverSection: PopoverSection = .today
+    /// The popover's numbers, for the period and groupings last chosen
+    /// there (#436, #449).
+    public private(set) lazy var glance = TodayGlance(history: { [weak self] in self?.store.history },
+                                                      defaults: .standard)
+    /// Today at a glance, for the line heading Connections' settings.
+    public private(set) lazy var todayGlance = TodayGlance(history: { [weak self] in self?.store.history })
     /// Updating NetworkMonitor itself (#132).
     public let updates = UpdateController()
     private var firewallPolicy: AnyCancellable?
@@ -612,7 +627,11 @@ public final class MonitorViewModel: ObservableObject {
                                   localBytesIn: summary.localIn, localBytesOut: summary.localOut,
                                   now: now)
 
-            if self.popoverIsOpen { self.rebuildRows(now: now) }
+            // The rows are Data's: rebuilt only while Data is what's shown.
+            if self.popoverIsOpen && self.popoverSection == .today {
+                self.rebuildRows(now: now)
+                self.glance.tick(now: now)
+            }
         }
     }
 
@@ -627,6 +646,12 @@ public final class MonitorViewModel: ObservableObject {
         popoverIsOpen = open
         expandedApps.removeAll()
         if open {
+            // Opens on Today, the apps (#436), or on Connection while a speed
+            // test is showing, which is where it runs.
+            // Only while it runs: a finished test waits on Network for its ✕
+            // without holding every later open there.
+            popoverSection = speedTest.isPresented && speedTest.phase.isRunning ? .connection : .today
+            glance.popoverWillOpen()
             refreshHeader()
             rebuildRows(now: Date())
         } else {
@@ -751,6 +776,12 @@ public final class MonitorViewModel: ObservableObject {
         } else {
             expandedApps.insert(id)
         }
+    }
+
+    /// An app's icon, by its key, for the popover's Companies and Ads
+    /// blocked rows (#436).
+    public func icon(forApp key: String, name: String, bundlePath: String?) -> NSImage {
+        identityResolver.icon(for: AppIdentity(key: key, displayName: name, bundlePath: bundlePath, isSystem: false))
     }
 
     public func icon(for row: UsageRow) -> NSImage {

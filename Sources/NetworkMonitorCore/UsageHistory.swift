@@ -30,7 +30,7 @@ public struct HistoryUpdate: Identifiable, Equatable {
     public let seenAt: Date
     public var id: String { "\(sessionID):\(appName):\(seenAt.timeIntervalSince1970)" }
 
-    /// As Settings › Hotspot says it: "Slack updated to 4.41".
+    /// As the Network page says it: "Slack updated to 4.41".
     public var label: String {
         version.map { L("%@ updated to %@", appName, $0) } ?? L("%@ downloaded an update", appName)
     }
@@ -897,34 +897,54 @@ public final class UsageHistory {
         return queue.sync { Self.queryServers(database, from: start, to: end, filter: filter, measure: measure) }
     }
 
+    /// Whether the database opened: without it, every report is empty.
+    public var isOpen: Bool { database != nil }
+
     /// What the lists blocked in a span (#250), by app, name and list, most
     /// first. Synchronous, after writing what's pending.
     public func listBlocks(from start: Date, to end: Date) -> [ListBlock] {
         guard let database else { return [] }
         flush()
-        return queue.sync {
-            do {
-                let query = try database.prepare("""
-                    SELECT b.app_key, p.name, b.name, b.list, SUM(b.count)
-                    FROM list_blocks b
-                    LEFT JOIN apps p ON p.key = b.app_key
-                    WHERE b.hour >= ?1 AND b.hour < ?2
-                    GROUP BY b.app_key, b.name, b.list
-                    ORDER BY SUM(b.count) DESC, b.name
-                    """)
-                query.bind([.int(Int64(start.timeIntervalSince1970)), .int(Int64(end.timeIntervalSince1970))])
-                var rows: [ListBlock] = []
-                while try query.step() {
-                    let key = query.string(0) ?? ""
-                    rows.append(ListBlock(appKey: key, appName: query.string(1) ?? (key as NSString).lastPathComponent,
-                                          name: query.string(2) ?? "", list: query.string(3) ?? "",
-                                          count: query.int64(4)))
-                }
-                return rows
-            } catch {
-                NSLog("NetworkMonitor: reading list blocks failed: \(error)")
-                return []
+        return queue.sync { Self.queryListBlocks(database, from: start, to: end) }
+    }
+
+    /// The same, read on History's queue and handed back on the main thread:
+    /// for the popover, which mustn't wait for a month's blocks as it opens
+    /// (#436).
+    public func loadListBlocks(from start: Date, to end: Date, completion: @escaping ([ListBlock]) -> Void) {
+        guard let database else {
+            completion([])
+            return
+        }
+        flush()
+        queue.async {
+            let rows = Self.queryListBlocks(database, from: start, to: end)
+            DispatchQueue.main.async { completion(rows) }
+        }
+    }
+
+    private static func queryListBlocks(_ database: SQLiteDatabase, from start: Date, to end: Date) -> [ListBlock] {
+        do {
+            let query = try database.prepare("""
+                SELECT b.app_key, p.name, b.name, b.list, SUM(b.count)
+                FROM list_blocks b
+                LEFT JOIN apps p ON p.key = b.app_key
+                WHERE b.hour >= ?1 AND b.hour < ?2
+                GROUP BY b.app_key, b.name, b.list
+                ORDER BY SUM(b.count) DESC, b.name
+                """)
+            query.bind([.int(Int64(start.timeIntervalSince1970)), .int(Int64(end.timeIntervalSince1970))])
+            var rows: [ListBlock] = []
+            while try query.step() {
+                let key = query.string(0) ?? ""
+                rows.append(ListBlock(appKey: key, appName: query.string(1) ?? (key as NSString).lastPathComponent,
+                                      name: query.string(2) ?? "", list: query.string(3) ?? "",
+                                      count: query.int64(4)))
             }
+            return rows
+        } catch {
+            NSLog("NetworkMonitor: reading list blocks failed: \(error)")
+            return []
         }
     }
 

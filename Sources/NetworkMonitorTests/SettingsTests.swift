@@ -4,137 +4,125 @@ import NetworkMonitorCore
 import SwiftUI
 
 func runSettingsTests() {
-    Check.suite("Settings — panes") {
+    Check.suite("Settings — in the main window") {
 
-        // The toolbar's order: what people open most first, About last. Ad
-        // blocking is a feature of its own, so a pane of its own.
-        Check.test("the toolbar runs General, Speed Test, History, Connections, Ads, Hotspot, About") {
-            Check.expectEqual(SettingsPane.allCases.map(\.title),
-                              ["General", "Speed Test", "History", "Connections", "Ads", "Hotspot", "About"])
+        // One window (#436): the four sections in the popover's order, and
+        // Settings at the bottom of the sidebar, in place of a Settings window.
+        Check.test("the sidebar runs the four sections, then Settings") {
+            Check.expectEqual(MainSection.allCases.map(\.rawValue),
+                              ["history", "connections", "ads", "network", "settings"])
+            Check.expectEqual(MainSection.features, [.history, .connections, .ads, .network])
         }
 
-        // A missing symbol draws an empty toolbar button, silently.
-        Check.test("every pane's symbol exists on this system") {
-            for pane in SettingsPane.allCases {
-                Check.expectNotNil(NSImage(systemSymbolName: pane.symbol, accessibilityDescription: nil),
-                                   "\(pane.symbol) for \(pane.title)")
+        // A missing symbol draws an empty sidebar row, silently.
+        Check.test("every section's symbol exists on this system") {
+            for section in MainSection.allCases {
+                Check.expectNotNil(NSImage(systemSymbolName: section.symbol, accessibilityDescription: nil),
+                                   "\(section.symbol) for \(section.title)")
             }
         }
 
-        // Without it a tab clicked while the last pane change was still
-        // animating was ignored, and needed a second click (#55).
-        Check.test("the toolbar takes clicks while a pane is changing") {
-            Check.expectTrue(SettingsWindowController.paneTransition.contains(.allowUserInteraction))
-        }
-
-        // A crossfade took about 0.7 s on every switch, and let a scroll bar
-        // flash on the way out of a taller pane (#61).
-        Check.test("panes change at once") {
-            Check.expectEqual(SettingsWindowController.paneTransition.subtracting(.allowUserInteraction), [],
-                              "no crossfade or slide of any kind")
-        }
-
-        // The HIG's "restore the most recently viewed pane".
-        Check.test("Settings reopens on the last pane viewed, General the first time") {
-            let defaults = UserDefaults(suiteName: "settings-pane-\(UUID().uuidString)")!
-            Check.expectEqual(SettingsPane.last(in: defaults), .general)
-            SettingsPane.hotspot.remember(in: defaults)
-            Check.expectEqual(SettingsPane.last(in: defaults), .hotspot)
-            defaults.set("preferences", forKey: "settingsPane")
-            Check.expectEqual(SettingsPane.last(in: defaults), .general,
-                              "an unknown pane falls back to General")
-        }
-
-        // Building the window selects the first pane by itself. Taken for a
-        // choice, it overwrote the last pane, so after every relaunch Settings
-        // opened on General (#14). About, because Hotspot refreshes the real
-        // metering state when it appears.
-        Check.test("a new Settings window reopens on the last pane, not General") {
-            let defaults = UserDefaults(suiteName: "settings-window-\(UUID().uuidString)")!
-            SettingsPane.about.remember(in: defaults)
+        Check.test("Settings opens on its page, and a section's settings go back to where they came from") {
             let dir = URL(fileURLWithPath: NSTemporaryDirectory())
-                .appendingPathComponent("settings-window-\(UUID().uuidString)")
+                .appendingPathComponent("settings-main-\(UUID().uuidString)")
             defer { try? FileManager.default.removeItem(at: dir) }
+            let defaults = UserDefaults(suiteName: "settings-main-\(UUID().uuidString)")!
             let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
             let metering = MeteringController(store: store,
                                               journal: SuppressionJournal(url: dir.appendingPathComponent("journal.json")),
                                               suppressors: [], defaults: defaults)
             let model = MonitorViewModel(store: store, metering: metering)
-            let settings = SettingsWindowController(model: model, history: HistoryViewModel(monitor: model),
-                                                    connections: ConnectionsViewModel(monitor: model, defaults: defaults),
-                                                    onOpenConnections: {}, onUninstall: {}, defaults: defaults)
-            Check.expectEqual(SettingsPane.last(in: defaults), .about,
-                              "building the window must not overwrite the last pane")
-            settings.select(nil)
-            Check.expectEqual(settings.window.title, "About")
-        }
-    }
+            let main = MainWindowController(model: model, history: HistoryViewModel(monitor: model),
+                                            connections: ConnectionsViewModel(monitor: model, defaults: defaults),
+                                            ads: AdsViewModel(monitor: model))
+            main.show(.settings)
+            Check.expectEqual(main.window.title, "Settings")
 
-    Check.suite("Settings — window size") {
-        // A screen below a 30 pt menu bar, and a window whose top sits under it.
-        let usable = NSRect(x: 0, y: 0, width: 1440, height: 870)
-        let current = NSRect(x: 450, y: 370, width: 540, height: 500)
+            // From Settings' row: Connections' settings, and back to Settings.
+            main.showSettings(for: .connections, from: .settings)
+            Check.expectEqual(main.window.title, "Connections Settings")
+            main.closeSettings()
+            Check.expectEqual(main.window.title, "Settings")
 
-        Check.test("a pane that fits keeps the top edge where it is") {
-            let frame = SettingsWindowController.frame(for: NSSize(width: 540, height: 300),
-                                                       current: current, usable: usable)
-            Check.expectEqual(frame, NSRect(x: 450, y: 570, width: 540, height: 300))
-        }
+            // From Connections' gear: back to Connections.
+            main.show(.connections)
+            main.showSettings()
+            main.closeSettings()
+            Check.expectEqual(main.window.title, "Connections")
 
-        Check.test("a pane that would run off the bottom moves up instead") {
-            let lower = NSRect(x: 450, y: 100, width: 540, height: 500)
-            let frame = SettingsWindowController.frame(for: NSSize(width: 540, height: 800),
-                                                       current: lower, usable: usable)
-            Check.expectEqual(frame.minY, 0)
-            Check.expectEqual(frame.height, 800)
-        }
+            // The sidebar button (#436): in every section's toolbar, and
+            // answered by the window itself, so it works with nothing focused.
+            for section in MainSection.allCases {
+                main.show(section)
+                let buttons = main.window.toolbar?.items.filter { $0.itemIdentifier == .toggleSidebar } ?? []
+                Check.expectEqual(buttons.count, 1, "\(section.rawValue) has the sidebar button")
+                // AppKit's own button greyed itself out once the sidebar
+                // couldn't hide away entirely; this one goes to the window.
+                if let action = buttons.first?.action {
+                    Check.expectTrue(main.window.responds(to: action), "\(section.rawValue): the window takes its action")
+                } else {
+                    Check.expectTrue(false, "\(section.rawValue): the sidebar button has an action")
+                }
+            }
 
-        // #57: Auto Layout resizes keeping the left edge, which walked the
-        // window left 60 pt each time History gave way to a narrower pane.
-        Check.test("a resize that kept the left edge goes back to the old centre") {
-            let history = NSRect(x: 336, y: 40, width: 768, height: 820)
-            let shrunk = NSRect(x: 336, y: 90, width: 648, height: 770)
-            Check.expectEqual(SettingsWindowController.centred(shrunk, after: history),
-                              NSRect(x: 396, y: 90, width: 648, height: 770))
-            let grown = NSRect(x: 396, y: 40, width: 768, height: 820)
-            Check.expectEqual(SettingsWindowController.centred(grown, after: shrunk.offsetBy(dx: 60, dy: 0)),
-                              NSRect(x: 336, y: 40, width: 768, height: 820), "growing too")
-        }
+            // Search (#436): the glass gives way to the field and comes back
+            // once it's left empty; a search keeps the field.
+            main.show(.connections)
+            let search = main.connections.search
+            Check.expectTrue(!search.isOpen, "search starts as the glass")
+            search.begin()
+            Check.expectTrue(search.isOpen, "⌘F opens the field")
+            search.finish()
+            Check.expectTrue(!search.isOpen, "left empty, it's the glass again")
+            search.show("goo")
+            Check.expectTrue(search.isOpen, "a search keeps the field open")
+            search.finish()
+            Check.expectTrue(search.isOpen, "holding a search, it doesn't close")
+            search.show("")
+            Check.expectTrue(!search.isOpen, "cleared, it closes")
+            main.window.makeFirstResponder(nil)
+            let before = main.sidebarIsCollapsed
+            Check.expectTrue(NSApp.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)),
+                                              to: main.window, from: nil), "the window takes toggleSidebar:")
+            Check.expectTrue(main.sidebarIsCollapsed != before, "the button folds the sidebar")
+            main.toggleSidebar()
+            let collapsed = main.sidebarIsCollapsed
+            main.toggleSidebar()
+            Check.expectTrue(main.sidebarIsCollapsed != collapsed, "the sidebar folds and unfolds")
+            main.toggleSidebar()
 
-        Check.test("a centred resize, a taller pane and a drag are left alone") {
-            let general = NSRect(x: 396, y: 90, width: 648, height: 770)
-            let fitted = NSRect(x: 336, y: 40, width: 768, height: 820)
-            Check.expectEqual(SettingsWindowController.centred(fitted, after: general), fitted)
-            let taller = NSRect(x: 396, y: 40, width: 648, height: 820)
-            Check.expectEqual(SettingsWindowController.centred(taller, after: general), taller)
-            let dragged = general.offsetBy(dx: -200, dy: 30)
-            Check.expectEqual(SettingsWindowController.centred(dragged, after: general), dragged)
-        }
-
-        // #65: a scroll bar on a pane that fits takes width from it, and once
-        // left 14 pt of a wrapped line behind. Only a taller pane gets one.
-        Check.test("only a pane taller than the window can be scrolls") {
-            Check.expectFalse(SettingsWindowController.scrolls(paneHeight: 333.5, tallest: 782))
-            Check.expectFalse(SettingsWindowController.scrolls(paneHeight: 782.4, tallest: 782),
-                              "half a point of rounding isn't scrolling")
-            Check.expectTrue(SettingsWindowController.scrolls(paneHeight: 873.5, tallest: 782))
-        }
-
-        // #46: with both Hotspot lists open, the window ran off the screen.
-        Check.test("a pane taller than the screen is capped at the screen, and scrolls") {
-            let frame = SettingsWindowController.frame(for: NSSize(width: 540, height: 1600),
-                                                       current: current, usable: usable)
-            Check.expectEqual(frame, NSRect(x: 450, y: 0, width: 540, height: 870))
+            // Search (#436): a magnifying glass until it holds a search.
+            for search in [main.history.search, main.connections.search, main.ads.search] {
+                Check.expectTrue(!search.isOpen, "search rests as the glass")
+            }
         }
 
-        // The window grows with the pane up to the cap, so the scroll view has
-        // to pass the pane's full height on, and keep the pane's width whatever
-        // the pane measures.
-        Check.test("a pane in its scroll view reports its full height, at the pane's width") {
-            let host = SettingsWindowController.paneHost(Color.clear.frame(width: 300, height: 1200),
-                                                         width: 540)
-            _ = host.view
-            Check.expectEqual(host.preferredContentSize, NSSize(width: 540, height: 1200))
+        // Day, Week, Month and Year, each segment as wide as the widest (#436).
+        Check.test("the period's segments are all one width") {
+            let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("settings-period-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let defaults = UserDefaults(suiteName: "settings-period-\(UUID().uuidString)")!
+            let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
+            let model = MonitorViewModel(store: store,
+                                         metering: MeteringController(
+                                            store: store,
+                                            journal: SuppressionJournal(url: dir.appendingPathComponent("j.json")),
+                                            suppressors: [], defaults: defaults))
+            let main = MainWindowController(model: model, history: HistoryViewModel(monitor: model),
+                                            connections: ConnectionsViewModel(monitor: model, defaults: defaults),
+                                            ads: AdsViewModel(monitor: model))
+            for section in [MainSection.history, .connections, .ads] {
+                main.show(section)
+                let item = main.window.toolbar?.items.first { $0.itemIdentifier.rawValue == "scale" }
+                guard let control = item?.view as? NSSegmentedControl else {
+                    Check.expectTrue(false, "\(section.rawValue) has the period")
+                    continue
+                }
+                let widths = (0..<control.segmentCount).map { control.width(forSegment: $0) }
+                Check.expectEqual(Set(widths).count, 1, "\(section.rawValue): \(widths)")
+                Check.expectTrue((widths.first ?? 0) >= 64, "\(section.rawValue): wide enough")
+            }
         }
     }
 }

@@ -2,7 +2,8 @@
 
 English · [简体中文](zh-Hans/hotspot-mode.md)
 
-One switch, in **Settings › Hotspot**: **Stop apps updating on hotspots**. Turn it on and
+One switch, on the **Network** page of the main window: **Stop apps updating on
+hotspots**. Turn it on and
 NetworkMonitor switches off automatic updates whenever you're on a mobile hotspot, then
 switches them back on when you leave. Apps keep working normally: Chrome still browses,
 Slack still messages, VS Code still edits. They just don't download new versions of
@@ -21,23 +22,26 @@ is off, and only the traffic counting runs. When you switch it on:
 2. **NetworkMonitor looks inside the apps** in `/Applications` and `~/Applications` to see
    how each one updates. It reads their files on your Mac; there's no list downloaded from
    anywhere.
-3. **Settings › Hotspot shows two lists:**
+3. **The Network page shows two lists:**
    - **Paused on a hotspot:** every app it can pause, one line each with a switch to leave
      it alone. How it's paused is behind an ⓘ beside the name.
    - **Can't be paused:** every app it can't, with the reason behind the same ⓘ.
 4. **Nothing changes until you join a hotspot.** Then everything on the first list is
    paused, and it's all put back when you leave.
 
-The lists are made again each time you open the pane, so an app you install later shows up.
+The lists are made again each time you open the Network page, so an app you install later
+shows up.
 
 ## What counts as a hotspot
 
-The first of these that applies decides. Every check is unprivileged, and **Settings ›
-Hotspot › Right now** always says which one fired.
+The first of these that applies decides. Every check is unprivileged, and **Right now**,
+on the Network page, always says which one fired.
 
-1. **You said so.** **Settings › Hotspot › This network** is *Detect automatically* until
-   you choose *Is a hotspot* or *Isn't a hotspot*, which is remembered for that network
-   and beats everything below.
+1. **You said so.** **This is a hotspot**, on the Network page and in the popover's
+   Network view, is there on every network, because some phones look like ordinary Wi-Fi
+   or like Ethernet over USB. Switch it on for a network NetworkMonitor missed, or off for
+   one it took for a hotspot. Your say is remembered for that network and beats everything
+   below.
 2. **macOS says so.** It marks a connection as expensive, as it does for an iPhone
    hotspot it recognises.
 3. **An Android phone says so.** Android's hotspot and USB tethering mark every address
@@ -54,8 +58,8 @@ Hotspot › Right now** always says which one fired.
    Settings, such as a capped home line or hotel Wi-Fi.
 
 Everything after 3 is convention, so it fails safe: a miss means updates aren't paused,
-never that your home network is treated as a hotspot, and *This network* settles any
-miss. The popover says *Using hotspot* in orange under the total whenever a connection
+never that your home network is treated as a hotspot, and **This is a hotspot** settles
+any miss. The popover's Network button says *Hotspot*, in orange, whenever a connection
 counts.
 
 These checks only decide about the connection in use. macOS sends everything over the
@@ -108,7 +112,7 @@ under NetworkMonitor in Login Items for you to switch on. With it, the switch al
   the downloads come from shared servers that stay open.
 - **Low Data Mode** for the hotspot (below).
 
-Leave it off and everything else still works. Settings shows an **Allow…** button for when
+Leave it off and everything else still works. The Network page shows an **Allow…** button for when
 you change your mind, and the step in System Settings while it waits. The helper is part of
 the app, so a new version brings its helper with it and asks nothing.
 
@@ -138,7 +142,7 @@ of it or not.
   connection, it stays on when you leave.
 - **It's switched off when you leave the hotspot, and when you quit.** It affects the whole
   Mac, so it never stays behind on home Wi-Fi with nothing watching.
-- **Settings shows whether it worked.** It reads the connection back, and says *macOS
+- **The Network page shows whether it worked.** It reads the connection back, and says *macOS
   confirms it* once macOS itself reports the connection as constrained. If macOS keeps
   switching it off, NetworkMonitor stops after three tries in five minutes and says so,
   rather than fighting it.
@@ -146,7 +150,7 @@ of it or not.
 
 ## What isn't covered, and what got through anyway
 
-**Can't be paused** in Settings lists the apps on *your* Mac that update themselves in a
+**Can't be paused**, on the Network page, lists the apps on *your* Mac that update themselves in a
 way NetworkMonitor can't switch off, each with the reason:
 
 | The reason it gives | What's behind it |
@@ -170,7 +174,7 @@ through anyway**, by three signs:
   *Google Chrome*, not *GoogleUpdater* (#94);
 - an app in Applications whose version changes, however it got the update (#94).
 
-The popover shows one line under the total when that happens, and Settings lists each one
+The popover shows one line under its buttons when that happens, and the Network page lists each one
 with the data it used and the version it updated to, still there after you've left the
 hotspot. An app that was on the paused list says it **updated anyway**, in orange, both
 there and beside its switch, until the next metered connection: that's how a pause that
@@ -216,7 +220,7 @@ sequenceDiagram
     Mac->>W: path changes (debounced 2 s)
     W->>VM: fingerprint + signals
     VM->>M: the network changed
-    M->>M: MeteredHeuristic verdict (This network first, own Low Data Mode flags masked)
+    M->>M: MeteredHeuristic verdict (This is a hotspot first, own Low Data Mode flags masked)
     M-->>VM: verdict
     VM->>F: rules, and whether on a hotspot with Hotspot mode on (over XPC)
     alt switch on and metered
@@ -249,14 +253,14 @@ does it, from the rules and the hotspot state the app sends it, so it needs webs
 on; see [Connections › Blocking](connections.md#blocking).
 
 **It only acts on events:** launch, a network change, the switch, a per-app switch, an app
-quitting with a queued change, Settings opening, and the helper being installed. There's no
+quitting with a queued change, the Network page opening, and the helper being installed. There's no
 timer. Offline is ignored: a dropped connection neither lifts nor applies anything.
 
 **Detection** lives in `MeteredHeuristic.swift`. The verdict is an enum, not a Bool, so the
 UI can say *why*. The flags NetworkMonitor raised itself for Low Data Mode are masked out
 first; otherwise leaving a hotspot for home Wi-Fi on the same interface would judge home
-metered by our own flags and hold them forever. *This network* in Settings › Hotspot stores
-a per-network override (`meteredOverrides` in `usage.json`), which beats every signal (#109).
+metered by our own flags and hold them forever. **This is a hotspot**, on the Network page
+and in the popover, stores a per-network override (`meteredOverrides` in `usage.json`), which beats every signal (#109).
 
 **Writing other apps' settings:**
 
@@ -386,9 +390,9 @@ their only record is the app's journal. The helper's hourly check covers its own
   on, the content filter stops an updater that runs as a program of its own (#98), but not
   one that downloads from inside the app itself.
 - **Sparkle apps that were open when you joined the hotspot** keep their setting until they
-  quit, so one could still update; Settings marks them *paused once you quit it*.
+  quit, so one could still update; the Network page marks them *paused once you quit it*.
 - **Claude Code in an organisation that manages it.** If your organisation sends Claude Code
   settings from its servers or through MDM, Claude Code may use those instead of
   NetworkMonitor's file, and keep updating.
 - **A phone whose maker replaced Android's tethering** may not say it's a hotspot, and
-  may use a subnet nobody can guess. Choose *Is a hotspot* under *This network*, once.
+  may use a subnet nobody can guess. Switch on **This is a hotspot** for it, once.

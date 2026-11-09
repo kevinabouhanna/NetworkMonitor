@@ -21,7 +21,7 @@ public struct ConnectionsView: View {
 
     public var body: some View {
         GeometryReader { geometry in
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: ScopeMetrics.below) {
                 if model.offersWebsiteNames {
                     WebsiteNamesOffer(filter: model.filter) { model.offersWebsiteNames = false }
                 }
@@ -42,8 +42,8 @@ public struct ConnectionsView: View {
                 Divider()
                 footer
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
+            .padding(.horizontal, ScopeMetrics.inset)
+            .padding(.top, ScopeMetrics.top)
             .padding(.bottom, 14)
         }
         .frame(minWidth: ConnectionsMetrics.minWidth, minHeight: ConnectionsMetrics.minHeight)
@@ -64,24 +64,27 @@ public struct ConnectionsView: View {
     private var scopeBar: some View {
         HStack(spacing: 10) {
             LabelledControl(L("Group by")) {
-                Picker(L("Group by"), selection: Binding(get: { model.grouping }, set: { model.grouping = $0 })) {
-                    ForEach(ConnectionsGrouping.allCases) { Text($0.label).tag($0) }
-                }
-                .help(L("Group the list by company, app or country. A row inside a group narrows the window to it."))
+                GlassSegmented(name: L("Group by"), options: ConnectionsGrouping.allCases,
+                               selection: Binding(get: { model.grouping }, set: { model.grouping = $0 }),
+                               label: { $0.label }, size: .small)
+                    .help(L("Group the list by company, app or country. A row inside a group narrows the window to it."))
             }
             // What was blocked (#114), once there's a filter to block anything.
             if model.filter.state != .unavailable {
                 LabelledControl(L("Show")) {
-                    Picker(L("Show"), selection: Binding(get: { model.measure }, set: { model.measure = $0 })) {
-                        Text(L("Traffic")).tag(ServerMeasure.bytes)
-                        Text(L("Blocked")).tag(ServerMeasure.blocked)
-                    }
-                    .help(L("What your apps sent and received, or the connections that were blocked"))
+                    GlassSegmented(name: L("Show"), options: [ServerMeasure.bytes, .blocked],
+                                   selection: Binding(get: { model.measure }, set: { model.measure = $0 }),
+                                   label: { $0 == .bytes ? L("Traffic") : L("Blocked") }, size: .small)
+                        .help(L("What your apps sent and received, or the connections that were blocked"))
                 }
             }
-            if model.spanTitle != nil || !model.chips.isEmpty {
+            if model.spanTitle != nil || !model.chips.isEmpty || !query.isEmpty {
                 Divider().frame(height: 16)
                 HStack(spacing: 6) {
+                    // The toolbar's search, as a filter like the others (#436).
+                    if !query.isEmpty {
+                        FilterChip(label: L("“%@”", query), onClear: { model.search = "" })
+                    }
                     if let span = model.spanTitle {
                         FilterChip(label: span, onClear: model.clearSpan)
                     }
@@ -92,20 +95,15 @@ public struct ConnectionsView: View {
             }
             Spacer(minLength: 12)
             // All, Wi-Fi and Hotspot say what they are; no label needed.
-            Picker(L("Networks"), selection: Binding(get: { model.kind }, set: { model.setKind($0) })) {
-                Text(L("All")).tag(NetworkFingerprint.Kind?.none)
-                ForEach([NetworkFingerprint.Kind.wifi, .hotspot], id: \.self) { kind in
-                    Text(kind.historyLabel).tag(NetworkFingerprint.Kind?.some(kind))
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .controlSize(.small)
-            .help(L("Every connection, Wi-Fi only, or hotspots only"))
+            GlassSegmented(name: L("Networks"), options: [nil, .wifi, .hotspot],
+                           selection: Binding(get: { model.kind }, set: { model.setKind($0) }),
+                           label: { $0?.historyLabel ?? L("All") }, size: .small)
+                .help(L("Every connection, Wi-Fi only, or hotspots only"))
         }
-        .frame(height: 24)
+        .frame(height: ScopeMetrics.height)
     }
+
+    private var query: String { model.search.trimmingCharacters(in: .whitespaces) }
 
     // MARK: Header
 
@@ -395,7 +393,7 @@ private struct WebsiteNamesOffer: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(L("Close. Settings › Connections still has it."))
+                .help(L("Close. Connections' settings, behind the gear, still have it."))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
@@ -567,7 +565,7 @@ private struct ConnectionsRow: View {
 
     private var bar: some View {
         RoundedRectangle(cornerRadius: 2)
-            .fill(Color.accentColor.opacity(indent > 0 ? 0.55 : 0.85))
+            .fill(AppPalette.connections.opacity(indent > 0 ? 0.55 : 0.85))
             .frame(width: max(3, ConnectionsMetrics.rowBarWidth * min(max(fraction, 0), 1)), height: 6)
     }
 }
@@ -634,15 +632,16 @@ private struct ConnectionsTimeline: View {
 
     private func color(for index: Int) -> Color {
         let picked = model.dragging ?? model.span
-        guard let picked else { return Color.accentColor.opacity(0.75) }
-        return picked.contains(index) ? Color.accentColor : Color.secondary.opacity(0.3)
+        guard let picked else { return AppPalette.connections.opacity(0.75) }
+        return picked.contains(index) ? AppPalette.connections : Color.secondary.opacity(0.3)
     }
 }
 
 enum ConnectionsMetrics {
-    /// Wide enough for the toolbar, which overflows below 776 (#315): no
-    /// control is ever hidden in the toolbar's » menu.
-    static let minWidth: CGFloat = 780
+    /// Wide enough for the toolbar, which overflows below 920 with search open
+    /// (#315, #436; `make design-shots` with `--measure`): no control is ever
+    /// hidden in the toolbar's » menu.
+    static let minWidth: CGFloat = 920
     static let minHeight: CGFloat = 520
     static let rowBarWidth: CGFloat = 140
     static let timelineHeight: CGFloat = 54
