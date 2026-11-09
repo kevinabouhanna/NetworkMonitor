@@ -769,64 +769,163 @@ struct Page {
 enum Coverage {
     static let media = "png|jpe?g|gif|webp|svg|mp4|webm|mov"
 
+    /// The site's files a browser reads for media (#425): its pages, at the
+    /// top and in folders (each language's, zh/index.html, #430), their
+    /// stylesheets and their scripts. Not the folders that aren't the site:
+    /// hidden ones (.github), shots/ (this tool's), and another checkout
+    /// inside it (the app's, which the site's workflow puts in app/).
+    static func siteFiles(_ site: URL) -> [String] {
+        let fm = FileManager.default
+        guard let walk = fm.enumerator(atPath: site.path) else { return [] }
+        var files: [String] = []
+        while let path = walk.nextObject() as? String {
+            let name = (path as NSString).lastPathComponent
+            if walk.fileAttributes?[.type] as? FileAttributeType == .typeDirectory {
+                if name.hasPrefix(".") || path == "shots"
+                    || fm.fileExists(atPath: site.appendingPathComponent(path).appendingPathComponent(".git").path) {
+                    walk.skipDescendants()
+                }
+            } else if !name.hasPrefix("."),
+                      ["html", "htm", "css", "js", "mjs"].contains((name as NSString).pathExtension.lowercased()) {
+                files.append(path)
+            }
+        }
+        return files.sorted()
+    }
+
     /// The site's own assets: `assets/…`, as a relative link or on the site's
-    /// own address (the social preview's `<meta>` tags). Another site's
-    /// `/assets/` isn't ours.
+    /// own address (the social preview's `<meta>` tags), wherever it's
+    /// written: an attribute, a `srcset`'s list, a stylesheet's `url(…)`, a
+    /// string in a script that adds it. Another site's `/assets/` isn't ours.
     static func siteUses(_ site: URL) throws -> [String: Set<String>] {
         let regex = try NSRegularExpression(
-            pattern: #"(?:^|["'(=,\s]|github\.io/NetworkMonitor/)(?:\.\./)*(assets/[A-Za-z0-9_./-]+\.(?:"# + media + #"))"#,
+            pattern: #"(?:^|["'`(=,\s]|github\.io/NetworkMonitor/)(?:\.\./)*(assets/[A-Za-z0-9_./@-]+\.(?:"# + media + #"))"#,
             options: [.caseInsensitive, .anchorsMatchLines])
         var uses: [String: Set<String>] = [:]
-        // The pages at the top, and each language's page in a folder of its
-        // own (zh/index.html, #430), whose links climb out with ../.
-        let entries = try FileManager.default.contentsOfDirectory(atPath: site.path)
-        let pages = (entries.filter { $0.hasSuffix(".html") }
-            + entries.map { "\($0)/index.html" }.filter {
-                FileManager.default.fileExists(atPath: site.appendingPathComponent($0).path)
-            }).sorted()
-        for page in pages {
-            let text = try String(contentsOf: site.appendingPathComponent(page), encoding: .utf8)
+        // A page in a folder climbs out with ../; a script's paths are the
+        // page's that runs it, so each is the site's assets/ either way.
+        for file in siteFiles(site) {
+            guard let text = try? String(contentsOf: site.appendingPathComponent(file), encoding: .utf8) else { continue }
             let ns = text as NSString
             for m in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
-                uses[ns.substring(with: m.range(at: 1)), default: []].insert(page)
+                uses[ns.substring(with: m.range(at: 1)), default: []].insert(file)
             }
         }
         return uses
     }
 
+    /// The README's, SECURITY's and the docs' Markdown pages: README.<code>.md
+    /// for each language (#430), and every page under docs/, however deep
+    /// (docs/<code>/, the design log's docs/design-overhaul, #437).
+    static func repoPages(_ repo: URL) -> [String] {
+        let fm = FileManager.default
+        var pages = ["README.md", "SECURITY.md"]
+        let files = (try? fm.contentsOfDirectory(atPath: repo.path)) ?? []
+        pages += files.filter { $0.hasPrefix("README.") && $0.hasSuffix(".md") && $0 != "README.md" }.sorted()
+        var docs: [String] = []
+        if let walk = fm.enumerator(atPath: repo.appendingPathComponent("docs").path) {
+            while let path = walk.nextObject() as? String {
+                let name = (path as NSString).lastPathComponent
+                if name.hasPrefix(".") {
+                    walk.skipDescendants()
+                } else if name.lowercased().hasSuffix(".md") {
+                    docs.append("docs/" + path)
+                }
+            }
+        }
+        return pages + docs.sorted()
+    }
+
+    /// A Markdown page with its code blanked out, fenced and inline, which
+    /// GitHub shows as text: an example there isn't a picture on the page.
+    static func withoutCode(_ text: String) -> String {
+        var fence: String?
+        var lines: [String] = []
+        for line in text.components(separatedBy: "\n") {
+            // At any depth: a list item's code is indented with it.
+            let trimmed = line.drop { $0 == " " || $0 == "\t" }
+            let marker = String(trimmed.prefix { $0 == "`" || $0 == "~" })
+            if let open = fence {
+                if marker.first == open.first, marker.count >= open.count,
+                   trimmed.dropFirst(marker.count).allSatisfy(\.isWhitespace) {
+                    fence = nil
+                }
+                lines.append("")
+            } else if marker.count >= 3, Set(marker).count == 1,
+                      marker.first == "~" || !trimmed.dropFirst(marker.count).contains("`") {
+                fence = marker
+                lines.append("")
+            } else {
+                lines.append(line)
+            }
+        }
+        let inline = try! NSRegularExpression(pattern: "(`+).*?\\1")
+        let joined = lines.joined(separator: "\n")
+        return inline.stringByReplacingMatches(in: joined, range: NSRange(location: 0, length: (joined as NSString).length),
+                                               withTemplate: "")
+    }
+
+    /// The links to pictures in one Markdown page, as written: HTML's `src`,
+    /// `poster` and `srcset` (a `<picture>`'s `<source>` too), and Markdown's
+    /// images, inline `![alt](path)` or by reference, `![alt][ref]`,
+    /// `![ref][]` or `![ref]`, with `[ref]: path` anywhere on the page.
+    static func pictureLinks(_ markdown: String) throws -> [String] {
+        let text = withoutCode(markdown)
+        let ns = text as NSString
+        let all = NSRange(location: 0, length: ns.length)
+        func group(_ m: NSTextCheckingResult, _ i: Int) -> String? {
+            m.range(at: i).location == NSNotFound ? nil : ns.substring(with: m.range(at: i))
+        }
+        var links: [String] = []
+        let html = try NSRegularExpression(pattern: #"\b(src|poster|srcset)\s*=\s*["']([^"']+)["']"#, options: .caseInsensitive)
+        for m in html.matches(in: text, range: all) {
+            guard let attribute = group(m, 1), let value = group(m, 2) else { continue }
+            if attribute.lowercased() == "srcset" {
+                // `a.png 1x, a@2x.png 2x`: each candidate's address.
+                links += value.components(separatedBy: ",").compactMap {
+                    $0.split(whereSeparator: \.isWhitespace).first.map(String.init)
+                }
+            } else {
+                links.append(value)
+            }
+        }
+        let inline = try NSRegularExpression(pattern: #"!\[[^\]]*\]\(\s*<?([^)\s>]+)"#)
+        links += inline.matches(in: text, range: all).compactMap { group($0, 1) }
+        // References: labels match without regard to case or spacing, and
+        // the first definition of one wins.
+        func label(_ s: String) -> String {
+            s.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        }
+        var definitions: [String: String] = [:]
+        let definition = try NSRegularExpression(pattern: #"^ {0,3}\[([^\]]+)\]:[ \t]*<?([^\s>]+)>?"#, options: .anchorsMatchLines)
+        for m in definition.matches(in: text, range: all) {
+            guard let name = group(m, 1), let link = group(m, 2), definitions[label(name)] == nil else { continue }
+            definitions[label(name)] = link
+        }
+        let reference = try NSRegularExpression(pattern: #"!\[([^\]]*)\](?:\[([^\]]*)\])?(?![(\[])"#)
+        for m in reference.matches(in: text, range: all) {
+            let ref = group(m, 2).flatMap { $0.isEmpty ? nil : $0 } ?? group(m, 1) ?? ""
+            if let link = definitions[label(ref)] { links.append(link) }
+        }
+        return links
+    }
+
     /// The README's, SECURITY's and the docs' local media, as paths from the
     /// checkout's root.
     static func repoUses(_ repo: URL) throws -> [String: Set<String>] {
-        let regex = try NSRegularExpression(
-            pattern: #"(?:(?:src|poster)\s*=\s*["']([^"']+)["']|!\[[^\]]*\]\(\s*<?([^)\s>]+))"#)
         let mediaRegex = try NSRegularExpression(pattern: #"\.(?:"# + media + #")$"#, options: .caseInsensitive)
-        var pages = ["README.md", "SECURITY.md"]
-        // Translations too (#430): README.<code>.md, and docs/<code>/. The
-        // folders' pages include the design log's, docs/design-overhaul (#437).
-        let files = (try? FileManager.default.contentsOfDirectory(atPath: repo.path)) ?? []
-        pages += files.filter { $0.hasPrefix("README.") && $0.hasSuffix(".md") && $0 != "README.md" }.sorted()
-        let docs = (try? FileManager.default.contentsOfDirectory(atPath: repo.appendingPathComponent("docs").path)) ?? []
-        pages += docs.filter { $0.hasSuffix(".md") }.sorted().map { "docs/" + $0 }
-        for folder in docs.sorted() {
-            let inner = (try? FileManager.default.contentsOfDirectory(
-                atPath: repo.appendingPathComponent("docs/\(folder)").path)) ?? []
-            pages += inner.filter { $0.hasSuffix(".md") }.sorted().map { "docs/\(folder)/" + $0 }
-        }
+        let root = repo.standardizedFileURL.path + "/"
         var uses: [String: Set<String>] = [:]
-        for page in pages {
+        for page in repoPages(repo) {
             guard let text = try? String(contentsOf: repo.appendingPathComponent(page), encoding: .utf8) else { continue }
-            let ns = text as NSString
-            for m in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
-                let r = m.range(at: 1).location != NSNotFound ? m.range(at: 1) : m.range(at: 2)
-                var link = ns.substring(with: r)
-                if link.contains("://") || link.hasPrefix("#") || link.hasPrefix("data:") { continue }
-                link = link.components(separatedBy: CharacterSet(charactersIn: "?#"))[0]
-                let lns = link as NSString
-                guard mediaRegex.firstMatch(in: link, range: NSRange(location: 0, length: lns.length)) != nil else { continue }
+            for written in try pictureLinks(text) {
+                if written.contains("://") || written.hasPrefix("#") || written.hasPrefix("data:") { continue }
+                let link = written.components(separatedBy: CharacterSet(charactersIn: "?#"))[0]
+                guard mediaRegex.firstMatch(in: link, range: NSRange(location: 0, length: (link as NSString).length)) != nil
+                else { continue }
                 // Relative to the page, as GitHub reads it.
                 let base = repo.appendingPathComponent(page).deletingLastPathComponent()
                 let full = URL(fileURLWithPath: link, relativeTo: base).standardizedFileURL.path
-                let root = repo.standardizedFileURL.path + "/"
                 guard full.hasPrefix(root) else { continue }
                 uses[String(full.dropFirst(root.count)), default: []].insert(page)
             }
@@ -945,6 +1044,144 @@ enum Coverage {
     }
 }
 
+// MARK: - Coverage tests
+
+/// Where the check looks for media, each place a case (#425): made-up pages in
+/// a folder of their own, scanned like the real ones. `make test` runs them,
+/// with `site-shots coverage-test`, so a page that hides a picture from the
+/// check can't come back unnoticed.
+enum CoverageTests {
+    struct Case {
+        var name: String
+        /// Files, by path, and what's in them.
+        var files: [String: String]
+        /// What the scan should find: each asset, and the pages using it.
+        var expect: [String: Set<String>]
+    }
+
+    static let site: [Case] = [
+        Case(name: "a page at the top", files: ["index.html": #"<img src="assets/top.png">"#],
+             expect: ["assets/top.png": ["index.html"]]),
+        Case(name: "a language's page in a folder", files: ["zh/index.html": #"<img src="../assets/zh-Hans/a.png">"#],
+             expect: ["assets/zh-Hans/a.png": ["zh/index.html"]]),
+        Case(name: "pages deeper in folders, not only index.html",
+             files: ["guide/setup/index.html": #"<img src="../../assets/deep.png">"#,
+                     "guide/faq.html": #"<video poster="../assets/faq.jpg" src="../assets/faq.mp4">"#],
+             expect: ["assets/deep.png": ["guide/setup/index.html"],
+                      "assets/faq.jpg": ["guide/faq.html"], "assets/faq.mp4": ["guide/faq.html"]]),
+        Case(name: "srcset, and a picture's sources",
+             files: ["index.html": """
+                 <img srcset="assets/s.png 1x, assets/s@2x.png 2x">
+                 <picture><source srcset="assets/p.webp" type="image/webp"><img src="assets/p.png"></picture>
+                 """],
+             expect: ["assets/s.png": ["index.html"], "assets/s@2x.png": ["index.html"],
+                      "assets/p.webp": ["index.html"], "assets/p.png": ["index.html"]]),
+        Case(name: "stylesheets, inline and separate",
+             files: ["index.html": #"<style>.hero { background: url(assets/inline.png) }</style>"#,
+                     "style.css": #".a { background-image: url("assets/top.jpg") }"#,
+                     "css/site.css": ".b { background: url('../assets/nested.webp') }"],
+             expect: ["assets/inline.png": ["index.html"], "assets/top.jpg": ["style.css"],
+                      "assets/nested.webp": ["css/site.css"]]),
+        Case(name: "images that scripts add, inline and separate",
+             files: ["index.html": "<script>video.poster = 'assets/inline.gif'</script>",
+                     "app.js": "img.src = \"assets/script.png\"; el.style.backgroundImage = `url(assets/tick.svg)`",
+                     "js/more.mjs": "const clip = `assets/clip.mp4`"],
+             expect: ["assets/inline.gif": ["index.html"], "assets/script.png": ["app.js"],
+                      "assets/tick.svg": ["app.js"], "assets/clip.mp4": ["js/more.mjs"]]),
+        Case(name: "the site's own address, in a social preview",
+             files: ["index.html": #"<meta property="og:image" content="https://kevinabouhanna.github.io/NetworkMonitor/assets/card.png?v=1">"#],
+             expect: ["assets/card.png": ["index.html"]]),
+        Case(name: "not the site: other sites, this tool's folder, hidden folders, another checkout",
+             files: ["index.html": #"<img src="https://example.com/assets/theirs.png"><img src="/assets/root.png">"#,
+                     "shots/notes.html": #"<img src="assets/tool.png">"#,
+                     ".github/page.html": #"<img src="assets/hidden.png">"#,
+                     "app/.git/HEAD": "ref: refs/heads/main",
+                     "app/Resources/Social/card.html": #"<img src="assets/app.png">"#],
+             expect: [:]),
+    ]
+
+    static let repo: [Case] = [
+        Case(name: "an inline Markdown image and an <img>",
+             files: ["README.md": #"![Demo](Resources/README/demo.gif) <img src="Resources/README/logo.png" width="64">"#],
+             expect: ["Resources/README/demo.gif": ["README.md"], "Resources/README/logo.png": ["README.md"]]),
+        Case(name: "srcset, and a picture's sources",
+             files: ["README.md": """
+                 <img srcset="Resources/README/s.png 1x, Resources/README/s@2x.png 2x" src="Resources/README/s.png">
+                 <picture>
+                   <source media="(prefers-color-scheme: dark)" srcset="Resources/README/dark.png">
+                   <img src="Resources/README/light.png">
+                 </picture>
+                 """],
+             expect: ["Resources/README/s.png": ["README.md"], "Resources/README/s@2x.png": ["README.md"],
+                      "Resources/README/dark.png": ["README.md"], "Resources/README/light.png": ["README.md"]]),
+        Case(name: "reference-style images: full, collapsed and shortcut",
+             files: ["README.md": """
+                 ![The popover][pop] and ![Speed test][] and ![diagram].
+                 A link isn't a picture: [the logo][logo]. Nor is an unused definition.
+
+                 [pop]: Resources/README/popover.png "The popover"
+                 [speed TEST]: <Resources/README/speed-test.png>
+                 [Diagram]: docs/diagram.svg
+                 [logo]: Resources/README/logo.png
+                 [unused]: Resources/README/unused.png
+                 """],
+             expect: ["Resources/README/popover.png": ["README.md"], "Resources/README/speed-test.png": ["README.md"],
+                      "docs/diagram.svg": ["README.md"]]),
+        Case(name: "the docs' pages in folders, however deep, in every language",
+             files: ["docs/guide.md": "![a](../Resources/README/a.png)",
+                     "docs/design/notes/LOG.md": "![b](before/b.png)",
+                     "docs/zh-Hans/guide.md": "![a](../../Resources/README/zh-Hans/a.png)",
+                     "docs/zh-Hans/more/page.md": #"<img src="../../../Resources/README/zh-Hans/c.png">"#,
+                     "README.zh-Hans.md": "![d](Resources/README/zh-Hans/d.png)"],
+             expect: ["Resources/README/a.png": ["docs/guide.md"], "docs/design/notes/before/b.png": ["docs/design/notes/LOG.md"],
+                      "Resources/README/zh-Hans/a.png": ["docs/zh-Hans/guide.md"],
+                      "Resources/README/zh-Hans/c.png": ["docs/zh-Hans/more/page.md"],
+                      "Resources/README/zh-Hans/d.png": ["README.zh-Hans.md"]]),
+        Case(name: "not a picture on the page: code, other sites, outside the checkout",
+             files: ["docs/development.md": """
+                 Write `![alt](Resources/README/inline-code.png)` for one.
+
+                 ```html
+                 <img src="Resources/README/fenced.png">
+                 ```
+
+                 1. In a list:
+                     ~~~
+                     ![x](Resources/README/indented-fence.png)
+                     ~~~
+
+                 ![remote](https://example.com/x.png) ![outside](../../elsewhere.png)
+                 """],
+             expect: [:]),
+    ]
+
+    /// What failed, one line each.
+    static func run() throws -> [String] {
+        var failures: [String] = []
+        let fm = FileManager.default
+        for (kind, cases) in [("site", site), ("README and docs", repo)] {
+            for test in cases {
+                let root = fm.temporaryDirectory.appendingPathComponent("coverage-test-" + UUID().uuidString)
+                defer { try? fm.removeItem(at: root) }
+                for (path, text) in test.files {
+                    let file = root.appendingPathComponent(path)
+                    try fm.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try text.write(to: file, atomically: true, encoding: .utf8)
+                }
+                let found = kind == "site" ? try Coverage.siteUses(root) : try Coverage.repoUses(root)
+                if found != test.expect {
+                    func show(_ u: [String: Set<String>]) -> String {
+                        u.isEmpty ? "nothing" : u.sorted { $0.key < $1.key }
+                            .map { "\($0.key) (\($0.value.sorted().joined(separator: ", ")))" }.joined(separator: ", ")
+                    }
+                    failures.append("\(kind), \(test.name): found \(show(found)); expected \(show(test.expect))")
+                }
+            }
+        }
+        return failures
+    }
+}
+
 // MARK: - Running
 
 struct Failure: Error, CustomStringConvertible {
@@ -983,13 +1220,30 @@ struct SiteShots {
         if let i = args.firstIndex(of: "--language"), i + 1 < args.count {
             only = args[i + 1]; args.removeSubrange(i...(i + 1))
         }
-        guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "readme"].contains(command) else {
-            print("usage: site-shots check|update|audit [names…]|tree <name>|coverage|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
+        guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "coverage-test", "readme"].contains(command) else {
+            print("usage: site-shots check|update|audit [names…]|tree <name>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
             exit(2)
         }
         let names = Set(args.dropFirst())
         let repoAssets = try? JSONDecoder().decode(RepoAssets.self, from: Data(contentsOf: repo.appendingPathComponent(repoAssetsPath)))
 
+        // Made-up pages only: where `coverage` looks for media (#425).
+        if command == "coverage-test" {
+            do {
+                let failures = try CoverageTests.run()
+                let count = CoverageTests.site.count + CoverageTests.repo.count
+                if failures.isEmpty {
+                    print("coverage-test: \(count) cases passed")
+                    exit(0)
+                }
+                print("coverage-test: \(failures.count) of \(count) cases failed:")
+                failures.forEach { print("  " + $0) }
+                exit(1)
+            } catch {
+                print("coverage-test: \(error)")
+                exit(2)
+            }
+        }
         // Files only, so first, before anything that needs the app.
         if command == "coverage" {
             do {

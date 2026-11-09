@@ -105,6 +105,9 @@ harness (`Harness.swift`): `Check.suite`, `Check.test`, `expectEqual` and friend
 after XCTest so moving to a real test target later is a rename. It prints a line per test
 and exits non-zero if anything fails.
 
+- **The asset check's cases.** `make test` also runs `build/site-shots coverage-test`:
+  made-up pages that put a picture in each place [the asset check](#every-asset-is-listed)
+  must find it (#425).
 - **Live tests**, which need a real network and a real `nettop`, are skipped when `CI` is
   set. Run them anyway with `NETMON_LIVE_TESTS=1`. They include guards such as "the stream
   stays under 25% of a core" and "changing the interval leaves exactly one `nettop`".
@@ -407,8 +410,18 @@ on the `main` worktree it ran from. Each goes in its own pull request.
 
 Every image, GIF and video that the site, the README, `SECURITY.md` and `docs/` use
 must be listed, so none can go stale unnoticed (#413). `make asset-check` finds them all
-in the pages, including the social preview in `<meta>` tags, and fails on any that
-isn't one of these:
+in the pages, and fails on any that isn't one of these. It looks wherever a page can use
+one (#425):
+
+- **On the site:** every page, in folders too (not `shots/`, hidden folders or another
+  checkout inside it); its stylesheets, inline and `.css`; and its scripts, inline and
+  `.js`, for a path to `assets/` written whole. Attributes, `srcset`, `url(…)`, and the
+  social preview in `<meta>` tags.
+- **In the README, `SECURITY.md` and `docs/`:** each language's README and every page in
+  `docs/`, however deep. `src`, `poster`, `srcset` (a `<picture>`'s `<source>` too), and
+  Markdown images, inline or by reference (`![alt][ref]` with `[ref]: path`). Not in code.
+
+Each must be one of these:
 
 - **A picture this tool takes:** a shot's `file`.
 - **Copied from a shot's picture:** a README or docs picture listed with `copy`
