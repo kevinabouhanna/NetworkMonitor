@@ -2,11 +2,13 @@
   "assets": [
     {
       "file": "Resources/README/demo.gif",
-      "shows": ["popover", "popover-subprocesses"]
+      "shows": ["popover", "popover-subprocesses"],
+      "made": "1.28.0"
     },
     {
       "file": "Resources/README/zh-Hans/demo.gif",
-      "shows": ["popover", "popover-subprocesses"]
+      "shows": ["popover", "popover-subprocesses"],
+      "made": "1.28.0"
     },
     {
       "file": "Resources/README/speed-test.png",
