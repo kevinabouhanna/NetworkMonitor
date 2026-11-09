@@ -6,7 +6,7 @@ the app looked like, what was planned and done, where ideas came from, what was 
 and by whom, and what's left.
 
 **Status (2026-11-09):** Phases 0–2 are done. **Waiting on Kevin's review of round 3 of the
-plan (Phase 3, decision D6)** on the comparison page:
+plan (Phase 3, decisions D6 and D7)** on the comparison page:
 https://claude.ai/artifact/GooXLRsHfm6a6CRRTsNu92 (private to Kevin). Nothing merges or
 releases until Kevin has reviewed it: both pull requests are drafts.
 
