@@ -7,7 +7,7 @@
 <p align="center"><a href="README.md">English</a> · 简体中文</p>
 
 <p align="center">
-  <b>在 Mac 菜单栏中显示实时网速，告诉你哪些应用用掉了流量，并提供防火墙来阻止它们连接的对象。</b>
+  <b>在 Mac 菜单栏中显示实时网速，告诉你哪些应用用掉了流量，还可通过防火墙控制各应用的网络连接。</b>
 </p>
 
 <p align="center">
@@ -63,7 +63,8 @@
 
 右键点按菜单栏读数，然后选择 <strong>卸载 NetworkMonitor…</strong>（或者 <strong>设置 › 关于 › 卸载…</strong>）。它会恢复它更改过的每项设置，然后把自己移到废纸篓。
 
-> [!WARNING] > 不要直接把它拖到废纸篓：热点模式在没有辅助程序的情况下关闭的更新设置会一直保持关闭。如果你已经这样做了，请把它拖回来，打开它，再从菜单中卸载。
+> [!WARNING]
+> 不要直接把它拖到废纸篓：热点模式在没有辅助程序的情况下关闭的更新设置会一直保持关闭。如果你已经这样做了，请把它拖回来，打开它，再从菜单中卸载。
 
 ## 🖱️ 使用方法
 
@@ -75,7 +76,7 @@
 
 [文档](docs/zh-Hans/README.md)介绍了每项功能是如何工作的，以及为什么这样设计。这些内容也在 [Wiki](https://github.com/kevinabouhanna/NetworkMonitor/wiki) 上。
 
-- <strong>使用：</strong>[安装](docs/zh-Hans/installing.md) · [功能](docs/zh-Hans/features.md) · [连接](docs/zh-Hans/connections.md) · [流量历史](docs/zh-Hans/usage-history.md) · [网速测试](docs/zh-Hans/speed-test.md) · [热点模式](docs/zh-Hans/hotspot-mode.md) · [准确性和电池](docs/zh-Hans/accuracy-and-battery.md) · [隐私](docs/zh-Hans/privacy.md)
+- <strong>使用：</strong>[安装](docs/zh-Hans/installing.md) · [功能](docs/zh-Hans/features.md) · [连接](docs/zh-Hans/connections.md) · [流量历史](docs/zh-Hans/usage-history.md) · [网速测试](docs/zh-Hans/speed-test.md) · [热点模式](docs/zh-Hans/hotspot-mode.md) · [统计准确性与耗电量](docs/zh-Hans/accuracy-and-battery.md) · [隐私](docs/zh-Hans/privacy.md)
 - <strong>开发（英文）：</strong>[架构](docs/architecture.md) · [构建与发布](docs/development.md) · [决策](docs/decisions.md) · [路线图](docs/roadmap.md)
 
 ## 🤝 参与贡献
