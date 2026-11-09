@@ -10,6 +10,7 @@ on:
       - "docs/**"
       - "SECURITY.md"
       - "Resources/README/**"
+      - "Resources/Localization/*/Glossary.json"
       - "Scripts/wiki.py"
       - ".github/workflows/wiki.yml"
   workflow_dispatch:

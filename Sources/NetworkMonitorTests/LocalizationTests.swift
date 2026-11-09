@@ -104,7 +104,81 @@ func runLocalizationTests() {
                 Check.expectTrue(stale.isEmpty,
                                  "\(stale.count) unused, such as: \(stale.prefix(5).joined(separator: " | "))")
             }
+            Check.test("\(code): its table names things as its glossary does") {
+                let url = tables.appendingPathComponent("\(code).lproj/Glossary.json")
+                guard let data = try? Data(contentsOf: url) else {
+                    return Check.expectTrue(false, "\(code).lproj has no Glossary.json; write it first (docs/development.md#adding-a-language)")
+                }
+                do {
+                    let glossary = try JSONDecoder().decode(Glossary.self, from: data)
+                    Check.expectEqual(glossary.language, code)
+                    for problem in glossary.problems(table: table, keys: keys) { Check.expectTrue(false, problem) }
+                } catch {
+                    Check.expectTrue(false, "\(code).lproj/Glossary.json doesn't read: \(error)")
+                }
+            }
         }
+    }
+}
+
+/// A language's words for the app's windows, sections, features and settings
+/// (#434), in `<code>.lproj/Glossary.json`. Written before anything is
+/// translated, and shared by the app's table, the docs, the README, the wiki
+/// and the website, so they all name things the same way. The test holds the
+/// app's table to it; the docs and the site follow it by hand.
+struct Glossary: Decodable {
+    struct Term: Decodable {
+        /// The English, as the app writes it.
+        var en: String
+        /// This language's word for it.
+        var text: String
+        /// Also in every piece of the app's text that says the English, as a
+        /// whole word in any case: `Ad blocking is off` holds `广告拦截` too.
+        var everywhere: Bool?
+        /// `docs` for a name only the docs and the website use.
+        var `where`: String?
+        var note: String?
+    }
+    struct Avoid: Decodable {
+        var text: String
+        var why: String
+    }
+    var language: String
+    var terms: [Term]
+    /// Words no translation may use.
+    var avoid: [Avoid]?
+
+    /// Where the table says something else, one line each.
+    func problems(table: [String: String], keys: Set<String>) -> [String] {
+        var problems: [String] = []
+        for term in terms where term.where != "docs" {
+            var said = false
+            if keys.contains(term.en) {
+                said = true
+                if table[term.en] != term.text {
+                    problems.append("\"\(term.en)\" is \"\(table[term.en] ?? "")\", but the glossary says \"\(term.text)\"")
+                }
+            }
+            if term.everywhere == true {
+                let word = try! NSRegularExpression(pattern: "\\b" + NSRegularExpression.escapedPattern(for: term.en) + "\\b",
+                                                    options: .caseInsensitive)
+                for key in keys.sorted() where word.firstMatch(in: key, range: NSRange(location: 0, length: (key as NSString).length)) != nil {
+                    said = true
+                    if let translated = table[key], !translated.contains(term.text) {
+                        problems.append("\"\(key)\" → \"\(translated)\" doesn't say \"\(term.text)\" for \"\(term.en)\"")
+                    }
+                }
+            }
+            if !said {
+                problems.append("the app no longer says \"\(term.en)\": change the glossary's term, or mark it \"where\": \"docs\"")
+            }
+        }
+        for avoid in avoid ?? [] {
+            for (english, translated) in table.sorted(by: { $0.key < $1.key }) where translated.contains(avoid.text) {
+                problems.append("\"\(english)\" → \"\(translated)\" uses \"\(avoid.text)\": \(avoid.why)")
+            }
+        }
+        return problems
     }
 }
 

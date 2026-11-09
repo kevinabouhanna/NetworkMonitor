@@ -93,7 +93,7 @@ else
   git -C "$root" worktree prune
   git -C "$root" worktree add -q --detach "$src" "$sha"
 fi
-git -C "$root" fetch -q origin gh-pages
+git -C "$root" fetch -q origin main gh-pages
 if [[ -e "$site/.git" ]]; then git -C "$site" checkout -q --detach -f origin/gh-pages
 else git -C "$root" worktree add -q --detach "$site" origin/gh-pages; fi
 
@@ -111,6 +111,9 @@ smoke() {
 }
 
 build_and_test() {
+  # The pull request's description can say a change is English only (#434).
+  if [[ "$target" =~ ^[0-9]+$ ]]; then PR="$target" make translation-check BASE=origin/main
+  else PR_BODY="" make translation-check BASE=origin/main; fi
   swift build
   CI=true make test # as on GitHub: skips the tests that need live traffic
   make asset-check SITE="$site"

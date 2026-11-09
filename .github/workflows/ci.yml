@@ -6,9 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Builds and tests only: the token needs nothing beyond reading the code (#400).
+# Builds and tests only: the token needs nothing beyond reading the code (#400),
+# and a pull request's description, for the translation check (#434).
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -25,6 +27,18 @@ jobs:
           # bundle.sh derives the build number from the commit count, which a
           # depth-1 clone would report as 1.
           fetch-depth: 0
+
+      # An English page for people using the app changes with its translation
+      # in each language, or the description says why not: a line
+      # "No translation needed: <why>" (#434). The description is read as it
+      # runs, so re-running the job picks up a line added since. Files only,
+      # so first.
+      - name: Check each changed English page's translations changed too
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: make translation-check BASE=origin/${{ github.base_ref }}
 
       - name: Swift version
         run: swift --version

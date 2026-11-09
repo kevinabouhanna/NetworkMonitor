@@ -19,6 +19,9 @@
 //   audit [names]    checks each window for what VoiceOver can't name (#346),
 //                    with the rules the tests use, but on real data: list
 //                    rows, scanned apps, the popover with traffic
+//   readme           copies the site's pictures the README uses into it, in
+//                    every language (#434). Files only. `update` copies each
+//                    one it retakes
 //
 // It needs Accessibility and Screen Recording for the terminal it runs in. It
 // quits and relaunches the installed app, and puts it back running at the end.
@@ -118,6 +121,10 @@ struct HandMade: Decodable {
     var shows: [String]?
     /// Or why it shows no window this tool can check: an icon, the menu bar.
     var none: String?
+    /// Or, in the README's list, the shot whose picture it's a copy of (#434):
+    /// `update` copies the site's picture here, and each language's to
+    /// `<folder>/<code>/<name>`, which needn't be listed.
+    var copy: String?
 }
 
 /// The README's and the docs' assets, in `Resources/README/assets.json` on
@@ -128,6 +135,40 @@ struct RepoAssets: Decodable {
 
 /// Where the main branch's list lives, relative to its checkout.
 let repoAssetsPath = "Resources/README/assets.json"
+
+/// A language's copy of one of the README's pictures: `Resources/README/<code>/speed-test.png`.
+func repoFile(_ english: String, in language: Language?) -> String {
+    guard let language else { return english }
+    let url = URL(fileURLWithPath: english)
+    let folder = url.deletingLastPathComponent().relativePath
+    return (folder == "." ? "" : folder + "/") + language.code + "/" + url.lastPathComponent
+}
+
+/// Copies into the README each site picture it uses, in `language` (#434), so
+/// the README's pictures in every language come from the run that takes the
+/// site's: those of the shots in `shots`, or all of them. Only those a page
+/// uses, or that are there already, so a language without a README gets none.
+/// Returns what it copied.
+func copyToRepo(manifest: Manifest, site: URL, repo: URL, repoAssets: RepoAssets?, language: Language?,
+                shots: Set<String>? = nil) throws -> [String] {
+    let uses = try Coverage.repoUses(repo)
+    var copied: [String] = []
+    for asset in repoAssets?.assets ?? [] {
+        guard let name = asset.copy, shots?.contains(name) ?? true else { continue }
+        guard let english = manifest.shots.first(where: { $0.name == name })?.file else {
+            throw Failure("\(asset.file) is a copy of \"\(name)\", which isn't a shot with a picture")
+        }
+        let from = site.appendingPathComponent(language.map { $0.file(english) } ?? english)
+        let file = repoFile(asset.file, in: language)
+        let to = repo.appendingPathComponent(file)
+        guard uses[file] != nil || FileManager.default.fileExists(atPath: to.path),
+              let picture = try? Data(contentsOf: from), (try? Data(contentsOf: to)) != picture else { continue }
+        try FileManager.default.createDirectory(at: to.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try picture.write(to: to)
+        copied.append(file)
+    }
+    return copied
+}
 
 struct Shot: Decodable {
     var name: String
@@ -805,7 +846,7 @@ enum Coverage {
                 if !seen.insert(file).inserted { problems.append("\(file) is listed twice in \(listName)") }
                 if taken.contains(file) { problems.append("\(file) is a shot's picture; take it out of \(listName)'s assets") }
                 let shows = asset.shows ?? []
-                if shows.isEmpty == (asset.none == nil) {
+                if asset.copy == nil, shows.isEmpty == (asset.none == nil) {
                     problems.append("\(file) in \(listName) needs either `shows` (the windows it shows) or `none` (why it shows none), not both")
                 }
                 for name in shows where !shotNames.contains(name) {
@@ -846,7 +887,23 @@ enum Coverage {
         // The README and the docs.
         if let repo {
             let uses = try repoUses(repo)
-            checkList(repoAssets?.assets ?? [], root: repo, listName: repoAssetsPath, uses: uses, taken: [])
+            // A copy of a shot's picture is listed once, in English; each
+            // language's copy of it comes with it (#434).
+            var copies = Set<String>()
+            for asset in repoAssets?.assets ?? [] {
+                guard let name = asset.copy else { continue }
+                if manifest.shots.first(where: { $0.name == name })?.file == nil {
+                    problems.append("\(asset.file) in \(repoAssetsPath) is a copy of \"\(name)\", which isn't a shot with a picture in shots/shots.json")
+                }
+                for language in manifest.languages ?? [] {
+                    let file = repoFile(asset.file, in: language)
+                    copies.insert(file)
+                    if uses[file] != nil, !FileManager.default.fileExists(atPath: repo.appendingPathComponent(file).path) {
+                        problems.append("\(file), the \(language.code) copy of \(asset.file), doesn't exist; `make site-shots` makes it")
+                    }
+                }
+            }
+            checkList(repoAssets?.assets ?? [], root: repo, listName: repoAssetsPath, uses: uses, taken: copies)
             summary += " and \(uses.count) in the README and docs"
         }
         return (problems, summary)
@@ -891,8 +948,8 @@ struct SiteShots {
         if let i = args.firstIndex(of: "--language"), i + 1 < args.count {
             only = args[i + 1]; args.removeSubrange(i...(i + 1))
         }
-        guard let command = args.first, ["check", "update", "tree", "audit", "coverage"].contains(command) else {
-            print("usage: site-shots check|update|audit [names…]|tree <name>|coverage [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
+        guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "readme"].contains(command) else {
+            print("usage: site-shots check|update|audit [names…]|tree <name>|coverage|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
             exit(2)
         }
         let names = Set(args.dropFirst())
@@ -918,6 +975,23 @@ struct SiteShots {
                 exit(2)
             }
         }
+        // Files only too: the README's copies of the site's pictures.
+        if command == "readme" {
+            do {
+                let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
+                let languages: [Language?] = [nil] + (manifest.languages ?? []).map { $0 }
+                var copied: [String] = []
+                for language in languages where only == nil || only == (language?.code ?? "en") {
+                    copied += try copyToRepo(manifest: manifest, site: site, repo: repo, repoAssets: repoAssets, language: language)
+                }
+                print(copied.isEmpty ? "readme: the README's pictures are the site's already"
+                                     : "readme: copied the site's pictures to " + copied.joined(separator: ", "))
+                exit(0)
+            } catch {
+                print("readme: \(error)")
+                exit(2)
+            }
+        }
         // One run at a time: each quits and relaunches the app, so two at once,
         // from two terminals or two sessions, spoil each other's windows.
         let lock = open(NSHomeDirectory() + "/Library/Caches/site-shots.lock", O_CREAT | O_RDWR, 0o644)
@@ -939,7 +1013,7 @@ struct SiteShots {
                 do {
                     let translator = try language.map { try Translator(app: manifest.app, language: $0) }
                     let s = try await run(command, names: names, manifest: manifest, session: session, site: site,
-                                          repoAssets: repoAssets, language: language, translator: translator)
+                                          repo: repo, repoAssets: repoAssets, language: language, translator: translator)
                     status = max(status, s)
                     if let missing = translator?.missing, !missing.isEmpty {
                         print("  kept in English, as the app's \(language!.code) table doesn't have them "
@@ -959,7 +1033,7 @@ struct SiteShots {
         }
     }
 
-    static func run(_ command: String, names: Set<String>, manifest: Manifest, session: Session, site: URL,
+    static func run(_ command: String, names: Set<String>, manifest: Manifest, session: Session, site: URL, repo: URL,
                     repoAssets: RepoAssets?, language: Language? = nil, translator: Translator? = nil) async throws -> Int32 {
         var shots = manifest.shots.filter { names.isEmpty || names.contains($0.name) }
         if shots.isEmpty { throw Failure("no shot named \(names.sorted().joined(separator: ", "))") }
@@ -1090,6 +1164,11 @@ struct SiteShots {
                     try writePNG(image, to: site.appendingPathComponent(file))
                     page.setSize(of: file, pixels: CGSize(width: image.width, height: image.height))
                     print("  retook \(file) (\(image.width)×\(image.height))")
+                    // And the README's copy of it, in this language (#434).
+                    for copy in try copyToRepo(manifest: manifest, site: site, repo: repo, repoAssets: repoAssets,
+                                               language: language, shots: [shot.name]) {
+                        print("  copied it to \(copy)")
+                    }
                 }
                 let windowFrame = frame(window) ?? .zero
                 for area in shot.areas ?? [] {

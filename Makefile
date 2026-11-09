@@ -1,4 +1,4 @@
-.PHONY: all build test hooks design-shots review app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check site-shots site-audit clean
+.PHONY: all build test hooks design-shots review app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check translation-check translation-review site-shots site-audit clean
 
 all: test app
 
@@ -120,6 +120,21 @@ site-check: build/site-shots
 # CI runs it on every pull request, here and on the site.
 asset-check: build/site-shots
 	@build/site-shots coverage --site $(SITE)
+
+# Each English page for people using the app (README.md, SECURITY.md, docs/)
+# changed in this branch has its translations changed too, or the pull
+# request's description says why not (#434). Files only: CI runs it on every
+# pull request. BASE is what the branch is compared with; PR names a pull
+# request whose description to read, the current branch's otherwise.
+BASE ?= origin/main
+translation-check:
+	@$(if $(PR),PR=$(PR) )./Scripts/translation-check.sh $(BASE)
+
+# What a release says for the first time, or differently, in each language,
+# as a table for its native reviewer to read in the updated app (#434). FROM
+# is the last release's tag; TO is HEAD unless given.
+translation-review:
+	@python3 -I Scripts/translation-review.py $(FROM) $(TO)
 
 site-shots: build/site-shots
 	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh env MAC_LANE=screen ./Scripts/mac-lane.sh build/site-shots update --site $(SITE) $(NAMES)

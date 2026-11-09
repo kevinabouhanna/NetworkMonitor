@@ -1,0 +1,60 @@
+{
+  "language": "zh-Hans",
+  "name": "简体中文",
+  "reviewer": "qunqin24",
+  "about": "The names of NetworkMonitor's windows, sections, features and settings in Simplified Chinese, settled with the native reviewer in #429 and #430. The app's table, the docs, the README, the wiki and the website use these words. `make test` fails when the app's table says something else: see docs/development.md#adding-a-language.",
+  "style": [
+    "Address the user as 你, never 您.",
+    "Full-width punctuation: ，。：；？！（）and “” for quotes.",
+    "A space between Chinese and Latin letters or numbers: 今天已拦截 12 次, NetworkMonitor 每周更新列表.",
+    "In Markdown, bold is <strong>…</strong>: GitHub leaves ** showing next to Chinese punctuation.",
+    "In Markdown, a paragraph is one line: GitHub turns a line break into a space.",
+    "In Markdown, `> [!WARNING]` and its text go on separate quoted lines."
+  ],
+  "avoid": [
+    { "text": "您", "why": "the app addresses the user as 你" },
+    { "text": "今日", "why": "Today is 今天" },
+    { "text": "个广告", "why": "ad blocking counts how many times it stopped something: 今天已拦截 N 次, not N 个广告" }
+  ],
+  "terms": [
+    { "en": "Usage History", "text": "流量历史", "everywhere": true, "note": "the window and its section" },
+    { "en": "Connections", "text": "连接", "everywhere": true, "note": "the section; also a connection in running text" },
+    { "en": "Ads and Trackers", "text": "广告与跟踪器", "note": "the section's name. In running text, ads and trackers is 广告和跟踪器" },
+    { "en": "Network", "text": "网络", "note": "the section" },
+    { "en": "Settings", "text": "设置", "everywhere": true },
+    { "en": "Speed test", "text": "网速测试", "everywhere": true },
+    { "en": "About NetworkMonitor", "text": "关于 NetworkMonitor" },
+
+    { "en": "Ad blocking", "text": "广告拦截", "everywhere": true, "note": "the feature. What it stops, it 拦截 (blocks); firewall rules 阻止 instead" },
+    { "en": "Enhanced ad blocking", "text": "增强型广告拦截", "everywhere": true },
+    { "en": "%@ blocked today", "text": "今天已拦截 %@ 次", "note": "a count of times, never 个广告" },
+    { "en": "Hotspot mode", "where": "docs", "text": "热点模式", "note": "the docs' name for what the Network section does on a hotspot" },
+    { "en": "hotspot", "text": "热点", "everywhere": true },
+    { "en": "Personal Hotspot", "text": "个人热点", "note": "the iPhone's own name for it" },
+    { "en": "Low Data Mode", "text": "低数据模式", "everywhere": true, "note": "macOS's own name for it" },
+    { "en": "metered connection", "text": "按流量计费的连接", "everywhere": true },
+    { "en": "Metered", "text": "按流量计费", "everywhere": true },
+    { "en": "Update That Got Through", "text": "未能暂停的更新", "note": "an update that ran on a hotspot although it was paused" },
+    { "en": "got through", "text": "未能暂停", "everywhere": true },
+    { "en": "helper", "text": "辅助程序", "everywhere": true },
+    { "en": "content filter", "text": "内容过滤器", "everywhere": true },
+
+    { "en": "Block", "text": "阻止", "note": "a firewall rule. Ad blocking's verb is 拦截" },
+    { "en": "Allow", "text": "允许", "everywhere": true },
+    { "en": "Never Block", "text": "永不阻止", "everywhere": true },
+    { "en": "Always Block", "text": "始终阻止", "everywhere": true },
+    { "en": "Always Allow", "text": "始终允许", "everywhere": true },
+    { "en": "Block Everything", "text": "全部阻止", "everywhere": true },
+    { "en": "Only Where I Allow", "text": "仅允许已授权的连接", "everywhere": true },
+    { "en": "Ask Me", "text": "询问我" },
+
+    { "en": "Today", "text": "今天", "everywhere": true, "note": "never 今日" },
+    { "en": "Session", "text": "连接时段", "everywhere": true, "note": "the time from joining a network to leaving it" },
+    { "en": "Same as the Mac", "text": "跟随系统", "everywhere": true, "note": "the Language setting's first choice" },
+    { "en": "Language", "text": "语言" },
+    { "en": "Start at login", "text": "登录时启动" },
+
+    { "en": "Universal", "where": "docs", "text": "通用版（Apple 芯片和 Intel）", "note": "the download, on the website's download line" },
+    { "en": "Accuracy and battery", "where": "docs", "text": "统计准确性与耗电量", "note": "the docs page's title" }
+  ]
+}
