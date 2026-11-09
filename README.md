@@ -4,6 +4,8 @@
 
 <h1 align="center">NetworkMonitor</h1>
 
+<p align="center">English · <a href="README.zh-Hans.md">简体中文</a></p>
+
 <p align="center">
   <b>Live network speed in your Mac's menu bar, which apps used your data, and a firewall to block what they connect to.</b>
 </p>

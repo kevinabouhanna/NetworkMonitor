@@ -508,7 +508,7 @@ struct HotspotSettingsPane: View {
         } else if !metering.failed.isEmpty {
             // Never silently: a tier that refused every call must not keep its
             // apps listed as paused.
-            Label(L("Couldn't pause %@", metering.failed.joined(separator: ", ")),
+            Label(L("Couldn't pause %@", metering.failed.joined(separator: L(", "))),
                   systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.orange)
         }

@@ -9,6 +9,10 @@
       "shows": ["speed-test-result"]
     },
     {
+      "file": "Resources/README/zh-Hans/speed-test.png",
+      "shows": ["speed-test-result"]
+    },
+    {
       "file": "Resources/README/logo.png",
       "none": "the app icon"
     },

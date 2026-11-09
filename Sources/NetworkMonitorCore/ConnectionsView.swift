@@ -352,7 +352,7 @@ public struct ConnectionsView: View {
     }
 
     private func sectionNames(_ group: ConnectionsGroup) -> String {
-        group.sections.map { $0.dimension.plural.lowercased() }.joined(separator: ", ")
+        group.sections.map { $0.dimension.plural.lowercased() }.joined(separator: L(", "))
     }
 
     private func fraction(_ bytes: Int64, of largest: Int64) -> Double {

@@ -1,5 +1,7 @@
 # Connections
 
+English · [简体中文](zh-Hans/connections.md)
+
 Which companies your apps send data to, from which apps, in which countries, and to which
 servers. Click the 🌐 in the popover, choose **Connections…** (⌘K) from the right-click
 menu, or open **Settings › Connections**, which also sets the layout the window opens
