@@ -9,14 +9,15 @@ import SwiftUI
 /// windows lay theirs out: the view on the leading side as in Finder, the
 /// period centred and ‹ Today › trailing as in Calendar, then search. What the
 /// list is grouped by and narrowed to is a labelled row in the window.
-public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
+public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
 
     public let window: NSWindow
     private let model: ConnectionsViewModel
     private let layoutControl = NSSegmentedControl()
     private let scaleControl = NSSegmentedControl()
     private let stepControl = NSSegmentedControl()
-    private var searchField: NSSearchField?
+    /// Search, in the toolbar: a magnifying glass until it's used (#436).
+    public let search = ToolbarSearch(NSToolbarItem.Identifier("search"))
     private var observation: AnyCancellable?
     private var occlusion: AnyCancellable?
     private var languageObservation: AnyCancellable?
@@ -24,7 +25,6 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
     private static let layoutItem = NSToolbarItem.Identifier("layout")
     private static let scaleItem = NSToolbarItem.Identifier("scale")
     private static let stepItem = NSToolbarItem.Identifier("step")
-    private static let searchItem = NSToolbarItem.Identifier("search")
 
     /// The content and the toolbar, for the window of its own or for a
     /// section of the main window (#436), which shows them in its place.
@@ -99,11 +99,8 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         layoutControl.target = self
         layoutControl.action = #selector(layoutChosen)
 
-        let scales = HistoryScale.allCases
-        scaleControl.segmentCount = scales.count
-        scaleControl.trackingMode = .selectOne
-        scaleControl.target = self
-        scaleControl.action = #selector(scaleChosen)
+        PeriodControl.configure(scaleControl, target: self, action: #selector(scaleChosen))
+        search.onChange = { [weak self] in self?.model.search = $0 }
 
         stepControl.segmentCount = 3
         stepControl.trackingMode = .momentary
@@ -123,9 +120,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
             layoutControl.setToolTip(layout.label, forSegment: index)
         }
 
-        for (index, scale) in HistoryScale.allCases.enumerated() {
-            scaleControl.setLabel(scale.label, forSegment: index)
-        }
+        PeriodControl.name(scaleControl)
 
         stepControl.setImage(NSImage(systemSymbolName: "chevron.left", accessibilityDescription: L("Previous")),
                              forSegment: 0)
@@ -142,7 +137,8 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
                 item.toolTip = names.help
             }
         }
-        searchField?.placeholderString = L("Company, app, country or address")
+        search.name(placeholder: L("Company, app, country or address"),
+                    help: L("Search companies, apps, countries and addresses (⌘F)"))
     }
 
     /// A toolbar item's name and tooltip, in the language shown.
@@ -161,9 +157,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
         scaleControl.selectedSegment = HistoryScale.allCases.firstIndex(of: model.scale) ?? 0
         stepControl.setEnabled(model.canStepBack, forSegment: 0)
         stepControl.setEnabled(model.canStepForward, forSegment: 2)
-        if let searchField, searchField.stringValue != model.search {
-            searchField.stringValue = model.search
-        }
+        search.show(model.search)
     }
 
     @objc private func layoutChosen(_ sender: NSSegmentedControl) {
@@ -184,11 +178,6 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
 
     @objc private func openSettings() { onSettings() }
 
-    public func controlTextDidChange(_ notification: Notification) {
-        guard let field = notification.object as? NSSearchField else { return }
-        model.search = field.stringValue
-    }
-
     static func symbol(for layout: ConnectionsViewModel.Layout) -> String {
         switch layout {
         case .list: return "list.bullet"
@@ -201,8 +190,8 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         (standalone ? [] : MainWindowController.sidebarItems)
-            + [Self.layoutItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, Self.searchItem,
-               SettingsGear.identifier]
+            + [Self.layoutItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem,
+               search.item.itemIdentifier, SettingsGear.identifier]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -218,13 +207,8 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate, NSS
             return item(identifier, control: scaleControl)
         case Self.stepItem:
             return item(identifier, control: stepControl)
-        case Self.searchItem:
-            let item = NSSearchToolbarItem(itemIdentifier: identifier)
-            item.searchField.delegate = self
-            item.searchField.placeholderString = L("Company, app, country or address")
-            item.preferredWidthForSearchField = 240
-            searchField = item.searchField
-            return item
+        case search.item.itemIdentifier:
+            return search.item
         case SettingsGear.identifier:
             return SettingsGear.item(target: self, action: #selector(openSettings),
                                      help: L("Settings for Connections"))

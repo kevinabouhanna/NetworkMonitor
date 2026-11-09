@@ -356,6 +356,20 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
         show(popover, appearance: appearance, settle: 0.8)
         save(popover, prefix + "popover-\(section.rawValue)", appearance: appearance)
     }
+    // Companies and Ads blocked with their first row open (#436).
+    let glance = world.model.glance
+    for (section, id) in [(PopoverSection.companies, glance.companies.first?.item.id),
+                          (.blocked, glance.ads.sites.first.map { "site:" + $0.id })]
+    where wanted(prefix + "popover-\(section.rawValue)-open") {
+        guard let id else { continue }
+        world.model.popoverSection = section
+        glance.expanded = [id]
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        popover.setContentSize(host.view.fittingSize)
+        show(popover, appearance: appearance, settle: 0.8)
+        save(popover, prefix + "popover-\(section.rawValue)-open", appearance: appearance)
+    }
+    glance.expanded = []
     world.model.popoverSection = .today
     popover.orderOut(nil)
 
@@ -372,6 +386,10 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     }
     main.show(.history)
     shoot("history", settle: 1.5)
+    // Search open, holding a search (#436).
+    world.historyModel.search = "Sa"
+    shoot("history-search", settle: 1.0)
+    world.historyModel.search = ""
     main.show(.connections)
     for layout in ConnectionsViewModel.Layout.allCases {
         world.connections.layout = layout
@@ -383,6 +401,10 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
         shoot("ads-\(tab.rawValue)")
     }
     main.ads.select(.overview)
+    world.connections.search = "Goo"
+    main.show(.connections)
+    shoot("connections-search", settle: 1.5)
+    world.connections.search = ""
     main.show(.network)
     shoot("network")
     main.show(.settings)
@@ -410,6 +432,8 @@ func measureToolbars(_ world: World) {
     let main = MainWindowController(model: world.model, history: world.historyModel,
                                     connections: world.connections, ads: world.ads)
     let window = main.window
+    // Measured with search open, as wide as it gets while it's used.
+    for search in [main.history.search, main.connections.search, main.ads.search] { search.show("x") }
     for section in MainSection.allCases {
         main.show(section)
         window.contentMinSize = NSSize(width: 300, height: 300)
@@ -431,6 +455,8 @@ func measureToolbars(_ world: World) {
     }
     window.orderOut(nil)
 }
+
+
 
 if arguments.contains("--measure") {
     measureToolbars(makeWorld(.full, filter: .on))

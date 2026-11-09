@@ -49,6 +49,57 @@ func runSettingsTests() {
             main.showSettings()
             main.closeSettings()
             Check.expectEqual(main.window.title, "Connections")
+
+            // The sidebar button (#436): in every section's toolbar, and
+            // answered by the window itself, so it works with nothing focused.
+            for section in MainSection.allCases {
+                main.show(section)
+                let buttons = main.window.toolbar?.items.filter { $0.itemIdentifier == .toggleSidebar } ?? []
+                Check.expectEqual(buttons.count, 1, "\(section.rawValue) has the sidebar button")
+            }
+            main.window.makeFirstResponder(nil)
+            let before = main.sidebarIsCollapsed
+            Check.expectTrue(NSApp.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)),
+                                              to: main.window, from: nil), "the window takes toggleSidebar:")
+            Check.expectTrue(main.sidebarIsCollapsed != before, "the button folds the sidebar")
+            main.toggleSidebar()
+            let collapsed = main.sidebarIsCollapsed
+            main.toggleSidebar()
+            Check.expectTrue(main.sidebarIsCollapsed != collapsed, "the sidebar folds and unfolds")
+            main.toggleSidebar()
+
+            // Search (#436): a magnifying glass until it holds a search.
+            for search in [main.history.search, main.connections.search, main.ads.search] {
+                Check.expectTrue(!search.isOpen, "search rests as the glass")
+            }
+        }
+
+        // Day, Week, Month and Year, each segment as wide as the widest (#436).
+        Check.test("the period's segments are all one width") {
+            let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("settings-period-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let defaults = UserDefaults(suiteName: "settings-period-\(UUID().uuidString)")!
+            let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
+            let model = MonitorViewModel(store: store,
+                                         metering: MeteringController(
+                                            store: store,
+                                            journal: SuppressionJournal(url: dir.appendingPathComponent("j.json")),
+                                            suppressors: [], defaults: defaults))
+            let main = MainWindowController(model: model, history: HistoryViewModel(monitor: model),
+                                            connections: ConnectionsViewModel(monitor: model, defaults: defaults),
+                                            ads: AdsViewModel(monitor: model))
+            for section in [MainSection.history, .connections, .ads] {
+                main.show(section)
+                let item = main.window.toolbar?.items.first { $0.itemIdentifier.rawValue == "scale" }
+                guard let control = item?.view as? NSSegmentedControl else {
+                    Check.expectTrue(false, "\(section.rawValue) has the period")
+                    continue
+                }
+                let widths = (0..<control.segmentCount).map { control.width(forSegment: $0) }
+                Check.expectEqual(Set(widths).count, 1, "\(section.rawValue): \(widths)")
+                Check.expectTrue((widths.first ?? 0) >= 64, "\(section.rawValue): wide enough")
+            }
         }
     }
 }

@@ -769,6 +769,12 @@ public final class MonitorViewModel: ObservableObject {
         }
     }
 
+    /// An app's icon, by its key, for the popover's Companies and Ads
+    /// blocked rows (#436).
+    public func icon(forApp key: String, name: String, bundlePath: String?) -> NSImage {
+        identityResolver.icon(for: AppIdentity(key: key, displayName: name, bundlePath: bundlePath, isSystem: false))
+    }
+
     public func icon(for row: UsageRow) -> NSImage {
         identityResolver.icon(for: AppIdentity(key: row.id,
                                                displayName: row.displayName,

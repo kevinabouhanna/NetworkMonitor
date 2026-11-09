@@ -4,7 +4,7 @@ import SwiftUI
 
 /// The main window's sections (#436), in the popover's order: Usage History
 /// (Today), Connections (Companies), Ads and Trackers (Ads blocked) and
-/// Network, which holds the connection, the hotspot switch and the speed test.
+/// Network, which holds the connection, hotspots and the speed test.
 /// Then Settings, pinned to the bottom of the sidebar: what applies to the
 /// whole app, and a way to each section's own settings.
 public enum MainSection: String, CaseIterable, Identifiable {
@@ -86,14 +86,16 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         history = HistoryWindowController(model: historyModel, standalone: false)
         connections = ConnectionsWindowController(model: connectionsModel, standalone: false)
         ads = AdsWindowController(model: adsModel, standalone: false)
+        let state = SettingsPaneState()
         let networkHost = NSHostingController(rootView: NetworkView(model: model, metering: model.metering,
-                                                                    speedTest: model.speedTest).localizedRoot())
+                                                                    speedTest: model.speedTest, state: state,
+                                                                    filter: model.filter).localizedRoot())
         networkHost.sizingOptions = []
         network = networkHost
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1300, height: 800),
-                          styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-                          backing: .buffered, defer: false)
-        let state = SettingsPaneState()
+        let mainWindow = MainWindow(contentRect: NSRect(x: 0, y: 0, width: 1300, height: 800),
+                                    styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                                    backing: .buffered, defer: false)
+        window = mainWindow
         // Each section's settings, as the Settings window has them.
         var back: () -> Void = {}
         makeSettingsPage = { section in
@@ -112,10 +114,9 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                                                firewall: model.firewall, blocklists: model.blocklists,
                                                listBlocks: model.listBlocks, onOpenAds: { back() }))
             case .network, .settings:
-                view = AnyView(VStack(spacing: 0) {
-                    HotspotSettingsPane(metering: model.metering, state: state, filter: model.filter)
-                    SpeedTestStylePane(speedTest: model.speedTest)
-                })
+                // Hotspots are on the Network page itself (#436): what's
+                // left to set is how the popover shows the speed test.
+                view = AnyView(SpeedTestStylePane(speedTest: model.speedTest))
             }
             let host = NSHostingController(rootView: MainSettingsPage(content: view, width: width).localizedRoot())
             host.sizingOptions = []
@@ -140,6 +141,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         sidebarItem.canCollapse = true
         split.addSplitViewItem(sidebarItem)
         split.addSplitViewItem(NSSplitViewItem(viewController: container))
+        mainWindow.split = split
         window.contentViewController = split
         window.setContentSize(NSSize(width: 1300, height: 800))
         window.isReleasedWhenClosed = false
@@ -163,6 +165,24 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
     }
 
     public var isVisible: Bool { window.isVisible }
+
+    private func use(_ toolbar: NSToolbar) { window.toolbar = toolbar }
+
+    /// Shows or hides the sidebar: the toolbar's button, and View › Hide Sidebar.
+    public func toggleSidebar() { split.toggleSidebar(nil) }
+
+    public var sidebarIsCollapsed: Bool { split.splitViewItems[0].isCollapsed }
+
+    /// ⌘F: the section's search, opened, with the cursor in it.
+    public func beginSearch() {
+        guard !navigation.showsSettings else { return }
+        switch navigation.section {
+        case .history:     history.search.begin()
+        case .connections: connections.search.begin()
+        case .ads:         ads.search.begin()
+        case .network, .settings: break
+        }
+    }
 
     // MARK: Showing
 
@@ -192,7 +212,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         guard let page = settingsPages[section] else { return }
         navigation.showsSettings = true
         container.show(page)
-        window.toolbar = settingsToolbar
+        use(settingsToolbar)
         nameWindow()
         refreshSettings(for: section)
     }
@@ -233,19 +253,19 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         switch section {
         case .history:
             container.show(history.content)
-            window.toolbar = history.toolbar
+            use(history.toolbar)
         case .connections:
             container.show(connections.content)
-            window.toolbar = connections.toolbar
+            use(connections.toolbar)
         case .ads:
             container.show(ads.content)
-            window.toolbar = ads.toolbar
+            use(ads.toolbar)
         case .network:
             container.show(network)
-            window.toolbar = networkToolbar
+            use(networkToolbar)
         case .settings:
             container.show(general)
-            window.toolbar = generalToolbar
+            use(generalToolbar)
         }
         window.contentMinSize = NSSize(width: MainMetrics.minWidth(section), height: MainMetrics.minHeight)
         if window.frame.width < window.frameRect(forContentRect: NSRect(x: 0, y: 0, width: MainMetrics.minWidth(section),
@@ -331,11 +351,22 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
             return item
         case SettingsGear.identifier:
             return SettingsGear.item(target: self, action: #selector(openSettings),
-                                     help: L("Settings for the network and hotspots"))
+                                     help: L("Settings for the speed test"))
         default:
             return nil
         }
     }
+}
+
+/// The main window, which answers the sidebar button itself (#436). The
+/// button sends `toggleSidebar:` up the responder chain, which reaches the
+/// split view only from a view inside it; while nothing is focused, as when
+/// the window opens, it went from the window to the app, found no one, and
+/// the button did nothing. The built-in button can't be given a target.
+final class MainWindow: NSWindow {
+    weak var split: NSSplitViewController?
+
+    @objc func toggleSidebar(_ sender: Any?) { split?.toggleSidebar(sender) }
 }
 
 /// The content area: shows one section's view, or its settings.
@@ -395,8 +426,9 @@ struct MainSidebar: View {
     }
 }
 
-/// A section's settings in the main window: the Settings pane itself,
-/// centred at the width it has in Settings, scrolling when it's taller.
+/// A section's settings in the main window, from the leading edge as every
+/// section's content is (#436), up to a readable width, scrolling when it's
+/// taller.
 struct MainSettingsPage: View {
     let content: AnyView
     let width: CGFloat
@@ -404,8 +436,8 @@ struct MainSettingsPage: View {
     var body: some View {
         ScrollView(.vertical) {
             content
-                .frame(maxWidth: width)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: width, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 8)
         }
     }
@@ -432,11 +464,15 @@ enum MainMetrics {
 
 /// Network (#436): the connection the Mac is on, a switch to say it's a
 /// hotspot (detection can miss a phone), what's paused on hotspots, and the
-/// speed test for this connection.
+/// speed test for this connection. Hotspots are here rather than behind the
+/// gear: they're what this page is about. Read from the leading edge, as
+/// every section is.
 struct NetworkView: View {
     @ObservedObject var model: MonitorViewModel
     @ObservedObject var metering: MeteringController
     @ObservedObject var speedTest: SpeedTestController
+    @ObservedObject var state: SettingsPaneState
+    @ObservedObject var filter: FilterController
 
     var body: some View {
         ScrollView(.vertical) {
@@ -476,6 +512,10 @@ struct NetworkView: View {
                     } footer: {
                         SettingsFootnote(hotspotFootnote)
                     }
+                }
+                .settingsForm()
+                HotspotSettingsPane(metering: metering, state: state, filter: filter)
+                Form {
                     if SpeedTestRunner.isAvailable {
                         Section {
                             SpeedTestPanel(speedTest: speedTest)
@@ -489,8 +529,8 @@ struct NetworkView: View {
                 .settingsForm()
             }
             .padding(.vertical, 20)
-            .frame(maxWidth: SettingsMetrics.paneWidth)
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: SettingsMetrics.paneWidth, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -531,7 +571,7 @@ struct NetworkView: View {
     private var hotspotFootnote: String {
         var parts: [String] = []
         if metering.override != nil { parts.append(L("Marked by you for this network.")) }
-        if !metering.isEnabled { parts.append(L("Stopping app updates on hotspots is off: switch it on with the gear.")) }
+        if !metering.isEnabled { parts.append(L("Stopping app updates on hotspots is off: switch it on below.")) }
         else if metering.isSuppressing { parts.append(L("App updates are paused until you leave this network.")) }
         return parts.isEmpty ? L("App updates pause on any network marked as a hotspot.") : parts.joined(separator: " ")
     }

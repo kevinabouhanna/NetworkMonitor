@@ -176,15 +176,44 @@ public struct HistoryView: View {
 
     private var isListEmpty: Bool {
         switch model.tab {
-        case .apps:     return report.apps.isEmpty && report.systemRows.isEmpty
-        case .networks: return report.networks.isEmpty
-        case .sessions: return report.sessions.isEmpty
+        case .apps:     return apps.isEmpty && systemRows.isEmpty
+        case .networks: return networks.isEmpty
+        case .sessions: return sessions.isEmpty
+        }
+    }
+
+    // MARK: Search (#436)
+
+    private var query: String { model.search.trimmingCharacters(in: .whitespaces) }
+
+    private func matches(_ name: String) -> Bool {
+        query.isEmpty || name.localizedCaseInsensitiveContains(query)
+    }
+
+    /// An app shows when its name or one of its parts' matches.
+    private var apps: [UsageRow] {
+        report.apps.filter { matches($0.displayName) || $0.children.contains { matches($0.displayName) } }
+    }
+
+    private var systemRows: [UsageRow] { report.systemRows.filter { matches($0.displayName) } }
+
+    private var networks: [HistoryReport.NetworkTotal] {
+        report.networks.filter { matches(model.networkName($0.id, defaultLabel: $0.defaultLabel)) }
+    }
+
+    private var sessions: [HistoryReport.SessionTotal] {
+        report.sessions.filter {
+            matches(model.networkName($0.session.networkID, defaultLabel: $0.session.defaultLabel))
         }
     }
 
     private var emptyList: some View {
         VStack(spacing: 4) {
-            if report.recordingSince == nil {
+            if !query.isEmpty && report.recordingSince != nil {
+                Text(L("Nothing matches “%@”", query))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            } else if report.recordingSince == nil {
                 Text(L("No history yet"))
                     .font(.system(size: 13, weight: .medium))
                 Text(L("NetworkMonitor keeps every hour from now on, per app and per network."))
@@ -206,7 +235,7 @@ public struct HistoryView: View {
     @ViewBuilder
     private var appRows: some View {
         let largest = max((report.apps.map(\.total) + [report.systemTotal]).max() ?? 0, 1)
-        ForEach(report.apps) { row in
+        ForEach(apps) { row in
             appRow(row, largest: largest, indented: false)
             if model.expandedApps.contains(row.id) {
                 ForEach(row.children) { child in
@@ -214,15 +243,15 @@ public struct HistoryView: View {
                 }
             }
         }
-        if !report.systemRows.isEmpty {
+        if !systemRows.isEmpty {
             HistoryListRow(
                 leading: { AnyView(Image(nsImage: model.icon(for: systemSummary))
                     .resizable().frame(width: 18, height: 18).accessibilityHidden(true)) },
-                title: L("System (%@)", String(report.systemRows.count)),
+                title: L("System (%@)", String(systemRows.count)),
                 subtitle: nil,
                 bytes: report.systemTotal,
                 fraction: fraction(report.systemTotal, of: largest),
-                kinds: report.systemRows.reduce(into: [:]) {
+                kinds: systemRows.reduce(into: [:]) {
                     $0.merge($1.kinds, uniquingKeysWith: +)
                 },
                 isMuted: true,
@@ -231,7 +260,7 @@ public struct HistoryView: View {
                 onToggleDisclosure: { model.systemExpanded.toggle() },
                 onSelect: { model.systemExpanded.toggle() })
             if model.systemExpanded {
-                ForEach(report.systemRows) { row in
+                ForEach(systemRows) { row in
                     appRow(row, largest: largest, indented: true)
                 }
             }
@@ -262,7 +291,7 @@ public struct HistoryView: View {
     @ViewBuilder
     private var networkRows: some View {
         let largest = max(report.networks.first?.bytes ?? 0, 1)
-        ForEach(report.networks) { network in
+        ForEach(networks) { network in
             HistoryListRow(
                 leading: { AnyView(KindBadge(kind: network.kind)) },
                 title: model.networkName(network.id, defaultLabel: network.defaultLabel),
@@ -285,7 +314,7 @@ public struct HistoryView: View {
     @ViewBuilder
     private var sessionRows: some View {
         let largest = max(report.sessions.map(\.bytes).max() ?? 0, 1)
-        ForEach(report.sessions) { total in
+        ForEach(sessions) { total in
             let session = total.session
             let updates = report.updates(in: session.id)
             HistoryListRow(
@@ -795,8 +824,8 @@ struct FilterChip: View {
 
 enum HistoryMetrics {
     /// The Usage History window (#436): wide enough for its toolbar and the
-    /// scope row, measured on the app as #315 asks.
-    static let windowMinWidth: CGFloat = 700
+    /// scope row with search open, measured on the app as #315 asks.
+    static let windowMinWidth: CGFloat = 804
     static let windowMinHeight: CGFloat = 560
     /// The list's least height, under the chart.
     static let listMinHeight: CGFloat = 160

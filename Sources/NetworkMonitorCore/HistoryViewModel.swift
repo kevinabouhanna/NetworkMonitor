@@ -31,6 +31,9 @@ public final class HistoryViewModel: ObservableObject {
     @Published public var hoveredBin: Date?
     @Published public var expandedApps: Set<String> = []
     @Published public var systemExpanded = false
+    /// The toolbar's search (#436): narrows the list, not the chart or the
+    /// totals, by an app's or a network's name.
+    @Published public var search = ""
     @Published public private(set) var retention: HistoryRetention
     /// Today's total, for the line heading Settings › History (#436).
     @Published public private(set) var todayTotal: Int64 = 0

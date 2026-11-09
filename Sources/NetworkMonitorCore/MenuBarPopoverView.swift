@@ -140,9 +140,10 @@ public struct MenuBarPopoverView: View {
             case .today:
                 today
             case .companies:
-                PopoverCompanies(glance: glance, onOpen: onConnections)
+                PopoverCompanies(glance: glance, icon: model.icon(forApp:name:bundlePath:), onOpen: onConnections)
             case .blocked:
                 PopoverBlocked(glance: glance, firewall: firewall, filter: filter, pausedText: adsPausedText,
+                               icon: model.icon(forApp:name:bundlePath:),
                                onTurnOn: turnOnAdBlocking, onOpen: onAds)
             case .connection:
                 connection
@@ -330,7 +331,7 @@ public struct MenuBarPopoverView: View {
     @ViewBuilder
     private func appRow(_ row: UsageRow) -> some View {
         let isExpanded = model.expandedApps.contains(row.id)
-        AppRowView(row: row,
+        PopoverRow(row: row,
                    icon: model.icon(for: row),
                    fraction: fraction(of: row.total),
                    isExpanded: isExpanded,
@@ -341,7 +342,7 @@ public struct MenuBarPopoverView: View {
                        : nil)
         if isExpanded {
             ForEach(row.children) { child in
-                AppRowView(row: child, icon: model.icon(for: child),
+                PopoverRow(row: child, icon: model.icon(for: child),
                            fraction: fraction(of: child.total), indented: true)
             }
         }
@@ -351,7 +352,7 @@ public struct MenuBarPopoverView: View {
     /// 263 MB against a top real app of 6 MB — left inline it would bury
     /// everything the user cares about.
     ///
-    /// Rendered through `AppRowView` like any other row, so the group carries a
+    /// Rendered through `PopoverRow` like any other row, so the group carries a
     /// bar for its share of the total and puts its chevron on the right where
     /// the app rows put theirs. It used to be the one row shaped differently,
     /// which made it read as a different kind of control than it is.
@@ -365,7 +366,7 @@ public struct MenuBarPopoverView: View {
                                isActive: model.systemRows.contains(where: \.isActive),
                                children: model.systemRows)
         return VStack(alignment: .leading, spacing: 0) {
-            AppRowView(row: summary,
+            PopoverRow(row: summary,
                        icon: model.icon(for: summary),
                        fraction: fraction(of: model.systemTotal),
                        isMuted: true,
@@ -377,7 +378,7 @@ public struct MenuBarPopoverView: View {
                        })
             if model.systemExpanded {
                 ForEach(model.systemRows) { row in
-                    AppRowView(row: row, icon: model.icon(for: row),
+                    PopoverRow(row: row, icon: model.icon(for: row),
                                fraction: fraction(of: row.total), indented: true)
                 }
             }
@@ -434,7 +435,7 @@ private struct StandbyHotspotLine: View {
 /// The constants are calibrated against what SwiftUI actually lays out — see
 /// `runPopoverMetricsTests`, which pins every one of them. They are only correct
 /// as long as the row views keep their current padding, so a change to
-/// `AppRowView`'s insets is a change here too, and the tests say so.
+/// `PopoverRow`'s insets is a change here too, and the tests say so.
 public enum PopoverMetrics {
 
     /// Every row in the list, whatever its level.
@@ -518,6 +519,13 @@ public enum PopoverMetrics {
     /// x and a long app name truncates instead of shoving the row about.
     public static let detailWidth: CGFloat = 220
 
+    /// The same, less what an indented row gives to its indent and keeps
+    /// back of its smaller icon, so an opened row is no wider than the
+    /// popover: at 220 it was 340 pt wide in a 320 pt popover (#436).
+    public static func detailWidth(indented: Bool) -> CGFloat {
+        indented ? detailWidth - childIndent - (iconSize - childIconSize) - 2 : detailWidth
+    }
+
     /// Tallest the list may grow before it scrolls instead.
     ///
     /// A ceiling rather than a fixed height. `NSPopover` re-anchors itself
@@ -595,17 +603,53 @@ public enum PopoverMetrics {
     }
 }
 
-private struct AppRowView: View {
-    let row: UsageRow
-    let icon: NSImage
+/// What a row of the popover's lists shows beside its name: an app's icon, or
+/// a symbol in a tinted square for a company or a site.
+enum PopoverRowIcon {
+    case image(NSImage)
+    case symbol(String, Color)
+}
+
+/// One row of the popover's lists, Today's apps, Companies and Ads blocked
+/// alike (#436): an icon, the name over a bar, the figure, and a chevron
+/// where there's something to open, so all three read and open the same way.
+struct PopoverRow: View {
+    let title: String
+    let value: String
+    var isActive = false
+    let icon: PopoverRowIcon
     /// This row's share of everything the list accounts for, 0...1.
     let fraction: Double
+    var barColor: Color = .accentColor
     var indented = false
     /// The System group, which is a heading over other rows rather than an app.
     var isMuted = false
     var isExpanded = false
     /// Non-nil only when the row has a breakdown to show.
     var onToggle: (() -> Void)?
+
+    init(title: String, value: String, isActive: Bool = false, icon: PopoverRowIcon, fraction: Double,
+         barColor: Color = .accentColor, indented: Bool = false, isMuted: Bool = false, isExpanded: Bool = false,
+         onToggle: (() -> Void)? = nil) {
+        self.title = title
+        self.value = value
+        self.isActive = isActive
+        self.icon = icon
+        self.fraction = fraction
+        self.barColor = barColor
+        self.indented = indented
+        self.isMuted = isMuted
+        self.isExpanded = isExpanded
+        self.onToggle = onToggle
+    }
+
+    /// An app's row in Today.
+    init(row: UsageRow, icon: NSImage, fraction: Double, indented: Bool = false, isMuted: Bool = false,
+         isExpanded: Bool = false, onToggle: (() -> Void)? = nil) {
+        self.init(title: row.displayName, value: ByteFormat.bytes(row.total), isActive: row.isActive,
+                  icon: .image(icon), fraction: fraction, indented: indented, isMuted: isMuted,
+                  isExpanded: isExpanded, onToggle: onToggle)
+    }
 
     /// Not `@State`, which needs Xcode from the macOS 27 SDK on — see
     /// `SettingsPaneState`.
@@ -628,17 +672,14 @@ private struct AppRowView: View {
     private var content: some View {
         HStack(spacing: PopoverMetrics.iconSpacing) {
             if indented { Spacer().frame(width: PopoverMetrics.childIndent) }
-            Image(nsImage: icon)
-                .resizable()
-                .frame(width: PopoverMetrics.iconSize(indented: indented),
-                       height: PopoverMetrics.iconSize(indented: indented))
-                // The app's name is beside it.
+            iconView
+                // The name is beside it.
                 .accessibilityHidden(true)
 
             // Name over bar, vertically centred against the icon.
             VStack(alignment: .leading, spacing: PopoverMetrics.detailSpacing) {
                 HStack(spacing: 6) {
-                    Text(row.displayName)
+                    Text(title)
                         .font(.system(size: indented ? PopoverMetrics.childNameFontSize
                                                      : PopoverMetrics.nameFontSize))
                         // Dimmer than a top-level app: a child is a part of the
@@ -651,13 +692,13 @@ private struct AppRowView: View {
                     Circle()
                         .fill(Color.accentColor)
                         .frame(width: 5, height: 5)
-                        .opacity(row.isActive ? 1 : 0)
+                        .opacity(isActive ? 1 : 0)
                     Spacer(minLength: 0)
                 }
 
                 HStack(spacing: 8) {
                     bar
-                    Text(ByteFormat.bytes(row.total))
+                    Text(value)
                         .font(.system(size: indented ? PopoverMetrics.childTotalFontSize
                                                      : PopoverMetrics.totalFontSize,
                                       weight: .medium))
@@ -669,7 +710,7 @@ private struct AppRowView: View {
             }
             // Held to the stack's own height and centred, so the name and the bar
             // stay vertically centred on the icon beside them.
-            .frame(width: PopoverMetrics.detailWidth,
+            .frame(width: PopoverMetrics.detailWidth(indented: indented),
                    height: PopoverMetrics.detailStackHeight(indented: indented),
                    alignment: .leading)
 
@@ -697,6 +738,24 @@ private struct AppRowView: View {
         .contentShape(Rectangle())
     }
 
+    @ViewBuilder
+    private var iconView: some View {
+        let size = PopoverMetrics.iconSize(indented: indented)
+        switch icon {
+        case .image(let image):
+            Image(nsImage: image)
+                .resizable()
+                .frame(width: size, height: size)
+        case .symbol(let name, let color):
+            Image(systemName: name)
+                .font(.system(size: size * 0.42, weight: .medium))
+                .foregroundStyle(color)
+                .frame(width: size - 4, height: size - 4)
+                .background(RoundedRectangle(cornerRadius: 7).fill(color.opacity(0.15)))
+                .frame(width: size, height: size)
+        }
+    }
+
     /// This row's share of the total, drawn to scale.
     ///
     /// Animated on width so a figure ticking up slides the bar out rather than
@@ -706,7 +765,7 @@ private struct AppRowView: View {
     /// being replaced.
     private var bar: some View {
         Capsule()
-            .fill(Color.accentColor.opacity(isMuted ? 0.5 : 1))
+            .fill(barColor.opacity(isMuted ? 0.5 : 1))
             .frame(width: barWidth, height: PopoverMetrics.barHeight)
             .animation(.easeOut(duration: 0.45), value: barWidth)
     }
@@ -742,7 +801,7 @@ private struct AppRowView: View {
     }
 }
 
-/// Whether the pointer is over one row. A class so that `AppRowView` can own it
+/// Whether the pointer is over one row. A class so that `PopoverRow` can own it
 /// with `@StateObject`; see its `hover` property.
 private final class HoverState: ObservableObject {
     @Published var isHovering = false

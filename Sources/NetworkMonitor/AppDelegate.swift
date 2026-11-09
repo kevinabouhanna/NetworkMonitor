@@ -900,6 +900,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             }
     }
 
+    /// ⌘F: the main window's section opens its search.
+    @objc private func beginSearch() {
+        guard mainController?.window.isKeyWindow == true else { return }
+        main.beginSearch()
+    }
+
+    @objc private func toggleSidebar() { mainController?.toggleSidebar() }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        switch item.action {
+        case #selector(beginSearch):
+            return mainController?.window.isKeyWindow == true
+        case #selector(toggleSidebar):
+            guard let mainController, mainController.window.isKeyWindow else { return false }
+            item.title = mainController.sidebarIsCollapsed ? L("Show Sidebar") : L("Hide Sidebar")
+            return true
+        default:
+            return true
+        }
+    }
+
     private func makeMainMenu() -> NSMenu {
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: L("About NetworkMonitor"),
@@ -924,6 +945,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         appMenu.addItem(withTitle: L("Quit NetworkMonitor"),
                         action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
+        // Edit: the text fields' own commands, and Find (⌘F), which opens the
+        // section's search in the toolbar (#436).
+        let editMenu = NSMenu(title: L("Edit"))
+        editMenu.addItem(withTitle: L("Undo"), action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: L("Redo"), action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: L("Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: L("Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: L("Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: L("Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: L("Find…"), action: #selector(beginSearch), keyEquivalent: "f").target = self
+
+        // View: the sidebar, as every Mac window with one has it.
+        let viewMenu = NSMenu(title: L("View"))
+        let sidebar = viewMenu.addItem(withTitle: L("Hide Sidebar"), action: #selector(toggleSidebar),
+                                       keyEquivalent: "s")
+        sidebar.keyEquivalentModifierMask = [.command, .control]
+        sidebar.target = self
+
         let windowMenu = NSMenu(title: L("Window"))
         windowMenu.addItem(withTitle: L("Close"),
                            action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
@@ -938,7 +979,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                            action: #selector(showHistory), keyEquivalent: "y").target = self
 
         let menuBar = NSMenu()
-        for submenu in [appMenu, windowMenu] {
+        for submenu in [appMenu, editMenu, viewMenu, windowMenu] {
             let item = NSMenuItem()
             item.submenu = submenu
             menuBar.addItem(item)

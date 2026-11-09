@@ -353,7 +353,9 @@ struct HotspotSettingsPane: View {
                         DispatchQueue.main.async { askForHelper() }
                     }
                 // What it decided about this network, and the switch to settle
-                // it, are on the Network page itself (#436), not repeated here.
+                // it, are above it on the Network page (#436).
+            } header: {
+                Text(L("Hotspots"))
             } footer: {
                 // Said once, plainly, because Low Data Mode does a little more
                 // than the switch's name: iCloud Photos waits too.

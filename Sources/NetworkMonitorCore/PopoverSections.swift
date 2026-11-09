@@ -117,36 +117,6 @@ struct PopoverOpenRow: View {
     }
 }
 
-/// One row of the Companies or Blocked view: a name, a bar and a figure.
-private struct SummaryRow: View {
-    let symbol: String
-    let title: String
-    let value: String
-    let fraction: Double
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .frame(width: 16)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
-                Capsule().fill(color)
-                    .frame(width: max(PopoverMetrics.minBarWidth, fraction * 150), height: 3)
-                    .accessibilityHidden(true)
-            }
-            Spacer(minLength: 8)
-            Text(value).font(.system(size: 11.5, weight: .semibold)).monospacedDigit()
-        }
-        .frame(height: PopoverMetrics.summaryRowHeight)
-        .padding(.horizontal, 12)
-        .accessibilityElement(children: .combine)
-    }
-}
-
 /// A short line above a view's rows, or a message in place of them.
 private struct SummaryCaption: View {
     let text: String
@@ -182,32 +152,83 @@ private struct SummaryMessage: View {
     }
 }
 
-/// Companies: who the apps talked to today, then Open Connections.
+/// The list Companies and Ads blocked share with Today (#436): as tall as
+/// its rows up to the same cap, scrolling past it, with rows that open.
+private struct PopoverList<Content: View>: View {
+    /// The rows on screen, the open ones' children included.
+    let rows: Int
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) { content }
+                .padding(.vertical, PopoverMetrics.listVerticalPadding / 2)
+        }
+        .frame(height: PopoverMetrics.listHeight(appRows: rows, expandedChildRows: 0, systemRowCount: 0,
+                                                 systemExpanded: false))
+        .scrollIndicators(PopoverMetrics.scrolls(appRows: rows, expandedChildRows: 0, systemRowCount: 0,
+                                                 systemExpanded: false) ? .automatic : .never)
+    }
+}
+
+/// Companies: who the apps talked to today, each opening into the apps that
+/// talked to it, as Today's apps open into their parts; then Open Connections.
 struct PopoverCompanies: View {
     @ObservedObject var glance: TodayGlance
+    let icon: (String, String, String?) -> NSImage
     let onOpen: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            Group {
-                if glance.companies.isEmpty {
-                    SummaryMessage(title: glance.hasLoaded ? L("No connections yet today") : L("Reading today…"),
-                                   detail: L("Connections are counted while NetworkMonitor is running."))
-                } else {
-                    VStack(spacing: 0) {
-                        SummaryCaption(text: caption)
-                        let top = max(glance.companies.first?.total ?? 1, 1)
-                        ForEach(glance.companies) { item in
-                            SummaryRow(symbol: "building.2", title: item.title, value: ByteFormat.bytes(item.total),
-                                       fraction: Double(item.total) / Double(top), color: PopoverPalette.companies)
+            if glance.companies.isEmpty {
+                SummaryMessage(title: glance.hasLoaded ? L("No connections yet today") : L("Reading today…"),
+                               detail: L("Connections are counted while NetworkMonitor is running."))
+                    .frame(height: PopoverMetrics.sectionHeight)
+            } else {
+                SummaryCaption(text: caption)
+                PopoverList(rows: rowCount) {
+                    ForEach(glance.companies) { group in
+                        let item = group.item
+                        let apps = self.apps(of: group)
+                        let open = glance.expanded.contains(item.id)
+                        PopoverRow(title: item.title, value: ByteFormat.bytes(item.total),
+                                   icon: .symbol(item.isHost ? "server.rack" : "building.2",
+                                                 PopoverPalette.companies),
+                                   fraction: fraction(item.total), barColor: PopoverPalette.companies,
+                                   isExpanded: open,
+                                   onToggle: apps.isEmpty ? nil : {
+                                       withAnimation(.easeInOut(duration: 0.15)) { glance.toggle(item.id) }
+                                   })
+                        if open {
+                            ForEach(apps) { app in
+                                PopoverRow(title: app.title, value: ByteFormat.bytes(app.total),
+                                           icon: .image(icon(app.key, app.title, app.bundlePath)),
+                                           fraction: fraction(app.total), barColor: PopoverPalette.companies,
+                                           indented: true)
+                            }
                         }
-                        Spacer(minLength: 0)
                     }
                 }
             }
-            .frame(height: PopoverMetrics.sectionHeight)
+            Divider()
             PopoverOpenRow(title: L("Open Connections"), shortcut: "⌘K", action: onOpen)
         }
+    }
+
+    private func apps(of group: ConnectionsGroup) -> [ConnectionsItem] {
+        group.sections.first { $0.dimension == .app }?.items ?? []
+    }
+
+    private var rowCount: Int {
+        glance.companies.reduce(0) { count, group in
+            count + 1 + (glance.expanded.contains(group.item.id) ? apps(of: group).count : 0)
+        }
+    }
+
+    /// Each bar is a share of all of today's traffic to servers.
+    private func fraction(_ bytes: Int64) -> Double {
+        let total = glance.summary.bytesIn + glance.summary.bytesOut
+        return total > 0 ? Double(bytes) / Double(total) : 0
     }
 
     private var caption: String {
@@ -221,42 +242,71 @@ struct PopoverCompanies: View {
     }
 }
 
-/// Blocked: what the lists stopped today, by site, then Open Ads and Trackers.
+/// Ads blocked: what the lists stopped today, by site, each opening into the
+/// apps that tried it; then Open Ads and Trackers.
 struct PopoverBlocked: View {
     @ObservedObject var glance: TodayGlance
     @ObservedObject var firewall: FirewallRules
     @ObservedObject var filter: FilterController
     let pausedText: String?
+    let icon: (String, String, String?) -> NSImage
     let onTurnOn: () -> Void
     let onOpen: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            Group {
-                if firewall.lists.isEmpty {
-                    SummaryMessage(title: L("Ad blocking is off"),
-                                   detail: L("Turn it on to stop ads, trackers and malware sites in every app."),
-                                   action: filter.state == .unavailable ? nil : (L("Turn On"), onTurnOn))
-                } else if glance.ads.sites.isEmpty {
-                    SummaryMessage(title: pausedText ?? L("Nothing blocked yet today"),
-                                   detail: L("Sites the lists stop show here, busiest first."))
-                } else {
-                    VStack(spacing: 0) {
-                        SummaryCaption(text: pausedText ?? L("Today · by site"))
-                        let sites = Array(glance.ads.sites.prefix(TodayGlance.rows))
-                        let top = max(sites.first?.count ?? 1, 1)
-                        ForEach(sites) { site in
-                            SummaryRow(symbol: "shield.lefthalf.filled", title: site.title,
-                                       value: site.count.formatted(),
-                                       fraction: Double(site.count) / Double(top), color: PopoverPalette.blocked)
+            if firewall.lists.isEmpty {
+                SummaryMessage(title: L("Ad blocking is off"),
+                               detail: L("Turn it on to stop ads, trackers and malware sites in every app."),
+                               action: filter.state == .unavailable ? nil : (L("Turn On"), onTurnOn))
+                    .frame(height: PopoverMetrics.sectionHeight)
+            } else if glance.ads.sites.isEmpty {
+                SummaryMessage(title: pausedText ?? L("Nothing blocked yet today"),
+                               detail: L("Sites the lists stop show here, busiest first."))
+                    .frame(height: PopoverMetrics.sectionHeight)
+            } else {
+                SummaryCaption(text: pausedText ?? L("Today · by site"))
+                PopoverList(rows: rowCount) {
+                    ForEach(sites) { site in
+                        let apps = glance.siteApps[site.id] ?? []
+                        let open = glance.expanded.contains(rowID(site))
+                        PopoverRow(title: site.title, value: site.count.formatted(),
+                                   icon: .symbol("shield.lefthalf.filled", PopoverPalette.blocked),
+                                   fraction: fraction(site.count), barColor: PopoverPalette.blocked,
+                                   isExpanded: open,
+                                   onToggle: apps.isEmpty ? nil : {
+                                       withAnimation(.easeInOut(duration: 0.15)) { glance.toggle(rowID(site)) }
+                                   })
+                        if open {
+                            ForEach(apps) { app in
+                                PopoverRow(title: app.title, value: app.count.formatted(),
+                                           icon: .image(icon(app.id, app.title, app.bundlePath)),
+                                           fraction: fraction(app.count), barColor: PopoverPalette.blocked,
+                                           indented: true)
+                            }
                         }
-                        Spacer(minLength: 0)
                     }
                 }
             }
-            .frame(height: PopoverMetrics.sectionHeight)
+            Divider()
             PopoverOpenRow(title: L("Open Ads and Trackers"), shortcut: "⌘B", action: onOpen)
         }
+    }
+
+    private var sites: [AdsItem] { Array(glance.ads.sites.prefix(TodayGlance.rows)) }
+
+    /// Kept apart from a company of the same name in `expanded`.
+    private func rowID(_ site: AdsItem) -> String { "site:" + site.id }
+
+    private var rowCount: Int {
+        sites.reduce(0) { count, site in
+            count + 1 + (glance.expanded.contains(rowID(site)) ? (glance.siteApps[site.id]?.count ?? 0) : 0)
+        }
+    }
+
+    /// Each bar is a share of everything blocked today.
+    private func fraction(_ count: Int64) -> Double {
+        glance.ads.total > 0 ? Double(count) / Double(glance.ads.total) : 0
     }
 }
 
@@ -359,7 +409,7 @@ struct PopoverConnection: View {
     private var subtext: String {
         let what = metering.isEnabled
             ? L("Pauses app updates and iCloud downloads while you're on this network.")
-            : L("Stopping app updates on hotspots is off in Hotspot Settings.")
+            : L("Stopping app updates on hotspots is off: switch it on in Network.")
         return metering.override == nil ? what : what + "\n" + L("Marked by you for this network.")
     }
 

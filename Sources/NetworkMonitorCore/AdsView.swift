@@ -51,14 +51,16 @@ struct AdsView: View {
                         .padding(.vertical, 14)
                     Divider()
                     HStack(alignment: .top, spacing: 0) {
-                        AdsList(title: L("Sites"), items: model.report.sites, total: model.report.total, model: model) {
+                        AdsList(title: L("Sites"), items: searched(model.report.sites), total: model.report.total,
+                                model: model) {
                             item in
                             if !item.onlyThreats {
                                 Button(L("Never Block %@", item.id)) { model.setSite(.neverBlock, site: item.id, app: nil) }
                             }
                         }
                         Divider()
-                        AdsList(title: L("Apps"), items: model.report.apps, total: model.report.total, model: model) {
+                        AdsList(title: L("Apps"), items: searched(model.report.apps), total: model.report.total,
+                                model: model) {
                             item in
                             Button(L("Don't Filter Ads in %@", item.title)) {
                                 model.dontFilter(.init(key: item.id, name: item.title))
@@ -67,6 +69,16 @@ struct AdsView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// The toolbar's search, on Overview: a site, a name under it, or an app.
+    private func searched(_ items: [AdsItem]) -> [AdsItem] {
+        let query = model.logSearch.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return items }
+        return items.filter {
+            $0.title.localizedCaseInsensitiveContains(query) || $0.id.localizedCaseInsensitiveContains(query)
+                || ($0.detail?.localizedCaseInsensitiveContains(query) ?? false)
         }
     }
 
@@ -352,24 +364,11 @@ struct AdsLogView: View {
     var body: some View {
         let entries = model.logEntries
         VStack(spacing: 0) {
-            // One row while search can be 240 wide; else search gets a row of
-            // its own rather than being squeezed, and every button keeps its
-            // words (#370).
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
-                    show
-                    search.frame(width: 240)
-                    Spacer(minLength: 8)
-                    buttons
-                }
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 12) {
-                        show
-                        Spacer(minLength: 8)
-                        buttons
-                    }
-                    search
-                }
+            // Search is in the toolbar, as in every section (#436).
+            HStack(spacing: 12) {
+                show
+                Spacer(minLength: 8)
+                buttons
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -378,11 +377,13 @@ struct AdsLogView: View {
             Divider()
             if entries.isEmpty {
                 VStack(spacing: 6) {
-                    Text(model.logIsPaused ? L("Paused") : L("Nothing yet"))
+                    Text(emptyTitle)
                         .font(.system(size: 14, weight: .medium))
-                    Text(L("Each connection your apps open shows here as it's decided, while NetworkMonitor runs."))
+                    Text(emptyDetail)
                         .font(.system(size: 12)).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
+                .padding(.horizontal, 40)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
@@ -407,10 +408,21 @@ struct AdsLogView: View {
         .fixedSize()
     }
 
-    private var search: some View {
-        TextField(L("Search apps, sites and addresses"), text: $model.logSearch)
-            .accessibilityLabel(L("Search the log"))
-            .textFieldStyle(.roundedBorder)
+    /// Why the log is empty: it's live, so it fills only while the filter
+    /// decides connections, from the moment NetworkMonitor starts (#436).
+    private var emptyTitle: String {
+        let query = model.logSearch.trimmingCharacters(in: .whitespaces)
+        if model.logIsPaused { return L("Paused") }
+        if !query.isEmpty { return L("Nothing matches “%@”", query) }
+        if model.monitor.filter.state != .on { return L("Not filtering connections") }
+        return L("Nothing yet")
+    }
+
+    private var emptyDetail: String {
+        if model.monitor.filter.state != .on && !model.logIsPaused {
+            return L("The log shows each connection as the filter decides it. It fills once ad blocking or a rule is on, and starts afresh each time NetworkMonitor opens.")
+        }
+        return L("Each connection your apps open shows here as it's decided, while NetworkMonitor runs.")
     }
 
     @ViewBuilder private var buttons: some View {
