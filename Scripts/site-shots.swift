@@ -640,7 +640,9 @@ enum Coverage {
             pattern: #"(?:(?:src|poster)\s*=\s*["']([^"']+)["']|!\[[^\]]*\]\(\s*<?([^)\s>]+))"#)
         let mediaRegex = try NSRegularExpression(pattern: #"\.(?:"# + media + #")$"#, options: .caseInsensitive)
         var pages = ["README.md", "SECURITY.md"]
-        let docs = (try? FileManager.default.contentsOfDirectory(atPath: repo.appendingPathComponent("docs").path)) ?? []
+        // Every page under docs/, its folders' too, such as the design log's (#437).
+        let docs = FileManager.default.enumerator(atPath: repo.appendingPathComponent("docs").path)?
+            .compactMap { $0 as? String } ?? []
         pages += docs.filter { $0.hasSuffix(".md") }.sorted().map { "docs/" + $0 }
         var uses: [String: Set<String>] = [:]
         for page in pages {
