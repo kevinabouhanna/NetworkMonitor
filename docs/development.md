@@ -437,8 +437,14 @@ Each must be one of these:
   other pictures. Each is listed under `assets` with the shots whose windows it `shows`:
   - in `shots/shots.json` on `gh-pages`, for the site's;
   - in `Resources/README/assets.json` on `main`, for the README's and the docs'.
-- **Showing no window this tool can check:** listed with `none` and why. Icons, the menu
-  bar strip, the disk image's window.
+- **Showing no window this tool can check:** listed with `none` and why. Icons, the disk
+  image's window.
+
+The menu bar readout is a shot with no picture of its own, `menubar` (#424), so the
+strip made by hand (`assets/menubar.png`) `shows` it. Its window is `AXMenuBarItem`,
+the status item: the tree keeps its name, the rates as VoiceOver reads them ("Download
+# ‹unit›, upload # ‹unit›") and its width, which is the same in bits or bytes, so a new
+layout or a new line in it is named. A new colour or arrow at the same width isn't.
 
 It also fails on an entry that nothing uses, a file that doesn't exist, or a window that
 isn't a shot. CI runs it on every pull request into `main` and into `gh-pages`. So a new

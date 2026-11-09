@@ -806,6 +806,17 @@ public final class MonitorViewModel: ObservableObject {
                                   tints: firewall.blocksEverything ? .blockingEverything : menuBarColors.live)
     }
 
+    /// The readout in words, for VoiceOver (#424): "Download 2.61 MB/s,
+    /// upload 117 KB/s", in the unit chosen in General, or a speed test's.
+    public var menuBarSpoken: String {
+        if let reading = speedTest.menuBarReading {
+            return L("Speed test: download %@, upload %@", ByteFormat.speed(reading.down, unit: speedTest.unit),
+                     ByteFormat.speed(reading.up, unit: speedTest.unit))
+        }
+        return L("Download %@, upload %@", ByteFormat.speed(downBytesPerSecond * 8, unit: speedTest.unit),
+                 ByteFormat.speed(upBytesPerSecond * 8, unit: speedTest.unit))
+    }
+
     /// Block Everything (#198). Like any rule it needs the content filter:
     /// turning it on while that's off starts turning it on.
     public func setBlocksEverything(_ on: Bool) {

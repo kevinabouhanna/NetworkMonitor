@@ -892,3 +892,7 @@
 "Open Ads and Trackers (⌘B)" = "打开广告与跟踪器（⌘B）";
 "Not blocking now: the content filter isn't running." = "目前未拦截：内容过滤器未在运行。";
 "Remove NetworkMonitor and everything it set up" = "移除 NetworkMonitor 及其设置的所有内容";
+
+/* The menu bar readout, read by VoiceOver (#424). */
+"Download %@, upload %@" = "下载 %@，上传 %@";
+"Speed test: download %@, upload %@" = "网速测试：下载 %@，上传 %@";

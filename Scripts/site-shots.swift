@@ -462,7 +462,10 @@ func line(_ element: AXUIElement) -> String {
     if let f = frame(element) {
         let shown = settingRoles.contains(r) ? labels(element).dropLast(text(element, kAXValueAttribute) == nil ? 0 : 1) : labels(element)[...]
         let hasNumber = shown.contains { $0.rangeOfCharacter(from: .decimalDigits) != nil }
-        parts.append(r == "AXStaticText" || hasNumber || containerRoles.contains(r)
+        // The menu bar readout keeps its width, rates and all: it's drawn at
+        // one width in either unit, so a change in it is the readout's (#424).
+        let keepsWidth = r == "AXMenuBarItem"
+        parts.append(!keepsWidth && (r == "AXStaticText" || hasNumber || containerRoles.contains(r))
                      ? "h\(rounded(f.height))" : "\(rounded(f.width))x\(rounded(f.height))")
     }
     return parts.joined(separator: " ")
@@ -575,7 +578,10 @@ struct Session {
         guard let app = running else { throw Failure("the app isn't running") }
         let ax = AXUIElementCreateApplication(app.processIdentifier)
         for _ in 0..<60 {
-            let windows = attribute(ax, kAXWindowsAttribute) as? [AXUIElement] ?? []
+            var windows = attribute(ax, kAXWindowsAttribute) as? [AXUIElement] ?? []
+            // The menu bar readout isn't in a window: it's the app's status
+            // item, `AXMenuBarItem` in its extras menu bar (#424).
+            if let extras = attribute(ax, kAXExtrasMenuBarAttribute) { windows.append(extras as! AXUIElement) }
             let found = title.hasPrefix("AX") ? windows.lazy.compactMap { find(title, in: $0) }.first
                 : windows.first { (text($0, kAXTitleAttribute) ?? "") == title }
             if let w = found {
