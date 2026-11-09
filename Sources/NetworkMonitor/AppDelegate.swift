@@ -113,8 +113,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     }
 
     /// `open NetworkMonitor.app --args -open connections`, `-open welcome`,
-    /// `-open popover`, `-open ads` with `-tab rules` (any tab), or
-    /// `-open settings` with `-pane history` (any pane), for a screenshot or a
+    /// `-open popover`, `-open ads` with `-tab rules` (any tab), `-open history`,
+    /// `-open network`, `-open about`, or `-open settings` with `-pane history`
+    /// (a section's settings), for a screenshot or a
     /// check of a development build without clicking the menu bar. Only the
     /// launch arguments are read, so it never outlives the run.
     private func openWindowFromLaunchArgument() {
@@ -132,6 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             }
         case "history":     showHistory()
         case "network":     showNetwork()
+        case "about":       showAbout()
         case "welcome":     showWelcome()
         // A moment later, once the status item has a place in the menu bar to
         // anchor to.
@@ -147,6 +149,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             let pane = arguments["pane"] as? String
             if pane == "hotspot" {
                 showNetwork()
+            } else if pane == "speedTest" || pane == "speed-test" {
+                // How the popover shows the test: Network's settings.
+                showSectionSettings(.network, from: nil)
             } else if let section = MainSection(rawValue: pane ?? ""), section != .settings {
                 showSectionSettings(section, from: nil)
             } else {
