@@ -16,9 +16,8 @@ AXWindow (AXStandardWindow) title="Network" 1300
           AXGroup
             AXStaticText value="This is a hotspot" h16
             AXCheckBox (AXToggle) description="This is a hotspot" help="Pauses app updates and iCloud downloads while you're on this network. NetworkMonitor recognises an iPhone's hotspot by itself, but some phones look like ordinary Wi-Fi, or like Ethernet over USB: switch this on for those. It's remembered for this network." 36x16
-            AXStaticText value="Right now" h16
-            data: AXStaticText
-          AXStaticText value="App updates pause on any network marked as a hotspot." h16
+            data: optional
+          data: AXStaticText
         AXScrollArea
           AXHeading description="Hotspots" 60x16
           AXGroup h36
@@ -35,6 +34,7 @@ AXWindow (AXStandardWindow) title="Network" 1300
             AXStaticText value="Every app's updater" h16
             AXStaticText value="Stopped on hotspots" h16
           AXStaticText value="Any app's updater is stopped while you're on a hotspot, including ones listed as can't be paused when they update with a program of their own. Choose Blocked in Connections to see them." h28
+          data: optional
         AXScrollArea h164
           AXHeading description="Speed test" 68x16
           AXGroup h60
