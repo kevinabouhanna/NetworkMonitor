@@ -32,7 +32,7 @@ flowchart LR
         F["FilterController<br/>rules, Ask Me"]
         SP["SpeedTestController<br/>networkQuality"]
         UP["UpdateController (Sparkle)<br/>GeoDataUpdater"]
-        UI["Menu bar readout · Popover ·<br/>Settings · History · Connections"]
+        UI["Menu bar readout · Popover ·<br/>Main window · Settings"]
     end
 
     subgraph signed["Developer ID builds"]
@@ -50,7 +50,7 @@ flowchart LR
     VM --> US --> H
     H -->|"read by History<br/>and Connections"| UI
     VM --> M
-    UI -->|"This network: hotspot or not"| M
+    UI -->|"This is a hotspot: on or off"| M
     M -->|"XPC, signature checked both ways"| HP
     VM -->|"rules, and whether<br/>on a hotspot"| F
     F <-->|"XPC, signature checked both ways"| FX
@@ -73,8 +73,8 @@ the right-click menu and the windows.
 
 **Where the rest is described:**
 - **Hotspot detection and its manual override:**
-  [Hotspot mode](hotspot-mode.md#what-counts-as-a-hotspot). *This network* in Settings
-  beats every check.
+  [Hotspot mode](hotspot-mode.md#what-counts-as-a-hotspot). **This is a hotspot**, on
+  the Network page and in the popover, beats every check.
 - **How the helper is reached:** [Hotspot mode › The helper](hotspot-mode.md#the-helper).
   It's over XPC, the helper answers only NetworkMonitor signed by the team, and the app
   only talks to a helper signed by it.
@@ -237,7 +237,7 @@ the interface and the gateway's IP, `if:en0@172.20.10.1`. Path changes are debou
 permission: without it CoreWLAN's `ssid()` is nil, configd's `SSID_STR` is empty and
 `ipconfig getsummary` prints `<redacted>`. So the app asks with
 `requestAlwaysAuthorization()` when the person turns names on, in the welcome window or
-Settings › General (#134; macOS has no "while using"), reads
+Settings (#134; macOS has no "while using"), reads
 `ssid()` on the path watcher's queue once allowed, and evaluates the path again when the
 answer changes. A name arriving for the network already in use is not a change of link,
 so it doesn't re-baseline the counters. Releases are all signed with one certificate,
@@ -262,9 +262,11 @@ per-app totals, and when counting started.
 - **Midnight** (local, not a rolling 24 hours) clears every bucket. It's checked on
   every sample and on wake, because timers don't fire during sleep.
 - **Reset Now** clears the current network only. Resetting all exists in code but isn't
-  offered, since the popover never names the network.
+  offered.
 - **Counting since** is stored per bucket and shown in Settings, so a total is never
-  read over the wrong window.
+  read over the wrong window. The popover reads its figures from Usage History, from the
+  period's start on every network (#449, `TodayGlance`); this counter is the Network
+  page's, and the popover's Data total until History first answers.
 
 **Saving.** `~/Library/Application Support/NetworkMonitor/usage.json`, written to a
 temporary file then swapped in, about every 15 seconds and on every network change,
@@ -290,7 +292,7 @@ Two stacked lines, `↓` download in green (`#51FF70`) over `↑` upload in ligh
   an idle Mac redraws nothing. While nobody can see the menu bar (display asleep, screen
   locked, another user's session in front), nothing is drawn at all, and the readout is
   redrawn and resampled the moment someone can.
-- **Colours you choose.** Settings › General changes both lines (`MenuBarColors`). A colour
+- **Colours you choose.** Settings changes both lines (`MenuBarColors`). A colour
   is saved as sRGB `#RRGGBB`, and only while it differs from the default, so a later
   default reaches everyone who never picked one.
 - **A speed test takes it over** at the same width, and holds the result for 8 seconds.
@@ -311,17 +313,18 @@ Two stacked lines, `↓` download in green (`#51FF70`) over `↑` upload in ligh
   tile because macOS ignores `AssociatedBundleIdentifiers` without a Team ID. It's on by
   default, set exactly once, so turning it off is never undone. There's no `KeepAlive`:
   **Quit** stays quit until the next login.
-- **While Settings is open**, the app becomes a regular app with a Dock icon, a main
-  menu (for ⌘W, ⌘, and ⌘Y) and a ⌘-Tab entry, then goes back to menu bar only when
-  Settings closes. Without that, revealing an auto-hidden menu bar activated another app,
-  whose windows covered Settings with no way back to it.
-- **The popover leaves Settings where it is** (issue #71). Activating the app for the
-  popover brought Settings forward over the app you were in, and AppKit makes it the main
-  window for that whatever it's told. So Settings goes off screen until the activation
+- **While a window is open** (the main window, or the welcome window), the app becomes a
+  regular app with a Dock icon, a main menu (⌘W, ⌘,, ⌘Y, ⌘K, ⌘B, ⌘F, and View › Hide
+  Sidebar, ⌃⌘S) and a ⌘-Tab entry, then goes back to menu bar only when the last one
+  closes. Without that, revealing an auto-hidden menu bar activated another app, whose
+  windows covered the main window with no way back to it.
+- **The popover leaves the main window where it is** (issue #71). Activating the app for
+  the popover brought the window forward over the app you were in, and AppKit makes it the
+  main window for that whatever it's told. So it goes off screen until the activation
   has happened, which on macOS 27.2 is a moment after it's asked for (#233), and then back
   below the window that was in front of it (`WindowStack`). Esc or a second
   click on the item hands focus back to that app. ⌘-Tab, the Dock icon or a click on
-  Settings closes the popover and shows Settings alone.
+  the window closes the popover and shows the window alone.
 
 ### The auto-hidden menu bar
 
@@ -336,7 +339,7 @@ Several fixes exist only because of macOS's "Automatically hide and show the men
   close it: on Esc, a click elsewhere, or switching to another app.
 - **The menu bar is 30 points tall on macOS 27**, while `NSStatusBar.system.thickness`
   still says 22. The real height comes from the status item's own window, and keeps
-  Settings' title bar clear of a revealed bar.
+  the main window's title bar clear of a revealed bar.
 
 ## Performance decisions in the UI
 
@@ -380,8 +383,8 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    newer copy of the data improves old records too. Its files are sorted range starts,
    memory-mapped, and found with a binary search, so a lookup reads a few pages.
 
-5. **The Connections window** (`ConnectionsWindowController`, `ConnectionsViewModel`,
-   `ConnectionsView`) asks `UsageHistory.loadServers` for a span and the period's hourly
+5. **Connections**, a section of the main window (`ConnectionsWindowController`,
+   `ConnectionsViewModel`, `ConnectionsView`, placed by `MainWindowController`), asks `UsageHistory.loadServers` for a span and the period's hourly
    totals, names the servers off the main thread, and groups them with
    `ConnectionsReport`, which is pure and tested. Grouping, narrowing and search only
    regroup what's loaded, so they answer at once. Each app's maker comes from its code
@@ -408,7 +411,7 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    no name from port 53 or 853 either. The contract between the two lives in
    `FilterProtocol`, Foundation only. It's offered, never switched on unasked: in the
    welcome window (`WelcomeWindowController`) on first launch, and by `WebsiteNamesRow`
-   in Settings › Connections and the Connections window (#134). `FilterController`
+   in Connections' settings and above Connections' list (#134). `FilterController`
    follows `NEFilterConfigurationDidChange`, so turning it off in System Settings shows.
    At each launch with the filter on, it asks macOS to activate the extension in its own
    bundle: macOS keeps running the one it last activated, so without this an update never
@@ -544,11 +547,11 @@ down with it.
 |---|---|
 | `nettop` exits, can't start, stalls or can't be read | Restarted, backing off to 30 s. The popover says per-app figures are paused; the total carries on, since it never depends on `nettop` |
 | `history.sqlite` can't be opened | Usage History is off, and everything else runs. Servers are written in a transaction of their own, so a failure there costs History none of its figures |
-| The content filter isn't allowed, or this build has none | Connections, blocking and stopping every app's updater say so in setup and Settings, with a way to turn it on. The rest works without it |
+| The content filter isn't allowed, or this build has none | Connections, blocking and stopping every app's updater say so in setup and in their settings, with a way to turn it on. The rest works without it |
 | The content filter goes quiet while it's on (#272) | After two minutes with no report, the app makes a test connection to 192.0.2.1 (a documentation-only address nothing answers), which a working filter reports at once. No report within 10 s: it reconnects and tests again; still nothing: it switches the filter off and on, at most every 15 minutes. Test connections are kept out of the log and History |
 | An update replaces the content filter (#278) | Taking over a running filter's session twice left macOS dropping every packet for minutes. The new version's app switches the filter off, has macOS replace it, and switches it on again, so the new filter starts a session of its own; rules stop applying for the second or two it's off. If the app quits partway, the next launch switches it back on. For two minutes afterwards it pings the router every 5 s; if the router answered before the swap and misses three in a row, it switches the filter off and on |
 | The helper daemon is switched on but can't start (#243) | At launch, before anything asks it, a new build checks it off the main thread and registers it again if needed (#238). Until that's done, and for a minute after it last failed to answer, verbs return at once instead of waiting; on the main thread one waits 5 s at most. Hotspot mode is re-applied once the check is done |
-| The helper isn't allowed | Hotspot mode pauses what needs no helper. Settings lists the rest as paused once you allow it |
+| The helper isn't allowed | Hotspot mode pauses what needs no helper. The Network page lists the rest as paused once you allow it |
 | NetworkMonitor quits or crashes on a hotspot | Every change Hotspot mode made is in its journal, put back at the next launch before anything is decided afresh. If the app is gone, the helper's hourly self-heal job puts back what it changed |
 | The monthly data or an update can't be fetched, or doesn't check out | Nothing changes: the copy in use stays, and the next check is the next day |
 | The network flaps | Changes are debounced for 2 seconds, and going offline keeps the last verdict, so a phone that sleeps doesn't undo Hotspot mode every time |
@@ -587,8 +590,9 @@ Preferences (`com.kevinabouhanna.NetworkMonitor`):
 
 - **The menu bar and speed test:** `speedTestUnit`, `speedTestStyle`,
   `menuBarDownloadColor`, `menuBarUploadColor`.
-- **Windows:** `settingsPane`, `connectionsLayout`, `welcomeShown`,
-  `websiteNamesOfferClosed`.
+- **Windows and the popover:** `connectionsLayout`, `welcomeShown`,
+  `websiteNamesOfferClosed`, and the popover's period and groupings (`popoverPeriod`,
+  `popoverDataGrouping`, `popoverConnectionsGrouping`, `popoverAdsGrouping`).
 - **History and Connections:** `historyRetention`, `firewallMode`, `firewallRules`,
   `geoDataUpdates`, `geoDataLastChecked`.
 - **Hotspot mode:** `meteringEnabled`, `meteringExcludedItems`, `meteringUpdateSightings`,

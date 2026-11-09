@@ -15,18 +15,18 @@ NetworkMonitor 使用 Kevin Abou Hanna 的 Apple <strong>Developer ID</strong>�
 1. [下载 NetworkMonitor.dmg](https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg)，打开它，然后将 <strong>NetworkMonitor</strong> 拖到 <strong>应用程序</strong> 文件夹中。
 2. 从“应用程序”文件夹中打开 NetworkMonitor。
 
-菜单栏中会出现 ↓ ↑ 读数。NetworkMonitor 没有程序坞图标，也没有自己的主窗口；一切都从这个读数开始。它会把自己设为登录时启动，你可以在 <strong>设置 › 通用</strong> 中关闭。
+菜单栏中会出现 ↓ ↑ 读数。在你打开它的窗口之前，NetworkMonitor 没有程序坞图标；一切都从这个读数开始。它会把自己设为登录时启动，你可以在 <strong>设置</strong> 中关闭。
 
 第一次打开时，欢迎窗口会提供两个选项，都不是必需的（#134）：
 
 - <strong>查看你的应用访问了哪些网站</strong>：一个内容过滤器，用于在[连接](connections.md#网站名称)中显示服务器的名称，并让阻止功能成为可能。
 - <strong>按名称识别你的 Wi-Fi 网络</strong>：只有在获得定位服务权限后，macOS 才会提供网络名称，而它只用于这一个用途。没有这项权限时，网络会显示为类似 *Wi-Fi · 3f2a* 的名称。
 
-这两项都不会再主动询问。如果你跳过了其中一项，在用到它的地方会有 <strong>打开…</strong> 按钮：网站名称在“设置 › 连接”中，Wi-Fi 名称在“设置 › 通用”中。
+这两项都不会再主动询问。如果你跳过了其中一项，在用到它的地方会有 <strong>打开…</strong> 按钮：网站名称在“连接”的设置中，Wi-Fi 名称在“设置”中。
 
 ## 更新
 
-从 1.15 开始，NetworkMonitor 使用 Sparkle 自行更新（#132）。它每天向 GitHub 询问一次是否有新版本（使用热点时不会询问），并提示你：显示新功能，准备好后点按 <strong>安装更新</strong> 即可。从它的菜单中选择 <strong>检查更新…</strong> 会立即检查，在“设置 › 关于”中可以关闭每日检查。只有当更新的磁盘映像使用应用内置的密钥签名时，才会安装它。
+从 1.15 开始，NetworkMonitor 使用 Sparkle 自行更新（#132）。它每天向 GitHub 询问一次是否有新版本（使用热点时不会询问），并提示你：显示新功能，准备好后点按 <strong>安装更新</strong> 即可。从它的菜单中选择 <strong>检查更新…</strong> 会立即检查，在“设置”中关闭 <strong>自动检查更新</strong> 即可停止每日检查。只有当更新的磁盘映像使用应用内置的密钥签名时，才会安装它。
 
 1.15 之前的版本，或者想手动更新时：
 
@@ -44,7 +44,7 @@ NetworkMonitor 使用 Kevin Abou Hanna 的 Apple <strong>Developer ID</strong>�
 
 ## 卸载
 
-右键点按菜单栏读数，然后选择 <strong>卸载 NetworkMonitor…</strong>，或者打开 <strong>设置 › 关于</strong> 并点按 <strong>卸载…</strong>。它会依次：
+右键点按菜单栏读数，然后选择 <strong>卸载 NetworkMonitor…</strong>，或在“设置”底部点按它。它会依次：
 
 1. 移除内容过滤器（如果你打开了网站名称）：它的设置会立即移除，扩展本身由 macOS 移除，可能要到下次重新启动时才完成；
 2. 移除辅助程序（如果已安装），辅助程序会先恢复它更改过的内容（没有 Developer ID 的构建版本中的辅助程序会要求输入密码）。如果这一步失败或你取消了，其他内容都不会被改动；

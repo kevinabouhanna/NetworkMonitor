@@ -7,8 +7,9 @@ English · [简体中文](zh-Hans/speed-test.md)
        alt="The popover after a speed test: a dial with the download speed in its centre, 1.00 MB/s down and 2.10 MB/s up over Ethernet, using 60.0 MB; ping 40.7 ms, jitter 0.9 ms, ping while downloading and while uploading 40.6 ms; Back to Apps and Test Again buttons.">
 </p>
 
-Click the **gauge** in the popover, choose **Test Internet Speed** from the right-click
-menu, or open **Settings › Speed Test**. NetworkMonitor runs `networkQuality`, the speed
+Click **Test Speed** in the popover's **Network** view, choose **Test Internet Speed** from
+the right-click menu, or click **Test Now** on the **Network** page of the main window. It
+tests the connection you're on. NetworkMonitor runs `networkQuality`, the speed
 test Apple ships with every Mac since Monterey, against Apple's nearest servers.
 
 ## What you get
@@ -24,26 +25,26 @@ test Apple ships with every Mac since Monterey, against Apple's nearest servers.
   connection. If one moved at least 1 MB, and at least 5% as much as the test did,
   the result names it and warns that the figures may read low. Otherwise, if ping
   rises by 100 ms or more under load, it says calls may lag during big downloads.
-- **Mbps or MB/s**, the same choice as the menu bar (**Settings › General › Show
-  speeds in**). Mbps matches how your line is sold; MB/s matches the data totals.
+- **Mbps or MB/s**, the same choice as the menu bar (**Settings › Show speeds
+  in**). Mbps matches how your line is sold; MB/s matches the data totals.
 
 ## Where it shows
 
-- **Card** (the default) takes the app list's place, with a dial and every figure.
-  **Back to Apps** leaves a running test running and brings the list back; the gauge
-  then shows the live reading, and clicking it returns to the test. **Stop** is what
-  stops it.
-- **Compact** shows the test as two thin gauges above your apps, with ping and jitter
-  beneath once it's done. The list stays in view and gives up that much height, so
-  the popover never grows.
+- **Card** (the default) takes the place of the popover's Network view, with a dial and
+  every figure. **Back** leaves a running test running and brings the view back; **Show**
+  beside the speed test then returns to it. **Stop** is what stops it.
+- **Compact** shows the test as two thin gauges above the Network view, with ping and
+  jitter beneath once it's done. The view stays in sight and gives up that much height,
+  so the popover never grows.
+- **The Network page** runs it in place, with the same dial and figures as the card.
 - **The menu bar**, always. While the test runs, the readout shows it in cyan, so its
   figures are never mistaken for the live rate, at exactly the readout's usual width. If
-  you've given the live rates colours close to cyan (Settings › General › Menu bar colors),
-  the test uses pink, amber or violet instead, and General shows which.
+  you've given the live rates colours close to cyan (Settings › Menu bar colors),
+  the test uses pink, amber or violet instead, and Settings shows which.
   It holds the result for 8 seconds, then the live rates return. Start a test from the
   right-click menu and this is where you watch it.
 
-Choose Card or Compact in **Settings › Speed Test**.
+Choose Card or Compact in Network's settings, behind the gear on the Network page.
 
 ## Data use
 
@@ -59,8 +60,8 @@ A test uses real data, typically **50–500 MB**, more on a very fast line. So:
 
 ## How it's built
 
-**The engine** is `/usr/bin/networkQuality`. If a Mac doesn't have it, the gauge and the
-menu item are hidden and Settings says why. Other engines were considered and turned
+**The engine** is `/usr/bin/networkQuality`. If a Mac doesn't have it, the speed test is
+left out of the popover, the Network page and the menu. Other engines were considered and turned
 down:
 
 | Option | Why not |

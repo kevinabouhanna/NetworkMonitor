@@ -78,7 +78,7 @@ Two things in the Command Line Tools 27 shape the code:
 | Target | Kind | What's in it |
 |---|---|---|
 | `NetworkMonitorCore` | library | Almost everything: measurement, attribution, storage, Hotspot mode, speed test, all the SwiftUI views |
-| `NetworkMonitor` | executable | A thin shell: `main.swift` and `AppDelegate.swift` (status item, popover, menus, Settings window, lifecycle) |
+| `NetworkMonitor` | executable | A thin shell: `main.swift` and `AppDelegate.swift` (status item, popover, menus, the main window, lifecycle) |
 | `LowDataMode` | library | Interface flags, the helper's report, and `HelperProtocol.version`, shared by the app and the helper so the two can't disagree |
 | `HostsFile` | library | `/etc/hosts` editing, shared by the helper and the tests |
 | `ServerDirectory` | library | Which country an address is in and whose network it belongs to, from `Resources/Geo`. Pure Foundation, so the content filter can use it without the app's frameworks |
@@ -110,8 +110,8 @@ and exits non-zero if anything fails.
   It runs against a stand-in `networkQuality` script; see [speed test](speed-test.md).
 - **Popover layout constants** are pinned by tests calibrated against what SwiftUI
   actually lays out.
-- **Accessibility** (#346): `AccessibilityTests.swift` builds every Settings pane, the
-  Connections and Ads and Trackers windows and the popover, out of sight, and reads each
+- **Accessibility** (#346): `AccessibilityTests.swift` builds the main window's sidebar,
+  every section and settings page, and the popover, out of sight, and reads each
   one's accessibility tree through the Accessibility API, as VoiceOver does
   (`AccessibilityAudit`). A control with no name, a control named only by its SF Symbol, or
   an image with no description that isn't hidden fails the test. A first test checks the
@@ -430,7 +430,7 @@ docs here, never the wiki.
 ## Languages
 
 The app opens in the Mac's language when it has a table for it, and English
-otherwise; Settings › General › Language chooses one for the app alone (#433). The
+otherwise; Settings › Language chooses one for the app alone (#433). The
 choice is the app's own `AppleLanguages`, the setting System Settings › General ›
 Language & Region › Applications writes, so the two are one setting.
 
@@ -472,7 +472,7 @@ A development build reads a few launch arguments for that run only; nothing pers
 | Argument | Does |
 |---|---|
 | `-powerProfile balanced` (or `performance`, `saver`) | measures a power profile without unplugging (below) |
-| `-open connections`, `-open ads -tab rules`, `-open welcome`, `-open popover`, `-open settings -pane history` | opens a window straight away, for a screenshot or a check |
+| `-open history` (or `connections`, `ads`, `network`), `-open ads -tab log` (or `rules`, `lists`, in its settings), `-open welcome`, `-open popover`, `-open about`, `-open settings`, `-open settings -pane history` (a section's settings; `hotspot` opens Network, `speedTest` Network's settings) | opens a window straight away, for a screenshot or a check |
 | `-open popover -popoverScreen retina` | opens the popover on a Retina screen's menu bar rather than the main screen's, for a full-resolution capture (#360) |
 | `-geoDataURL http://127.0.0.1:PORT/ -geoDataCheckNow YES` | fetches the monthly data from a local package, at once (#121) |
 | `-updateFeedURL http://127.0.0.1:PORT/appcast.xml -checkForUpdatesNow YES` | checks a local appcast for an update, at once (#132) |
@@ -502,7 +502,7 @@ Open a window straight away, for a screenshot or a quick check, the same way:
 
 ```sh
 open -n build/NetworkMonitor.app --args -open connections
-open -n build/NetworkMonitor.app --args -open settings -pane history   # any pane
+open -n build/NetworkMonitor.app --args -open settings -pane history   # any section's settings
 ```
 
 Then time the CPU of the app and its `nettop` child with `ps -o time=` over a couple of
