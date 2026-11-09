@@ -268,8 +268,11 @@ are kept apart differently:
   - a `pkill` that stops every copy of the app;
   - the pointer and the screen.
 
-  `Scripts/mac-lane.sh` runs whatever touches those one at a time, across every worktree,
-  session and project, with one lane per shared part:
+  `mac-lane` runs whatever touches those one at a time, across every worktree, session and
+  project, with one lane per shared part. It's on PATH from the `shared-mac` plugin
+  (kevinabouhanna/claude-parallel-sessions#3), one copy for every project;
+  `Scripts/mac-lane.sh` is the fallback for GitHub's runners and hands over to it when it's
+  there:
   - **`networkmonitor`**: the app, filter, helper and settings. `install.sh`,
     `uninstall.sh`, `install-helper.sh`, `smoke-test.sh`, `review-build.sh` and `make run`
     take it themselves.
@@ -279,7 +282,7 @@ are kept apart differently:
   Other projects have their own app lanes (`home-control`), so a review build here
   doesn't hold up their installs. A second caller waits, and is told who holds the lane
   and for how long. The lock is the kernel's, so it goes when its holder dies.
-  `Scripts/mac-lane.sh status` lists every lane. `install.sh` builds and notarizes before
+  `mac-lane status` lists every lane. `install.sh` builds and notarizes before
   taking the lane, so the lane is held only for stopping, copying and starting the app.
 - **Ports.** Local test servers take a port the system picks (see
   [Launch arguments](#launch-arguments)).
@@ -666,7 +669,7 @@ above (#342).
 
 A development build shares its settings and data with the installed app, so run it
 in its Mac lane (`Scripts/mac-lane.sh`, see [Working in parallel](#working-in-parallel)):
-`MAC_LANE=networkmonitor Scripts/mac-lane.sh open -W -n build/NetworkMonitor.app --args …` holds the lane
+`MAC_LANE=networkmonitor mac-lane open -W -n build/NetworkMonitor.app --args …` holds the lane
 until that copy quits.
 
 ## Measuring power
