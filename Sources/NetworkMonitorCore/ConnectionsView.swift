@@ -393,7 +393,7 @@ private struct WebsiteNamesOffer: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(L("Close. Settings › Connections still has it."))
+                .help(L("Close. Connections' settings, behind the gear, still have it."))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)

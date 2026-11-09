@@ -5,7 +5,7 @@ import SwiftUI
 /// The Usage History window (#436): its own, like Connections and Ads and
 /// Trackers, rather than a pane of Settings, which holds only setup now. The
 /// same toolbar as theirs: the period centred, ‹ Today › trailing, and the
-/// gear, which opens Settings › History.
+/// gear, which opens Usage History's settings.
 public final class HistoryWindowController: NSObject, NSToolbarDelegate {
 
     public let window: NSWindow
@@ -20,7 +20,7 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
     /// Search, in the toolbar: a magnifying glass until it's used (#436).
     public let search = ToolbarSearch(NSToolbarItem.Identifier("search"))
 
-    /// The toolbar's gear: Settings › History.
+    /// The toolbar's gear: Usage History's settings.
     public var onSettings: () -> Void = {}
 
     /// The content and the toolbar, for the window of its own or for a

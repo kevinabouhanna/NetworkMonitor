@@ -71,29 +71,3 @@ struct PeriodHeading: View {
         }
     }
 }
-
-/// ‹ Today ›, as Calendar has it, with ⌘← and ⌘→.
-struct PeriodStepper: View {
-    let canStepBack: Bool
-    let canStepForward: Bool
-    let onStep: (Int) -> Void
-    let onToday: () -> Void
-
-    var body: some View {
-        ControlGroup {
-            Button { onStep(-1) } label: { Image(systemName: "chevron.left") }
-                .accessibilityLabel(L("Previous"))
-                .keyboardShortcut(.leftArrow, modifiers: [.command])
-                .disabled(!canStepBack)
-                .help(L("Previous (⌘←)"))
-            Button(L("Today"), action: onToday)
-                .help(L("Back to the present"))
-            Button { onStep(1) } label: { Image(systemName: "chevron.right") }
-                .accessibilityLabel(L("Next"))
-                .keyboardShortcut(.rightArrow, modifiers: [.command])
-                .disabled(!canStepForward)
-                .help(L("Next (⌘→)"))
-        }
-        .fixedSize()
-    }
-}

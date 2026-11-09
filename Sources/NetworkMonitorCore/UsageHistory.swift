@@ -30,7 +30,7 @@ public struct HistoryUpdate: Identifiable, Equatable {
     public let seenAt: Date
     public var id: String { "\(sessionID):\(appName):\(seenAt.timeIntervalSince1970)" }
 
-    /// As Settings › Hotspot says it: "Slack updated to 4.41".
+    /// As the Network page says it: "Slack updated to 4.41".
     public var label: String {
         version.map { L("%@ updated to %@", appName, $0) } ?? L("%@ downloaded an update", appName)
     }

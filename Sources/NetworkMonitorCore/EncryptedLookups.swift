@@ -7,7 +7,7 @@ import os
 
 /// Encrypt lookups (#291), the app's side: the DNS proxy's configuration,
 /// which the system extension that carries the content filter carries too,
-/// switched on and off from Settings › Connections; and a check, each time
+/// switched on and off from Connections' settings; and a check, each time
 /// it's switched on or the app starts with it on, that names still resolve.
 /// If they don't, it switches itself off again and says why.
 public final class EncryptedLookups: ObservableObject {

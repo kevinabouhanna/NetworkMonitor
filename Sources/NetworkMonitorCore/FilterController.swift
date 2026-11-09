@@ -11,7 +11,7 @@ import SystemExtensions
 /// what it saw.
 ///
 /// Nothing happens until someone turns it on, in the welcome window or
-/// Settings › Connections (#134). Then macOS asks twice: once to allow the
+/// Connections' settings (#134). Then macOS asks twice: once to allow the
 /// system extension (in System Settings), once to allow the filter. From then
 /// on it runs in the background. Turned off, which is done in System Settings
 /// (#181), the extension stays installed but filters nothing; uninstalling

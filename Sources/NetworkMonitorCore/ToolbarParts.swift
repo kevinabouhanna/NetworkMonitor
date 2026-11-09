@@ -45,13 +45,17 @@ enum PeriodControl {
 /// the toolbar ran out of room, and opened in two steps.
 public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
     static let width: CGFloat = 240
-    /// The glass's width, at which the field draws as the glass.
-    static let glassWidth: CGFloat = 30
+    /// The glass's width, at which the field draws as the glass: a circle
+    /// as tall as the toolbar's buttons, as the gear beside it, its magnifying
+    /// glass centred (measured in `make design-shots`; narrower, it was an
+    /// upright oval).
+    static let glassWidth: CGFloat = 36
 
     public let item: NSSearchToolbarItem
     var onChange: (String) -> Void = { _ in }
     /// Whether the field is open, or opening, rather than the glass.
     public private(set) var isOpen = false
+    private var placeholder = ""
     private let size: NSLayoutConstraint
     private var clicks: Any?
 
@@ -91,7 +95,8 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
 
     /// The words, from `init` and when the language changes.
     func name(placeholder: String, help: String) {
-        field.placeholderString = placeholder
+        self.placeholder = placeholder
+        field.placeholderString = isOpen ? placeholder : nil
         field.setAccessibilityLabel(placeholder)
         item.label = L("Search")
         item.paletteLabel = L("Search")
@@ -120,21 +125,28 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
         guard isOpen, field.stringValue.isEmpty else { return }
         isOpen = false
         if hasFocus { field.window?.makeFirstResponder(nil) }
+        field.placeholderString = nil
         resize(to: Self.glassWidth)
     }
 
     private func open(focus: Bool) {
-        if !isOpen {
-            isOpen = true
-            resize(to: Self.width)
+        let takeFocus = { [weak self] in
+            guard let self, focus, self.isOpen else { return }
+            self.field.window?.makeFirstResponder(self.field)
         }
-        if focus { field.window?.makeFirstResponder(field) }
+        guard !isOpen else { return takeFocus() }
+        isOpen = true
+        field.placeholderString = placeholder
+        // The cursor goes in once it's open: focused while it grows, AppKit
+        // started its own opening too, and it grew in two steps.
+        resize(to: Self.width, then: takeFocus)
     }
 
     /// One movement from the glass to the field or back, as Motion says.
-    private func resize(to width: CGFloat) {
+    private func resize(to width: CGFloat, then done: @escaping () -> Void = {}) {
         guard field.window?.isVisible == true, !Motion.isReduced else {
             size.constant = width
+            done()
             return
         }
         NSAnimationContext.runAnimationGroup { context in
@@ -142,7 +154,7 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
             context.timingFunction = Motion.timing
             context.allowsImplicitAnimation = true
             size.animator().constant = width
-        }
+        } completionHandler: { done() }
     }
 
     private var hasFocus: Bool { field.currentEditor() != nil }

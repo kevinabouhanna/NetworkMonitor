@@ -94,7 +94,7 @@ public struct StandbyHotspot: Equatable {
                  connected, connection.medium ?? L("another connection"), how)
     }
 
-    /// Settings › Hotspot › Right now, which has room for the whole sentence.
+    /// Network › This network, which has room for the whole sentence.
     public func rightNow(inUse connection: ConnectionStatus) -> String {
         L("You're on %@. %@.", connection.medium ?? L("another connection"), connected)
     }

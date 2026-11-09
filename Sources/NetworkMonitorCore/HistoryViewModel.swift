@@ -35,7 +35,7 @@ public final class HistoryViewModel: ObservableObject {
     /// totals, by an app's or a network's name.
     @Published public var search = ""
     @Published public private(set) var retention: HistoryRetention
-    /// Today's total, for the line heading Settings › History (#436).
+    /// Today's total, for the line heading Usage History's settings (#436).
     @Published public private(set) var todayTotal: Int64 = 0
 
     public static let retentionKey = "historyRetention"
@@ -79,7 +79,7 @@ public final class HistoryViewModel: ObservableObject {
         refreshTimer = nil
     }
 
-    /// Today's total and how long history is kept, for Settings › History,
+    /// Today's total and how long history is kept, for Usage History's settings,
     /// whether or not the window is open.
     public func refreshToday() {
         retention = history?.retention ?? .forever

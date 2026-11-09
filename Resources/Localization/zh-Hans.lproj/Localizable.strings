@@ -362,7 +362,7 @@
 "Right-click a company, app, country or server in Connections to block it, or to always allow it." = "在“连接”中右键点按公司、应用、国家或地区、服务器，即可阻止或始终允许它。";
 "Blocking" = "阻止";
 "That file has no NetworkMonitor rules in it." = "该文件中没有 NetworkMonitor 规则。";
-"Choose a file made with Export… in Settings › Connections." = "请选择用“设置 › 连接”中的“导出…”生成的文件。";
+"Choose a file made with Export… in Connections' settings." = "请选择用“连接”设置中的“导出…”生成的文件。";
 "Everything connects except what you block." = "除了你阻止的内容，一切都可以连接。";
 "The first time an app connects to a company, NetworkMonitor asks. With no answer in 30 seconds, it's allowed. macOS and Apple's apps aren't asked about." = "应用首次连接到某个公司时，NetworkMonitor 会询问你。如果 30 秒内没有回应，则允许连接。macOS 和 Apple 的应用不会询问。";
 "Only what you allow connects, and macOS and Apple's apps. Allow an app under Blocked in Connections." = "只有你允许的内容以及 macOS 和 Apple 的应用可以连接。你可以在“连接”的“已阻止”下允许某个应用。";
@@ -415,7 +415,7 @@
 "Block “%@” on Hotspots" = "在热点上阻止“%@”";
 "Always Allow “%@”" = "始终允许“%@”";
 "Everything is named on this Mac: nothing is looked up online." = "所有名称都在这台 Mac 上识别，不会在线查询。";
-"Close. Settings › Connections still has it." = "关闭。“设置 › 连接”中仍可找到它。";
+"Close. Connections' settings, behind the gear, still have it." = "关闭。“连接”的设置（齿轮图标）中仍可找到它。";
 "%@ on %@" = "%@（%@）";
 "On the %@ list, from %@" = "在%@列表中，来源：%@";
 "ADS" = "广告";
@@ -558,7 +558,7 @@
 "up to %@" = "最多 %@";
 "%@ is updating" = "%@ 正在更新";
 "%@ updates got through · %@" = "%@ 个更新未能暂停 · %@";
-"Downloaded over this connection anyway. Settings › Hotspot lists what NetworkMonitor can't stop." = "仍通过此连接下载了。“设置 › 热点”列出了 NetworkMonitor 无法阻止的项目。";
+"Downloaded over this connection anyway. The Network page lists what NetworkMonitor can't stop." = "仍通过此连接下载了。“网络”页面列出了 NetworkMonitor 无法阻止的项目。";
 "Everything is blocked" = "已全部阻止";
 "Turn Off" = "关闭";
 "Block Everything is on: every app's new connections stop, apart from looking up names, the clock and your own network" = "“全部阻止”已打开：所有应用的新连接都会被阻止，域名查询、时间同步和你自己的网络除外";
@@ -740,9 +740,6 @@
 "Metered connection. The last test here used %@." = "按流量计费的连接。上次在这里测试用了 %@。";
 "Metered connection. A test can use 100 MB or more on a fast line." = "按流量计费的连接。在快速线路上，一次测试可能用掉 100 MB 或更多。";
 "Speed test" = "网速测试";
-"Show the speed test" = "显示网速测试";
-"Speed test running" = "网速测试正在进行";
-"Test internet speed" = "测试网速";
 "Test on a metered connection?" = "要在按流量计费的连接上测试吗？";
 "Stop the test" = "停止测试";
 "Test again" = "再测一次";

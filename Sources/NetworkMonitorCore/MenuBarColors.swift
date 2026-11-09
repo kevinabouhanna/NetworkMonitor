@@ -57,7 +57,7 @@ public struct MenuBarTints: Equatable {
     }
 }
 
-/// The colours of the menu bar's live rates, chosen in Settings › General
+/// The colours of the menu bar's live rates, chosen in Settings
 /// (#45), and the tints a speed test uses in their place.
 ///
 /// A test takes the menu bar over at the same width, so colour is the only thing

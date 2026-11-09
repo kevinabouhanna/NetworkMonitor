@@ -11,7 +11,7 @@ import Foundation
 /// requested.
 ///
 /// macOS asks only when the person turns names on, in the welcome window or
-/// Settings › General (#134), never by itself at launch.
+/// Settings (#134), never by itself at launch.
 public final class WiFiNames: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     /// What Settings says, which is nothing unless names can't be read.

@@ -135,7 +135,7 @@ public final class AdsViewModel: ObservableObject {
     }
 
     /// Overview or the log (#252), at the top of the window. The lists (#254)
-    /// and your rules (#253) are setup, so they're in Settings › Ads (#436).
+    /// and your rules (#253) are setup, so they're in Ads and Trackers' settings (#436).
     public enum Tab: String, CaseIterable, Identifiable {
         case overview, log
 
@@ -152,7 +152,7 @@ public final class AdsViewModel: ObservableObject {
         public var hasPeriod: Bool { self == .overview }
     }
 
-    /// The lists or your rules, in Settings › Ads (#436).
+    /// The lists or your rules, in Ads and Trackers' settings (#436).
     public enum SetupTab: String, CaseIterable, Identifiable {
         case lists, rules
 
@@ -594,7 +594,7 @@ public final class AdsViewModel: ObservableObject {
         reloadToday()
     }
 
-    /// What each list blocked today, for the lists in Settings › Ads.
+    /// What each list blocked today, for the lists in Ads and Trackers' settings.
     public func reloadToday() {
         guard let history = monitor.store.history else { return }
         let now = Date()

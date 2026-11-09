@@ -8,12 +8,12 @@ import SwiftUI
 // Quit is deliberately not here. It is a menu bar app, and the menu bar is where
 // a Mac user looks to quit one — it stays on the status item's right-click menu.
 
-/// Width every pane shares, History included, so switching panes only ever
-/// changes the window's height (#61). Between the 648 pt the forms had and the
-/// 768 pt History had.
+/// The width a settings page is read at in the main window (#436), from
+/// the leading edge: between the 648 pt the forms had and the 768 pt the
+/// History pane had (#61).
 enum SettingsMetrics {
     static let paneWidth: CGFloat = 720
-    /// The lists and your rules in Settings › Ads (#436): they scroll inside
+    /// The lists and your rules in Ads and Trackers' settings (#436): they scroll inside
     /// this height, so the pane is the same size whichever is shown.
     static let adsSetupHeight: CGFloat = 420
 }

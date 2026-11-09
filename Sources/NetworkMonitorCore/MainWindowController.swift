@@ -107,7 +107,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                                     styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                                     backing: .buffered, defer: false)
         window = mainWindow
-        // Each section's settings, as the Settings window has them.
+        // Each section's settings, behind its gear and Settings' rows.
         var back: () -> Void = {}
         makeSettingsPage = { section in
             let width = SettingsMetrics.paneWidth
@@ -178,7 +178,10 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
 
     public var isVisible: Bool { window.isVisible }
 
-    private func use(_ toolbar: NSToolbar) { window.toolbar = toolbar }
+    private func use(_ toolbar: NSToolbar) {
+        // The same toolbar set again would be laid out again, a flicker (#399).
+        if window.toolbar !== toolbar { window.toolbar = toolbar }
+    }
 
     /// Hides or shows the sidebar, sliding as AppKit slides it: the
     /// toolbar's button, and View › Hide Sidebar (#436).

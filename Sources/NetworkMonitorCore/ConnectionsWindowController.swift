@@ -83,7 +83,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
 
     public var isVisible: Bool { window.isVisible }
 
-    /// The toolbar's gear: Settings › Connections (#436).
+    /// The toolbar's gear: Connections' settings (#436).
     public var onSettings: () -> Void = {}
 
     public func windowDidShow() { model.windowDidOpen() }

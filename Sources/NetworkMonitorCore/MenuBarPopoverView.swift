@@ -136,22 +136,26 @@ public struct MenuBarPopoverView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
-Group {
-            switch model.popoverSection {
-            case .today:
-                today
-            case .companies:
-                PopoverCompanies(glance: glance, icon: model.icon(forApp:name:bundlePath:), onOpen: onConnections)
-            case .blocked:
-                PopoverBlocked(glance: glance, firewall: firewall, filter: filter, pausedText: adsPausedText,
-                               icon: model.icon(forApp:name:bundlePath:),
-                               onTurnOn: turnOnAdBlocking, onOpen: onAds)
-            case .connection:
-                connection
+            // Overlapping while they cross (#436): stacked, the popover
+            // grew by the incoming view's height, then shrank again.
+            ZStack(alignment: .top) {
+                Group {
+                    switch model.popoverSection {
+                    case .today:
+                        today
+                    case .companies:
+                        PopoverCompanies(glance: glance, icon: model.icon(forApp:name:bundlePath:), onOpen: onConnections)
+                    case .blocked:
+                        PopoverBlocked(glance: glance, firewall: firewall, filter: filter, pausedText: adsPausedText,
+                                       icon: model.icon(forApp:name:bundlePath:),
+                                       onTurnOn: turnOnAdBlocking, onOpen: onAds)
+                    case .connection:
+                        connection
+                    }
+                }
+                .id(model.popoverSection)
+                .transition(Motion.swap)
             }
-}
-.id(model.popoverSection)
-.transition(Motion.swap)
         }
         .frame(width: 320)
     }
@@ -182,17 +186,21 @@ Group {
         VStack(alignment: .leading, spacing: 0) {
             PopoverGroupingRow(options: PopoverDataGrouping.allCases, selection: $glance.dataGrouping,
                                label: { $0.label }, count: dataCount)
-Group {
-            if glance.dataGrouping == .networks {
-                networks
-            } else if appRows.isEmpty && systemRows.isEmpty {
-                emptyState
-            } else {
-                list
+            // Overlapping while they cross (#436): stacked, the popover
+            // grew by the incoming view's height, then shrank again.
+            ZStack(alignment: .top) {
+                Group {
+                    if glance.dataGrouping == .networks {
+                        networks
+                    } else if appRows.isEmpty && systemRows.isEmpty {
+                        emptyState
+                    } else {
+                        list
+                    }
+                }
+                .id(glance.dataGrouping)
+                .transition(Motion.swap)
             }
-}
-.id(glance.dataGrouping)
-.transition(Motion.swap)
             Divider()
             PopoverOpenRow(title: L("Open Usage History"), shortcut: "⌘Y", action: onHistory)
         }
@@ -328,7 +336,7 @@ Group {
                         }
                         .font(.system(size: 10))
                         .foregroundStyle(.orange)
-                        .help(L("Downloaded over this connection anyway. Settings › Hotspot lists what NetworkMonitor can't stop."))
+                        .help(L("Downloaded over this connection anyway. The Network page lists what NetworkMonitor can't stop."))
                     }
                     if firewall.blocksEverything {
                         HStack(spacing: 6) {

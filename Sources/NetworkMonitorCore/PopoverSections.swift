@@ -238,38 +238,42 @@ struct PopoverCompanies: View {
         VStack(spacing: 0) {
             PopoverGroupingRow(options: Self.groupings, selection: $glance.connectionsGrouping,
                                label: { $0.label }, count: count)
-Group {
-            if glance.groups.isEmpty {
-                SummaryMessage(title: glance.hasLoaded ? L("No connections yet") : L("Reading…"),
-                               detail: L("Connections are counted while NetworkMonitor is running."))
-                    .frame(height: PopoverMetrics.sectionHeight)
-            } else {
-                PopoverList(rows: rowCount) {
-                    ForEach(glance.groups) { group in
-                        let item = group.item
-                        let parts = self.parts(of: group)
-                        let open = glance.expanded.contains(item.id)
-                        PopoverRow(title: item.title, value: ByteFormat.bytes(item.total),
-                                   icon: rowIcon(item),
-                                   fraction: fraction(item.total), barColor: PopoverPalette.companies,
-                                   isExpanded: open,
-                                   onToggle: parts.isEmpty ? nil : {
-                                       withAnimation(Motion.content) { glance.toggle(item.id) }
-                                   })
-                        if open {
-                            ForEach(parts) { part in
-                                PopoverRow(title: part.title, value: ByteFormat.bytes(part.total),
-                                           icon: rowIcon(part),
-                                           fraction: fraction(part.total), barColor: PopoverPalette.companies,
-                                           indented: true)
+            // Overlapping while they cross (#436): stacked, the popover
+            // grew by the incoming view's height, then shrank again.
+            ZStack(alignment: .top) {
+                Group {
+                    if glance.groups.isEmpty {
+                        SummaryMessage(title: glance.hasLoaded ? L("No connections yet") : L("Reading…"),
+                                       detail: L("Connections are counted while NetworkMonitor is running."))
+                            .frame(height: PopoverMetrics.sectionHeight)
+                    } else {
+                        PopoverList(rows: rowCount) {
+                            ForEach(glance.groups) { group in
+                                let item = group.item
+                                let parts = self.parts(of: group)
+                                let open = glance.expanded.contains(item.id)
+                                PopoverRow(title: item.title, value: ByteFormat.bytes(item.total),
+                                           icon: rowIcon(item),
+                                           fraction: fraction(item.total), barColor: PopoverPalette.companies,
+                                           isExpanded: open,
+                                           onToggle: parts.isEmpty ? nil : {
+                                               withAnimation(Motion.content) { glance.toggle(item.id) }
+                                           })
+                                if open {
+                                    ForEach(parts) { part in
+                                        PopoverRow(title: part.title, value: ByteFormat.bytes(part.total),
+                                                   icon: rowIcon(part),
+                                                   fraction: fraction(part.total), barColor: PopoverPalette.companies,
+                                                   indented: true)
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                .id(glance.connectionsGrouping)
+                .transition(Motion.swap)
             }
-}
-.id(glance.connectionsGrouping)
-.transition(Motion.swap)
             Divider()
             PopoverOpenRow(title: L("Open Connections"), shortcut: "⌘K", action: onOpen)
         }
@@ -341,37 +345,41 @@ struct PopoverBlocked: View {
                 PopoverGroupingRow(options: PopoverAdsGrouping.allCases, selection: $glance.adsGrouping,
                                    label: { $0.label }, count: count)
                 if let pausedText { SummaryCaption(text: pausedText) }
-Group {
-                if items.isEmpty {
-                    SummaryMessage(title: L("Nothing blocked yet"),
-                                   detail: L("Sites the lists stop show here, busiest first."))
-                        .frame(height: PopoverMetrics.sectionHeight)
-                } else {
-                    PopoverList(rows: rowCount) {
-                        ForEach(items) { item in
-                            let parts = self.parts(of: item)
-                            let open = glance.expanded.contains(rowID(item))
-                            PopoverRow(title: item.title, value: item.count.formatted(),
-                                       icon: rowIcon(item, isApp: !bySite),
-                                       fraction: fraction(item.count), barColor: PopoverPalette.blocked,
-                                       isExpanded: open,
-                                       onToggle: parts.isEmpty ? nil : {
-                                           withAnimation(Motion.content) { glance.toggle(rowID(item)) }
-                                       })
-                            if open {
-                                ForEach(parts) { part in
-                                    PopoverRow(title: part.title, value: part.count.formatted(),
-                                               icon: rowIcon(part, isApp: bySite),
-                                               fraction: fraction(part.count), barColor: PopoverPalette.blocked,
-                                               indented: true)
+                // Overlapping while they cross (#436): stacked, the popover
+                // grew by the incoming view's height, then shrank again.
+                ZStack(alignment: .top) {
+                    Group {
+                        if items.isEmpty {
+                            SummaryMessage(title: L("Nothing blocked yet"),
+                                           detail: L("Sites the lists stop show here, busiest first."))
+                                .frame(height: PopoverMetrics.sectionHeight)
+                        } else {
+                            PopoverList(rows: rowCount) {
+                                ForEach(items) { item in
+                                    let parts = self.parts(of: item)
+                                    let open = glance.expanded.contains(rowID(item))
+                                    PopoverRow(title: item.title, value: item.count.formatted(),
+                                               icon: rowIcon(item, isApp: !bySite),
+                                               fraction: fraction(item.count), barColor: PopoverPalette.blocked,
+                                               isExpanded: open,
+                                               onToggle: parts.isEmpty ? nil : {
+                                                   withAnimation(Motion.content) { glance.toggle(rowID(item)) }
+                                               })
+                                    if open {
+                                        ForEach(parts) { part in
+                                            PopoverRow(title: part.title, value: part.count.formatted(),
+                                                       icon: rowIcon(part, isApp: bySite),
+                                                       fraction: fraction(part.count), barColor: PopoverPalette.blocked,
+                                                       indented: true)
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
+                    .id(glance.adsGrouping)
+                    .transition(Motion.swap)
                 }
-}
-.id(glance.adsGrouping)
-.transition(Motion.swap)
             }
             Divider()
             PopoverOpenRow(title: L("Open Ads and Trackers"), shortcut: "⌘B", action: onOpen)

@@ -86,7 +86,7 @@ public enum MeteredHeuristic {
             }
         }
 
-        /// Shown in Settings › Hotspot, beside the choice that overrules it.
+        /// Shown in the Network page, beside the choice that overrules it.
         public var explanation: String {
             switch self {
             case .userMarked:          return L("You said this network is a hotspot.")

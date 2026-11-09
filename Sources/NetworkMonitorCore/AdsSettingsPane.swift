@@ -2,7 +2,7 @@ import AppKit
 import FirewallPolicy
 import SwiftUI
 
-/// Settings › Ads: every switch, list and rule for ad blocking, in one place
+/// Ads and Trackers' settings: every switch, list and rule for ad blocking, in one place
 /// (#436). Today's number and a way to the Ads and Trackers window head it;
 /// below are the switch, the weekly update, and the lists and your rules that
 /// were tabs in the window, so nothing about ad blocking lives in two places.

@@ -68,7 +68,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     public func select(_ tab: AdsViewModel.Tab) { model.tab = tab }
 
-    /// The toolbar's gear: Settings › Ads, where the lists and rules are (#436).
+    /// The toolbar's gear: Ads and Trackers' settings, where the lists and rules are (#436).
     public var onSettings: () -> Void = {}
 
     @objc private func openSettings() { onSettings() }

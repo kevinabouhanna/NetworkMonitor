@@ -25,7 +25,8 @@ public struct HistoryView: View {
             HistoryChart(model: model)
             legend
             Divider()
-            list
+            // Overlapping while one tab's list gives way to another's.
+            ZStack(alignment: .top) { list }
             Divider()
             footer
         }
@@ -364,7 +365,7 @@ public struct HistoryView: View {
     }
 }
 
-/// Settings › History (#436): how long to keep it, and clearing it. The
+/// Usage History's settings (#436): how long to keep it, and clearing it. The
 /// history itself is in the Usage History window.
 struct HistorySettingsPane: View {
     @ObservedObject var model: HistoryViewModel

@@ -486,6 +486,7 @@ func measureToolbars(_ world: World) {
 
 
 
+
 if arguments.contains("--measure") {
     measureToolbars(makeWorld(.full, filter: .on))
     exit(0)

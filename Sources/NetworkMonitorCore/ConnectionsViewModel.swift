@@ -102,7 +102,7 @@ public final class ConnectionsViewModel: ObservableObject {
     /// Where the map's lines start: the Mac's Region setting, never Location.
     public let homeCountry: String? = Locale.current.region?.identifier
     /// The offer of website names above the list, until it's taken or closed
-    /// (#134). Closed, it stays closed: Settings › Connections still has it.
+    /// (#134). Closed, it stays closed: Connections' settings still has it.
     @Published public var offersWebsiteNames: Bool {
         didSet { defaults.set(!offersWebsiteNames, forKey: Self.websiteNamesOfferClosedKey) }
     }

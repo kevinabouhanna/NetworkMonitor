@@ -96,7 +96,7 @@ public final class MonitorViewModel: ObservableObject {
     /// notice other apps competing with it.
     public let speedTest: SpeedTestController
     /// The content filter (#128): off until turned on in the welcome window or
-    /// Settings › Connections (#134).
+    /// Connections' settings (#134).
     public let filter = FilterController()
     private var filterNames: AnyCancellable?
     /// What the filter blocks or always allows (#114), made in Connections.
@@ -125,7 +125,7 @@ public final class MonitorViewModel: ObservableObject {
     /// there (#436, #449).
     public private(set) lazy var glance = TodayGlance(history: { [weak self] in self?.store.history },
                                                       defaults: .standard)
-    /// Today at a glance, for the line heading Settings › Connections.
+    /// Today at a glance, for the line heading Connections' settings.
     public private(set) lazy var todayGlance = TodayGlance(history: { [weak self] in self?.store.history })
     /// Updating NetworkMonitor itself (#132).
     public let updates = UpdateController()

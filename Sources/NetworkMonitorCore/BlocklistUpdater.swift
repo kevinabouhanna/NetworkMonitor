@@ -15,7 +15,7 @@ import Foundation
 ///   country data is signed with, and each table's size and SHA-256 match;
 /// - anything less keeps the copy already there, and the shipped copy is
 ///   always the fallback;
-/// - on by default, with a switch in Settings › Ads.
+/// - on by default, with a switch in Ads and Trackers' settings.
 public final class BlocklistUpdater: ObservableObject {
 
     @Published public var isEnabled: Bool {

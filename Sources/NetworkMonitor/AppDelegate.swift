@@ -15,13 +15,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Pointer watchers that exist only while a revealed menu bar holds focus
     /// the popover had. See `restoreFocusWhenMenuBarHides()`.
     private var menuBarMonitors: [Any] = []
-    /// One model for the Connections section and Settings › Connections, so
+    /// One model for the Connections section and Connections' settings, so
     /// the layout chosen in one is the layout shown in the other.
     private lazy var connectionsModel = ConnectionsViewModel(monitor: model)
-    /// One model for the Ads and Trackers section and Settings › Ads, where
+    /// One model for the Ads and Trackers section and Ads and Trackers' settings, where
     /// its lists and rules are (#436).
     private lazy var adsModel = AdsViewModel(monitor: model)
-    /// The Usage History section's model, and Settings › History's.
+    /// The Usage History section's model, and Usage History's settings's.
     private lazy var historyModel = HistoryViewModel(monitor: model)
     /// The main window (#436): Usage History, Connections, Ads and Trackers
     /// and Network, with a sidebar. Created on first use.
@@ -121,7 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         switch arguments["open"] as? String {
         case "connections": showConnections()
         case "ads":
-            // The lists and your rules are in Settings › Ads now (#436).
+            // The lists and your rules are in Ads and Trackers' settings now (#436).
             if let setup = (arguments["tab"] as? String).flatMap(AdsViewModel.SetupTab.init) {
                 adsModel.setupTab = setup
                 showSectionSettings(.ads, from: nil)
@@ -139,12 +139,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                 popoverScreen = NSScreen.screens.first { $0.backingScaleFactor >= 2 }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.togglePopover() }
-        // `-pane history` (or connections, ads, network, hotspot): that
-        // section's settings in the main window (#436); otherwise General.
+        // `-pane history` (or connections, ads, network): that section's
+        // settings in the main window (#436); `hotspot`, the Network page,
+        // where hotspots are; otherwise Settings.
         case "settings":
             let pane = arguments["pane"] as? String
-            if let section = MainSection(rawValue: pane == "hotspot" ? "network" : pane ?? ""),
-               section != .settings {
+            if pane == "hotspot" {
+                showNetwork()
+            } else if let section = MainSection(rawValue: pane ?? ""), section != .settings {
                 showSectionSettings(section, from: nil)
             } else {
                 showSettings()
@@ -459,11 +461,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// behind, focus goes back to that app. Left here, it would make Settings
     /// key from behind that app's window, and the keyboard would go to a
     /// window nobody can see.
-    private func closePopover(returningFocus: Bool = false) {
+    /// `parking`: keeps the open windows where they are as it closes (#71).
+    /// Off when the popover closes because one of them is coming forward:
+    /// parked, it vanished and came back before it came forward (#399).
+    private func closePopover(returningFocus: Bool = false, parking: Bool = true) {
         let returnTo = returningFocus && NSApp.isActive ? appUnderPopover : nil
         appUnderPopover = nil
         closingPopover = true
-        if NSApp.isActive {
+        if NSApp.isActive && parking {
             keepingWindowsInPlace { popover.performClose(nil) }
         } else {
             popover.performClose(nil)
@@ -780,8 +785,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     @objc private func showSettings() { show(section: .settings) }
 
     /// Usage History, in the main window (#436): from Open Usage History in
-    /// the popover, Usage History… in the right-click menu, Settings ›
-    /// History, and ⌘Y while a window is open.
+    /// the popover, Usage History… in the right-click menu, its row in
+    /// Settings, and ⌘Y while a window is open.
     @objc private func showHistory() { show(section: .history) }
 
     /// Connections, in the main window: from Open Connections in the popover,
@@ -789,8 +794,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     @objc private func showConnections() { show(section: .connections) }
 
     /// Ads and Trackers, in the main window (#251): from Open Ads and Trackers
-    /// in the popover, Ads and Trackers… in the right-click menu, Settings ›
-    /// Ads, and ⌘B while a window is open.
+    /// in the popover, Ads and Trackers… in the right-click menu, its row in
+    /// Settings, and ⌘B while a window is open.
     @objc private func showAds() { show(section: .ads) }
 
     /// Network, in the main window (#436): from Open Network in the popover.
@@ -803,7 +808,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         main.showSettings(for: section, from: origin)
     }
 
-    /// The standard About window, with what was Settings › About (#436): the
+    /// The standard About window, with what the old Settings' About pane had (#436): the
     /// version, and links to the website, the release notes and the source.
     @objc private func showAbout() {
         if popover.isShown { closePopover() }
@@ -829,10 +834,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     }
 
     private func show(section: MainSection) {
-        if popover.isShown { closePopover() }
         let wasVisible = main.isVisible
         main.show(section)
+        // Forward first, then the popover closes, leaving it where it is:
+        // closed first, the window left the screen and came back before it
+        // came forward, a flash each time (#399).
         present(main.window, reposition: !wasVisible)
+        if popover.isShown { closePopover(parking: false) }
         main.windowDidShow()
         // Opens with nothing focused, for the reason the popover does: the
         // window would otherwise hand first responder to its first control,

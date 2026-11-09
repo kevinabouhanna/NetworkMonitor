@@ -5,7 +5,7 @@ import ServerDirectory
 
 /// A period at a glance (#436, #449): what the apps used, who they talked to
 /// and what the lists blocked, for the popover's views and the line that
-/// heads Settings › Connections. Read from Usage History, from the period's
+/// heads Connections' settings. Read from Usage History, from the period's
 /// start on every network, when asked (the popover opening, a switch
 /// changed, a pane shown), and while the popover is open on Data, never on a
 /// timer of its own, so it costs nothing while nobody looks.

@@ -70,57 +70,6 @@ enum SpeedTestPalette {
     }
 }
 
-// MARK: - Header button
-
-/// The popover's way in: one press, one fresh measurement.
-///
-/// When the card has been put away mid-test, the button carries the live
-/// reading and brings the card back, so a test sent out of sight is never lost.
-struct SpeedTestButton: View {
-    @ObservedObject var speedTest: SpeedTestController
-
-    private var isHiddenRun: Bool {
-        speedTest.phase != .idle && !speedTest.isPresented
-    }
-
-    var body: some View {
-        Button {
-            if isHiddenRun { speedTest.present() } else { speedTest.run() }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "gauge.with.dots.needle.67percent")
-                    .font(.system(size: 13))
-                if isHiddenRun, speedTest.phase.isRunning {
-                    HeaderLiveReading(live: speedTest.live, unit: speedTest.unit)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(L("Speed test"))
-        .foregroundStyle(speedTest.phase == .idle
-                         ? AnyShapeStyle(.secondary) : AnyShapeStyle(SpeedTestPalette.download))
-        .disabled(speedTest.phase.isRunning && !isHiddenRun)
-        .help(isHiddenRun ? L("Show the speed test")
-              : speedTest.phase.isRunning ? L("Speed test running") : L("Test internet speed"))
-    }
-}
-
-/// "↓ 17.2" beside the gauge while a hidden test runs.
-private struct HeaderLiveReading: View {
-    @ObservedObject var live: SpeedTestController.Live
-    let unit: SpeedUnit
-
-    var body: some View {
-        let uploading = live.progress.stage == .upload
-        let bits = uploading ? live.progress.uploadBitsPerSecond
-                             : live.progress.downloadBitsPerSecond
-        Text("\(uploading ? "↑" : "↓") \(SpeedTestPalette.parts(bits, unit).number)") // untranslated: arrow and figure
-            .font(.system(size: 10, weight: .semibold))
-            .monospacedDigit()
-            .foregroundStyle(uploading ? SpeedTestPalette.upload : SpeedTestPalette.download)
-    }
-}
-
 // MARK: - Card
 
 /// Takes the list's place while a test is on screen, with a dial and the

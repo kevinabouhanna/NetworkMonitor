@@ -5,7 +5,7 @@ import ServerDirectory
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Settings › Connections (#126): its setup only (#436). A line with today's
+/// Connections' settings (#126): its setup only (#436). A line with today's
 /// companies and the way to the window heads it; then website names while
 /// they're off, the rules, encrypted lookups, which layout the window opens
 /// with, and where the names come from. The window is where it's read (#189).
@@ -201,7 +201,7 @@ struct ConnectionsSettingsPane: View {
             if result.added > 0, filter.state == .off { filter.turnOn() }
         } catch {
             alert.messageText = L("That file has no NetworkMonitor rules in it.")
-            alert.informativeText = L("Choose a file made with Export… in Settings › Connections.")
+            alert.informativeText = L("Choose a file made with Export… in Connections' settings.")
         }
         alert.runModal()
     }

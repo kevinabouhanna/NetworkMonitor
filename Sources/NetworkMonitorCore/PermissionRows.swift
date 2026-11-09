@@ -5,8 +5,8 @@ import SwiftUI
 // get rather than how it works. Each is a row with the button that turns it
 // on: in the welcome window on first launch, and again where it's used, for
 // anyone who said "not now" and changes their mind. Website names are in
-// Settings › Connections and the Connections window, Wi-Fi names in
-// Settings › General. Once on, neither is shown there: there's nothing to
+// Connections' settings and the Connections window, Wi-Fi names in
+// Settings. Once on, neither is shown there: there's nothing to
 // manage (#181).
 
 /// The words, in one place, so every row says the same thing and a test can
@@ -18,7 +18,7 @@ public enum SetupCopy {
     public static var websitesTitle: String { L("See which websites your apps visit") }
     public static var websitesSummary: String { L("Slack shows up as slack.com, not just as Amazon, whose computers it runs on. It also lets you block any app, company or country.") }
 
-    /// The same switch, offered in Settings › Hotspot for what it does there (#98).
+    /// The same switch, offered in the Network page for what it does there (#98).
     public static var hotspotUpdatesTitle: String { L("Stop every app's updates on hotspots") }
     public static var hotspotUpdatesSummary: String { L("Not only the apps listed here: any app's updater is stopped while you're on a hotspot. It turns on the same thing as seeing which websites your apps visit.") }
     public static var hotspotUpdatesOn: String { L("Any app's updater is stopped while you're on a hotspot, including ones listed as can't be paused when they update with a program of their own. Choose Blocked in Connections to see them.") }
@@ -108,7 +108,7 @@ struct OnBadge: View {
 /// off in System Settings, not here (#181).
 struct WebsiteNamesRow: View {
     @ObservedObject var filter: FilterController
-    /// What it's offered as: website names, or, in Settings › Hotspot, a stop
+    /// What it's offered as: website names, or, in the Network page, a stop
     /// to every app's updates there (#98).
     var symbol = "globe"
     var title = SetupCopy.websitesTitle
