@@ -62,7 +62,6 @@
 
 /* AdsSettingsPane.swift */
 "Open Ads and Trackers…" = "打开广告与跟踪器…";
-"Ad blocking needs the content filter, which this build of NetworkMonitor doesn't have." = "广告拦截需要内容过滤器，但此版本的 NetworkMonitor 没有内容过滤器。";
 "Block ads and trackers" = "拦截广告和跟踪器";
 "Lists" = "列表";
 "Recommended" = "推荐";
@@ -764,7 +763,6 @@
 "Speed test running" = "网速测试正在进行";
 "Test internet speed" = "测试网速";
 "Test on a metered connection?" = "要在按流量计费的连接上测试吗？";
-"Back to Apps" = "返回应用";
 "Stop the test" = "停止测试";
 "Test again" = "再测一次";
 "Ping %@" = "延迟 %@";
@@ -826,7 +824,6 @@
 "%@ used today" = "今天已用 %@";
 "1 company today" = "今天 1 个公司";
 "1 connection blocked" = "已阻止 1 个连接";
-"Ad blocking isn't in this build" = "此版本不含广告拦截";
 "Ads blocked" = "已拦截";
 "Ads, trackers and malware sites blocked today" = "今天拦截的广告、跟踪器和恶意软件网站";
 "Ads, trackers and malware sites stopped in every app" = "在所有应用中拦截广告、跟踪器和恶意软件网站";
@@ -840,7 +837,6 @@
 "Every hour is kept on this Mac, per app and per network" = "每小时的数据都按应用和网络保存在这台 Mac 上";
 "Every hour is kept on this Mac, per app and per network." = "每小时的数据都按应用和网络保存在这台 Mac 上。";
 "Hotspot Settings" = "热点设置";
-"It needs the content filter, which only the signed app has." = "它需要内容过滤器，只有已签名的 App 才有。";
 "Marked by you for this network." = "已由你为此网络标记。";
 "No connections yet today" = "今天还没有连接";
 "Nothing blocked yet today" = "今天还没有拦截任何内容";
@@ -868,3 +864,7 @@
 "What was blocked, and every connection as it's decided" = "拦截了什么，以及每个连接在作出决定时的情况";
 "Which companies, countries and servers your apps talk to, on a list and a world map" = "以列表和世界地图显示你的应用与哪些公司、国家或地区以及服务器通信";
 "Who your apps talked to today" = "今天你的应用与谁通信";
+"Not tested yet" = "尚未测试";
+"Test Speed" = "测试网速";
+"This build has no content filter: the lists and rules here are kept, and apply when the signed app runs." = "此版本没有内容过滤器：这里的列表和规则会保留，并在已签名的 App 运行时生效。";
+"↓ %@  ↑ %@ · %@" = "↓ %@  ↑ %@ · %@";

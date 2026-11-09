@@ -124,7 +124,7 @@ private struct HeaderLiveReading: View {
 // MARK: - Card
 
 /// Takes the list's place while a test is on screen, with a dial and the
-/// full breakdown. "Back to Apps" returns the list.
+/// full breakdown. "Back" returns to the Connection view (#436).
 ///
 /// Running and finished share one layout, the tiles filling in as figures
 /// arrive, so the result lands in place instead of the card rearranging itself
@@ -188,7 +188,7 @@ struct SpeedTestCard: View {
         HStack {
             // Leaves the card, never the test: a run in progress carries on and
             // the header button brings it back. Stop is the button that stops.
-            Button(L("Back to Apps")) { speedTest.hide() }
+            Button(L("Back")) { speedTest.hide() }
                 .controlSize(.small)
             Spacer()
             Button(primary, action: primaryAction)
@@ -697,7 +697,7 @@ private struct SpeedTestStylePicture: View {
                     CardBody(live: Self.live, result: Self.sample, startedAt: nil, unit: unit)
                     Spacer(minLength: 0)
                     HStack {
-                        pill(L("Back to Apps"), prominent: false)
+                        pill(L("Back"), prominent: false)
                         Spacer()
                         pill(L("Test Again"), prominent: true)
                     }

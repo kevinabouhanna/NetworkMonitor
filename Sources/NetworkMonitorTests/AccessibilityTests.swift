@@ -97,7 +97,7 @@ func runAccessibilityTests() {
                     Check.expectTrue(outline.contains { $0.hasPrefix("AXButton name=\(style) ") },
                                      "no \(style) button in \(outline)")
                 }
-                Check.expectTrue(!outline.contains { $0.contains("Back to Apps") },
+                Check.expectTrue(!outline.contains { $0.contains("name=Back ") },
                                  "the picture's sample buttons reach VoiceOver: \(outline)")
                 settings.window.orderOut(nil)
             } }

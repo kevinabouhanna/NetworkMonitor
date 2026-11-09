@@ -639,8 +639,9 @@ public final class MonitorViewModel: ObservableObject {
         popoverIsOpen = open
         expandedApps.removeAll()
         if open {
-            // Always opens on Today, the apps (#436).
-            popoverSection = .today
+            // Opens on Today, the apps (#436), or on Connection while a speed
+            // test is showing, which is where it runs.
+            popoverSection = speedTest.isPresented && speedTest.phase != .idle ? .connection : .today
             glance.refresh()
             refreshHeader()
             rebuildRows(now: Date())

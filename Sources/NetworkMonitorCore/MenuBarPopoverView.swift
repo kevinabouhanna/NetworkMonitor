@@ -145,35 +145,41 @@ public struct MenuBarPopoverView: View {
                 PopoverBlocked(glance: glance, firewall: firewall, filter: filter, pausedText: adsPausedText,
                                onTurnOn: turnOnAdBlocking, onOpen: onAds)
             case .connection:
-                PopoverConnection(metering: metering, status: model.connection,
-                                  onHotspotSettings: onHotspotSettings)
+                connection
             }
-            Divider()
-            PopoverFooter(onSettings: onSettings)
         }
         .frame(width: 320)
     }
 
-    /// Today: the speed test while one is shown, the apps, and the way to
-    /// Usage History (#436).
+    /// Today: the apps, and the way to Usage History (#436).
     private var today: some View {
         VStack(alignment: .leading, spacing: 0) {
-                if showsCard {
-                    SpeedTestCard(speedTest: speedTest)
-                } else {
-                    if showsStrip {
-                        SpeedTestStrip(speedTest: speedTest)
-                        Divider()
-                    }
-                    if model.rows.isEmpty && model.systemRows.isEmpty {
-                        emptyState
-                    } else {
-                        list
-                    }
-                }
-
+            if model.rows.isEmpty && model.systemRows.isEmpty {
+                emptyState
+            } else {
+                list
+            }
             Divider()
             PopoverOpenRow(title: L("Open Usage History"), shortcut: "⌘Y", action: onHistory)
+        }
+    }
+
+    /// Connection: the network, the hotspot switch and the speed test, which
+    /// tests this connection and so runs here (#436). A test shown as a card
+    /// takes the view's place while it runs; the compact one sits above it.
+    @ViewBuilder
+    private var connection: some View {
+        if showsCard {
+            SpeedTestCard(speedTest: speedTest)
+        } else {
+            VStack(spacing: 0) {
+                if showsStrip {
+                    SpeedTestStrip(speedTest: speedTest)
+                    Divider()
+                }
+                PopoverConnection(metering: metering, speedTest: speedTest, status: model.connection,
+                                  onHotspotSettings: onHotspotSettings)
+            }
         }
     }
 
@@ -188,29 +194,37 @@ public struct MenuBarPopoverView: View {
 
     // MARK: Header
 
-    /// The connection and the speed test on one slim line, anything that needs
-    /// saying, then the four buttons (#436). One combined total: live
-    /// download/upload rates are already in the menu bar.
+    /// The four buttons with Settings' gear beside them, then anything that
+    /// needs saying (#436). One combined total: live download/upload rates are
+    /// already in the menu bar.
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                // Which connection the totals are for. Orange when it's the
-                // case where they matter most.
-                Text(model.connection.name ?? model.connection.medium ?? L("No connection"))
-                    .font(.system(size: 11))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .foregroundStyle(model.connection.isHighlighted ? AnyShapeStyle(.orange)
-                                                                    : AnyShapeStyle(.secondary))
-                    .help(model.connection.line)
-                // The speed test, right after the connection it tests (#436).
-                if SpeedTestRunner.isAvailable {
-                    SpeedTestButton(speedTest: speedTest)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .top, spacing: 2) {
+                PopoverButtons(selection: Binding(get: { model.popoverSection },
+                                                  set: { section in
+                                                      model.popoverSection = section
+                                                      if section == .companies || section == .blocked { glance.refresh() }
+                                                  }),
+                               today: ByteFormat.bytes(model.totalBytes),
+                               companies: glance.hasLoaded ? glance.summary.companies.formatted() : "–",
+                               blocked: firewall.lists.isEmpty ? L("Off") : listBlocks.today.formatted(),
+                               blockedIsOn: !firewall.lists.isEmpty,
+                               connection: PopoverConnection.word(model.connection, metering: metering),
+                               isHotspot: metering.verdict.isMetered)
+                Button(action: onSettings) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 26, height: 26)
+                        .contentShape(Rectangle())
                 }
-                Spacer()
+                .buttonStyle(.plain)
+                .help(L("Settings (⌘,)"))
+                .accessibilityLabel(L("Settings"))
             }
-            .padding(.horizontal, 12)
-            .padding(.top, 9)
+            .padding(.leading, 8)
+            .padding(.trailing, 6)
+            .padding(.top, 8)
             VStack(alignment: .leading, spacing: 2) {
                     if let standby = metering.standbyHotspot {
                         StandbyHotspotLine(message: standby.message,
@@ -263,18 +277,7 @@ public struct MenuBarPopoverView: View {
                     }
             }
             .padding(.horizontal, 12)
-            PopoverButtons(selection: Binding(get: { model.popoverSection },
-                                              set: { section in
-                                                  model.popoverSection = section
-                                                  if section == .companies || section == .blocked { glance.refresh() }
-                                              }),
-                           today: ByteFormat.bytes(model.totalBytes),
-                           companies: glance.hasLoaded ? glance.summary.companies.formatted() : "–",
-                           blocked: filter.state == .unavailable ? "–"
-                               : firewall.lists.isEmpty ? L("Off") : listBlocks.today.formatted(),
-                           blockedIsOn: !firewall.lists.isEmpty && filter.state != .unavailable,
-                           connection: PopoverConnection.word(model.connection, metering: metering),
-                           isHotspot: metering.verdict.isMetered)
+            .padding(.bottom, 8)
         }
     }
 

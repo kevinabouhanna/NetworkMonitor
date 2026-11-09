@@ -23,12 +23,11 @@ enum PopoverPalette {
 extension PopoverMetrics {
     /// Each of the Companies, Blocked and Connection views, one height for
     /// all three, so the popover doesn't change size moving between them.
-    public static let sectionHeight: CGFloat = 176
+    public static let sectionHeight: CGFloat = 220
     /// A row in the Companies and Blocked views.
     public static let summaryRowHeight: CGFloat = 28
     /// The row at the end of a view that opens its window, and the footer.
     public static let openRowHeight: CGFloat = 40
-    public static let footerHeight: CGFloat = 32
 }
 
 /// The four buttons across the header: the number that matters, and what it is.
@@ -54,8 +53,6 @@ struct PopoverButtons: View {
                    color: isHotspot ? PopoverPalette.hotspot : .primary,
                    help: L("What the Mac is connected to, and whether it's a hotspot"))
         }
-        .padding(.horizontal, 8)
-        .padding(.bottom, 8)
     }
 
     private func button(_ section: PopoverSection, value: String, label: String, color: Color,
@@ -117,28 +114,6 @@ struct PopoverOpenRow: View {
         .buttonStyle(.plain)
         .padding(.horizontal, 12)
         .frame(height: PopoverMetrics.openRowHeight)
-    }
-}
-
-/// Settings, named, at the bottom of the popover (#436).
-struct PopoverFooter: View {
-    let onSettings: () -> Void
-
-    var body: some View {
-        Button(action: onSettings) {
-            HStack(spacing: 6) {
-                Image(systemName: "gearshape").accessibilityHidden(true)
-                Text(L("Settings…"))
-                Spacer()
-                Text("⌘,").foregroundStyle(.tertiary).accessibilityHidden(true)  // untranslated: a shortcut
-            }
-            .font(.system(size: 12))
-            .padding(.horizontal, 12)
-            .frame(height: PopoverMetrics.footerHeight)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(L("Settings (⌘,)"))
     }
 }
 
@@ -258,13 +233,10 @@ struct PopoverBlocked: View {
     var body: some View {
         VStack(spacing: 0) {
             Group {
-                if filter.state == .unavailable {
-                    SummaryMessage(title: L("Ad blocking isn't in this build"),
-                                   detail: L("It needs the content filter, which only the signed app has."))
-                } else if firewall.lists.isEmpty {
+                if firewall.lists.isEmpty {
                     SummaryMessage(title: L("Ad blocking is off"),
                                    detail: L("Turn it on to stop ads, trackers and malware sites in every app."),
-                                   action: (L("Turn On"), onTurnOn))
+                                   action: filter.state == .unavailable ? nil : (L("Turn On"), onTurnOn))
                 } else if glance.ads.sites.isEmpty {
                     SummaryMessage(title: pausedText ?? L("Nothing blocked yet today"),
                                    detail: L("Sites the lists stop show here, busiest first."))
@@ -292,6 +264,7 @@ struct PopoverBlocked: View {
 /// say it's a hotspot, since a phone isn't always recognised (#436).
 struct PopoverConnection: View {
     @ObservedObject var metering: MeteringController
+    @ObservedObject var speedTest: SpeedTestController
     let status: ConnectionStatus
     let onHotspotSettings: () -> Void
 
@@ -331,6 +304,7 @@ struct PopoverConnection: View {
                     .padding(12)
                     .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
                     .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.primary.opacity(0.08)))
+                    if SpeedTestRunner.isAvailable { speedRow }
                 }
                 Spacer(minLength: 0)
             }
@@ -341,6 +315,36 @@ struct PopoverConnection: View {
     }
 
     private var isHotspot: Bool { metering.verdict.isMetered }
+
+    /// The speed test, for this connection: the last result, and a button.
+    private var speedRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "gauge.with.dots.needle.67percent")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(L("Speed test")).font(.system(size: 12, weight: .medium))
+                Text(lastResult).font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 8)
+            Button(speedTest.phase.isRunning ? L("Show") : L("Test Speed")) {
+                if speedTest.phase != .idle && !speedTest.isPresented { speedTest.present() } else { speedTest.run() }
+            }
+            .controlSize(.small)
+            .disabled(speedTest.phase.isRunning && speedTest.isPresented)
+        }
+        .padding(.horizontal, 2)
+    }
+
+    private var lastResult: String {
+        guard let result = speedTest.lastResult else { return L("Not tested yet") }
+        return L("↓ %@  ↑ %@ · %@", ByteFormat.speed(result.downloadBitsPerSecond, unit: speedTest.unit),
+                 ByteFormat.speed(result.uploadBitsPerSecond, unit: speedTest.unit),
+                 result.finishedAt.formatted(date: .omitted, time: .shortened))
+    }
 
     private var symbol: String {
         if isHotspot { return "personalhotspot" }

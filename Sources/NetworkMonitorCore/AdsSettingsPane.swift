@@ -22,12 +22,15 @@ struct AdsSettingsPane: View {
                     SettingsStatusLine(title: status, detail: statusDetail,
                                        action: L("Open Ads and Trackers…"), help: L("Also ⌘B"), onAction: onOpenAds)
                 }
+                // A build without the filter still shows and keeps every setting,
+                // for the signed app to apply, and says so.
                 if filter.state == .unavailable {
                     Section {
-                        Text(L("Ad blocking needs the content filter, which this build of NetworkMonitor doesn't have."))
+                        Text(L("This build has no content filter: the lists and rules here are kept, and apply when the signed app runs."))
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                } else {
+                }
                     Section {
                         ExplainedRow(L("Block ads and trackers"), Self.listsExplanation) {
                             Toggle(L("Block ads and trackers"), isOn: Binding(
@@ -52,13 +55,12 @@ struct AdsSettingsPane: View {
                         .labelsHidden()
                         .frame(maxWidth: .infinity)
                     }
-                }
             }
             .formStyle(.grouped)
             .scrollDisabled(true)
             .fixedSize(horizontal: false, vertical: true)
 
-            if filter.state != .unavailable {
+            do {
                 // The window's own views, as they were: they scroll inside a
                 // fixed height, so the pane is the same size every time.
                 Group {
