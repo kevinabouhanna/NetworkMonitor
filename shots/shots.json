@@ -312,6 +312,11 @@
       "always": true
     },
     {
+      "name": "menubar",
+      "open": [],
+      "window": "AXMenuBarItem"
+    },
+    {
       "name": "popover",
       "open": [
         "-open",
@@ -473,7 +478,10 @@
     },
     {
       "file": "assets/menubar.png",
-      "none": "the menu bar readout, which has no accessibility tree to compare: check it by eye when the readout changes"
+      "shows": [
+        "menubar"
+      ],
+      "made": "1.1.0"
     },
     {
       "file": "assets/dmg-window.png",
