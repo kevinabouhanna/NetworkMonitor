@@ -1,11 +1,14 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-follow-language>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NetworkMonitor — Live network speed and per-app data usage for your Mac</title>
 <meta name="description" content="A free, open-source macOS menu bar app. Live download and upload speed, which apps used your connection, automatic updates paused on mobile hotspots, and a speed test on demand. No telemetry, no Dock icon.">
 <link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/">
+<link rel="alternate" hreflang="x-default" href="https://kevinabouhanna.github.io/NetworkMonitor/">
 <meta name="theme-color" content="#000000">
 <meta name="color-scheme" content="dark">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=2dd491c8">
@@ -28,6 +31,22 @@
 <meta name="twitter:image" content="https://kevinabouhanna.github.io/NetworkMonitor/assets/social-card.png?v=6d645350">
 <meta name="twitter:image:alt" content="NetworkMonitor. Every byte. Accounted for. Live network speed in your Mac's menu bar, and which app used your data. Free, open source, macOS 13 or later. Beside it, the real app: its menu bar readout and popover, listing Google Chrome, iTerm2, Slack and more by how much data each used.">
 <script>document.documentElement.classList.add('js')</script>
+<script>
+// The page in the browser's language (#430): Chinese readers are sent to the
+// Chinese page, until they choose a language with the switch, which is kept.
+(function () {
+  try {
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[data-lang]');
+      if (a) localStorage.setItem('lang', a.getAttribute('data-lang'));
+    });
+    if (!document.documentElement.hasAttribute('data-follow-language') || localStorage.getItem('lang')) return;
+    var langs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+    var first = langs.map(function (l) { return l.toLowerCase(); }).filter(function (l) { return /^(en|zh)(-|$)/.test(l); })[0] || '';
+    if (/^zh(-hans(-.*)?|-cn|-sg)?$/.test(first)) location.replace('zh/' + location.hash);
+  } catch (e) {}
+})();
+</script>
 <style>
 :root {
   /* From the app icon: Scripts/make-icon.swift */
@@ -442,6 +461,7 @@ footer a { color: var(--text-2); }
       </div>
       <a href="#privacy">Privacy</a>
       <a href="#install">Install</a>
+      <a href="zh/" lang="zh-Hans" hreflang="zh-Hans" data-lang="zh-Hans">中文</a>
     </div>
     <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download</a>
   </div>
@@ -459,7 +479,7 @@ footer a { color: var(--text-2); }
         <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download for Mac</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
-      <p class="hero-meta reveal d3"><span>Version 1.26.7</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
+      <p class="hero-meta reveal d3"><span>Version 1.27.0</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
       <div class="featured reveal d3">
         <a href="https://www.trymacapps.com" target="_blank" rel="noopener">
           <img
@@ -900,7 +920,7 @@ footer a { color: var(--text-2); }
           <p>The usual Mac way: open the disk image and drag NetworkMonitor into <strong>Applications</strong>.</p>
           <div class="get">
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download NetworkMonitor.dmg</a>
-            <span class="meta">Version 1.26.7 · 14.0 MB · Universal</span>
+            <span class="meta">Version 1.27.0 · 14.1 MB · Universal</span>
           </div>
           <figure class="dmg-shot" style="margin-bottom:0">
             <img src="assets/dmg-window.png?v=5630c3c3" width="1424" height="1104" loading="lazy"
@@ -917,7 +937,7 @@ footer a { color: var(--text-2); }
       </div>
 
       <div class="ctas reveal">
-        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.26.7">What’s in version 1.26.7</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.27.0">What’s in version 1.27.0</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/wiki">Documentation</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
@@ -936,6 +956,7 @@ footer a { color: var(--text-2); }
         <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases</a>
         <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">Report an issue</a>
         <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">License</a>
+        <a href="zh/" lang="zh-Hans" hreflang="zh-Hans" data-lang="zh-Hans">中文</a>
       </nav>
     </div>
   </div>
