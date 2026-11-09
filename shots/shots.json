@@ -130,7 +130,18 @@
         },
         {
           "from": "AXStaticText:Right now",
-          "skip": 1
+          "until": "end",
+          "optional": true
+        },
+        {
+          "from": "AXHeading:This network",
+          "skip": 2
+        },
+        {
+          "from": "AXStaticText:Any app's updater is stopped",
+          "skip": 1,
+          "until": "end",
+          "optional": true
         }
       ],
       "ignore": [
@@ -153,12 +164,23 @@
           "from": "AXStaticText:~ today"
         },
         {
-          "from": "AXStaticText:Right now",
-          "skip": 1
-        },
-        {
           "from": "AXDisclosureTriangle:Paused on a hotspot",
           "until": "end"
+        },
+        {
+          "from": "AXStaticText:Right now",
+          "until": "end",
+          "optional": true
+        },
+        {
+          "from": "AXHeading:This network",
+          "skip": 2
+        },
+        {
+          "from": "AXStaticText:Any app's updater is stopped",
+          "skip": 1,
+          "until": "end",
+          "optional": true
         }
       ],
       "ignore": [
@@ -181,12 +203,23 @@
           "from": "AXStaticText:~ today"
         },
         {
-          "from": "AXStaticText:Right now",
-          "skip": 1
-        },
-        {
           "from": "AXDisclosureTriangle:Can't be paused",
           "until": "end"
+        },
+        {
+          "from": "AXStaticText:Right now",
+          "until": "end",
+          "optional": true
+        },
+        {
+          "from": "AXHeading:This network",
+          "skip": 2
+        },
+        {
+          "from": "AXStaticText:Any app's updater is stopped",
+          "skip": 1,
+          "until": "end",
+          "optional": true
         }
       ],
       "ignore": [
@@ -292,6 +325,11 @@
       "data": [
         {
           "from": "AXOpaqueProviderGroup"
+        },
+        {
+          "from": "AXButton:Network",
+          "until": "AXStaticText:Group by",
+          "optional": true
         }
       ]
     },
@@ -313,6 +351,11 @@
       "data": [
         {
           "from": "AXOpaqueProviderGroup"
+        },
+        {
+          "from": "AXButton:Network",
+          "until": "AXStaticText:Group by",
+          "optional": true
         }
       ]
     },
@@ -332,6 +375,11 @@
       "data": [
         {
           "from": "AXOpaqueProviderGroup"
+        },
+        {
+          "from": "AXButton:Network",
+          "until": "AXStaticText:Group by",
+          "optional": true
         }
       ]
     },
@@ -452,7 +500,8 @@
         "Usage History Settings": "流量历史设置",
         "Connections Settings": "连接设置",
         "Ads and Trackers Settings": "广告与跟踪器设置",
-        "Network Settings": "网络设置"
+        "Network Settings": "网络设置",
+        "Any app's updater is stopped": "使用热点时，任何应用的更新程序都会被停止"
       }
     }
   ]
