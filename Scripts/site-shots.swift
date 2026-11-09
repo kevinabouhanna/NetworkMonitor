@@ -176,7 +176,9 @@ struct Shot: Decodable {
     /// are the English shot's business.
     func localized(_ language: Language, _ t: Translator) -> Shot {
         var shot = self
-        shot.open = open + ["-language", language.code]
+        // AppleLanguages too, so dates and times come out as that language
+        // writes them, as on a Mac set to it.
+        shot.open = open + ["-language", language.code, "-AppleLanguages", "(\(language.code))"]
         shot.window = t.window(window)
         shot.file = file.map(language.file)
         shot.click = click?.map(t.spec)
@@ -332,6 +334,9 @@ func mask(_ s: String) -> String {
     s = s.replacingOccurrences(of: "\\b(\(months))\\b", with: "‹month›", options: .regularExpression)
     s = s.replacingOccurrences(of: "\\b(\(weekdays))\\b", with: "‹day›", options: .regularExpression)
     s = s.replacingOccurrences(of: "#\\s?(AM|PM|am|pm)\\b", with: "‹time›", options: .regularExpression)
+    // Chinese times and days (#431): 早上5:51, 下午#, 星期一, 周一.
+    s = s.replacingOccurrences(of: "(凌晨|早上|上午|中午|下午|晚上)\\s?#", with: "‹time›", options: .regularExpression)
+    s = s.replacingOccurrences(of: "(星期|周)[一二三四五六日天]", with: "‹day›", options: .regularExpression)
     // A total is in KB one day and GB the next.
     s = s.replacingOccurrences(of: "#\\s?(bytes|[KMGT]?B/s|[KMGT]bps|bps|[KMGT]?B)(?![A-Za-z])", with: "# ‹unit›",
                                options: .regularExpression)
@@ -545,7 +550,9 @@ struct Session {
             if find(wait.element, in: window) != nil { usleep(800_000); return }
             usleep(500_000)
         }
-        throw Failure("\(wait.element) didn't appear within \(Int(wait.seconds)) s")
+        // What it showed instead, to tell a slow window from a wrong spec.
+        let showing = tree(window, data: []).prefix(30).joined(separator: "\n")
+        throw Failure("\(wait.element) didn't appear within \(Int(wait.seconds)) s; the window showed:\n\(showing)")
     }
 
     /// Moves a window that's on a 1x screen onto a Retina one, which captures

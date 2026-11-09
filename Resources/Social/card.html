@@ -9,6 +9,10 @@
     card.html?w=1280&h=640  →  github-social-preview.png  (repository Settings → Social preview)
   Render each by opening it in Chromium at exactly that viewport, device scale 1, once
   fonts have loaded, and screenshotting the page; it uses the system font, so render on a Mac.
+  Each language the site has a page in gets its own card (#431): add &lang=zh-Hans for the
+  Chinese page's, which goes in assets/zh-Hans/social-card.png. Its words are below, and its
+  picture is capture-zh-Hans.png: capture.png's menu bar with the popover in that language
+  laid over the English one.
   capture.png is a real capture of the menu bar and popover (2x); icon.png is
   Resources/AppIcon.icns at 1024 px. Retake capture.png whenever the popover changes.
 -->
@@ -78,6 +82,23 @@
     s.setProperty('--pad', (w >= 1280 ? 84 : 72) + 'px');
     s.setProperty('--shot-right', (w >= 1280 ? 6 : -14) + 'px');
     s.setProperty('--shot-top', '26px');
+
+    // The card in another language, with the words its page uses.
+    const words = {
+      'zh-Hans': {
+        title: ['每个字节。', '一清二楚。'],
+        sub: '在 Mac 菜单栏中查看实时网速，以及哪个应用用了你的流量。',
+        meta: ['免费', '开源', 'macOS 13 或更高版本'],
+      },
+    }[q.get('lang')];
+    if (words) {
+      document.documentElement.lang = q.get('lang');
+      const lines = document.querySelectorAll('h1 .line');
+      lines[0].textContent = words.title[0]; lines[1].textContent = words.title[1];
+      document.querySelector('.sub').textContent = words.sub;
+      document.querySelectorAll('.meta span').forEach((span, i) => { span.textContent = words.meta[i]; });
+      document.querySelector('.shot img').src = `capture-${q.get('lang')}.png`;
+    }
   </script>
 </body>
 </html>
