@@ -53,6 +53,8 @@ through without asking. What's particular to NetworkMonitor:
     through Sparkle, once the release is published, so the installed app
     updates itself to the notarized build.
   - Bring the website (`gh-pages` branch) up to date:
+    - the docs pages: `make docs-site SITE=<site worktree>` from the tag, so they
+      describe the version people can download (#334)
     - the hero's version
     - the download line's version and DMG size, in 1024-based MB
     - the "What's in version" link
@@ -109,6 +111,12 @@ problems; Kevin answers what it can't judge (#346).
   docs (`docs/zh-Hans/`) and the website (`zh/index.html`) have a Chinese copy: a
   change to the English changes the copy too, using the app's own words
   (`docs/development.md#languages`).
+- **The docs change with the feature** (#334). `docs/` is the one source: the
+  website's docs pages and the wiki are built from it by docs-kit (the `docs-kit`
+  plugin's skill; `Scripts/docs-kit`, `.docs-kit.json`), never edited. A pull
+  request that changes the app's text changes the page in `docs/` that describes
+  it, in every language; `make docs-check` (CI) fails it otherwise, unless the
+  description says `No docs needed: <why>` (`docs/development.md#the-docs`).
 - **Each language's glossary** (`<code>.lproj/Glossary.json`) names features and
   settings; `make test` holds the app's table to it, and the docs and site use the
   same words. `make translation-check` (CI) fails a pull request that changes an

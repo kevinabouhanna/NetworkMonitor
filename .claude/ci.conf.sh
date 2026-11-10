@@ -33,8 +33,9 @@ nm_smoke() {
 
 ci_job_build_and_test() {
   # The pull request's description can say a change is English only (#434).
-  if [[ -n "$CI_PR" ]]; then PR="$CI_PR" make translation-check BASE=origin/main
-  else PR_BODY="" make translation-check BASE=origin/main; fi
+  # …and that it needs no docs (#334).
+  if [[ -n "$CI_PR" ]]; then PR="$CI_PR" make translation-check docs-check BASE=origin/main
+  else PR_BODY="" make translation-check docs-check BASE=origin/main; fi
   swift build
   CI=true make test # as on GitHub: skips the tests that need live traffic
   GITHUB_BASE_REF=main GITHUB_HEAD_REF="$CI_HEAD" make asset-check SITE="$nm_site"
