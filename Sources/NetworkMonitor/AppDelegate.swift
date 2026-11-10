@@ -823,29 +823,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         main.showSettings(for: section, from: origin)
     }
 
-    /// The standard About window, with what the old Settings' About pane had (#436): the
-    /// version, and links to the website, the release notes and the source.
+    /// The standard About window (#436), its credits named for VoiceOver (#494).
     @objc private func showAbout() {
         if popover.isShown { closePopover() }
-        let credits = NSMutableAttributedString()
-        let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
-        func line(_ text: String, link: String? = nil) {
-            var attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
-            if let link { attributes[.link] = URL(string: link) }
-            credits.append(NSAttributedString(string: text + "\n", attributes: attributes))
-        }
-        line(L("Live network speed in your menu bar, and which app used your data."))
-        line("")
-        line(L("Website"), link: "https://kevinabouhanna.github.io/NetworkMonitor/")
-        line(L("What's new"), link: "https://github.com/kevinabouhanna/NetworkMonitor/releases/latest")
-        line(L("Source code"), link: "https://github.com/kevinabouhanna/NetworkMonitor")
-        line("")
-        line(L("Free and open source, under the Apache 2.0 licence."))
-        let style = NSMutableParagraphStyle()
-        style.alignment = .center
-        credits.addAttribute(.paragraphStyle, value: style, range: NSRange(location: 0, length: credits.length))
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+        AboutPanel.show()
     }
 
     private func show(section: MainSection) {

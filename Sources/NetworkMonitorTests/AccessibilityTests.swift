@@ -129,6 +129,29 @@ func runAccessibilityTests() {
                 check(part(main.settingsPage(for: section), "Main window \(section.rawValue) settings"),
                       "The main window › \(section.rawValue) › settings\(language)")
             }
+            // The standard About panel (#494): AppKit leaves its credits text
+            // unnamed, so the app names it once the panel is up.
+            Check.test("About names everything VoiceOver reads\(language)") {
+                AboutPanel.show()
+                guard let window = AboutPanel.window() else {
+                    Check.expectTrue(false, "no About panel showing the credits")
+                    return
+                }
+                // Out of sight before the run loop draws it.
+                window.alphaValue = 0
+                window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                guard let problems = AccessibilityAudit.auditOwnWindow(titled: window.title, symbols: symbols) else {
+                    Check.expectTrue(false, "couldn't read the About panel's accessibility tree")
+                    return
+                }
+                for problem in problems { Check.expectTrue(false, problem.description) }
+                let outline = AccessibilityAudit.outlineOwnWindow(titled: window.title)
+                Check.expectTrue(outline.contains { $0.hasPrefix("AXTextArea name=\(AboutPanel.creditsName) ") },
+                                 "the credits aren't named \(AboutPanel.creditsName): \(outline)")
+                window.orderOut(nil)
+            }
+
             let popover = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 480),
                                    styleMask: [.titled], backing: .buffered, defer: false)
             popover.title = "Popover"
