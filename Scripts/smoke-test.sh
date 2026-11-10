@@ -8,6 +8,10 @@
 # compiles and is packaged, not that it runs.
 #
 # Usage:  ./Scripts/smoke-test.sh [seconds]
+#
+# Every running copy is quit first, the installed one too, since they share
+# settings; the installed copy is opened again afterwards if it was running,
+# however the test ends (#508).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -16,8 +20,9 @@ cd "$(dirname "$0")/.."
 . Scripts/mac-lane.sh
 MAC_LANE=networkmonitor MAC_LANE_WHAT="smoke-test.sh $*" mac_lane_enter
 
+. Scripts/quit-and-open.sh
+
 APP="build/NetworkMonitor.app"
-PATTERN="NetworkMonitor.app/Contents/MacOS"
 SETTLE="${1:-5}"
 
 if [ ! -d "$APP" ]; then
@@ -25,11 +30,23 @@ if [ ! -d "$APP" ]; then
   exit 1
 fi
 
-cleanup() { pkill -f "$PATTERN" 2>/dev/null || true; }
+WAS_RUNNING=false
+if nm_was_running; then WAS_RUNNING=true; fi
+
+# Quit gracefully and wait for launchd to let go of the launch job before the
+# installed copy is opened again, or `open` can fail with error 37 (#508).
+cleanup() {
+  local status=$?
+  nm_quit
+  if $WAS_RUNNING; then
+    echo "==> Opening the installed copy again"
+    nm_open "$NM_INSTALLED" || status=1
+  fi
+  exit "$status"
+}
 trap cleanup EXIT
 
-cleanup
-sleep 1
+nm_quit
 
 echo "==> Launching $APP"
 # Run the binary directly rather than via `open`: no LaunchServices round trip,

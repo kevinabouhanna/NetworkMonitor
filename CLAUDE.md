@@ -191,8 +191,10 @@ release of its own:
     `make run` take it themselves. Launch a development build through it too:
     `MAC_LANE=networkmonitor mac-lane open -W -n build/NetworkMonitor.app --args …`
     holds the lane until that copy quits.
-  - `screen`: the pointer, screen captures and recordings. `make site-check` and
-    `site-shots` take both `screen` and `networkmonitor`.
+  - `screen`: the pointer, screen captures and recordings. `site-shots` (`make
+    site-check`, `site-shots`…, `build/site-shots tree`) takes both `screen` and
+    `networkmonitor` itself, only while it reads or takes windows: it waits for Kevin
+    to step away with the lanes free (#504).
 
   A busy lane waits and names its holder. Run those commands in the background so a
   wait can't time out. `mac-lane status` lists every lane, who holds it and for how long.
@@ -202,6 +204,9 @@ release of its own:
   needed. Anything that brings a window forward or moves the real pointer waits until
   he steps away: `make site-shots` does (`MAC_LANE_IDLE=90`: no keyboard or mouse for
   90 s, or the screen locked); for your own, take `screen` with `MAC_LANE_IDLE=90`.
+- **Quit and reopen the app through `Scripts/quit-and-open.sh`** (`nm_quit`,
+  `nm_open`), never `pkill` and `open` straight after: launchd can keep a dead launch
+  job and fail the `open` with error 37 (#508).
 - **Computer use has its own lock, held until the session exits.** Check windows
   with the accessibility tree (`make site-check`, `build/site-shots tree <name>`)
   first. Use computer use only for what that can't show, from a short session that

@@ -36,7 +36,7 @@ dmg: universal
 # Stops every running copy, the installed one too, so it waits its turn in the
 # Mac lane (#342) like everything else that uses the Mac as a whole.
 run: app
-	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh /bin/sh -c 'pkill -f "NetworkMonitor.app/Contents/MacOS"; sleep 1; open -g build/NetworkMonitor.app'
+	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh /bin/bash -c '. Scripts/quit-and-open.sh; nm_quit; nm_open build/NetworkMonitor.app'
 	@echo "Running — look for ↓/↑ in the menu bar. Right-click the item for the menu."
 
 # This branch's build in the menu bar instead of the installed app, for a
@@ -104,13 +104,15 @@ dmg-background:
 	@swift Scripts/make-dmg-background.swift
 
 # The website's pictures of the app (#329). Both run against the installed app,
-# quitting and relaunching it, so both wait their turn in the Mac lane (#342).
+# quitting and relaunching it, so both wait their turn in the Mac lanes (#342):
+# site-shots takes `networkmonitor` and `screen` itself, only while it reads or
+# takes windows, never while it waits for Kevin to step away (#504).
 # They read the NetworkMonitor-site worktree beside the main checkout, found
 # through git so it works from any worktree, unless SITE says otherwise.
 # `site-check` says which pictures show a window whose interface changed;
 # `site-shots` retakes them (or those in NAMES) and updates the page.
 # LOOK=1 makes `site-check` compare each picture's look too (#423), which
-# brings each window forward, so it waits until the keyboard and mouse are idle.
+# brings each window forward, so those wait until the keyboard and mouse are idle.
 SITE ?= $(abspath $(dir $(shell git rev-parse --path-format=absolute --git-common-dir))../NetworkMonitor-site)
 # It shares the accessibility rules with the tests.
 build/site-shots: Scripts/site-shots.swift Sources/NetworkMonitorCore/AccessibilityAudit.swift
@@ -119,7 +121,7 @@ build/site-shots: Scripts/site-shots.swift Sources/NetworkMonitorCore/Accessibil
 
 site-check: build/site-shots
 	@build/site-shots coverage --site $(SITE)
-	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh env MAC_LANE=screen ./Scripts/mac-lane.sh build/site-shots check $(if $(LOOK),--look) --site $(SITE) $(NAMES)
+	@build/site-shots check $(if $(LOOK),--look) --site $(SITE) $(NAMES)
 
 # Every image, GIF and video the site, the README and the docs use is listed
 # with the window it shows, or why it shows none (#413). Files only, no app:
@@ -143,20 +145,21 @@ translation-review:
 	@python3 -I Scripts/translation-review.py $(FROM) $(TO)
 
 # Retaking pictures brings each window forward, so it waits until Kevin steps away (#475): no
-# keyboard or mouse for 90 s, or the screen locked. Run it in the background.
+# keyboard or mouse for 90 s (MAC_LANE_IDLE), or the screen locked. It reads the windows it
+# needn't retake first, and waits with the lanes free (#504). Run it in the background.
 site-shots: build/site-shots
-	@MAC_LANE=networkmonitor MAC_LANE_IDLE=90 ./Scripts/mac-lane.sh env MAC_LANE=screen ./Scripts/mac-lane.sh build/site-shots update --site $(SITE) $(NAMES)
+	@build/site-shots update --site $(SITE) $(NAMES)
 
 # Records the trees of the windows in NAMES as they read now, without retaking
 # their pictures: after marking more of a window as data or ignored, such as
 # what follows the Mac's connection (#416).
 site-trees: build/site-shots
-	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh env MAC_LANE=screen ./Scripts/mac-lane.sh build/site-shots record --site $(SITE) $(NAMES)
+	@build/site-shots record --site $(SITE) $(NAMES)
 
 # The installed app's windows, with real data, against the tests' accessibility
 # rules (#346).
 site-audit: build/site-shots
-	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh env MAC_LANE=screen ./Scripts/mac-lane.sh build/site-shots audit --site $(SITE) $(NAMES)
+	@build/site-shots audit --site $(SITE) $(NAMES)
 
 # Pictures of every window from a made-up dataset, at 2x in light and dark,
 # for the design work (#437): no real connections, sites or rules, and no

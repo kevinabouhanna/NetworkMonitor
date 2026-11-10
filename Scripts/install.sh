@@ -77,8 +77,10 @@ echo "==> Stopping any running copy"
 # app reads it on next launch to carry the user's existing "start at login"
 # choice over to SMAppService, then deletes it.
 launchctl bootout "gui/$(id -u)/${BUNDLE_ID}" 2>/dev/null || true
-pkill -f "${APP_NAME}.app/Contents/MacOS/${APP_NAME}" 2>/dev/null || true
-sleep 1
+# Gracefully, then until launchd lets go of its launch job: opened again before
+# that, `open` fails with launchd's error 37 (#508).
+. Scripts/quit-and-open.sh
+nm_quit
 
 echo "==> Installing to ${DEST}"
 if [ ! -w /Applications ]; then
@@ -108,7 +110,7 @@ else
 fi
 
 echo "==> Starting ${APP_NAME}"
-open -g "$DEST"
+nm_open "$DEST"
 
 echo
 echo "==> Done."
