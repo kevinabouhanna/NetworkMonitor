@@ -1,0 +1,204 @@
+<!doctype html>
+<!-- The template of every English docs page. The pages beside it are built
+     from the app repository's docs/ by `make docs-site` (docs-kit, #334):
+     change a page there, never here. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Accuracy and battery — NetworkMonitor docs</title>
+<meta name="description" content="The kernel&#x27;s figure is a little above the payload because it includes TCP, TLS and HTTP overhead, which is real traffic you pay for. The live rate tracks to…">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/accuracy-and-battery/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/accuracy-and-battery/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/accuracy-and-battery/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to the page</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../"><img src="../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../docs/" aria-current="true">Docs</a>
+      <a href="../../zh/docs/accuracy-and-battery/" lang="zh-Hans" hreflang="zh-Hans" data-lang="zh-Hans">简体中文</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">Download</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>All pages</summary>
+    <nav aria-label="Documentation"><ul><li><a href="../../docs/">NetworkMonitor documentation</a></li><li><span class="docs-nav-section">Using NetworkMonitor</span><ul><li><a href="../../docs/installing/">Installing, updating and removing</a></li><li><a href="../../docs/features/">Features</a></li><li><a href="../../docs/connections/">Connections</a></li><li><a href="../../docs/usage-history/">Usage History</a></li><li><a href="../../docs/speed-test/">Speed test</a></li><li><a href="../../docs/hotspot-mode/">Hotspot mode</a></li><li><a href="../../docs/accuracy-and-battery/" aria-current=page>Accuracy and battery</a></li><li><a href="../../docs/privacy/">Privacy</a></li><li><a href="../../docs/security/">Security policy</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="accuracy-and-battery" class="heading-element">Accuracy and battery</h1><a id="accuracy-and-battery" class="anchor" aria-label="Permalink: Accuracy and battery" href="#accuracy-and-battery"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="markdown-heading"><h2 id="the-total-is-the-one-to-trust" class="heading-element">The total is the one to trust</h2><a id="the-total-is-the-one-to-trust" class="anchor" aria-label="Permalink: The total is the one to trust" href="#the-total-is-the-one-to-trust"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>Your speed and connection total come straight from the kernel's own byte counters,</strong>
+and run all the time. Checked against the kernel across three independent transfers:</p>
+<table>
+<thead>
+<tr>
+<th>Transfer</th>
+<th>Recorded vs the kernel's own count</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10 MB download</td>
+<td>100.2%</td>
+</tr>
+<tr>
+<td>50 MB download</td>
+<td>100.0%</td>
+</tr>
+<tr>
+<td>6.5 MB, sustained over 15 seconds, to look for lost samples</td>
+<td>99.6%</td>
+</tr>
+</tbody>
+</table>
+<p>The kernel's figure is a little above the payload because it includes TCP, TLS and HTTP
+overhead, which is real traffic you pay for. The live rate tracks to within 0.4%.</p>
+<p><strong>Per-app rows won't quite add up to the total, and shouldn't.</strong> The kernel counts
+everything on the wire, including overhead that belongs to no app; <code>nettop</code> counts what each
+app's sockets moved. In the 50 MB test, <code>curl</code> was credited with 94.8% of the kernel's
+figure, and the rest was wire overhead. The final second before you quit is never
+completed either. So the big total is the one to trust; the rows tell you where it went.</p>
+<p><strong>A process that comes and goes between two samples may not get a row.</strong> <code>nettop</code> reports
+the processes alive when it samples, every 1 to 10 seconds depending on the power
+profile. A socket that opens and closes in between still reaches its process's row, but a
+process that starts and ends in between may never be named. Its bytes are still in the
+total, and in History and the CSV they're under <em>Not attributed to an app</em>.</p>
+<div class="markdown-heading"><h2 id="internet-not-your-own-network" class="heading-element">Internet, not your own network</h2><a id="internet-not-your-own-network" class="anchor" aria-label="Permalink: Internet, not your own network" href="#internet-not-your-own-network"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Mirroring your screen to an Apple TV, Time Machine to a NAS, a Plex stream from your own
+server: they cross your Wi-Fi but cost no internet data, so they're left out. AirPlay through
+a router alone can move 4 to 13 GB an hour, which would otherwise swamp the day.</p>
+<p>Every connection's other end is checked: private addresses (<code>10/8</code>, <code>172.16/12</code>,
+<code>192.168/16</code>, link-local) are your own network; everything else, and anything that can't be
+read, is internet. Under-reporting is the one error the app can't afford, so ambiguity counts
+as internet. <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/architecture.md#internet-not-your-own-network">Architecture</a> has the details,
+including why multicast is never subtracted and why the total is clamped between the app
+rows and the kernel's count.</p>
+<div class="markdown-heading"><h2 id="why-it-wont-match-activity-monitor" class="heading-element">Why it won't match Activity Monitor</h2><a id="why-it-wont-match-activity-monitor" class="anchor" aria-label="Permalink: Why it won't match Activity Monitor" href="#why-it-wont-match-activity-monitor"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Activity Monitor's Network tab counts bytes since each process <strong>started</strong>, often days ago.
+NetworkMonitor reports what it saw today, this week or this month, from the period's start,
+and on the Network page what it saw on the connection you're on, since you joined it or
+since midnight. Neither is wrong; they answer different questions.</p>
+<div class="markdown-heading"><h2 id="battery" class="heading-element">Battery</h2><a id="battery" class="anchor" aria-label="Permalink: Battery" href="#battery"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>NetworkMonitor samples less often when it can, and never counts less. Both sources report
+the bytes moved <strong>between</strong> samples, so sampling less often changes how fresh the figures
+are, not how complete. There's nothing to configure, and <strong>Settings › Sampling</strong>
+says which mode is in force.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Readout updates</th>
+<th>App list updates</th>
+<th>While nobody can see the menu bar</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Plugged in</strong></td>
+<td>every 0.5 s</td>
+<td>every 1 s</td>
+<td>counters every 5 s</td>
+</tr>
+<tr>
+<td><strong>On battery</strong></td>
+<td>every 1 s</td>
+<td>every 3 s</td>
+<td>counters every 10 s</td>
+</tr>
+<tr>
+<td>
+<strong>Low Power Mode</strong>, plugged in or not</td>
+<td>every 2 s</td>
+<td>every 10 s</td>
+<td>counters every 15 s</td>
+</tr>
+</tbody>
+</table>
+<p>"Nobody can see the menu bar" means the display is asleep, the screen is locked, or another
+user's session is in front. Then the readout isn't drawn at all, and it catches up the moment
+someone can see it.</p>
+<p>Measured on an M1 MacBook Air with its own everyday background traffic, two minutes each,
+the app and its <code>nettop</code> together:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Share of one CPU core</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Plugged in</td>
+<td>2.68%</td>
+</tr>
+<tr>
+<td>On battery</td>
+<td><strong>1.19%</strong></td>
+</tr>
+<tr>
+<td>Low Power Mode</td>
+<td><strong>0.53%</strong></td>
+</tr>
+<tr>
+<td>On battery, with nobody watching</td>
+<td><strong>0.47%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Most of the app's own share is drawing the menu bar readout. Over a day, Activity Monitor's
+12-hour power figure puts it alongside other menu bar utilities that run all the time.</p>
+<div class="markdown-heading"><h3 id="the-drain-that-was-a-bug" class="heading-element">The drain that was a bug</h3><a id="the-drain-that-was-a-bug" class="anchor" aria-label="Permalink: The drain that was a bug" href="#the-drain-that-was-a-bug"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Early versions cost about <strong>1.4 CPU cores</strong>, and switched per-app tracking off on battery
+because of it. The cost turned out to be a bug, not a price. <code>nettop</code>, the tool macOS
+provides for per-app numbers, polls its input for keystrokes. It was given an input that's
+always "ready" (<code>/dev/null</code>), so it spun on an empty loop forever. Given an input that waits
+properly, the same data cost <strong>0.55% of a core</strong>, 256 times less, and arrived just as fast.</p>
+<p>The fix also showed that switching tracking off on battery was backwards: it turned
+attribution off exactly where it matters, on a phone's hotspot. One hotspot session showed
+25.4 MB on the interface against 1.1 MB attributed to apps. So per-app tracking now always
+runs, on every network and on battery.</p>
+<p><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/development.md#measuring-power">Development</a> shows how to measure a profile without
+unplugging.</p>
+
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/accuracy-and-battery.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+  </main>
+</div>
+<script>
+// On a narrow screen the list of pages starts closed, above the page.
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna. NetworkMonitor is free software under the Apache License 2.0. macOS is a trademark of Apple Inc.</span>
+      <nav aria-label="Project links">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">Report an issue</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">License</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

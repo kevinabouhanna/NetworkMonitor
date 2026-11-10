@@ -1,0 +1,318 @@
+<!doctype html>
+<!-- The template of every English docs page. The pages beside it are built
+     from the app repository's docs/ by `make docs-site` (docs-kit, #334):
+     change a page there, never here. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Features — NetworkMonitor docs</title>
+<meta name="description" content="Everything NetworkMonitor does, and where to find it.">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/features/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/features/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/features/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to the page</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../"><img src="../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../docs/" aria-current="true">Docs</a>
+      <a href="../../zh/docs/features/" lang="zh-Hans" hreflang="zh-Hans" data-lang="zh-Hans">简体中文</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">Download</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>All pages</summary>
+    <nav aria-label="Documentation"><ul><li><a href="../../docs/">NetworkMonitor documentation</a></li><li><span class="docs-nav-section">Using NetworkMonitor</span><ul><li><a href="../../docs/installing/">Installing, updating and removing</a></li><li><a href="../../docs/features/" aria-current=page>Features</a></li><li><a href="../../docs/connections/">Connections</a></li><li><a href="../../docs/usage-history/">Usage History</a></li><li><a href="../../docs/speed-test/">Speed test</a></li><li><a href="../../docs/hotspot-mode/">Hotspot mode</a></li><li><a href="../../docs/accuracy-and-battery/">Accuracy and battery</a></li><li><a href="../../docs/privacy/">Privacy</a></li><li><a href="../../docs/security/">Security policy</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="features" class="heading-element">Features</h1><a id="features" class="anchor" aria-label="Permalink: Features" href="#features"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Everything NetworkMonitor does, and where to find it.</p>
+<div class="markdown-heading"><h2 id="the-menu-bar-readout" class="heading-element">The menu bar readout</h2><a id="the-menu-bar-readout" class="anchor" aria-label="Permalink: The menu bar readout" href="#the-menu-bar-readout"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Two lines, always visible: <strong>↓ download</strong> in green over <strong>↑ upload</strong> in light grey, in
+<strong>MB/s</strong> or <strong>Mbps</strong> (<strong>Settings › Show speeds in</strong>). Mbps matches how your line
+is sold; MB/s matches the data totals. Amounts of data are always in MB and GB, the way
+data plans are sold. Pick other colours under <strong>Settings › Speed colors</strong>.</p>
+<p>The readout keeps a <strong>fixed width</strong>, so nothing beside it in the menu bar jumps around as
+the numbers change. It updates up to twice a second, less often on battery and in Low Power
+Mode (see <a href="../../docs/accuracy-and-battery/#battery">battery</a>). While a speed test runs, the readout
+shows it in cyan, or in another pair of colours if yours come close to cyan, so a test never
+looks like the live rates.</p>
+<ul>
+<li>
+<strong>Click</strong> it for the popover.</li>
+<li>
+<strong>Right-click</strong> (or Control-click) it for <strong>Test Internet Speed</strong>, the last result,
+<strong>Block Everything</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/198">#198</a>), <strong>Usage History…</strong> (⌘Y), <strong>Connections…</strong> (⌘K), <strong>Ads and
+Trackers…</strong> (⌘B), <strong>Network…</strong>, <strong>Settings…</strong> (⌘,), <strong>About NetworkMonitor</strong>, <strong>Check for
+Updates…</strong>, <strong>Uninstall NetworkMonitor…</strong> and <strong>Quit</strong>.</li>
+</ul>
+<div class="markdown-heading"><h2 id="in-the-dock-instead" class="heading-element">In the Dock instead</h2><a id="in-the-dock-instead" class="anchor" aria-label="Permalink: In the Dock instead" href="#in-the-dock-instead"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>Settings › Show NetworkMonitor in</strong> chooses where the app lives (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/69">#69</a>). It takes effect
+at once.</p>
+<ul>
+<li>
+<p><strong>Menu bar</strong>, the default: the readout above, and a Dock icon only while a window is open.</p>
+</li>
+<li>
+<p><strong>Dock</strong>: nothing in the menu bar. A <strong>Dock icon</strong> choice appears under it (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/523">#523</a>):</p>
+<ul>
+<li>
+<strong>Speeds</strong>, Dock's default: the whole Dock icon is the live speeds, download over upload,
+drawn like the app's icon: its shape and lighting, near black in dark mode and near
+white in light, following the Mac as it switches. Each speed is the icon's arrow and
+its figure to three significant figures (12.3), as large as fits, with its unit under
+it, in the speed colors (on light, drawn darker so they read). It updates as the
+readout would, at most once a second.</li>
+<li>
+<strong>App icon</strong>: NetworkMonitor's own icon, with no speeds.</li>
+</ul>
+<p>Click the icon for the main window, on the section it was last on. Its menu has what the
+readout's right-click menu has, the Dock's own Quit included; with Speeds it starts with
+the speeds in words, which is how VoiceOver reads them there. There's no popover in this
+mode: a speed test that needs your OK on a hotspot asks on the <strong>Network</strong> page.</p>
+</li>
+<li>
+<p><strong>Both</strong>: the readout in the menu bar, and a Dock icon all the time. The same <strong>Dock
+icon</strong> choice appears under it, with <strong>App icon</strong> to begin with, so the Dock icon is the
+app's until you choose <strong>Speeds</strong>. Dock and Both each keep their own choice.</p>
+</li>
+</ul>
+<p>There's no choice of neither: there'd be no way back to the app.</p>
+<div class="markdown-heading"><h2 id="the-popover" class="heading-element">The popover</h2><a id="the-popover" class="anchor" aria-label="Permalink: The popover" href="#the-popover"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>Today | Week | Month</strong>, at the top, sets the period for every figure under it: today,
+this week or this month so far, on every network, read from Usage History. The popover
+opens on the period you chose last.</li>
+<li>
+<strong>Four buttons</strong>: <strong>Data</strong>, <strong>Connections</strong>, <strong>Ads blocked</strong> and <strong>Network</strong>, each with
+its figure. Click one to see its view underneath. The colours are the same everywhere in
+the app: data blue, connections teal, blocked red, hotspots orange.</li>
+<li>
+<strong>Data</strong> lists the <strong>Apps</strong> or the <strong>Networks</strong> that used it, biggest first, each with a
+bar for its share. The apps re-sort live as they overtake each other, and a dot marks
+apps moving data right now.
+<ul>
+<li>
+<strong>Helpers fold into their app</strong>: Chrome's dozen helper processes are one <em>Google
+Chrome</em> row.</li>
+<li>
+<strong>Commands break out beneath the app that started them.</strong> Open iTerm2 or VS Code to
+see the <code>node</code>, <code>git</code> or <code>curl</code> it launched, each with its own figure. More than four
+become <em>Other (n)</em>.</li>
+<li>
+<strong>System</strong>: macOS's own daemons collapse into one row at the bottom. Open it when
+you're curious.</li>
+</ul>
+</li>
+<li>
+<strong>Connections</strong> groups who your apps talked to by <strong>Companies</strong>, <strong>Countries</strong> or
+<strong>Apps</strong>. Each app talking to a server counts once. A company or country opens into its
+apps, an app into its companies.</li>
+<li>
+<strong>Ads blocked</strong> lists the <strong>Sites</strong> or the <strong>Apps</strong>, busiest first. A site opens into the
+apps that tried it, an app into the sites it tried. While ad blocking is off, it offers
+<strong>Turn On</strong>.</li>
+<li>
+<strong>Network</strong> shows the connection the Mac is on, a <strong>This is a hotspot</strong> switch, on every
+network because some phones aren't recognised, and the <a href="../../docs/speed-test/">speed test</a>: the
+last result and <strong>Test Speed</strong>.</li>
+<li>
+<strong>Open …</strong>, at the bottom of each view, opens that section of the main window on the same
+period: <strong>Open Usage History</strong> (⌘Y), <strong>Open Connections</strong> (⌘K), <strong>Open Ads and Trackers</strong>
+(⌘B) or <strong>Open Network</strong>. The <strong>four squares</strong> beside the gear do the same, and the
+<strong>gear</strong> opens Settings.</li>
+<li>
+<strong>Lines under the buttons</strong> say what needs saying:
+<ul>
+<li>a hotspot you've joined that the Mac isn't using, with how to switch behind an ⓘ;</li>
+<li>on a hotspot with <a href="../../docs/hotspot-mode/">Hotspot mode</a> on, an update that downloaded anyway;</li>
+<li>
+<strong>Everything is blocked</strong>, with <strong>Turn Off</strong>, while Block Everything is on;</li>
+<li>ad blocking paused, or off on this network;</li>
+<li>
+<strong>Per-app figures paused</strong>, in grey, if macOS's <code>nettop</code> can't be started.
+NetworkMonitor keeps retrying, and the total keeps counting regardless.</li>
+</ul>
+</li>
+</ul>
+<p>A list holds six rows and part of a seventh, so a cut-off row tells you there's more. It
+keeps one height whichever grouping you choose. Esc or a click elsewhere closes it.</p>
+<div class="markdown-heading"><h2 id="a-total-per-connection" class="heading-element">A total per connection</h2><a id="a-total-per-connection" class="anchor" aria-label="Permalink: A total per connection" href="#a-total-per-connection"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>The popover counts every network. The <strong>Network</strong> page counts the one you're on: join a
+different Wi-Fi network or hotspot and its total starts from zero, so what you see is what
+<em>this</em> connection has used. Open your hotspot somewhere new and you know exactly what it
+cost. To compare networks over a period, choose <strong>Networks</strong> under Data in the popover.</p>
+<ul>
+<li>
+<strong>A dropout and a reconnect</strong> to the same network picks up where it left off.</li>
+<li>
+<strong>It resets at midnight</strong> too, for a connection you never leave.</li>
+<li>
+<strong>It survives restarts</strong>, and a relaunch on the same network carries on.</li>
+<li>
+<strong>Reset Now</strong> (Settings › Popover totals) starts the current network's total over.</li>
+<li>
+<strong>Counting since</strong> (Settings › Popover totals) shows when the current total began.</li>
+</ul>
+<p>Networks are told apart by their router's hardware address, which needs no permission,
+and named after their Wi-Fi network. macOS shares the name only with Location
+permission, which the app asks for once; refused, a network is named like
+<em>Wi-Fi · 3f2a</em>.</p>
+<p>Every hour of every network goes to <a href="../../docs/usage-history/">Usage History</a>.</p>
+<div class="markdown-heading"><h2 id="internet-only" class="heading-element">Internet only</h2><a id="internet-only" class="anchor" aria-label="Permalink: Internet only" href="#internet-only"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Mirroring to an Apple TV, Time Machine to a NAS, a Plex stream from your own server: these
+cross your Wi-Fi but cost no internet data, so they're never counted. An app that only
+talked to your own network doesn't appear at all. See
+<a href="../../docs/accuracy-and-battery/#internet-not-your-own-network">accuracy</a>.</p>
+<div class="markdown-heading"><h2 id="usage-history" class="heading-element">Usage History</h2><a id="usage-history" class="anchor" aria-label="Permalink: Usage History" href="#usage-history"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Every hour, per app and per network, for as long as you choose. Look back by day, week,
+month or year; see each visit to a network as a session; narrow everything to one app, one
+network or every hotspot at once; export it as CSV. See <a href="../../docs/usage-history/">Usage History</a>.</p>
+<div class="markdown-heading"><h2 id="connections" class="heading-element">Connections</h2><a id="connections" class="anchor" aria-label="Permalink: Connections" href="#connections"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Which companies your apps send data to, from which apps, in which countries, and to which
+servers: grouped by company, app or country, narrowed by clicking, searched, read hour by
+hour on a timeline, and shaded on a world map that pulses to where your apps reach right now. Nothing is looked up
+online. Block a company, app, country, site or server, or have it ask the first time an app
+connects. See <a href="../../docs/connections/">Connections</a>.</p>
+<div class="markdown-heading"><h2 id="ads-and-trackers" class="heading-element">Ads and Trackers</h2><a id="ads-and-trackers" class="anchor" aria-label="Permalink: Ads and Trackers" href="#ads-and-trackers"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>One switch blocks ads, trackers and malware sites in every app. <strong>Overview</strong> shows what was
+blocked in the period, on a chart and by site and app, both used as Usage History's are:
+hover or click a bar, choose or open a row (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/536">#536</a>); <strong>Log</strong> shows each connection live,
+as the filter decides it. The lists and your own rules are in its settings. See
+<a href="../../docs/connections/#ads-and-trackers">Ads and Trackers</a>.</p>
+<div class="markdown-heading"><h2 id="speed-test" class="heading-element">Speed test</h2><a id="speed-test" class="anchor" aria-label="Permalink: Speed test" href="#speed-test"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>One click runs a fresh test with the tool built into macOS: download, then upload, then
+ping, jitter, and ping under load, in Mbps or MB/s. If another app was competing for the
+line, the result names it. On a hotspot it asks first. See <a href="../../docs/speed-test/">Speed test</a>.</p>
+<div class="markdown-heading"><h2 id="hotspot-mode" class="heading-element">Hotspot mode</h2><a id="hotspot-mode" class="anchor" aria-label="Permalink: Hotspot mode" href="#hotspot-mode"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>One switch, on the Network page, stops your apps updating while you're on a mobile hotspot,
+puts the connection in Low Data Mode, and tells you which apps it can't stop. See
+<a href="../../docs/hotspot-mode/">Hotspot mode</a>.</p>
+<div class="markdown-heading"><h2 id="the-main-window" class="heading-element">The main window</h2><a id="the-main-window" class="anchor" aria-label="Permalink: The main window" href="#the-main-window"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>One window with a sidebar: <strong>Usage History</strong>, <strong>Connections</strong>, <strong>Ads and Trackers</strong> and
+<strong>Network</strong>, in the popover's order, with <strong>Settings</strong> pinned at the bottom. Hide the sidebar
+with its button or <strong>View › Hide Sidebar</strong> (⌃⌘S).</p>
+<p>Each section's toolbar starts with the view: <strong>List, Both or Chart</strong> in Usage History and
+Ads and Trackers, <strong>List, Both or Map</strong> in Connections (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/524">#524</a>); Both is always the list on
+the left and the chart or the map on the right (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/534">#534</a>). It has the period (<strong>Day,
+Week, Month, Year</strong>) in the middle, then
+<strong>‹ Today ›</strong>, a search button that opens into a field (⌘F), and a <strong>gear</strong>. The gear shows
+that section's own settings in place, with a back button. Network is about now, so it has
+only the gear.</p>
+<table>
+<thead>
+<tr>
+<th>Section</th>
+<th>What's in it</th>
+<th>Behind its gear</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Usage History</strong></td>
+<td>The period's use by network type, then its apps, networks or sessions · Export CSV…</td>
+<td>Keep history for · Clear History…</td>
+</tr>
+<tr>
+<td><strong>Connections</strong></td>
+<td>Who your apps talked to, on a list and a map, or what was blocked</td>
+<td>Website names, Turn On… while they're off · Let apps connect, every rule you've made, Export… and Import… · Encrypt lookups · Opens with List, Both or Map · Where the names come from, and Update them monthly</td>
+</tr>
+<tr>
+<td><strong>Ads and Trackers</strong></td>
+<td>Overview: the period, a chart, sites or apps · Log: each connection as the filter decides it</td>
+<td>Block ads and trackers · Update the lists weekly · Lists · Your Rules</td>
+</tr>
+<tr>
+<td><strong>Network</strong></td>
+<td>The connection you're on · This is a hotspot, and what it's detected as Right now · Stop apps updating on hotspots, what's paused and what can't be paused · the speed test</td>
+<td>Show the test in the popover as Card or Compact</td>
+</tr>
+</tbody>
+</table>
+<div class="markdown-heading"><h2 id="settings" class="heading-element">Settings</h2><a id="settings" class="anchor" aria-label="Permalink: Settings" href="#settings"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>Settings</strong> (⌘,), at the bottom of the sidebar, holds what applies to the whole app.
+What a row means is behind an ⓘ beside it, which appears when you point at the row (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/185">#185</a>,
+<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/189">#189</a>).</p>
+<ul>
+<li>
+<strong>Language</strong>: the Mac's, or one chosen for the app</li>
+<li><strong>Start at login</strong></li>
+<li>
+<strong>Show NetworkMonitor in</strong> the Menu bar, the Dock or Both, and with the Dock or Both, <strong>Dock icon</strong>: Speeds or App icon</li>
+<li>
+<strong>Show speeds in</strong> MB/s or Mbps</li>
+<li>
+<strong>Wi-Fi names</strong>, until they're on</li>
+<li>
+<strong>Speed colors</strong> (the readout's and the Dock icon's): Download, Upload, the speed test's colours, Use Default Colors</li>
+<li>
+<strong>Popover totals</strong>: Counting since, Sampling, Reset Now</li>
+<li>
+<strong>Check for updates automatically</strong>, and Check Now</li>
+<li>
+<strong>Sections</strong>: a row to each section's settings, the same pages its gear shows</li>
+</ul>
+<p><strong>About NetworkMonitor</strong>, in the right-click menu and the app menu, is the standard About
+window: the version, links to the website, what's new and the source code, and the licence.</p>
+<p>While the main window is open, NetworkMonitor has a Dock icon and a menu, so ⌘W, ⌘,, ⌘Y,
+⌘K, ⌘B and ⌘F work and ⌘-Tab can find it. It goes back to living in the menu bar when you
+close it, unless it's set to show in the Dock or both.</p>
+<p>With the main window open behind another app, a click on the menu bar item shows only the
+popover, and the window stays behind. ⌘-Tab or the Dock icon shows the window on its own.</p>
+<div class="markdown-heading"><h2 id="staying-out-of-the-way" class="heading-element">Staying out of the way</h2><a id="staying-out-of-the-way" class="anchor" aria-label="Permalink: Staying out of the way" href="#staying-out-of-the-way"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>No Dock icon, no app switcher entry, no window to manage. Just the menu bar, unless you
+choose the Dock or both.</li>
+<li>
+<strong>Starts at login</strong> by default, once. Turn it off in Settings and it stays off.</li>
+<li>
+<strong>Quit stays quit.</strong> Quitting ends it for the session without turning off Start at
+login, and turning that off doesn't quit the running app.</li>
+<li>Works with the menu bar set to hide automatically: the popover stays open while the bar
+hides, and the main window stays in front.</li>
+</ul>
+
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/features.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+  </main>
+</div>
+<script>
+// On a narrow screen the list of pages starts closed, above the page.
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna. NetworkMonitor is free software under the Apache License 2.0. macOS is a trademark of Apple Inc.</span>
+      <nav aria-label="Project links">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">Report an issue</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">License</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

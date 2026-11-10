@@ -1,0 +1,149 @@
+<!doctype html>
+<!-- The template of every English docs page. The pages beside it are built
+     from the app repository's docs/ by `make docs-site` (docs-kit, #334):
+     change a page there, never here. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NetworkMonitor documentation — NetworkMonitor docs</title>
+<meta name="description" content="The README is the short version. These pages are the long one: how every feature works, and why it was built that way.">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to the page</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../docs/" aria-current="true">Docs</a>
+      <a href="../zh/docs/" lang="zh-Hans" hreflang="zh-Hans" data-lang="zh-Hans">简体中文</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">Download</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>All pages</summary>
+    <nav aria-label="Documentation"><ul><li><a href="../docs/" aria-current=page>NetworkMonitor documentation</a></li><li><span class="docs-nav-section">Using NetworkMonitor</span><ul><li><a href="../docs/installing/">Installing, updating and removing</a></li><li><a href="../docs/features/">Features</a></li><li><a href="../docs/connections/">Connections</a></li><li><a href="../docs/usage-history/">Usage History</a></li><li><a href="../docs/speed-test/">Speed test</a></li><li><a href="../docs/hotspot-mode/">Hotspot mode</a></li><li><a href="../docs/accuracy-and-battery/">Accuracy and battery</a></li><li><a href="../docs/privacy/">Privacy</a></li><li><a href="../docs/security/">Security policy</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="networkmonitor-documentation" class="heading-element">NetworkMonitor documentation</h1><a id="networkmonitor-documentation" class="anchor" aria-label="Permalink: NetworkMonitor documentation" href="#networkmonitor-documentation"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>The <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/README.md">README</a> is the short version. These pages are the long one: how every
+feature works, and why it was built that way.</p>
+<div class="markdown-heading"><h2 id="using-networkmonitor" class="heading-element">Using NetworkMonitor</h2><a id="using-networkmonitor" class="anchor" aria-label="Permalink: Using NetworkMonitor" href="#using-networkmonitor"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>What's in it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../docs/installing/">Installing, updating and removing</a></td>
+<td>Every step, how it updates itself, and what uninstalling puts back</td>
+</tr>
+<tr>
+<td><a href="../docs/features/">Features</a></td>
+<td>The menu bar readout, the popover, per-connection totals, the main window, Settings</td>
+</tr>
+<tr>
+<td><a href="../docs/connections/">Connections</a></td>
+<td>Which companies, countries and servers your apps talk to, and what the names mean</td>
+</tr>
+<tr>
+<td><a href="../docs/usage-history/">Usage History</a></td>
+<td>Looking back by day, week, month or year; sessions; CSV export</td>
+</tr>
+<tr>
+<td><a href="../docs/speed-test/">Speed test</a></td>
+<td>What it measures, how it shows, and what it costs in data</td>
+</tr>
+<tr>
+<td><a href="../docs/hotspot-mode/">Hotspot mode</a></td>
+<td>What counts as a hotspot, what it pauses, the helper, Low Data Mode</td>
+</tr>
+<tr>
+<td><a href="../docs/accuracy-and-battery/">Accuracy and battery</a></td>
+<td>What the numbers mean, why rows don't add up exactly, and what it costs to run</td>
+</tr>
+<tr>
+<td><a href="../docs/privacy/">Privacy</a></td>
+<td>What it reads, sends and stores</td>
+</tr>
+<tr>
+<td><a href="../docs/security/">Security policy</a></td>
+<td>Reporting a vulnerability, what's in scope, checking a download</td>
+</tr>
+</tbody>
+</table>
+<div class="markdown-heading"><h2 id="working-on-networkmonitor" class="heading-element">Working on NetworkMonitor</h2><a id="working-on-networkmonitor" class="anchor" aria-label="Permalink: Working on NetworkMonitor" href="#working-on-networkmonitor"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>What's in it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/architecture.md">Architecture</a></td>
+<td>How data flows (with a diagram), threads, the two measurement sources, files</td>
+</tr>
+<tr>
+<td><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/development.md">Building, testing and releasing</a></td>
+<td>Make targets, signing and notarizing, the test harness, CI, launch arguments, the release and website workflow</td>
+</tr>
+<tr>
+<td><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/decisions.md">Decisions</a></td>
+<td>Principles, a dated decision log, and approaches that were turned down</td>
+</tr>
+<tr>
+<td><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/roadmap.md">Roadmap and known limits</a></td>
+<td>What the Developer ID made possible, and what's done; ideas; known limits</td>
+</tr>
+</tbody>
+</table>
+<p>Start with <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/architecture.md">Architecture</a> and <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/decisions.md">Decisions</a> before changing
+how anything is measured.</p>
+
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/README.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+  </main>
+</div>
+<script>
+// On a narrow screen the list of pages starts closed, above the page.
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna. NetworkMonitor is free software under the Apache License 2.0. macOS is a trademark of Apple Inc.</span>
+      <nav aria-label="Project links">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">Report an issue</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">License</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

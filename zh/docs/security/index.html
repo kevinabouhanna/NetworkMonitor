@@ -1,0 +1,118 @@
+<!doctype html>
+<!-- The template of every Chinese docs page. The pages beside it are built
+     from the app repository's docs/zh-Hans/ by `make docs-site` (docs-kit,
+     #334): change a page there, never here. -->
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>安全策略 — NetworkMonitor 文档</title>
+<meta name="description" content="只有最新发布版本会获得安全修复，不会向旧版本移植修复。从 1.15 开始，NetworkMonitor 会自己提示新版本；在此之前的版本，请下载新版本并替换旧版本（请参阅更新）。">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/security/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/security/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/security/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">跳到正文</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../../zh/"><img src="../../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../../zh/docs/" aria-current="true">文档</a>
+      <a href="../../../docs/security/" lang="en" hreflang="en" data-lang="en">English</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">下载</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>所有页面</summary>
+    <nav aria-label="文档"><ul><li><a href="../../../zh/docs/">NetworkMonitor 文档</a></li><li><span class="docs-nav-section">使用 NetworkMonitor</span><ul><li><a href="../../../zh/docs/installing/">安装、更新和卸载</a></li><li><a href="../../../zh/docs/features/">功能</a></li><li><a href="../../../zh/docs/connections/">连接</a></li><li><a href="../../../zh/docs/usage-history/">流量历史</a></li><li><a href="../../../zh/docs/speed-test/">网速测试</a></li><li><a href="../../../zh/docs/hotspot-mode/">热点模式</a></li><li><a href="../../../zh/docs/accuracy-and-battery/">统计准确性与耗电量</a></li><li><a href="../../../zh/docs/privacy/">隐私</a></li><li><a href="../../../zh/docs/security/" aria-current=page>安全策略</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="安全策略" class="heading-element">安全策略</h1><a id="安全策略" class="anchor" aria-label="Permalink: 安全策略" href="#安全策略"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="markdown-heading"><h2 id="支持的版本" class="heading-element">支持的版本</h2><a id="支持的版本" class="anchor" aria-label="Permalink: 支持的版本" href="#支持的版本"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>只有<a href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest">最新发布版本</a>会获得安全修复，不会向旧版本移植修复。从 1.15 开始，NetworkMonitor 会自己提示新版本；在此之前的版本，请下载新版本并替换旧版本（请参阅<a href="../../../zh/docs/installing/#%E6%9B%B4%E6%96%B0">更新</a>）。</p>
+<div class="markdown-heading"><h2 id="报告漏洞" class="heading-element">报告漏洞</h2><a id="报告漏洞" class="anchor" aria-label="Permalink: 报告漏洞" href="#报告漏洞"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>请通过 <a href="https://github.com/kevinabouhanna/NetworkMonitor/security/advisories/new">GitHub 的私密漏洞报告</a>私下报告。不要为此创建公开的问题或拉取请求。</p>
+<p>请包括：</p>
+<ul>
+<li>NetworkMonitor 的版本（右键菜单中的“关于 NetworkMonitor”）和 macOS 的版本；</li>
+<li>攻击者能做什么，以及需要先具备什么条件（本地账户、管理员权限、处于同一网络中）；</li>
+<li>重现步骤。</li>
+</ul>
+<p>你会在 7 天内收到回复。确认后，修复会随某个发布版本推出，安全公告和发行说明中会注明你的贡献，除非你不希望这样。</p>
+<div class="markdown-heading"><h2 id="范围" class="heading-element">范围</h2><a id="范围" class="anchor" aria-label="Permalink: 范围" href="#范围"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>按重要程度排列：</p>
+<ul>
+<li>
+<strong>以 root 身份运行的辅助程序。</strong>在发布版本中，它是应用内的启动守护进程，只通过 XPC 响应由其团队签名的 NetworkMonitor；还包括它在 <code>/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper</code> 的副本、它每小时运行的自我修复任务，以及它在 <code>/Library/Application Support/NetworkMonitor/</code> 中的记录。没有 Developer ID 的构建版本则通过位于 <code>/etc/sudoers.d/networkmonitor</code> 的 sudoers 规则运行同一个二进制文件。范围内的问题包括：让它做出超出其固定指令的事情、从 NetworkMonitor 以外的任何程序访问它、改变这些指令的作用对象，或篡改它的记录。它本应如何工作，请参阅<a href="../../../zh/docs/hotspot-mode/#%E8%BE%85%E5%8A%A9%E7%A8%8B%E5%BA%8F">热点模式</a>。</li>
+<li>
+<strong>内容过滤器</strong>，即为每个连接命名并应用你的规则的系统扩展（<a href="../../../zh/docs/connections/#%E7%BD%91%E7%AB%99%E5%90%8D%E7%A7%B0">连接</a>）。范围内的问题包括：让它阻止或允许你的规则没有指定的内容、报告它不应报告的内容，或响应 NetworkMonitor 以外的任何程序。如果它停止运行，不应有任何连接被切断。</li>
+<li>
+<strong>安装和移除它们</strong>：<code>helper-setup.sh</code>、<code>Scripts/install.sh</code>、<code>Scripts/uninstall.sh</code> 以及应用内的“卸载…”，包括它们遗留下来的任何内容。</li>
+<li>
+<strong>应用把数据发送到你的 Mac 之外。</strong>它唯一应该发起的流量是你自己运行的网速测试、每日更新检查，以及每月的国家或地区和网络数据（请参阅<a href="../../../zh/docs/privacy/#%E5%AE%83%E4%BC%9A%E5%8F%91%E9%80%81%E4%BB%80%E4%B9%88">隐私</a>）。</li>
+<li>
+<strong>它从 GitHub 接受的内容。</strong>只有当更新的磁盘映像使用应用内置的密钥签名时，更新才会安装；只有当已签名的清单和每张表的 SHA-256 都验证通过时，每月数据才会被使用。任何能绕过其中一项的问题都在范围内。</li>
+<li>
+<strong>下载的文件。</strong>Releases 页面上的 <code>NetworkMonitor.dmg</code> 与用对应标签的源代码构建出的结果不一致。</li>
+</ul>
+<div class="markdown-heading"><h2 id="已知且有意为之" class="heading-element">已知且有意为之</h2><a id="已知且有意为之" class="anchor" aria-label="Permalink: 已知且有意为之" href="#已知且有意为之"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>以下是已记录的设计选择，不是漏洞：</p>
+<ul>
+<li>
+<strong>你允许辅助程序后，它的指令无需密码即可运行</strong>：在发布版本中，通过“系统设置 › 通用 › 登录项与扩展”中的开关允许；在没有 Developer ID 的构建版本中，通过 sudoers 规则，仅限安装它的账户。每条指令都不接受参数，它涉及的每项设置、每个域名和主机都已编译在程序中。</li>
+<li>
+<strong>热点模式会编辑 <code>/etc/hosts</code></strong>，以便在你使用热点时阻止 Google、Canva 和 Figma 的更新服务器。离开热点时，它会恢复这个文件。</li>
+<li>
+<strong>热点模式会在你使用热点时写入受管理的策略文件</strong>：Claude 和 Slack 的写在 <code>/Library/Managed Preferences</code> 中，Claude Code 的写在 <code>/Library/Application Support/ClaudeCode/managed-settings.d</code> 中。离开热点时，它会移除这些文件。</li>
+<li>
+<strong>内容过滤器会阻止你的规则要求阻止的连接</strong>，打开热点模式时，还会在你使用热点时阻止应用的更新程序。在 <strong>询问我</strong> 下，它会在询问期间暂停新连接，30 秒内没有回应则让它继续。</li>
+<li><strong>本身就需要 root 权限或管理员密码的攻击。</strong></li>
+</ul>
+<div class="markdown-heading"><h2 id="检查下载的文件" class="heading-element">检查下载的文件</h2><a id="检查下载的文件" class="anchor" aria-label="Permalink: 检查下载的文件" href="#检查下载的文件"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>每个发布版本都由仓库的 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/.github/workflows/release.yml">Release 工作流程</a>根据对应的标签构建和发布，而不是在任何人的 Mac 上构建。发布页面列出了 <code>NetworkMonitor.dmg</code> 的 SHA-256。比较方法：</p>
+<div class="highlight highlight-source-shell"><pre>shasum -a 256 <span class="pl-k">~</span>/Downloads/NetworkMonitor.dmg</pre></div>
+<p>发布版本使用 Kevin Abou Hanna 的 Developer ID（团队 <code>GRQKG7M8CL</code>）签名，并经过 Apple 公证。检查已安装的副本：</p>
+<div class="highlight highlight-source-shell"><pre>spctl -a -vv /Applications/NetworkMonitor.app
+<span class="pl-c"><span class="pl-c">#</span> accepted, source=Notarized Developer ID, origin=Developer ID Application: Kevin Abou Hanna (GRQKG7M8CL)</span></pre></div>
+<p>请只从 <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases 页面</a>或<a href="https://kevinabouhanna.github.io/NetworkMonitor/" rel="nofollow">网站</a>（它链接到 Releases 页面）下载。</p>
+
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/security.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+  </main>
+</div>
+<script>
+// 窄屏上，页面列表默认收起，放在正文上方。
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna。NetworkMonitor 是采用 Apache 2.0 许可证的自由软件。macOS 是 Apple Inc. 的商标。</span>
+      <nav aria-label="项目链接">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">版本发布</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">报告问题</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">许可证</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

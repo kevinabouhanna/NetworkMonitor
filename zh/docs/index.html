@@ -1,0 +1,148 @@
+<!doctype html>
+<!-- The template of every Chinese docs page. The pages beside it are built
+     from the app repository's docs/zh-Hans/ by `make docs-site` (docs-kit,
+     #334): change a page there, never here. -->
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NetworkMonitor 文档 — NetworkMonitor 文档</title>
+<meta name="description" content="以下页面只有英文版。">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">跳到正文</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../zh/"><img src="../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../zh/docs/" aria-current="true">文档</a>
+      <a href="../../docs/" lang="en" hreflang="en" data-lang="en">English</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">下载</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>所有页面</summary>
+    <nav aria-label="文档"><ul><li><a href="../../zh/docs/" aria-current=page>NetworkMonitor 文档</a></li><li><span class="docs-nav-section">使用 NetworkMonitor</span><ul><li><a href="../../zh/docs/installing/">安装、更新和卸载</a></li><li><a href="../../zh/docs/features/">功能</a></li><li><a href="../../zh/docs/connections/">连接</a></li><li><a href="../../zh/docs/usage-history/">流量历史</a></li><li><a href="../../zh/docs/speed-test/">网速测试</a></li><li><a href="../../zh/docs/hotspot-mode/">热点模式</a></li><li><a href="../../zh/docs/accuracy-and-battery/">统计准确性与耗电量</a></li><li><a href="../../zh/docs/privacy/">隐私</a></li><li><a href="../../zh/docs/security/">安全策略</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="networkmonitor-文档" class="heading-element">NetworkMonitor 文档</h1><a id="networkmonitor-文档" class="anchor" aria-label="Permalink: NetworkMonitor 文档" href="#networkmonitor-文档"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/README.zh-Hans.md">README</a> 是简短的介绍。这些页面则更详细：每项功能是如何工作的，以及为什么这样设计。</p>
+<div class="markdown-heading"><h2 id="使用-networkmonitor" class="heading-element">使用 NetworkMonitor</h2><a id="使用-networkmonitor" class="anchor" aria-label="Permalink: 使用 NetworkMonitor" href="#使用-networkmonitor"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<table>
+<thead>
+<tr>
+<th>页面</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../zh/docs/installing/">安装、更新和卸载</a></td>
+<td>每个步骤、它如何自行更新，以及卸载时会恢复什么</td>
+</tr>
+<tr>
+<td><a href="../../zh/docs/features/">功能</a></td>
+<td>菜单栏读数、弹出窗口、按连接统计的总计、主窗口、设置</td>
+</tr>
+<tr>
+<td><a href="../../zh/docs/connections/">连接</a></td>
+<td>你的应用在和哪些公司、国家或地区、服务器通信，以及这些名称的含义</td>
+</tr>
+<tr>
+<td><a href="../../zh/docs/usage-history/">流量历史</a></td>
+<td>按日、周、月或年回顾；连接时段；导出 CSV</td>
+</tr>
+<tr>
+<td><a href="../../zh/docs/speed-test/">网速测试</a></td>
+<td>它测量什么、如何显示，以及会消耗多少流量</td>
+</tr>
+<tr>
+<td><a href="../../zh/docs/hotspot-mode/">热点模式</a></td>
+<td>什么算作热点、它会暂停什么、辅助程序、低数据模式</td>
+</tr>
+<tr>
+<td><a href="../../zh/docs/accuracy-and-battery/">统计准确性与耗电量</a></td>
+<td>这些数字的含义、各行加起来为什么不完全等于总计，以及运行它的开销</td>
+</tr>
+<tr>
+<td><a href="../../zh/docs/privacy/">隐私</a></td>
+<td>它会读取、发送和存储什么</td>
+</tr>
+<tr>
+<td><a href="../../zh/docs/security/">安全策略</a></td>
+<td>报告漏洞、哪些内容在范围内、检查下载的文件</td>
+</tr>
+</tbody>
+</table>
+<div class="markdown-heading"><h2 id="开发-networkmonitor" class="heading-element">开发 NetworkMonitor</h2><a id="开发-networkmonitor" class="anchor" aria-label="Permalink: 开发 NetworkMonitor" href="#开发-networkmonitor"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>以下页面只有英文版。</p>
+<table>
+<thead>
+<tr>
+<th>页面</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/architecture.md">Architecture</a></td>
+<td>数据如何流动（附示意图）、线程、两种测量来源、文件</td>
+</tr>
+<tr>
+<td><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/development.md">Building, testing and releasing</a></td>
+<td>Make 目标、签名和公证、测试工具、CI、启动参数、发布和网站流程</td>
+</tr>
+<tr>
+<td><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/decisions.md">Decisions</a></td>
+<td>原则、按日期记录的决策日志，以及被否决的方案</td>
+</tr>
+<tr>
+<td><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/roadmap.md">Roadmap and known limits</a></td>
+<td>Developer ID 带来了哪些可能、已经完成了什么；想法；已知限制</td>
+</tr>
+</tbody>
+</table>
+<p>在更改任何测量方式之前，请先阅读 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/architecture.md">Architecture</a>（英文）和 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/decisions.md">Decisions</a>（英文）。</p>
+
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/README.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+  </main>
+</div>
+<script>
+// 窄屏上，页面列表默认收起，放在正文上方。
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna。NetworkMonitor 是采用 Apache 2.0 许可证的自由软件。macOS 是 Apple Inc. 的商标。</span>
+      <nav aria-label="项目链接">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">版本发布</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">报告问题</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">许可证</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

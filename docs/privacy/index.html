@@ -1,0 +1,237 @@
+<!doctype html>
+<!-- The template of every English docs page. The pages beside it are built
+     from the app repository's docs/ by `make docs-site` (docs-kit, #334):
+     change a page there, never here. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Privacy — NetworkMonitor docs</title>
+<meta name="description" content="NetworkMonitor measures how much data moves, never what it is. Nothing it learns leaves your Mac.">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/privacy/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/privacy/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/privacy/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to the page</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../"><img src="../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../docs/" aria-current="true">Docs</a>
+      <a href="../../zh/docs/privacy/" lang="zh-Hans" hreflang="zh-Hans" data-lang="zh-Hans">简体中文</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">Download</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>All pages</summary>
+    <nav aria-label="Documentation"><ul><li><a href="../../docs/">NetworkMonitor documentation</a></li><li><span class="docs-nav-section">Using NetworkMonitor</span><ul><li><a href="../../docs/installing/">Installing, updating and removing</a></li><li><a href="../../docs/features/">Features</a></li><li><a href="../../docs/connections/">Connections</a></li><li><a href="../../docs/usage-history/">Usage History</a></li><li><a href="../../docs/speed-test/">Speed test</a></li><li><a href="../../docs/hotspot-mode/">Hotspot mode</a></li><li><a href="../../docs/accuracy-and-battery/">Accuracy and battery</a></li><li><a href="../../docs/privacy/" aria-current=page>Privacy</a></li><li><a href="../../docs/security/">Security policy</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="privacy" class="heading-element">Privacy</h1><a id="privacy" class="anchor" aria-label="Permalink: Privacy" href="#privacy"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>NetworkMonitor measures how much data moves, never what it is. Nothing it learns
+leaves your Mac.</p>
+<div class="markdown-heading"><h2 id="what-it-reads" class="heading-element">What it reads</h2><a id="what-it-reads" class="anchor" aria-label="Permalink: What it reads" href="#what-it-reads"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>Byte counters per network interface</strong>, from the kernel (<code>sysctl</code>), for the live
+speed and the connection total.</li>
+<li>
+<strong>Bytes per process and connection</strong>, from macOS's own <code>nettop</code> tool, for the app
+list. It sees which process moved how many bytes, and the address of the other end:
+whether it was on the internet or on your own network, and which server it was. It
+never sees the contents of any traffic.</li>
+<li>
+<strong>The default gateway's hardware address</strong>, to tell one network from another (see
+<a href="../../docs/features/#a-total-per-connection">how it tells networks apart</a>). It comes from
+macOS's own network configuration, which needs no permission.</li>
+<li>
+<strong>The Wi-Fi network's name</strong>, to show it in Usage History instead of <em>Wi-Fi · 3f2a</em>.
+macOS shares it only with Location permission, so NetworkMonitor asks for that.</li>
+<li>
+<strong>Which country your Mac is in</strong>, for where the Connections map's lines start (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/231">#231</a>),
+only while the map is on screen and at most every ten minutes. From Location, once
+you've allowed it for Wi-Fi names (it's never asked for just for this): the place is
+turned into a country on your Mac, with the map's own outlines, not Apple's address
+lookup, which would send it to Apple. Only the country is kept, and only in memory.
+Without Location, the country of your Mac's own internet address when it holds one
+the internet sees (behind a home router it doesn't, and no outside service is asked),
+then your Mac's Region setting.</li>
+<li>
+<strong>The installed apps' update settings</strong>, only when you switch on
+<a href="../../docs/hotspot-mode/">Hotspot mode</a>, to know what it can pause and to put it back.</li>
+</ul>
+<p><code>nettop</code> runs with <code>-n</code>, so it never looks up host names. Looking them up would itself
+send traffic.</p>
+<div class="markdown-heading"><h2 id="what-it-sends" class="heading-element">What it sends</h2><a id="what-it-sends" class="anchor" aria-label="Permalink: What it sends" href="#what-it-sends"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Four things, and nothing else:</p>
+<ul>
+<li>
+<p><strong>The speed test, when you start it.</strong> It runs <code>networkQuality</code>, the tool Apple ships
+with every Mac, against Apple's own test servers.</p>
+</li>
+<li>
+<p><strong>Once a month, the country and network data</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/121">#121</a>). DB-IP publishes a new month at
+the start of each, and the app downloads it from this repository's <code>geodata</code> release on
+GitHub: a signed manifest and two compressed tables, about 5.5 MB. It's the same file
+for everyone, so it says nothing about which servers your Mac talks to; GitHub sees
+your IP address and that this Mac runs NetworkMonitor.</p>
+<ul>
+<li>It checks at most once a day, and only while its data is from an earlier month.</li>
+<li>Never on a hotspot, a metered connection or in Low Data Mode.</li>
+<li>It's used only if the manifest's signature checks out against the key built into the
+app, and each table's size and SHA-256 match. Anything less keeps the copy already
+there.</li>
+<li>On by default. Switch it off with <strong>Update them monthly</strong> in Connections' settings.</li>
+</ul>
+</li>
+<li>
+<p><strong>Once a week, while you've switched them on, the ad, tracker and malware lists</strong>
+(<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/176">#176</a>), from this repository's <code>blocklists</code> release: a signed manifest and two
+compressed lists, about 0.6 MB. The same file for everyone, signed with the same key as
+the country data, never on a hotspot, and used only if the signature and each list's
+size and SHA-256 match. Off until you switch the lists on; then <strong>Update the lists
+weekly</strong>, in Ads and Trackers' settings, switches the download off. The app ships with a copy, so the
+lists work without it.</p>
+</li>
+<li>
+<p><strong>Once a day, whether there's a newer version</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>). Sparkle, the updater many Mac
+apps use, fetches the newest release's appcast from GitHub, a small file listing that
+version. GitHub sees your IP address and which version of NetworkMonitor asked. Never
+on a hotspot or metered connection, unless you choose <strong>Check for Updates…</strong>. An update
+downloads and installs only when you say so, and only if its disk image is signed with
+the key built into the app. Switch the daily check off with <strong>Check for updates
+automatically</strong> in Settings.</p>
+</li>
+</ul>
+<p>There is no analytics, no telemetry, no crash reporting and no account.</p>
+<p>Other speed test services were considered and turned down. One of them publishes
+every result, with the tester's IP address, as open data.</p>
+<div class="markdown-heading"><h2 id="what-it-stores-and-where" class="heading-element">What it stores, and where</h2><a id="what-it-stores-and-where" class="anchor" aria-label="Permalink: What it stores, and where" href="#what-it-stores-and-where"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Everything stays on your Mac:</p>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Totals for each network you've joined</td>
+<td><code>~/Library/Application Support/NetworkMonitor/usage.json</code></td>
+</tr>
+<tr>
+<td>Usage History, by hour, app and network, including the address of each server an app talked to</td>
+<td><code>~/Library/Application Support/NetworkMonitor/history.sqlite</code></td>
+</tr>
+<tr>
+<td>How to undo what Hotspot mode changed</td>
+<td><code>~/Library/Application Support/NetworkMonitor/suppression.json</code></td>
+</tr>
+<tr>
+<td>The country and network data downloaded since the app's own (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/121">#121</a>)</td>
+<td><code>~/Library/Application Support/NetworkMonitor/Geo/</code></td>
+</tr>
+<tr>
+<td>The content filter's copy of your rules and of that data</td>
+<td>its own container, which macOS removes with it</td>
+</tr>
+<tr>
+<td>The helper's own undo records (only with the helper)</td>
+<td><code>/Library/Application Support/NetworkMonitor/</code></td>
+</tr>
+<tr>
+<td>Your settings</td>
+<td>the app's preferences (<code>com.kevinabouhanna.NetworkMonitor</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The speed test works in a temporary folder that is deleted as soon as the result is
+read. The last result is kept in memory only, and dropped when you change network.</p>
+<p><strong>Clear History</strong>, in Usage History's settings, deletes Usage History, servers included, and the
+<strong>Keep history for</strong> setting applies to them too.
+<a href="../../docs/installing/#uninstall">Uninstalling</a> deletes all of it.</p>
+<div class="markdown-heading"><h2 id="naming-servers-without-asking-anyone" class="heading-element">Naming servers without asking anyone</h2><a id="naming-servers-without-asking-anyone" class="anchor" aria-label="Permalink: Naming servers without asking anyone" href="#naming-servers-without-asking-anyone"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>A server's address says nothing to a person, so NetworkMonitor names it: the country it's
+in, and the company whose network it belongs to. The answers come from DB-IP's free
+databases, shipped inside the app and refreshed once a month (see
+<a href="#what-it-sends">What it sends</a>). Nothing is looked up online: asking a service about each address would tell
+it every server your Mac talks to. The data is
+<a href="https://db-ip.com" rel="nofollow">IP geolocation by DB-IP</a>, under
+<a href="https://creativecommons.org/licenses/by/4.0/" rel="nofollow">CC BY 4.0</a>.</p>
+<div class="markdown-heading"><h2 id="permissions" class="heading-element">Permissions</h2><a id="permissions" class="anchor" aria-label="Permalink: Permissions" href="#permissions"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>Location, to read the Wi-Fi network's name</strong>, and then also to find your country
+for the Connections map (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/231">#231</a>). Offered in the welcome window when the
+app first opens, and in Settings after that (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/134">#134</a>). Leave it off and
+everything works, with networks named like <em>Wi-Fi · 3f2a</em> and the map starting from
+your Mac's Region setting.
+Updates keep the answer: every release is signed with the same Developer ID.
+Updating from 1.13 or earlier asks once more, because that signature is new (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/119">#119</a>).</li>
+<li>
+<strong>A content filter, only if you allow it</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/128">#128</a>), in the welcome window or
+Connections' settings. It's the part of macOS made for apps like this one: it sees
+each connection as it opens, the process that opened it and the server's address and
+name, and tells NetworkMonitor, which keeps the name with that server in Usage History.
+When an app connects by address, as Chrome does, it reads the site's name from the
+connection's opening handshake, where it's sent for the network to read, and nothing
+after it (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/196">#196</a>). It blocks only what you block (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/114">#114</a>), never sees the contents of any
+traffic, and sends nothing anywhere. macOS asks you twice to allow it; System Settings › Network › Filters
+switches it off, and Uninstall removes it.</li>
+<li>
+<strong>Nothing else, normally.</strong> No Local Network, no Accessibility, no Full Disk Access.</li>
+<li>
+<strong>A helper, once, if you choose it.</strong> Switching on Hotspot mode offers a small helper,
+which macOS lists under NetworkMonitor in System Settings › General › Login Items &amp;
+Extensions for you to switch on (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>), which macOS may confirm with your password or
+Touch ID. It answers only NetworkMonitor, checked by its
+developer's signature, and can do a fixed handful of things and nothing else; see
+<a href="../../docs/hotspot-mode/#the-helper">Hotspot mode</a>. Leave it off, and everything except the parts
+that need it keeps working. A build from source, without a Developer ID, asks for your
+password instead.</li>
+</ul>
+<div class="markdown-heading"><h2 id="why-it-isnt-in-the-app-store" class="heading-element">Why it isn't in the App Store</h2><a id="why-it-isnt-in-the-app-store" class="anchor" aria-label="Permalink: Why it isn't in the App Store" href="#why-it-isnt-in-the-app-store"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>App Store apps must be sandboxed, and a sandboxed app can't run <code>nettop</code>, which is the
+only way macOS offers to see network use per app.</p>
+
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/privacy.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+  </main>
+</div>
+<script>
+// On a narrow screen the list of pages starts closed, above the page.
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna. NetworkMonitor is free software under the Apache License 2.0. macOS is a trademark of Apple Inc.</span>
+      <nav aria-label="Project links">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">Report an issue</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">License</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!doctype html>
+<!-- The template of every English docs page. The pages beside it are built
+     from the app repository's docs/ by `make docs-site` (docs-kit, #334):
+     change a page there, never here. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Installing, updating and removing — NetworkMonitor docs</title>
+<meta name="description" content="NetworkMonitor runs on macOS 13 or later, on Apple silicon and Intel. It comes as one universal disk image, NetworkMonitor.dmg, attached to every GitHub…">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/installing/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/installing/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/installing/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to the page</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../"><img src="../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../docs/" aria-current="true">Docs</a>
+      <a href="../../zh/docs/installing/" lang="zh-Hans" hreflang="zh-Hans" data-lang="zh-Hans">简体中文</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">Download</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>All pages</summary>
+    <nav aria-label="Documentation"><ul><li><a href="../../docs/">NetworkMonitor documentation</a></li><li><span class="docs-nav-section">Using NetworkMonitor</span><ul><li><a href="../../docs/installing/" aria-current=page>Installing, updating and removing</a></li><li><a href="../../docs/features/">Features</a></li><li><a href="../../docs/connections/">Connections</a></li><li><a href="../../docs/usage-history/">Usage History</a></li><li><a href="../../docs/speed-test/">Speed test</a></li><li><a href="../../docs/hotspot-mode/">Hotspot mode</a></li><li><a href="../../docs/accuracy-and-battery/">Accuracy and battery</a></li><li><a href="../../docs/privacy/">Privacy</a></li><li><a href="../../docs/security/">Security policy</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="installing-updating-and-removing" class="heading-element">Installing, updating and removing</h1><a id="installing-updating-and-removing" class="anchor" aria-label="Permalink: Installing, updating and removing" href="#installing-updating-and-removing"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>NetworkMonitor runs on macOS 13 or later, on Apple silicon and Intel. It comes as
+one universal disk image, <code>NetworkMonitor.dmg</code>, attached to every
+<a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">GitHub release</a>.</p>
+<div class="markdown-heading"><h2 id="signed-and-notarized" class="heading-element">Signed and notarized</h2><a id="signed-and-notarized" class="anchor" aria-label="Permalink: Signed and notarized" href="#signed-and-notarized"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>NetworkMonitor is signed with an Apple <strong>Developer ID</strong>, Kevin Abou Hanna's (team
+<code>GRQKG7M8CL</code>), and <strong>notarized</strong>: Apple has checked it for malicious software and
+issued a ticket that travels with the app. So macOS knows who made it and opens it
+without a warning. Version 1.13 and earlier weren't, and asked you to approve them
+with <strong>Open Anyway</strong> in System Settings.</p>
+<p>If you'd rather not take a binary on trust, the code is all in this repository, and
+<a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/development.md">building it yourself</a> needs only Apple's free Command Line Tools.</p>
+<div class="markdown-heading"><h2 id="install" class="heading-element">Install</h2><a id="install" class="anchor" aria-label="Permalink: Install" href="#install"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ol>
+<li>
+<a href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">Download NetworkMonitor.dmg</a>,
+open it, and drag <strong>NetworkMonitor</strong> into <strong>Applications</strong>.</li>
+<li>Open NetworkMonitor from Applications.</li>
+</ol>
+<p>Or install it with <a href="https://brew.sh" rel="nofollow">Homebrew</a>, from NetworkMonitor's own
+<a href="https://github.com/kevinabouhanna/homebrew-tap">tap</a>:</p>
+<div class="highlight highlight-source-shell"><pre>brew install --cask kevinabouhanna/tap/networkmonitor</pre></div>
+<p>The ↓ ↑ readout appears in the menu bar. NetworkMonitor has no Dock icon until you
+open its window; everything starts from the readout. To have it in the Dock
+instead, or in both, choose in <strong>Settings › Show NetworkMonitor in</strong>. It
+registers itself to start at login, which you can turn off in <strong>Settings</strong>.</p>
+<p>The first time, a welcome window offers two things, both optional (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/134">#134</a>):</p>
+<ul>
+<li>
+<strong>See which websites your apps visit</strong>: a content filter that names the servers in
+<a href="../../docs/connections/#website-names">Connections</a>, and makes blocking possible.</li>
+<li>
+<strong>Know your Wi-Fi networks by name</strong>: macOS shares the name only with Location
+permission, and it's used for nothing else. Without it, networks are named like
+<em>Wi-Fi · 3f2a</em>.</li>
+</ul>
+<p>Neither is asked for again on its own. Skip either, and it has a <strong>Turn On…</strong> where it's
+used: website names in Connections' settings, Wi-Fi names in Settings.</p>
+<div class="markdown-heading"><h2 id="update" class="heading-element">Update</h2><a id="update" class="anchor" aria-label="Permalink: Update" href="#update"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>From 1.15 on, NetworkMonitor updates itself with Sparkle (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>). Once a day it asks
+GitHub whether there's a newer version, never on a hotspot, and offers it: what's new,
+and <strong>Install Update</strong> when you're ready. <strong>Check for Updates…</strong> in its menu asks at
+once, and <strong>Check for updates automatically</strong> in Settings switches the daily check off. An update installs only if its
+disk image is signed with the key built into the app.</p>
+<p>Before 1.15, or to do it by hand:</p>
+<ol>
+<li>Download the new <code>NetworkMonitor.dmg</code>.</li>
+<li>Drag NetworkMonitor into Applications and choose <strong>Replace</strong>.</li>
+<li>Open it.</li>
+</ol>
+<p>Updating from 1.13 or earlier, macOS asks for Location once more: the app is now
+signed with a Developer ID instead of its own certificate, so macOS sees it as new
+this one time.</p>
+<p>Your settings, totals and Usage History stay where they are, outside the app.</p>
+<p>If you use <a href="../../docs/hotspot-mode/">Hotspot mode</a>, its helper comes with the new version and asks
+nothing. Coming from a version whose helper asked for your password, NetworkMonitor offers
+the new one once: switch it on in System Settings, and the old one's sudoers rule is removed.</p>
+<p>Installed with Homebrew, it updates itself the same way, and <code>brew upgrade</code> leaves it to
+that unless you ask with <code>--greedy</code>. The cask follows each release within a day.</p>
+<p>From a source checkout, <code>make update</code> pulls, runs the tests, rebuilds and
+reinstalls, with the tests first so a bad pull can't replace a working copy.</p>
+<div class="markdown-heading"><h2 id="uninstall" class="heading-element">Uninstall</h2><a id="uninstall" class="anchor" aria-label="Permalink: Uninstall" href="#uninstall"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Right-click the menu bar readout and choose <strong>Uninstall NetworkMonitor…</strong>, or click it at the bottom of Settings. In order, it:</p>
+<ol>
+<li>removes the content filter, if you turned on website names: its settings at once, and
+the extension itself, which macOS may finish at the next restart;</li>
+<li>removes the helper, if it was installed, which first puts back what it changed (a
+helper from a build without a Developer ID asks for your password). If that fails or
+you cancel, nothing else is touched;</li>
+<li>puts back the settings Hotspot mode changed without the helper;</li>
+<li>removes the login item, your usage history and your settings;</li>
+<li>moves the app to the Trash.</li>
+</ol>
+<p><strong>Dragging the app to the Trash is not the same.</strong> The helper notices within an
+hour that the app is gone, puts back the changes it made (system update settings,
+managed policies, Low Data Mode) and removes itself. But the update settings that
+needed no password stay switched off, because the record of how to undo them
+belongs to the app, and nothing is left running to read it. If you've already
+trashed it, drag it back, open it, and uninstall from the menu.</p>
+<p>Installed with Homebrew, uninstall from the menu first, then run
+<code>brew uninstall --cask networkmonitor</code>, which only removes what's left.</p>
+<p>From a source checkout, <code>Scripts/uninstall.sh</code> does the same.</p>
+<div class="markdown-heading"><h2 id="what-the-helper-looks-like-to-macos" class="heading-element">What the helper looks like to macOS</h2><a id="what-the-helper-looks-like-to-macos" class="anchor" aria-label="Permalink: What the helper looks like to macOS" href="#what-the-helper-looks-like-to-macos"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>If you switch Hotspot mode on, the app registers a small helper, and macOS lists it under
+NetworkMonitor in <strong>System Settings › General › Login Items &amp; Extensions</strong>, under <strong>Allow
+in the Background</strong>, for you to switch on (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>). Its hourly self-heal job is listed under
+NetworkMonitor too. See <a href="../../docs/hotspot-mode/#the-helper">Hotspot mode</a> for exactly what it can
+do.</p>
+
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/installing.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+  </main>
+</div>
+<script>
+// On a narrow screen the list of pages starts closed, above the page.
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna. NetworkMonitor is free software under the Apache License 2.0. macOS is a trademark of Apple Inc.</span>
+      <nav aria-label="Project links">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">Report an issue</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">License</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

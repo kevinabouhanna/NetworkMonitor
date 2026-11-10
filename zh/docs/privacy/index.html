@@ -1,0 +1,169 @@
+<!doctype html>
+<!-- The template of every Chinese docs page. The pages beside it are built
+     from the app repository's docs/zh-Hans/ by `make docs-site` (docs-kit,
+     #334): change a page there, never here. -->
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>隐私 — NetworkMonitor 文档</title>
+<meta name="description" content="NetworkMonitor 只测量传输了多少数据，从不查看数据的内容。它了解到的任何信息都不会离开你的 Mac。">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/privacy/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/privacy/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/privacy/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">跳到正文</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../../zh/"><img src="../../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../../zh/docs/" aria-current="true">文档</a>
+      <a href="../../../docs/privacy/" lang="en" hreflang="en" data-lang="en">English</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">下载</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>所有页面</summary>
+    <nav aria-label="文档"><ul><li><a href="../../../zh/docs/">NetworkMonitor 文档</a></li><li><span class="docs-nav-section">使用 NetworkMonitor</span><ul><li><a href="../../../zh/docs/installing/">安装、更新和卸载</a></li><li><a href="../../../zh/docs/features/">功能</a></li><li><a href="../../../zh/docs/connections/">连接</a></li><li><a href="../../../zh/docs/usage-history/">流量历史</a></li><li><a href="../../../zh/docs/speed-test/">网速测试</a></li><li><a href="../../../zh/docs/hotspot-mode/">热点模式</a></li><li><a href="../../../zh/docs/accuracy-and-battery/">统计准确性与耗电量</a></li><li><a href="../../../zh/docs/privacy/" aria-current=page>隐私</a></li><li><a href="../../../zh/docs/security/">安全策略</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="隐私" class="heading-element">隐私</h1><a id="隐私" class="anchor" aria-label="Permalink: 隐私" href="#隐私"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>NetworkMonitor 只测量传输了多少数据，从不查看数据的内容。它了解到的任何信息都不会离开你的 Mac。</p>
+<div class="markdown-heading"><h2 id="它会读取什么" class="heading-element">它会读取什么</h2><a id="它会读取什么" class="anchor" aria-label="Permalink: 它会读取什么" href="#它会读取什么"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>每个网络接口的字节计数</strong>，来自内核（<code>sysctl</code>），用于实时网速和连接总计。</li>
+<li>
+<strong>每个进程和连接的字节数</strong>，来自 macOS 自带的 <code>nettop</code> 工具，用于应用列表。它能看到哪个进程传输了多少字节，以及另一端的地址：是在互联网上还是在你自己的网络中，以及是哪个服务器。它从不查看任何流量的内容。</li>
+<li>
+<strong>默认网关的硬件地址</strong>，用于区分不同的网络（请参阅<a href="../../../zh/docs/features/#%E6%AF%8F%E4%B8%AA%E8%BF%9E%E6%8E%A5%E7%9A%84%E6%80%BB%E8%AE%A1">它如何区分网络</a>）。它来自 macOS 自己的网络配置，不需要任何权限。</li>
+<li>
+<strong>Wi-Fi 网络的名称</strong>，用于在流量历史中显示网络名称，而不是 <em>Wi-Fi · 3f2a</em>。只有在获得定位服务权限后，macOS 才会提供这个名称，所以 NetworkMonitor 会请求这项权限。</li>
+<li>
+<strong>你的 Mac 所在的国家或地区</strong>，用于确定“连接”地图上线条的起点（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/231">#231</a>），仅在地图显示时读取，且最多每十分钟一次。如果你已经为 Wi-Fi 名称允许了定位服务（它从不只为这个目的请求权限），就来自定位服务：位置会在你的 Mac 上用地图自己的轮廓换算成国家或地区，而不是使用 Apple 的地址查询，那会把位置发送给 Apple。只保留国家或地区，而且只保存在内存中。没有定位服务时，使用你的 Mac 自己的互联网地址所在的国家或地区，前提是它持有一个互联网能直接看到的地址（在家用路由器后面时没有，也不会询问任何外部服务）；再不行就使用 Mac 的“地区”设置。</li>
+<li>
+<strong>已安装应用的更新设置</strong>，仅在你打开<a href="../../../zh/docs/hotspot-mode/">热点模式</a>时读取，用于了解它能暂停什么，以及之后如何恢复。</li>
+</ul>
+<p><code>nettop</code> 以 <code>-n</code> 参数运行，所以它从不查询主机名。查询主机名本身就会产生流量。</p>
+<div class="markdown-heading"><h2 id="它会发送什么" class="heading-element">它会发送什么</h2><a id="它会发送什么" class="anchor" aria-label="Permalink: 它会发送什么" href="#它会发送什么"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>只有以下四项，没有别的：</p>
+<ul>
+<li>
+<p><strong>网速测试，在你开始测试时。</strong>它运行 <code>networkQuality</code>，这是 Apple 随每台 Mac 提供的工具，连接的是 Apple 自己的测试服务器。</p>
+</li>
+<li>
+<p><strong>每月一次，国家或地区和网络数据</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/121">#121</a>）。DB-IP 在每月初发布新一个月的数据，应用从这个仓库在 GitHub 上的 <code>geodata</code> 发布版本中下载：一份已签名的清单和两张压缩的数据表，约 5.5 MB。每个人下载的都是同一个文件，所以它不会透露你的 Mac 在和哪些服务器通信；GitHub 能看到你的 IP 地址，以及这台 Mac 在运行 NetworkMonitor。</p>
+<ul>
+<li>它最多每天检查一次，并且只在现有数据属于之前的月份时检查。</li>
+<li>使用热点、按流量计费的连接或低数据模式时，从不下载。</li>
+<li>只有当清单的签名能用应用内置的密钥验证通过，并且每张表的大小和 SHA-256 都匹配时，才会使用下载的数据。只要有一项不符合，就继续使用已有的副本。</li>
+<li>默认打开。在“连接”的设置中关闭 <strong>每月更新</strong> 即可。</li>
+</ul>
+</li>
+<li>
+<p><strong>每周一次，在你打开它们之后，广告、跟踪器和恶意软件列表</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/176">#176</a>），来自这个仓库的 <code>blocklists</code> 发布版本：一份已签名的清单和两个压缩的列表，约 0.6 MB。每个人下载的都是同一个文件，使用与国家或地区数据相同的密钥签名，使用热点时从不下载，并且只有当签名以及每个列表的大小和 SHA-256 都匹配时才会使用。在你打开列表之前一直是关闭的；打开后，可以在“广告与跟踪器”的设置中关闭 <strong>每周更新列表</strong>，停止下载。应用自带一份列表，所以即使不下载，列表也能正常工作。</p>
+</li>
+<li>
+<p><strong>每天一次，检查是否有新版本</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>）。Sparkle 是许多 Mac 应用使用的更新程序，它会从 GitHub 获取最新发布版本的 appcast，这是一个列出该版本的小文件。GitHub 能看到你的 IP 地址，以及发出请求的 NetworkMonitor 版本。使用热点或按流量计费的连接时从不检查，除非你选择 <strong>检查更新…</strong>。只有在你同意时，更新才会下载并安装，而且只有当它的磁盘映像使用应用内置的密钥签名时才会安装。在“设置”中关闭 <strong>自动检查更新</strong> 即可停止每日检查。</p>
+</li>
+</ul>
+<p>没有分析，没有遥测，没有崩溃报告，也不需要账户。</p>
+<p>我们也考虑过其他网速测试服务，但都没有采用。其中一个会把每次测试结果连同测试者的 IP 地址作为开放数据公开发布。</p>
+<div class="markdown-heading"><h2 id="它会存储什么存储在哪里" class="heading-element">它会存储什么，存储在哪里</h2><a id="它会存储什么存储在哪里" class="anchor" aria-label="Permalink: 它会存储什么，存储在哪里" href="#它会存储什么存储在哪里"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>所有内容都保存在你的 Mac 上：</p>
+<table>
+<thead>
+<tr>
+<th>内容</th>
+<th>位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>你加入过的每个网络的总计</td>
+<td><code>~/Library/Application Support/NetworkMonitor/usage.json</code></td>
+</tr>
+<tr>
+<td>流量历史，按小时、应用和网络记录，包括应用通信过的每个服务器的地址</td>
+<td><code>~/Library/Application Support/NetworkMonitor/history.sqlite</code></td>
+</tr>
+<tr>
+<td>如何撤销热点模式所做的更改</td>
+<td><code>~/Library/Application Support/NetworkMonitor/suppression.json</code></td>
+</tr>
+<tr>
+<td>应用自带数据之后下载的国家或地区和网络数据（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/121">#121</a>）</td>
+<td><code>~/Library/Application Support/NetworkMonitor/Geo/</code></td>
+</tr>
+<tr>
+<td>内容过滤器保存的你的规则和上述数据的副本</td>
+<td>它自己的容器，macOS 移除内容过滤器时会一并移除</td>
+</tr>
+<tr>
+<td>辅助程序自己的撤销记录（仅在使用辅助程序时）</td>
+<td><code>/Library/Application Support/NetworkMonitor/</code></td>
+</tr>
+<tr>
+<td>你的设置</td>
+<td>应用的偏好设置（<code>com.kevinabouhanna.NetworkMonitor</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>网速测试在一个临时文件夹中进行，读取结果后会立即删除该文件夹。上一次的结果只保存在内存中，切换网络后就会丢弃。</p>
+<p>“流量历史”的设置中的 <strong>清除历史记录</strong> 会删除流量历史（包括服务器），<strong>历史记录保留</strong> 设置也同样适用于服务器。<a href="../../../zh/docs/installing/#%E5%8D%B8%E8%BD%BD">卸载</a>会删除所有这些内容。</p>
+<div class="markdown-heading"><h2 id="不询问任何人就能命名服务器" class="heading-element">不询问任何人就能命名服务器</h2><a id="不询问任何人就能命名服务器" class="anchor" aria-label="Permalink: 不询问任何人就能命名服务器" href="#不询问任何人就能命名服务器"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>服务器的地址对人来说没有意义，所以 NetworkMonitor 会为它命名：它所在的国家或地区，以及它所属网络的公司。这些答案来自 DB-IP 的免费数据库，随应用一起提供，每月更新一次（请参阅<a href="#%E5%AE%83%E4%BC%9A%E5%8F%91%E9%80%81%E4%BB%80%E4%B9%88">它会发送什么</a>）。所有内容都不会在线查询：就每个地址去询问某个服务，等于把你的 Mac 通信过的每个服务器都告诉了它。数据为 <a href="https://db-ip.com" rel="nofollow">IP geolocation by DB-IP</a>，采用 <a href="https://creativecommons.org/licenses/by/4.0/" rel="nofollow">CC BY 4.0</a> 许可。</p>
+<div class="markdown-heading"><h2 id="权限" class="heading-element">权限</h2><a id="权限" class="anchor" aria-label="Permalink: 权限" href="#权限"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>定位服务，用于读取 Wi-Fi 网络的名称</strong>，之后也用于为“连接”地图确定你所在的国家或地区（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/231">#231</a>）。应用第一次打开时会在欢迎窗口中提供这一选项，之后可在“设置”中打开（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/134">#134</a>）。不打开也一切正常，网络会显示为类似 <em>Wi-Fi · 3f2a</em> 的名称，地图则从 Mac 的“地区”设置开始。更新后你的选择会保留：每个发布版本都使用同一个 Developer ID 签名。从 1.13 或更早版本更新时会再询问一次，因为签名是新的（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/119">#119</a>）。</li>
+<li>
+<strong>内容过滤器，仅在你允许时</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/128">#128</a>），可在欢迎窗口或“连接”的设置中打开。这是 macOS 专为这类应用设计的部分：每个连接建立时，它能看到这个连接、打开它的进程，以及服务器的地址和名称，并告诉 NetworkMonitor，NetworkMonitor 会把名称和该服务器一起保存在流量历史中。当应用通过地址连接时（Chrome 就是这样），它会从连接开头的握手中读取网站的名称，这个名称本来就是公开发送给网络读取的，之后的内容它一概不读（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/196">#196</a>）。它只阻止你要阻止的内容（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/114">#114</a>），从不查看任何流量的内容，也不会把任何东西发送到任何地方。macOS 会请你允许两次；在“系统设置 › 网络 › 过滤条件”中可以关闭它，卸载时会移除它。</li>
+<li>
+<strong>通常不需要其他权限。</strong>不需要本地网络、辅助功能或完全磁盘访问权限。</li>
+<li>
+<strong>辅助程序，仅需一次，并且只在你选择时。</strong>打开热点模式时会提供一个小型辅助程序，macOS 会在“系统设置 › 通用 › 登录项与扩展”中 NetworkMonitor 名下列出它，等你打开（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>），macOS 可能会要求你用密码或触控 ID 确认。它只响应 NetworkMonitor（通过开发者的签名验证），只能做固定的几件事，其他什么都做不了；请参阅<a href="../../../zh/docs/hotspot-mode/#%E8%BE%85%E5%8A%A9%E7%A8%8B%E5%BA%8F">热点模式</a>。不打开它，除了需要它的部分，其他一切照常工作。从源代码构建、没有 Developer ID 的版本则会改为要求输入密码。</li>
+</ul>
+<div class="markdown-heading"><h2 id="为什么它不在-app-store-中" class="heading-element">为什么它不在 App Store 中</h2><a id="为什么它不在-app-store-中" class="anchor" aria-label="Permalink: 为什么它不在 App Store 中" href="#为什么它不在-app-store-中"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>App Store 中的应用必须在沙盒中运行，而沙盒中的应用无法运行 <code>nettop</code>，这是 macOS 提供的查看每个应用网络使用情况的唯一方式。</p>
+
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/privacy.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+  </main>
+</div>
+<script>
+// 窄屏上，页面列表默认收起，放在正文上方。
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna。NetworkMonitor 是采用 Apache 2.0 许可证的自由软件。macOS 是 Apple Inc. 的商标。</span>
+      <nav aria-label="项目链接">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">版本发布</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">报告问题</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">许可证</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

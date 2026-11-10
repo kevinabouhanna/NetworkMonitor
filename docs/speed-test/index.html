@@ -1,0 +1,219 @@
+<!doctype html>
+<!-- The template of every English docs page. The pages beside it are built
+     from the app repository's docs/ by `make docs-site` (docs-kit, #334):
+     change a page there, never here. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Speed test — NetworkMonitor docs</title>
+<meta name="description" content="Click Test Speed in the popover&#x27;s Network view, choose Test Internet Speed from the right-click menu, or click Test Now on the Network page of the main…">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/speed-test/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/speed-test/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/speed-test/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to the page</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../"><img src="../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../docs/" aria-current="true">Docs</a>
+      <a href="../../zh/docs/speed-test/" lang="zh-Hans" hreflang="zh-Hans" data-lang="zh-Hans">简体中文</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">Download</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>All pages</summary>
+    <nav aria-label="Documentation"><ul><li><a href="../../docs/">NetworkMonitor documentation</a></li><li><span class="docs-nav-section">Using NetworkMonitor</span><ul><li><a href="../../docs/installing/">Installing, updating and removing</a></li><li><a href="../../docs/features/">Features</a></li><li><a href="../../docs/connections/">Connections</a></li><li><a href="../../docs/usage-history/">Usage History</a></li><li><a href="../../docs/speed-test/" aria-current=page>Speed test</a></li><li><a href="../../docs/hotspot-mode/">Hotspot mode</a></li><li><a href="../../docs/accuracy-and-battery/">Accuracy and battery</a></li><li><a href="../../docs/privacy/">Privacy</a></li><li><a href="../../docs/security/">Security policy</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="speed-test" class="heading-element">Speed test</h1><a id="speed-test" class="anchor" aria-label="Permalink: Speed test" href="#speed-test"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p align="center">
+  <a target="_blank" rel="noopener noreferrer nofollow" href="https://raw.githubusercontent.com/kevinabouhanna/NetworkMonitor/ef06fe142afe9f58030ee17286c6f002027561da/Resources/README/speed-test.png"><img src="https://raw.githubusercontent.com/kevinabouhanna/NetworkMonitor/ef06fe142afe9f58030ee17286c6f002027561da/Resources/README/speed-test.png" width="320" alt="The popover’s Network view after a speed test, under Today, Week and Month and the four figures: a dial with the download speed in its centre, the download and upload speeds, the network, how much the test used and when, then ping, jitter, and ping while downloading and while uploading; Back and Test Again buttons." style="max-width: 100%;"></a>
+</p>
+<p>Click <strong>Test Speed</strong> in the popover's <strong>Network</strong> view, choose <strong>Test Internet Speed</strong> from
+the right-click menu, or click <strong>Test Now</strong> on the <strong>Network</strong> page of the main window. It
+tests the connection you're on. NetworkMonitor runs <code>networkQuality</code>, the speed
+test Apple ships with every Mac since Monterey, against Apple's nearest servers.</p>
+<div class="markdown-heading"><h2 id="what-you-get" class="heading-element">What you get</h2><a id="what-you-get" class="anchor" aria-label="Permalink: What you get" href="#what-you-get"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>Download, then upload</strong>, one after the other, as other speed tests do. The dial
+follows whichever half is running.</li>
+<li>
+<strong>Ping and jitter</strong> on a quiet line, plus <strong>ping while downloading</strong> and <strong>while
+uploading</strong>: what another app waits for while something else fills the line, which
+is the figure that explains a call lagging during a big download. Hover over any
+figure for what it means.</li>
+<li>
+<strong>A fresh measurement every time.</strong> Nothing is cached or reused.</li>
+<li>
+<strong>What slowed it down.</strong> NetworkMonitor already knows which apps are using the
+connection. If one moved at least 1 MB, and at least 5% as much as the test did,
+the result names it and warns that the figures may read low. Otherwise, if ping
+rises by 100 ms or more under load, it says calls may lag during big downloads.</li>
+<li>
+<strong>Mbps or MB/s</strong>, the same choice as the menu bar (<strong>Settings › Show speeds
+in</strong>). Mbps matches how your line is sold; MB/s matches the data totals.</li>
+</ul>
+<div class="markdown-heading"><h2 id="where-it-shows" class="heading-element">Where it shows</h2><a id="where-it-shows" class="anchor" aria-label="Permalink: Where it shows" href="#where-it-shows"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>Card</strong> (the default) takes the place of the popover's Network view, with a dial and
+every figure. <strong>Back</strong> leaves a running test running and brings the view back; <strong>Show</strong>
+beside the speed test then returns to it. <strong>Stop</strong> is what stops it.</li>
+<li>
+<strong>Compact</strong> shows the test as two thin gauges above the Network view, with ping and
+jitter beneath once it's done. The view stays in sight and gives up that much height,
+so the popover never grows.</li>
+<li>
+<strong>The Network page</strong> runs it in place, with the same dial and figures as the card.</li>
+<li>
+<strong>The menu bar</strong>, always. While the test runs, the readout shows it in cyan, so its
+figures are never mistaken for the live rate, at exactly the readout's usual width. If
+you've given the live rates colours close to cyan (Settings › Speed colors),
+the test uses pink, amber or violet instead, and Settings shows which.
+It holds the result for 8 seconds, then the live rates return. Start a test from the
+right-click menu and this is where you watch it.</li>
+</ul>
+<p>Choose Card or Compact in Network's settings, behind the gear on the Network page.</p>
+<div class="markdown-heading"><h2 id="data-use" class="heading-element">Data use</h2><a id="data-use" class="anchor" aria-label="Permalink: Data use" href="#data-use"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>A test uses real data, typically <strong>50–500 MB</strong>, more on a very fast line. So:</p>
+<ul>
+<li>
+<strong>On a metered connection it asks first</strong>, and shows what the last test on this
+connection used. Nothing is spent until you click <strong>Run Anyway</strong>.</li>
+<li>Its traffic shows in the app list as <strong>Speed test</strong>, under Network Monitor, and
+counts toward your total and Usage History, because those bytes really crossed the
+connection.</li>
+<li>
+<strong>Changing network mid-test ends it</strong>; a test spanning two networks measures
+neither. The last result is forgotten too, since it described the network you left.</li>
+</ul>
+<div class="markdown-heading"><h2 id="how-its-built" class="heading-element">How it's built</h2><a id="how-its-built" class="anchor" aria-label="Permalink: How it's built" href="#how-its-built"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>The engine</strong> is <code>/usr/bin/networkQuality</code>. If a Mac doesn't have it, the speed test is
+left out of the popover, the Network page and the menu. Other engines were considered and turned
+down:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Why not</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ookla's CLI</td>
+<td>needs installing, and its licence doesn't allow bundling it with the app</td>
+</tr>
+<tr>
+<td>M-Lab NDT</td>
+<td>publishes every tester's IP address and result as open data</td>
+</tr>
+<tr>
+<td>Cloudflare's endpoints, or our own</td>
+<td>would mean owning a measurement engine worse than the one already on every Mac</td>
+</tr>
+<tr>
+<td>fast.com</td>
+<td>no API</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The run</strong> (<code>SpeedTestRunner.swift</code>) is <code>networkQuality -s -v -c&lt;file&gt;</code>:</p>
+<ul>
+<li>
+<code>-s</code> runs download and upload <strong>sequentially</strong>. In the default parallel mode each
+direction competes with the other, so both read low on uneven or deeply buffered
+lines; sequential also gives a loaded ping for each direction.</li>
+<li>
+<code>-v</code> adds byte counts to the live line, so the card can show what the test has used
+so far.</li>
+<li>
+<code>-c</code> writes the result as JSON. The path has to be attached to the flag.</li>
+<li>
+<strong>No <code>-M</code> time limit:</strong> a capped run drops whichever figures hadn't converged.</li>
+</ul>
+<p>It runs inside a <strong>pseudo-terminal</strong>, because through a pipe the tool prints nothing
+until the end. That's the same reason <code>nettop</code> runs in one; see
+<a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/architecture.md#nettop-who-used-it">architecture</a>. The live line is redrawn about five times a
+second and parsed as it comes. A run that takes over 90 seconds is stopped.</p>
+<p>Then a short <strong>ping-only pass</strong> (<code>-d -u</code>, under a second, no test data) adds eight more
+idle samples, because a single batch of idle pings on Wi-Fi varied from 49 to 74 ms
+between runs a minute apart.</p>
+<p><strong>The figures</strong> (<code>SpeedTest.swift</code>):</p>
+<ul>
+<li>
+<strong>Ping</strong> is the interquartile mean of the idle request/response times, from both
+passes. That's the mean of the middle half, as Ookla reports. A plain mean let one
+stalled probe (633 ms among 75s) drag it up; a minimum flatters the line. The
+handshake-inclusive <code>base_rtt</code> is only a fallback.</li>
+<li>
+<strong>Jitter</strong> is the mean difference between consecutive idle samples, within each
+pass, never across the two.</li>
+<li>
+<strong>Loaded pings</strong> come from separate connections opened while the line is full:
+what another app experiences.</li>
+<li>
+<strong>RPM and Apple's responsiveness rating are deliberately not shown.</strong> RPM is Apple's
+own unit, and it blends latency inside the saturated connections (seconds, on a
+line with deep buffers) with what another app actually waits for.</li>
+</ul>
+<p><strong>Fresh by construction.</strong> Each run is a new process in its own folder,
+<code>$TMPDIR/NetworkMonitor-speedtest-&lt;UUID&gt;/</code>, which is deleted as soon as the result is
+read, on success, failure, timeout or cancel. A result can only come from the run
+that just finished. Cancelling sends <code>SIGTERM</code>, then <code>SIGKILL</code> after 0.3 s. A folder left
+by a run the app was force-quit in the middle of is removed at the next launch, once
+it's over 10 minutes old, so a run in another process is never touched.</p>
+<p><strong>State</strong> (<code>SpeedTestController.swift</code>) goes idle → confirming (metered only) →
+running → finished or failed. The live readings are a separate observable object from
+the phase, so the app list isn't rebuilt five times a second.</p>
+<p><strong>Preferences:</strong> <code>speedTestUnit</code> (<code>bits</code> or <code>bytes</code>, default bytes; named for the speed
+test, which had the setting first, and kept so earlier choices carry over) and
+<code>speedTestStyle</code> (<code>card</code> or <code>compact</code>).</p>
+<p><strong>Tests</strong> (<code>SpeedTestTests.swift</code>) never spend data. The parser and decoder run against
+output captured from the real tool. The runner and controller run against a stand-in
+<code>networkQuality</code> script that prints the same kind of output, writes JSON, and can be
+told to fail, fail its ping pass or run slowly. Run the real thing sparingly while
+developing: each run costs real data.</p>
+
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/speed-test.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+  </main>
+</div>
+<script>
+// On a narrow screen the list of pages starts closed, above the page.
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna. NetworkMonitor is free software under the Apache License 2.0. macOS is a trademark of Apple Inc.</span>
+      <nav aria-label="Project links">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">Report an issue</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">License</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
