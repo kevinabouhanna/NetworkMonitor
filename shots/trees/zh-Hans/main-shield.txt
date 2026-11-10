@@ -13,18 +13,29 @@ AXWindow (AXStandardWindow) title="广告与跟踪器" 1300
       AXTabGroup description="显示" 100x24
         AXRadioButton (AXTabButton) description="概览" 12x24
         AXRadioButton (AXTabButton) description="日志" 12x24
-      data: AXStaticText
+      AXStaticText value="分组方式" h16
+      AXTabGroup 460x24
+        AXRadioButton (AXTabButton) description="网站" 224x24
+        AXRadioButton (AXTabButton) description="应用" 224x24
+      data: AXButton AXStaticText
       AXMenuButton title="暂停" help="在所有应用中暂时放行广告" 44x16
       AXStaticText value="今天" h16
-      data: AXGroup AXUnknown
-      AXStaticText value="网站" h16
-      AXStaticText value="应用" h16
-      AXScrollArea
-        data: AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
-      AXScrollArea
-        data: AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+      data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXStaticText
+      AXGroup description="每小时拦截次数" h580
+        AXUnknown description="‹time›时至#时" h12
+        AXUnknown description="‹time›时至#时" h56
+        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h8
+        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h196
+        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h312
+        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h112
+        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h512
   AXToolbar 1300x52
     AXButton description="边栏" help="隐藏边栏" 44x52
+    AXGroup help="列表、两者并排，或图表" h52
+      AXRadioGroup description="视图" 120x40
+        AXRadioButton (AXSegment) description="列表" help="列表" 36x36
+        AXRadioButton (AXSegment) description="两者" help="两者" 40x36
+        AXRadioButton (AXSegment) description="图表" help="图表" 44x36
     AXGroup help="每次显示一天、一周、一个月或一年" h52
       AXRadioGroup description="统计周期" 280x40
         AXRadioButton (AXSegment) description="日" 72x36

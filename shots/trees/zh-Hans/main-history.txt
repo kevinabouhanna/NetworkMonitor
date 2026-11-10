@@ -22,13 +22,16 @@ AXWindow (AXStandardWindow) title="流量历史" 1300
       AXStaticText value="今天" h24
       AXStaticText value="# ‹unit›" h16
       AXStaticText value="已使用" h16
-      data: AXGroup AXStaticText AXUnknown
       AXScrollArea
         data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
-      AXStaticText value="每小时的数据都按应用和网络保存在这台 Mac 上。" h16
-      AXButton description="导出 CSV…" 88x24
+      data: AXButton AXGroup AXStaticText AXUnknown
   AXToolbar 1300x52
     AXButton description="边栏" help="隐藏边栏" 44x52
+    AXGroup help="列表、两者并排，或图表" h52
+      AXRadioGroup description="视图" 120x40
+        AXRadioButton (AXSegment) description="列表" help="列表" 36x36
+        AXRadioButton (AXSegment) description="两者" help="两者" 40x36
+        AXRadioButton (AXSegment) description="图表" help="图表" 44x36
     AXGroup help="每次显示一天、一周、一个月或一年" h52
       AXRadioGroup description="统计周期" 280x40
         AXRadioButton (AXSegment) description="日" 72x36

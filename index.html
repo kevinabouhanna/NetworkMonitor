@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NetworkMonitor — Live network speed and per-app data usage for your Mac</title>
-<meta name="description" content="A free, open-source macOS menu bar app. Live download and upload speed, which apps used your connection, automatic updates paused on mobile hotspots, and a speed test on demand. No telemetry, no Dock icon.">
+<meta name="description" content="A free, open-source macOS menu bar app. Live download and upload speed, which apps used your connection, automatic updates paused on mobile hotspots, and a speed test on demand. No telemetry, and a Dock icon only if you want one.">
 <link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/">
 <link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/">
 <link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/">
@@ -492,7 +492,7 @@ footer a { color: var(--text-2); }
         <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download for Mac</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
-      <p class="hero-meta reveal d3"><span>Version 1.28.3</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
+      <p class="hero-meta reveal d3"><span>Version 1.29.0</span><span>macOS 13 or later</span><span>Apple silicon and Intel</span><span>Free and open source</span></p>
       <div class="featured reveal d3">
         <a href="https://www.trymacapps.com" target="_blank" rel="noopener">
           <img
@@ -577,7 +577,7 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <p class="eyebrow reveal">The solution</p>
       <h2 class="h2 reveal d1">Meet NetworkMonitor.</h2>
-      <p class="lead reveal d2">A small menu bar app that shows your speed live, tells you exactly which apps used this connection and who they talked to, and, if you ask it to, <strong>stops them updating while you’re on a hotspot</strong>. It lives in the menu bar, opens one window when you want the detail, and needs no account.</p>
+      <p class="lead reveal d2">A small menu bar app that shows your speed live, tells you exactly which apps used this connection and who they talked to, and, if you ask it to, <strong>stops them updating while you’re on a hotspot</strong>. It lives in the menu bar, or in the Dock if you’d rather, opens one window when you want the detail, and needs no account.</p>
       <div class="pillars">
         <div class="pillar reveal">
           <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M14 6v22" stroke="#51ff70" stroke-width="5"/><path d="M5 25l9 13 9-13z" fill="#51ff70"/><path d="M30 38V16" stroke="#e5e5e5" stroke-width="5"/><path d="M21 19l9-13 9 13z" fill="#e5e5e5"/></svg>
@@ -603,7 +603,7 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <p class="eyebrow reveal">In the menu bar</p>
       <h2 class="h2 reveal d1">Two lines.<br>Twice a second.</h2>
-      <p class="lead reveal d2" style="max-width:700px;margin-inline:auto">Download in green, upload in white: the same two arrows as the icon, or <strong>colours you pick</strong>. The readout keeps a <strong>fixed width</strong>, so nothing beside it jitters as the numbers change, and it counts in bytes, the unit your data plan uses, or in bits, the unit your line is sold in. <strong>Your choice</strong>, and the speed test follows it.</p>
+      <p class="lead reveal d2" style="max-width:700px;margin-inline:auto">Download in green, upload in white: the same two arrows as the icon, or <strong>colours you pick</strong>. The readout keeps a <strong>fixed width</strong>, so nothing beside it jitters as the numbers change, and it counts in bytes, the unit your data plan uses, or in bits, the unit your line is sold in. <strong>Your choice</strong>, and the speed test follows it. Rather keep the menu bar clear? Show it in the <strong>Dock</strong> instead, where the whole icon can be the live speeds, or in both.</p>
       <figure class="menubar-shot reveal" style="margin-bottom:0">
         <img src="assets/menubar.png?v=905a75c6" width="652" height="60" loading="lazy"
              alt="A strip of the macOS menu bar: NetworkMonitor reads 2.61 MB/s down and 117.0 KB/s up, between the microphone icon and the volume, Bluetooth, 80% battery and Wi‑Fi icons.">
@@ -763,8 +763,8 @@ footer a { color: var(--text-2); }
       </div>
 
       <figure class="shield-shot reveal">
-        <img src="assets/main/shield.png?v=030bfdc3" width="2600" height="1600" loading="lazy"
-             alt="The main window on Ads and Trackers, Today, on Overview, with Log beside it. How many were blocked, and how many by each list, with a Pause menu. A red bar chart of what was blocked, by the hour. Below, Sites and Apps, busiest first: each site with the servers that were tried and how many times, some tagged ADS; each app with the sites it tried.">
+        <img src="assets/main/shield.png?v=eb620181" width="2600" height="1600" loading="lazy"
+             alt="The main window on Ads and Trackers, Today, on Overview, with Log beside it, showing the list and the chart side by side. The toolbar has List, Both and Chart, with Both chosen, Day, Week, Month and Year, a ‹ Today › stepper, search and a gear. Sites and Apps, as tabs, with Sites chosen. How many were blocked, as one total, with a Pause menu. On the left, sites busiest first, each with an arrow that opens it, the servers that were tried, a bar and how many times, some tagged ADS. On the right, a red bar chart of what was blocked, by the hour.">
       </figure>
 
       <div class="facts two">
@@ -778,7 +778,7 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>See what it stopped.</h3>
-          <p><b>Ads and Trackers</b> has a section of its own: how many were blocked in a day, week, month or year, over time, and the sites and apps most blocked. Its <b>Log</b> shows every connection as it’s decided, and why, and each list says what it blocked, so one that blocks too much is easy to find. The popover counts them for today, this week or this month, and Connections tags each listed server <b>ADS</b> or <b>MALWARE</b>.</p>
+          <p><b>Ads and Trackers</b> has a section of its own: how many were blocked in a day, week, month or year, as one total with what each list blocked behind its ⓘ, and the sites or apps most blocked, as a list, a chart or both side by side. Click a bar to see that hour or day, or open a site or app to see what’s behind it and when it was last blocked. Its <b>Log</b> shows every connection as it’s decided, and why, and each list says what it blocked, so one that blocks too much is easy to find. The popover counts them for today, this week or this month, and Connections tags each listed server <b>ADS</b> or <b>MALWARE</b>.</p>
         </div>
         <div class="reveal">
           <h3>Current by itself.</h3>
@@ -844,31 +844,31 @@ footer a { color: var(--text-2); }
         <div class="prefs-window">
           <div role="tablist" aria-label="Sections" aria-orientation="vertical">
             <button class="prefs-tab" id="prefs-tab-history" role="tab" type="button" aria-selected="true" aria-controls="prefs-panel" data-pane="history" style="--x:-640;--y:58;--w:170;--h:32"
-                    data-caption="What every app and network used, hour by hour, for a day, week, month or year. It stays on your Mac.">Usage History</button>
+                    data-caption="What every app and network used, hour by hour, for a day, week, month or year, as a list, a chart or both side by side. It stays on your Mac.">Usage History</button>
             <button class="prefs-tab" id="prefs-tab-connections" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="connections" style="--x:-640;--y:92;--w:170;--h:32"
                     data-caption="Who your apps talk to, on a list and a world map, or what was blocked.">Connections</button>
             <button class="prefs-tab" id="prefs-tab-shield" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="shield" style="--x:-640;--y:126;--w:170;--h:32"
-                    data-caption="What was blocked in the period, on a chart and by site and app. Its Log shows each connection as it’s decided.">Ads and Trackers</button>
+                    data-caption="What was blocked in the period, by site or app, as a list, a chart or both side by side. Its Log shows each connection as it’s decided.">Ads and Trackers</button>
             <button class="prefs-tab" id="prefs-tab-network" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="network" style="--x:-640;--y:160;--w:170;--h:32"
                     data-caption="The connection you’re on, whether it’s a hotspot, what’s paused there and what can’t be, and the speed test. Click a list to open it.">Network</button>
             <button class="prefs-tab" id="prefs-tab-settings" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="settings" style="--x:-640;--y:760;--w:170;--h:32"
-                    data-caption="What applies to the whole app: language, start at login, speeds, the menu bar’s colours, updates, and a way to each section’s settings.">Settings</button>
+                    data-caption="What applies to the whole app: language, start at login, the menu bar, the Dock or both, speeds and their colours, updates, and a way to each section’s settings.">Settings</button>
           </div>
           <div id="prefs-panel" role="tabpanel" aria-labelledby="prefs-tab-history">
-            <img class="prefs-shot on" data-shot="history" data-w="1300" data-h="800" src="assets/main/history.png?v=e303df63" width="2600" height="1600"
-                 alt="NetworkMonitor’s main window on Usage History. The sidebar lists Usage History, chosen, Connections, Ads and Trackers and Network, with Settings at the bottom. The toolbar has Day, Week, Month and Year, a ‹ Today › stepper, a search button and a gear. Show offers Apps, Networks and Sessions, beside All, Wi‑Fi and Hotspot. Under Today, how much was used, over a bar chart by the hour coloured by network, then apps biggest first, each with its icon, a bar and how much it used, some with an arrow that opens them. At the bottom, every hour is kept on this Mac, per app and per network, with an Export CSV… button.">
+            <img class="prefs-shot on" data-shot="history" data-w="1300" data-h="800" src="assets/main/history.png?v=1d0bff2c" width="2600" height="1600"
+                 alt="NetworkMonitor’s main window on Usage History. The sidebar lists Usage History, chosen, Connections, Ads and Trackers and Network, with Settings at the bottom. The toolbar has List, Both and Chart, with Both chosen, Day, Week, Month and Year, a ‹ Today › stepper, a search button and a gear. Show offers Apps, Networks and Sessions, beside All, Wi‑Fi and Hotspot. Under Today, how much was used, then the list and the chart side by side: on the left, apps biggest first, each with its icon, a bar and how much it used, some with an arrow that opens them; on the right, a bar chart by the hour coloured by network, with each network named below it. At the bottom, every hour is kept on this Mac, per app and per network, with an Export CSV… button.">
             <img class="prefs-shot" data-shot="connections" data-w="1300" data-h="800" src="assets/connections.png?v=7ad6de93" width="2600" height="1600" loading="lazy" aria-hidden="true"
                  alt="The main window on Connections, Today. The toolbar has List, Both and Map, Day, Week, Month and Year, a ‹ Today › stepper, search and a gear. Group by Companies, Apps or Countries, Show Traffic or Blocked, and All, Wi‑Fi and Hotspot. How much went to and from servers, with how many companies, countries, apps and servers, over a timeline by the hour. On the left, companies biggest first, each with a bar and how much it used, and servers on a cloud as Hosted on Amazon with a HOST tag. On the right, a world map with the countries reached shaded, lines from where the Mac is to them, zoom buttons, and a note on the traffic answered from nearby data centres, which isn’t placed on the map.">
-            <img class="prefs-shot" data-shot="shield" data-w="1300" data-h="800" src="assets/main/shield.png?v=030bfdc3" width="2600" height="1600" loading="lazy" aria-hidden="true"
-                 alt="The main window on Ads and Trackers, Today, on Overview, with Log beside it. How many were blocked, and how many by each list, with a Pause menu. A red bar chart of what was blocked, by the hour. Below, Sites and Apps, busiest first: each site with the servers that were tried and how many times, some tagged ADS; each app with the sites it tried.">
+            <img class="prefs-shot" data-shot="shield" data-w="1300" data-h="800" src="assets/main/shield.png?v=eb620181" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="The main window on Ads and Trackers, Today, on Overview, with Log beside it, showing the list and the chart side by side. The toolbar has List, Both and Chart, with Both chosen, Day, Week, Month and Year, a ‹ Today › stepper, search and a gear. Sites and Apps, as tabs, with Sites chosen. How many were blocked, as one total, with a Pause menu. On the left, sites busiest first, each with an arrow that opens it, the servers that were tried, a bar and how many times, some tagged ADS. On the right, a red bar chart of what was blocked, by the hour.">
             <img class="prefs-shot" data-shot="network" data-w="1300" data-h="800" src="assets/main/network.png?v=2efd9796" width="2600" height="1600" loading="lazy" aria-hidden="true"
                  alt="The main window on Network: the connection in use, Ethernet, and how much it used today. Under This network, a This is a hotspot switch, off, and Right now, what it’s detected as. Under Hotspots, Stop apps updating on hotspots, on, which also puts the hotspot in Low Data Mode; Paused on a hotspot and Can’t be paused, each with how many apps, both closed; and Every app’s updater, Stopped on hotspots. The speed test follows below, and the toolbar has a gear.">
             <img class="prefs-shot" data-shot="network-apps" data-w="1300" data-h="800" src="assets/main/network-apps.png?v=b1adb401" width="2600" height="1600" loading="lazy" aria-hidden="true"
                  alt="The Network page with Paused on a hotspot open: one line per app found on this Mac, each with its switch, all on, NetworkMonitor itself among them.">
             <img class="prefs-shot" data-shot="network-uncovered" data-w="1300" data-h="800" src="assets/main/network-uncovered.png?v=2d67d4fc" width="2600" height="1600" loading="lazy" aria-hidden="true"
                  alt="The Network page with Can’t be paused open, naming the app it can’t pause. Quit these while you’re on a hotspot to be sure they don’t update; Low Data Mode slows the ones that respect it.">
-            <img class="prefs-shot" data-shot="settings" data-w="1300" data-h="800" src="assets/main/settings.png?v=6618ac67" width="2600" height="1600" loading="lazy" aria-hidden="true"
-                 alt="The main window on Settings, chosen at the bottom of the sidebar. Language, Same as the Mac. Start at login, on. Show speeds in Mbps or MB/s, with MB/s chosen. Know your Wi‑Fi networks by name, with a Turn On… button. Under Menu bar colors, Download in green, Upload in light grey, During a speed test in two shades of cyan, and a dimmed Use Default Colors button. Under Popover totals, Counting since, Sampling, and Start the totals over with a Reset Now button. Check for updates automatically, on, with Check Now. Further down, Sections, a row to each section’s settings, and Uninstall NetworkMonitor….">
+            <img class="prefs-shot" data-shot="settings" data-w="1300" data-h="800" src="assets/main/settings.png?v=1c082f68" width="2600" height="1600" loading="lazy" aria-hidden="true"
+                 alt="The main window on Settings, chosen at the bottom of the sidebar. Language, Same as the Mac. Start at login, on. Show NetworkMonitor in Menu bar, Dock or Both, with Menu bar chosen. Show speeds in Mbps or MB/s, with MB/s chosen. Know your Wi‑Fi networks by name, with a Turn On… button, which also finds your country for the Connections map. Under Speed colors, Download in green, Upload in light grey, During a speed test in two shades of cyan, and a dimmed Use Default Colors button. Under Popover totals, Counting since, Sampling, and Start the totals over with a Reset Now button. Check for updates automatically, on, with Check Now. Further down, Sections, a row to each section’s settings, and Uninstall NetworkMonitor….">
             <img class="prefs-shot" data-shot="history-settings" data-w="1300" data-h="800" src="assets/settings/history.png?v=7acef8f8" width="2600" height="1600" loading="lazy" aria-hidden="true"
                  alt="Usage History Settings, shown in place in the main window with a back button: how much was used today, with an Open Usage History… button, Keep history for Forever, and Clear History…. Usage History never leaves this Mac.">
             <img class="prefs-shot" data-shot="connections-settings" data-w="1300" data-h="800" src="assets/settings/connections.png?v=f51d3c7d" width="2600" height="1600" loading="lazy" aria-hidden="true"
@@ -896,7 +896,7 @@ footer a { color: var(--text-2); }
       <figure class="about-shot reveal">
         <div class="about-window">
           <!-- About's links are placed by hand, in points: the About window reports its links' frames a line off, so site-shots leaves them alone. -->
-          <img src="assets/about.png?v=7c5a7525" width="568" height="658" data-w="284" data-h="329" loading="lazy"
+          <img src="assets/about.png?v=f1f97570" width="568" height="658" data-w="284" data-h="329" loading="lazy"
                alt="The About NetworkMonitor window: the app icon, its name and version, and Live network speed in your menu bar, and which app used your data. Links to the website, what’s new and the source code. Free and open source, under the Apache 2.0 licence, and the copyright.">
           <a class="about-link" href="#top" style="--x:-25;--y:198;--w:50;--h:13">Website</a>
           <a class="about-link" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest" style="--x:-35;--y:211;--w:69;--h:13">What’s new</a>
@@ -930,7 +930,7 @@ footer a { color: var(--text-2); }
       <h2 class="h2 reveal d1">It measures volume.<br>Never contents.</h2>
       <p class="lead reveal d2" style="max-width:640px;margin-inline:auto">NetworkMonitor counts how much, and where it went, never what. <strong>Nothing about your traffic ever leaves your Mac.</strong></p>
       <div class="privacy-grid">
-        <div class="reveal"><h3>Two permissions, both optional.</h3><p>Location, only because macOS shares a Wi‑Fi network’s name no other way; it never looks up where you are. And website names, to see and block where apps connect. Both are offered when it first opens, and each can be turned on later. Hotspot mode’s helper is one switch in System Settings, not a password.</p></div>
+        <div class="reveal"><h3>Two permissions, both optional.</h3><p>Location, because macOS shares a Wi‑Fi network’s name no other way. Once it’s allowed, it also finds which country your Mac is in, for where the Connections map’s lines start: worked out on your Mac, sent nowhere, and only the country kept, in memory. And website names, to see and block where apps connect. Both are offered when it first opens, and each can be turned on later. Hotspot mode’s helper is one switch in System Settings, not a password.</p></div>
         <div class="reveal d1"><h3>Three small downloads, all yours to switch off.</h3><p>Once a month, the new country and network data, the same file for everyone; once a week, while you’ve switched them on, the ad and malware lists, and any more you pick, from where their makers publish them; once a day, whether there’s a newer version. Ours come from GitHub, signed. None happen on a hotspot, and none say anything about your traffic. Beyond those, only a speed test you start. No analytics, no telemetry, no account.</p></div>
         <div class="reveal d2"><h3>Stays on your Mac.</h3><p>Your usage, and the servers your apps reached, live in local files on your Mac that you can delete at any time. Countries and companies are named from data inside the app. Switch on <b>Encrypt lookups</b>, and the names your Mac looks up go encrypted to Cloudflare, Quad9 or Google, instead of in the clear to whoever runs the network.</p></div>
         <div class="reveal d3"><h3>Open source.</h3><p>Apache 2.0 licensed. <a href="https://github.com/kevinabouhanna/NetworkMonitor">Read every line</a> before you run it.</p></div>
@@ -951,7 +951,7 @@ footer a { color: var(--text-2); }
           <p>The usual Mac way: open the disk image and drag NetworkMonitor into <strong>Applications</strong>.</p>
           <div class="get">
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download NetworkMonitor.dmg</a>
-            <span class="meta">Version 1.28.3 · 14.5 MB · Universal</span>
+            <span class="meta">Version 1.29.0 · 14.9 MB · Universal</span>
           </div>
           <p class="brew">Or with <a href="https://brew.sh">Homebrew</a>: <code>brew install --cask kevinabouhanna/tap/networkmonitor</code></p>
           <figure class="dmg-shot" style="margin-bottom:0">
@@ -969,7 +969,7 @@ footer a { color: var(--text-2); }
       </div>
 
       <div class="ctas reveal">
-        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.28.3">What’s in version 1.28.3</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.29.0">What’s in version 1.29.0</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/wiki">Documentation</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">View on GitHub</a>
       </div>
