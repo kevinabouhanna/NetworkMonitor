@@ -109,6 +109,8 @@ dmg-background:
 # through git so it works from any worktree, unless SITE says otherwise.
 # `site-check` says which pictures show a window whose interface changed;
 # `site-shots` retakes them (or those in NAMES) and updates the page.
+# LOOK=1 makes `site-check` compare each picture's look too (#423), which
+# brings each window forward, so it waits until the keyboard and mouse are idle.
 SITE ?= $(abspath $(dir $(shell git rev-parse --path-format=absolute --git-common-dir))../NetworkMonitor-site)
 # It shares the accessibility rules with the tests.
 build/site-shots: Scripts/site-shots.swift Sources/NetworkMonitorCore/AccessibilityAudit.swift
@@ -117,7 +119,7 @@ build/site-shots: Scripts/site-shots.swift Sources/NetworkMonitorCore/Accessibil
 
 site-check: build/site-shots
 	@build/site-shots coverage --site $(SITE)
-	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh env MAC_LANE=screen ./Scripts/mac-lane.sh build/site-shots check --site $(SITE) $(NAMES)
+	@MAC_LANE=networkmonitor ./Scripts/mac-lane.sh env MAC_LANE=screen ./Scripts/mac-lane.sh build/site-shots check $(if $(LOOK),--look) --site $(SITE) $(NAMES)
 
 # Every image, GIF and video the site, the README and the docs use is listed
 # with the window it shows, or why it shows none (#413). Files only, no app:

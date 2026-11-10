@@ -10,7 +10,10 @@
 // with the tree recorded when the picture was taken (`shots/trees/<name>.txt`):
 //
 //   check            reports what changed, and which videos or staged pictures
-//                    show a window that changed (they're remade by hand)
+//                    show a window that changed (they're remade by hand).
+//                    With --look, and on `update`, also as advice the windows
+//                    that look different from their pictures, outside what's
+//                    masked (`<name>.look`, #423)
 //   update [names]   retakes the pictures whose window changed (or the ones
 //                    named), records their trees, and updates the page: each
 //                    picture's size, the clickable areas laid over it, and the
@@ -24,7 +27,8 @@
 //                    one it retakes
 //   record <names>   records the named windows' trees as they read now,
 //                    without retaking their pictures: after marking more of
-//                    a window as data or ignored (#416)
+//                    a window as data or ignored (#416). And keeps each
+//                    picture's look from the picture as it is
 //
 // It needs Accessibility and Screen Recording for the terminal it runs in. It
 // quits and relaunches the installed app, and puts it back running at the end.
@@ -489,7 +493,11 @@ let containerRoles: Set<String> = ["AXGroup", "AXScrollArea", "AXOpaqueProviderG
 /// Roles left out altogether: a scroll bar comes and goes with a list's length.
 let ignoredRoles: Set<String> = ["AXScrollBar"]
 
-func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = []) -> [String] {
+/// `masked` is told of each element whose looks the tree doesn't keep: data,
+/// what's left out, a number or a date, a setting's value. The look check
+/// leaves them out of the picture too (#423).
+func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = [],
+          masked: ((AXUIElement) -> Void)? = nil) -> [String] {
     var out: [String] = []
     /// Whether the element's subtree held a data region.
     @discardableResult
@@ -497,8 +505,11 @@ func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = []) -> [
         let pad = String(repeating: "  ", count: depth)
         let index = out.count
         out.append(pad + line(element))
+        if let masked, depth > 0, showsData(element) { masked(element) }
         let kids = children(element).filter { kid in
-            !ignoredRoles.contains(role(kid)) && !ignore.contains { matches(kid, $0) }
+            let kept = !ignoredRoles.contains(role(kid)) && !ignore.contains { matches(kid, $0) }
+            if !kept { masked?(kid) }
+            return kept
         }
         var holdsData = false
         var i = 0
@@ -521,6 +532,7 @@ func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = []) -> [
                     default:    end = kids[(i + 1)...].firstIndex { matches($0, until) } ?? kids.count
                     }
                 }
+                if let masked { kids[i..<end].forEach(masked) }
                 out.append(pad + "  data: " + (region.optional == true ? "optional"
                                                : roles(in: Array(kids[i..<end])).joined(separator: " ")))
                 holdsData = true
@@ -539,6 +551,131 @@ func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = []) -> [
     }
     walk(window, 0)
     return out
+}
+
+/// Whether an element shows what the tree masks in its labels: a number, a
+/// date, a setting's value. A container's labels say nothing of its looks.
+func showsData(_ element: AXUIElement) -> Bool {
+    let r = role(element)
+    if containerRoles.contains(r) { return false }
+    // A text area is the user's in Settings, but About's credits too: by
+    // what it shows, as text is.
+    if settingRoles.contains(r), r != "AXTextArea", text(element, kAXValueAttribute) != nil { return true }
+    return labels(element).contains { mask($0) != $0.replacingOccurrences(of: "\n", with: " ") }
+}
+
+// MARK: - The look (#423)
+
+/// What a window looks like, for what its tree can't tell: a colour, an icon,
+/// spacing, a font. A small thumbnail of its picture, its average colour in
+/// each cell of a grid `Look.across` cells along its longer side, five bits a
+/// channel, kept as `shots/trees/<name>.look`. Cells over anything the tree
+/// masks (data, a number, a setting's value, a line it leaves out) are left
+/// out, `----`.
+struct Look {
+    /// The picture's size in pixels, and the grid's in cells.
+    var width: Int, height: Int, columns: Int, rows: Int
+    /// Each cell's colour, five bits a channel, red highest; nil where masked.
+    var cells: [UInt16?]
+
+    static let across = 128
+
+    /// `masks` in the picture's pixels, from its top left.
+    init?(_ image: CGImage, masks: [CGRect]) {
+        let width = image.width, height = image.height
+        let cell = max(1, Int((Double(max(width, height)) / Double(Look.across)).rounded(.up)))
+        let columns = (width + cell - 1) / cell, rows = (height + cell - 1) / cell
+        (self.width, self.height, self.columns, self.rows) = (width, height, columns, rows)
+        let bytesPerRow = width * 4
+        var pixels = [UInt8](repeating: 0, count: bytesPerRow * height)
+        let drawn: Bool = pixels.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                                          bytesPerRow: bytesPerRow, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return nil }
+        let bounds = CGRect(x: 0, y: 0, width: width, height: height)
+        var cells: [UInt16?] = []
+        for row in 0..<rows {
+            for column in 0..<columns {
+                let r = CGRect(x: column * cell, y: row * cell, width: cell, height: cell).intersection(bounds)
+                if masks.contains(where: { $0.intersects(r) }) { cells.append(nil); continue }
+                var sum = (0, 0, 0), n = 0
+                // The buffer's rows run from the top, as the picture's do.
+                for y in Int(r.minY)..<Int(r.maxY) {
+                    for x in Int(r.minX)..<Int(r.maxX) {
+                        let i = y * bytesPerRow + x * 4
+                        sum.0 += Int(pixels[i]); sum.1 += Int(pixels[i + 1]); sum.2 += Int(pixels[i + 2]); n += 1
+                    }
+                }
+                let level = { (v: Int) in UInt16((Double(v) / Double(max(n, 1)) / 255 * 31).rounded()) }
+                cells.append(level(sum.0) << 10 | level(sum.1) << 5 | level(sum.2))
+            }
+        }
+        self.cells = cells
+    }
+
+    init?(text: String) {
+        var lines = text.split(separator: "\n").map(String.init)
+        guard !lines.isEmpty else { return nil }
+        let head = lines.removeFirst().split(separator: " ").compactMap { Int($0) }
+        guard head.count == 4 else { return nil }
+        (width, height, columns, rows) = (head[0], head[1], head[2], head[3])
+        // Four hex digits a cell, a row a line.
+        cells = lines.flatMap { line in
+            stride(from: 0, to: line.count, by: 4).map { i -> UInt16? in
+                let start = line.index(line.startIndex, offsetBy: i)
+                return UInt16(line[start..<line.index(start, offsetBy: 4)], radix: 16)
+            }
+        }
+        guard cells.count == columns * rows else { return nil }
+    }
+
+    var text: String {
+        "\(width) \(height) \(columns) \(rows)\n" + (0..<rows).map { row in
+            cells[(row * columns)..<((row + 1) * columns)]
+                .map { $0.map { String(format: "%04x", $0) } ?? "----" }.joined()
+        }.joined(separator: "\n") + "\n"
+    }
+
+    /// A cell differs when a channel is off by more than this many levels of
+    /// 32: one level is a colour on a level's edge (#423).
+    static let tolerance = 1
+
+    /// How many cells may differ before the window is named. On real
+    /// captures hours apart none did; an 8-point icon in another colour
+    /// changes 2, a 16-point one 6, a line moved by 2 points over a hundred
+    /// (docs/development.md#website-pictures).
+    static let threshold = 1
+
+    /// The cells, masked in neither, whose colour differs; nil when the
+    /// pictures aren't the same size.
+    func differing(from other: Look) -> (count: Int, of: Int)? {
+        guard width == other.width, height == other.height, cells.count == other.cells.count else { return nil }
+        var count = 0, of = 0
+        for (a, b) in zip(cells, other.cells) {
+            guard let a, let b else { continue }
+            of += 1
+            let channels = [(a >> 10, b >> 10), ((a >> 5) & 31, (b >> 5) & 31), (a & 31, b & 31)]
+            if channels.contains(where: { abs(Int($0.0) - Int($0.1)) > Look.tolerance }) { count += 1 }
+        }
+        return (count, of)
+    }
+}
+
+/// Whether `check` compares looks too (`--look`): it needs the windows in
+/// front, so it's asked for; `update` always does.
+nonisolated(unsafe) var compareLooks = false
+
+/// What the tree masks in `window`, in screen points: each element's frame.
+func maskedFrames(_ window: AXUIElement, _ shot: Shot) -> [CGRect] {
+    var frames: [CGRect] = []
+    _ = tree(window, data: shot.data ?? [], ignore: shot.ignore ?? []) { element in
+        if let f = frame(element) { frames.append(f) }
+    }
+    return frames
 }
 
 // MARK: - Kevin's screens
@@ -714,6 +851,12 @@ struct Session {
     }
 
     func capture(_ window: AXUIElement, crop: Crop?) async throws -> CGImage {
+        try await picture(window, crop: crop).image
+    }
+
+    /// A capture, with where its top left is on screen and its points to
+    /// pixels: to place the masks of the look check on it (#423).
+    func picture(_ window: AXUIElement, crop: Crop?) async throws -> (image: CGImage, origin: CGPoint, scale: CGFloat) {
         guard let app = running, let f = frame(window) else { throw Failure("no window to capture") }
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         let candidates = content.windows.filter { $0.owningApplication?.processID == app.processIdentifier }
@@ -730,11 +873,27 @@ struct Session {
         config.ignoreShadowsSingleWindow = true
         let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: target),
                                                                configuration: config)
-        guard let crop else { return image }
+        guard let crop else { return (image, target.frame.origin, 2) }
         let r = try crop.rect(in: window)
         let rect = CGRect(x: (r.minX * 2).rounded(), y: (r.minY * 2).rounded(), width: (r.width * 2).rounded(), height: (r.height * 2).rounded())
         guard let cropped = image.cropping(to: rect) else { throw Failure("crop is outside the window") }
-        return cropped
+        return (cropped, CGPoint(x: target.frame.minX + r.minX, y: target.frame.minY + r.minY), 2)
+    }
+
+    /// The window as it looks now, active, with the tree's masks laid on it.
+    func look(_ window: AXUIElement, _ shot: Shot) async throws -> (look: Look, picture: CGImage, masks: [CGRect]) {
+        ensureRetina(window)
+        var picture = try await picture(window, crop: shot.crop)
+        for _ in 0..<4 where shot.crop == nil && !isActive(picture.image, window: window) {
+            bringForward(window)
+            picture = try await self.picture(window, crop: shot.crop)
+        }
+        let masks = maskedFrames(window, shot).map { f in
+            CGRect(x: (f.minX - picture.origin.x) * picture.scale, y: (f.minY - picture.origin.y) * picture.scale,
+                   width: f.width * picture.scale, height: f.height * picture.scale)
+        }
+        guard let look = Look(picture.image, masks: masks) else { throw Failure("can't read the capture's colours") }
+        return (look, picture.image, masks)
     }
 
     func distance(_ a: CGRect, _ b: CGRect) -> CGFloat {
@@ -1310,11 +1469,14 @@ struct SiteShots {
         }
         // One language only: `en`, or a language's code (#431). All of them otherwise.
         var only: String?
+        // A check compares looks too (#423), which needs each window in
+        // front and active, so it waits until Kevin has stepped away (#475).
+        if let i = args.firstIndex(of: "--look") { compareLooks = true; args.remove(at: i) }
         if let i = args.firstIndex(of: "--language"), i + 1 < args.count {
             only = args[i + 1]; args.removeSubrange(i...(i + 1))
         }
         guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "coverage-test", "readme", "record"].contains(command) else {
-            print("usage: site-shots check|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
+            print("usage: site-shots check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
             exit(2)
         }
         let names = Set(args.dropFirst())
@@ -1395,7 +1557,7 @@ struct SiteShots {
             if let app { manifest.app = app }
             var session = Session(manifest: manifest)
             // Reading the tree needs no focus; a picture shows the window active.
-            session.background = ["check", "tree", "audit"].contains(command)
+            session.background = ["check", "tree", "audit"].contains(command) && !(command == "check" && compareLooks)
             let wasRunning = session.running != nil
             var status: Int32 = 0
             // English, then each language's page with the same shots in it.
@@ -1435,6 +1597,8 @@ struct SiteShots {
         try FileManager.default.createDirectory(at: trees, withIntermediateDirectories: true)
         var page = try Page(site: site, path: language?.page ?? "index.html", up: language?.up ?? "")
         var changed: [String] = [], flagged: [String] = [], failed: [String] = []
+        /// Windows whose look differs from their picture's (#423).
+        var looks: [String] = []
         var problems: [String] = []
         var cached: (args: [String], window: String)?
 
@@ -1535,6 +1699,38 @@ struct SiteShots {
                 let treeFile = trees.appendingPathComponent("\(shot.name).txt")
                 let before = (try? String(contentsOf: treeFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
                 let differs = before != now
+                // The look, against the one kept from the picture (#423).
+                let lookFile = trees.appendingPathComponent("\(shot.name).look")
+                if let file = shot.file, command == "record" {
+                    // From the picture, with the window's masks laid on it as
+                    // it is now: the picture is what the site shows.
+                    let fresh = try await session.look(window, shot)
+                    if let picture = NSImage(contentsOf: site.appendingPathComponent(file))?
+                        .cgImage(forProposedRect: nil, context: nil, hints: nil),
+                       picture.width == fresh.picture.width, picture.height == fresh.picture.height,
+                       let look = Look(picture, masks: fresh.masks) {
+                        try look.text.write(to: lookFile, atomically: true, encoding: .utf8)
+                        let d = fresh.look.differing(from: look)
+                        print("\(shot.name): kept its look, from \(file)" + (d.map { $0.count > 0 ? " (\($0.count) of \($0.of) cells differ now)" : "" } ?? ""))
+                    } else {
+                        print("\(shot.name): \(file) isn't the window's size now, so its look isn't kept; retake it")
+                    }
+                } else if shot.file != nil,
+                          // An update compares what it won't retake anyway.
+                          (command == "check" && compareLooks)
+                            || (command == "update" && !(differs || names.contains(shot.name) || shot.always == true)),
+                          let kept = (try? String(contentsOf: lookFile, encoding: .utf8)).flatMap(Look.init(text:)) {
+                    let fresh = try await session.look(window, shot)
+                    if let d = fresh.look.differing(from: kept) {
+                        if d.count > Look.threshold {
+                            looks.append("\(shot.name): \(d.count) of \(d.of) cells differ")
+                        } else if d.count > 0 {
+                            print("\(shot.name): looks the same (\(d.count) of \(d.of) cells differ, within \(Look.threshold))")
+                        }
+                    } else {
+                        looks.append("\(shot.name): its picture is \(kept.width)×\(kept.height), the window \(fresh.look.width)×\(fresh.look.height) now")
+                    }
+                }
                 if command == "record" {
                     try record(shot, now: now, before: before, handMade: handMade[shot.name] ?? [], trees: trees)
                     continue
@@ -1564,16 +1760,13 @@ struct SiteShots {
                 if shot.file == nil, before != nil, !named { continue }
 
                 if let file = shot.file {
-                    session.ensureRetina(window)
-                    var image = try await session.capture(window, crop: shot.crop)
+                    // Active, with its look kept from the same capture.
+                    let taken = try await session.look(window, shot)
+                    let image = taken.picture
                     // A crop leaves out the traffic lights that tell.
-                    let cropped = shot.crop != nil
-                    for _ in 0..<4 where !cropped && !isActive(image, window: window) {
-                        session.bringForward(window)
-                        image = try await session.capture(window, crop: shot.crop)
-                    }
-                    if !cropped && !isActive(image, window: window) { print("  warning: \(file) shows the window inactive") }
+                    if shot.crop == nil && !isActive(image, window: window) { print("  warning: \(file) shows the window inactive") }
                     try writePNG(image, to: site.appendingPathComponent(file))
+                    try taken.look.text.write(to: lookFile, atomically: true, encoding: .utf8)
                     page.setSize(of: file, pixels: CGSize(width: image.width, height: image.height))
                     print("  retook \(file) (\(image.width)×\(image.height))")
                     // And the README's copy of it, in this language (#434).
@@ -1620,6 +1813,13 @@ struct SiteShots {
         if command == "update" {
             page.stampAssets(site: site)
             try page.save()
+        }
+        // Advice, not a failure: it reads pixels, which the Mac can change
+        // without the app (#423).
+        if !looks.isEmpty {
+            print("\nThese look different from their pictures (a colour, an icon, spacing, a font), whatever their trees say "
+                  + "(#423). Compare them by eye, and retake the ones that changed with `make site-shots NAMES=…`:")
+            looks.forEach { print("  " + $0) }
         }
         if !flagged.isEmpty {
             print("\nThese show a window that changed since they were made. Remake them by hand, then run `update` with the window's name:")
