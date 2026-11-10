@@ -49,6 +49,12 @@ For macOS 13 or later, on Apple silicon or Intel.
 1. [**Download NetworkMonitor.dmg**](https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg), open it, and drag NetworkMonitor into **Applications**.
 2. Open NetworkMonitor from Applications.
 
+Or install it with [Homebrew](https://brew.sh):
+
+```sh
+brew install --cask kevinabouhanna/tap/networkmonitor
+```
+
 It's signed with an Apple Developer ID and notarized by Apple, so macOS opens it without a warning. The code is all here to read, or to [build yourself](docs/development.md).
 
 Look for the ↓ ↑ readout in your menu bar. It starts at login from then on.
@@ -61,7 +67,7 @@ Before that, download the new DMG and drag NetworkMonitor into Applications, cho
 
 ### 🗑️ Uninstall
 
-Right-click the menu bar readout and choose **Uninstall NetworkMonitor…**, or click it at the bottom of Settings. It puts back every setting it changed, then moves itself to the Trash.
+Right-click the menu bar readout and choose **Uninstall NetworkMonitor…**, or click it at the bottom of Settings. It puts back every setting it changed, then moves itself to the Trash. Installed with Homebrew? Do this first, then `brew uninstall --cask networkmonitor`.
 
 > [!WARNING]
 > Don't just drag it to the Trash: the update settings that Hotspot mode changed without its helper would stay off. If you already did, drag it back, open it, and uninstall from the menu.

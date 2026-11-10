@@ -323,6 +323,8 @@ are kept apart differently:
    the disk image as *Notarized Developer ID*.
 4. Install it with `make install` from the tag.
 5. Update the website (below), including `make site-shots` against the new install.
+   The Homebrew cask ([kevinabouhanna/homebrew-tap](https://github.com/kevinabouhanna/homebrew-tap))
+   bumps itself daily; to update it at once, `gh workflow run bump.yml -R kevinabouhanna/homebrew-tap`.
 6. **The native review**, when the release changes text in a language (#434). Post
    `make translation-review FROM=<the last release's tag>` on the release's issue, or on
    the pull request with its release notes. It's a table of each language's new and

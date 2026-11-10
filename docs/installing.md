@@ -23,6 +23,13 @@ If you'd rather not take a binary on trust, the code is all in this repository, 
    open it, and drag **NetworkMonitor** into **Applications**.
 2. Open NetworkMonitor from Applications.
 
+Or install it with [Homebrew](https://brew.sh), from NetworkMonitor's own
+[tap](https://github.com/kevinabouhanna/homebrew-tap):
+
+```sh
+brew install --cask kevinabouhanna/tap/networkmonitor
+```
+
 The ↓ ↑ readout appears in the menu bar. NetworkMonitor has no Dock icon until you
 open its window; everything starts from the readout. It registers itself to
 start at login, which you can turn off in **Settings**.
@@ -62,6 +69,9 @@ If you use [Hotspot mode](hotspot-mode.md), its helper comes with the new versio
 nothing. Coming from a version whose helper asked for your password, NetworkMonitor offers
 the new one once: switch it on in System Settings, and the old one's sudoers rule is removed.
 
+Installed with Homebrew, it updates itself the same way, and `brew upgrade` leaves it to
+that unless you ask with `--greedy`. The cask follows each release within a day.
+
 From a source checkout, `make update` pulls, runs the tests, rebuilds and
 reinstalls, with the tests first so a bad pull can't replace a working copy.
 
@@ -84,6 +94,9 @@ managed policies, Low Data Mode) and removes itself. But the update settings tha
 needed no password stay switched off, because the record of how to undo them
 belongs to the app, and nothing is left running to read it. If you've already
 trashed it, drag it back, open it, and uninstall from the menu.
+
+Installed with Homebrew, uninstall from the menu first, then run
+`brew uninstall --cask networkmonitor`, which only removes what's left.
 
 From a source checkout, `Scripts/uninstall.sh` does the same.
 

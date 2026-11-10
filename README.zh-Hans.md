@@ -49,6 +49,12 @@
 1. [<strong>下载 NetworkMonitor.dmg</strong>](https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg)，打开它，然后将 NetworkMonitor 拖到 <strong>应用程序</strong> 文件夹中。
 2. 从“应用程序”文件夹中打开 NetworkMonitor。
 
+也可以用 [Homebrew](https://brew.sh) 安装：
+
+```sh
+brew install --cask kevinabouhanna/tap/networkmonitor
+```
+
 它使用 Apple Developer ID 签名，并经过 Apple 公证，所以 macOS 打开它时不会显示警告。全部代码都在这里，你可以阅读，也可以[自己构建](docs/development.md)（英文）。
 
 在菜单栏中找到 ↓ ↑ 读数。从此以后，它会在你登录时自动启动。
@@ -61,7 +67,7 @@
 
 ### 🗑️ 卸载
 
-右键点按菜单栏读数，然后选择 <strong>卸载 NetworkMonitor…</strong>，或在“设置”底部点按它。它会恢复它更改过的每项设置，然后把自己移到废纸篓。
+右键点按菜单栏读数，然后选择 <strong>卸载 NetworkMonitor…</strong>，或在“设置”底部点按它。它会恢复它更改过的每项设置，然后把自己移到废纸篓。如果你是用 Homebrew 安装的，请先这样做，再运行 `brew uninstall --cask networkmonitor`。
 
 > [!WARNING]
 > 不要直接把它拖到废纸篓：热点模式在没有辅助程序的情况下关闭的更新设置会一直保持关闭。如果你已经这样做了，请把它拖回来，打开它，再从菜单中卸载。
