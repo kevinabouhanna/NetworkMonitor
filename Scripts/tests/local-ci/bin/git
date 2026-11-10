@@ -1,5 +1,7 @@
 #!/bin/bash
 # A stand-in for `git` in Scripts/tests/local-ci-test.sh: deciding with a pull request's number
-# needs no git at all, so any call is logged as unexpected and fails.
+# needs no git at all, so any call is logged as unexpected and fails. The lock's case
+# (LOCAL_CI_GIT_FETCH=ok) runs on past deciding, so there the pull request's fetch succeeds.
+if [[ "${LOCAL_CI_GIT_FETCH:-}" == ok && " $* " == *" fetch "* ]]; then exit 0; fi
 echo "UNEXPECTED git $*" >>"${GH_LOG:?}"
 exit 1
