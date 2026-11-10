@@ -1,0 +1,233 @@
+<!doctype html>
+<!-- The template of every Chinese docs page. The pages beside it are built
+     from the app repository's docs/zh-Hans/ by `make docs-site` (docs-kit,
+     #334): change a page there, never here. -->
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>功能 — NetworkMonitor 文档</title>
+<meta name="description" content="NetworkMonitor 能做的一切，以及在哪里找到它们。">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/features/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/features/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/features/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">跳到正文</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../../zh/"><img src="../../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../../zh/docs/" aria-current="true">文档</a>
+      <a href="../../../docs/features/" lang="en" hreflang="en" data-lang="en">English</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">下载</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>所有页面</summary>
+    <nav aria-label="文档"><ul><li><a href="../../../zh/docs/">NetworkMonitor 文档</a></li><li><span class="docs-nav-section">使用 NetworkMonitor</span><ul><li><a href="../../../zh/docs/installing/">安装、更新和卸载</a></li><li><a href="../../../zh/docs/features/" aria-current=page>功能</a></li><li><a href="../../../zh/docs/connections/">连接</a></li><li><a href="../../../zh/docs/usage-history/">流量历史</a></li><li><a href="../../../zh/docs/speed-test/">网速测试</a></li><li><a href="../../../zh/docs/hotspot-mode/">热点模式</a></li><li><a href="../../../zh/docs/accuracy-and-battery/">统计准确性与耗电量</a></li><li><a href="../../../zh/docs/privacy/">隐私</a></li><li><a href="../../../zh/docs/security/">安全策略</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="功能" class="heading-element">功能</h1><a id="功能" class="anchor" aria-label="Permalink: 功能" href="#功能"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>NetworkMonitor 能做的一切，以及在哪里找到它们。</p>
+<div class="markdown-heading"><h2 id="菜单栏读数" class="heading-element">菜单栏读数</h2><a id="菜单栏读数" class="anchor" aria-label="Permalink: 菜单栏读数" href="#菜单栏读数"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>两行，始终可见：绿色的 <strong>↓ 下载</strong> 在上，浅灰色的 <strong>↑ 上传</strong> 在下，单位为 <strong>MB/s</strong> 或 <strong>Mbps</strong>（<strong>设置 › 速度显示单位</strong>）。Mbps 与宽带套餐的标称速度一致；MB/s 与流量总计一致。数据量始终以 MB 和 GB 显示，与流量套餐的计算方式相同。你可以在 <strong>设置 › 网速颜色</strong> 中选择其他颜色。</p>
+<p>读数<strong>宽度固定</strong>，所以数字变化时，菜单栏中它旁边的项目不会跳来跳去。它每秒最多更新两次，使用电池和低电量模式时更新得更少（请参阅<a href="../../../zh/docs/accuracy-and-battery/#%E7%94%B5%E6%B1%A0">电池</a>）。网速测试进行时，读数会以青色显示测试结果；如果你选的颜色接近青色，则改用另一组颜色，这样测试结果永远不会被误认为实时速度。</p>
+<ul>
+<li>
+<strong>点按</strong>它可打开弹出窗口。</li>
+<li>
+<strong>右键点按</strong>（或按住 Control 键点按）它，可使用 <strong>测试网速</strong>、上一次的结果、<strong>全部阻止</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/198">#198</a>）、<strong>流量历史…</strong>（⌘Y）、<strong>连接…</strong>（⌘K）、<strong>广告与跟踪器…</strong>（⌘B）、<strong>网络…</strong>、<strong>设置…</strong>（⌘,）、<strong>关于 NetworkMonitor</strong>、<strong>检查更新…</strong>、<strong>卸载 NetworkMonitor…</strong> 和 <strong>退出</strong>。</li>
+</ul>
+<div class="markdown-heading"><h2 id="改为显示在程序坞中" class="heading-element">改为显示在程序坞中</h2><a id="改为显示在程序坞中" class="anchor" aria-label="Permalink: 改为显示在程序坞中" href="#改为显示在程序坞中"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>设置 › NetworkMonitor 显示在</strong> 决定应用显示在哪里（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/69">#69</a>），选择后立即生效。</p>
+<ul>
+<li>
+<p><strong>菜单栏</strong>（默认）：上面的读数，只有打开窗口时才有程序坞图标。</p>
+</li>
+<li>
+<p><strong>程序坞</strong>：菜单栏中不显示任何内容。它下面会出现 <strong>程序坞图标</strong> 选项（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/523">#523</a>）：</p>
+<ul>
+<li>
+<strong>网速</strong>（程序坞的默认选项）：整个程序坞图标显示实时网速，下载在上、上传在下，画法与应用图标相同：同样的形状和光照，深色模式下接近黑色，浅色模式下接近白色，随 Mac 的外观切换。每个网速是应用图标中的箭头加上保留三位有效数字的数值（如 12.3），尽可能大，单位在数值下方，使用网速颜色（浅色模式下颜色会加深，以便看清）。与读数同步更新，每秒最多一次。</li>
+<li>
+<strong>应用图标</strong>：NetworkMonitor 自己的图标，不显示网速。</li>
+</ul>
+<p>点按图标会打开主窗口，显示上次所在的部分。它的菜单包含读数右键菜单中的所有内容（退出由程序坞自己提供）；选择网速时，最上面一行用文字写出网速，VoiceOver 就是在这里读出网速的。这个模式下没有弹出窗口：在热点上需要你确认的网速测试，会在 <strong>网络</strong> 页面中询问。</p>
+</li>
+<li>
+<p><strong>两者</strong>：菜单栏中的读数，以及始终存在的程序坞图标。它下面也会出现 <strong>程序坞图标</strong> 选项，一开始为 <strong>应用图标</strong>，所以在你选择 <strong>网速</strong> 之前，程序坞图标一直是应用图标。程序坞和两者各自保留自己的选择。</p>
+</li>
+</ul>
+<p>没有“都不显示”这个选项：那样就没有办法回到应用了。</p>
+<div class="markdown-heading"><h2 id="弹出窗口" class="heading-element">弹出窗口</h2><a id="弹出窗口" class="anchor" aria-label="Permalink: 弹出窗口" href="#弹出窗口"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>顶部的 <strong>今天 | 周 | 月</strong> 决定下面每个数字的统计周期：今天、本周或本月至今，涵盖所有网络，数据来自流量历史。弹出窗口会在你上次选择的统计周期上打开。</li>
+<li>
+<strong>四个按钮</strong>：<strong>数据</strong>、<strong>连接</strong>、<strong>已拦截</strong> 和 <strong>网络</strong>，每个都显示自己的数字。点按一个按钮，下面就会显示它的视图。这些颜色在整个应用中都一样：数据为蓝色，连接为青绿色，拦截为红色，热点为橙色。</li>
+<li>
+<strong>数据</strong> 列出用掉流量的 <strong>应用</strong> 或 <strong>网络</strong>，从多到少排列，每一项都有一个表示占比的条形。应用之间互相超过时，列表会实时重新排序；圆点表示此刻正在传输数据的应用。
+<ul>
+<li>
+<strong>辅助进程归入所属应用</strong>：Chrome 的十几个辅助进程合并为一行 <em>Google Chrome</em>。</li>
+<li>
+<strong>命令显示在启动它们的应用下方。</strong>展开 iTerm2 或 VS Code，可以看到它启动的 <code>node</code>、<code>git</code> 或 <code>curl</code>，每个都有自己的数字。超过四个时会合并为 <em>其他（n）</em>。</li>
+<li>
+<strong>系统</strong>：macOS 自己的守护进程合并为底部的一行。好奇的话可以展开它。</li>
+</ul>
+</li>
+<li>
+<strong>连接</strong> 按 <strong>公司</strong>、<strong>国家或地区</strong> 或 <strong>应用</strong> 对你的应用通信的对象分组。一个应用与一台服务器通信计为一次。公司或国家或地区可以展开为它的应用，应用可以展开为它的公司。</li>
+<li>
+<strong>已拦截</strong> 列出 <strong>网站</strong> 或 <strong>应用</strong>，次数最多的在前。网站可以展开为尝试访问它的应用，应用可以展开为它尝试访问的网站。广告拦截关闭时，这里会提供 <strong>打开</strong>。</li>
+<li>
+<strong>网络</strong> 显示 Mac 正在使用的连接、一个 <strong>这是热点</strong> 开关（在每个网络上都有，因为有些手机无法被识别），以及<a href="../../../zh/docs/speed-test/">网速测试</a>：上一次的结果和 <strong>测试网速</strong>。</li>
+<li>每个视图底部的 <strong>打开…</strong> 会在主窗口中打开对应的部分，统计周期保持不变：<strong>打开流量历史</strong>（⌘Y）、<strong>打开“连接”</strong>（⌘K）、<strong>打开广告与跟踪器</strong>（⌘B）或 <strong>打开“网络”</strong>。齿轮图标旁边的 <strong>四个方块</strong> 也一样，<strong>齿轮图标</strong> 则打开“设置”。</li>
+<li>
+<strong>按钮下方的提示行</strong> 会说明需要注意的情况：
+<ul>
+<li>你加入了热点，但 Mac 没有在使用它，ⓘ 中会说明如何切换；</li>
+<li>使用热点且打开了<a href="../../../zh/docs/hotspot-mode/">热点模式</a>时，仍被下载的更新；</li>
+<li>打开“全部阻止”时，显示 <strong>已全部阻止</strong> 和 <strong>关闭</strong>；</li>
+<li>广告拦截已暂停，或在此网络上已关闭；</li>
+<li>
+<strong>按应用统计已暂停</strong>：如果无法启动 macOS 的 <code>nettop</code>，会以灰色显示。NetworkMonitor 会继续重试，总计不受影响，照常统计。</li>
+</ul>
+</li>
+</ul>
+<p>列表可显示六行，外加第七行的一部分，所以被截断的那一行说明下面还有更多。无论你选择哪种分组，列表的高度都保持不变。按 Esc 或点按其他地方即可关闭。</p>
+<div class="markdown-heading"><h2 id="每个连接的总计" class="heading-element">每个连接的总计</h2><a id="每个连接的总计" class="anchor" aria-label="Permalink: 每个连接的总计" href="#每个连接的总计"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>弹出窗口统计所有网络。<strong>网络</strong> 页面只统计你正在使用的网络：加入另一个 Wi-Fi 网络或热点后，它的总计会从零开始，所以你看到的就是<em>这个</em>连接用掉的流量。在新的地方打开热点，你就能确切知道它用了多少。如果要比较一段时间内各个网络的用量，请在弹出窗口的“数据”中选择 <strong>网络</strong>。</p>
+<ul>
+<li>
+<strong>断线后重新连接</strong>到同一个网络，会接着之前的数字继续统计。</li>
+<li>
+<strong>午夜时也会重置</strong>，即使你一直没有离开这个连接。</li>
+<li>
+<strong>重新启动后也会保留</strong>，在同一网络上重新打开应用会继续统计。</li>
+<li>
+<strong>立即重置</strong>（设置 › 弹出窗口中的累计值）会让当前网络的总计重新开始。</li>
+<li>
+<strong>统计开始于</strong>（设置 › 弹出窗口中的累计值）显示当前总计是从什么时候开始的。</li>
+</ul>
+<p>不同网络通过路由器的硬件地址来区分，这不需要任何权限；网络则以它的 Wi-Fi 网络名称命名。只有在获得定位服务权限后，macOS 才会提供这个名称，应用会询问一次；如果你拒绝，网络会显示为类似 <em>Wi-Fi · 3f2a</em> 的名称。</p>
+<p>每个网络的每个小时都会保存到<a href="../../../zh/docs/usage-history/">流量历史</a>中。</p>
+<div class="markdown-heading"><h2 id="只统计互联网流量" class="heading-element">只统计互联网流量</h2><a id="只统计互联网流量" class="anchor" aria-label="Permalink: 只统计互联网流量" href="#只统计互联网流量"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>投屏到 Apple TV、用时间机器备份到 NAS、从你自己的服务器播放 Plex：这些流量会经过你的 Wi-Fi，但不消耗互联网流量，所以永远不会被计入。只和你自己的网络通信的应用根本不会出现。请参阅<a href="../../../zh/docs/accuracy-and-battery/#%E7%BB%9F%E8%AE%A1%E7%9A%84%E6%98%AF%E4%BA%92%E8%81%94%E7%BD%91%E6%B5%81%E9%87%8F%E4%B8%8D%E6%98%AF%E4%BD%A0%E8%87%AA%E5%B7%B1%E7%9A%84%E7%BD%91%E7%BB%9C">准确性</a>。</p>
+<div class="markdown-heading"><h2 id="流量历史" class="heading-element">流量历史</h2><a id="流量历史" class="anchor" aria-label="Permalink: 流量历史" href="#流量历史"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>按小时记录，可按应用和网络细分，保留多久由你决定。按日、周、月或年回顾；把每次访问某个网络看作一个连接时段；把所有内容缩小到一个应用、一个网络，或一次查看所有热点；导出为 CSV。请参阅<a href="../../../zh/docs/usage-history/">流量历史</a>。</p>
+<div class="markdown-heading"><h2 id="连接" class="heading-element">连接</h2><a id="连接" class="anchor" aria-label="Permalink: 连接" href="#连接"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>你的应用把数据发送给了哪些公司、来自哪些应用、在哪些国家或地区、发往哪些服务器：可以按公司、应用或国家或地区分组，点按以缩小范围，进行搜索，在时间线上逐小时查看，还可以在世界地图上以颜色深浅显示，地图会在你的应用此刻连接的地方闪动。所有内容都不会在线查询。你可以阻止某个公司、应用、国家或地区、网站或服务器，也可以让它在应用第一次连接时询问你。请参阅<a href="../../../zh/docs/connections/">连接</a>。</p>
+<div class="markdown-heading"><h2 id="广告与跟踪器" class="heading-element">广告与跟踪器</h2><a id="广告与跟踪器" class="anchor" aria-label="Permalink: 广告与跟踪器" href="#广告与跟踪器"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>一个开关即可在所有应用中拦截广告、跟踪器和恶意软件网站。<strong>概览</strong> 显示所选时间段内拦截了什么，有图表，并按网站和应用列出，两者的用法与流量历史相同：指向或点按一根柱，选中或展开一行（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/536">#536</a>）；<strong>日志</strong> 实时显示每个连接，以及过滤器对它作出的决定。列表和你自己的规则在它的设置中。请参阅<a href="../../../zh/docs/connections/#%E5%B9%BF%E5%91%8A%E5%92%8C%E8%B7%9F%E8%B8%AA%E5%99%A8">广告与跟踪器</a>。</p>
+<div class="markdown-heading"><h2 id="网速测试" class="heading-element">网速测试</h2><a id="网速测试" class="anchor" aria-label="Permalink: 网速测试" href="#网速测试"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>点按一下，就会用 macOS 内置的工具重新测试一次：先测下载，再测上传，然后是延迟、抖动和负载下的延迟，单位为 Mbps 或 MB/s。如果有其他应用在争用线路，结果中会指出它。使用热点时，它会先询问你。请参阅<a href="../../../zh/docs/speed-test/">网速测试</a>。</p>
+<div class="markdown-heading"><h2 id="热点模式" class="heading-element">热点模式</h2><a id="热点模式" class="anchor" aria-label="Permalink: 热点模式" href="#热点模式"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>“网络”页面上的一个开关，就能在你使用移动热点时阻止应用更新，让连接进入低数据模式，并告诉你哪些应用无法阻止。请参阅<a href="../../../zh/docs/hotspot-mode/">热点模式</a>。</p>
+<div class="markdown-heading"><h2 id="主窗口" class="heading-element">主窗口</h2><a id="主窗口" class="anchor" aria-label="Permalink: 主窗口" href="#主窗口"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>一个带边栏的窗口：<strong>流量历史</strong>、<strong>连接</strong>、<strong>广告与跟踪器</strong> 和 <strong>网络</strong>，顺序与弹出窗口相同，<strong>设置</strong> 固定在底部。点按边栏按钮，或选择 <strong>视图 › 隐藏边栏</strong>（⌃⌘S），即可隐藏边栏。</p>
+<p>每个部分的工具栏以视图开头：流量历史和广告与跟踪器中是 <strong>列表、两者或图表</strong>，“连接”中是 <strong>列表、两者或地图</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/524">#524</a>）；“两者”总是列表在左，图表或地图在右（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/534">#534</a>）。工具栏中间是统计周期（<strong>日、周、月、年</strong>），然后是 <strong>‹ 今天 ›</strong>、一个点按后展开为输入框的搜索按钮（⌘F），以及一个 <strong>齿轮图标</strong>。齿轮图标会在原处显示该部分自己的设置，并带有返回按钮。“网络”只关注当下，所以它只有齿轮图标。</p>
+<table>
+<thead>
+<tr>
+<th>部分</th>
+<th>内容</th>
+<th>齿轮图标中的设置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>流量历史</strong></td>
+<td>所选时间段按网络类型显示的用量，然后是它的应用、网络或连接时段 · 导出 CSV…</td>
+<td>历史记录保留 · 清除历史记录…</td>
+</tr>
+<tr>
+<td><strong>连接</strong></td>
+<td>你的应用在和谁通信，以列表和地图显示，或者被阻止了什么</td>
+<td>网站名称（关闭时显示 打开…） · 允许应用连接、你设置的每条规则、导出… 和 导入… · 加密域名查询 · 打开时显示：列表、两者或地图 · 名称的来源，以及 每月更新</td>
+</tr>
+<tr>
+<td><strong>广告与跟踪器</strong></td>
+<td>概览：统计周期、图表、网站或应用 · 日志：每个连接以及过滤器对它作出的决定</td>
+<td>拦截广告和跟踪器 · 每周更新列表 · 列表 · 你的规则</td>
+</tr>
+<tr>
+<td><strong>网络</strong></td>
+<td>你正在使用的连接 · 这是热点，以及 当前 的检测结果 · 停止热点下的应用更新、会暂停什么、不能暂停什么 · 网速测试</td>
+<td>在弹出窗口中显示测试的样式：卡片或紧凑</td>
+</tr>
+</tbody>
+</table>
+<div class="markdown-heading"><h2 id="设置" class="heading-element">设置</h2><a id="设置" class="anchor" aria-label="Permalink: 设置" href="#设置"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>设置</strong>（⌘,）位于边栏底部，包含适用于整个应用的设置。每一行的含义在它旁边的 ⓘ 中说明，指针移到该行上时就会出现（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/185">#185</a>、<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/189">#189</a>）。</p>
+<ul>
+<li>
+<strong>语言</strong>：跟随系统，或为应用单独选择</li>
+<li><strong>登录时启动</strong></li>
+<li>
+<strong>NetworkMonitor 显示在</strong>：菜单栏、程序坞或两者；选择程序坞或两者时还有 <strong>程序坞图标</strong>：网速或应用图标</li>
+<li>
+<strong>速度显示单位</strong>：MB/s 或 Mbps</li>
+<li>
+<strong>Wi-Fi 名称</strong>（打开之前显示）</li>
+<li>
+<strong>网速颜色</strong>（菜单栏读数和程序坞图标的颜色）：下载、上传、网速测试的颜色、使用默认颜色</li>
+<li>
+<strong>弹出窗口中的累计值</strong>：统计开始于、采样、立即重置</li>
+<li>
+<strong>自动检查更新</strong>，以及 立即检查</li>
+<li>
+<strong>各部分</strong>：每个部分的设置各有一行，与它的齿轮图标打开的页面相同</li>
+</ul>
+<p><strong>关于 NetworkMonitor</strong> 位于右键菜单和应用菜单中，是标准的“关于”窗口：版本、网站链接、新功能、源代码，以及许可证。</p>
+<p>主窗口打开时，NetworkMonitor 会有程序坞图标和菜单，所以 ⌘W、⌘,、⌘Y、⌘K、⌘B 和 ⌘F 都能使用，⌘-Tab 也能找到它。关闭主窗口后，它又会回到只在菜单栏中运行的状态，除非你设置为显示在程序坞中或两者都显示。</p>
+<p>如果主窗口在另一个应用后面打开着，点按菜单栏项目只会显示弹出窗口，主窗口仍留在后面。用 ⌘-Tab 或程序坞图标可以单独显示主窗口。</p>
+<div class="markdown-heading"><h2 id="不打扰你" class="heading-element">不打扰你</h2><a id="不打扰你" class="anchor" aria-label="Permalink: 不打扰你" href="#不打扰你"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>没有程序坞图标，不出现在应用切换器中，没有需要管理的窗口。只在菜单栏中，除非你选择程序坞或两者。</li>
+<li>
+<strong>默认在登录时启动</strong>，只设置一次。在“设置”中关闭后，它就会保持关闭。</li>
+<li>
+<strong>退出后就保持退出。</strong>退出只会在本次登录期间结束它，不会关闭“登录时启动”；而关闭“登录时启动”也不会退出正在运行的应用。</li>
+<li>支持自动隐藏菜单栏：菜单栏隐藏时弹出窗口仍保持打开，主窗口仍保持在最前面。</li>
+</ul>
+
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/features.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+  </main>
+</div>
+<script>
+// 窄屏上，页面列表默认收起，放在正文上方。
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna。NetworkMonitor 是采用 Apache 2.0 许可证的自由软件。macOS 是 Apple Inc. 的商标。</span>
+      <nav aria-label="项目链接">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">版本发布</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">报告问题</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">许可证</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

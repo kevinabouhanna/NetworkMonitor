@@ -1,0 +1,576 @@
+<!doctype html>
+<!-- The template of every English docs page. The pages beside it are built
+     from the app repository's docs/ by `make docs-site` (docs-kit, #334):
+     change a page there, never here. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hotspot mode — NetworkMonitor docs</title>
+<meta name="description" content="One switch, on the Network page of the main window: Stop apps updating on hotspots. Turn it on and NetworkMonitor switches off automatic updates whenever…">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/hotspot-mode/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/hotspot-mode/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/hotspot-mode/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to the page</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../"><img src="../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../docs/" aria-current="true">Docs</a>
+      <a href="../../zh/docs/hotspot-mode/" lang="zh-Hans" hreflang="zh-Hans" data-lang="zh-Hans">简体中文</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">Download</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>All pages</summary>
+    <nav aria-label="Documentation"><ul><li><a href="../../docs/">NetworkMonitor documentation</a></li><li><span class="docs-nav-section">Using NetworkMonitor</span><ul><li><a href="../../docs/installing/">Installing, updating and removing</a></li><li><a href="../../docs/features/">Features</a></li><li><a href="../../docs/connections/">Connections</a></li><li><a href="../../docs/usage-history/">Usage History</a></li><li><a href="../../docs/speed-test/">Speed test</a></li><li><a href="../../docs/hotspot-mode/" aria-current=page>Hotspot mode</a></li><li><a href="../../docs/accuracy-and-battery/">Accuracy and battery</a></li><li><a href="../../docs/privacy/">Privacy</a></li><li><a href="../../docs/security/">Security policy</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="hotspot-mode" class="heading-element">Hotspot mode</h1><a id="hotspot-mode" class="anchor" aria-label="Permalink: Hotspot mode" href="#hotspot-mode"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>One switch, on the <strong>Network</strong> page of the main window: <strong>Stop apps updating on
+hotspots</strong>. Turn it on and
+NetworkMonitor switches off automatic updates whenever you're on a mobile hotspot, then
+switches them back on when you leave. Apps keep working normally: Chrome still browses,
+Slack still messages, VS Code still edits. They just don't download new versions of
+themselves while you're paying by the gigabyte. There's nothing to configure and no list
+to maintain. It's off until you turn it on.</p>
+<div class="markdown-heading"><h2 id="when-you-turn-it-on" class="heading-element">When you turn it on</h2><a id="when-you-turn-it-on" class="anchor" aria-label="Permalink: When you turn it on" href="#when-you-turn-it-on"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Installing NetworkMonitor doesn't look at your other apps or change anything. Hotspot mode
+is off, and only the traffic counting runs. When you switch it on:</p>
+<ol>
+<li>
+<strong>macOS asks you to allow a small helper, once:</strong> switch on NetworkMonitor in System
+Settings › General › Login Items &amp; Extensions, under <strong>Allow in the Background</strong>
+(<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>). macOS may ask for your password or Touch ID to allow it; NetworkMonitor itself
+never does. It's optional; see <a href="#what-it-pauses">what it pauses</a> for what it adds.</li>
+<li>
+<strong>NetworkMonitor looks inside the apps</strong> in <code>/Applications</code> and <code>~/Applications</code> to see
+how each one updates. It reads their files on your Mac; there's no list downloaded from
+anywhere.</li>
+<li>
+<strong>The Network page shows two lists:</strong>
+<ul>
+<li>
+<strong>Paused on a hotspot:</strong> every app it can pause, one line each with a switch to leave
+it alone. How it's paused is behind an ⓘ beside the name.</li>
+<li>
+<strong>Can't be paused:</strong> every app it can't, with the reason behind the same ⓘ.</li>
+</ul>
+</li>
+<li>
+<strong>Nothing changes until you join a hotspot.</strong> Then everything on the first list is
+paused, and it's all put back when you leave.</li>
+</ol>
+<p>The lists are made again each time you open the Network page, so an app you install later
+shows up.</p>
+<div class="markdown-heading"><h2 id="what-counts-as-a-hotspot" class="heading-element">What counts as a hotspot</h2><a id="what-counts-as-a-hotspot" class="anchor" aria-label="Permalink: What counts as a hotspot" href="#what-counts-as-a-hotspot"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>The first of these that applies decides. Every check is unprivileged, and <strong>Right now</strong>,
+on the Network page, always says which one fired.</p>
+<ol>
+<li>
+<strong>You said so.</strong> <strong>This is a hotspot</strong>, on the Network page and in the popover's
+Network view, is there on every network, because some phones look like ordinary Wi-Fi
+or like Ethernet over USB. Switch it on for a network NetworkMonitor missed, or off for
+one it took for a hotspot. Your say is remembered for that network and beats everything
+below.</li>
+<li>
+<strong>macOS says so.</strong> It marks a connection as expensive, as it does for an iPhone
+hotspot it recognises.</li>
+<li>
+<strong>An Android phone says so.</strong> Android's hotspot and USB tethering mark every address
+they hand out as metered, in the DHCP reply: vendor option 43, <code>ANDROID_METERED</code>.
+macOS ignores it; NetworkMonitor reads it from configd's copy of the lease (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/109">#109</a>).</li>
+<li>
+<strong>The router looks like an iPhone's Personal Hotspot</strong>: its address is in
+<code>172.20.10.0/28</code>.</li>
+<li>
+<strong>The router looks like an older Android phone sharing its connection</strong>:
+<code>192.168.42.0/24</code> or <code>192.168.43.0/24</code>. Newer ones pick a random subnet, which is
+why 3 comes first.</li>
+<li>
+<strong>You're tethered through a phone over USB</strong>: the interface's name contains <em>iPhone</em>,
+<em>iPad</em>, <em>Android</em>, <em>RNDIS</em> or <em>USB tether</em>.</li>
+<li>
+<strong>The connection is in Low Data Mode</strong>, which you can set for any network in System
+Settings, such as a capped home line or hotel Wi-Fi.</li>
+</ol>
+<p>Everything after 3 is convention, so it fails safe: a miss means updates aren't paused,
+never that your home network is treated as a hotspot, and <strong>This is a hotspot</strong> settles
+any miss. The popover's Network button says <em>Hotspot</em>, in orange, whenever a connection
+counts.</p>
+<p>These checks only decide about the connection in use. macOS sends everything over the
+connection it ranks highest, so joining a hotspot while Ethernet is plugged in leaves it
+idle. The popover and <em>Right now</em> then say the hotspot is connected but isn't being used,
+and data use, History and pauses stay with Ethernet.</p>
+<div class="markdown-heading"><h2 id="what-it-pauses" class="heading-element">What it pauses</h2><a id="what-it-pauses" class="anchor" aria-label="Permalink: What it pauses" href="#what-it-pauses"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>Without a password:</strong></p>
+<table>
+<thead>
+<tr>
+<th>App</th>
+<th>What changes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Any app that updates with Sparkle (VLC, AppCleaner, ChatGPT, Affinity, VoiceInk and others), found by looking inside each app</td>
+<td>its <code>SUEnableAutomaticChecks</code> setting</td>
+</tr>
+<tr>
+<td>Google Chrome, where Google's older updater (Keystone) still runs</td>
+<td>Keystone's <code>checkInterval</code>
+</td>
+</tr>
+<tr>
+<td>Microsoft AutoUpdate, which updates Microsoft's Mac apps</td>
+<td>
+<code>HowToCheck</code>, set to Manual</td>
+</tr>
+<tr>
+<td>Figma</td>
+<td><code>DisableUpdater</code></td>
+</tr>
+<tr>
+<td>Visual Studio Code</td>
+<td>
+<code>"update.mode": "none"</code> in its <code>settings.json</code>
+</td>
+</tr>
+<tr>
+<td>Claude</td>
+<td>
+<code>disableAutoUpdates</code> in its app configuration</td>
+</tr>
+<tr>
+<td>Any Electron app that updates with Squirrel or electron-updater (Slack, Claude, Figma, VS Code, Granola, Synergy and others), found by looking inside each app, <strong>even while it's open</strong>
+</td>
+<td>the folder its updates download to is made read-only</td>
+</tr>
+</tbody>
+</table>
+<p>Settings only take effect when an app starts, so an app that was already open when you
+joined the hotspot would still update. Electron apps can't: Squirrel makes a folder for the
+download in <code>~/Library/Caches/&lt;app&gt;.ShipIt</code> before it fetches anything, and
+electron-updater writes to <code>~/Library/Caches/&lt;its cache&gt;</code> first, so with those folders
+read-only the download never starts. A folder that isn't there yet is made read-only, and
+removed again when you leave. An update that has already downloaded is left to install:
+its folder isn't locked. Each folder goes back to exactly how it was, and one whose
+permissions someone else changed meanwhile is left alone.</p>
+<p><strong>With your OK, once.</strong> Switching Hotspot mode on offers a small helper, which macOS lists
+under NetworkMonitor in Login Items for you to switch on. With it, the switch also covers:</p>
+<ul>
+<li>
+<strong>macOS software updates and App Store updates.</strong> These are by far the largest, often
+6 to 14 GB, and live in settings only an administrator can change.</li>
+<li>
+<strong>Claude and Slack</strong> through managed policy, which is the only kind of setting they
+fully honour.</li>
+<li>
+<strong>Claude Code</strong> through its managed settings: a file of NetworkMonitor's own in
+<code>/Library/Application Support/ClaudeCode/managed-settings.d</code> that sets
+<code>DISABLE_AUTOUPDATER</code>. It covers every account on the Mac, and <code>claude update</code> still
+works.</li>
+<li>
+<strong>Canva</strong>, which has no update setting of any kind, and <strong>Figma</strong> while it's open, since
+its own setting can only be changed once it quits: while you're on the hotspot, their
+update servers are pointed nowhere in <code>/etc/hosts</code>. Each of those two hosts was checked
+to carry update downloads and nothing else.</li>
+<li>
+<strong>Google Chrome</strong>, and its Beta, Dev and Canary channels, wherever Google's newer updater
+(GoogleUpdater) has replaced Keystone. It reads no setting NetworkMonitor can change
+unless your Mac is managed by an organisation, so its update check,
+<code>update.googleapis.com</code>, is pointed nowhere too. That host only answers update checks;
+the downloads come from shared servers that stay open.</li>
+<li>
+<strong>Low Data Mode</strong> for the hotspot (below).</li>
+</ul>
+<p>Leave it off and everything else still works. The Network page shows an <strong>Allow…</strong> button for when
+you change your mind, and the step in System Settings while it waits. The helper is part of
+the app, so a new version brings its helper with it and asks nothing.</p>
+<p>Each app has its own switch under <strong>Paused on a hotspot</strong>, on the same line as its name,
+if you want to leave one alone. Point at the row and an ⓘ appears beside the name: it says
+how the app is paused, such as <em>Turns off its automatic update check</em> or <em>Blocks its update
+server</em>, as a tooltip or, clicked, in a popover (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/185">#185</a>). What the helper pauses shares one
+switch, <strong>Through NetworkMonitor's helper</strong>, because the helper does it all at once; it
+names only what's on your Mac, and its ⓘ says how each is paused. The Electron apps share
+one too, <strong>Through their update folders</strong>. On a hotspot, an app that's open when its setting needs changing is marked
+<em>paused once you quit it</em>, and the change is made the moment it quits, because apps write
+their settings back when they quit. Off a hotspot nothing is waiting, so nothing is marked.</p>
+<div class="markdown-heading"><h2 id="low-data-mode-for-the-apps-no-setting-reaches" class="heading-element">Low Data Mode, for the apps no setting reaches</h2><a id="low-data-mode-for-the-apps-no-setting-reaches" class="anchor" aria-label="Permalink: Low Data Mode, for the apps no setting reaches" href="#low-data-mode-for-the-apps-no-setting-reaches"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>The lists above only cover apps whose update setting NetworkMonitor knows, and your Mac
+has apps it doesn't. So with the helper installed, the same switch also puts the hotspot
+in <strong>Low Data Mode</strong>, the flag macOS sets itself on an iPhone hotspot it recognises.
+Everything that listens for it holds back: iCloud and Photos sync, background downloads
+macOS schedules, and any app that respects Low Data Mode, whether NetworkMonitor has heard
+of it or not.</p>
+<ul>
+<li>
+<strong>It's a flag on the connection, not a setting saved anywhere.</strong> Nothing is written to
+disk, your own Low Data Mode choices in System Settings are left alone, and a restart
+clears it whatever happens.</li>
+<li>
+<strong>It only takes down what it put up.</strong> If macOS or you had already turned it on for a
+connection, it stays on when you leave.</li>
+<li>
+<strong>It's switched off when you leave the hotspot, and when you quit.</strong> It affects the whole
+Mac, so it never stays behind on home Wi-Fi with nothing watching.</li>
+<li>
+<strong>The Network page shows whether it worked.</strong> It reads the connection back, and says <em>macOS
+confirms it</em> once macOS itself reports the connection as constrained. If macOS keeps
+switching it off, NetworkMonitor stops after three tries in five minutes and says so,
+rather than fighting it.</li>
+<li>
+<strong>Most Electron apps ignore it.</strong> Chromium's networking doesn't listen for Low Data Mode.</li>
+</ul>
+<div class="markdown-heading"><h2 id="what-isnt-covered-and-what-got-through-anyway" class="heading-element">What isn't covered, and what got through anyway</h2><a id="what-isnt-covered-and-what-got-through-anyway" class="anchor" aria-label="Permalink: What isn't covered, and what got through anyway" href="#what-isnt-covered-and-what-got-through-anyway"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>Can't be paused</strong>, on the Network page, lists the apps on <em>your</em> Mac that update themselves in a
+way NetworkMonitor can't switch off, each with the reason:</p>
+<table>
+<thead>
+<tr>
+<th>The reason it gives</th>
+<th>What's behind it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>Updates from inside the app, with no setting NetworkMonitor can turn off</em></td>
+<td>an Electron app whose download folder NetworkMonitor can't tell, such as an electron-updater app that doesn't name its cache</td>
+</tr>
+<tr>
+<td><em>Has its own updater, with no setting NetworkMonitor can turn off</em></td>
+<td>a separate updater program in the app, such as Opera's or Raycast's</td>
+</tr>
+<tr>
+<td><em>macOS keeps its update setting where NetworkMonitor can't change it</em></td>
+<td>a sandboxed Sparkle app, whose settings live in its container</td>
+</tr>
+<tr>
+<td><em>Paused once you allow the helper below</em></td>
+<td>an app the helper covers, such as Slack, before the helper is installed</td>
+</tr>
+</tbody>
+</table>
+<p>They're found by how they update, not by a list of names, so the list matches what you
+actually have installed. Low Data Mode slows the ones that respect it; quitting them while
+you're on a hotspot is the only sure way.</p>
+<p>While you're on a metered connection, NetworkMonitor also notices <strong>updates that get
+through anyway</strong>, by three signs:</p>
+<ul>
+<li>a file over 1 MB appearing where Electron and Sparkle apps stage their downloads, or
+where Claude Code downloads and keeps its versions (<code>~/.cache/claude/staging</code> and
+<code>~/.local/share/claude/versions</code>);</li>
+<li>a program named like an updater using the connection, named for the app it updates:
+<em>Google Chrome</em>, not <em>GoogleUpdater</em> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/94">#94</a>);</li>
+<li>an app in Applications whose version changes, however it got the update (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/94">#94</a>).</li>
+</ul>
+<p>The popover shows one line under its buttons when that happens, and the Network page lists each one
+with the data it used and the version it updated to, still there after you've left the
+hotspot. An app that was on the paused list says it <strong>updated anyway</strong>, in orange, both
+there and beside its switch, until the next metered connection: that's how a pause that
+didn't hold is found. Each one also stays in <a href="../../docs/usage-history/#sessions">Usage History</a>,
+with the visit it happened on (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/96">#96</a>).</p>
+<p><strong>The data an update used</strong> is its app's traffic while it downloaded: from when the
+updater created its download, or when you joined the hotspot if that was later, to its
+last change, counted by the minute. It's not the size of what's left behind, which is the
+unpacked update: Slack's read 271.6 MB when Slack used about 120 MB (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/95">#95</a>). When the app's
+traffic wasn't seen, because NetworkMonitor was started mid-download, the size on disk is
+shown as <strong>up to</strong>, since a download is smaller than what it unpacks to. An updater
+program of its own is counted by its own traffic.</p>
+<div class="markdown-heading"><h2 id="three-things-worth-knowing" class="heading-element">Three things worth knowing</h2><a id="three-things-worth-knowing" class="anchor" aria-label="Permalink: Three things worth knowing" href="#three-things-worth-knowing"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>It's mostly not a firewall.</strong> For almost every app it changes the app's own setting
+for checking automatically, so a manual <strong>Check for Updates…</strong> still works, which is the
+point: it stops unattended downloads, not you. The exceptions block instead, so a manual
+check waits until you leave: with the helper, Canva's, Figma's and Chrome's update
+servers; Electron apps whose update folder is locked; and, with website names on, every
+app's updater program (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/98">#98</a>), unless you <strong>Always Allow</strong> it in Connections. Nothing ever
+interrupts an update already downloading.</li>
+<li>
+<strong>"Stops updating" includes security updates.</strong> There's no reliable way to tell a
+security patch from a feature release, and pretending otherwise would be worse than
+saying so. Turn the switch off, or leave the hotspot, and everything resumes.</li>
+<li>
+<strong>Uninstall from the app, not by dragging it to the Trash.</strong> See
+<a href="../../docs/installing/#uninstall">installing</a> for why.</li>
+</ul>
+<div class="markdown-heading"><h2 id="how-its-built" class="heading-element">How it's built</h2><a id="how-its-built" class="anchor" aria-label="Permalink: How it's built" href="#how-its-built"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="highlight highlight-source-mermaid"><pre><span class="pl-k">sequenceDiagram</span>
+    <span class="pl-k">participant</span> <span class="pl-ent">Mac</span> <span class="pl-k">as</span> <span class="pl-ent">macOS network</span>
+    <span class="pl-k">participant</span> <span class="pl-ent">W</span> <span class="pl-k">as</span> <span class="pl-ent">NetworkIdentityWatcher</span>
+    <span class="pl-k">participant</span> <span class="pl-ent">VM</span> <span class="pl-k">as</span> <span class="pl-ent">MonitorViewModel</span>
+    <span class="pl-k">participant</span> <span class="pl-ent">M</span> <span class="pl-k">as</span> <span class="pl-ent">MeteringController</span>
+    <span class="pl-k">participant</span> <span class="pl-ent">S</span> <span class="pl-k">as</span> <span class="pl-ent">Suppressors</span>
+    <span class="pl-k">participant</span> <span class="pl-ent">J</span> <span class="pl-k">as</span> <span class="pl-ent">Journal (suppression.json)</span>
+    <span class="pl-k">participant</span> <span class="pl-ent">H</span> <span class="pl-k">as</span> <span class="pl-ent">Root helper</span>
+    <span class="pl-k">participant</span> <span class="pl-ent">F</span> <span class="pl-k">as</span> <span class="pl-ent">Content filter</span>
+
+    <span class="pl-ent">Mac</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">W</span><span class="pl-k">:</span> <span class="pl-s">path changes (debounced 2 s)</span>
+    <span class="pl-ent">W</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">VM</span><span class="pl-k">:</span> <span class="pl-s">fingerprint + signals</span>
+    <span class="pl-ent">VM</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">M</span><span class="pl-k">:</span> <span class="pl-s">the network changed</span>
+    <span class="pl-ent">M</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">M</span><span class="pl-k">:</span> <span class="pl-s">MeteredHeuristic verdict (This is a hotspot first, own Low Data Mode flags masked)</span>
+    <span class="pl-ent">M</span><span class="pl-k">--&gt;&gt;</span><span class="pl-ent">VM</span><span class="pl-k">:</span> <span class="pl-s">verdict</span>
+    <span class="pl-ent">VM</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">F</span><span class="pl-k">:</span> <span class="pl-s">rules, and whether on a hotspot with Hotspot mode on (over XPC)</span>
+    <span class="pl-k">alt</span> <span class="pl-s">switch on and metered</span>
+        <span class="pl-ent">M</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">S</span><span class="pl-k">:</span> <span class="pl-s">apply</span>
+        <span class="pl-ent">S</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">J</span><span class="pl-k">:</span> <span class="pl-s">record each prior value first</span>
+        <span class="pl-ent">S</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">S</span><span class="pl-k">:</span> <span class="pl-s">preferences, config files, update folders</span>
+        <span class="pl-ent">S</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">H</span><span class="pl-k">:</span> <span class="pl-s">suppress, constrain (over XPC)</span>
+        <span class="pl-k">Note left of </span><span class="pl-ent">F</span><span class="pl-k">:</span> <span class="pl-s">with website names on, blocks every app's updater</span>
+    <span class="pl-k">else</span> <span class="pl-s">no longer metered, or switch off</span>
+        <span class="pl-ent">M</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">S</span><span class="pl-k">:</span> <span class="pl-s">revert</span>
+        <span class="pl-ent">S</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">S</span><span class="pl-k">:</span> <span class="pl-s">put back each value still as NetworkMonitor wrote it</span>
+        <span class="pl-ent">S</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">H</span><span class="pl-k">:</span> <span class="pl-s">restore, unconstrain (over XPC)</span>
+        <span class="pl-ent">S</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">J</span><span class="pl-k">:</span> <span class="pl-s">clear records</span>
+    <span class="pl-k">end</span></pre></div>
+<p><strong>Policy and enforcement are separate.</strong> <code>MeteringController</code> decides; five conformers
+of the <code>UpdateSuppressor</code> protocol (<code>discover</code>, <code>apply</code>, <code>revert</code>) carry it out:</p>
+<table>
+<thead>
+<tr>
+<th>Suppressor</th>
+<th>Covers</th>
+<th>Needs the helper</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PreferenceSuppressor</code></td>
+<td>Sparkle apps, Chrome, Microsoft AutoUpdate, Figma</td>
+<td>no</td>
+</tr>
+<tr>
+<td><code>ConfigFileSuppressor</code></td>
+<td>VS Code, Claude</td>
+<td>no</td>
+</tr>
+<tr>
+<td><code>UpdateFolderSuppressor</code></td>
+<td>Electron apps' update folders (Squirrel, electron-updater)</td>
+<td>no</td>
+</tr>
+<tr>
+<td><code>PrivilegedSuppressor</code></td>
+<td>macOS and App Store updates, managed policies, Claude Code's managed settings, <code>/etc/hosts</code> entries</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>LowDataModeSuppressor</code></td>
+<td>interface flags</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table>
+<p>Stopping every app's updater at the network (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/98">#98</a>) isn't one of them. The content filter
+does it, from the rules and the hotspot state the app sends it, so it needs website names
+on; see <a href="../../docs/connections/#blocking">Connections › Blocking</a>.</p>
+<p><strong>It only acts on events:</strong> launch, a network change, the switch, a per-app switch, an app
+quitting with a queued change, the Network page opening, and the helper being installed. There's no
+timer. Offline is ignored: a dropped connection neither lifts nor applies anything.</p>
+<p><strong>Detection</strong> lives in <code>MeteredHeuristic.swift</code>. The verdict is an enum, not a Bool, so the
+UI can say <em>why</em>. The flags NetworkMonitor raised itself for Low Data Mode are masked out
+first; otherwise leaving a hotspot for home Wi-Fi on the same interface would judge home
+metered by our own flags and hold them forever. <strong>This is a hotspot</strong>, on the Network page
+and in the popover, stores a per-network override (<code>meteredOverrides</code> in <code>usage.json</code>), which beats every signal (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/109">#109</a>).</p>
+<p><strong>Writing other apps' settings:</strong></p>
+<ul>
+<li>Preferences are written with <code>CFPreferences</code>, and only the <em>check</em> flag. Sandboxed apps
+are skipped, since a write from outside lands in a file they never read. A setting that
+already has the suppressed value is the user's own choice and is never recorded, so it's
+never "restored" to something else.</li>
+<li>
+<code>settings.json</code> is edited as text, inserting or removing one line, because VS Code's file
+allows comments and trailing commas that a JSON round trip would destroy. A value the user
+set themselves is left alone.</li>
+<li>Apps are found in <code>/Applications</code> and <code>~/Applications</code>, and named apps are looked up
+through LaunchServices, then checked on disk, because LaunchServices remembers deleted
+apps.</li>
+</ul>
+<p><strong>The journal</strong> (<code>~/Library/Application Support/NetworkMonitor/suppression.json</code>) records
+each prior value <strong>before</strong> the change is made, with a backup copy. A value is only put back
+if it still holds what NetworkMonitor wrote; if you changed it since, yours stays. At launch
+the journal is replayed (restore everything), then the connection re-evaluated, then
+re-applied if still metered. The failure this protects against is a Mac that silently
+stopped updating months ago.</p>
+<p>Suppression is <strong>not</strong> lifted on quit: quitting isn't "resume updating", since you might
+quit to save battery mid-hotspot, and the journal makes leaving it safe. Low Data Mode is
+the exception, because it's machine-wide and nothing would lift it otherwise.</p>
+<div class="markdown-heading"><h3 id="the-helper" class="heading-element">The helper</h3><a id="the-helper" class="anchor" aria-label="Permalink: The helper" href="#the-helper"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>A small root binary with a <strong>fixed, argument-free vocabulary</strong>. Every preference key,
+domain and host name is compiled in, so the app (the side an attacker could reach) can't
+ask for anything else; adding a capability means shipping a new helper.</p>
+<table>
+<thead>
+<tr>
+<th>Verb</th>
+<th>Does</th>
+<th>Who can run it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>status</code></td>
+<td>reports what it holds, as JSON, with its version</td>
+<td>NetworkMonitor, over XPC</td>
+</tr>
+<tr>
+<td>
+<code>suppress</code> / <code>restore</code>
+</td>
+<td>the system update settings, managed policies, Claude Code's managed settings and <code>/etc/hosts</code> entries</td>
+<td>NetworkMonitor, over XPC</td>
+</tr>
+<tr>
+<td>
+<code>constrain</code> / <code>unconstrain</code>
+</td>
+<td>raises or lowers Low Data Mode on the interface carrying traffic, which it picks itself</td>
+<td>NetworkMonitor, over XPC</td>
+</tr>
+<tr>
+<td><code>self-heal</code></td>
+<td>if <code>/Applications/NetworkMonitor.app</code> is gone, undoes everything and removes itself</td>
+<td>launchd, as root</td>
+</tr>
+<tr>
+<td><code>uninstall</code></td>
+<td>undoes everything and removes itself</td>
+<td>NetworkMonitor's Uninstall, over XPC</td>
+</tr>
+</tbody>
+</table>
+<p><strong>A launch daemon inside the app</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>). The app registers it with <code>SMAppService</code>
+(<code>Contents/Library/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist</code>), macOS
+lists it under NetworkMonitor in Login Items, and once you switch it on launchd starts it on
+the app's first request. It answers over XPC, only to NetworkMonitor signed by its team
+(GRQKG7M8CL), and the app only talks to the helper signed by that team. Each request runs
+the same binary with the one verb, so a verb behaves exactly as it did under <code>sudo</code>; it
+quits when idle, so an updated app's helper is the one that answers. On first start it:</p>
+<ul>
+<li>removes the old sudoers rule, if there is one;</li>
+<li>copies itself to <code>/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper</code>
+and installs the hourly <code>self-heal</code> job. Dragging the app to the Trash takes the daemon
+with it, since its program is inside the app and macOS doesn't unregister it, so the
+copy is what still puts everything back. The job is listed under NetworkMonitor too
+(<code>AssociatedBundleIdentifiers</code>).</li>
+</ul>
+<p><strong>If it's on but won't start</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/238">#238</a>). macOS can go on reporting the daemon switched on
+while launchd can't start it (<code>spawn failed … Invalid or missing Program</code>), after the
+app has been replaced by a copy without a Developer ID and then by one with it. So on
+the first launch of each build, if macOS says it's on but it doesn't answer, the app
+registers it again: first as it is, which keeps your approval, and only if that doesn't
+work, unregistered and registered, which may ask for it once more. A daemon that answers
+is left alone. <code>make install</code> refuses to put a build without the Developer ID over one
+with it, which is how this happened.</p>
+<p><strong>Builds without a Developer ID</strong>, built from source, have no team to check callers by, so
+they keep the older way: installed through macOS's administrator dialog, running the
+<code>helper-setup.sh</code> inside the bundle. It installs:</p>
+<ul>
+<li>the binary at <code>/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper</code>,
+owned by root (a password-free rule pointing at a binary you could rewrite would be a
+one-line route to root);</li>
+<li>a sudoers rule, <code>/etc/sudoers.d/networkmonitor</code>, allowing exactly five of the verbs
+above for your account, <code>status</code>, <code>suppress</code>, <code>restore</code>, <code>constrain</code> and <code>unconstrain</code>,
+validated with <code>visudo -c</code> first. Its name has no dot, because sudo
+skips files whose names contain one;</li>
+<li>a LaunchDaemon that runs <code>self-heal</code> at boot and every hour. It's the extra row in
+Login Items.</li>
+</ul>
+<p>The app calls it with <code>sudo -n</code>, which fails immediately instead of prompting if anything
+is wrong. The helper's own records live in <code>/Library/Application Support/NetworkMonitor/</code>,
+are trusted only if root-owned and not writable by others, and a damaged one is an error,
+never "nothing to restore". Every verb takes a lock and fails fast if another is running.</p>
+<p><strong>Why those builds use <code>sudo</code>.</strong> Authorising an XPC client needs a team identifier, which an
+ad-hoc signature doesn't have. Without one, an XPC daemon is a service any local process can
+talk to. A sudoers rule makes the grant explicit and auditable instead.</p>
+<p><strong>Versioning.</strong> <code>HelperProtocol.version</code> (now 5, for <code>serve</code>) lives in the <code>LowDataMode</code>
+target that the app and the helper share. For the daemon it hardly matters: the helper is
+inside the app, so they're always the same version. For <code>sudo</code> helpers, bump it when a verb
+is added or changed, or the sudoers rule changes, and installed helpers are offered an
+update once per build; a <code>sudo</code> helper on a Developer ID build is offered the daemon
+instead.</p>
+<div class="markdown-heading"><h3 id="low-data-mode-internals" class="heading-element">Low Data Mode internals</h3><a id="low-data-mode-internals" class="anchor" aria-label="Permalink: Low Data Mode internals" href="#low-data-mode-internals"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>The helper raises the interface's <code>constrained</code> and <code>expensive</code> flags with <code>ifconfig</code>.
+<code>constrained</code> is what <code>NWPath.isConstrained</code> reports and what apps opting out of
+constrained networks are held to. Writing System Settings' own Low Data Mode setting was
+the original plan and was rejected: it reached wired connections only, because Wi-Fi keeps
+Low Data Mode per network in a file only <code>wifid</code> writes. Flags work the same for Wi-Fi, USB
+iPhone and Android tethering, and vanish at restart.</p>
+<p>The helper picks the interface carrying traffic from <code>scutil --nwi</code>, skipping VPN
+tunnels, and records which flags it raised (<code>low-data-mode.json</code>) before raising them. On
+the way down it lowers only those, and leaves <code>constrained</code> up on a wired connection you
+put in Low Data Mode yourself.</p>
+<div class="markdown-heading"><h3 id="uninstalling-in-order" class="heading-element">Uninstalling, in order</h3><a id="uninstalling-in-order" class="anchor" aria-label="Permalink: Uninstalling, in order" href="#uninstalling-in-order"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>The in-app <strong>Uninstall…</strong> removes the helper first, and if that fails nothing else is
+touched. With the daemon it asks nothing: the daemon puts everything back, removes its copy,
+the self-heal job and any sudoers rule, and then the app unregisters it. A <code>sudo</code> helper
+asks for your password, and cancelling leaves everything as it was. Then it replays the journal,
+withdraws the login item, deletes <code>~/Library/Application Support/NetworkMonitor</code> and the
+app's preferences, and moves the app to the Trash, where you can still drag it back.</p>
+<p>Dragging the app to the Trash instead leaves the password-free changes in place, because
+their only record is the app's journal. The helper's hourly check covers its own changes.
+<code>make metering-report</code> shows what's held on a Mac at any moment, read-only.</p>
+<div class="markdown-heading"><h2 id="known-gaps" class="heading-element">Known gaps</h2><a id="known-gaps" class="anchor" aria-label="Permalink: Known gaps" href="#known-gaps"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>Updaters compiled into an app's own binary</strong> (Tauri apps, for example) can't be found
+by their shape.</li>
+<li>
+<strong>Electron apps with an updater of their own</strong>, neither Squirrel nor electron-updater,
+are only slowed by Low Data Mode if they respect it, and most don't. With website names
+on, the content filter stops an updater that runs as a program of its own (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/98">#98</a>), but not
+one that downloads from inside the app itself.</li>
+<li>
+<strong>Sparkle apps that were open when you joined the hotspot</strong> keep their setting until they
+quit, so one could still update; the Network page marks them <em>paused once you quit it</em>.</li>
+<li>
+<strong>Claude Code in an organisation that manages it.</strong> If your organisation sends Claude Code
+settings from its servers or through MDM, Claude Code may use those instead of
+NetworkMonitor's file, and keep updating.</li>
+<li>
+<strong>A phone whose maker replaced Android's tethering</strong> may not say it's a hotspot, and
+may use a subnet nobody can guess. Switch on <strong>This is a hotspot</strong> for it, once.</li>
+</ul>
+
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/hotspot-mode.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+  </main>
+</div>
+<script>
+// On a narrow screen the list of pages starts closed, above the page.
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna. NetworkMonitor is free software under the Apache License 2.0. macOS is a trademark of Apple Inc.</span>
+      <nav aria-label="Project links">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">Report an issue</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">License</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!doctype html>
+<!-- The template of every Chinese docs page. The pages beside it are built
+     from the app repository's docs/zh-Hans/ by `make docs-site` (docs-kit,
+     #334): change a page there, never here. -->
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>统计准确性与耗电量 — NetworkMonitor 文档</title>
+<meta name="description" content="内核的数值略高于实际内容，因为它包含了 TCP、TLS 和 HTTP 的开销，这些都是你要付费的真实流量。实时速度的误差在 0.4% 以内。">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/accuracy-and-battery/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/accuracy-and-battery/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/accuracy-and-battery/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">跳到正文</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../../zh/"><img src="../../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../../zh/docs/" aria-current="true">文档</a>
+      <a href="../../../docs/accuracy-and-battery/" lang="en" hreflang="en" data-lang="en">English</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">下载</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>所有页面</summary>
+    <nav aria-label="文档"><ul><li><a href="../../../zh/docs/">NetworkMonitor 文档</a></li><li><span class="docs-nav-section">使用 NetworkMonitor</span><ul><li><a href="../../../zh/docs/installing/">安装、更新和卸载</a></li><li><a href="../../../zh/docs/features/">功能</a></li><li><a href="../../../zh/docs/connections/">连接</a></li><li><a href="../../../zh/docs/usage-history/">流量历史</a></li><li><a href="../../../zh/docs/speed-test/">网速测试</a></li><li><a href="../../../zh/docs/hotspot-mode/">热点模式</a></li><li><a href="../../../zh/docs/accuracy-and-battery/" aria-current=page>统计准确性与耗电量</a></li><li><a href="../../../zh/docs/privacy/">隐私</a></li><li><a href="../../../zh/docs/security/">安全策略</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="统计准确性与耗电量" class="heading-element">统计准确性与耗电量</h1><a id="统计准确性与耗电量" class="anchor" aria-label="Permalink: 统计准确性与耗电量" href="#统计准确性与耗电量"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="markdown-heading"><h2 id="以累计值为准" class="heading-element">以累计值为准</h2><a id="以累计值为准" class="anchor" aria-label="Permalink: 以累计值为准" href="#以累计值为准"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>你的速度和连接累计值直接来自内核自己的字节计数器</strong>，并且一直在运行。在三次独立的传输中与内核进行了核对：</p>
+<table>
+<thead>
+<tr>
+<th>传输</th>
+<th>记录值与内核计数之比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>下载 10 MB</td>
+<td>100.2%</td>
+</tr>
+<tr>
+<td>下载 50 MB</td>
+<td>100.0%</td>
+</tr>
+<tr>
+<td>6.5 MB，持续 15 秒，用于检查是否丢失样本</td>
+<td>99.6%</td>
+</tr>
+</tbody>
+</table>
+<p>内核的数值略高于实际内容，因为它包含了 TCP、TLS 和 HTTP 的开销，这些都是你要付费的真实流量。实时速度的误差在 0.4% 以内。</p>
+<p><strong>各应用的行加起来不会完全等于累计值，也不应该相等。</strong> 内核统计线路上的一切，包括不属于任何应用的开销； <code>nettop</code> 统计的是每个应用的套接字传输了多少。在 50 MB 的测试中，<code>curl</code> 被计入了内核数值的 94.8%，其余是线路开销。你退出前的最后一秒也永远统计不完整。总流量请以顶部累计值为准，各应用条目用于了解流量归属。</p>
+<p><strong>在两次采样之间出现又消失的进程可能没有自己的一行。</strong> <code>nettop</code> 报告的是采样时仍在运行的进程，根据电源配置，每 1 到 10 秒采样一次。在两次采样之间打开又关闭的套接字仍会计入它所属进程的行，但在两次采样之间启动又结束的进程可能永远不会被列出名称。它的字节仍计入累计值，在“历史记录”和 CSV 中归在 <em>未归属到任何应用</em> 下。</p>
+<div class="markdown-heading"><h2 id="统计的是互联网流量不是你自己的网络" class="heading-element">统计的是互联网流量，不是你自己的网络</h2><a id="统计的是互联网流量不是你自己的网络" class="anchor" aria-label="Permalink: 统计的是互联网流量，不是你自己的网络" href="#统计的是互联网流量不是你自己的网络"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>将屏幕镜像到 Apple TV、用 Time Machine 备份到 NAS、从你自己的服务器播放 Plex：这些都经过你的 Wi-Fi，但不消耗互联网流量，因此不计算在内。仅通过路由器的隔空播放每小时就可能传输 4 到 13 GB，否则会淹没一整天的数据。</p>
+<p>每个连接的另一端都会被检查：私有地址（<code>10/8</code>、<code>172.16/12</code>、<code>192.168/16</code>、链路本地地址）属于你自己的网络；其他所有地址，以及任何无法读取的地址，都算作互联网。少算是应用最不能犯的错误，因此有歧义时一律算作互联网。 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/architecture.md#internet-not-your-own-network">架构</a>（英文）中有详细说明，包括为什么从不减去组播，以及为什么累计值被限制在各应用行之和与内核计数之间。</p>
+<div class="markdown-heading"><h2 id="为什么与活动监视器对不上" class="heading-element">为什么与活动监视器对不上</h2><a id="为什么与活动监视器对不上" class="anchor" aria-label="Permalink: 为什么与活动监视器对不上" href="#为什么与活动监视器对不上"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>活动监视器的“网络”标签页统计的是每个进程自<strong>启动</strong>以来的字节数，而进程往往是几天前启动的。 NetworkMonitor 报告的是它在今天、本周或本月看到的流量，从这段时间开始时统计；“网络”页面上则是它在你当前所用连接上看到的流量，从你加入该网络起，或者从午夜起统计。两者都没有错；它们回答的是不同的问题。</p>
+<div class="markdown-heading"><h2 id="电池" class="heading-element">电池</h2><a id="电池" class="anchor" aria-label="Permalink: 电池" href="#电池"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>NetworkMonitor 会尽可能降低采样频率，但从不少算。两个数据来源报告的都是两次采样<strong>之间</strong>传输的字节数，因此降低采样频率改变的是数值有多新，而不是有多完整。无需任何设置，<strong>设置 › 采样</strong> 会显示当前使用的模式。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>读数更新</th>
+<th>应用列表更新</th>
+<th>没有人能看到菜单栏时</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>接通电源</strong></td>
+<td>每 0.5 秒</td>
+<td>每 1 秒</td>
+<td>计数器每 5 秒</td>
+</tr>
+<tr>
+<td><strong>使用电池</strong></td>
+<td>每 1 秒</td>
+<td>每 3 秒</td>
+<td>计数器每 10 秒</td>
+</tr>
+<tr>
+<td>
+<strong>低电量模式</strong>，无论是否接通电源</td>
+<td>每 2 秒</td>
+<td>每 10 秒</td>
+<td>计数器每 15 秒</td>
+</tr>
+</tbody>
+</table>
+<p>“没有人能看到菜单栏”是指显示器处于睡眠状态、屏幕已锁定，或者另一个用户的会话在前台。这时读数完全不绘制，一旦有人能看到，就会立即更新到最新。</p>
+<p>在一台 M1 MacBook Air 上测得，带着它日常的后台流量，每种情况两分钟，应用和它的 <code>nettop</code> 合计：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>占一个 CPU 核心的比例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>接通电源</td>
+<td>2.68%</td>
+</tr>
+<tr>
+<td>使用电池</td>
+<td><strong>1.19%</strong></td>
+</tr>
+<tr>
+<td>低电量模式</td>
+<td><strong>0.53%</strong></td>
+</tr>
+<tr>
+<td>使用电池，且没有人在看</td>
+<td><strong>0.47%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>应用自身占用的大部分用于绘制菜单栏读数。按一整天计算，活动监视器的“12 小时耗电量”显示它与其他一直运行的菜单栏工具相当。</p>
+<div class="markdown-heading"><h3 id="那次耗电其实是个错误" class="heading-element">那次耗电其实是个错误</h3><a id="那次耗电其实是个错误" class="anchor" aria-label="Permalink: 那次耗电其实是个错误" href="#那次耗电其实是个错误"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>早期版本大约占用 <strong>1.4 个 CPU 核心</strong>，并因此在使用电池时关闭了按应用统计。后来发现，这个开销是一个错误，而不是必须付出的代价。 <code>nettop</code> 是 macOS 提供的按应用统计数据的工具，它会轮询自己的输入，看是否有按键。当时给它的输入始终处于“就绪”状态（<code>/dev/null</code>），因此它一直在空循环中打转。换成一个会正常等待的输入后，同样的数据只占用 <strong>一个核心的 0.55%</strong>，少了 256 倍，而且数据到达得一样快。</p>
+<p>这次修复还表明，在使用电池时关闭统计是本末倒置：它恰恰在最需要的地方关闭了按应用统计，也就是在手机热点上。有一次热点会话显示，网络接口上有 25.4 MB，而归属到应用的只有 1.1 MB。所以现在按应用统计始终运行，在任何网络上、使用电池时都是如此。</p>
+<p><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/development.md#measuring-power">开发</a>（英文）中介绍了如何在不拔掉电源的情况下测量某个电源配置。</p>
+
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/accuracy-and-battery.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+  </main>
+</div>
+<script>
+// 窄屏上，页面列表默认收起，放在正文上方。
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna。NetworkMonitor 是采用 Apache 2.0 许可证的自由软件。macOS 是 Apple Inc. 的商标。</span>
+      <nav aria-label="项目链接">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">版本发布</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">报告问题</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">许可证</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,324 @@
+<!doctype html>
+<!-- The template of every English docs page. The pages beside it are built
+     from the app repository's docs/ by `make docs-site` (docs-kit, #334):
+     change a page there, never here. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Usage History — NetworkMonitor docs</title>
+<meta name="description" content="The popover shows today, this week or this month. Usage History keeps every hour behind those figures, per app and per network, for as long as you choose.">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/usage-history/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/usage-history/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/usage-history/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to the page</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../"><img src="../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../docs/" aria-current="true">Docs</a>
+      <a href="../../zh/docs/usage-history/" lang="zh-Hans" hreflang="zh-Hans" data-lang="zh-Hans">简体中文</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">Download</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>All pages</summary>
+    <nav aria-label="Documentation"><ul><li><a href="../../docs/">NetworkMonitor documentation</a></li><li><span class="docs-nav-section">Using NetworkMonitor</span><ul><li><a href="../../docs/installing/">Installing, updating and removing</a></li><li><a href="../../docs/features/">Features</a></li><li><a href="../../docs/connections/">Connections</a></li><li><a href="../../docs/usage-history/" aria-current=page>Usage History</a></li><li><a href="../../docs/speed-test/">Speed test</a></li><li><a href="../../docs/hotspot-mode/">Hotspot mode</a></li><li><a href="../../docs/accuracy-and-battery/">Accuracy and battery</a></li><li><a href="../../docs/privacy/">Privacy</a></li><li><a href="../../docs/security/">Security policy</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="usage-history" class="heading-element">Usage History</h1><a id="usage-history" class="anchor" aria-label="Permalink: Usage History" href="#usage-history"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>The popover shows today, this week or this month. Usage History keeps every hour behind
+those figures, per app and per network, for as long as you choose.</p>
+<p>It's the first section of the main window. Open it from <strong>Open Usage History</strong> under
+Data in the popover, or the four squares beside the popover's gear: both open it on the
+popover's period. Or choose <strong>Usage History…</strong> (⌘Y) in the right-click menu, or Usage
+History in the main window's sidebar.</p>
+<div class="markdown-heading"><h2 id="using-it" class="heading-element">Using it</h2><a id="using-it" class="anchor" aria-label="Permalink: Using it" href="#using-it"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>List, Both or Chart</strong>, at the start of the toolbar, as Connections has List, Both or
+Map (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/524">#524</a>): the lists alone, the lists on the left and the chart on the right with its
+legend under it (the default, side by side as Connections has its list and map, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/534">#534</a>),
+or the chart filling the window. Whichever you choose is remembered. With the chart alone, <strong>Show</strong> is
+hidden, as there's no list for it to change.</li>
+<li>
+<strong>Day, Week, Month or Year</strong>, in the toolbar, with <strong>‹ Today ›</strong> beside it (⌘← and ⌘→
+step too), as every section has them. Periods are
+calendar periods, not rolling windows, so "October" means the same bytes every time
+you look, the way Screen Time and carriers count. A day shows hours, a week or month
+shows days, a year shows months. Click a bar to open it.</li>
+<li>
+<strong>Stacked by network type</strong>: Wi-Fi, Hotspot, Ethernet and Other. Each type keeps its
+colour whatever else is in the period. The legend under the chart gives each type's
+total, so no figure is readable only by hovering.</li>
+<li>
+<strong>All, Wi-Fi or Hotspot</strong>, at the end of the row under the toolbar, narrows everything to that
+kind of network: the chart, the totals and the lists. It opens on <strong>Hotspot</strong> while
+you're on one, and on <strong>All</strong> otherwise. Ethernet and Other are under All, and on the
+Networks list.</li>
+<li>
+<strong>Each app's bar is split by network type</strong>, in the chart's colours, so an app that
+used both Wi-Fi and a hotspot shows how much went over each. Splits too small to see
+are left out; the Networks list has the exact figures.</li>
+<li>
+<strong>The heading</strong> names the period, then gives what was used, with what went over
+metered connections and the daily average as one quieter line. The daily average
+divides by the days elapsed so far, not by the length of the month. Metered is shown
+under All, and only when something went over a metered connection.</li>
+<li>
+<strong>Show: Apps, Networks or Sessions</strong>, at the start of that row. Apps are grouped
+exactly as in the popover. A session is one visit to a network.</li>
+<li>
+<strong>The lists are the filters.</strong> Click a row to see only that app, network or session,
+and the chart and totals follow; click it again, or its chip at the end of the lists'
+row (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/192">#192</a>), to undo. Filters combine, with each other and with the switch.</li>
+<li>
+<strong>Search</strong> (⌘F), the magnifying glass in the toolbar, finds apps and networks, and
+shows as a chip like the other filters.</li>
+<li>
+<strong>Name a network</strong> by right-clicking it under Networks and choosing <strong>Rename…</strong>. The name is used in History
+and in exports, for every past visit too.</li>
+<li>
+<strong>Export CSV…</strong>, at the bottom, saves the period on screen, with its filter, hour by
+hour and app by app, in bytes.</li>
+<li>
+<strong>Keep history for</strong> a month, three months, a year, or forever (the default), in
+Usage History's settings, behind the gear. Shortening it asks first if it would
+delete anything.</li>
+<li>
+<strong>Clear History…</strong>, there too, deletes it all. The menu bar totals aren't
+affected.</li>
+</ul>
+<p>While Usage History is shown on a period that includes now, it refreshes every 30 seconds.</p>
+<div class="markdown-heading"><h2 id="what-counts" class="heading-element">What counts</h2><a id="what-counts" class="anchor" aria-label="Permalink: What counts" href="#what-counts"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>History counts the same <strong>internet-only</strong> figure as the popover. Mirroring a screen,
+Time Machine to a NAS or a Plex stream from your own server is never part of it. See
+<a href="../../docs/accuracy-and-battery/#internet-not-your-own-network">accuracy</a> for how that figure
+is worked out.</p>
+<p>It starts the moment you install a version that has it (1.4.0 or later). Nothing from
+before can be recovered: the old totals have no hours in them, and spreading a lump
+over a day would be inventing data.</p>
+<div class="markdown-heading"><h2 id="sessions" class="heading-element">Sessions</h2><a id="sessions" class="anchor" aria-label="Permalink: Sessions" href="#sessions"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>A session is one visit to a network: from joining it until you leave for another, or
+until the Mac has been silent for <strong>30 minutes</strong>, as it is after a sleep.</p>
+<ul>
+<li>
+<strong>Going offline isn't a place.</strong> A Wi-Fi blip and a rejoin continue the same visit.</li>
+<li>
+<strong>A session ends at its last traffic</strong>, not when the next network appears. A lid
+closed at the office ends the office visit when it closed.</li>
+<li>
+<strong>Waking up.</strong> The first packets after a wake arrive before macOS has settled which
+network you're on (the app waits 2 seconds for it to settle). A session opened then
+stays provisional for 30 seconds and adopts the network that's named in that time,
+so it doesn't leave a few-kilobyte visit on the network you closed the lid on.</li>
+<li>
+<strong>Relaunching</strong> on the same network within 30 minutes continues the visit.</li>
+<li>
+<strong>Each session keeps its own metered verdict</strong>, read again as it closes, so a
+hotspot visit stays metered after you've moved on to home Wi-Fi.</li>
+<li>
+<strong>Updates that got through stay with their visit</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/96">#96</a>). A hotspot visit where one
+did says <em>2 updates got through</em> under its name, and choosing it lists them: the app,
+the version once known, and the data used, or <em>up to</em> when only the most it could be
+is known. Hotspot mode's <em>Got through</em> list only holds the last metered connection;
+History keeps them under the same retention and Clear History as everything else.
+Each is kept once, with the visit it was first seen on, even when one connection runs
+across several visits.</li>
+</ul>
+<div class="markdown-heading"><h2 id="networks" class="heading-element">Networks</h2><a id="networks" class="anchor" aria-label="Permalink: Networks" href="#networks"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>A network is identified by its router's hardware address, not its name. Two routers with
+the same Wi-Fi name stay apart, and roaming between access points of one network stays
+one network. The same router over Wi-Fi and over Ethernet is one network, which is what
+a data cap cares about.</p>
+<p><strong>What it's called:</strong></p>
+<ul>
+<li>
+<strong>Its Wi-Fi name</strong>, once Location is allowed (macOS shares the name only then). Past
+visits take the name too.</li>
+<li>
+<strong>Both names for a router whose bands are named apart</strong>, such as <em>Home / Home-5G</em>.
+2.4 and 5 GHz on one router are one network.</li>
+<li>
+<strong>Otherwise its type and the last four characters of the router's address</strong>, such as
+<em>Wi-Fi · 3f2a</em>: Ethernet, USB tethering, or Location refused.</li>
+<li>
+<strong>Networks not told apart</strong>, for traffic the app couldn't place on a network, such as
+everything on macOS 27 before 1.9.7.</li>
+<li>
+<strong>A name you give it</strong> under Networks wins over all of these.</li>
+</ul>
+<div class="markdown-heading"><h2 id="csv-format" class="heading-element">CSV format</h2><a id="csv-format" class="anchor" aria-label="Permalink: CSV format" href="#csv-format"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<pre><code>Hour,Network,Network Type,Metered,App,Downloaded (bytes),Uploaded (bytes),Update That Got Through
+</code></pre>
+<ul>
+<li>One line per app, per hour, per visit. That's everything History holds; a
+spreadsheet can total it any way it likes, but couldn't split a daily figure apart.</li>
+<li>
+<code>Hour</code> is <code>yyyy-MM-dd HH:mm</code> in your time zone.</li>
+<li>Without an app filter, each hour also has a <em>Not attributed to an app</em> line for the
+rest of the internet total, so the file adds up to what the window shows.</li>
+<li>
+<code>Update That Got Through</code> is filled on the app's line in the hour an update was first
+seen, such as <em>Slack updated to 4.41, 120 MB</em> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/96">#96</a>). When the app has no line in that
+hour, the update gets a line of its own with no bytes, so the columns still add up.</li>
+<li>Fields are quoted only when they need it (RFC 4180). The file is UTF-8.</li>
+</ul>
+<div class="markdown-heading"><h2 id="how-its-built" class="heading-element">How it's built</h2><a id="how-its-built" class="anchor" aria-label="Permalink: How it's built" href="#how-its-built"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>Storage.</strong> <code>~/Library/Application Support/NetworkMonitor/history.sqlite</code>, through the
+system's own SQLite library, with no third-party dependency. History only grows, and
+every view is a range query and a sum, which is the wrong shape for a JSON file.
+<code>WAL</code> journaling with <code>synchronous = NORMAL</code>: a write is an append rather than an
+<code>fsync</code>, and a crash can lose the last moments but never corrupt the file. A file
+that can't be opened is moved aside as <code>history.unreadable-&lt;time&gt;.sqlite</code>, never
+deleted, and a new one started.</p>
+<p><strong>Schema</strong> (<code>UsageHistory.swift</code>). One row per hour per session, and one per hour per
+session per app. An hour is the finest grain any view needs, and keeps a year to
+roughly a hundred thousand rows. The servers each app talked to, for
+<a href="../../docs/connections/">Connections</a>, are kept the same way.</p>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Holds</th>
+<th>Key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sessions</code></td>
+<td>network id, type, default label, start, end (last traffic), metered</td>
+<td><code>id</code></td>
+</tr>
+<tr>
+<td><code>apps</code></td>
+<td>app key, name, bundle path, whether it's System, parent app</td>
+<td><code>key</code></td>
+</tr>
+<tr>
+<td><code>traffic</code></td>
+<td>per hour and session: interface bytes, LAN bytes, attributed app bytes, each way</td>
+<td><code>(hour, session_id)</code></td>
+</tr>
+<tr>
+<td><code>app_traffic</code></td>
+<td>per hour, session and app: bytes in and out</td>
+<td><code>(hour, session_id, app_key)</code></td>
+</tr>
+<tr>
+<td><code>servers</code></td>
+<td>a server's address; its <code>name</code> column is only read for rows from before <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/247">#247</a>
+</td>
+<td><code>id</code></td>
+</tr>
+<tr>
+<td><code>app_servers</code></td>
+<td>each app and server pair, once, with when it was first seen (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/111">#111</a>)</td>
+<td><code>id</code></td>
+</tr>
+<tr>
+<td><code>server_traffic</code></td>
+<td>per hour, session and app and server: bytes in and out, and connections blocked (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/114">#114</a>)</td>
+<td><code>(hour, session_id, app_server_id)</code></td>
+</tr>
+<tr>
+<td><code>server_names</code></td>
+<td>per hour, session and app and server: each name the app reached it by, and how many of those connections went through or were blocked (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/247">#247</a>)</td>
+<td><code>(hour, session_id, app_server_id, name)</code></td>
+</tr>
+<tr>
+<td><code>list_blocks</code></td>
+<td>per hour, session and app: each site a list blocked, the list, and how many times (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/250">#250</a>)</td>
+<td><code>(hour, session_id, app_key, name, list)</code></td>
+</tr>
+<tr>
+<td><code>updates</code></td>
+<td>each update that got through: the app, its version, the data it used, and the session it was first seen on (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/96">#96</a>)</td>
+<td><code>(report, source, name)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The raw figures are stored and the internet figure is derived when reading, with the
+same clamp the popover uses, so the formula lives in one place:
+<code>MIN(interface, MAX(interface − LAN, apps))</code> per direction, per hour and session.</p>
+<p><strong>Feeding.</strong> <code>UsageStore</code> forwards every byte and every network change to
+<code>UsageHistory</code>, so History and the popover can never disagree about which network a
+byte used. Reset Now and midnight clear the current connection's counter, never History.</p>
+<p><strong>Writing.</strong> Batched in memory and written when the usage file is saved (about every
+15 seconds, on a network change, on sleep and on quit), in one transaction of upserts
+that add to existing rows. Synchronous, because quit calls it, and well under a
+millisecond. It's also flushed before every read, so the current hour is never
+missing. A failed batch is dropped, not retried, because a database that refuses one
+write will refuse the next; the current connection's counter is unaffected.</p>
+<p><strong>Reading</strong> happens on its own serial queue, so stepping through a year never stalls
+the menu bar. Measured on a generated 400-day database (5.5 MB): a year's per-app
+totals in 32 ms, hourly totals in 2 ms.</p>
+<p><strong>Retention</strong> (<code>historyRetention</code> in preferences) prunes whole days, at most once a
+day and straight away when the setting changes, then reclaims space with
+<code>incremental_vacuum</code>.</p>
+<p><strong>The chart</strong> is Swift Charts, stacked by hand so segments get a 2-point gap and only
+the top of a bar is rounded. The value axis uses round 1024-based steps chosen by the
+app (Swift Charts' own steps printed "953.7 MB"). The four colours were checked for
+colour-blind separation in light and dark mode; two of the light ones fall below 3:1
+contrast against the window, which is why every figure is also given as text. Hover
+dims other bars by mixing them toward the background rather than lowering opacity,
+because the double-drawn top segment would show through.</p>
+<p><strong>Tests</strong> in <code>UsageHistoryTests.swift</code> cover the internet figure matching the popover,
+LAN-only traffic never counting, every session rule above, filters, retention, Clear
+History, the CSV adding up, DST days having 23 or 25 hourly bars, and the axis steps.
+They use a temporary database and a UTC calendar.</p>
+<div class="markdown-heading"><h2 id="known-limits" class="heading-element">Known limits</h2><a id="known-limits" class="anchor" aria-label="Permalink: Known limits" href="#known-limits"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>History begins when you install 1.4.0 or later.</li>
+<li>
+<strong>On macOS 27 before 1.9.7</strong>, every Wi-Fi network, iPhone hotspots included, was
+recorded as one network (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/70">#70</a>).
+Those visits can't be split after the fact: nothing recorded when the switches happened.</li>
+<li>The Day/Week/Month/Year choice is remembered while the app runs, not across launches.</li>
+<li>Which day a week starts on follows your Mac's region settings.</li>
+<li>The schema version (<code>user_version</code>) is still 1. The two columns added since, a server's
+name (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/128">#128</a>) and blocked connections (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/114">#114</a>), are added to an older file when it opens,
+if they're missing.</li>
+</ul>
+
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/usage-history.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+  </main>
+</div>
+<script>
+// On a narrow screen the list of pages starts closed, above the page.
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna. NetworkMonitor is free software under the Apache License 2.0. macOS is a trademark of Apple Inc.</span>
+      <nav aria-label="Project links">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">Report an issue</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">License</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

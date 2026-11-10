@@ -1,0 +1,155 @@
+<!doctype html>
+<!-- The template of every English docs page. The pages beside it are built
+     from the app repository's docs/ by `make docs-site` (docs-kit, #334):
+     change a page there, never here. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Security policy — NetworkMonitor docs</title>
+<meta name="description" content="Only the latest release gets security fixes. There are no backports. From 1.15 on, NetworkMonitor offers each new version itself; before that, download the…">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/security/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/security/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/security/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to the page</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../"><img src="../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../docs/" aria-current="true">Docs</a>
+      <a href="../../zh/docs/security/" lang="zh-Hans" hreflang="zh-Hans" data-lang="zh-Hans">简体中文</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">Download</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>All pages</summary>
+    <nav aria-label="Documentation"><ul><li><a href="../../docs/">NetworkMonitor documentation</a></li><li><span class="docs-nav-section">Using NetworkMonitor</span><ul><li><a href="../../docs/installing/">Installing, updating and removing</a></li><li><a href="../../docs/features/">Features</a></li><li><a href="../../docs/connections/">Connections</a></li><li><a href="../../docs/usage-history/">Usage History</a></li><li><a href="../../docs/speed-test/">Speed test</a></li><li><a href="../../docs/hotspot-mode/">Hotspot mode</a></li><li><a href="../../docs/accuracy-and-battery/">Accuracy and battery</a></li><li><a href="../../docs/privacy/">Privacy</a></li><li><a href="../../docs/security/" aria-current=page>Security policy</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="security-policy" class="heading-element">Security policy</h1><a id="security-policy" class="anchor" aria-label="Permalink: Security policy" href="#security-policy"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="markdown-heading"><h2 id="supported-versions" class="heading-element">Supported versions</h2><a id="supported-versions" class="anchor" aria-label="Permalink: Supported versions" href="#supported-versions"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Only the <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest">latest release</a>
+gets security fixes. There are no backports. From 1.15 on, NetworkMonitor offers each new
+version itself; before that, download the new version and replace the old one (see
+<a href="../../docs/installing/#update">Updating</a>).</p>
+<div class="markdown-heading"><h2 id="reporting-a-vulnerability" class="heading-element">Reporting a vulnerability</h2><a id="reporting-a-vulnerability" class="anchor" aria-label="Permalink: Reporting a vulnerability" href="#reporting-a-vulnerability"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Please report it privately, through
+<a href="https://github.com/kevinabouhanna/NetworkMonitor/security/advisories/new">GitHub's private vulnerability reporting</a>.
+Don't open a public issue or pull request for it.</p>
+<p>Include:</p>
+<ul>
+<li>the NetworkMonitor version (About NetworkMonitor, in the right-click menu) and the macOS version;</li>
+<li>what an attacker can do, and what they need first (a local account, admin rights,
+being on the same network);</li>
+<li>the steps to reproduce it.</li>
+</ul>
+<p>You'll get a reply within 7 days. Once it's confirmed, the fix ships in a release, and
+the advisory and release notes credit you unless you'd rather they didn't.</p>
+<div class="markdown-heading"><h2 id="whats-in-scope" class="heading-element">What's in scope</h2><a id="whats-in-scope" class="anchor" aria-label="Permalink: What's in scope" href="#whats-in-scope"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Most important first:</p>
+<ul>
+<li>
+<strong>The root helper.</strong> In a release, that's the launch daemon inside the app, which
+answers over XPC only to NetworkMonitor signed by its team, its copy at
+<code>/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper</code>, its hourly
+self-heal job and its records in <code>/Library/Application Support/NetworkMonitor/</code>. A build
+without a Developer ID runs the same binary through a sudoers rule at
+<code>/etc/sudoers.d/networkmonitor</code> instead. In scope is anything that gets more out of it
+than its fixed verbs, reaches it from anything but NetworkMonitor, changes what those
+verbs act on, or tampers with its records. How it's meant to work is in
+<a href="../../docs/hotspot-mode/#the-helper">Hotspot mode</a>.</li>
+<li>
+<strong>The content filter</strong>, the system extension that names each connection and applies
+your rules (<a href="../../docs/connections/#website-names">Connections</a>). In scope is anything that
+makes it block or allow what your rules don't say, report what it shouldn't, or answer
+anything but NetworkMonitor. If it stops, nothing should be cut off.</li>
+<li>
+<strong>Installing and removing them</strong>: <code>helper-setup.sh</code>, <code>Scripts/install.sh</code>,
+<code>Scripts/uninstall.sh</code> and the in-app Uninstall…, including anything they leave behind.</li>
+<li>
+<strong>The app sending data off your Mac.</strong> The only traffic it should start is the speed
+test you run yourself, the daily update check and the monthly country and network data
+(see <a href="../../docs/privacy/#what-it-sends">Privacy</a>).</li>
+<li>
+<strong>What it accepts from GitHub.</strong> An update installs only if its disk image is signed with
+the key built into the app, and the monthly data is used only if its signed manifest and
+each table's SHA-256 check out. Anything that gets past either is in scope.</li>
+<li>
+<strong>The download.</strong> A <code>NetworkMonitor.dmg</code> on the Releases page that isn't what the
+tagged source builds.</li>
+</ul>
+<div class="markdown-heading"><h2 id="known-and-by-design" class="heading-element">Known, and by design</h2><a id="known-and-by-design" class="anchor" aria-label="Permalink: Known, and by design" href="#known-and-by-design"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>These are documented choices, not vulnerabilities:</p>
+<ul>
+<li>
+<strong>The helper's verbs run without a password</strong> once you've allowed it: in a release, with
+its switch in System Settings › General › Login Items &amp; Extensions; in a build without a
+Developer ID, through the sudoers rule, for the account that installed it. Each verb
+takes no arguments, and every setting, domain and host it touches is compiled in.</li>
+<li>
+<strong>Hotspot mode edits <code>/etc/hosts</code></strong>, to block Google's, Canva's and Figma's update
+servers while you're on a hotspot. It puts the file back when you leave.</li>
+<li>
+<strong>Hotspot mode writes managed policy files</strong> while you're on a hotspot: for Claude and
+Slack in <code>/Library/Managed Preferences</code>, and for Claude Code in
+<code>/Library/Application Support/ClaudeCode/managed-settings.d</code>. It removes them when you
+leave.</li>
+<li>
+<strong>The content filter blocks the connections your rules say to</strong>, and with Hotspot mode
+on, apps' updaters while you're on a hotspot. Under <strong>Ask Me</strong> it holds a new connection
+while it asks, and lets it go ahead after 30 seconds unanswered.</li>
+<li><strong>Attacks that already need root or an administrator's password.</strong></li>
+</ul>
+<div class="markdown-heading"><h2 id="checking-a-download" class="heading-element">Checking a download</h2><a id="checking-a-download" class="anchor" aria-label="Permalink: Checking a download" href="#checking-a-download"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Every release is built and published by the repo's
+<a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/.github/workflows/release.yml">Release workflow</a> from its tag, not on anyone's Mac.
+The release page lists the SHA-256 of <code>NetworkMonitor.dmg</code>. To compare:</p>
+<div class="highlight highlight-source-shell"><pre>shasum -a 256 <span class="pl-k">~</span>/Downloads/NetworkMonitor.dmg</pre></div>
+<p>Releases are signed with the Developer ID of Kevin Abou Hanna (team <code>GRQKG7M8CL</code>) and
+notarized by Apple. To check an installed copy:</p>
+<div class="highlight highlight-source-shell"><pre>spctl -a -vv /Applications/NetworkMonitor.app
+<span class="pl-c"><span class="pl-c">#</span> accepted, source=Notarized Developer ID, origin=Developer ID Application: Kevin Abou Hanna (GRQKG7M8CL)</span></pre></div>
+<p>Download it only from the <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases page</a>
+or the <a href="https://kevinabouhanna.github.io/NetworkMonitor/" rel="nofollow">website</a>, which links there.</p>
+
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/SECURITY.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+  </main>
+</div>
+<script>
+// On a narrow screen the list of pages starts closed, above the page.
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna. NetworkMonitor is free software under the Apache License 2.0. macOS is a trademark of Apple Inc.</span>
+      <nav aria-label="Project links">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">Report an issue</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">License</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

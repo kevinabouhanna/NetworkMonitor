@@ -1,0 +1,611 @@
+<!doctype html>
+<!-- The template of every English docs page. The pages beside it are built
+     from the app repository's docs/ by `make docs-site` (docs-kit, #334):
+     change a page there, never here. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Connections — NetworkMonitor docs</title>
+<meta name="description" content="Which companies your apps send data to, from which apps, in which countries, and to which servers. It&#x27;s a section of the main window: open it from Open…">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/connections/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/connections/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/connections/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to the page</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../"><img src="../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../docs/" aria-current="true">Docs</a>
+      <a href="../../zh/docs/connections/" lang="zh-Hans" hreflang="zh-Hans" data-lang="zh-Hans">简体中文</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">Download</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>All pages</summary>
+    <nav aria-label="Documentation"><ul><li><a href="../../docs/">NetworkMonitor documentation</a></li><li><span class="docs-nav-section">Using NetworkMonitor</span><ul><li><a href="../../docs/installing/">Installing, updating and removing</a></li><li><a href="../../docs/features/">Features</a></li><li><a href="../../docs/connections/" aria-current=page>Connections</a></li><li><a href="../../docs/usage-history/">Usage History</a></li><li><a href="../../docs/speed-test/">Speed test</a></li><li><a href="../../docs/hotspot-mode/">Hotspot mode</a></li><li><a href="../../docs/accuracy-and-battery/">Accuracy and battery</a></li><li><a href="../../docs/privacy/">Privacy</a></li><li><a href="../../docs/security/">Security policy</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="connections" class="heading-element">Connections</h1><a id="connections" class="anchor" aria-label="Permalink: Connections" href="#connections"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Which companies your apps send data to, from which apps, in which countries, and to which
+servers. It's a section of the main window: open it from <strong>Open Connections</strong> under
+Connections in the popover, the four squares beside the popover's gear, <strong>Connections…</strong>
+(⌘K) in the right-click menu, or the sidebar. Its settings, behind the gear in its
+toolbar, also set the layout it opens with.</p>
+<p>It runs quietly: until you make a rule or choose <strong>Ask Me</strong> (see <a href="#blocking">Blocking</a>),
+nothing pops up and nothing is blocked. NetworkMonitor records the servers each app talks
+to as it already counts their data, and Connections shows them whenever you look.</p>
+<div class="markdown-heading"><h2 id="reading-the-window" class="heading-element">Reading the window</h2><a id="reading-the-window" class="anchor" aria-label="Permalink: Reading the window" href="#reading-the-window"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>The toolbar holds the view (<strong>List | Both | Map</strong>), the period (<strong>Day, Week, Month, Year</strong>)
+in the middle, <strong>‹ Today ›</strong>, search (⌘F) and the gear. The row under it says what's shown
+(<strong>Traffic</strong> or <strong>Blocked</strong>), what the list is grouped by and narrowed to, and which
+networks it covers. Then the period's name, its total, and the counts.</p>
+<ul>
+<li>
+<strong>Group by Companies, Apps or Countries.</strong> Companies is the default, because that's the
+question: who gets your data.</li>
+<li>
+<strong>Open a group</strong> to see what's inside it. A company opens into the apps that talk to
+it, the countries its servers are in, and the servers themselves. An app opens into
+its companies, countries and servers. A country opens into its companies, apps and
+servers.</li>
+<li>
+<strong>Click a row inside a group</strong> to narrow everything to it. Choosing Teams inside
+Microsoft reads <em>Microsoft › Teams</em>, and each chip's ✕ undoes its part.</li>
+<li>
+<strong>Drag across the timeline</strong>, or click a bar, to see one part of the day: what your
+apps contacted in the hour after a call, say. Click the same bar again, or the chip's
+✕, for the whole period.</li>
+<li>
+<strong>Search</strong>, the magnifying glass in the toolbar, finds a company, a network's
+registered name, an app, a country or an address.</li>
+<li>
+<strong>Day, Week, Month, Year</strong>, the arrows and ⌘← ⌘→ move through time, as in every
+section, and <strong>Networks: All / Wi-Fi / Hotspot</strong> narrows it to one kind of network.</li>
+<li>
+<strong>Under each app is who made it</strong>, read from its code signature, and the companies it
+talks to besides its maker. Hosts aren't counted: an app on Amazon's network isn't
+talking to Amazon.</li>
+</ul>
+<div class="markdown-heading"><h2 id="the-map" class="heading-element">The map</h2><a id="the-map" class="anchor" aria-label="Permalink: The map" href="#the-map"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Connections shows the list, the map, or both side by side (<strong>List | Both | Map</strong>). Both is
+the default, and whichever you choose is remembered. Too narrow for both, it shows
+the list until you widen the window.</p>
+<p>In a narrow window, a row's bar shortens before its name does, here and in Usage History's
+and Ads and Trackers' Both (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/534">#534</a>). A tag beside a name (<em>ALWAYS ALLOWED</em>, <em>ADS</em>, <em>METERED</em>)
+becomes its icon before the name is cut short; hover it, or ask VoiceOver, for its word.</p>
+<ul>
+<li>
+<strong>Countries are shaded by how much data went there</strong>, on a logarithmic scale, so a
+country with a few kilobytes still shows beside one with gigabytes.</li>
+<li>
+<strong>Hover a country</strong> for a card with its top companies. <strong>Click it</strong> to narrow
+everything to it.</li>
+<li>
+<strong>Narrow to a company, app or server</strong>, and lines run from your country to where its
+data went. Your country is the first of these that knows (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/231">#231</a>): <strong>Location</strong>, when
+NetworkMonitor already has it for Wi-Fi names (it never asks for it just for this);
+your Mac's <strong>own internet address</strong>, when it holds one the internet sees, such as an
+IPv6 address; or your Mac's <strong>Region setting</strong>. Hover the ring where the lines start
+to see which: <em>Your Mac, in Lebanon (from Location)</em>. Nothing is looked up online:
+the place Location gives is turned into a country with the map's own outlines, and
+only the country is kept.</li>
+<li>
+<strong>Lines pulse to the countries your apps reach right now</strong> whenever the map shows
+traffic for a period that includes now, with no switch to turn on (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/182">#182</a>). Only the
+pulses redraw on their own, and nothing runs while Connections isn't on screen
+(another section, or the window closed, minimised or covered), while it shows Blocked
+or a past period, or while nothing is answering.</li>
+<li>
+<strong>Drag to move, pinch or use the buttons to zoom.</strong> Places too small to see at the
+current zoom, and places drawn inside another country such as Réunion, show as a dot
+when something went there.</li>
+<li>
+<strong>Cloudflare, Fastly and similar networks aren't placed.</strong> They answer each address from
+whichever data centre is nearest, so no one country is where the data went. The corner
+of the map says how much went to them.</li>
+</ul>
+<p>The outlines are Natural Earth's (public domain), drawn by the app. No map service is
+used and nothing is downloaded.</p>
+<div class="markdown-heading"><h2 id="what-the-names-mean" class="heading-element">What the names mean</h2><a id="what-the-names-mean" class="anchor" aria-label="Permalink: What the names mean" href="#what-the-names-mean"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>A server is an address. NetworkMonitor names it from data shipped inside the app: the
+country DB-IP places the address in, and the network it belongs to. Nothing is looked up
+online. The data is refreshed once a month, the same signed file for everyone, never on a
+hotspot; <strong>Update them monthly</strong> in Connections' settings switches that off, and the
+month in use is shown there (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/121">#121</a>). See
+<a href="../../docs/privacy/#naming-servers-without-asking-anyone">privacy</a>.</p>
+<ul>
+<li>
+<strong>A company</strong> is the owner of the network the server is on. That's right for
+companies that run their own networks: Google, Microsoft, Meta, Apple and many more.</li>
+<li>
+<strong>Hosted on Amazon</strong> (or Cloudflare, Akamai, Fastly, Google Cloud and others), marked
+<strong>HOST</strong>, means the server is on a network that carries thousands of companies'
+traffic. The data can't tell which one, so NetworkMonitor doesn't guess.</li>
+<li>
+<strong>Unknown network</strong> is an address the data doesn't list: a private, carrier or VPN
+address such as Tailscale's.</li>
+<li>
+<strong>Other servers</strong> is what an app talked to past 500 servers in one hour, added up as
+one. Only peer-to-peer apps and large calls get there.</li>
+<li>
+<strong>A country</strong> is where DB-IP places the address. It isn't where the company is, or
+where data ends up. For networks that answer one address from many places at once,
+such as Cloudflare's, the server that answered is usually much nearer.</li>
+</ul>
+<div class="markdown-heading"><h2 id="website-names" class="heading-element">Website names</h2><a id="website-names" class="anchor" aria-label="Permalink: Website names" href="#website-names"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Without help, a server is only an address, and anything on a cloud's network reads as
+<em>Hosted on Amazon</em>. With <strong>See which websites your apps visit</strong> turned on, a content filter,
+the part of macOS made for apps like this one, tells NetworkMonitor the name each app
+connected by. Then <code>wss-primary.slack.com</code> on Amazon's network reads as <strong>Slack</strong>, and the
+Servers list shows names, with the address underneath.</p>
+<ul>
+<li>
+<strong>Offered when you first open NetworkMonitor</strong>, in the welcome window, and optional. Said
+no? <strong>Turn On…</strong> is in Connections' settings, and above the list in Connections until
+you close it there (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/134">#134</a>).</li>
+<li>
+<strong>macOS asks twice:</strong> once in System Settings (General › Login Items &amp; Extensions ›
+Network Extensions ⓘ), then once in a dialog. The row shows each step while it waits.</li>
+<li>
+<strong>It runs in the background</strong> from then on, with nothing to manage.</li>
+<li>
+<strong>It blocks only what you block</strong> (see below).</li>
+<li>
+<strong>It fails open:</strong> if the filter stops, nothing is cut off.</li>
+<li>
+<strong>Once it's on, the settings say nothing about it</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/181">#181</a>). It's switched off in System
+Settings › Network › Filters, and then Connections' settings offer <strong>Turn On…</strong> again.
+Uninstall removes it.</li>
+<li>
+<strong>Apps that connect by address are named from the handshake</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/196">#196</a>). Chrome, Figma
+and other Chromium apps look addresses up themselves, often over encrypted DNS, so the
+filter gets no name from them. For those connections to port 443 it reads the site's
+name from the opening handshake, TLS's or QUIC's, which is sent for the network to read.
+Only that name: nothing after it, and nothing of a connection that already has a name.</li>
+<li>
+<strong>What still reads by its network's owner:</strong> a connection on another port, one that
+doesn't use TLS or QUIC, and a site that hides its name with Encrypted Client Hello,
+which shows its provider's public name instead, such as <code>cloudflare-ech.com</code>.</li>
+</ul>
+<div class="markdown-heading"><h2 id="blocking" class="heading-element">Blocking</h2><a id="blocking" class="anchor" aria-label="Permalink: Blocking" href="#blocking"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Right-click a company, app, country or server in Connections and choose
+<strong>Block</strong>, <strong>Block on Hotspots</strong> or <strong>Always Allow</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/114">#114</a>). The row says so beside its name,
+and Connections' settings list every rule, each with a button to take it back.</p>
+<ul>
+<li>
+<strong>A server with a name is ruled by name</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/197">#197</a>), since a CDN moves a name from address to
+address. Each choice opens onto the name itself or its whole site: <em>stats.wp.com</em>, or
+<em>All of *.wp.com</em>. A rule for a name covers every name under it too. A server without a
+name is ruled by its address, as before.</li>
+<li>
+<strong>The narrowest rule wins:</strong> a server's address, then a site (the longer name first), then
+an app, then a company, then a country. So <em>Block Meta</em> with <em>Always Allow WhatsApp</em> lets
+WhatsApp through, <em>Block United States</em> with <em>Always Allow Apple</em> lets Apple's servers there
+through, and <em>Block Google</em> with <em>Always Allow *.youtube.com</em> lets YouTube through.</li>
+<li>
+<strong>A connection that opens without a name is decided once its handshake names it</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/196">#196</a>,
+<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/197">#197</a>): Chrome's, for example. Its first bytes wait for that, and a name never found leaves
+it decided as it was without one.</li>
+<li>
+<strong>On Hotspots</strong> means while the Mac is on a hotspot, as the Network page judges it.</li>
+<li>
+<strong>On "this network"</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/200">#200</a>): the menu also offers <strong>Block "…" on "Office Wi-Fi"</strong>, for the
+network the Mac is on. The rule applies only there, keyed by the router's identity as
+Usage History tells networks apart, never by the Wi-Fi name; elsewhere, the next rule
+decides. Its badge names the network, and a rule for everywhere replaces it.</li>
+<li>
+<strong>With Hotspot mode on, every app's updater waits on a hotspot</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/98">#98</a>): a program inside an
+app named like an updater (<code>opera_autoupdate</code>, Raycast's <code>Updater</code>, Sparkle's), Sparkle's
+downloader, or an updater of its own (GoogleUpdater, Microsoft AutoUpdate, Squirrel's
+<code>ShipIt</code>), and the update-only servers Hotspot mode's helper blocks. Your rules come first,
+so Always Allow lets one through, and macOS and Apple's apps follow Hotspot mode's system
+setting instead. What it stopped shows under Blocked.</li>
+<li>
+<strong>Never blocked:</strong> the local network, looking up names (DNS), the clock, and getting an
+address. Without them nothing else works.</li>
+<li>
+<strong>Export… and Import…</strong> beside the rules in Connections' settings (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/201">#201</a>) save every rule
+to a JSON file, for a backup or another Mac. Import adds the rules that aren't there yet,
+never replaces one that is, and says how many it added.</li>
+<li>
+<strong>Block Everything,</strong> in the menu bar item's right-click menu (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/198">#198</a>), stops every app's
+new connections at once, Apple's included and whatever your rules allow, until you
+choose it again. Only the essentials above and NetworkMonitor itself go through. While
+it's on, the readout turns red and the popover says so, with <strong>Turn Off</strong>. It lasts
+across a relaunch and a restart. Connections already open carry on until they close.</li>
+<li>
+<strong>A rule about an app follows its signature</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/202">#202</a>): it remembers the team that signed
+the app when it was made, and doesn't apply to a program at that path signed by anyone
+else, so swapping in another program doesn't inherit the app's rules. Under Ask Me, that
+program is asked about afresh. Apps with no team (Apple's own, ad-hoc or self-signed
+ones) are matched by path, as before. An update signed by the same team carries on.</li>
+<li>
+<strong>An app is the app and the programs it starts</strong>, as Connections lists them: a rule on
+iTerm covers the <code>curl</code> you run in it, unless <code>curl</code> has a rule of its own. Safari's pages
+load through a WebKit process, and a rule on either catches them.</li>
+<li>
+<strong>From the next connection:</strong> a connection already open carries on until it closes.</li>
+<li>
+<strong>The filter keeps its own copy of the rules</strong>, so they apply with the app quit and after
+a restart, before the app is back.</li>
+<li>
+<strong>Blocking needs website names on.</strong> Choosing Block while they're off starts turning
+them on, with the steps above the list.</li>
+</ul>
+<div class="markdown-heading"><h2 id="ads-and-trackers" class="heading-element">Ads and trackers</h2><a id="ads-and-trackers" class="anchor" aria-label="Permalink: Ads and trackers" href="#ads-and-trackers"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>Block ads and trackers</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/176">#176</a>) blocks, in every app, the sites on two lists. Ad blocking
+is a section of its own in the main window, <strong>Ads and Trackers</strong>, and its settings, behind
+the gear in its toolbar, hold the switch, <strong>Update the lists weekly</strong>, and <strong>Lists</strong> and
+<strong>Your Rules</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>List</th>
+<th>What it holds</th>
+<th>From</th>
+<th>Licence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Ads and trackers</strong></td>
+<td>about 77,000 ad, tracking and analytics servers</td>
+<td>StevenBlack's unified hosts</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td><strong>Malware and phishing</strong></td>
+<td>about 1,900 servers spreading malware now</td>
+<td>URLhaus, by malware-filter</td>
+<td>CC0</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>
+<strong>Your rules come first.</strong> Always Allow on a site or a server in Connections lets it
+through, and a rule that blocks still blocks. Always Allow on an app, a company or a
+country (Ask Me's answers too, and the apps you allow under Only Where I Allow) lets it
+connect, and the lists still apply to it (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/316">#316</a>): allowing Google in Chrome doesn't let
+<code>doubleclick.net</code> through.</li>
+<li>
+<strong>A listed name covers every name under it,</strong> down to its site: listing
+<code>doubleclick.net</code> blocks <code>static.doubleclick.net</code>. A list can never block a whole suffix
+such as <code>com</code>, <code>gov.lb</code> or <code>myshopify.com</code>. A name's site comes from the Public Suffix
+List (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/318">#318</a>), as browsers judge it: <code>moph.gov.lb</code> and <code>shop.myshopify.com</code> are sites of
+their own.</li>
+<li>
+<strong>It works for apps that connect by address too,</strong> such as Chrome, through the name in
+the connection's handshake (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/196">#196</a>).</li>
+<li>
+<strong>It sees through a site's own name for a tracker</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/255">#255</a>): <code>metrics.example.com</code> that is
+an alias of a listed tracker, as the answer to the Mac's lookup says, is blocked as that
+tracker. The answers are read, never changed, over UDP or TCP, and an alias is kept as
+long as its answer says, up to a day. Your rules meet an alias as they meet the name
+(<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/321">#321</a>): <em>always block</em> <code>omtrdc.net</code> stops <code>metrics.example.com</code> too, and <em>never block</em>
+for every app or one keeps an alias from counting for the ad lists. Lookups an app
+encrypts itself, such as Chrome's Secure DNS, can't be read.</li>
+<li>
+<strong>Connections tags each listed server</strong> ADS or MALWARE, whether the lists are on or
+not, so it shows what's tracking you either way. <strong>Show: Blocked</strong> lists what
+they stopped.</li>
+<li>
+<strong>The popover's Ads blocked</strong> button counts them for its period, by site or by app, in
+red; <strong>Open Ads and Trackers</strong> (⌘B) at the bottom of its view opens the section.</li>
+<li>
+<strong>What it can't block:</strong> ads served from a site's own servers, like YouTube's, since
+they can't be told apart from the site; empty boxes in a page where an ad would have
+been; and anything without a name (another port, or not TLS or QUIC). It's not an ad
+blocker for the browser.</li>
+<li>
+<strong>The lists stay current by themselves.</strong> A workflow rebuilds them every Monday, refuses
+a list that shrank (below a fixed floor, or to under half of last week's, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/319">#319</a>) or that
+catches a site people use every day, and signs them; the app
+fetches them weekly while they're on, never on a hotspot (<strong>Update them weekly</strong>). It
+ships with a copy, so they work offline.</li>
+</ul>
+<div class="markdown-heading"><h3 id="the-ads-and-trackers-section" class="heading-element">The Ads and Trackers section</h3><a id="the-ads-and-trackers-section" class="anchor" aria-label="Permalink: The Ads and Trackers section" href="#the-ads-and-trackers-section"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>A section of the main window (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/251">#251</a>, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/436">#436</a>), from <strong>Open Ads and Trackers</strong> under Ads blocked
+in the popover, the four squares beside the popover's gear, <strong>Ads and Trackers…</strong> in the
+right-click menu, the sidebar, or ⌘B while a window is open. <strong>Overview | Log</strong> heads it,
+and the toolbar's search (⌘F) covers both.</p>
+<p><strong>Overview:</strong></p>
+<ul>
+<li>
+<strong>How many were blocked</strong> in the period (a day, week, month or year, with ‹ Today ›). The
+ⓘ beside the total says how it's counted, and what each list blocked, largest first
+(<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/402">#402</a>). A list switched off since keeps what it blocked while it was on, marked <em>off</em>.
+The period is in the toolbar on Overview only: the Log is the present, so it's hidden
+there (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/311">#311</a>).</li>
+<li>
+<strong>List, Both or Chart</strong>, at the start of the toolbar, as Connections has List, Both or
+Map (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/524">#524</a>): the list alone, the list on the left and the chart on the right (the
+default, side by side as Connections has its list and map, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/534">#534</a>), or the chart filling
+the window. Whichever you choose is remembered, and it's hidden on Log with the period.</li>
+<li>
+<strong>A chart</strong> of blocks over the period, by hour, day or month, drawn and read as Usage
+History's (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/536">#536</a>). Hover a bar for its time and count. Click one to narrow the list and
+the total to that hour or day, as a timeline bar does in Connections: its chip above the
+list, a click on the bar again, or Escape shows the whole period again.</li>
+<li>
+<strong>Sites or Apps</strong>, at the end of the row under the toolbar, where Connections and Usage
+History have All, Wi-Fi or Hotspot: <strong>Sites</strong>, by the part of the name a person would
+call the site (<code>doubleclick.net</code>), with the names under it that were blocked; or
+<strong>Apps</strong>, with the sites each tried most. One at a time, each list has the window's
+width (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/524">#524</a>). The rows are Usage History's (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/536">#536</a>):
+<ul>
+<li>
+<strong>Click a row</strong> to choose it: the chart shows its share of each bar, the bar's own
+colour under the rest, and the hovered bar's count for it. Its chip, a click on it
+again, or Escape (after a picked bar's) lets it go.</li>
+<li>
+<strong>The chevron</strong> opens a site's apps, the apps that tried to reach it, or an app's
+sites, each with its count and the hour it was last blocked; the first eight, then
+<strong>Show all</strong>. Click one inside to see that site in that app on the chart.</li>
+<li>
+<strong>Right-click</strong> a row, as in the Log: never or always block its site, in every app or
+only its app, stop filtering its app, remove a rule you made about it, or copy its
+name.</li>
+<li>
+<strong>The keyboard</strong>, once a row is clicked (or the list is reached with Tab): ↑ and ↓
+choose the row above or below, → opens a row, ← closes it or goes back up to the row
+it's in, and Space or Return chooses the row again once it's let go.</li>
+</ul>
+</li>
+<li>
+<strong>Pause:</strong> for an hour or until tomorrow, in every app. The lists stay chosen, the filter
+is sent none until then, and the popover says it's paused. Kept across a relaunch.
+<strong>Whenever on</strong> <em>this network</em> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/253">#253</a>) turns ad blocking off on the network the Mac is on,
+by the router's identity as History knows it, every time it's there; Your Rules lists
+those networks, and <strong>Turn On Here</strong> undoes it.</li>
+</ul>
+<p><strong>Log</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/252">#252</a>), beside Overview: every connection the filter decides, live,
+newest first, with the time, the app, the site (or its address, marked <strong>No Name</strong> when
+nothing named it), Blocked or Let through, and why in plain words (<em>On the ads and trackers
+list</em>, <em>Your rule: never block example.com</em>, <em>Let through, though it's on a list</em>). Show
+All, Blocked, On a List or No Name, and search. Right-click a row to never or always block
+its name or its whole site, in every app or only that one, to stop filtering its app, or to
+remove a rule you made. <strong>Pause</strong>
+holds the list still, <strong>Clear</strong> empties it, and <strong>Export…</strong> saves what's shown as text. It
+keeps the last 5,000 in memory only; lookups aren't listed. It fills once ad blocking or
+a rule is on, and starts afresh each time NetworkMonitor opens.</p>
+<p><strong>Lists</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/254">#254</a>), in Ads and Trackers' settings: which lists block, and what each blocked
+today (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/311">#311</a>).</p>
+<ul>
+<li>
+<p><strong>Built in:</strong> the two above, switched on and off here.</p>
+</li>
+<li>
+<p><strong>Recommended</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/314">#314</a>), on by default: <strong>HaGeZi Normal</strong> and <strong>OISD Big</strong>, chosen by the app
+so nobody has to weigh lists against broken sites. Between them they block most ads and
+trackers; OISD is made to block ads without breaking sites and HaGeZi Normal is HaGeZi's
+all-round tier, below Pro, and the pair is a common low-breakage setup. They overlap rather
+than conflict. One switch for the pair; in Recommended the lists in use follow
+<code>ListCatalogue.recommended</code>, so a later version can change it. Installs that had chosen lists
+before <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/314">#314</a> keep their choice.</p>
+</li>
+<li>
+<p><strong>Advanced</strong>, collapsed while Recommended is on: every list, and Add List. Switching a list
+here, or adding one, makes it your own choice, starting from the lists in use; switching
+Recommended back on keeps your choice for when you switch it off again.</p>
+</li>
+<li>
+<p><strong>More lists</strong>, under Advanced, downloaded on the Mac from where their makers publish them, by topic:</p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Lists</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>More ad and tracker lists</td>
+<td>HaGeZi Light, Normal and Pro; OISD Small and Big; AdGuard DNS filter; Peter Lowe's list</td>
+</tr>
+<tr>
+<td>Trackers</td>
+<td>EasyPrivacy, as Firebog extracts it</td>
+</tr>
+<tr>
+<td>Pop-ups</td>
+<td>HaGeZi Pop-up Ads</td>
+</tr>
+<tr>
+<td>Malware and phishing</td>
+<td>HaGeZi Threat Intelligence</td>
+</tr>
+</tbody>
+</table>
+<p>No list that blocks encrypted DNS is offered: it would stop Private Relay and browsers' own,
+and let the internet provider see the sites (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/246">#246</a>, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/287">#287</a>). Hover a list for who keeps it and
+its licence. They're downloaded rather than shipped, so
+the GPL ones are fine to offer; the signed <code>blocklists</code> release keeps only lists we may
+republish.</p>
+</li>
+<li>
+<p><strong>Add List</strong> takes any list's <code>https://</code> address: a hosts file, a plain list of names, or
+Adblock rules about whole sites (<code>||site^</code>, with <code>$important</code>; <code>@@||site^</code> and <code>$badfilter</code>
+are exceptions). Rules about parts of pages are skipped; a list with nothing else is refused.
+It's named from its <code>Title:</code> line, or its site.</p>
+</li>
+<li>
+<p><strong>Each switched-on list is downloaded weekly</strong> while ad blocking is on, never on a hotspot,
+a metered connection or in Low Data Mode, and the last good copy is kept. A row says how
+many sites it has and when it was updated, or why it isn't there. Right-click for <strong>Update
+Now</strong>, <strong>Copy Address</strong>, or <strong>Remove</strong> for one you added.</p>
+</li>
+<li>
+<p><strong>They block only alongside a built-in list</strong>, after it: a site on StevenBlack's list counts
+as <em>Ads and trackers</em>. The Overview and the Log name the list that blocked each connection,
+so one that blocks too much can be found and switched off.</p>
+</li>
+<li>
+<p><strong>Import…</strong> under Your Rules switches on the lists a uBlock Origin backup or AdGuard's
+settings had that are here (Peter Lowe's, EasyPrivacy, AdGuard DNS filter), and adds the
+ones they had by address.</p>
+</li>
+</ul>
+<p><strong>Your Rules</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/253">#253</a>), beside Lists in Ads and Trackers' settings: your own say over what the lists do.</p>
+<ul>
+<li>
+<strong>Never block</strong> a site, and every name under it: it goes through though a list has it.</li>
+<li>
+<strong>Always block</strong> a site that no list has.</li>
+<li>Either for <strong>every app</strong> or <strong>one app</strong>, from the menu beside the site. One app's rule
+follows its signature, as firewall rules do (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/320">#320</a>): a program at that path signed by
+another team isn't the app, so it doesn't inherit <em>don't filter</em>.</li>
+<li>
+<strong>Don't filter an app</strong>: the ad and tracker lists leave all its connections alone, for an
+app that breaks.</li>
+<li>
+<strong>Malware lists still apply</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/317">#317</a>): <em>never block</em> and <em>don't filter</em> change what the ad,
+tracker and pop-up lists do, and the built-in malware list and the downloaded ones in
+<em>Malware and phishing</em> block whatever they say. To let such a site through anyway, Always
+Allow it in Connections. The Overview doesn't offer <em>Never Block</em> for a site only they
+blocked.</li>
+<li>Type a site, or paste an address or a rule (<code>https://ads.example.com/x</code>, <code>*.example.com</code>,
+<code>||example.com^</code>): the name is read out of it. Return makes it <em>never block</em>.</li>
+<li>Right-click a site in the Overview to never block it, or an app to stop filtering it.</li>
+<li>
+<strong>Import…</strong> brings rules over from <strong>uBlock Origin</strong> (its backup file: trusted sites, My
+filters, and the lists it had on), <strong>AdGuard</strong> (its exported settings: the allowlist, user
+rules and its filters), or rules in Adblock syntax, chosen as a file or pasted. A summary
+comes first, and nothing changes until you accept it:
+<ul>
+<li>
+<code>||site^</code> is <em>always block</em>, <code>@@||site^</code> <em>never block</em>, <code>$app=</code> (a bundle ID, an app's name
+or path) makes it one app's, and <code>@@*$app=…</code> is <em>don't filter</em>. Hosts-file lines and bare
+names are <em>always block</em>.</li>
+<li>Trusted sites and the allowlist become <em>never block</em>. There they mean "block nothing on this
+site's pages"; here, connections to the site itself go through, since the filter can't tell
+which page asked.</li>
+<li>The lists it had on switch on the ones NetworkMonitor has (ads and trackers, malware, and
+those under Lists), lists it had added by address are added the same way (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/254">#254</a>), and
+the rest are named as not offered yet.</li>
+<li>Rules that hide parts of a page (<code>##</code>, scriptlets) are counted as waiting for the browser
+extension (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/257">#257</a>); rules about part of a site (a path, <code>$third-party</code>, <code>$domain=</code>) as waiting
+for Enhanced ad blocking (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/256">#256</a>); anything else is listed with why it can't be used.</li>
+</ul>
+</li>
+<li>
+<strong>Export…</strong> saves your rules in the same syntax, which uBlock Origin's My filters and
+AdGuard's user rules take, and Import reads back.</li>
+</ul>
+<p>They change only what the lists do, and only while ad blocking is on: a firewall rule in
+Connections still comes first, and <em>never block</em> lets nothing through that your rules or
+mode would stop. Decided in this order: one app's <em>never block</em>, one app's <em>always block</em>,
+every app's <em>never block</em>, every app's <em>always block</em>, then the lists, with the longer name
+first within each. What <em>always block</em> stops counts with the lists, as <strong>Your Rules</strong>.</p>
+<p>The overview reads <code>list_blocks</code> in History (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/250">#250</a>), so it starts from when that was added, is kept as
+long as History, and Clear History clears it.</p>
+<p><strong>Show: Blocked</strong>, beside <em>Group by</em>, lists what was blocked instead of what was sent: the same
+period, grouping, search and map, counting connections rather than bytes. Right-click one to
+allow it.</p>
+<p><strong>Let apps connect</strong>, in Connections' settings, is one of three:</p>
+<ul>
+<li>
+<strong>Anywhere</strong>, the default: everything connects except what you block.</li>
+<li>
+<strong>Ask Me</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/129">#129</a>): the first time an app connects to a company, it waits while a small
+panel at the top right asks. On a host's network, such as Amazon's or Cloudflare's, where
+the owner says nothing, it asks about the site instead (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/199">#199</a>).
+<ul>
+<li>
+<strong>The panel names the site</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/199">#199</a>): <em>Figma wants to connect to api.segment.io</em>, then
+whose it is, the country and the port. For an app that connects by address, such as
+Chrome, the name comes from the connection's handshake, read before asking.</li>
+<li>
+<strong>For:</strong> the site (<code>segment.io</code> and every name under it) or the whole company.</li>
+<li>
+<strong>Allow:</strong> <strong>Once</strong> lets it go and asks again in an hour; <strong>Until It Quits</strong> lasts until
+that app quits; <strong>Always</strong> makes a rule. <strong>Block</strong> makes a rule. Rules from answers are
+for that app only and listed in Connections' settings ("*.segment.io · for Figma, until it quits").
+The Allow button's menu also offers the app anywhere.</li>
+<li>Every connection between the same app and company or site waits on the one question,
+and with no answer in 30 seconds they go ahead, and the panel says so. Nothing is asked
+about macOS or Apple's apps, or while NetworkMonitor isn't running.</li>
+</ul>
+</li>
+<li>
+<strong>Only Where I Allow</strong>: every app is blocked until you allow it, apart from macOS and
+Apple's own apps, which can always connect unless you block them. It asks first, since
+that includes your browser, and Connections then opens on Blocked, where you allow each app
+or company with a right-click.</li>
+</ul>
+<p>A rule for one app comes before any rule for every app: <em>Amazon · for Slack</em> allowed with
+<em>Hosted on Amazon</em> blocked lets Slack through and nothing else.</p>
+<div class="markdown-heading"><h2 id="encrypted-lookups" class="heading-element">Encrypted lookups</h2><a id="encrypted-lookups" class="anchor" aria-label="Permalink: Encrypted lookups" href="#encrypted-lookups"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>Encrypt lookups</strong>, under Lookups in Connections' settings (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/291">#291</a>), off until switched on, sends the
+Mac's DNS lookups encrypted, over DNS over HTTPS, to <strong>Cloudflare</strong> (1.1.1.1), <strong>Quad9</strong>
+(9.9.9.9) or <strong>Google</strong> (8.8.8.8). Without it they travel unencrypted to the network's DNS
+server, so the internet provider and anyone on the Wi-Fi can read every name looked up.</p>
+<ul>
+<li>
+<strong>It needs the content filter</strong>, whose system extension carries it as a DNS proxy. macOS asks
+once to allow it.</li>
+<li>
+<strong>Answers come back unchanged</strong>, and the filter still reads their aliases (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/255">#255</a>).</li>
+<li>
+<strong>Names only the network knows stay on it:</strong> single names like <code>router</code>, <code>.local</code>, <code>.lan</code>,
+<code>.home</code>, <code>.home.arpa</code>, <code>.internal</code>, <code>.corp</code>, and reverse lookups of local addresses.</li>
+<li>
+<strong>It fails towards working.</strong> A lookup the resolver doesn't answer in 2.5 s goes to the
+network's DNS server, as it would have; after three in a row, every lookup does for a
+minute. Lookups over TCP, which are rare, go to the network's server unchanged.</li>
+<li>
+<strong>It checks itself.</strong> Switched on, or at launch with it on, the app looks up a name that
+exists nowhere: an answer, even <em>no such name</em>, means lookups work. If none comes in three
+tries while the router answers, it switches itself off again and says why under the switch.</li>
+<li>
+<strong>Updates switch it off and on again</strong> around replacing the extension, with the filter (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/278">#278</a>).</li>
+<li>Apps that encrypt their own lookups, like Chrome with Secure DNS, aren't affected; ECH is never
+touched.</li>
+</ul>
+<div class="markdown-heading"><h2 id="what-it-costs" class="heading-element">What it costs</h2><a id="what-it-costs" class="anchor" aria-label="Permalink: What it costs" href="#what-it-costs"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Nothing you'd notice. Recording uses rows <code>nettop</code> already reports, and measured no extra
+CPU. The record is kept as long as Usage History (<strong>Keep history for</strong> in Usage History's
+settings) and cleared with it. The data that names servers adds about 5.5 MB to the download.</p>
+
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/connections.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+  </main>
+</div>
+<script>
+// On a narrow screen the list of pages starts closed, above the page.
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna. NetworkMonitor is free software under the Apache License 2.0. macOS is a trademark of Apple Inc.</span>
+      <nav aria-label="Project links">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">Report an issue</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">License</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

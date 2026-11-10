@@ -1,0 +1,165 @@
+<!doctype html>
+<!-- The template of every Chinese docs page. The pages beside it are built
+     from the app repository's docs/zh-Hans/ by `make docs-site` (docs-kit,
+     #334): change a page there, never here. -->
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>网速测试 — NetworkMonitor 文档</title>
+<meta name="description" content="点按弹出窗口“网络”视图中的 测试网速，从右键菜单中选择 测试网速，或者点按主窗口 网络 页面上的 立即测试。它测试的是你正在使用的连接。NetworkMonitor 会运行 networkQuality，这是 Apple 自 Monterey 起随每台 Mac 附带的网速测试工具，测试对象是离你最近的…">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/speed-test/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/speed-test/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/speed-test/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">跳到正文</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../../zh/"><img src="../../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../../zh/docs/" aria-current="true">文档</a>
+      <a href="../../../docs/speed-test/" lang="en" hreflang="en" data-lang="en">English</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">下载</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>所有页面</summary>
+    <nav aria-label="文档"><ul><li><a href="../../../zh/docs/">NetworkMonitor 文档</a></li><li><span class="docs-nav-section">使用 NetworkMonitor</span><ul><li><a href="../../../zh/docs/installing/">安装、更新和卸载</a></li><li><a href="../../../zh/docs/features/">功能</a></li><li><a href="../../../zh/docs/connections/">连接</a></li><li><a href="../../../zh/docs/usage-history/">流量历史</a></li><li><a href="../../../zh/docs/speed-test/" aria-current=page>网速测试</a></li><li><a href="../../../zh/docs/hotspot-mode/">热点模式</a></li><li><a href="../../../zh/docs/accuracy-and-battery/">统计准确性与耗电量</a></li><li><a href="../../../zh/docs/privacy/">隐私</a></li><li><a href="../../../zh/docs/security/">安全策略</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="网速测试" class="heading-element">网速测试</h1><a id="网速测试" class="anchor" aria-label="Permalink: 网速测试" href="#网速测试"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p align="center">
+  <a target="_blank" rel="noopener noreferrer nofollow" href="https://raw.githubusercontent.com/kevinabouhanna/NetworkMonitor/ef06fe142afe9f58030ee17286c6f002027561da/Resources/README/zh-Hans/speed-test.png"><img src="https://raw.githubusercontent.com/kevinabouhanna/NetworkMonitor/ef06fe142afe9f58030ee17286c6f002027561da/Resources/README/zh-Hans/speed-test.png" width="320" alt="网速测试完成后弹出窗口中的“网络”视图，上方是“今天”、“周”、“月”和四个数字：中央显示下载速度的表盘，下载和上传速度、网络、测试用了多少流量以及测试时间，然后是延迟、抖动、下载时的延迟和上传时的延迟；“返回”和“再测一次”按钮。" style="max-width: 100%;"></a>
+</p>
+<p>点按弹出窗口“网络”视图中的 <strong>测试网速</strong>，从右键菜单中选择 <strong>测试网速</strong>，或者点按主窗口 <strong>网络</strong> 页面上的 <strong>立即测试</strong>。它测试的是你正在使用的连接。NetworkMonitor 会运行 <code>networkQuality</code>，这是 Apple 自 Monterey 起随每台 Mac 附带的网速测试工具，测试对象是离你最近的 Apple 服务器。</p>
+<div class="markdown-heading"><h2 id="测试结果" class="heading-element">测试结果</h2><a id="测试结果" class="anchor" aria-label="Permalink: 测试结果" href="#测试结果"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>先测下载，再测上传</strong>，依次进行，和其他网速测试一样。表盘跟随正在进行的那一半。</li>
+<li>
+<strong>延迟和抖动</strong>（线路空闲时），以及 <strong>下载时的延迟</strong> 和 <strong>上传时的延迟</strong>：当其他内容占满线路时，另一个应用需要等待多久。正是这个数值能解释为什么大文件下载期间通话会卡顿。将指针悬停在任一数值上，可以查看它的含义。</li>
+<li>
+<strong>每次都重新测量。</strong> 不缓存，也不重复使用任何结果。</li>
+<li>
+<strong>是什么拖慢了速度。</strong> NetworkMonitor 本来就知道哪些应用正在使用连接。如果某个应用传输了至少 1 MB，并且至少相当于测试流量的 5%，结果会写明是哪个应用，并提醒数值可能偏低。否则，如果负载下延迟上升 100 ms 或更多，它会提示下载大文件期间通话可能会卡顿。</li>
+<li>
+<strong>Mbps 或 MB/s</strong>，与菜单栏使用同一个选项（<strong>设置 › 速度显示单位</strong>）。Mbps 与宽带的销售方式一致； MB/s 与流量累计值一致。</li>
+</ul>
+<div class="markdown-heading"><h2 id="显示位置" class="heading-element">显示位置</h2><a id="显示位置" class="anchor" aria-label="Permalink: 显示位置" href="#显示位置"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>卡片</strong>（默认）会取代弹出窗口“网络”视图的位置，显示一个表盘和所有数值。<strong>返回</strong> 会让正在进行的测试继续进行，并重新显示该视图；之后点按网速测试旁的 <strong>显示</strong> 即可回到测试。<strong>停止</strong> 才会停止测试。</li>
+<li>
+<strong>紧凑</strong> 会把测试显示为“网络”视图上方的两个细长仪表，测试完成后在下方显示延迟和抖动。该视图始终可见，只是让出相应的高度，因此弹出窗口不会变大。</li>
+<li>
+<strong>“网络”页面</strong> 会在原处运行测试，显示与卡片相同的表盘和数值。</li>
+<li>
+<strong>菜单栏</strong>，始终显示。测试进行期间，读数以青色显示，因此它的数值绝不会被误认为是实时速度，宽度也与平时的读数完全相同。如果你给实时速度设置的颜色接近青色（设置 › 网速颜色），测试会改用粉色、琥珀色或紫色，“设置”中会显示用的是哪种颜色。结果会保留 8 秒，然后恢复显示实时速度。如果从右键菜单开始测试，就在这里观看。</li>
+</ul>
+<p>在“网络”的设置中选择“卡片”或“紧凑”，点按“网络”页面上的齿轮图标即可打开。</p>
+<div class="markdown-heading"><h2 id="流量消耗" class="heading-element">流量消耗</h2><a id="流量消耗" class="anchor" aria-label="Permalink: 流量消耗" href="#流量消耗"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>测试会消耗真实的流量，通常为 <strong>50–500 MB</strong>，网速很快时会更多。因此：</p>
+<ul>
+<li>
+<strong>在按流量计费的连接上，它会先询问你</strong>，并显示上次在这个连接上测试用了多少流量。在你点按 <strong>仍然测试</strong> 之前，不会消耗任何流量。</li>
+<li>它的流量在应用列表中显示为 <strong>网速测试</strong>，位于 Network Monitor 之下，并计入你的累计值和流量历史，因为这些字节确实通过了这个连接。</li>
+<li>
+<strong>测试中途切换网络会结束测试</strong>；跨越两个网络的测试哪个网络都测不准。上一次的结果也会被清除，因为它描述的是你离开的那个网络。</li>
+</ul>
+<div class="markdown-heading"><h2 id="实现方式" class="heading-element">实现方式</h2><a id="实现方式" class="anchor" aria-label="Permalink: 实现方式" href="#实现方式"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>测试引擎</strong>是 <code>/usr/bin/networkQuality</code>。如果 Mac 上没有它，弹出窗口、“网络”页面和菜单中都不会出现网速测试。我们也考虑过其他引擎，但都没有采用：</p>
+<table>
+<thead>
+<tr>
+<th>选项</th>
+<th>不采用的原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ookla 的 CLI</td>
+<td>需要另行安装，而且它的许可证不允许随应用捆绑</td>
+</tr>
+<tr>
+<td>M-Lab NDT</td>
+<td>会把每个测试者的 IP 地址和结果作为开放数据公开</td>
+</tr>
+<tr>
+<td>Cloudflare 的端点，或者我们自己的端点</td>
+<td>意味着要维护一个测量引擎，而它还不如每台 Mac 上已有的那个</td>
+</tr>
+<tr>
+<td>fast.com</td>
+<td>没有 API</td>
+</tr>
+</tbody>
+</table>
+<p><strong>运行方式</strong>（<code>SpeedTestRunner.swift</code>）是 <code>networkQuality -s -v -c&lt;file&gt;</code>：</p>
+<ul>
+<li>
+<code>-s</code> <strong>依次</strong>运行下载和上传。在默认的并行模式下，两个方向会相互争抢，因此在上下行不对称或缓冲很深的线路上，两者的读数都会偏低；依次运行还能为每个方向分别得到负载下的延迟。</li>
+<li>
+<code>-v</code> 会在实时输出行中加入字节数，因此卡片可以显示测试到目前为止用了多少流量。</li>
+<li>
+<code>-c</code> 会以 JSON 格式写入结果。路径必须紧跟在这个参数后面。</li>
+<li>
+<strong>不使用 <code>-M</code> 时间限制：</strong> 限制时长的测试会丢弃尚未收敛的数值。</li>
+</ul>
+<p>它在一个<strong>伪终端</strong>中运行，因为通过管道运行时，这个工具在结束之前什么都不输出。<code>nettop</code> 在伪终端中运行也是同样的原因；参阅<a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/architecture.md#nettop-who-used-it">架构</a>（英文）。实时输出行大约每秒重绘五次，并随时解析。运行超过 90 秒的测试会被停止。</p>
+<p>之后会进行一次简短的<strong>仅测延迟的过程</strong>（<code>-d -u</code>，不到一秒，不产生测试流量），再增加八个空闲样本，因为在 Wi-Fi 上，单独一批空闲延迟样本在相隔一分钟的两次测试之间，从 49 ms 到 74 ms 不等。</p>
+<p><strong>数值的计算</strong>（<code>SpeedTest.swift</code>）：</p>
+<ul>
+<li>
+<strong>延迟</strong>是两次过程中空闲请求/响应时间的四分位平均值，也就是中间一半的平均值，与 Ookla 的报告方式相同。普通平均值会让一个卡住的探测（在一组 75 左右的数值中出现 633 ms）把结果拉高；最小值又会美化线路。包含握手的 <code>base_rtt</code> 只作为后备。</li>
+<li>
+<strong>抖动</strong>是相邻空闲样本之间差值的平均值，只在每个过程内部计算，绝不跨两个过程计算。</li>
+<li>
+<strong>负载下的延迟</strong>来自线路占满时另外打开的连接：也就是另一个应用实际感受到的情况。</li>
+<li>
+<strong>刻意不显示 RPM 和 Apple 的响应能力评级。</strong> RPM 是 Apple 自己的单位，它把已占满的连接内部的延迟（在缓冲很深的线路上可达数秒）和另一个应用实际等待的时间混在一起。</li>
+</ul>
+<p><strong>从设计上保证每次都是新结果。</strong> 每次测试都是一个新进程，运行在自己的文件夹 <code>$TMPDIR/NetworkMonitor-speedtest-&lt;UUID&gt;/</code> 中，读取结果后立即删除，无论成功、失败、超时还是取消。结果只能来自刚刚完成的那次测试。取消时先发送 <code>SIGTERM</code>，0.3 秒后再发送 <code>SIGKILL</code>。如果应用在测试中途被强制退出，留下的文件夹会在下次启动时删除，前提是它已超过 10 分钟，因此绝不会碰到另一个进程中正在进行的测试。</p>
+<p><strong>状态</strong>（<code>SpeedTestController.swift</code>）依次为空闲 → 确认中（仅限按流量计费的连接）→ 运行中 → 已完成或已失败。实时读数是与阶段分开的另一个可观察对象，因此应用列表不会每秒重建五次。</p>
+<p><strong>偏好设置：</strong> <code>speedTestUnit</code>（<code>bits</code> 或 <code>bytes</code>，默认为 bytes；以网速测试命名，因为这个设置最早出现在网速测试中，保留这个名称是为了让以前的选择继续有效）和 <code>speedTestStyle</code>（<code>card</code> 或 <code>compact</code>）。</p>
+<p><strong>测试</strong>（<code>SpeedTestTests.swift</code>）从不消耗流量。解析器和解码器使用从真实工具捕获的输出进行测试。运行器和控制器使用一个替代的 <code>networkQuality</code> 脚本进行测试，它会输出同类内容、写入 JSON，还可以让它失败、让它的延迟测试过程失败，或者让它运行得很慢。开发时请尽量少运行真实测试：每次都会消耗真实的流量。</p>
+
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/speed-test.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+  </main>
+</div>
+<script>
+// 窄屏上，页面列表默认收起，放在正文上方。
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna。NetworkMonitor 是采用 Apache 2.0 许可证的自由软件。macOS 是 Apple Inc. 的商标。</span>
+      <nav aria-label="项目链接">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">版本发布</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">报告问题</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">许可证</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

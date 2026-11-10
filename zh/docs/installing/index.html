@@ -1,0 +1,119 @@
+<!doctype html>
+<!-- The template of every Chinese docs page. The pages beside it are built
+     from the app repository's docs/zh-Hans/ by `make docs-site` (docs-kit,
+     #334): change a page there, never here. -->
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>安装、更新和卸载 — NetworkMonitor 文档</title>
+<meta name="description" content="NetworkMonitor 可在 macOS 13 或更高版本上运行，支持 Apple 芯片和 Intel 芯片的 Mac。它以一个通用磁盘映像 NetworkMonitor.dmg 提供，附在每个 GitHub 发布版本中。">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/installing/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/installing/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/installing/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">跳到正文</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../../zh/"><img src="../../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../../zh/docs/" aria-current="true">文档</a>
+      <a href="../../../docs/installing/" lang="en" hreflang="en" data-lang="en">English</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">下载</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>所有页面</summary>
+    <nav aria-label="文档"><ul><li><a href="../../../zh/docs/">NetworkMonitor 文档</a></li><li><span class="docs-nav-section">使用 NetworkMonitor</span><ul><li><a href="../../../zh/docs/installing/" aria-current=page>安装、更新和卸载</a></li><li><a href="../../../zh/docs/features/">功能</a></li><li><a href="../../../zh/docs/connections/">连接</a></li><li><a href="../../../zh/docs/usage-history/">流量历史</a></li><li><a href="../../../zh/docs/speed-test/">网速测试</a></li><li><a href="../../../zh/docs/hotspot-mode/">热点模式</a></li><li><a href="../../../zh/docs/accuracy-and-battery/">统计准确性与耗电量</a></li><li><a href="../../../zh/docs/privacy/">隐私</a></li><li><a href="../../../zh/docs/security/">安全策略</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="安装更新和卸载" class="heading-element">安装、更新和卸载</h1><a id="安装更新和卸载" class="anchor" aria-label="Permalink: 安装、更新和卸载" href="#安装更新和卸载"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>NetworkMonitor 可在 macOS 13 或更高版本上运行，支持 Apple 芯片和 Intel 芯片的 Mac。它以一个通用磁盘映像 <code>NetworkMonitor.dmg</code> 提供，附在每个 <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">GitHub 发布版本</a>中。</p>
+<div class="markdown-heading"><h2 id="已签名并经过公证" class="heading-element">已签名并经过公证</h2><a id="已签名并经过公证" class="anchor" aria-label="Permalink: 已签名并经过公证" href="#已签名并经过公证"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>NetworkMonitor 使用 Kevin Abou Hanna 的 Apple <strong>Developer ID</strong>（团队 <code>GRQKG7M8CL</code>）签名，并经过<strong>公证</strong>：Apple 已检查过它是否含有恶意软件，并签发了随应用一起提供的票据。因此 macOS 知道它的开发者是谁，打开它时不会显示警告。1.13 及更早版本没有经过签名和公证，需要你在“系统设置”中点按 <strong>仍要打开</strong> 来批准。</p>
+<p>如果你不想直接信任一个二进制文件，全部代码都在这个仓库中，而且<a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/development.md">自己构建</a>（英文）只需要 Apple 免费的 Command Line Tools。</p>
+<div class="markdown-heading"><h2 id="安装" class="heading-element">安装</h2><a id="安装" class="anchor" aria-label="Permalink: 安装" href="#安装"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ol>
+<li>
+<a href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">下载 NetworkMonitor.dmg</a>，打开它，然后将 <strong>NetworkMonitor</strong> 拖到 <strong>应用程序</strong> 文件夹中。</li>
+<li>从“应用程序”文件夹中打开 NetworkMonitor。</li>
+</ol>
+<p>也可以用 <a href="https://brew.sh" rel="nofollow">Homebrew</a> 从 NetworkMonitor 自己的 <a href="https://github.com/kevinabouhanna/homebrew-tap">tap</a> 安装：</p>
+<div class="highlight highlight-source-shell"><pre>brew install --cask kevinabouhanna/tap/networkmonitor</pre></div>
+<p>菜单栏中会出现 ↓ ↑ 读数。在你打开它的窗口之前，NetworkMonitor 没有程序坞图标；一切都从这个读数开始。如果想让它改为显示在程序坞中，或两者都显示，可以在 <strong>设置 › NetworkMonitor 显示在</strong> 中选择。它会把自己设为登录时启动，你可以在 <strong>设置</strong> 中关闭。</p>
+<p>第一次打开时，欢迎窗口会提供两个选项，都不是必需的（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/134">#134</a>）：</p>
+<ul>
+<li>
+<strong>查看你的应用访问了哪些网站</strong>：一个内容过滤器，用于在<a href="../../../zh/docs/connections/#%E7%BD%91%E7%AB%99%E5%90%8D%E7%A7%B0">连接</a>中显示服务器的名称，并让阻止功能成为可能。</li>
+<li>
+<strong>按名称识别你的 Wi-Fi 网络</strong>：只有在获得定位服务权限后，macOS 才会提供网络名称，而它只用于这一个用途。没有这项权限时，网络会显示为类似 <em>Wi-Fi · 3f2a</em> 的名称。</li>
+</ul>
+<p>这两项都不会再主动询问。如果你跳过了其中一项，在用到它的地方会有 <strong>打开…</strong> 按钮：网站名称在“连接”的设置中，Wi-Fi 名称在“设置”中。</p>
+<div class="markdown-heading"><h2 id="更新" class="heading-element">更新</h2><a id="更新" class="anchor" aria-label="Permalink: 更新" href="#更新"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>从 1.15 开始，NetworkMonitor 使用 Sparkle 自行更新（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>）。它每天向 GitHub 询问一次是否有新版本（使用热点时不会询问），并提示你：显示新功能，准备好后点按 <strong>安装更新</strong> 即可。从它的菜单中选择 <strong>检查更新…</strong> 会立即检查，在“设置”中关闭 <strong>自动检查更新</strong> 即可停止每日检查。只有当更新的磁盘映像使用应用内置的密钥签名时，才会安装它。</p>
+<p>1.15 之前的版本，或者想手动更新时：</p>
+<ol>
+<li>下载新的 <code>NetworkMonitor.dmg</code>。</li>
+<li>将 NetworkMonitor 拖到“应用程序”文件夹中，然后选择 <strong>替换</strong>。</li>
+<li>打开它。</li>
+</ol>
+<p>从 1.13 或更早版本更新时，macOS 会再询问一次定位服务权限：应用现在使用 Developer ID 签名，而不是它自己的证书，所以 macOS 这一次会把它当作新应用。</p>
+<p>你的设置、总计和流量历史都保存在应用之外，不会受影响。</p>
+<p>如果你使用<a href="../../../zh/docs/hotspot-mode/">热点模式</a>，它的辅助程序会随新版本一起更新，不会询问任何问题。如果你之前使用的版本中辅助程序要求输入密码，NetworkMonitor 会提示一次新的辅助程序：在“系统设置”中打开它后，旧辅助程序的 sudoers 规则就会被移除。</p>
+<p>用 Homebrew 安装的版本也会这样自己更新；除非你加上 <code>--greedy</code>，<code>brew upgrade</code> 不会更新它。每个新版本发布后一天之内，cask 就会跟上。</p>
+<p>如果从源代码检出构建，<code>make update</code> 会拉取代码、运行测试、重新构建并重新安装。测试会先运行，所以有问题的拉取不会替换掉正常工作的版本。</p>
+<div class="markdown-heading"><h2 id="卸载" class="heading-element">卸载</h2><a id="卸载" class="anchor" aria-label="Permalink: 卸载" href="#卸载"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>右键点按菜单栏读数，然后选择 <strong>卸载 NetworkMonitor…</strong>，或在“设置”底部点按它。它会依次：</p>
+<ol>
+<li>移除内容过滤器（如果你打开了网站名称）：它的设置会立即移除，扩展本身由 macOS 移除，可能要到下次重新启动时才完成；</li>
+<li>移除辅助程序（如果已安装），辅助程序会先恢复它更改过的内容（没有 Developer ID 的构建版本中的辅助程序会要求输入密码）。如果这一步失败或你取消了，其他内容都不会被改动；</li>
+<li>恢复热点模式在没有辅助程序的情况下更改过的设置；</li>
+<li>移除登录项、你的流量历史和你的设置；</li>
+<li>将应用移到废纸篓。</li>
+</ol>
+<p><strong>直接把应用拖到废纸篓是不一样的。</strong>辅助程序会在一小时内发现应用已经不在了，然后恢复它所做的更改（系统更新设置、受管理的策略、低数据模式），并移除自己。但那些不需要密码就能更改的更新设置会一直保持关闭，因为记录如何撤销这些更改的是应用本身，而它已经不在运行，没有东西能读取这些记录。如果你已经把它拖到了废纸篓，请把它拖回来，打开它，再从菜单中卸载。</p>
+<p>如果你是用 Homebrew 安装的，请先从菜单中卸载，再运行 <code>brew uninstall --cask networkmonitor</code>，它只会移除剩下的部分。</p>
+<p>如果从源代码检出构建，<code>Scripts/uninstall.sh</code> 会做同样的事。</p>
+<div class="markdown-heading"><h2 id="macos-如何显示辅助程序" class="heading-element">macOS 如何显示辅助程序</h2><a id="macos-如何显示辅助程序" class="anchor" aria-label="Permalink: macOS 如何显示辅助程序" href="#macos-如何显示辅助程序"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>如果你打开热点模式，应用会注册一个小型辅助程序，macOS 会在 <strong>系统设置 › 通用 › 登录项与扩展</strong> 的 <strong>允许在后台</strong> 下、NetworkMonitor 名下列出它，等你打开（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>）。它每小时运行的自我修复任务也列在 NetworkMonitor 名下。它具体能做什么，请参阅<a href="../../../zh/docs/hotspot-mode/#%E8%BE%85%E5%8A%A9%E7%A8%8B%E5%BA%8F">热点模式</a>。</p>
+
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/installing.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+  </main>
+</div>
+<script>
+// 窄屏上，页面列表默认收起，放在正文上方。
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna。NetworkMonitor 是采用 Apache 2.0 许可证的自由软件。macOS 是 Apple Inc. 的商标。</span>
+      <nav aria-label="项目链接">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">版本发布</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">报告问题</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">许可证</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

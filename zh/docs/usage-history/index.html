@@ -1,0 +1,227 @@
+<!doctype html>
+<!-- The template of every Chinese docs page. The pages beside it are built
+     from the app repository's docs/zh-Hans/ by `make docs-site` (docs-kit,
+     #334): change a page there, never here. -->
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>流量历史 — NetworkMonitor 文档</title>
+<meta name="description" content="弹出窗口显示今天、本周或本月的用量。流量历史则保存这些数字背后的每一个小时，按应用、按网络记录，保留多久由你决定。">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/usage-history/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/usage-history/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/usage-history/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">跳到正文</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../../zh/"><img src="../../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../../zh/docs/" aria-current="true">文档</a>
+      <a href="../../../docs/usage-history/" lang="en" hreflang="en" data-lang="en">English</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">下载</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>所有页面</summary>
+    <nav aria-label="文档"><ul><li><a href="../../../zh/docs/">NetworkMonitor 文档</a></li><li><span class="docs-nav-section">使用 NetworkMonitor</span><ul><li><a href="../../../zh/docs/installing/">安装、更新和卸载</a></li><li><a href="../../../zh/docs/features/">功能</a></li><li><a href="../../../zh/docs/connections/">连接</a></li><li><a href="../../../zh/docs/usage-history/" aria-current=page>流量历史</a></li><li><a href="../../../zh/docs/speed-test/">网速测试</a></li><li><a href="../../../zh/docs/hotspot-mode/">热点模式</a></li><li><a href="../../../zh/docs/accuracy-and-battery/">统计准确性与耗电量</a></li><li><a href="../../../zh/docs/privacy/">隐私</a></li><li><a href="../../../zh/docs/security/">安全策略</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="流量历史" class="heading-element">流量历史</h1><a id="流量历史" class="anchor" aria-label="Permalink: 流量历史" href="#流量历史"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>弹出窗口显示今天、本周或本月的用量。流量历史则保存这些数字背后的每一个小时，按应用、按网络记录，保留多久由你决定。</p>
+<p>它是主窗口的第一个部分。你可以从弹出窗口“数据”下方的 <strong>打开流量历史</strong>，或者弹出窗口齿轮图标旁边的四个方块打开它，这两种方式都会沿用弹出窗口的统计周期。也可以从右键菜单中选择 <strong>流量历史…</strong>（⌘Y），或者在主窗口的边栏中选择“流量历史”。</p>
+<div class="markdown-heading"><h2 id="使用方法" class="heading-element">使用方法</h2><a id="使用方法" class="anchor" aria-label="Permalink: 使用方法" href="#使用方法"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<strong>列表、两者或图表</strong>，位于工具栏的开头，就像“连接”中的列表、两者或地图（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/524">#524</a>）：只显示列表、列表在左而图表在右，图例在图表下方（默认，像“连接”中的列表和地图一样并排，<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/534">#534</a>），或者图表占满整个窗口。你的选择会被记住。只显示图表时，<strong>显示</strong> 会隐藏，因为没有列表可供它切换。</li>
+<li>
+<strong>日、周、月或年</strong>，位于工具栏中，旁边是 <strong>‹ 今天 ›</strong>（也可以用 ⌘← 和 ⌘→ 前后切换），每个部分都一样。时间段是日历上的时间段，而不是滚动的时间窗口，所以“十月”每次查看都对应同样的字节数，就像“屏幕使用时间”和运营商的统计方式一样。一天按小时显示，一周或一个月按天显示，一年按月显示。点按某个条形即可打开它。</li>
+<li>
+<strong>按网络类型堆叠</strong>：Wi-Fi、热点、以太网和其他。无论时间段内还有哪些类型，每种类型都保持自己的颜色。图表下方的图例给出每种类型的总量，所以没有哪个数字只能靠悬停才能看到。</li>
+<li>
+<strong>全部、Wi-Fi 或热点</strong>，在工具栏下方那一行的末尾，可以把所有内容（图表、总量和列表）限定为该类网络。你在使用热点时，它默认显示 <strong>热点</strong>，否则显示 <strong>全部</strong>。以太网和其他归在“全部”下，也会出现在“网络”列表中。</li>
+<li>
+<strong>每个应用的条形都按网络类型拆分</strong>，使用图表的颜色，所以同时用了 Wi-Fi 和热点的应用会显示各用了多少。太小看不出来的部分会省略；“网络”列表中有准确的数字。</li>
+<li>
+<strong>标题</strong> 先写出时间段，再给出用量，按流量计费的连接上的用量和每日平均值合在一行中，以较淡的文字显示。每日平均值除以的是到目前为止已经过去的天数，而不是这个月的总天数。按流量计费的用量只在“全部”下显示，并且只在有流量经过按流量计费的连接时才显示。</li>
+<li>
+<strong>显示：应用、网络或连接时段</strong>，位于那一行的开头。应用的分组方式和弹出窗口完全一样。一个连接时段就是对某个网络的一次连接。</li>
+<li>
+<strong>列表就是筛选器。</strong> 点按一行，就只显示那个应用、网络或连接时段，图表和总量也会随之变化；再点按一次，或点按列表所在行末尾的标签（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/192">#192</a>），即可撤销。筛选器之间可以组合，也可以和“全部、Wi-Fi 或热点”的选择组合。</li>
+<li>
+<strong>搜索</strong>（⌘F），即工具栏中的放大镜，可以查找应用和网络，并像其他筛选器一样显示为一个标签。</li>
+<li>
+<strong>为网络命名</strong>：在“网络”下右键点按它，然后选择 <strong>重新命名…</strong>。这个名称会用在历史记录和导出文件中，过去的每次连接也会使用它。</li>
+<li>底部的 <strong>导出 CSV…</strong> 会保存屏幕上显示的时间段及其筛选条件，按小时、按应用列出，单位为字节。</li>
+<li>
+<strong>历史记录保留</strong> 1 个月、3 个月、1 年或永久（默认），位于“流量历史”的设置中，点按齿轮图标即可打开。如果缩短保留时间会删除数据，会先询问你。</li>
+<li>同样在那里的 <strong>清除历史记录…</strong> 会删除全部历史记录。菜单栏中的总量不受影响。</li>
+</ul>
+<p>当流量历史显示的时间段包含当前时间时，它每 30 秒刷新一次。</p>
+<div class="markdown-heading"><h2 id="统计哪些流量" class="heading-element">统计哪些流量</h2><a id="统计哪些流量" class="anchor" aria-label="Permalink: 统计哪些流量" href="#统计哪些流量"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>历史记录统计的是和弹出窗口相同的 <strong>仅限互联网</strong> 的数字。屏幕镜像、备份到 NAS 的 Time Machine，或者来自你自己服务器的 Plex 串流，都不会计入其中。这个数字是如何得出的，请参阅<a href="../../../zh/docs/accuracy-and-battery/#%E7%BB%9F%E8%AE%A1%E7%9A%84%E6%98%AF%E4%BA%92%E8%81%94%E7%BD%91%E6%B5%81%E9%87%8F%E4%B8%8D%E6%98%AF%E4%BD%A0%E8%87%AA%E5%B7%B1%E7%9A%84%E7%BD%91%E7%BB%9C">准确性</a>。</p>
+<p>它从你安装带有这项功能的版本（1.4.0 或更高版本）的那一刻开始统计。之前的数据无法恢复：旧的总量里没有按小时的数据，把一整块数字摊到一天里，就等于编造数据。</p>
+<div class="markdown-heading"><h2 id="连接时段" class="heading-element">连接时段</h2><a id="连接时段" class="anchor" aria-label="Permalink: 连接时段" href="#连接时段"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>一个连接时段就是对某个网络的一次连接：从连接上它开始，直到你离开去连接另一个网络，或者 Mac 已经 <strong>30 分钟</strong> 没有任何流量（例如睡眠之后）为止。</p>
+<ul>
+<li>
+<strong>短暂断网不会新建连接时段。</strong> Wi-Fi 短暂中断后重新连接，仍是同一个连接时段。</li>
+<li>
+<strong>连接时段在最后一次有流量时结束</strong>，而不是在下一个网络出现时结束。在办公室合上盖子，办公室的那次连接就在合上时结束。</li>
+<li>
+<strong>唤醒。</strong> 唤醒后的最初几个数据包会在 macOS 确定你连接的是哪个网络之前到达（应用会等待 2 秒让它确定下来）。这时开始的连接时段会在 30 秒内保持暂定状态，并采用这段时间内识别出的网络，这样就不会在你合上盖子时所在的网络上留下一个只有几 KB 的连接记录。</li>
+<li>
+<strong>重新启动应用</strong>：如果在 30 分钟内且仍在同一个网络上，会延续这次连接。</li>
+<li>
+<strong>每个连接时段都保留自己的按流量计费判定</strong>，并在它结束时重新判定一次，所以即使你之后换到了家里的 Wi-Fi，热点上的那次连接仍然按流量计费。</li>
+<li>
+<strong>未能暂停的更新会和它们所在的那次连接放在一起</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/96">#96</a>）。在出现过这种更新的热点连接名称下，会显示 <em>2 个更新未能暂停</em>，选择它就会列出这些更新：应用、已知的版本，以及用掉的流量，如果只知道可能的最大值，则显示 <em>最多</em>。热点模式中的 <em>未能暂停的更新</em> 列表只保留上一次按流量计费的连接；历史记录则按照和其他所有内容相同的保留时间保存它们，也会被“清除历史记录”一并清除。每个更新只保存一次，归在第一次发现它的那次连接下，即使一个连接跨越了多次连接时段。</li>
+</ul>
+<div class="markdown-heading"><h2 id="网络" class="heading-element">网络</h2><a id="网络" class="anchor" aria-label="Permalink: 网络" href="#网络"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>网络是通过路由器的硬件地址来识别的，而不是通过名称。两个 Wi-Fi 名称相同的路由器会被区分开，而在同一个网络的多个接入点之间漫游，仍算作一个网络。同一个路由器通过 Wi-Fi 和通过以太网连接算作一个网络，这正是流量上限所关心的。</p>
+<p><strong>它的名称：</strong></p>
+<ul>
+<li>
+<strong>它的 Wi-Fi 名称</strong>，在允许“定位服务”之后（只有这样 macOS 才会提供名称）。过去的连接也会使用这个名称。</li>
+<li>
+<strong>两个频段分别命名的路由器，会显示两个名称</strong>，例如 <em>Home / Home-5G</em>。同一个路由器上的 2.4 GHz 和 5 GHz 算作一个网络。</li>
+<li>
+<strong>否则显示它的类型和路由器地址的最后四个字符</strong>，例如 <em>Wi-Fi · 3f2a</em>：以太网、USB 网络共享，或者拒绝了“定位服务”。</li>
+<li>
+<strong>无法区分的网络</strong>，用于应用无法归到某个网络的流量，例如 1.9.7 之前在 macOS 27 上的所有流量。</li>
+<li>你在“网络”下 <strong>为它取的名称</strong> 优先于以上所有名称。</li>
+</ul>
+<div class="markdown-heading"><h2 id="csv-格式" class="heading-element">CSV 格式</h2><a id="csv-格式" class="anchor" aria-label="Permalink: CSV 格式" href="#csv-格式"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<pre><code>小时,网络,网络类型,按流量计费,应用,下载（字节）,上传（字节）,未能暂停的更新
+</code></pre>
+<ul>
+<li>每个应用、每个小时、每次连接一行。这就是历史记录保存的全部内容；电子表格可以按任何方式汇总它，但无法把一个按天的数字再拆开。</li>
+<li>列名使用 Mac 的语言；以上是中文界面下的列名。</li>
+<li>
+<code>小时</code> 的格式是你所在时区的 <code>yyyy-MM-dd HH:mm</code>。</li>
+<li>没有应用筛选时，每个小时还会有一行 <em>未归属到任何应用</em>，记录互联网总量中剩下的部分，这样文件中的数字加起来就等于窗口中显示的数字。</li>
+<li>
+<code>未能暂停的更新</code> 会填写在第一次发现更新的那个小时、该应用的那一行中，例如 <em>Slack 已更新到 4.41，120 MB</em>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/96">#96</a>）。如果该应用在那个小时没有对应的行，这个更新会单独占一行，不含字节数，这样各列仍然能加起来。</li>
+<li>只有在需要时才给字段加引号（RFC 4180）。文件使用 UTF-8 编码。</li>
+</ul>
+<div class="markdown-heading"><h2 id="实现方式" class="heading-element">实现方式</h2><a id="实现方式" class="anchor" aria-label="Permalink: 实现方式" href="#实现方式"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>存储。</strong> <code>~/Library/Application Support/NetworkMonitor/history.sqlite</code>，使用系统自带的 SQLite 库，不依赖任何第三方库。历史记录只会增长，而每个视图都是一次范围查询加求和，这不适合用 JSON 文件来做。使用 <code>WAL</code> 日志模式并设置 <code>synchronous = NORMAL</code>：一次写入是追加，而不是 <code>fsync</code>，崩溃可能会丢失最后片刻的数据，但绝不会损坏文件。无法打开的文件会被移到一旁，命名为 <code>history.unreadable-&lt;time&gt;.sqlite</code>，绝不会被删除，然后新建一个文件。</p>
+<p><strong>表结构</strong>（<code>UsageHistory.swift</code>）。每个连接时段每小时一行，每个连接时段每个应用每小时一行。一小时是任何视图需要的最小粒度，这样一年的数据大约只有十万行。每个应用连接过的服务器（用于<a href="../../../zh/docs/connections/">连接</a>）也用同样的方式保存。</p>
+<table>
+<thead>
+<tr>
+<th>表</th>
+<th>保存的内容</th>
+<th>键</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sessions</code></td>
+<td>网络 ID、类型、默认标签、开始时间、结束时间（最后一次有流量）、是否按流量计费</td>
+<td><code>id</code></td>
+</tr>
+<tr>
+<td><code>apps</code></td>
+<td>应用键、名称、应用包路径、是否为系统、父应用</td>
+<td><code>key</code></td>
+</tr>
+<tr>
+<td><code>traffic</code></td>
+<td>每小时、每个连接时段：网络接口字节数、局域网字节数、已归属到应用的字节数，分上下行</td>
+<td><code>(hour, session_id)</code></td>
+</tr>
+<tr>
+<td><code>app_traffic</code></td>
+<td>每小时、每个连接时段、每个应用：接收和发送的字节数</td>
+<td><code>(hour, session_id, app_key)</code></td>
+</tr>
+<tr>
+<td><code>servers</code></td>
+<td>服务器的地址；它的 <code>name</code> 列只对 <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/247">#247</a> 之前的行读取</td>
+<td><code>id</code></td>
+</tr>
+<tr>
+<td><code>app_servers</code></td>
+<td>每一对应用和服务器，只记一次，并记录第一次发现的时间（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/111">#111</a>）</td>
+<td><code>id</code></td>
+</tr>
+<tr>
+<td><code>server_traffic</code></td>
+<td>每小时、每个连接时段、每个应用和服务器：接收和发送的字节数，以及被阻止的连接数（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/114">#114</a>）</td>
+<td><code>(hour, session_id, app_server_id)</code></td>
+</tr>
+<tr>
+<td><code>server_names</code></td>
+<td>每小时、每个连接时段、每个应用和服务器：应用访问它时用的每个名称，以及其中有多少连接被放行或被阻止（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/247">#247</a>）</td>
+<td><code>(hour, session_id, app_server_id, name)</code></td>
+</tr>
+<tr>
+<td><code>list_blocks</code></td>
+<td>每小时、每个连接时段、每个应用：列表拦截的每个网站、对应的列表和次数（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/250">#250</a>）</td>
+<td><code>(hour, session_id, app_key, name, list)</code></td>
+</tr>
+<tr>
+<td><code>updates</code></td>
+<td>每个未能暂停的更新：应用、版本、用掉的流量，以及第一次发现它的连接时段（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/96">#96</a>）</td>
+<td><code>(report, source, name)</code></td>
+</tr>
+</tbody>
+</table>
+<p>存储的是原始数字，互联网流量在读取时推算出来，使用和弹出窗口相同的限制方式，所以公式只存在于一个地方：每个方向、每小时、每个连接时段 <code>MIN(interface, MAX(interface − LAN, apps))</code>。</p>
+<p><strong>数据来源。</strong> <code>UsageStore</code> 把每个字节和每次网络变化都转发给 <code>UsageHistory</code>，所以历史记录和弹出窗口对某个字节走的是哪个网络，永远不会有分歧。“立即重置”和午夜只会清零当前连接的计数，绝不会影响历史记录。</p>
+<p><strong>写入。</strong> 先在内存中批量累积，在保存流量文件时写入（大约每 15 秒一次，以及网络变化、睡眠和退出时），在一个事务中执行累加到现有行的 upsert。写入是同步的，因为退出时会调用它，耗时远低于一毫秒。每次读取之前也会先写入，所以当前这一小时永远不会缺失。失败的批次会被丢弃，不会重试，因为拒绝一次写入的数据库也会拒绝下一次；当前连接的计数不受影响。</p>
+<p><strong>读取</strong> 在它自己的串行队列上进行，所以逐年翻看也不会让菜单栏卡住。在一个生成的 400 天数据库（5.5 MB）上测得：一年的按应用总量用时 32 ms，按小时总量用时 2 ms。</p>
+<p><strong>保留时间</strong>（偏好设置中的 <code>historyRetention</code>）按整天清理，每天最多一次，设置更改时会立即执行，然后用 <code>incremental_vacuum</code> 回收空间。</p>
+<p><strong>图表</strong> 使用 Swift Charts，手动堆叠，这样各段之间有 2 点的间隙，并且只有条形的顶部是圆角。数值轴使用应用自己选择的整齐的 1024 进制刻度（Swift Charts 自己的刻度会显示“953.7 MB”）。四种颜色都在浅色和深色模式下检查过色盲可区分性；其中两种浅色与窗口背景的对比度低于 3:1，所以每个数字也都以文字形式给出。悬停时，其他条形会通过向背景色混合来变暗，而不是降低不透明度，因为顶部那段绘制了两次，降低不透明度会透出来。</p>
+<p><strong>测试</strong> 位于 <code>UsageHistoryTests.swift</code>，涵盖：互联网流量与弹出窗口一致、仅局域网的流量永不计入、上面的每条连接时段规则、筛选器、保留时间、清除历史记录、CSV 数字能加起来、夏令时切换日有 23 或 25 个小时条形，以及数值轴刻度。测试使用临时数据库和 UTC 日历。</p>
+<div class="markdown-heading"><h2 id="已知限制" class="heading-element">已知限制</h2><a id="已知限制" class="anchor" aria-label="Permalink: 已知限制" href="#已知限制"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>历史记录从你安装 1.4.0 或更高版本时开始。</li>
+<li>
+<strong>在 1.9.7 之前的 macOS 27 上</strong>，所有 Wi-Fi 网络（包括 iPhone 热点）都被记录为同一个网络（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/70">#70</a>）。这些连接无法事后拆分：当时没有记录切换发生的时间。</li>
+<li>日/周/月/年的选择只在应用运行期间记住，重新启动后不会保留。</li>
+<li>一周从哪一天开始，取决于你 Mac 的地区设置。</li>
+<li>表结构版本（<code>user_version</code>）仍然是 1。之后新增的两列，即服务器名称（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/128">#128</a>）和被阻止的连接（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/114">#114</a>），会在打开旧文件时补上（如果缺少）。</li>
+</ul>
+
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/usage-history.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+  </main>
+</div>
+<script>
+// 窄屏上，页面列表默认收起，放在正文上方。
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna。NetworkMonitor 是采用 Apache 2.0 许可证的自由软件。macOS 是 Apple Inc. 的商标。</span>
+      <nav aria-label="项目链接">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">版本发布</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">报告问题</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">许可证</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

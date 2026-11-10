@@ -1,0 +1,368 @@
+<!doctype html>
+<!-- The template of every Chinese docs page. The pages beside it are built
+     from the app repository's docs/zh-Hans/ by `make docs-site` (docs-kit,
+     #334): change a page there, never here. -->
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>连接 — NetworkMonitor 文档</title>
+<meta name="description" content="你的应用把数据发给了哪些公司、来自哪些应用、在哪些国家或地区、发到了哪些服务器。它是主窗口中的一个部分：可以从弹出窗口“连接”下方的 打开“连接”、弹出窗口齿轮图标旁边的四个方块、右键菜单中的 连接…（⌘K），或者边栏打开它。它的设置位于工具栏中的齿轮图标里，在那里还可以设置它打开时的布局。">
+<link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/connections/">
+<link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/connections/">
+<link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/connections/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" sizes="32x32" href="../../../assets/favicon-32.png?v=2dd491c8">
+<link rel="icon" type="image/png" sizes="64x64" href="../../../assets/favicon-64.png?v=b60dbd4d">
+<link rel="apple-touch-icon" href="../../../assets/apple-touch-icon.png?v=9bc3e2d1">
+<link rel="stylesheet" href="../../../assets/docs.css">
+<script>
+// The language chosen with a switch is kept, as on the home page (#430).
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[data-lang]');
+  if (a) try { localStorage.setItem('lang', a.getAttribute('data-lang')); } catch (err) {}
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#content">跳到正文</a>
+<nav class="nav" aria-label="NetworkMonitor">
+  <div class="wrap">
+    <a class="brand" href="../../../zh/"><img src="../../../assets/favicon-64.png?v=b60dbd4d" alt="" width="24" height="24">NetworkMonitor</a>
+    <div class="nav-links">
+      <a href="../../../zh/docs/" aria-current="true">文档</a>
+      <a href="../../../docs/connections/" lang="en" hreflang="en" data-lang="en">English</a>
+    </div>
+    <a class="pill" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg">下载</a>
+  </div>
+</nav>
+
+<div class="docs wrap">
+  <details class="docs-menu" open>
+    <summary>所有页面</summary>
+    <nav aria-label="文档"><ul><li><a href="../../../zh/docs/">NetworkMonitor 文档</a></li><li><span class="docs-nav-section">使用 NetworkMonitor</span><ul><li><a href="../../../zh/docs/installing/">安装、更新和卸载</a></li><li><a href="../../../zh/docs/features/">功能</a></li><li><a href="../../../zh/docs/connections/" aria-current=page>连接</a></li><li><a href="../../../zh/docs/usage-history/">流量历史</a></li><li><a href="../../../zh/docs/speed-test/">网速测试</a></li><li><a href="../../../zh/docs/hotspot-mode/">热点模式</a></li><li><a href="../../../zh/docs/accuracy-and-battery/">统计准确性与耗电量</a></li><li><a href="../../../zh/docs/privacy/">隐私</a></li><li><a href="../../../zh/docs/security/">安全策略</a></li></ul></li></ul></nav>
+  </details>
+  <main class="page" id="content">
+<div class="markdown-heading"><h1 id="连接" class="heading-element">连接</h1><a id="连接" class="anchor" aria-label="Permalink: 连接" href="#连接"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>你的应用把数据发给了哪些公司、来自哪些应用、在哪些国家或地区、发到了哪些服务器。它是主窗口中的一个部分：可以从弹出窗口“连接”下方的 <strong>打开“连接”</strong>、弹出窗口齿轮图标旁边的四个方块、右键菜单中的 <strong>连接…</strong>（⌘K），或者边栏打开它。它的设置位于工具栏中的齿轮图标里，在那里还可以设置它打开时的布局。</p>
+<p>它安静地运行：在你创建规则或选择 <strong>询问我</strong>（参阅<a href="#%E9%98%BB%E6%AD%A2">阻止</a>）之前，不会弹出任何内容，也不会阻止任何连接。 NetworkMonitor 在统计每个应用的流量时，顺便记录它们与哪些服务器通信，“连接”会在你查看时显示这些信息。</p>
+<div class="markdown-heading"><h2 id="读懂窗口" class="heading-element">读懂窗口</h2><a id="读懂窗口" class="anchor" aria-label="Permalink: 读懂窗口" href="#读懂窗口"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>工具栏中有视图（<strong>列表 | 两者 | 地图</strong>）、位于中间的时间段（<strong>日、周、月、年</strong>）、<strong>‹ 今天 ›</strong>、搜索（⌘F）和齿轮图标。它下面一行说明显示的是什么（<strong>流量</strong> 或 <strong>已阻止</strong>）、列表按什么分组、缩小到了什么范围，以及涵盖哪些网络。接着是时间段的名称、总量和各项计数。</p>
+<ul>
+<li>
+<strong>按公司、应用或国家或地区分组。</strong> 默认按公司分组，因为这正是要回答的问题：谁拿到了你的数据。</li>
+<li>
+<strong>展开一个分组</strong>，查看其中的内容。公司会展开为与它通信的应用、它的服务器所在的国家或地区，以及服务器本身。应用会展开为它的公司、国家或地区和服务器。国家或地区会展开为它的公司、应用和服务器。</li>
+<li>
+<strong>点按分组中的一行</strong>，可以把所有内容缩小到这一项。在 Microsoft 中选择 Teams 会显示 <em>Microsoft › Teams</em>，每个标签上的 ✕ 会撤销对应的部分。</li>
+<li>
+<strong>在时间线上拖移</strong>，或者点按一个柱形，可以查看一天中的某一段：例如通话结束后的一小时里你的应用联系了谁。再次点按同一个柱形，或者点按标签上的 ✕，即可回到整个时间段。</li>
+<li>
+<strong>搜索</strong>，即工具栏中的放大镜，可以查找公司、网络的注册名称、应用、国家或地区，或者地址。</li>
+<li>
+<strong>日、周、月、年</strong>、箭头以及 ⌘← ⌘→ 用于在时间上前后移动，每个部分都一样； <strong>网络：全部 / Wi-Fi / 热点</strong> 可以缩小到一种网络。</li>
+<li>
+<strong>每个应用下面会显示它的开发者</strong>（从它的代码签名中读取），以及除开发者之外它还与哪些公司通信。托管服务商不计算在内：在 Amazon 网络上的应用并不是在与 Amazon 通信。</li>
+</ul>
+<div class="markdown-heading"><h2 id="地图" class="heading-element">地图</h2><a id="地图" class="anchor" aria-label="Permalink: 地图" href="#地图"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>“连接”可以显示列表、地图，或者并排显示两者（<strong>列表 | 两者 | 地图</strong>）。默认显示两者，你的选择会被记住。窗口太窄放不下两者时，会先显示列表，直到你把窗口拉宽。</p>
+<p>窗口较窄时，一行的条形会先变短，名称保持完整，这里以及流量历史和广告与跟踪器的“两者”都是如此（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/534">#534</a>）。名称旁的标签（<strong>始终允许</strong>、<strong>广告</strong>、<strong>按流量计费</strong>）会先变成图标，然后名称才会被截短；将指针悬停在图标上，或使用 VoiceOver，即可听到或看到它的文字。</p>
+<ul>
+<li>
+<strong>国家或地区按流向那里的数据量着色</strong>，采用对数刻度，因此只有几 KB 的国家或地区也能和有几 GB 的并排显示出来。</li>
+<li>
+<strong>将指针悬停在国家或地区上</strong>，会显示一张卡片，列出排名靠前的公司。<strong>点按它</strong>可以把所有内容缩小到这个国家或地区。</li>
+<li>
+<strong>缩小到某个公司、应用或服务器</strong>后，会有线条从你所在的国家或地区连到它的数据去往的地方。你所在的国家或地区取自以下第一个能给出答案的来源（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/231">#231</a>）：<strong>定位服务</strong>，前提是 NetworkMonitor 已经为 Wi-Fi 名称获得了这项权限（它从不只为这个目的请求权限）；你的 Mac <strong>自己的互联网地址</strong>，前提是它持有一个互联网能直接看到的地址，比如 IPv6 地址；或者 Mac 的<strong>“地区”设置</strong>。把指针悬停在线条起点的圆圈上，可以看到用的是哪一个：<em>你的 Mac，位于黎巴嫩（来自定位服务）</em>。所有内容都不会在线查询：定位服务给出的位置会用地图自己的轮廓换算成国家或地区，并且只保留国家或地区。</li>
+<li>
+<strong>线条会向你的应用此刻正在连接的国家或地区跳动</strong>：只要地图显示的时间段包含当前时刻并且有流量，就会这样，无需打开任何开关（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/182">#182</a>）。只有跳动的线条会自行重绘；“连接”不在屏幕上时（显示的是其他部分，或者窗口关闭、最小化或被遮挡），显示“已阻止”或过去的时间段时，或者没有任何应答时，都不会运行。</li>
+<li>
+<strong>拖移可移动地图，捏合或使用按钮可缩放。</strong> 在当前缩放级别下太小而看不见的地方，以及画在另一个国家或地区内部的地方（例如留尼汪），如果有数据流向那里，会显示为一个圆点。</li>
+<li>
+<strong>Cloudflare、Fastly 以及类似的网络不在地图上标出。</strong> 它们会从离你最近的数据中心应答每个地址，因此数据并没有去往某一个国家或地区。地图的角落会显示有多少数据流向了它们。</li>
+</ul>
+<p>轮廓数据来自 Natural Earth（公有领域），由应用自行绘制。不使用任何地图服务，也不下载任何内容。</p>
+<div class="markdown-heading"><h2 id="名称的含义" class="heading-element">名称的含义</h2><a id="名称的含义" class="anchor" aria-label="Permalink: 名称的含义" href="#名称的含义"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>服务器就是一个地址。NetworkMonitor 根据应用内附带的数据为它命名：DB-IP 认定这个地址所在的国家或地区，以及它所属的网络。不会在线查询任何内容。这些数据每月更新一次，每个人下载的都是同一个已签名的文件，在热点上从不下载；“连接”的设置中的 <strong>每月更新</strong> 可以关闭更新，那里也会显示正在使用的是哪个月的数据（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/121">#121</a>）。参阅<a href="../../../zh/docs/privacy/#%E4%B8%8D%E8%AF%A2%E9%97%AE%E4%BB%BB%E4%BD%95%E4%BA%BA%E5%B0%B1%E8%83%BD%E5%91%BD%E5%90%8D%E6%9C%8D%E5%8A%A1%E5%99%A8">隐私</a>。</p>
+<ul>
+<li>
+<strong>公司</strong>是服务器所在网络的所有者。对于自己运营网络的公司来说，这是准确的：Google、Microsoft、Meta、Apple 等等。</li>
+<li>
+<strong>托管于 Amazon</strong>（或者 Cloudflare、Akamai、Fastly、Google Cloud 等），标记为 <strong>主机</strong>，表示服务器位于一个承载成千上万家公司流量的网络上。数据无法分辨是哪一家，因此 NetworkMonitor 不会去猜。</li>
+<li>
+<strong>未知网络</strong>是数据中没有列出的地址：私有地址、运营商地址或 VPN 地址，例如 Tailscale 的地址。</li>
+<li>
+<strong>其他服务器</strong>是一个应用在一小时内与超过 500 个服务器通信时，超出部分合并成的一项。只有点对点应用和大型通话才会到这一步。</li>
+<li>
+<strong>国家或地区</strong>是 DB-IP 认定这个地址所在的地方。它不是公司所在地，也不是数据最终去往的地方。对于像 Cloudflare 这样从多个地方同时应答同一个地址的网络，实际应答的服务器通常近得多。</li>
+</ul>
+<div class="markdown-heading"><h2 id="网站名称" class="heading-element">网站名称</h2><a id="网站名称" class="anchor" aria-label="Permalink: 网站名称" href="#网站名称"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>没有额外帮助时，服务器只是一个地址，云服务网络上的一切都会显示为 <em>托管于 Amazon</em>。打开 <strong>查看你的应用访问了哪些网站</strong> 后，内容过滤器（macOS 中专为这类应用设计的部分）会告诉 NetworkMonitor 每个应用连接时使用的名称。这样，Amazon 网络上的 <code>wss-primary.slack.com</code> 会显示为 <strong>Slack</strong>，“服务器”列表也会显示名称，地址显示在名称下方。</p>
+<ul>
+<li>
+<strong>在你首次打开 NetworkMonitor 时提供</strong>，在欢迎窗口中，可选。当时选了不要？ <strong>打开…</strong> 在“连接”的设置中，也在“连接”的列表上方，直到你在那里将它关闭（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/134">#134</a>）。</li>
+<li>
+<strong>macOS 会询问两次：</strong> 一次在“系统设置”中（通用 › 登录项与扩展 › 网络扩展 ⓘ），然后在一个对话框中再询问一次。等待期间，该行会显示每一步。</li>
+<li>
+<strong>此后它在后台运行</strong>，无需任何管理。</li>
+<li>
+<strong>它只阻止你要阻止的内容</strong>（见下文）。</li>
+<li>
+<strong>出错时放行：</strong> 如果过滤器停止运行，不会切断任何连接。</li>
+<li>
+<strong>打开后，设置中不再提及它</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/181">#181</a>）。可以在“系统设置 › 网络 › 过滤器”中关闭它，之后“连接”的设置会再次提供 <strong>打开…</strong>。卸载会移除它。</li>
+<li>
+<strong>通过地址连接的应用，从握手中获取名称</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/196">#196</a>）。Chrome、Figma 以及其他基于 Chromium 的应用会自行查询地址，通常通过加密 DNS，因此过滤器从它们那里得不到名称。对于这些连接到 443 端口的连接，它会从开头的握手（TLS 或 QUIC 的握手）中读取网站名称，这个名称本来就是发送给网络读取的。只读取这个名称：不读取之后的任何内容，也不读取已经有名称的连接的任何内容。</li>
+<li>
+<strong>仍按网络所有者显示的情况：</strong> 连接到其他端口的连接、不使用 TLS 或 QUIC 的连接，以及用 Encrypted Client Hello 隐藏名称的网站，后者会显示其服务商的公开名称，例如 <code>cloudflare-ech.com</code>。</li>
+</ul>
+<div class="markdown-heading"><h2 id="阻止" class="heading-element">阻止</h2><a id="阻止" class="anchor" aria-label="Permalink: 阻止" href="#阻止"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>在“连接”中右键点按某个公司、应用、国家或地区或者服务器，然后选择 <strong>阻止</strong>、<strong>在热点上阻止</strong> 或 <strong>始终允许</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/114">#114</a>）。该行会在名称旁标明，“连接”的设置会列出每一条规则，每条都带有一个撤销按钮。</p>
+<ul>
+<li>
+<strong>有名称的服务器按名称设定规则</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/197">#197</a>），因为 CDN 会把同一个名称从一个地址换到另一个地址。每个选项都可以针对名称本身或它的整个网站：<em>stats.wp.com</em>，或 <em>*.wp.com 全部</em>。针对某个名称的规则也涵盖它下面的所有名称。没有名称的服务器按地址设定规则，与以前一样。</li>
+<li>
+<strong>范围最小的规则优先：</strong> 先是服务器地址，然后是网站（名称较长的优先），然后是应用，然后是公司，最后是国家或地区。因此，<em>阻止 Meta</em> 加上 <em>始终允许 WhatsApp</em> 会放行 WhatsApp；<em>阻止美国</em> 加上 <em>始终允许 Apple</em> 会放行 Apple 在那里的服务器；<em>阻止 Google</em> 加上 <em>始终允许 *.youtube.com</em> 会放行 YouTube。</li>
+<li>
+<strong>打开时没有名称的连接，会在握手给出名称后再作决定</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/196">#196</a>、<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/197">#197</a>）：例如 Chrome 的连接。它的前几个字节会等待名称；如果始终找不到名称，就按没有名称时的方式决定。</li>
+<li>
+<strong>在热点上</strong> 表示 Mac 正在使用热点时，以“网络”页面的判断为准。</li>
+<li>
+<strong>在“此网络”上</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/200">#200</a>）：菜单还提供 <strong>在“Office Wi-Fi”上阻止“…”</strong>，针对 Mac 当前所在的网络。这条规则只在那里生效，按路由器的身份识别（与流量历史区分网络的方式相同），绝不按 Wi-Fi 名称识别；在其他地方，由下一条规则决定。它的标记会写明网络名称，针对所有地方的规则会取代它。</li>
+<li>
+<strong>打开热点模式后，所有应用的更新程序在热点上都会等待</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/98">#98</a>）：应用内名称像更新程序的程序（<code>opera_autoupdate</code>、Raycast 的 <code>Updater</code>、Sparkle 的更新程序）、Sparkle 的下载程序，或者自带的更新程序（GoogleUpdater、Microsoft AutoUpdate、Squirrel 的 <code>ShipIt</code>），以及热点模式的辅助程序所阻止的仅用于更新的服务器。你的规则优先，因此“始终允许”可以放行其中某一个；macOS 和 Apple 的应用则遵循热点模式的系统设置。它阻止的内容显示在“已阻止”下。</li>
+<li>
+<strong>从不阻止：</strong> 本地网络、名称查询（DNS）、时间同步，以及获取地址。没有它们，其他一切都无法工作。</li>
+<li>
+<strong>导出…和导入…</strong> 位于“连接”的设置中的规则旁边（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/201">#201</a>），可以把所有规则存储为一个 JSON 文件，用于备份或在另一台 Mac 上使用。导入会添加尚不存在的规则，绝不替换已有的规则，并告诉你添加了多少条。</li>
+<li>
+<strong>全部阻止</strong>，位于菜单栏项目的右键菜单中（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/198">#198</a>），会立即阻止所有应用的新连接，包括 Apple 的应用以及你的规则允许的任何内容，直到你再次选择它。只有上述必需项和 NetworkMonitor 本身可以通过。打开期间，菜单栏读数会变红，弹出窗口也会说明这一点，并提供 <strong>关闭</strong>。它在重新启动应用和重新启动 Mac 后仍然有效。已经打开的连接会继续，直到它们关闭。</li>
+<li>
+<strong>针对应用的规则跟随它的签名</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/202">#202</a>）：规则会记住创建时为该应用签名的团队，不会应用于同一路径下由其他人签名的程序，因此换入另一个程序并不会继承该应用的规则。在“询问我”模式下，会重新询问那个程序。没有团队的应用（Apple 自己的应用、临时签名或自签名的应用）按路径匹配，与以前一样。由同一团队签名的更新会继续沿用规则。</li>
+<li>
+<strong>一个应用包括它本身以及它启动的程序</strong>，与“连接”中的列法一致：针对 iTerm 的规则涵盖你在其中运行的 <code>curl</code>，除非 <code>curl</code> 有自己的规则。Safari 的网页通过一个 WebKit 进程加载，针对两者之一的规则都会拦住它们。</li>
+<li>
+<strong>从下一个连接开始生效：</strong> 已经打开的连接会继续，直到它关闭。</li>
+<li>
+<strong>过滤器保留一份自己的规则副本</strong>，因此应用退出后，以及重新启动后应用还没打开之前，规则依然有效。</li>
+<li>
+<strong>阻止需要打开网站名称。</strong> 在网站名称关闭时选择“阻止”，会开始打开它，步骤显示在列表上方。</li>
+</ul>
+<div class="markdown-heading"><h2 id="广告和跟踪器" class="heading-element">广告和跟踪器</h2><a id="广告和跟踪器" class="anchor" aria-label="Permalink: 广告和跟踪器" href="#广告和跟踪器"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>拦截广告和跟踪器</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/176">#176</a>）会在所有应用中拦截两个列表上的网站。广告拦截在主窗口中有自己的部分，即 <strong>广告与跟踪器</strong>；它的设置位于工具栏中的齿轮图标里，包括这个开关、<strong>每周更新列表</strong>，以及 <strong>列表</strong> 和 <strong>你的规则</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>列表</th>
+<th>内容</th>
+<th>来源</th>
+<th>许可证</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>广告和跟踪器</strong></td>
+<td>约 77,000 个广告、跟踪和分析服务器</td>
+<td>StevenBlack 的 unified hosts</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td><strong>恶意软件和网络钓鱼</strong></td>
+<td>约 1,900 个正在传播恶意软件的服务器</td>
+<td>URLhaus，由 malware-filter 提供</td>
+<td>CC0</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>
+<strong>你的规则优先。</strong> 在“连接”中对某个网站或服务器设为“始终允许”会放行它，阻止规则仍然会阻止。对应用、公司或国家或地区设为“始终允许”（包括“询问我”中的回答，以及你在“仅允许已授权的连接”下允许的应用）会让它可以连接，但列表仍然对它有效（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/316">#316</a>）：在 Chrome 中允许 Google 并不会放行 <code>doubleclick.net</code>。</li>
+<li>
+<strong>列表中的名称涵盖它下面的所有名称</strong>，一直到它的网站：列出 <code>doubleclick.net</code> 会拦截 <code>static.doubleclick.net</code>。列表永远不能拦截整个后缀，例如 <code>com</code>、<code>gov.lb</code> 或 <code>myshopify.com</code>。名称所属的网站取自公共后缀列表（Public Suffix List，<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/318">#318</a>），与浏览器的判断一致：<code>moph.gov.lb</code> 和 <code>shop.myshopify.com</code> 都是独立的网站。</li>
+<li>
+<strong>对通过地址连接的应用同样有效</strong>，例如 Chrome，方法是读取连接握手中的名称（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/196">#196</a>）。</li>
+<li>
+<strong>它能识破网站给跟踪器起的自有名称</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/255">#255</a>）：如果 Mac 的查询结果表明 <code>metrics.example.com</code> 是列表中某个跟踪器的别名，它就会被当作那个跟踪器阻止。这些查询结果只读取、从不修改，通过 UDP 或 TCP 均可；别名会按查询结果所说的时长保留，最长一天。你的规则对待别名与对待名称本身一样（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/321">#321</a>）：<em>始终阻止</em> <code>omtrdc.net</code> 也会阻止 <code>metrics.example.com</code>，而针对所有应用或某个应用的 <em>永不阻止</em> 会让别名不再计入广告列表。应用自行加密的域名查询（例如 Chrome 的安全 DNS）无法读取。</li>
+<li>
+<strong>“连接”会给每个列表中的服务器加上标记</strong> 广告 或 恶意软件，无论列表是否打开，这样“连接”始终能显示是谁在跟踪你。 <strong>显示：已阻止</strong> 会列出它们阻止的内容。</li>
+<li>
+<strong>弹出窗口中的“已拦截”</strong> 按钮以红色显示所选统计周期内拦截的次数，可按网站或应用查看；它的视图底部的 <strong>打开广告与跟踪器</strong>（⌘B）会打开这个部分。</li>
+<li>
+<strong>它无法拦截的内容：</strong> 由网站自己的服务器提供的广告（例如 YouTube 的广告），因为无法将它们与网站本身区分开；网页中原本放广告的空白框；以及任何没有名称的内容（其他端口，或者不使用 TLS 或 QUIC）。它不是浏览器的广告拦截器。</li>
+<li>
+<strong>列表会自动保持最新。</strong> 每周一，一个工作流程会重新生成这些列表，拒绝缩水的列表（低于固定下限，或少于上周的一半，<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/319">#319</a>）以及会拦住人们每天使用的网站的列表，然后为它们签名；列表打开期间，应用每周获取一次，在热点上从不获取（<strong>每周更新列表</strong>）。应用自带一份副本，因此离线时也能使用。</li>
+</ul>
+<div class="markdown-heading"><h3 id="广告与跟踪器部分" class="heading-element">广告与跟踪器部分</h3><a id="广告与跟踪器部分" class="anchor" aria-label="Permalink: 广告与跟踪器部分" href="#广告与跟踪器部分"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>它是主窗口中的一个部分（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/251">#251</a>、<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/436">#436</a>），可以从弹出窗口“已拦截”下方的 <strong>打开广告与跟踪器</strong>、弹出窗口齿轮图标旁边的四个方块、右键菜单中的 <strong>广告与跟踪器…</strong>、边栏，或者在任一窗口打开时按 ⌘B 打开。顶部是 <strong>概览 | 日志</strong>，工具栏中的搜索（⌘F）对两者都有效。</p>
+<p><strong>概览：</strong></p>
+<ul>
+<li>
+<strong>在所选时间段内拦截了多少次</strong>（一天、一周、一月或一年，带 ‹ 今天 ›）。总数旁边的 ⓘ 说明如何计数，并按从多到少列出各列表的拦截次数（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/402">#402</a>）。之后关闭的列表仍保留它打开期间的拦截次数，并标为“已关闭”。只有在“概览”中工具栏才显示时间段：“日志”显示的是当下，因此在那里隐藏（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/311">#311</a>）。</li>
+<li>
+<strong>列表、两者或图表</strong>，位于工具栏的开头，就像“连接”中的列表、两者或地图（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/524">#524</a>）：只显示列表、列表在左而图表在右（默认，像“连接”中的列表和地图一样并排，<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/534">#534</a>），或者图表占满整个窗口。你的选择会被记住；在“日志”中它和时间段一起隐藏。</li>
+<li>
+<strong>一张图表</strong>，显示该时间段内的拦截次数，按小时、按天或按月，画法和读法与流量历史的图表相同（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/536">#536</a>）。把指针移到一根柱上，会显示它的时间和次数。点按一根柱，列表和总数就只显示那一小时或那一天，就像“连接”中的时间线一样：列表上方会出现它的标签，再点按这根柱、点按标签上的 × 或按 Esc，就会重新显示整个时间段。</li>
+<li>
+<strong>网站或应用</strong>，位于工具栏下方那一行的末尾，也就是“连接”和流量历史中“全部、Wi-Fi 或热点”所在的位置：<strong>网站</strong>，按一般人会称为网站的那部分名称（<code>doubleclick.net</code>）列出，下面是被阻止的具体名称；或者 <strong>应用</strong>，列出每个应用最常尝试的网站。一次显示一个列表，每个列表都占满窗口的宽度（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/524">#524</a>）。各行与流量历史中的行相同（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/536">#536</a>）：
+<ul>
+<li>
+<strong>点按一行</strong> 即可选中它：图表会在每根柱中显示它所占的部分（柱本身的颜色在下，其余在上），指针所指的柱也会显示它的次数。点按它的标签、再次点按这一行，或按 Esc（先取消选中的柱），即可取消选中。</li>
+<li>
+<strong>箭头</strong> 会展开一个网站的应用（尝试连接它的应用），或一个应用的网站，每项都有次数和最近一次拦截的时间；先显示前八项，之后是 <strong>显示全部</strong>。点按其中一项，图表会显示该网站在该应用中的拦截次数。</li>
+<li>
+<strong>右键点按</strong> 一行，与“日志”中相同：在所有应用中或只在它的应用中永不阻止或始终阻止它的网站，不再过滤它的应用，移除你为它创建的规则，或拷贝它的名称。</li>
+<li>
+<strong>键盘</strong>：点按一行后（或用 Tab 键移到列表上）：↑ 和 ↓ 选中上一行或下一行，→ 展开一行，← 收起它或回到它所在的那一行，取消选中后按空格键或 Return 键可再次选中它。</li>
+</ul>
+</li>
+<li>
+<strong>暂停：</strong> 暂停一小时或直到明天，对所有应用有效。列表保持选中，在此之前不会向过滤器发送任何列表，弹出窗口会显示已暂停。重新启动应用后仍然保持。<strong>每当连接</strong> <em>此网络</em> <strong>时</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/253">#253</a>）会在 Mac 所在的网络上关闭广告拦截，按路由器的身份识别（与“历史记录”识别网络的方式相同），每次连接那个网络时都会关闭；“你的规则”会列出这些网络， <strong>在此处打开</strong> 可以撤销。</li>
+</ul>
+<p><strong>日志</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/252">#252</a>），位于“概览”旁边：实时列出过滤器作出决定的每一个连接，最新的在最前，显示时间、应用、网站（或它的地址，如果没有任何东西给它命名，则标记为 <strong>无名称</strong>）、“已阻止”或“已放行”，并用平实的话说明原因（<em>在“广告和跟踪器”列表中</em>、<em>你的规则：永不阻止 example.com</em>、<em>已放行，尽管它在列表中</em>）。可以显示“全部”“已阻止”“在列表中”或“无名称”，也可以搜索。右键点按一行，可以在所有应用中或只在那个应用中永不阻止或始终阻止它的名称或整个网站，可以不再过滤它的应用，也可以移除你创建的规则。<strong>暂停</strong> 会让列表停止滚动， <strong>清除</strong> 会清空它，<strong>导出…</strong> 会将显示的内容存储为文本。它只在内存中保留最近的 5,000 条；不列出域名查询。打开广告拦截或某条规则后才会有内容，每次打开 NetworkMonitor 时都会重新开始。</p>
+<p><strong>列表</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/254">#254</a>），位于“广告与跟踪器”的设置中：哪些列表在拦截，以及每个列表今天拦截了什么（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/311">#311</a>）。</p>
+<ul>
+<li>
+<p><strong>内置：</strong> 上面的两个列表，在这里打开和关闭。</p>
+</li>
+<li>
+<p><strong>推荐</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/314">#314</a>），默认打开：<strong>HaGeZi Normal</strong> 和 <strong>OISD Big</strong>，由应用选定，这样就没有人需要在列表与网站故障之间权衡。两者合起来能拦截大部分广告和跟踪器；OISD 的目标是拦截广告而不破坏网站，HaGeZi Normal 是 HaGeZi 的通用级别，比 Pro 低一级，这一组合是常见的低故障配置。两者相互重叠，而不是相互冲突。两者共用一个开关；在“推荐”模式下，使用的列表跟随 <code>ListCatalogue.recommended</code>，因此以后的版本可能会更换。在 <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/314">#314</a> 之前已经选过列表的安装会保留原有选择。</p>
+</li>
+<li>
+<p><strong>高级</strong>，在“推荐”打开时折叠：所有列表，以及“添加列表”。在这里打开或关闭某个列表，或者添加列表，就会变成你自己的选择，从当前使用的列表开始；重新打开“推荐”会保留你的选择，供你再次关闭“推荐”时使用。</p>
+</li>
+<li>
+<p><strong>更多列表</strong>，位于“高级”下，在 Mac 上从制作者发布它们的地方下载，按主题分类：</p>
+<table>
+<thead>
+<tr>
+<th>主题</th>
+<th>列表</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>更多广告和跟踪器列表</td>
+<td>HaGeZi Light、Normal 和 Pro；OISD Small 和 Big；AdGuard DNS filter；Peter Lowe's list</td>
+</tr>
+<tr>
+<td>跟踪器</td>
+<td>EasyPrivacy，由 Firebog 提取</td>
+</tr>
+<tr>
+<td>弹出式广告</td>
+<td>HaGeZi Pop-up Ads</td>
+</tr>
+<tr>
+<td>恶意软件和网络钓鱼</td>
+<td>HaGeZi Threat Intelligence</td>
+</tr>
+</tbody>
+</table>
+<p>不提供任何阻止加密 DNS 的列表：它会阻止 iCloud 专用代理和浏览器自带的加密 DNS，让互联网服务提供商能看到你访问的网站（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/246">#246</a>、<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/287">#287</a>）。将指针悬停在列表上，可以看到维护者和许可证。这些列表是下载的而不是随应用附带的，因此可以提供 GPL 许可的列表；已签名的 <code>blocklists</code> 发布版只保留我们可以再发布的列表。</p>
+</li>
+<li>
+<p><strong>添加列表</strong> 接受任何列表的 <code>https://</code> 地址：hosts 文件、纯名称列表，或针对整个网站的 Adblock 规则（<code>||site^</code>，可带 <code>$important</code>；<code>@@||site^</code> 和 <code>$badfilter</code> 是例外）。针对网页部分内容的规则会被跳过；除此之外什么都没有的列表会被拒绝。它的名称取自 <code>Title:</code> 行，或者它所在的网站。</p>
+</li>
+<li>
+<p><strong>每个打开的列表每周下载一次</strong>，在广告拦截打开期间进行，在热点、按流量计费的连接或低数据模式下从不下载，并保留最后一份完好的副本。每一行会显示它有多少个网站、何时更新，或者为什么没有下载。右键点按可选择 <strong>立即更新</strong>、<strong>拷贝地址</strong>，对于你添加的列表还可以选择 <strong>移除</strong>。</p>
+</li>
+<li>
+<p><strong>它们只与内置列表一起拦截</strong>，排在内置列表之后：在 StevenBlack 列表上的网站计入 <em>广告和跟踪器</em>。“概览”和“日志”会写明拦截每个连接的列表，因此可以找出拦截过多的列表并将其关闭。</p>
+</li>
+<li>
+<p>“你的规则”中的 <strong>导入…</strong> 会打开 uBlock Origin 备份或 AdGuard 设置中包含、而这里也有的列表（Peter Lowe's、EasyPrivacy、AdGuard DNS filter），并按地址添加它们曾通过地址添加的列表。</p>
+</li>
+</ul>
+<p><strong>你的规则</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/253">#253</a>），位于“广告与跟踪器”的设置中“列表”的旁边：由你自己决定列表的作用。</p>
+<ul>
+<li>
+<strong>永不阻止</strong> 某个网站及其下的所有名称：即使列表中有它，也会放行。</li>
+<li>
+<strong>始终阻止</strong> 任何列表中都没有的网站。</li>
+<li>两者都可以针对 <strong>所有应用</strong> 或 <strong>某个应用</strong>，在网站旁边的菜单中选择。针对某个应用的规则跟随它的签名，与防火墙规则一样（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/320">#320</a>）：同一路径下由其他团队签名的程序不算这个应用，因此不会继承 <em>不过滤</em>。</li>
+<li>
+<strong>不过滤某个应用</strong>：广告和跟踪器列表不再处理它的任何连接，适用于因此出问题的应用。</li>
+<li>
+<strong>恶意软件列表仍然有效</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/317">#317</a>）：<em>永不阻止</em> 和 <em>不过滤</em> 改变的是广告、跟踪器和弹出式广告列表的作用，而内置的恶意软件列表以及 <em>恶意软件和网络钓鱼</em> 中下载的列表照常拦截它们列出的内容。如果仍要放行这样的网站，请在“连接”中对它设为“始终允许”。对于只被这些列表拦截的网站，“概览”不提供 <em>永不阻止</em>。</li>
+<li>输入一个网站，或者粘贴一个地址或一条规则（<code>https://ads.example.com/x</code>、<code>*.example.com</code>、<code>||example.com^</code>）：会从中读出名称。按下 Return 键会将它设为 <em>永不阻止</em>。</li>
+<li>在“概览”中右键点按某个网站可以永不阻止它，右键点按某个应用可以不再过滤它。</li>
+<li>
+<strong>导入…</strong> 可以从 <strong>uBlock Origin</strong>（它的备份文件：受信任的网站、我的过滤规则，以及它打开的列表）、 <strong>AdGuard</strong>（它导出的设置：允许列表、用户规则和它的过滤器），或者 Adblock 语法的规则中导入规则，可以选择文件，也可以粘贴。会先显示一份摘要，在你接受之前不会更改任何内容：
+<ul>
+<li>
+<code>||site^</code> 是 <em>始终阻止</em>，<code>@@||site^</code> 是 <em>永不阻止</em>，<code>$app=</code>（套装 ID、应用名称或路径）让它只针对某个应用， <code>@@*$app=…</code> 是 <em>不过滤</em>。hosts 文件中的行和单独的名称是 <em>始终阻止</em>。</li>
+<li>受信任的网站和允许列表会变为 <em>永不阻止</em>。在原来的工具中，它们表示“不阻止这个网站网页上的任何内容”；在这里，连接到该网站本身的连接会被放行，因为过滤器无法分辨是哪个网页发出的请求。</li>
+<li>它打开的列表会打开 NetworkMonitor 中也有的那些列表（广告和跟踪器、恶意软件，以及“列表”中的列表），它通过地址添加的列表也会以同样方式添加（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/254">#254</a>），其余的会列出名称，说明暂不提供。</li>
+<li>隐藏网页部分内容的规则（<code>##</code>、scriptlet）会被计为等待浏览器扩展（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/257">#257</a>）；针对网站部分内容的规则（路径、<code>$third-party</code>、<code>$domain=</code>）会被计为等待增强型广告拦截（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/256">#256</a>）；其他规则会列出，并说明为什么无法使用。</li>
+</ul>
+</li>
+<li>
+<strong>导出…</strong> 会用同样的语法存储你的规则，uBlock Origin 的“我的过滤规则”和 AdGuard 的用户规则都能接受，导入也能读回。</li>
+</ul>
+<p>它们只改变列表的作用，并且只在广告拦截打开时生效：“连接”中的防火墙规则仍然优先，<em>永不阻止</em> 也不会放行你的规则或模式会阻止的任何内容。决定顺序如下：某个应用的 <em>永不阻止</em>、某个应用的 <em>始终阻止</em>、所有应用的 <em>永不阻止</em>、所有应用的 <em>始终阻止</em>，然后是列表；每一类中名称较长的优先。<em>始终阻止</em> 阻止的内容与列表一起计数，记为 <strong>你的规则</strong>。</p>
+<p>概览读取“历史记录”中的 <code>list_blocks</code>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/250">#250</a>），因此从添加它的时候开始统计，保留时长与“历史记录”相同，“清除历史记录”会将它一并清除。</p>
+<p><strong>显示：已阻止</strong>，位于 <em>分组方式</em> 旁边，列出被阻止的内容，而不是已发送的内容：时间段、分组、搜索和地图都相同，但统计的是连接数而不是字节数。右键点按一项可以允许它。</p>
+<p>“连接”的设置中的 <strong>允许应用连接</strong> 有三个选项：</p>
+<ul>
+<li>
+<strong>任何地方</strong>，默认选项：除了你阻止的内容，一切都可以连接。</li>
+<li>
+<strong>询问我</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/129">#129</a>）：应用第一次连接某个公司时，它会等待，同时右上角的一个小面板会询问你。在托管服务商的网络上（例如 Amazon 或 Cloudflare 的网络），所有者说明不了什么，它会改为询问网站（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/199">#199</a>）。
+<ul>
+<li>
+<strong>面板会写明网站</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/199">#199</a>）：<em>Figma 想要连接到 api.segment.io</em>，然后是它属于谁、国家或地区和端口。对于通过地址连接的应用（例如 Chrome），名称取自连接的握手，在询问之前读取。</li>
+<li>
+<strong>范围：</strong> 网站（<code>segment.io</code> 及其下的所有名称）或整个公司。</li>
+<li>
+<strong>允许：</strong> <strong>一次</strong> 会放行这一次，一小时后再次询问；<strong>直到它退出</strong> 持续到该应用退出；<strong>始终</strong> 会创建一条规则。 <strong>阻止</strong> 会创建一条规则。由回答创建的规则只针对那个应用，并列在“连接”的设置中（“*.segment.io · 适用于 Figma，直到它退出”）。“允许”按钮的菜单还提供让该应用连接任何地方的选项。</li>
+<li>同一应用与同一公司或网站之间的所有连接都等待同一个问题；如果 30 秒内没有回答，它们就会继续，面板也会说明这一点。不会询问 macOS 或 Apple 的应用，NetworkMonitor 没有运行时也不会询问。</li>
+</ul>
+</li>
+<li>
+<strong>仅允许已授权的连接</strong>：所有应用都会被阻止，直到你允许它为止；macOS 和 Apple 自己的应用除外，除非你阻止它们，否则它们始终可以连接。它会先询问你，因为这也包括你的浏览器；然后“连接”会打开“已阻止”，你可以在那里通过右键点按逐个允许应用或公司。</li>
+</ul>
+<p>针对某个应用的规则优先于针对所有应用的规则：允许 <em>Amazon · 适用于 Slack</em>，同时阻止 <em>托管于 Amazon</em>，会放行 Slack，其他一律不放行。</p>
+<div class="markdown-heading"><h2 id="加密域名查询" class="heading-element">加密域名查询</h2><a id="加密域名查询" class="anchor" aria-label="Permalink: 加密域名查询" href="#加密域名查询"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>“连接”的设置中“域名查询”下的 <strong>加密域名查询</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/291">#291</a>），在你打开之前处于关闭状态，会通过 DNS over HTTPS 将 Mac 的 DNS 域名查询加密发送到 <strong>Cloudflare</strong>（1.1.1.1）、<strong>Quad9</strong>（9.9.9.9）或 <strong>Google</strong>（8.8.8.8）。不打开时，它们以未加密的方式发送到网络的 DNS 服务器，因此互联网服务提供商以及同一 Wi-Fi 上的任何人都能读取查询的每一个名称。</p>
+<ul>
+<li>
+<strong>它需要内容过滤器</strong>，由过滤器的系统扩展作为 DNS 代理来实现。macOS 会询问一次是否允许。</li>
+<li>
+<strong>查询结果原样返回</strong>，过滤器仍会读取其中的别名（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/255">#255</a>）。</li>
+<li>
+<strong>只有本地网络知道的名称留在本地网络：</strong> 单个名称（例如 <code>router</code>）、<code>.local</code>、<code>.lan</code>、<code>.home</code>、<code>.home.arpa</code>、 <code>.internal</code>、<code>.corp</code>，以及本地地址的反向查询。</li>
+<li>
+<strong>出错时保证能用。</strong> 解析服务器在 2.5 秒内没有应答的查询会像以前一样发送到网络的 DNS 服务器；连续三次后，一分钟内所有查询都会这样发送。通过 TCP 的查询很少见，会原样发送到网络的服务器。</li>
+<li>
+<strong>它会自我检查。</strong> 打开时，或者在已打开的状态下启动应用时，应用会查询一个哪里都不存在的名称：只要有应答，即使是“没有这个名称”，就说明查询正常。如果尝试三次都没有应答，而路由器有应答，它会自行关闭，并在开关下方说明原因。</li>
+<li>
+<strong>更新时会先关闭再打开</strong>，在替换扩展的前后进行，与过滤器一起（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/278">#278</a>）。</li>
+<li>自行加密域名查询的应用（例如开启了安全 DNS 的 Chrome）不受影响；ECH 从不受影响。</li>
+</ul>
+<div class="markdown-heading"><h2 id="占用多少资源" class="heading-element">占用多少资源</h2><a id="占用多少资源" class="anchor" aria-label="Permalink: 占用多少资源" href="#占用多少资源"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>几乎察觉不到。记录使用的是 <code>nettop</code> 本来就会报告的行，测得没有额外的 CPU 占用。记录的保留时长与流量历史相同（“流量历史”的设置中的 <strong>历史记录保留</strong>），并会随它一起清除。为服务器命名的数据让下载大小增加约 5.5 MB。</p>
+
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/connections.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+  </main>
+</div>
+<script>
+// 窄屏上，页面列表默认收起，放在正文上方。
+if (matchMedia('(max-width: 834px)').matches) document.querySelector('.docs-menu').removeAttribute('open');
+</script>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span>© 2026 Kevin Abou Hanna。NetworkMonitor 是采用 Apache 2.0 许可证的自由软件。macOS 是 Apple Inc. 的商标。</span>
+      <nav aria-label="项目链接">
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor">GitHub</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">版本发布</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">报告问题</a>
+        <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/LICENSE">许可证</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
