@@ -32,10 +32,12 @@
 //
 // It needs Accessibility and Screen Recording for the terminal it runs in. It
 // takes the `networkmonitor` and `screen` Mac lanes itself, only while it reads
-// or takes windows: never while it waits for Kevin to step away before a click
-// or a window brought forward (#504). It quits and relaunches the app, and
-// whenever it lets the lanes go, however the run ends, puts the installed copy
-// back running if it was (#506).
+// or takes windows (#504). A shot that needs a window brought forward or a real
+// click, while Kevin is using the Mac, isn't taken: it's reported as not taken,
+// and why, and never waited on unless asked (`--wait-away MINUTES`: silently,
+// with the lanes free). Kevin is never asked to step away (#521). It quits and
+// relaunches the app, and whenever it lets the lanes go, however the run ends,
+// puts the installed copy back running if it was (#506).
 // Build with `make site-shots`; see docs/development.md#website-pictures.
 
 import AppKit
@@ -673,6 +675,11 @@ struct Look {
 /// front, so it's asked for; `update` always does.
 nonisolated(unsafe) var compareLooks = false
 
+/// How long a run may wait, silently, for the Mac to be left idle or locked
+/// before it takes what needs the real screen (`--wait-away MINUTES`, #521).
+/// None by default: those shots are reported as not taken.
+nonisolated(unsafe) var waitAway: Double = 0
+
 /// What the tree masks in `window`, in screen points: each element's frame.
 func maskedFrames(_ window: AXUIElement, _ shot: Shot) -> [CGRect] {
     var frames: [CGRect] = []
@@ -741,9 +748,9 @@ func secondsIdle() -> Double {
     return idle
 }
 
-/// How long Kevin has to have stepped away before a run takes focus or moves
-/// the pointer (#475): MAC_LANE_IDLE seconds (90) with no keyboard or mouse,
-/// or the screen locked. MAC_LANE_IDLE=0 never waits.
+/// How long the Mac has to have been left alone before a run takes focus or
+/// moves the pointer (#475): MAC_LANE_IDLE seconds (90) with no keyboard or
+/// mouse, or the screen locked. MAC_LANE_IDLE=0 takes them whenever.
 let awayAfter = Double(ProcessInfo.processInfo.environment["MAC_LANE_IDLE"] ?? "") ?? 90
 
 func isAway() -> Bool { awayAfter <= 0 || secondsIdle() >= awayAfter }
@@ -820,7 +827,7 @@ func openApp(_ path: String, bundle: String, _ arguments: [String], until starte
 
 /// The Mac as a run uses it (#504, #506). The `networkmonitor` and `screen`
 /// lanes are held only while it reads or takes windows, never while it waits
-/// for Kevin to step away. Letting them go puts the app back: every copy quit,
+/// for the Mac to be idle (#521). Letting them go puts the app back: every copy quit,
 /// its windows' frames back where Kevin had them, and the installed copy
 /// running again if it was when they were taken, whichever copy the run used
 /// (`--app`).
@@ -881,22 +888,19 @@ final class Mac: @unchecked Sendable {
         releaseLanes()
     }
 
-    /// Waits, with the lanes free, until Kevin has stepped away, then takes them
-    /// for what needs him away; again if he came back while they were busy.
-    func holdOnceAway(_ what: String) throws {
+    /// Waits silently, with the lanes free, until Kevin happens to be away
+    /// (#521): he's never told or asked to step away. Then takes them for what
+    /// needs him away; again if he came back while they were busy. Gives up at
+    /// `deadline`, returning false, with the lanes free.
+    func holdOnceAway(_ what: String, until deadline: Date) throws -> Bool {
         if callerHolds { print("  (the lanes stay held meanwhile: the command that ran this holds them)") }
-        var told = false
         while true {
-            if !isAway() {
-                if !told, ProcessInfo.processInfo.environment["MAC_LANE_NOTIFY"] != "0" {
-                    runTool("/usr/bin/osascript", ["-e", "display notification \"site-shots will use the screen when you step away for "
-                        + "\(max(1, Int(awayAfter) / 60)) min\" with title \"Waiting for you to step away\""])
-                }
-                told = true
-                while !isAway() { sleep(5) }
+            while !isAway() {
+                if Date() >= deadline { return false }
+                sleep(5)
             }
             try hold(what)
-            if isAway() { return }
+            if isAway() { return true }
             // Back while the lanes were busy: let them go again, the app untouched.
             lock.withLock { savedFrames = nil }
             releaseLanes()
@@ -1831,13 +1835,21 @@ struct SiteShots {
         // One language only: `en`, or a language's code (#431). All of them otherwise.
         var only: String?
         // A check compares looks too (#423), which needs each window in
-        // front and active, so it waits until Kevin has stepped away (#475).
+        // front and active: only while Kevin is away (#475), so a look it
+        // can't take is reported as not taken (#521).
         if let i = args.firstIndex(of: "--look") { compareLooks = true; args.remove(at: i) }
+        if let i = args.firstIndex(of: "--wait-away"), i + 1 < args.count {
+            guard let minutes = Double(args[i + 1]), minutes >= 0, minutes <= 240 else {
+                print("--wait-away takes minutes, at most 240")
+                exit(2)
+            }
+            waitAway = minutes; args.removeSubrange(i...(i + 1))
+        }
         if let i = args.firstIndex(of: "--language"), i + 1 < args.count {
             only = args[i + 1]; args.removeSubrange(i...(i + 1))
         }
         guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "coverage-test", "readme", "record"].contains(command) else {
-            print("usage: site-shots check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE]")
+            print("usage: site-shots check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE] [--wait-away MINUTES]")
             exit(2)
         }
         let names = Set(args.dropFirst())
@@ -2189,10 +2201,14 @@ struct SiteShots {
 
         // Every window that needs nothing of Kevin first, behind the others
         // and without focus. A window to bring forward or click for real while
-        // he is at the Mac waits until the others are done; then the lanes go
-        // while the run waits for him to step away, and come back for those
-        // alone (#504).
+        // he is at the Mac isn't taken (#521): it's reported as not taken, and
+        // why, and the run goes on and ends as it would without it. Only with
+        // `--wait-away MINUTES` does it wait, silently and with the lanes free,
+        // in case he leaves or locks the Mac anyway, then takes those alone
+        // (#504).
         var queue = shots
+        var notTaken: [String] = []
+        let deadline = Date().addingTimeInterval(waitAway * 60)
         try mac.hold("reading windows")
         while true {
             cached = nil
@@ -2213,8 +2229,15 @@ struct SiteShots {
             if later.isEmpty { break }
             queue = later
             mac.letGo()
-            print("\n" + reasons.joined(separator: "; ") + ": waiting until you step away, lanes free")
-            try mac.holdOnceAway(later.map(\.name).joined(separator: ", ") + ", with Kevin away")
+            if waitAway > 0 {
+                print("\n" + reasons.joined(separator: "; ") + ": these need the screen while you're using it, so the run "
+                      + "waits up to \(String(format: "%g", waitAway)) min, silently with the lanes free, in case it's left idle or locked")
+            }
+            guard waitAway > 0, try mac.holdOnceAway(later.map(\.name).joined(separator: ", ") + ", with the Mac idle",
+                                                     until: deadline) else {
+                notTaken = reasons
+                break
+            }
         }
 
         if command == "update" {
@@ -2231,6 +2254,13 @@ struct SiteShots {
         if !flagged.isEmpty {
             print("\nThese show a window that changed since they were made. Remake them by hand, then run `update` with the window's name:")
             Set(flagged).sorted().forEach { print("  \($0)") }
+        }
+        // Not a failure, and nothing to hold a release or a review on (#521):
+        // what's left is said, and taken on a later run.
+        if !notTaken.isEmpty {
+            print("\nNot taken: they need the real screen (a window brought forward, or a real click), and the Mac was "
+                  + "in use. Their pictures and trees are as they were; a later run takes them (#521):")
+            notTaken.forEach { print("  " + $0) }
         }
         if command == "audit", !problems.isEmpty {
             // The same row repeats down a list; say it once.

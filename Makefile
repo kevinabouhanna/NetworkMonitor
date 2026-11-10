@@ -106,13 +106,15 @@ dmg-background:
 # The website's pictures of the app (#329). Both run against the installed app,
 # quitting and relaunching it, so both wait their turn in the Mac lanes (#342):
 # site-shots takes `networkmonitor` and `screen` itself, only while it reads or
-# takes windows, never while it waits for Kevin to step away (#504).
+# takes windows (#504). Kevin is never asked to step away (#521): what needs the real
+# screen while he's using the Mac is reported as not taken. WAIT=<minutes> waits up to
+# that long, silently with the lanes free, in case the Mac is left idle or locked.
 # They read the NetworkMonitor-site worktree beside the main checkout, found
 # through git so it works from any worktree, unless SITE says otherwise.
 # `site-check` says which pictures show a window whose interface changed;
 # `site-shots` retakes them (or those in NAMES) and updates the page.
 # LOOK=1 makes `site-check` compare each picture's look too (#423), which
-# brings each window forward, so those wait until the keyboard and mouse are idle.
+# brings each window forward: only while the Mac is idle, or they're reported as not taken.
 SITE ?= $(abspath $(dir $(shell git rev-parse --path-format=absolute --git-common-dir))../NetworkMonitor-site)
 # It shares the accessibility rules with the tests.
 build/site-shots: Scripts/site-shots.swift Sources/NetworkMonitorCore/AccessibilityAudit.swift
@@ -121,7 +123,7 @@ build/site-shots: Scripts/site-shots.swift Sources/NetworkMonitorCore/Accessibil
 
 site-check: build/site-shots
 	@build/site-shots coverage --site $(SITE)
-	@build/site-shots check $(if $(LOOK),--look) --site $(SITE) $(NAMES)
+	@build/site-shots check $(if $(LOOK),--look) $(if $(WAIT),--wait-away $(WAIT)) --site $(SITE) $(NAMES)
 
 # Every image, GIF and video the site, the README and the docs use is listed
 # with the window it shows, or why it shows none (#413). Files only, no app:
@@ -144,11 +146,12 @@ translation-check:
 translation-review:
 	@python3 -I Scripts/translation-review.py $(FROM) $(TO)
 
-# Retaking pictures brings each window forward, so it waits until Kevin steps away (#475): no
-# keyboard or mouse for 90 s (MAC_LANE_IDLE), or the screen locked. It reads the windows it
-# needn't retake first, and waits with the lanes free (#504). Run it in the background.
+# Retaking pictures brings each window forward (#475), so it does that only while the Mac is
+# idle: no keyboard or mouse for 90 s (MAC_LANE_IDLE), or the screen locked. Otherwise it
+# reports those pictures as not taken, and why, and ends as usual (#521); WAIT=<minutes>
+# waits up to that long first, silently with the lanes free (#504).
 site-shots: build/site-shots
-	@build/site-shots update --site $(SITE) $(NAMES)
+	@build/site-shots update $(if $(WAIT),--wait-away $(WAIT)) --site $(SITE) $(NAMES)
 
 # Records the trees of the windows in NAMES as they read now, without retaking
 # their pictures: after marking more of a window as data or ignored, such as
