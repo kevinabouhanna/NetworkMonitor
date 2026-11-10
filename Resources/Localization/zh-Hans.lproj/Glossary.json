@@ -57,6 +57,7 @@
     { "en": "Speed colors", "text": "网速颜色", "note": "the section that colours the live speeds, in the menu bar and on the Dock icon (#517). The speeds are 网速, as in 实时网速" },
     { "en": "Menu bar", "text": "菜单栏", "everywhere": true, "note": "macOS's own name for it" },
     { "en": "Dock", "text": "程序坞", "everywhere": true, "note": "macOS's own name for it" },
+    { "en": "Dock icon", "text": "程序坞图标", "note": "what the Dock icon shows in Dock mode: Speeds (网速) or App icon (应用图标) (#523)" },
 
     { "en": "Universal", "where": "docs", "text": "通用版（Apple 芯片和 Intel）", "note": "the download, on the website's download line" },
     { "en": "Accuracy and battery", "where": "docs", "text": "统计准确性与耗电量", "note": "the docs page's title" }

@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import NetworkMonitorCore
 
-/// Menu bar, Dock or both (#69), and the speeds drawn on the Dock icon.
+/// Menu bar, Dock or both (#69), and the Dock icon that is the speeds (#523).
 func runAppPlacementTests() {
     Check.suite("AppPlacement") {
 
@@ -20,9 +20,30 @@ func runAppPlacementTests() {
         }
 
         // The speeds are drawn on the Dock icon only where they aren't in the
-        // menu bar.
-        Check.test("only Dock mode draws the speeds on the Dock icon") {
-            Check.expectEqual(AppPlacement.allCases.filter(\.drawsSpeedsOnDock), [.dock])
+        // menu bar, and only when the Dock icon is to show them (#523).
+        Check.test("only Dock mode with Speeds draws the speeds on the Dock icon") {
+            Check.expectEqual(AppPlacement.allCases.filter { $0.drawsSpeedsOnDock(.speeds) }, [.dock])
+            Check.expectEqual(AppPlacement.allCases.filter { $0.drawsSpeedsOnDock(.appIcon) }, [])
+        }
+
+        Check.test("the Dock icon is the speeds by default, and the choice kept") {
+            let name = "AppPlacementTests-\(UUID().uuidString)"
+            let defaults = UserDefaults(suiteName: name)!
+            defer { defaults.removePersistentDomain(forName: name) }
+
+            let setting = AppPlacementSetting(defaults: defaults)
+            Check.expectEqual(setting.dockIcon, .speeds)
+            setting.placement = .dock
+            Check.expectTrue(setting.drawsSpeedsOnDock)
+            setting.dockIcon = .appIcon
+            Check.expectFalse(setting.drawsSpeedsOnDock)
+            Check.expectEqual(AppPlacementSetting(defaults: defaults).dockIcon, .appIcon)
+            AppPlacementSetting(defaults: defaults).dockIcon = .speeds
+            Check.expectNil(defaults.object(forKey: AppPlacementSetting.dockIconKey),
+                            "the default isn't saved, so a future default reaches everyone")
+            defaults.set("sideways", forKey: AppPlacementSetting.dockIconKey)
+            Check.expectEqual(AppPlacementSetting(defaults: defaults).dockIcon, .speeds,
+                              "an unknown value falls back to the speeds")
         }
 
         Check.test("the menu bar by default, and the choice kept") {
@@ -42,9 +63,9 @@ func runAppPlacementTests() {
         }
 
         // The widest figures there are, live and a speed test's, fit the
-        // plate across and down at every tile size, and stay big enough to
-        // read in the Dock.
-        Check.test("the Dock icon's speeds fit its plate") {
+        // icon's square across and down at every tile size, never overlap,
+        // and stay big enough to read in the Dock (#523).
+        Check.test("the Dock icon's speeds fit its square") {
             let widest = [
                 SpeedReadout(down: MenuBarTitle.downLine(999_000_000, unit: .bytes),
                              up: MenuBarTitle.upLine(0, unit: .bytes), tints: .live),
@@ -54,22 +75,67 @@ func runAppPlacementTests() {
                              up: "↑ \(ByteFormat.menuBarSpeed(45_000_000, unit: .bits))",
                              tints: MenuBarTints.testChoices[0]),
             ]
-            for side in [CGFloat(128), 256] {
+            for side in [CGFloat(32), 64, 128, 256] {
                 let bounds = NSRect(x: 0, y: 0, width: side, height: side)
-                let plate = NSRect(x: 0, y: 0, width: side * 824 / 1024, height: side * 0.42)
+                let square = DockSpeedView.squareRect(in: bounds)
                 for readout in widest {
-                    let font = DockSpeedView.font(for: readout, in: bounds)
-                    let lines = [readout.down, readout.up]
-                        .map { NSAttributedString(string: $0.replacingOccurrences(of: " ", with: "\u{2007}"),
-                                                  attributes: [.font: font]).size() }
-                    Check.expectTrue(lines.allSatisfy { $0.width <= plate.width },
-                                     "\(readout.down) is wider than the plate at \(side) pt")
-                    Check.expectTrue(lines.map(\.height).reduce(0, +) <= plate.height,
-                                     "two lines are taller than the plate at \(side) pt")
-                    Check.expectTrue(font.pointSize >= side * 0.11,
-                                     "\(font.pointSize) pt is too small to read on a \(side) pt tile")
+                    let layout = DockSpeedView.layout(for: readout, in: bounds)
+                    let boxes = layout.lines.flatMap { [$0.figureFrame, $0.unitFrame] }
+                    Check.expectEqual(layout.lines.map(\.unit).filter(\.isEmpty), [],
+                                      "\(readout.down) has no unit")
+                    Check.expectTrue(boxes.allSatisfy { square.contains($0) },
+                                     "\(readout.down) goes outside the square at \(side) pt")
+                    for (index, box) in boxes.enumerated() {
+                        for other in boxes[(index + 1)...] {
+                            Check.expectFalse(box.intersects(other),
+                                              "\(readout.down): two boxes overlap at \(side) pt")
+                        }
+                    }
+                    Check.expectTrue(layout.figureFont.pointSize >= side * 0.17,
+                                     "\(layout.figureFont.pointSize) pt is too small to read on a \(side) pt tile")
+                    // The same size whatever the figures, so it never jumps.
+                    let quiet = DockSpeedView.layout(for: SpeedReadout(down: MenuBarTitle.downLine(0),
+                                                                       up: MenuBarTitle.upLine(0), tints: .live),
+                                                     in: bounds)
+                    Check.expectEqual(Double(quiet.figureFont.pointSize), Double(layout.figureFont.pointSize))
+                    Check.expectEqual(Double(quiet.lines[0].figureOrigin.x), Double(layout.lines[0].figureOrigin.x))
                 }
             }
+        }
+
+        // The square follows light and dark, so the speed colors, made for a
+        // dark menu bar, are drawn darker on light, and any chosen too dark,
+        // lighter on dark: at least 3:1 against the square either way.
+        Check.test("the Dock icon's speeds read on light and on dark") {
+            func luminance(_ color: NSColor) -> Double {
+                let c = color.usingColorSpace(.sRGB)!
+                func linear(_ v: CGFloat) -> Double {
+                    let v = Double(v)
+                    return v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)
+                }
+                return 0.2126 * linear(c.redComponent) + 0.7152 * linear(c.greenComponent)
+                    + 0.0722 * linear(c.blueComponent)
+            }
+            func contrast(_ a: NSColor, _ b: NSColor) -> Double {
+                let (x, y) = (luminance(a), luminance(b))
+                return (max(x, y) + 0.05) / (min(x, y) + 0.05)
+            }
+            let chosenDark = MenuBarTints(down: MenuBarColors.color(hex: "#0A2A8A")!,
+                                          up: MenuBarColors.color(hex: "#333333")!)
+            for tints in [MenuBarTints.live, .blockingEverything, chosenDark] + MenuBarTints.testChoices {
+                for dark in [false, true] {
+                    for tint in [tints.down, tints.up] {
+                        let drawn = MenuBarColors.readable(tint, onDark: dark)
+                        Check.expectTrue(contrast(drawn, DockSpeedView.background(dark: dark)) >= 3,
+                                         "\(MenuBarColors.hex(tint)) doesn't read on \(dark ? "dark" : "light")")
+                    }
+                }
+            }
+            // On dark, the defaults are drawn as chosen.
+            Check.expectEqual(MenuBarColors.hex(MenuBarColors.readable(MenuBarTints.live.down, onDark: true)),
+                              MenuBarColors.hex(MenuBarTints.live.down))
+            Check.expectEqual(MenuBarColors.hex(MenuBarColors.readable(MenuBarTints.live.up, onDark: true)),
+                              MenuBarColors.hex(MenuBarTints.live.up))
         }
 
         // The menu bar draws what the readout says, so the two never differ.

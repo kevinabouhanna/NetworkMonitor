@@ -66,7 +66,7 @@ struct GeneralSettingsPane: View {
                 // Where the app shows (#69): one control with three choices,
                 // never neither. Takes effect at once.
                 ExplainedRow(L("Show NetworkMonitor in"),
-                             L("Menu bar: the live speeds in the menu bar, and a Dock icon only while a window is open. Dock: nothing in the menu bar; the speeds are drawn on the Dock icon, and its menu has what the menu bar item's menu has. Both: the menu bar item, and a Dock icon all the time.")) {
+                             L("Menu bar: the live speeds in the menu bar, and a Dock icon only while a window is open. Dock: nothing in the menu bar; the Dock icon shows the speeds or the app's icon, and its menu has what the menu bar item's menu has. Both: the menu bar item, and a Dock icon all the time.")) {
                     Picker(L("Show NetworkMonitor in"), selection: $placement.placement) {
                         ForEach(AppPlacement.allCases) { place in
                             Text(place.label).tag(place)
@@ -75,6 +75,21 @@ struct GeneralSettingsPane: View {
                     .pickerStyle(.segmented)
                     .labelsHidden()
                     .fixedSize()
+                }
+                // What the Dock icon shows (#523): only there while Dock is
+                // chosen, as Both keeps the app's icon and Menu bar has none.
+                if placement.placement == .dock {
+                    ExplainedRow(L("Dock icon"),
+                                 L("Speeds: the whole Dock icon is the live speeds, download over upload, in the speed colors. App icon: NetworkMonitor's own icon, with no speeds.")) {
+                        Picker(L("Dock icon"), selection: $placement.dockIcon) {
+                            ForEach(DockIcon.allCases) { icon in
+                                Text(icon.label).tag(icon)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                    }
                 }
             }
 
