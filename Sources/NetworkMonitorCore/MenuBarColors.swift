@@ -151,6 +151,48 @@ public final class MenuBarColors: ObservableObject {
         return ((l1 - l2) * (l1 - l2) + (a1 - a2) * (a1 - a2) + (b1 - b2) * (b1 - b2)).squareRoot()
     }
 
+    /// The darkest a colour is drawn on dark, and the lightest on light, in
+    /// OKLab lightness.
+    static let darkestOnDark = 0.72
+    static let lightestOnLight = 0.5
+
+    /// `color` made to read on a dark or a light background, keeping its hue:
+    /// the Dock icon follows light and dark (#523), while the speed colors
+    /// are made for the menu bar, usually dark. Only its lightness changes,
+    /// and only as far as it must, so the default green and grey are drawn
+    /// as chosen on dark, and as a deep green and a dark grey on light. Its
+    /// colourfulness gives way where the lightness has no room for it.
+    public static func readable(_ color: NSColor, onDark: Bool) -> NSColor {
+        let (l, a, b) = oklab(color)
+        let lightness = onDark ? max(l, darkestOnDark) : min(l, lightestOnLight)
+        guard lightness != l else { return color }
+        var chroma = 1.0
+        while chroma > 0 {
+            if let rgb = srgb(lightness, a * chroma, b * chroma) {
+                return NSColor(srgbRed: rgb.0, green: rgb.1, blue: rgb.2, alpha: 1)
+            }
+            chroma -= 0.02
+        }
+        let grey = srgb(lightness, 0, 0) ?? (lightness, lightness, lightness)
+        return NSColor(srgbRed: grey.0, green: grey.1, blue: grey.2, alpha: 1)
+    }
+
+    /// OKLab back to sRGB, or nil if it's outside what sRGB can show.
+    private static func srgb(_ l: Double, _ a: Double, _ b: Double) -> (CGFloat, CGFloat, CGFloat)? {
+        let l3 = pow(l + 0.3963377774 * a + 0.2158037573 * b, 3)
+        let m3 = pow(l - 0.1055613458 * a - 0.0638541728 * b, 3)
+        let s3 = pow(l - 0.0894841775 * a - 1.2914855480 * b, 3)
+        let linear = [4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3,
+                      -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3,
+                      -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3]
+        guard linear.allSatisfy({ $0 >= -0.0001 && $0 <= 1.0001 }) else { return nil }
+        let encoded = linear.map { value -> CGFloat in
+            let c = min(max(value, 0), 1)
+            return CGFloat(c <= 0.0031308 ? 12.92 * c : 1.055 * pow(c, 1 / 2.4) - 0.055)
+        }
+        return (encoded[0], encoded[1], encoded[2])
+    }
+
     /// Björn Ottosson's sRGB to OKLab conversion.
     private static func oklab(_ color: NSColor) -> (Double, Double, Double) {
         let srgb = color.usingColorSpace(.sRGB) ?? color

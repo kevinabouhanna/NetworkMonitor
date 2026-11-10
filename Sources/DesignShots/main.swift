@@ -28,6 +28,49 @@ func argument(_ name: String) -> String? {
 _ = NSApplication.shared
 NSApp.setActivationPolicy(.accessory)
 NSApp.finishLaunching()
+
+// `--dock-icons <dir>`: the Dock icon that is the speeds (#523), in light and
+// in dark, one strip each, on a stand-in for the Dock. Drawn as the Dock gets
+// it, one 256 px picture, and shrunk to the Dock's sizes as the Dock does.
+// Drawn offscreen, so it needs neither the screen nor the bundle.
+if let dockDirectory = argument("--dock-icons") {
+    let readouts = [
+        SpeedReadout(down: MenuBarTitle.downLine(12_340_000), up: MenuBarTitle.upLine(345_000), tints: .live),
+        SpeedReadout(down: MenuBarTitle.downLine(0), up: MenuBarTitle.upLine(0), tints: .live),
+        SpeedReadout(down: "↓ \(ByteFormat.menuBarSpeed(948_200_000, unit: .bits))",
+                     up: "↑ \(ByteFormat.menuBarSpeed(41_070_000, unit: .bits))", tints: MenuBarTints.testChoices[0]),
+        SpeedReadout(down: MenuBarTitle.downLine(2_100), up: MenuBarTitle.upLine(870), tints: .blockingEverything),
+    ]
+    let sides: [CGFloat] = [32, 48, 58, 64, 96, 128]
+    let gap: CGFloat = 16
+    let width = (sides.reduce(0, +) + gap * CGFloat(sides.count)) * CGFloat(readouts.count) + gap
+    let height = sides.max()! + 2 * gap
+    try? FileManager.default.createDirectory(atPath: dockDirectory, withIntermediateDirectories: true)
+    for dark in [false, true] {
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(width * 2), pixelsHigh: Int(height * 2),
+                                   bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                   colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        rep.size = NSSize(width: width, height: height)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSColor(white: dark ? 0.2 : 0.86, alpha: 1).setFill()
+        NSRect(x: 0, y: 0, width: width, height: height).fill()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        var x = gap
+        for readout in readouts {
+            let tile = DockSpeedView.image(readout, side: 128, dark: dark)
+            for side in sides {
+                tile.draw(in: NSRect(x: x, y: gap, width: side, height: side))
+                x += side + gap
+            }
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        let file = URL(fileURLWithPath: dockDirectory).appendingPathComponent("dock-\(dark ? "dark" : "light").png")
+        try? rep.representation(using: .png, properties: [:])?.write(to: file)
+        print(file.path)
+    }
+    exit(0)
+}
 guard CGPreflightScreenCaptureAccess() else {
     FileHandle.standardError.write("needs Screen Recording for the terminal it runs in\n".data(using: .utf8)!)
     exit(1)

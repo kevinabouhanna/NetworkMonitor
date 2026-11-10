@@ -644,9 +644,13 @@
 "Show speeds in" = "速度显示单位";
 "In the menu bar or on the Dock icon, and in the speed test. Data you've used is always counted in MB and GB, the way data plans are sold." = "用于菜单栏或程序坞图标，以及网速测试。已用的流量始终以 MB 和 GB 计算，与流量套餐的计算方式相同。";
 "Show NetworkMonitor in" = "NetworkMonitor 显示在";
-"Menu bar: the live speeds in the menu bar, and a Dock icon only while a window is open. Dock: nothing in the menu bar; the speeds are drawn on the Dock icon, and its menu has what the menu bar item's menu has. Both: the menu bar item, and a Dock icon all the time." = "菜单栏：实时网速显示在菜单栏中，只有打开窗口时才有程序坞图标。程序坞：菜单栏中不显示任何内容；网速显示在程序坞图标上，它的菜单包含菜单栏项目菜单中的所有内容。两者：既有菜单栏项目，也始终有程序坞图标。";
+"Menu bar: the live speeds in the menu bar, and a Dock icon only while a window is open. Dock: nothing in the menu bar; the Dock icon shows the speeds or the app's icon, and its menu has what the menu bar item's menu has. Both: the menu bar item, and a Dock icon all the time, showing the app's icon or the speeds." = "菜单栏：实时网速显示在菜单栏中，只有打开窗口时才有程序坞图标。程序坞：菜单栏中不显示任何内容；程序坞图标显示网速或应用图标，它的菜单包含菜单栏项目菜单中的所有内容。两者：既有菜单栏项目，也始终有程序坞图标，显示应用图标或网速。";
 "Menu bar" = "菜单栏";
 "Dock" = "程序坞";
+"Dock icon" = "程序坞图标";
+"Speeds: the whole Dock icon is the live speeds, download over upload, in the speed colors. App icon: NetworkMonitor's own icon, with no speeds. Dock and Both each keep their own choice: Speeds to begin with in Dock, App icon in Both." = "网速：整个程序坞图标显示实时网速，下载在上、上传在下，使用网速颜色。应用图标：NetworkMonitor 自己的图标，不显示网速。程序坞和两者各自保留自己的选择：程序坞一开始为网速，两者一开始为应用图标。";
+"Speeds" = "网速";
+"App icon" = "应用图标";
 "Download" = "下载";
 "Upload" = "上传";
 "During a speed test" = "网速测试期间";
