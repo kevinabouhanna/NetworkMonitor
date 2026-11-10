@@ -492,7 +492,7 @@ footer a { color: var(--text-2); }
         <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>下载 Mac 版</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">在 GitHub 上查看</a>
       </div>
-      <p class="hero-meta reveal d3"><span>版本 1.28.3</span><span>macOS 13 或更高版本</span><span>Apple 芯片和 Intel</span><span>免费且开源</span></p>
+      <p class="hero-meta reveal d3"><span>版本 1.29.0</span><span>macOS 13 或更高版本</span><span>Apple 芯片和 Intel</span><span>免费且开源</span></p>
       <div class="featured reveal d3">
         <a href="https://www.trymacapps.com" target="_blank" rel="noopener">
           <img
@@ -603,7 +603,7 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <p class="eyebrow reveal">在菜单栏中</p>
       <h2 class="h2 reveal d1">两行数字。<br>每秒两次。</h2>
-      <p class="lead reveal d2" style="max-width:700px;margin-inline:auto">下载是绿色，上传是白色：和图标上的两个箭头一样，也可以<strong>换成你选的颜色</strong>。读数<strong>宽度固定</strong>，数字变化时，旁边的图标不会跟着晃动。它可以按字节计数，也就是流量套餐使用的单位；也可以按比特计数，也就是宽带销售时使用的单位。<strong>由你选择</strong>，网速测试也会跟着使用同样的单位。想让菜单栏保持清爽？可以改为显示在<strong>程序坞</strong>中，同样的网速会显示在它的图标上；也可以两处都显示。</p>
+      <p class="lead reveal d2" style="max-width:700px;margin-inline:auto">下载是绿色，上传是白色：和图标上的两个箭头一样，也可以<strong>换成你选的颜色</strong>。读数<strong>宽度固定</strong>，数字变化时，旁边的图标不会跟着晃动。它可以按字节计数，也就是流量套餐使用的单位；也可以按比特计数，也就是宽带销售时使用的单位。<strong>由你选择</strong>，网速测试也会跟着使用同样的单位。想让菜单栏保持清爽？可以改为显示在<strong>程序坞</strong>中，整个图标都可以显示实时网速；也可以两处都显示。</p>
       <figure class="menubar-shot reveal" style="margin-bottom:0">
         <img src="../assets/menubar.png?v=905a75c6" width="652" height="60" loading="lazy"
              alt="macOS 菜单栏的一段：NetworkMonitor 显示下载 2.61 MB/s、上传 117.0 KB/s，位于麦克风图标与音量、蓝牙、80% 电池和 Wi‑Fi 图标之间。">
@@ -778,7 +778,7 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>看看它拦下了什么。</h3>
-          <p><b>广告与跟踪器</b>有自己的部分：一天、一周、一个月或一年内拦截了多少（一个总数，各列表的拦截次数在它旁边的 ⓘ 中），随时间的变化，以及被拦截最多的网站和应用。它的<b>日志</b>会在每个连接被判定时显示出来，并说明原因；每个列表也会显示它拦截了什么，所以很容易找出拦截过多的那个列表。弹出窗口会显示今天、本周或本月拦截了多少，“连接”会给每个被列入的服务器标上<b>广告</b>或<b>恶意软件</b>。</p>
+          <p><b>广告与跟踪器</b>有自己的部分：一天、一周、一个月或一年内拦截了多少（一个总数，各列表的拦截次数在它旁边的 ⓘ 中），以及被拦截最多的网站或应用，以列表、图表或两者并排显示。点按一根柱，即可查看那一小时或那一天；展开一个网站或应用，即可看到背后的内容以及最近一次拦截的时间。它的<b>日志</b>会在每个连接被判定时显示出来，并说明原因；每个列表也会显示它拦截了什么，所以很容易找出拦截过多的那个列表。弹出窗口会显示今天、本周或本月拦截了多少，“连接”会给每个被列入的服务器标上<b>广告</b>或<b>恶意软件</b>。</p>
         </div>
         <div class="reveal">
           <h3>自动保持最新。</h3>
@@ -844,11 +844,11 @@ footer a { color: var(--text-2); }
         <div class="prefs-window">
           <div role="tablist" aria-label="各部分" aria-orientation="vertical">
             <button class="prefs-tab" id="prefs-tab-history" role="tab" type="button" aria-selected="true" aria-controls="prefs-panel" data-pane="history" style="--x:-640;--y:58;--w:170;--h:32"
-                    data-caption="每个应用和每个网络每小时用了多少，可按日、周、月或年查看。数据保存在你的 Mac 上。">流量历史</button>
+                    data-caption="每个应用和每个网络每小时用了多少，可按日、周、月或年查看，以列表、图表或两者并排显示。数据保存在你的 Mac 上。">流量历史</button>
             <button class="prefs-tab" id="prefs-tab-connections" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="connections" style="--x:-640;--y:92;--w:170;--h:32"
                     data-caption="你的应用在和谁通信，以列表和世界地图显示，或者被阻止了什么。">连接</button>
             <button class="prefs-tab" id="prefs-tab-shield" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="shield" style="--x:-640;--y:126;--w:170;--h:32"
-                    data-caption="所选时间段内拦截了什么，有图表，并按网站和应用列出。它的“日志”显示每个连接，以及对它作出的决定。">广告与跟踪器</button>
+                    data-caption="所选时间段内按网站或应用拦截了什么，以列表、图表或两者并排显示。它的“日志”显示每个连接，以及对它作出的决定。">广告与跟踪器</button>
             <button class="prefs-tab" id="prefs-tab-network" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="network" style="--x:-640;--y:160;--w:170;--h:32"
                     data-caption="你正在使用的连接、它是不是热点、在热点上会暂停什么和不能暂停什么，以及网速测试。点按一个列表即可展开。">网络</button>
             <button class="prefs-tab" id="prefs-tab-settings" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="settings" style="--x:-640;--y:760;--w:170;--h:32"
@@ -951,7 +951,7 @@ footer a { color: var(--text-2); }
           <p>和安装其他 Mac 应用一样：打开磁盘映像，把 NetworkMonitor 拖到<strong>应用程序</strong>文件夹中。</p>
           <div class="get">
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>下载 NetworkMonitor.dmg</a>
-            <span class="meta">版本 1.28.3 · 14.5 MB · 通用版（Apple 芯片和 Intel）</span>
+            <span class="meta">版本 1.29.0 · 14.9 MB · 通用版（Apple 芯片和 Intel）</span>
           </div>
           <p class="brew">也可以用 <a href="https://brew.sh">Homebrew</a> 安装： <code>brew install --cask kevinabouhanna/tap/networkmonitor</code></p>
           <figure class="dmg-shot" style="margin-bottom:0">
@@ -969,7 +969,7 @@ footer a { color: var(--text-2); }
       </div>
 
       <div class="ctas reveal">
-        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.28.3">1.28.3 版的新内容</a>
+        <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.29.0">1.29.0 版的新内容</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/README.zh-Hans.md">文档</a>
         <a class="more" href="https://github.com/kevinabouhanna/NetworkMonitor">在 GitHub 上查看</a>
       </div>
