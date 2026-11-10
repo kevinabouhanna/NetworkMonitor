@@ -270,8 +270,11 @@ are kept apart differently:
   - a `pkill` that stops every copy of the app;
   - the pointer and the screen.
 
-  `Scripts/mac-lane.sh` runs whatever touches those one at a time, across every worktree,
-  session and project, with one lane per shared part:
+  `mac-lane` runs whatever touches those one at a time, across every worktree, session and
+  project, with one lane per shared part. It's on PATH from the `shared-mac` plugin
+  (kevinabouhanna/claude-parallel-sessions#3), one copy for every project;
+  `Scripts/mac-lane.sh` is the fallback for GitHub's runners and hands over to it when it's
+  there:
   - **`networkmonitor`**: the app, filter, helper and settings. `install.sh`,
     `uninstall.sh`, `install-helper.sh`, `smoke-test.sh`, `review-build.sh` and `make run`
     take it themselves.
@@ -281,7 +284,7 @@ are kept apart differently:
   Other projects have their own app lanes (`home-control`), so a review build here
   doesn't hold up their installs. A second caller waits, and is told who holds the lane
   and for how long. The lock is the kernel's, so it goes when its holder dies.
-  `Scripts/mac-lane.sh status` lists every lane. `install.sh` builds and notarizes before
+  `mac-lane status` lists every lane. `install.sh` builds and notarizes before
   taking the lane, so the lane is held only for stopping, copying and starting the app.
 - **Ports.** Local test servers take a port the system picks (see
   [Launch arguments](#launch-arguments)).
@@ -439,8 +442,14 @@ Each must be one of these:
   other pictures. Each is listed under `assets` with the shots whose windows it `shows`:
   - in `shots/shots.json` on `gh-pages`, for the site's;
   - in `Resources/README/assets.json` on `main`, for the README's and the docs'.
-- **Showing no window this tool can check:** listed with `none` and why. Icons, the menu
-  bar strip, the disk image's window.
+- **Showing no window this tool can check:** listed with `none` and why. Icons, the disk
+  image's window.
+
+The menu bar readout is a shot with no picture of its own, `menubar` (#424), so the
+strip made by hand (`assets/menubar.png`) `shows` it. Its window is `AXMenuBarItem`,
+the status item: the tree keeps its name, the rates as VoiceOver reads them ("Download
+# ‹unit›, upload # ‹unit›") and its width, which is the same in bits or bytes, so a new
+layout or a new line in it is named. A new colour or arrow at the same width isn't.
 
 It also fails on an entry that nothing uses, a file that doesn't exist, or a window that
 isn't a shot. CI runs it on every pull request into `main` and into `gh-pages`, and
@@ -680,6 +689,7 @@ A development build reads a few launch arguments for that run only; nothing pers
 |---|---|
 | `-powerProfile balanced` (or `performance`, `saver`) | measures a power profile without unplugging (below) |
 | `-open history` (or `connections`, `ads`, `network`), `-open ads -tab log` (or `rules`, `lists`, in its settings), `-open welcome`, `-open popover`, `-open about`, `-open settings`, `-open settings -pane history` (a section's settings; `hotspot` opens Network, `speedTest` Network's settings) | opens a window straight away, for a screenshot or a check |
+| `-background YES`, with `-open` | opens the window behind every other one and doesn't activate the app, so a check never takes focus (it shows in the Dock meanwhile) (#475; `site-shots check`, `audit` and `tree` pass it). The popover still activates the app |
 | `-open popover -popoverScreen retina` | opens the popover on a Retina screen's menu bar rather than the main screen's, for a full-resolution capture (#360) |
 | `-geoDataURL http://127.0.0.1:PORT/ -geoDataCheckNow YES` | fetches the monthly data from a local package, at once (#121) |
 | `-updateFeedURL http://127.0.0.1:PORT/appcast.xml -checkForUpdatesNow YES` | checks a local appcast for an update, at once (#132) |
@@ -693,7 +703,7 @@ above (#342).
 
 A development build shares its settings and data with the installed app, so run it
 in its Mac lane (`Scripts/mac-lane.sh`, see [Working in parallel](#working-in-parallel)):
-`MAC_LANE=networkmonitor Scripts/mac-lane.sh open -W -n build/NetworkMonitor.app --args …` holds the lane
+`MAC_LANE=networkmonitor mac-lane open -W -n build/NetworkMonitor.app --args …` holds the lane
 until that copy quits.
 
 ## Measuring power
@@ -702,14 +712,14 @@ Measure a power profile without unplugging, using a launch argument that's read 
 that run:
 
 ```sh
-open -n build/NetworkMonitor.app --args -powerProfile balanced   # or performance, saver
+open -g -n build/NetworkMonitor.app --args -powerProfile balanced   # or performance, saver
 ```
 
 Open a window straight away, for a screenshot or a quick check, the same way:
 
 ```sh
-open -n build/NetworkMonitor.app --args -open connections
-open -n build/NetworkMonitor.app --args -open settings -pane history   # any section's settings
+open -g -n build/NetworkMonitor.app --args -open connections
+open -g -n build/NetworkMonitor.app --args -open settings -pane history   # any section's settings
 ```
 
 Then time the CPU of the app and its `nettop` child with `ps -o time=` over a couple of

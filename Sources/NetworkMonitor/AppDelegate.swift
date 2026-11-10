@@ -207,7 +207,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Title construction lives in `MenuBarTitle` so its width-stability and
     /// menu-bar-fit invariants are covered by the test suite.
     private func applyTitle() {
-        statusItem.button?.image = model.menuBarImage
+        guard let button = statusItem.button else { return }
+        button.image = model.menuBarImage
+        // The readout is a picture, so VoiceOver had nothing to read but
+        // "image" (#424): the app's name, and the rates in words. It's also
+        // what `make site-check` compares for the menu bar's picture.
+        button.setAccessibilityLabel("NetworkMonitor")
+        button.setAccessibilityValue(model.menuBarSpoken)
     }
 
     private func observeTitle() {
@@ -878,6 +884,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private func present(_ window: NSWindow, reposition: Bool = true) {
         NSApp.mainMenu = mainMenu
         NSApp.setActivationPolicy(.regular)
+
+        // `-background YES` (#475): a check that only reads the window's
+        // accessibility tree opens it behind every other window and never
+        // activates the app. It still turns regular, as an accessory app's
+        // window has a zoom button where this one has full screen, and the
+        // tree would differ from the one recorded with the picture.
+        if UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)["background"] != nil {
+            if reposition { position(window) }
+            window.orderBack(nil)
+            return
+        }
 
         // Re-position on every open: the window may have been moved, or opened on
         // a different screen since last time.
