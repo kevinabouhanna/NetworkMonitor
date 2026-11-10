@@ -36,23 +36,37 @@ struct ConnectionsMap: View {
                     state.pointer = location
                     state.hovered = WorldShapes.shared?.country(at: frame.world(location),
                                                                 dotRadius: 8 / frame.scale)
+                    state.overHome = homeShape.map {
+                        let origin = frame.point($0.label)
+                        return hypot(location.x - origin.x, location.y - origin.y) <= 8
+                    } ?? false
                 case .ended:
                     state.hovered = nil
+                    state.overHome = false
                 }
             }
         }
         .background(Color.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(L("World map of %@ countries your apps reached. The list has the same, country by country.",
-                              String(model.geography.countries.count)))
+        .accessibilityLabel(accessibilityLabel)
         .onAppear { model.mapDidAppear() }
         .onDisappear { model.mapDidDisappear() }
     }
 
-    /// Where the lines start: the Mac's Region setting, never Location.
+    /// Where the lines start: the Mac's country, from Location, its own
+    /// internet address or its Region setting (#231).
     private var homeShape: WorldShapes.Shape? {
-        model.homeCountry.flatMap { WorldShapes.shared?.byCode[$0] }
+        model.home.flatMap { WorldShapes.shared?.byCode[$0.code] }
+    }
+
+    /// The map in a sentence, then where its lines start, which hovering the
+    /// ring shows.
+    private var accessibilityLabel: String {
+        let map = L("World map of %@ countries your apps reached. The list has the same, country by country.",
+                    String(model.geography.countries.count))
+        guard let home = model.home else { return map }
+        return map + " " + L("%@: the lines start there.", home.description())
     }
 
     // MARK: Drawing
@@ -179,7 +193,11 @@ struct ConnectionsMap: View {
             }
         }
         .padding(8)
-        if let code = state.hovered {
+        if state.overHome, let home = model.home {
+            homeCard(home)
+                .position(cardPosition(in: frame.size, height: 44))
+                .allowsHitTesting(false)
+        } else if let code = state.hovered {
             card(code)
                 .position(cardPosition(in: frame.size))
                 .allowsHitTesting(false)
@@ -246,9 +264,24 @@ struct ConnectionsMap: View {
         .shadow(radius: 3, y: 1)
     }
 
+    /// Over the starting point: which country, and where that came from, so
+    /// a wrong one can be understood (#231).
+    private func homeCard(_ home: HomeCountry) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            if let flag = ConnectionsReport.flag(home.code) { Text(flag) }
+            Text(home.description())
+                .font(.system(size: 11))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(8)
+        .frame(width: 210, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .shadow(radius: 3, y: 1)
+    }
+
     /// Beside the pointer, and kept inside the map.
-    private func cardPosition(in size: CGSize) -> CGPoint {
-        let width: CGFloat = 210, height: CGFloat = 130
+    private func cardPosition(in size: CGSize, height: CGFloat = 130) -> CGPoint {
+        let width: CGFloat = 210
         var x = state.pointer.x + 16 + width / 2
         if x + width / 2 > size.width { x = state.pointer.x - 16 - width / 2 }
         let y = min(max(state.pointer.y, height / 2 + 4), size.height - height / 2 - 4)
@@ -319,6 +352,8 @@ final class ConnectionsMapState: ObservableObject {
     @Published var zoom: CGFloat = 1
     @Published var pan: CGSize = .zero
     @Published var hovered: String?
+    /// Over the ring where the lines start.
+    @Published var overHome = false
     @Published var pointer: CGPoint = .zero
     var zoomAtStart: CGFloat = 1
     var panAtStart: CGSize = .zero
@@ -392,10 +427,12 @@ final class WorldShapes {
         return WorldShapes(map)
     }()
 
+    let map: WorldMap
     let countries: [Shape]
     let byCode: [String: Shape]
 
     init(_ map: WorldMap) {
+        self.map = map
         countries = map.countries.map { country in
             var path = Path()
             for ring in country.rings {

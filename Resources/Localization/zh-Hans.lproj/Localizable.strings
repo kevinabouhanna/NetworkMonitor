@@ -308,6 +308,10 @@
 
 /* ConnectionsMap.swift */
 "World map of %@ countries your apps reached. The list has the same, country by country." = "世界地图，显示你的应用访问过的 %@ 个国家或地区。列表中按国家或地区列出了相同的内容。";
+"Your Mac, in %@ (from Location)" = "你的 Mac，位于%@（来自定位服务）";
+"Your Mac, in %@ (from its internet address)" = "你的 Mac，位于%@（来自它的互联网地址）";
+"Your Mac, in %@ (from your Mac's Region setting)" = "你的 Mac，位于%@（来自 Mac 的“地区”设置）";
+"%@: the lines start there." = "%@：线条从这里开始。";
 "Zoom out" = "缩小";
 "Zoom in" = "放大";
 "The whole world" = "显示整个世界";
@@ -599,7 +603,7 @@
 "Not only the apps listed here: any app's updater is stopped while you're on a hotspot. It turns on the same thing as seeing which websites your apps visit." = "不只是这里列出的应用：使用热点时，任何应用的更新程序都会被停止。它打开的功能与“查看你的应用访问了哪些网站”相同。";
 "Any app's updater is stopped while you're on a hotspot, including ones listed as can't be paused when they update with a program of their own. Choose Blocked in Connections to see them." = "使用热点时，任何应用的更新程序都会被停止，包括那些用自己的程序更新、被列为“不能暂停”的应用。在“连接”中选择“已阻止”即可查看。";
 "Know your Wi-Fi networks by name" = "按名称识别你的 Wi-Fi 网络";
-"Usage History calls them Home and Office, not “Wi-Fi · 3f2a”. macOS calls this Location, but NetworkMonitor never looks up where you are." = "“流量历史”会显示“家”和“办公室”这样的名称，而不是“Wi-Fi · 3f2a”。macOS 把这项权限称为“定位服务”，但 NetworkMonitor 从不查询你的位置。";
+"Usage History calls them Home and Office, not “Wi-Fi · 3f2a”. macOS calls this Location. NetworkMonitor also uses it to find your country for the Connections map, and keeps only the country." = "“流量历史”会显示“家”和“办公室”这样的名称，而不是“Wi-Fi · 3f2a”。macOS 把这项权限称为“定位服务”。NetworkMonitor 还会用它为“连接”地图确定你所在的国家或地区，并且只保留国家或地区。";
 "In System Settings, scroll down to Network Extensions, click ⓘ, and switch on NetworkMonitor." = "在“系统设置”中，向下滚动到“网络扩展”，点按 ⓘ，然后打开 NetworkMonitor。";
 "Click Allow when macOS asks." = "macOS 询问时，点按“允许”。";
 "In System Settings, switch on Location Services for NetworkMonitor." = "在“系统设置”中，为 NetworkMonitor 打开“定位服务”。";

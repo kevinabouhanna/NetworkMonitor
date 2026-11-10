@@ -139,6 +139,20 @@ public enum AccessibilityAudit {
         onOwnWindow(titled: title, outline) ?? []
     }
 
+    /// Every name in the window, whatever its role: for what VoiceOver reads
+    /// off a whole element, such as the Connections map (#231).
+    public static func namesOwnWindow(titled title: String) -> [String] {
+        onOwnWindow(titled: title) { window in
+            var out: [String] = []
+            func walk(_ e: AXUIElement) {
+                if let name = name(of: e) { out.append(name) }
+                children(e).forEach(walk)
+            }
+            walk(window)
+            return out
+        } ?? []
+    }
+
     static func onOwnWindow<T>(titled title: String, _ body: (AXUIElement) -> T) -> T? {
         precondition(Thread.isMainThread, "read this process's windows on the main thread (#488)")
         let app = AXUIElementCreateApplication(getpid())

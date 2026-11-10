@@ -321,6 +321,25 @@ func runWorldMapTests() {
             Check.expectFalse(country("FR").map { WorldMap.contains(point(35.90, 33.85), rings: $0.rings) } ?? true)
         }
 
+        // Where the Mac is, from Location, without asking Apple (#231).
+        Check.test("a longitude and latitude name the country they're in") {
+            let places: [(String, Double, Double, String?)] = [
+                ("Zahlé", 35.90, 33.85, "LB"),
+                ("Beirut, on a coast the outline cuts", 35.50, 33.89, "LB"),
+                ("Paris", 2.35, 48.86, "FR"),
+                ("New York", -74.00, 40.71, "US"),
+                ("Rome, beside Vatican City's dot", 12.48, 41.89, "IT"),
+                ("Saint-Denis, Réunion, inside France's outline", 55.45, -20.88, "RE"),
+                ("Cayenne, French Guiana", -52.33, 4.92, "GF"),
+                ("Manama, Bahrain, a dot", 50.58, 26.22, "BH"),
+                ("Shenzhen, near Macau's dot", 114.06, 22.54, "CN"),
+                ("the middle of the Atlantic", -35.0, 30.0, nil),
+            ]
+            for (name, longitude, latitude, expected) in places {
+                Check.expectEqual(map.country(longitude: longitude, latitude: latitude), expected, name)
+            }
+        }
+
         Check.test("places drawn inside another country are dots of their own") {
             Check.expectEqual(country("RE")?.isDot, true)
             Check.expectEqual(country("SJ")?.isDot, true)

@@ -49,7 +49,13 @@ the list until you widen the window.
 - **Hover a country** for a card with its top companies. **Click it** to narrow
   everything to it.
 - **Narrow to a company, app or server**, and lines run from your country to where its
-  data went. Your country comes from the Mac's Region setting, never from Location.
+  data went. Your country is the first of these that knows (#231): **Location**, when
+  NetworkMonitor already has it for Wi-Fi names (it never asks for it just for this);
+  your Mac's **own internet address**, when it holds one the internet sees, such as an
+  IPv6 address; or your Mac's **Region setting**. Hover the ring where the lines start
+  to see which: *Your Mac, in Lebanon (from Location)*. Nothing is looked up online:
+  the place Location gives is turned into a country with the map's own outlines, and
+  only the country is kept.
 - **Lines pulse to the countries your apps reach right now** whenever the map shows
   traffic for a period that includes now, with no switch to turn on (#182). Only the
   pulses redraw on their own, and nothing runs while Connections isn't on screen
