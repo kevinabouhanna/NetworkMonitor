@@ -33,11 +33,20 @@ if [ -d "$TARGET" ]; then
   ditto -c -k --keepParent "$TARGET" "$SUBMIT"
 fi
 
-echo "==> Notarizing $(basename "$TARGET")"
-RESULT="$(xcrun notarytool submit "$SUBMIT" "${AUTH[@]}" --wait --output-format json)"
+# Waits for Apple's verdict, but not forever (#483): NOTARY_TIMEOUT (2h; 3600, 60m, 1h…).
+WAIT="${NOTARY_TIMEOUT:-2h}"
+echo "==> Notarizing $(basename "$TARGET") (waiting up to $WAIT)"
+if ! RESULT="$(xcrun notarytool submit "$SUBMIT" "${AUTH[@]}" --wait --timeout "$WAIT" --output-format json)"; then
+  echo "error: notarytool failed, or Apple gave no verdict within $WAIT: ${RESULT:-no answer}" >&2
+  exit 1
+fi
 STATUS="$(plutil -extract status raw -o - - <<<"$RESULT")"
 ID="$(plutil -extract id raw -o - - <<<"$RESULT")"
 echo "    ${STATUS} (${ID})"
+if [ "$STATUS" = "In Progress" ]; then
+  echo "error: no verdict from Apple within $WAIT. It carries on there: xcrun notarytool info $ID, then run this again" >&2
+  exit 1
+fi
 if [ "$STATUS" != "Accepted" ]; then
   # Apple's log names each file and the reason it was refused.
   xcrun notarytool log "$ID" "${AUTH[@]}" >&2 || true

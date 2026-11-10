@@ -27,7 +27,7 @@ through without asking. What's particular to NetworkMonitor:
   - They run on GitHub Actions first. The repo is public, so its macOS runners cost
     nothing, and the shared Mac stays free.
   - If GitHub can't run them, run `Scripts/local-ci.sh --fallback <pr>` in the background
-    (#456). That covers a billing or spending-limit error, no checks appearing, or a job
+    (#456). That covers a billing or spending-limit error, no check appearing for a job, or a job
     still queued after 15 minutes.
   - The script watches GitHub's checks, and runs both jobs on this Mac only when GitHub
     can't. It records each result under the same check name, so the merge rule doesn't

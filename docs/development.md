@@ -113,8 +113,9 @@ and exits non-zero if anything fails.
   `Scripts/local-ci.sh --fallback` against a stand-in `gh` that answers from files in
   `Scripts/tests/local-ci/`, one folder per case, with GitHub's own billing texts (#461). It
   checks only which way the script decides: GitHub passed or failed, so report that; or a
-  billing or spending-limit error, a job still queued after the start window, or no checks
-  at all, so run both jobs here. Nothing is built or fetched, and it takes seconds.
+  billing or spending-limit error, a job still queued after the start window, or a job with
+  no check at all (either one, #483), so run both jobs here. Then that each of its waits
+  gives up (#483). Nothing is built or fetched, and it takes seconds.
 - **Live tests**, which need a real network and a real `nettop`, are skipped when `CI` is
   set. Run them anyway with `NETMON_LIVE_TESTS=1`. They include guards such as "the stream
   stays under 25% of a core" and "changing the interval leaves exactly one `nettop`".
@@ -231,8 +232,14 @@ must be green before a merge.
 each result on the commit under the same name, so a pull request reads the same either way.
 - It watches GitHub's checks first, and doesn't run anything here when GitHub can do it.
 - Without `--fallback`, it runs here straight away.
-- `CI_START_MINUTES` (15) sets how long it waits for GitHub to start; `CI_START_SECONDS`,
-  `CI_POLL_SECONDS` and `LOCAL_CI_DECIDE_ONLY=1` are for its tests (see [Tests](#tests)).
+- `CI_START_MINUTES` (15) sets how long it waits for GitHub to start. After that, a job
+  with no check at all counts as one GitHub can't run, even when the other passed (#483).
+- **Nothing waits forever** (#483). Each wait gives up with a message saying what it was
+  waiting for: GitHub's result after `CI_WAIT_MINUTES` (the start window + 60; exits 2),
+  another run here after `LOCAL_CI_LOCK_MINUTES` (120; exits 75), and each job here after
+  `LOCAL_CI_JOB_MINUTES` (60), when it's stopped, with everything it started, and fails.
+- `CI_START_SECONDS`, `CI_WAIT_SECONDS`, `LOCAL_CI_LOCK_SECONDS`, `CI_POLL_SECONDS` and
+  `LOCAL_CI_DECIDE_ONLY=1` are for its tests (see [Tests](#tests)).
 - Builds reuse one worktree in `~/Library/Caches/networkmonitor-dev/ci`, one run at a time.
 - The smoke test runs in the `networkmonitor` Mac lane, and opens the installed copy again
   afterwards.
