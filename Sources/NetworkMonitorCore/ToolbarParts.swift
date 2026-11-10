@@ -30,6 +30,80 @@ enum PeriodControl {
     static let segmentWidth: CGFloat = 64
 }
 
+/// What a section shows (#524): its list, the list with the map or the chart,
+/// or the map or the chart alone. Connections has List · Both · Map, Usage
+/// History and Ads and Trackers List · Both · Chart, all through `ViewControl`
+/// so the three read the same.
+public protocol SectionLayout: Hashable, CaseIterable where AllCases == [Self] {
+    var label: String { get }
+    /// The segment's SF Symbol.
+    var symbol: String { get }
+}
+
+/// Usage History's and Ads and Trackers' View (#524): the list, the chart
+/// above the list, or the chart filling the window.
+public enum ChartLayout: String, SectionLayout, Identifiable {
+    case list, both, chart
+    public var id: String { rawValue }
+    public var label: String {
+        switch self {
+        case .list:  return L("List")
+        case .both:  return L("Both")
+        case .chart: return L("Chart")
+        }
+    }
+    public var symbol: String {
+        switch self {
+        case .list:  return "list.bullet"
+        case .both:  return "rectangle.split.1x2"
+        case .chart: return "chart.bar"
+        }
+    }
+
+    /// Whether the list shows, and so the controls that only change the list.
+    public var showsList: Bool { self != .chart }
+    public var showsChart: Bool { self != .list }
+}
+
+/// The View control at the leading end of a section's toolbar, before the
+/// period (#524): a segment per layout, each an SF Symbol named and
+/// tooltipped with its layout's name, one Tab stop with ← and → as every
+/// `NSSegmentedControl` has. Connections', Usage History's and Ads and
+/// Trackers' are the same control.
+enum ViewControl {
+    static let identifier = NSToolbarItem.Identifier("layout")
+
+    static func configure<Layout: SectionLayout>(_ control: NSSegmentedControl, _: Layout.Type,
+                                                 target: AnyObject, action: Selector) {
+        control.segmentCount = Layout.allCases.count
+        control.trackingMode = .selectOne
+        control.target = target
+        control.action = action
+    }
+
+    /// The segments' pictures and names, from `init` and when the language changes.
+    static func name<Layout: SectionLayout>(_ control: NSSegmentedControl, _: Layout.Type) {
+        for (index, layout) in Layout.allCases.enumerated() {
+            control.setImage(NSImage(systemSymbolName: layout.symbol, accessibilityDescription: layout.label),
+                             forSegment: index)
+            control.setToolTip(layout.label, forSegment: index)
+        }
+    }
+
+    static func select<Layout: SectionLayout>(_ layout: Layout, in control: NSSegmentedControl) {
+        control.selectedSegment = Layout.allCases.firstIndex(of: layout) ?? 0
+    }
+
+    static func chosen<Layout: SectionLayout>(_ control: NSSegmentedControl) -> Layout {
+        Layout.allCases[max(control.selectedSegment, 0)]
+    }
+
+    /// The toolbar item's name and tooltip: what the middle segment puts together.
+    static func names(chart: Bool) -> (label: String, help: String) {
+        (L("View"), chart ? L("The list, both one above the other, or the chart") : L("The list, both side by side, or the map"))
+    }
+}
+
 /// Search in a section's toolbar (#436): a magnifying glass until it's
 /// clicked or ⌘F is pressed, then a field, as in Mail and Finder.
 ///

@@ -4,17 +4,20 @@ import SwiftUI
 
 /// The Ads and Trackers window (#251): its own, like Connections, since what
 /// the lists blocked is a job of its own and not every connection. On
-/// Overview its toolbar has Connections' period and ‹ Today › (#311); the
-/// tabs are in the window, at the top of its content (#358).
+/// Overview its toolbar has Connections' View (List · Both · Chart, #524),
+/// period and ‹ Today › (#311); the tabs are in the window, at the top of its
+/// content (#358).
 public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     public let window: NSWindow
     private let model: AdsViewModel
+    private let layoutControl = NSSegmentedControl()
     private let scaleControl = NSSegmentedControl()
     private let stepControl = NSSegmentedControl()
     private var observation: AnyCancellable?
     private var languageObservation: AnyCancellable?
 
+    private static let layoutItem = ViewControl.identifier
     private static let scaleItem = NSToolbarItem.Identifier("scale")
     private static let stepItem = NSToolbarItem.Identifier("step")
     /// Search, in the toolbar: a magnifying glass until it's used (#436).
@@ -82,6 +85,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     public func windowWillClose() { model.windowDidClose() }
 
     private func configureControls() {
+        ViewControl.configure(layoutControl, ChartLayout.self, target: self, action: #selector(layoutChosen))
         PeriodControl.configure(scaleControl, target: self, action: #selector(scaleChosen))
         search.onChange = { [weak self] in self?.model.logSearch = $0 }
 
@@ -97,6 +101,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     private func nameControls() {
         window.title = L("Ads and Trackers")
 
+        ViewControl.name(layoutControl, ChartLayout.self)
         PeriodControl.name(scaleControl)
         nameSearch()
 
@@ -120,6 +125,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     /// A toolbar item's name and tooltip, in the language shown.
     private static func names(for identifier: NSToolbarItem.Identifier) -> (label: String, help: String)? {
         switch identifier {
+        case layoutItem: return ViewControl.names(chart: true)
         case scaleItem: return (L("Period"), L("A day, week, month or year at a time"))
         case stepItem:  return (L("Go"), L("Move through time"))
         case SettingsGear.identifier: return (L("Settings"), L("Settings for ads and trackers: the lists and your rules"))
@@ -128,6 +134,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     }
 
     private func refreshControls() {
+        ViewControl.select(model.layout, in: layoutControl)
         scaleControl.selectedSegment = HistoryScale.allCases.firstIndex(of: model.scale) ?? 0
         stepControl.setEnabled(model.canStepBack, forSegment: 0)
         stepControl.setEnabled(model.canStepForward, forSegment: 2)
@@ -152,17 +159,22 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
         }
     }
 
-    /// The period and ‹ Today › are in the toolbar only on Overview (#311):
-    /// the log is the present, rules have no period, and the lists count
-    /// today's blocks, so elsewhere they'd only sit there doing nothing.
+    /// The View, the period and ‹ Today › are in the toolbar only on
+    /// Overview (#311, #524): the log is the present and has no chart, so
+    /// there they'd only sit there doing nothing.
     private func showPeriod(_ show: Bool) {
-        for item in toolbar.items where [Self.scaleItem, Self.stepItem].contains(item.itemIdentifier) {
+        for item in toolbar.items
+        where [Self.layoutItem, Self.scaleItem, Self.stepItem].contains(item.itemIdentifier) {
             if #available(macOS 15, *) {
                 item.isHidden = !show
             } else {
                 item.view?.isHidden = !show
             }
         }
+    }
+
+    @objc private func layoutChosen(_ sender: NSSegmentedControl) {
+        model.layout = ViewControl.chosen(sender)
     }
 
     @objc private func scaleChosen(_ sender: NSSegmentedControl) {
@@ -180,10 +192,11 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
     // MARK: NSToolbarDelegate
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        // As Connections: the period centred, ‹ Today › trailing, and the gear
-        // last, where it stays put when the period hides on Log.
+        // As Connections: the View leading, the period centred, ‹ Today ›
+        // trailing, and the gear last, where it stays put when the View and
+        // the period hide on Log.
         (standalone ? [] : MainWindowController.sidebarItems)
-            + [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, search.restingIdentifier,
+            + [Self.layoutItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, search.restingIdentifier,
                .space, SettingsGear.identifier]
     }
 
@@ -200,6 +213,8 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
         if let item = search.item(for: identifier, in: toolbar) { return item }
         let item = NSToolbarItem(itemIdentifier: identifier)
         switch identifier {
+        case Self.layoutItem:
+            item.view = layoutControl
         case Self.scaleItem:
             item.view = scaleControl
         case Self.stepItem:

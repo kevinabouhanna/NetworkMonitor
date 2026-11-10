@@ -22,11 +22,26 @@ public struct HistoryView: View {
         VStack(alignment: .leading, spacing: ScopeMetrics.below) {
             scopeBar
             heading
-            HistoryChart(model: model)
-            legend
-            Divider()
-            // Overlapping while one tab's list gives way to another's.
-            ZStack(alignment: .top) { list }
+            // The toolbar's View (#524): the chart above the list, as it always
+            // was, rather than beside it: a period's hours or days read across
+            // the window's width, and the list's rows keep theirs.
+            switch model.layout {
+            case .both:
+                HistoryChart(model: model)
+                legend
+                Divider()
+                listStack
+            case .list:
+                legend
+                Divider()
+                listStack
+            case .chart:
+                GeometryReader { geometry in
+                    HistoryChart(model: model, height: geometry.size.height)
+                }
+                .frame(minHeight: HistoryMetrics.chartHeight, maxHeight: .infinity)
+                legend
+            }
             Divider()
             footer
         }
@@ -37,6 +52,11 @@ public struct HistoryView: View {
         .frame(minWidth: HistoryMetrics.windowMinWidth, minHeight: HistoryMetrics.windowMinHeight)
     }
 
+    /// Overlapping while one tab's list gives way to another's.
+    private var listStack: some View {
+        ZStack(alignment: .top) { list }
+    }
+
     // MARK: Scope
 
     /// What the list shows and which networks, in one row under the toolbar,
@@ -44,13 +64,16 @@ public struct HistoryView: View {
     /// the window's toolbar (`HistoryWindowController`).
     private var scopeBar: some View {
         HStack(spacing: 10) {
-            LabelledControl(L("Show")) {
-                GlassSegmented(name: L("Show"), options: HistoryViewModel.Tab.allCases, selection: $model.tab,
-                               label: { $0.label }, size: .small)
-                    .help(L("Apps, networks or each visit to a network. A row narrows the window to it."))
+            // Which list, while there's one to show (#524).
+            if model.layout.showsList {
+                LabelledControl(L("Show")) {
+                    GlassSegmented(name: L("Show"), options: HistoryViewModel.Tab.allCases, selection: $model.tab,
+                                   label: { $0.label }, size: .small)
+                        .help(L("Apps, networks or each visit to a network. A row narrows the window to it."))
+                }
             }
             if hasChips {
-                Divider().frame(height: 16)
+                if model.layout.showsList { Divider().frame(height: 16) }
                 HStack(spacing: 6) { chips }
             }
             Spacer(minLength: 12)
@@ -411,6 +434,9 @@ struct HistorySettingsPane: View {
 /// the baseline.
 private struct HistoryChart: View {
     @ObservedObject var model: HistoryViewModel
+    /// The chart's height: fixed above the list, the window's when it's
+    /// the chart alone (#524).
+    var height: CGFloat = HistoryMetrics.chartHeight
 
     private var report: HistoryReport { model.report }
 
@@ -460,7 +486,7 @@ private struct HistoryChart: View {
                 hoverLayer(proxy: proxy, geometry: geometry)
             }
         }
-        .frame(height: HistoryMetrics.chartHeight)
+        .frame(height: height)
         .accessibilityLabel(model.scale.binComponent == .hour ? L("Usage by hour") : model.scale == .year ? L("Usage by month") : L("Usage by day"))
     }
 
@@ -478,7 +504,7 @@ private struct HistoryChart: View {
 
     /// One data unit, in bytes, per point of plot height.
     private var bytesPerPoint: Double {
-        top / Double(HistoryMetrics.chartHeight - HistoryMetrics.xAxisHeight)
+        top / Double(max(height - HistoryMetrics.xAxisHeight, 1))
     }
 
     struct Segment: Identifiable {

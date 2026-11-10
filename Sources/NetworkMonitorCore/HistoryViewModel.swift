@@ -38,16 +38,26 @@ public final class HistoryViewModel: ObservableObject {
     /// Today's total, for the line heading Usage History's settings (#436).
     @Published public private(set) var todayTotal: Int64 = 0
 
+    /// The toolbar's View (#524): Both by default, and whatever was chosen
+    /// last after that, as Connections remembers its own.
+    @Published public var layout: ChartLayout {
+        didSet { defaults.set(layout.rawValue, forKey: Self.layoutKey) }
+    }
+
     public static let retentionKey = "historyRetention"
+    public static let layoutKey = "historyLayout"
 
     private let monitor: MonitorViewModel
     private let calendar: Calendar
+    private let defaults: UserDefaults
     private var generation = 0
     private var refreshTimer: Timer?
 
-    public init(monitor: MonitorViewModel, calendar: Calendar = .current) {
+    public init(monitor: MonitorViewModel, calendar: Calendar = .current, defaults: UserDefaults = .standard) {
         self.monitor = monitor
         self.calendar = calendar
+        self.defaults = defaults
+        layout = defaults.string(forKey: Self.layoutKey).flatMap(ChartLayout.init) ?? .both
         let period = HistoryPeriod(scale: .day, containing: Date(), calendar: calendar)
         self.period = period
         self.report = .empty(period, HistoryFilter(), calendar: calendar)

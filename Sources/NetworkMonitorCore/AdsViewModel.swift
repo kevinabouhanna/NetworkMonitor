@@ -178,6 +178,15 @@ public final class AdsViewModel: ObservableObject {
     }
 
     @Published public var tab: Tab = .overview
+    /// The toolbar's View on Overview (#524): Both by default, and whatever
+    /// was chosen last after that, as Connections remembers its own.
+    @Published public var layout: ChartLayout {
+        didSet { defaults.set(layout.rawValue, forKey: Self.layoutKey) }
+    }
+    /// Overview's list: the sites blocked, or the apps that tried to reach
+    /// them (#524), as the popover groups them.
+    @Published public var grouping: PopoverAdsGrouping = .sites
+    public static let layoutKey = "adsLayout"
     @Published public var setupTab: SetupTab = .lists
     @Published public var logShow: AdsLog.Show = .all
     @Published public var logSearch = ""
@@ -198,15 +207,18 @@ public final class AdsViewModel: ObservableObject {
 
     public let monitor: MonitorViewModel
     private let calendar: Calendar
+    private let defaults: UserDefaults
     private var refreshTimer: Timer?
     private var icons: [String: NSImage] = [:]
     private var changes: AnyCancellable?
     private var libraryChanges: AnyCancellable?
     private var logChanges: AnyCancellable?
 
-    public init(monitor: MonitorViewModel, calendar: Calendar = .current) {
+    public init(monitor: MonitorViewModel, calendar: Calendar = .current, defaults: UserDefaults = .standard) {
         self.monitor = monitor
         self.calendar = calendar
+        self.defaults = defaults
+        layout = defaults.string(forKey: Self.layoutKey).flatMap(ChartLayout.init) ?? .both
         period = HistoryPeriod(scale: .day, containing: Date(), calendar: calendar)
         // The switch, the lists and pausing show at once.
         changes = monitor.firewall.objectWillChange.sink { [weak self] _ in
