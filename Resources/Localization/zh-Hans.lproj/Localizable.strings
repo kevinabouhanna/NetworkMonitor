@@ -77,6 +77,8 @@
 "Apps" = "应用";
 "Don't Filter Ads in %@" = "不过滤 %@ 中的广告";
 "%@ blocked" = "已拦截 %@ 次";
+"Blocked by each list" = "各列表的拦截次数";
+"off" = "已关闭";
 "Paused until %@" = "已暂停至 %@";
 "Resume" = "继续";
 "Off on %@" = "在 %@ 上已关闭";

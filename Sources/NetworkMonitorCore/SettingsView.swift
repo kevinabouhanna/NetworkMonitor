@@ -761,10 +761,12 @@ struct UncoveredAppRow: View {
 
 /// An ⓘ beside a row's name, there only while the pointer is over the row:
 /// what it says is a tooltip, or a popover when clicked (#185). VoiceOver
-/// gets it from the row instead.
+/// gets it from the row instead, unless it has a name of its own: then it's a
+/// button VoiceOver reads by that name, whose popover it can open (#402).
 struct RowInfoButton<Content: View>: View {
     let help: String
     @ObservedObject var state: RowInfoState
+    var accessibilityLabel: String? = nil
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -774,7 +776,8 @@ struct RowInfoButton<Content: View>: View {
         .buttonStyle(.borderless)
         .help(help)
         .opacity(state.isHovering || state.showsInfo ? 1 : 0)
-        .accessibilityHidden(true)
+        .accessibilityLabel(accessibilityLabel ?? "")
+        .accessibilityHidden(accessibilityLabel == nil)
         .popover(isPresented: $state.showsInfo, arrowEdge: .bottom) {
             content
                 .font(.system(size: 12))

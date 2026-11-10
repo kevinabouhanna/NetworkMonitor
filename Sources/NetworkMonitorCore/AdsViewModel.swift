@@ -455,6 +455,15 @@ public final class AdsViewModel: ObservableObject {
 
     public func isShippedOn(_ topic: BlocklistTopic) -> Bool { firewall.lists.contains(topic) }
 
+    /// Whether a list that blocked something in the period blocks now (#402):
+    /// one switched off since keeps its earlier blocks in the period's count,
+    /// and the header's breakdown marks it off. Your own rules are always on.
+    public func isListOn(_ id: String) -> Bool {
+        if id == BlockReason.ownList { return true }
+        if let topic = BlocklistTopic(rawValue: id) { return isShippedOn(topic) }
+        return library.isEnabled(id)
+    }
+
     public func setShipped(_ topic: BlocklistTopic, _ on: Bool) {
         if on {
             firewall.lists.insert(topic)

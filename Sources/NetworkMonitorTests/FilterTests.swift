@@ -373,6 +373,30 @@ func runFilterTests() {
             Check.expectEqual(AdsReport.listed(["a", "b", "c", "d"]), "a, b and 2 more")
         }
 
+        // #402: the header shows one total; its ⓘ lists each list's share,
+        // marking one that's switched off now, whose earlier blocks still count.
+        Check.test("the header's breakdown adds up to the total, and knows which lists are off") {
+            let report = AdsReport([
+                ListBlock(appKey: "a", appName: "A", name: "x.example", list: "ads", count: 4),
+                ListBlock(appKey: "a", appName: "A", name: "y.example", list: "peter-lowe", count: 1),
+                ListBlock(appKey: "b", appName: "B", name: "z.example", list: BlockReason.ownList, count: 2),
+            ])
+            Check.expectEqual(report.lists.map(\.count).reduce(0, +), report.total)
+            Check.expectEqual(report.lists.map(\.list), ["ads", BlockReason.ownList, "peter-lowe"])
+
+            let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("ads-lists-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let ads = AdsViewModel(monitor: MonitorViewModel(store: UsageStore(storeURL: dir.appendingPathComponent("usage.json"))))
+            // Read only: the firewall's lists are the Mac's own settings.
+            Check.expectTrue(ads.isListOn(BlockReason.ownList), "your own rules are always on")
+            for topic in BlocklistTopic.allCases {
+                Check.expectEqual(ads.isListOn(topic.rawValue), ads.isShippedOn(topic))
+            }
+            Check.expectEqual(ads.isListOn("peter-lowe"), ads.library.isEnabled("peter-lowe"))
+            Check.expectTrue(!ads.isListOn("not-a-list-\(UUID().uuidString)"), "a list that isn't chosen is off")
+        }
+
         // #311: only Overview has a period; Lists counts today's blocks.
         Check.test("only the Ads window's Overview shows the period") {
             Check.expectEqual(AdsViewModel.Tab.allCases.filter(\.hasPeriod), [.overview])
