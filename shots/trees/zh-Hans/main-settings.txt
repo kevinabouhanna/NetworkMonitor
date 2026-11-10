@@ -23,7 +23,7 @@ AXWindow (AXStandardWindow) title="设置" 1300
               AXRadioButton (AXSegment) description="Mbps" 60x24
               AXRadioButton (AXSegment) description="MB/s" 60x24
           AXGroup h72
-            AXImage description="Wi-Fi" identifier="wifi" 20x16
+            AXImage description="Wi-Fi" identifier="wifi" 20x12
             AXStaticText value="按名称识别你的 Wi-Fi 网络" h16
             AXStaticText value="“流量历史”会显示“家”和“办公室”这样的名称，而不是“Wi-Fi · #f#a”。macOS 把这项权限称为“定位服务”，但 NetworkMonitor 从不查询你的位置。" h32
             AXButton description="打开…" 60x24
@@ -36,7 +36,7 @@ AXWindow (AXStandardWindow) title="设置" 1300
             AXStaticText value="网速测试期间" h16
             AXStaticText value="↓" help="网速测试的数值使用自己的颜色，与这些颜色区分开，因此不会被误认为是实时速度。" h16
             AXStaticText value="↑" help="网速测试的数值使用自己的颜色，与这些颜色区分开，因此不会被误认为是实时速度。" h16
-            AXButton description="使用默认颜色" 104x24
+            AXButton description="使用默认颜色" 100x24
           AXHeading description="弹出窗口中的累计值" 116x16
           AXGroup
             AXStaticText value="统计开始于" h16

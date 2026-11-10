@@ -21,7 +21,7 @@ AXWindow (AXStandardWindow) title="Ads and Trackers Settings" 1300
             AXCheckBox (AXToggle) description="Update the lists weekly" help="Once a week, NetworkMonitor downloads the lists from GitHub, the same signed file for everyone, never on a hotspot." 36x16
           AXStaticText value="Lists from # ‹month› # StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC#)." h16
           AXGroup h44
-            AXRadioGroup description="Show" 180x24
+            AXRadioGroup description="Show" 176x24
               AXRadioButton (AXSegment) description="Lists" 88x24
               AXRadioButton (AXSegment) description="Your Rules" 88x24
         AXScrollArea
