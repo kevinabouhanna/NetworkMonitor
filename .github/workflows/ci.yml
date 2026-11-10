@@ -1,9 +1,8 @@
 name: CI
 
+# Pull requests and pushes run on Kevin's Mac (`local-ci`, the same two jobs, from
+# .claude/ci.conf.sh; #490): GitHub Actions is for releases. This stays for running by hand.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 # Builds and tests only: the token needs nothing beyond reading the code (#400),

@@ -1,45 +1,120 @@
 #!/bin/bash
 #
-# CI on this Mac, for when GitHub Actions can't run it (#456). It runs the two jobs in
-# .github/workflows/ci.yml, `build-and-test` and `universal`, on a pull request's head and
-# records each result on the commit under the same name, so the pull request reads the same
-# either way.
+# local-ci: CI for a pull request on this Mac, with each result recorded on the commit as a GitHub
+# status under the project's own check names, so the pull request shows green or red and the merge
+# rule doesn't change. One copy for every project: the shared-mac plugin puts it on PATH
+# (~/.local/bin/local-ci), and each project gives its jobs in .claude/ci.conf.sh, or has a
+# `make ci` (claude-parallel-sessions#12).
 #
-# GitHub stays the first choice: NetworkMonitor is public, so its macOS runners cost nothing,
-# and running CI here adds load to the Mac every session shares.
+#   local-ci <pr | branch | commit>              the project of the current folder
+#   local-ci -C <dir> <pr | branch | commit>     the project <dir> is in
 #
-#   Scripts/local-ci.sh 455              run both jobs here now
-#   Scripts/local-ci.sh --fallback 455   watch GitHub's checks; run here only if GitHub can't
-#                                        (a billing or spending-limit error, a job with no check
-#                                        at all, or a job not started, after CI_START_MINUTES, 15)
+# Local first (Kevin, 10 Nov 2026): pull requests and pushes run here only, never on GitHub
+# Actions, which is kept for releases (gh-actions decides whether GitHub can take one).
 #
-# Nothing waits forever (#483). Each wait gives up with a message saying what it waited for:
-#   CI_WAIT_MINUTES        --fallback: GitHub's result (the start window + 60). Exits 2.
-#   LOCAL_CI_LOCK_MINUTES  another run here to finish (120). Exits 75.
-#   LOCAL_CI_JOB_MINUTES   each job here (60): stopped, with everything it started, and failed.
-#   SMOKE_LANE_TIMEOUT     the networkmonitor Mac lane for the smoke test, in seconds (900).
+# One run per project at a time (a kernel lock: it goes when its holder dies), checked out once
+# the lock is held, in a fresh worktree, or a kept one (CI_WORKTREE=kept) for build tools that need
+# the same path. Keep build folders under ~/Library/Caches/<project>-dev ($CI_CACHE) so builds
+# are incremental. Each job's log is kept in $CI_DIR/logs.
 #
-# Scripts/tests/local-ci-test.sh (in `make test`) checks which way --fallback decides, against
-# a stand-in `gh` and GitHub's answers saved as files (#461), and each of those limits. It sets
-# these to run in seconds:
-#   CI_START_SECONDS, CI_WAIT_SECONDS, LOCAL_CI_LOCK_SECONDS   instead of the minutes above
-#   CI_POLL_SECONDS    how often GitHub's checks are read (30)
-#   LOCAL_CI_DECIDE_ONLY=1   stop once decided: print that it would run here, and run nothing
-# Sourced, the script only defines run_bounded, which the tests check on their own.
+# No wait is unbounded: the lock (CI_LOCK_TIMEOUT, 7200 s, or LOCAL_CI_LOCK_MINUTES) gives up with
+# 75, and a job or the preparation past CI_JOB_TIMEOUT (3600 s, or LOCAL_CI_JOB_MINUTES) is stopped
+# and recorded as failed. Run it in the
+# background (run_in_background) when it takes minutes.
 #
-# Builds reuse one worktree (~/Library/Caches/networkmonitor-dev/ci), one run at a time, so
-# SwiftPM builds incrementally. Only the smoke test touches the Mac: it runs in the
-# networkmonitor Mac lane and opens the installed copy again afterwards. Takes 5-15 minutes:
-# run it in the background.
+# .claude/ci.conf.sh (optional) is sourced from the checkout local-ci is run in:
+#   CI_NAME              the project (default: the repo folder's name, in lower case)
+#   CI_REPO              owner/repo on GitHub (default: from origin's URL)
+#   CI_JOBS=(…)          the check names, one per job (default: local-ci)
+#   ci_job_<name>        runs that job, in the checkout (- and other signs become _ in <name>);
+#                        a job without one runs $CI_COMMAND (default: make ci)
+#   ci_prepare           runs once in the checkout before the jobs (optional)
+#   CI_WORKTREE          fresh (default) or kept; CI_KEEP=(…) paths a kept one keeps (.build)
+# The jobs see CI_SRC (the checkout), CI_SHA, CI_PR (the pull request's number, if any), CI_HEAD
+# (its branch), CI_ROOT (the repo the run started from), CI_DIR, CI_CACHE, CI_NAME and CI_REPO.
+#
+# CI_NO_STATUS=1 records nothing on GitHub. A repo's copy of this file hands over to the shared
+# one on PATH; LOCAL_CI_NO_SHARED=1 keeps the copy that was called.
 set -euo pipefail
 
-# run_bounded <seconds> <command…>: runs the command (a function too) in a process group of its
-# own and returns its status; after <seconds>, stops the whole group (TERM, then KILL 5 s later)
-# and returns 124, as timeout(1) does. Stopping this script (Ctrl-C, kill) stops the group too.
-run_bounded() {
-  local limit="$1" pid rc=0 _; shift
+# Which project: -C, else the repo this file is in when it's a repo's own copy (one with
+# .claude/ci.conf.sh, so `scripts/local-ci.sh …` works from any folder), else the current folder's.
+dir="$PWD"
+self_root="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -n "$self_root" && -f "$self_root/.claude/ci.conf.sh" ]]; then dir="$self_root"; fi
+given_dir=false
+for a in "$@"; do [[ "$a" == -C ]] && given_dir=true; done
+
+if [[ -z "${LOCAL_CI_NO_SHARED:-}" ]] && shared="$(command -v local-ci 2>/dev/null)" && [[ -n "$shared" ]] &&
+  [[ ! "$shared" -ef "${BASH_SOURCE[0]}" ]]; then
+  if $given_dir; then exec "$shared" "$@"; else exec "$shared" -C "$dir" "$@"; fi
+fi
+
+usage() { awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 2; }
+target=""
+while (($#)); do
+  case "$1" in
+    -C) dir="${2:?local-ci: -C needs a folder}"; shift 2 ;;
+    --here | --fallback) shift ;; # older habits: every run is here now
+    -h | --help) usage ;;
+    -*) echo "local-ci: unknown option '$1'" >&2; exit 2 ;;
+    *) target="$1"; shift ;;
+  esac
+done
+[[ -n "$target" ]] || { echo "usage: local-ci [-C <dir>] <pull request | branch | commit>" >&2; exit 2; }
+
+CI_ROOT="$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null)" ||
+  { echo "local-ci: $dir isn't in a git repository" >&2; exit 2; }
+main_checkout="$(cd "$(dirname "$(git -C "$CI_ROOT" rev-parse --path-format=absolute --git-common-dir)")" && pwd)"
+CI_NAME="$(basename "$main_checkout" | tr '[:upper:]' '[:lower:]')"
+CI_JOBS=()
+CI_KEEP=()
+conf="${CI_CONF:-$CI_ROOT/.claude/ci.conf.sh}"
+# shellcheck disable=SC1090
+if [[ -f "$conf" ]]; then . "$conf"; fi
+((${#CI_JOBS[@]})) || CI_JOBS=(local-ci)
+CI_COMMAND="${CI_COMMAND:-make ci}"
+if [[ -z "${CI_REPO:-}" ]]; then
+  CI_REPO="$(git -C "$CI_ROOT" remote get-url origin 2>/dev/null | sed -E 's#^.*github\.com[:/]##; s#\.git$##')"
+fi
+[[ "$CI_REPO" == */* ]] || { echo "local-ci: can't tell the GitHub repo from origin: set CI_REPO in $conf" >&2; exit 2; }
+CI_CACHE="${CI_CACHE:-$HOME/Library/Caches/$CI_NAME-dev}"
+CI_DIR="${CI_DIR:-$CI_CACHE/ci}"
+CI_WORKTREE="${CI_WORKTREE:-fresh}"
+# NetworkMonitor's names for the same limits (#483), in minutes, still count.
+lock_timeout=$((${CI_LOCK_TIMEOUT:-$((${LOCAL_CI_LOCK_MINUTES:-120} * 60))}))
+job_timeout=$((${CI_JOB_TIMEOUT:-$((${LOCAL_CI_JOB_MINUTES:-60} * 60))}))
+span() { if (($1 % 60)); then echo "${1}s"; else echo "$(($1 / 60)) min"; fi; }
+
+job_fn() { echo "ci_job_$(printf '%s' "$1" | tr -c 'A-Za-z0-9' '_')"; }
+
+# The commit: a pull request's head, or a branch on origin, or any commit.
+CI_PR="" CI_HEAD=""
+if [[ "$target" =~ ^[0-9]+$ ]]; then
+  CI_PR="$target"
+  read -r CI_SHA CI_HEAD < <(gh pr view "$target" -R "$CI_REPO" --json headRefOid,headRefName \
+    --jq '.headRefOid + " " + .headRefName') || true
+  [[ -n "${CI_SHA:-}" ]] || { echo "local-ci: couldn't read pull request $target on $CI_REPO" >&2; exit 2; }
+else
+  git -C "$CI_ROOT" fetch -q origin
+  CI_SHA="$(git -C "$CI_ROOT" rev-parse --verify -q "origin/$target^{commit}" || git -C "$CI_ROOT" rev-parse --verify "$target^{commit}")"
+  git -C "$CI_ROOT" rev-parse --verify -q "origin/$target" >/dev/null && CI_HEAD="$target"
+fi
+short="${CI_SHA:0:7}"
+export CI_ROOT CI_NAME CI_REPO CI_CACHE CI_DIR CI_SHA CI_PR CI_HEAD
+
+here_jobs=("${CI_JOBS[@]}")
+
+# bounded <seconds> <command…>: runs the command (a function too) in a subshell with set -e on, in a
+# process group of its own, and returns its status. After <seconds> it stops the whole group (TERM,
+# then KILL 5 s later) and returns 124, as timeout(1) does; stopping this script stops the group
+# too (NetworkMonitor#483's run_bounded). Call it with set +e, never in an if or ||, where bash
+# would ignore set -e inside the command.
+bounded() {
+  local limit="$1" pid rc=0 _
+  shift
   set -m # job control: the command gets its own process group, so all it started can be stopped
-  "$@" &
+  (set -euo pipefail; "$@") &
   pid=$!
   set +m
   trap "kill -TERM -- -$pid 2>/dev/null; exit 130" INT
@@ -48,193 +123,113 @@ run_bounded() {
   while kill -0 "$pid" 2>/dev/null; do
     if ((SECONDS >= deadline)); then
       kill -TERM -- "-$pid" 2>/dev/null || true
-      for _ in {1..10}; do kill -0 -- "-$pid" 2>/dev/null || break; sleep 0.5; done
+      for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 -- "-$pid" 2>/dev/null || break; sleep 0.5; done
       kill -KILL -- "-$pid" 2>/dev/null || true
       wait "$pid" 2>/dev/null || true
       trap - INT TERM HUP
-      echo "(stopped after ${limit}s)"
       return 124
     fi
-    sleep 1
+    sleep 0.2
   done
   wait "$pid" || rc=$?
   trap - INT TERM HUP
   return "$rc"
 }
-[[ "${BASH_SOURCE[0]}" == "$0" ]] || return 0
 
-REPO=kevinabouhanna/NetworkMonitor
-JOBS=(build-and-test universal)
-fallback=false
-if [[ "${1:-}" == --fallback ]]; then fallback=true; shift; fi
-target="${1:?usage: Scripts/local-ci.sh [--fallback] <pull request number | branch | commit>}"
-root="$(cd "$(dirname "$0")/.." && pwd)"
-
-start_window=$((${CI_START_SECONDS:-$((${CI_START_MINUTES:-15} * 60))}))
-poll=$((${CI_POLL_SECONDS:-30}))
-wait_limit=$((${CI_WAIT_SECONDS:-$((${CI_WAIT_MINUTES:-$((start_window / 60 + 60))} * 60))}))
-lock_limit=$((${LOCAL_CI_LOCK_SECONDS:-$((${LOCAL_CI_LOCK_MINUTES:-120} * 60))}))
-job_limit=$((${LOCAL_CI_JOB_MINUTES:-60} * 60))
-duration() { if (($1 % 60)); then echo "${1}s"; else echo "$(($1 / 60)) min"; fi; }
-window_text="$(duration "$start_window")"
-
-if [[ "$target" =~ ^[0-9]+$ ]]; then
-  # The commit itself is fetched only to run here, once --fallback has decided to.
-  sha="$(gh pr view "$target" -R "$REPO" --json headRefOid --jq .headRefOid)"
-else
-  git -C "$root" fetch -q origin
-  sha="$(git -C "$root" rev-parse --verify -q "origin/$target^{commit}" || git -C "$root" rev-parse --verify "$target^{commit}")"
-fi
-
-# --fallback: what GitHub says about a job: pass, fail, running, or cant (GitHub can't run it).
-github_job() { # <name>
-  local run status conclusion created id
-  run="$(gh api "repos/$REPO/commits/$sha/check-runs?per_page=100" \
-    --jq "[.check_runs[] | select(.name == \"$1\" and .app.slug == \"github-actions\")] | sort_by(.started_at) | last // empty | \"\(.id) \(.status) \(.conclusion) \(.started_at)\"")"
-  [[ -n "$run" ]] || { echo none; return; }
-  read -r id status conclusion created <<<"$run"
-  case "$status/$conclusion" in
-    completed/success) echo pass ;;
-    completed/*)
-      if gh api "repos/$REPO/check-runs/$id/annotations" --jq '.[].message' 2>/dev/null |
-        grep -qiE 'billing|spending limit|payment|account is locked'; then echo cant; else echo fail; fi ;;
-    *)
-      if [[ "$status" == queued ]] &&
-        (($(date +%s) - $(date -juf '%Y-%m-%dT%H:%M:%SZ' "$created" +%s 2>/dev/null || date +%s) > start_window)); then
-        echo cant
-      else echo running; fi ;;
-  esac
+status() { # <job> <state> <description>
+  [[ -n "${CI_NO_STATUS:-}" ]] && return 0
+  gh api -X POST "repos/$CI_REPO/statuses/$CI_SHA" -f state="$2" -f context="$1" -f description="$3" >/dev/null ||
+    echo "(couldn't record $1 on GitHub)" >&2
 }
 
-if $fallback; then
-  began=$SECONDS
-  while :; do
-    # After the start window, a job with no check run at all is one GitHub can't run (#483),
-    # whatever the other job did.
-    late=false
-    ((SECONDS - began >= start_window)) && late=true
-    states="" missing="" summary=""
-    for job in "${JOBS[@]}"; do
-      state="$(github_job "$job")"
-      if [[ "$state" == none ]] && $late; then state=missing missing="$missing $job"; fi
-      states="$states $state" summary="${summary:+$summary, }$job: $state"
-    done
-    case "$states" in
-      *cant*) echo "local-ci: GitHub can't run CI for ${sha:0:7} (billing, or not started): running it here"; break ;;
-      *fail*) echo "local-ci: GitHub ran CI and it failed:"; gh pr checks "$target" -R "$REPO" 2>/dev/null || true; exit 1 ;;
-      " pass pass") echo "local-ci: GitHub's CI passed for ${sha:0:7}; nothing to run here"; exit 0 ;;
-      *missing*missing*) echo "local-ci: no GitHub checks for ${sha:0:7} after $window_text: running here"; break ;;
-      *missing*) echo "local-ci: no GitHub check for${missing} on ${sha:0:7} after $window_text: running here"; break ;;
-    esac
-    if ((SECONDS - began >= wait_limit)); then
-      echo "local-ci: GitHub's CI for ${sha:0:7} hasn't finished after $(duration "$wait_limit") ($summary): giving up."
-      echo "  Look at it with: gh pr checks $target -R $REPO. To run it here instead: Scripts/local-ci.sh $target"
-      exit 2
-    fi
-    sleep "$poll"
-  done
-fi
+if [[ -n "$CI_PR" ]]; then git -C "$CI_ROOT" fetch -q origin "pull/$CI_PR/head"; fi
 
-if [[ "${LOCAL_CI_DECIDE_ONLY:-}" == 1 ]]; then
-  echo "local-ci: would run ${JOBS[*]} here for ${sha:0:7} (LOCAL_CI_DECIDE_ONLY)"
-  exit 0
-fi
-if [[ "$target" =~ ^[0-9]+$ ]]; then git -C "$root" fetch -q origin "pull/$target/head"; fi
-
-ci="$HOME/Library/Caches/networkmonitor-dev/ci"
-src="$ci/src" site="$ci/site"
-mkdir -p "$ci"
-exec 4>>"$ci/lock"
+# One run per project at a time: runs share the build folders.
+mkdir -p "$CI_DIR/logs"
+exec 4>>"$CI_DIR/lock"
 if ! lockf -s -k -t 0 4; then
-  echo "local-ci: waiting up to $(duration "$lock_limit") for another local run to finish…"
-  if ! lockf -s -k -t "$lock_limit" 4; then
-    echo "local-ci: another local run still holds $ci/lock after $(duration "$lock_limit"): giving up."
-    echo "  Which one: pgrep -fl local-ci.sh. Then run this again."
+  echo "local-ci: another run of $CI_NAME is going ($(head -n 1 "$CI_DIR/holder" 2>/dev/null || echo unknown)):" \
+    "waiting up to $(span "$lock_timeout")…"
+  if ! lockf -s -k -t "$lock_timeout" 4; then
+    echo "local-ci: gave up after $(span "$lock_timeout"): another run still holds $CI_NAME's CI." \
+      "Try again later (CI_LOCK_TIMEOUT waits longer)." >&2
     exit 75
   fi
 fi
+printf 'local-ci %s for %s, since %s (pid %s)\n' "$target" "$short" "$(date '+%H:%M:%S')" "$$" >"$CI_DIR/holder"
 
-status() { # <job> <state> <description>
-  gh api -X POST "repos/$REPO/statuses/$sha" -f state="$2" -f context="$1" -f description="$3" >/dev/null ||
-    echo "(couldn't record $1 on GitHub)" >&2
-}
-for job in "${JOBS[@]}"; do status "$job" pending "Running on Kevin's Mac"; done
-
-# The kept worktree, moved to this commit; .build stays for incremental builds.
-if [[ -d "$src/.git" || -f "$src/.git" ]]; then
-  git -C "$src" checkout -q --detach -f "$sha"
-  git -C "$src" clean -q -fdx -e .build
+# Check out only once the lock is held (home-control#318): a checkout made while waiting is older
+# than what the run before built into the shared folders.
+work=""
+if [[ "$CI_WORKTREE" == kept ]]; then
+  CI_SRC="$CI_DIR/src"
+  if [[ -e "$CI_SRC/.git" ]]; then
+    git -C "$CI_SRC" checkout -q --detach -f "$CI_SHA"
+    keep=()
+    for k in ${CI_KEEP[@]+"${CI_KEEP[@]}"}; do keep+=(-e "$k"); done
+    git -C "$CI_SRC" clean -q -fdx ${keep[@]+"${keep[@]}"}
+  else
+    git -C "$CI_ROOT" worktree prune
+    git -C "$CI_ROOT" worktree add -q --detach "$CI_SRC" "$CI_SHA"
+  fi
 else
-  git -C "$root" worktree prune
-  git -C "$root" worktree add -q --detach "$src" "$sha"
+  work="$(mktemp -d "${TMPDIR:-/tmp}/$CI_NAME-ci.XXXXXX")"
+  CI_SRC="$work/src"
+  git -C "$CI_ROOT" worktree add -q --detach "$CI_SRC" "$CI_SHA"
 fi
-# The website as CI.yml finds it: gh-pages, or the pull request's branch with -site (#426).
-head=""
-[[ "$target" =~ ^[0-9]+$ ]] && head="$(gh pr view "$target" -R "$REPO" --json headRefName --jq .headRefName)"
-site_ref=gh-pages
-if [[ -n "$head" ]] && git -C "$root" ls-remote --exit-code --heads origin "$head-site" >/dev/null; then site_ref="$head-site"; fi
-git -C "$root" fetch -q origin main "$site_ref"
-if [[ -e "$site/.git" ]]; then git -C "$site" checkout -q --detach -f "origin/$site_ref"
-else git -C "$root" worktree add -q --detach "$site" "origin/$site_ref"; fi
-
-# The smoke test stops every running copy, the installed one too: hold the app's lane, and open
-# the installed copy again if it was running.
-smoke() {
-  . Scripts/mac-lane.sh
-  MAC_LANE=networkmonitor MAC_LANE_TIMEOUT="${SMOKE_LANE_TIMEOUT:-900}" MAC_LANE_WHAT="local-ci smoke test ${sha:0:7}" mac_lane_enter
-  local was=false
-  pgrep -qf "/Applications/NetworkMonitor.app/Contents/MacOS" && was=true
-  local ok=0
-  ./Scripts/smoke-test.sh || ok=$?
-  if $was; then sleep 1; open -g /Applications/NetworkMonitor.app; fi
-  return $ok
+export CI_SRC
+cleanup() {
+  if [[ -n "$work" ]]; then
+    git -C "$CI_ROOT" worktree remove --force "$CI_SRC" 2>/dev/null || true
+    rm -rf "$work"
+    git -C "$CI_ROOT" worktree prune 2>/dev/null || true
+  fi
 }
+trap cleanup EXIT
 
-build_and_test() {
-  # The pull request's description can say a change is English only (#434).
-  if [[ "$target" =~ ^[0-9]+$ ]]; then PR="$target" make translation-check BASE=origin/main
-  else PR_BODY="" make translation-check BASE=origin/main; fi
-  swift build
-  CI=true make test # as on GitHub: skips the tests that need live traffic
-  GITHUB_BASE_REF=main GITHUB_HEAD_REF="$head" make asset-check SITE="$site"
-  make app
-  codesign --verify --verbose=1 build/NetworkMonitor.app
-  for f in Info.plist Resources/AppIcon.icns Resources/Geo/countries.bin Resources/Geo/owners.bin \
-    Resources/Geo/world.bin Resources/Geo/README.md; do test -f "build/NetworkMonitor.app/Contents/$f"; done
-  test -x build/NetworkMonitor.app/Contents/MacOS/NetworkMonitor
-  (smoke)
+for job in "${here_jobs[@]}"; do status "$job" pending "Running on Kevin's Mac"; done
+
+run_job() { # <job>
+  cd "$CI_SRC"
+  local fn; fn="$(job_fn "$1")"
+  if declare -F "$fn" >/dev/null; then "$fn"; else eval "$CI_COMMAND"; fi
 }
+prepare() { cd "$CI_SRC"; ci_prepare; }
 
-universal() {
-  make universal
-  local archs; archs="$(lipo -archs build/NetworkMonitor.app/Contents/MacOS/NetworkMonitor)"
-  echo "built: $archs"
-  [[ "$archs" == *arm64* && "$archs" == *x86_64* ]]
-}
-
-in_src() { set -euo pipefail; cd "$src"; "$@"; } # run_bounded runs it in a process of its own
-
-failed=0
-for job in "${JOBS[@]}"; do
-  log="$ci/$job.log"
-  started=$(date +%s)
-  echo "local-ci: $job on ${sha:0:7} (log: $log)"
-  # Not in an `if`: there bash ignores `set -e` inside the job's functions.
+if declare -F ci_prepare >/dev/null; then
   set +e
-  run_bounded "$job_limit" in_src "${job//-/_}" >"$log" 2>&1
+  bounded "$job_timeout" prepare >"$CI_DIR/logs/prepare.log" 2>&1
   rc=$?
   set -e
+  if ((rc)); then
+    for job in "${here_jobs[@]}"; do status "$job" failure "Couldn't prepare on Kevin's Mac"; done
+    tail -n 40 "$CI_DIR/logs/prepare.log"
+    echo "local-ci: preparing $short FAILED (whole log: $CI_DIR/logs/prepare.log)"
+    exit 1
+  fi
+fi
+
+failed=0
+for job in "${here_jobs[@]}"; do
+  log="$CI_DIR/logs/$job.log"
+  started=$SECONDS
+  echo "local-ci: $job on $short (log: $log)"
+  set +e
+  bounded "$job_timeout" run_job "$job" >"$log" 2>&1
+  rc=$?
+  set -e
+  took=$((SECONDS - started))
   if ((rc == 0)); then
-    status "$job" success "Passed on Kevin's Mac in $(($(date +%s) - started))s"
-    echo "local-ci: $job passed"
+    status "$job" success "Passed on Kevin's Mac in ${took}s"
+    echo "local-ci: $job passed in ${took}s"
   elif ((rc == 124)); then
-    status "$job" failure "Stopped on Kevin's Mac after $(duration "$job_limit")"
-    tail -n 30 "$log"
-    echo "local-ci: $job didn't finish in $(duration "$job_limit") (LOCAL_CI_JOB_MINUTES), so it was stopped: FAILED (whole log: $log)"
+    status "$job" failure "Stopped after $(span "$job_timeout") on Kevin's Mac"
+    tail -n 40 "$log"
+    echo "local-ci: $job took more than $(span "$job_timeout"): stopped (whole log: $log)"
     failed=1
   else
     status "$job" failure "Failed on Kevin's Mac"
-    tail -n 30 "$log"
+    tail -n 40 "$log"
     echo "local-ci: $job FAILED (whole log: $log)"
     failed=1
   fi
