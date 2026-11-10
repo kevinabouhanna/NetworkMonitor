@@ -415,6 +415,8 @@ p code, li code { background: #1d1d1f; border: 1px solid var(--hair); border-rad
 .way > p strong, .way .aside b { color: var(--text); font-weight: 600; }
 .way .get { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 24px; }
 .way .get .meta { font-size: 13px; color: var(--text-3); }
+.way .brew { margin: 16px 0 0; font-size: 13px; line-height: 1.5; color: var(--text-3); }
+.way .brew code { display: block; margin-top: 6px; padding: 10px 14px; background: #1d1d1f; border: 1px solid var(--hair); border-radius: 10px; color: var(--text); font-size: 14px; overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
 .dmg-shot { margin: 26px -14px 0; }
 .dmg-shot img { width: 100%; }
 .steps { list-style: none; counter-reset: step; margin: 22px 0 0; padding: 0; display: grid; gap: 14px; scroll-margin-top: 120px; }
@@ -951,6 +953,7 @@ footer a { color: var(--text-2); }
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>下载 NetworkMonitor.dmg</a>
             <span class="meta">版本 1.28.2 · 14.5 MB · 通用版（Apple 芯片和 Intel）</span>
           </div>
+          <p class="brew">也可以用 <a href="https://brew.sh">Homebrew</a> 安装： <code>brew install --cask kevinabouhanna/tap/networkmonitor</code></p>
           <figure class="dmg-shot" style="margin-bottom:0">
             <img src="../assets/dmg-window.png?v=5630c3c3" width="1424" height="1104" loading="lazy"
                  alt="在访达中打开的 NetworkMonitor 磁盘映像：标题“Install NetworkMonitor”，一行字“Drag it into your Applications folder”，还有应用图标和一个指向“应用程序”文件夹的绿色箭头。">
@@ -961,7 +964,7 @@ footer a { color: var(--text-2); }
             <li>欢迎窗口会说明它经你同意后能做什么：网站名称，以及按名称识别 Wi‑Fi 网络。两者都是可选的。</li>
             <li>在菜单栏中找到 <span class="green">↓</span><span style="color:var(--light)">↑</span>。</li>
           </ol>
-          <p class="aside"><b>更新：</b>从 1.15 起，NetworkMonitor 会主动提供每个新版本，点按它菜单中的<b>检查更新…</b>可立即检查。如果你用的是 1.14 或更早的版本，请下载这个版本并拖到旧版本上，选择<b>替换</b>，只需这一次。你的设置和历史记录都会保留。<b>移除：</b>右键点按菜单栏项目并选择<b>卸载 NetworkMonitor…</b>，它会先恢复它更改过的每项设置。</p>
+          <p class="aside"><b>更新：</b>从 1.15 起，NetworkMonitor 会主动提供每个新版本，点按它菜单中的<b>检查更新…</b>可立即检查。如果你用的是 1.14 或更早的版本，请下载这个版本并拖到旧版本上，选择<b>替换</b>，只需这一次。你的设置和历史记录都会保留。<b>移除：</b>右键点按菜单栏项目并选择<b>卸载 NetworkMonitor…</b>，它会先恢复它更改过的每项设置。如果你是用 Homebrew 安装的，之后再运行 <code>brew uninstall --cask networkmonitor</code>。</p>
         </article>
       </div>
 
