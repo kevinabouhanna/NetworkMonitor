@@ -148,6 +148,13 @@ func runAccessibilityTests() {
                 }
             }
             adsModel.grouping = .sites
+            // A row chosen (#536): its chip's ✕ says what it does. The rows
+            // themselves, open and chosen, are checked with real data by
+            // `make design-shots ONLY=ads-audit`.
+            adsModel.layout = .both
+            adsModel.select(.init(grouping: .sites, parent: "doubleclick.net", title: "doubleclick.net"))
+            check(adsController.window, "Ads and Trackers › a row chosen\(language)")
+            adsModel.clearSelection()
             // The same View as Connections' (#524): named View, each segment
             // by its layout, in the language shown.
             Check.test("Usage History's and Ads and Trackers' View reads as Connections'\(language)") {

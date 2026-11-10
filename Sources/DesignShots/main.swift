@@ -506,6 +506,53 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     }
     world.ads.layout = .both
     world.ads.grouping = .sites
+    // The list and the chart you can use (#536): the busiest site open and
+    // chosen, its share on the chart; a bar hovered; then picked, with both
+    // chips, at the window's least too; and an app's site chosen in Apps.
+    if let site = world.ads.report.sites.first {
+        world.ads.setExpanded(site.id, true)
+        world.ads.select(.init(grouping: .sites, parent: site.id, title: site.title))
+        shoot("ads-chosen")
+        if let busiest = world.ads.bins.max(by: { $0.count < $1.count }) {
+            world.ads.hover(busiest.interval.start)
+            shoot("ads-hover")
+            world.ads.hover(nil)
+            world.ads.pick(binStarting: busiest.interval.start)
+            shoot("ads-picked")
+            shootAtMinimum("ads-picked-min")
+            world.ads.clearSpan()
+        }
+        world.ads.clearSelection()
+        world.ads.setExpanded(site.id, false)
+    }
+    // What VoiceOver reads off real rows, open and chosen (#536): the test
+    // suite's Ads window has none. In a window of its own, as the suite
+    // checks its sections, and printed rather than saved.
+    if wanted(prefix + "ads-audit") { world.ads.reload() }
+    if wanted(prefix + "ads-audit"), let site = world.ads.report.sites.first {
+        world.ads.setExpanded(site.id, true)
+        world.ads.select(.init(grouping: .sites, parent: site.id, title: site.title))
+        let controller = AdsWindowController(model: world.ads)
+        show(controller.window, appearance: appearance)
+        let problems = AccessibilityAudit.auditOwnWindow(titled: controller.window.title)
+        var report = "ads-audit: " + (problems.map { $0.isEmpty ? "no problems" : $0.map(\.description).joined(separator: "\n") }
+                                          ?? "couldn't read the window") + "\n"
+        for line in AccessibilityAudit.outlineOwnWindow(titled: controller.window.title) { report += "  " + line + "\n" }
+        FileHandle.standardError.write(report.data(using: .utf8)!)
+        controller.window.orderOut(nil)
+        world.ads.clearSelection()
+        world.ads.setExpanded(site.id, false)
+    }
+    world.ads.grouping = .apps
+    if let app = world.ads.report.apps.first, let child = app.children.first {
+        world.ads.setExpanded(app.id, true)
+        world.ads.select(.init(grouping: .apps, parent: app.id, child: child.id,
+                               title: "\(child.title) in \(app.title)"))
+        shoot("ads-apps-chosen")
+        world.ads.clearSelection()
+        world.ads.setExpanded(app.id, false)
+    }
+    world.ads.grouping = .sites
     world.connections.search = "Goo"
     main.show(.connections)
     shoot("connections-search", settle: 1.5)

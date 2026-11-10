@@ -159,24 +159,9 @@ public final class TodayGlance: ObservableObject {
         history.loadListBlocks(from: span.start, to: span.end) { [weak self] blocks in
             guard let self, request == self.generation else { return }
             let ads = AdsReport(blocks) { key in AppIdentityResolver.identity(forKey: key).bundlePath }
-            var bySite: [String: [String: (name: String, count: Int64)]] = [:]
-            var byApp: [String: [String: Int64]] = [:]
-            for block in blocks {
-                let site = SiteName.site(of: block.name)
-                bySite[site, default: [:]][block.appKey, default: (block.appName, 0)].count += block.count
-                byApp[block.appKey, default: [:]][site, default: 0] += block.count
-            }
-            let siteApps = bySite.mapValues { apps in
-                apps.map { key, app in
-                    AdsItem(id: key, title: app.name, detail: nil, count: app.count, lists: [],
-                            bundlePath: AppIdentityResolver.identity(forKey: key).bundlePath)
-                }
-                .sorted(by: Self.order)
-            }
-            let appSites = byApp.mapValues { sites in
-                sites.map { site, count in AdsItem(id: site, title: site, detail: nil, count: count, lists: []) }
-                    .sorted(by: Self.order)
-            }
+            // What each row's chevron opens: the report has it (#536).
+            let siteApps = Dictionary(uniqueKeysWithValues: ads.sites.map { ($0.id, $0.children) })
+            let appSites = Dictionary(uniqueKeysWithValues: ads.apps.map { ($0.id, $0.children) })
             Motion.content {
                 self.ads = ads
                 self.siteApps = siteApps
@@ -201,9 +186,5 @@ public final class TodayGlance: ObservableObject {
     /// Groups what's been read by `connectionsGrouping`, without reading again.
     private func regroup() {
         groups = Array(ConnectionsReport.groups(named, by: connectionsGrouping).prefix(Self.rows))
-    }
-
-    private static func order(_ lhs: AdsItem, _ rhs: AdsItem) -> Bool {
-        lhs.count != rhs.count ? lhs.count > rhs.count : lhs.title < rhs.title
     }
 }

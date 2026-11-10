@@ -21,6 +21,20 @@ struct AdsView: View {
             page
         }
         .frame(minWidth: AdsMetrics.minWidth, minHeight: AdsMetrics.minHeight)
+        .background(escape)
+    }
+
+    /// Escape lets go of the bar picked, then of the row chosen (#536), as
+    /// a click on either does. Only while there's one, so Escape still
+    /// closes the search the rest of the time.
+    @ViewBuilder private var escape: some View {
+        if model.tab == .overview && model.canGoBack {
+            Button(L("Show Everything Again")) { model.goBack() }
+                .keyboardShortcut(.cancelAction)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+        }
     }
 
     /// Overview or the log, in the row every section has under its toolbar,
@@ -36,6 +50,16 @@ struct AdsView: View {
             let query = model.logSearch.trimmingCharacters(in: .whitespaces)
             if !query.isEmpty {
                 FilterChip(label: L("“%@”", query), onClear: { model.logSearch = "" })
+            }
+            // The bar clicked and the row chosen (#536), as Connections and
+            // Usage History show theirs.
+            if model.tab == .overview {
+                if let span = model.spanTitle {
+                    FilterChip(label: span, onClear: model.clearSpan)
+                }
+                if let selection = model.selection {
+                    FilterChip(label: selection.title, onClear: model.clearSelection)
+                }
             }
             if model.tab == .log {
                 Divider().frame(height: 16)
@@ -63,7 +87,7 @@ struct AdsView: View {
             } else {
                 header
                 Divider()
-                if model.report.total == 0 {
+                if model.report.total == 0 && model.periodTotal == 0 {
                     empty
                 } else {
                     // The toolbar's View (#524): the list on the left and the
@@ -98,37 +122,25 @@ struct AdsView: View {
     /// side by side, but one at a time each gets the window's width.
     private var lists: some View {
         ZStack(alignment: .top) {
-            Group {
-                switch model.grouping {
-                case .sites:
-                    AdsList(items: searched(model.report.sites), total: model.report.total, model: model) { item in
-                        if !item.onlyThreats {
-                            Button(L("Never Block %@", item.id)) { model.setSite(.neverBlock, site: item.id, app: nil) }
-                        }
-                    }
-                case .apps:
-                    AdsList(items: searched(model.report.apps), total: model.report.total, model: model) { item in
-                        Button(L("Don't Filter Ads in %@", item.title)) {
-                            model.dontFilter(.init(key: item.id, name: item.title))
-                        }
-                    }
-                }
-            }
-            // The other list fades in as the switch's pill slides, as Usage
-            // History's lists do (#436).
-            .id(model.grouping)
-            .transition(Motion.swap)
+            AdsList(model: model,
+                    items: searched(model.grouping == .sites ? model.report.sites : model.report.apps))
+                // The other list fades in as the switch's pill slides, as Usage
+                // History's lists do (#436).
+                .id(model.grouping)
+                .transition(Motion.swap)
         }
     }
 
-    /// The toolbar's search, on Overview: a site, a name under it, or an app.
+    /// The toolbar's search, on Overview: a site, a name under it, or an app,
+    /// or what's inside one, as Usage History finds an app by its parts.
     private func searched(_ items: [AdsItem]) -> [AdsItem] {
         let query = model.logSearch.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else { return items }
-        return items.filter {
-            $0.title.localizedCaseInsensitiveContains(query) || $0.id.localizedCaseInsensitiveContains(query)
-                || ($0.detail?.localizedCaseInsensitiveContains(query) ?? false)
+        func matches(_ item: AdsItem) -> Bool {
+            item.title.localizedCaseInsensitiveContains(query) || item.id.localizedCaseInsensitiveContains(query)
+                || (item.detail?.localizedCaseInsensitiveContains(query) ?? false)
         }
+        return items.filter { matches($0) || $0.children.contains(where: matches) }
     }
 
     // MARK: Header
@@ -158,7 +170,8 @@ struct AdsView: View {
                 .accessibilityValue(breakdownLines.joined(separator: L(", ")))
                 .accessibilityHint(Self.explanation)
             }
-            Text(model.title).font(.system(size: 12)).foregroundStyle(.secondary)
+            Text(model.spanTitle.map { L("%@, %@", model.title, $0) } ?? model.title)
+                .font(.system(size: 12)).foregroundStyle(.secondary)
         }
         .fixedSize()
         .contentShape(Rectangle())
@@ -250,24 +263,8 @@ struct AdsView: View {
     // MARK: Chart
 
     private var chart: some View {
-        let top = max(model.bins.map(\.count).max() ?? 0, 1)
-        return Chart(model.bins) { bin in
-            BarMark(x: .value(L("Time"), bin.interval.start, unit: model.scale.binComponent),
-                    y: .value(L("Blocked"), bin.count))
-                .foregroundStyle(AppPalette.blocked.opacity(0.85))
-                .cornerRadius(2)
-        }
-        .chartXScale(domain: model.period.start...model.period.end)
-        .chartYScale(domain: 0...Double(top))
-        .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
-                AxisGridLine().foregroundStyle(Color.secondary.opacity(0.18))
-                AxisValueLabel {
-                    if let count = value.as(Double.self) {
-                        Text(Int64(count).formatted()).font(.system(size: 10)).monospacedDigit()
-                    }
-                }
-            }
+        GeometryReader { geometry in
+            AdsChart(model: model, height: geometry.size.height, width: geometry.size.width)
         }
     }
 
@@ -296,73 +293,511 @@ struct AdsView: View {
     }
 }
 
-/// Sites or apps, most blocked first, each with a bar for its share.
-private struct AdsList<Menu: View>: View {
+/// Sites or apps, most blocked first, made of Usage History's rows (#536):
+/// a click chooses a row, and the chart shows its share of each bar; a
+/// chevron opens what's inside it, the apps that tried a site or the sites
+/// an app tried, each with when it was last blocked. ↑ and ↓ move through
+/// the rows, → and ← open and close one, Space or Return chooses it.
+private struct AdsList: View {
+    @ObservedObject var model: AdsViewModel
     let items: [AdsItem]
-    let total: Int64
-    let model: AdsViewModel
-    @ViewBuilder let menu: (AdsItem) -> Menu
+    /// Not `@State`; see `SettingsPaneState`.
+    @StateObject private var state = AdsListState()
+    @FocusState private var isFocused: Bool
+
+    private var bySite: Bool { model.grouping == .sites }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 0) {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    // One element per row and its inside, as Connections has
+                    // its groups: flattened, the same app under two sites
+                    // gave the lazy stack two rows with one identity.
                     ForEach(items) { item in
-                        AdsRow(item: item, icon: model.icon(for: item),
-                               fraction: Double(item.count) / Double(max(items.first?.count ?? 1, 1)))
-                            .contextMenu { menu(item) }
+                        VStack(alignment: .leading, spacing: 0) { rows(item) }
                     }
                 }
                 .padding(.vertical, 8)
+                .padding(.horizontal, AdsMetrics.listInset)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .focusable()
+            .focused($isFocused)
+            .modifier(NoFocusRing())
+            .onMoveCommand { direction in move(direction, proxy) }
+            .modifier(ActivateKeys(action: chooseCurrent))
+            .accessibilityLabel(model.grouping.label)
+        }
+    }
+
+    // MARK: Rows
+
+    @ViewBuilder
+    private func rows(_ item: AdsItem) -> some View {
+        let largest = max(items.first?.count ?? 1, 1)
+        let open = model.isExpanded(item.id)
+        row(item, parent: nil, largest: largest, open: item.children.isEmpty ? nil : open)
+        if open && !item.children.isEmpty {
+            let showingAll = model.showingAll.contains(model.expansionKey(item.id))
+            let shown = showingAll ? item.children : Array(item.children.prefix(AdsViewModel.preview))
+            Text(L("%@ · %@", bySite ? L("Apps") : L("Sites"), String(item.children.count)))
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 58)
+                .padding(.top, 4)
+                .padding(.bottom, 2)
+            ForEach(shown) { child in
+                row(child, parent: item, largest: largest, open: nil)
+            }
+            if item.children.count > shown.count {
+                Button(L("Show all %@", String(item.children.count))) {
+                    model.showingAll.insert(model.expansionKey(item.id))
+                }
+                .buttonStyle(.link)
+                .font(.system(size: 11))
+                .padding(.leading, 58)
+                .padding(.vertical, 4)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private func row(_ item: AdsItem, parent: AdsItem?, largest: Int64, open: Bool?) -> some View {
+        let selection = self.selection(item, parent: parent)
+        let isApp = bySite == (parent != nil)
+        return HistoryListRow(
+            leading: { AnyView(leading(item, isApp: isApp)) },
+            title: item.title,
+            subtitle: parent == nil ? item.detail : item.last.map { lastBlocked($0) },
+            // An app under a site has the site's tags already.
+            tags: { iconOnly in
+                AnyView(ForEach(isApp && parent != nil ? [] : item.lists, id: \.self) { list in
+                    if let topic = BlocklistTopic(rawValue: list) { ListTag(topic: topic, iconOnly: iconOnly) }
+                })
+            },
+            figure: item.count.formatted(),
+            fraction: Double(item.count) / Double(largest),
+            indented: parent != nil,
+            barColor: AppPalette.blocked,
+            isSelected: model.selection == selection,
+            disclosure: open,
+            onToggleDisclosure: { model.toggleExpanded(item.id) },
+            truncation: isApp ? .tail : .middle,
+            barMost: AdsMetrics.rowBarWidth,
+            figureWidth: AdsMetrics.figureWidth,
+            onSelect: { choose(selection) })
+            .id(selection.rowID)
+            .contextMenu {
+                AdsRowMenu(model: model,
+                           site: isApp ? parent?.id : item.id,
+                           app: isApp ? AdsViewModel.RuleApp(key: item.id, name: item.title)
+                                      : parent.map { AdsViewModel.RuleApp(key: $0.id, name: $0.title) },
+                           lists: item.lists,
+                           copy: item.title)
+            }
+    }
+
+    @ViewBuilder
+    private func leading(_ item: AdsItem, isApp: Bool) -> some View {
+        if isApp {
+            if let icon = model.icon(for: item) {
+                Image(nsImage: icon).resizable().frame(width: 18, height: 18).accessibilityHidden(true)
+            } else {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 18)
+                    .accessibilityHidden(true)
+            }
+        } else {
+            // The popover's mark for a site the lists stopped.
+            Image(systemName: "shield.lefthalf.filled")
+                .font(.system(size: 12))
+                .foregroundStyle(AppPalette.blocked)
+                .frame(width: 18, height: 18)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// "Last blocked 3 – 4 PM", or "Last blocked Tue, Nov 4, 3 – 4 PM" in a
+    /// longer period.
+    private func lastBlocked(_ hour: Date) -> String {
+        let interval = DateInterval(start: hour, duration: 3600)
+        let hours = HistoryFormat.binTitle(interval, scale: .day)
+        guard model.scale != .day else { return L("Last blocked %@", hours) }
+        return L("Last blocked %@", L("%@, %@", HistoryFormat.binTitle(interval, scale: .week), hours))
+    }
+
+    // MARK: Choosing
+
+    private func selection(_ item: AdsItem, parent: AdsItem?) -> AdsViewModel.Selection {
+        guard let parent else {
+            return .init(grouping: model.grouping, parent: item.id, title: item.title)
+        }
+        let site = bySite ? parent.title : item.title
+        let app = bySite ? item.title : parent.title
+        return .init(grouping: model.grouping, parent: parent.id, child: item.id, title: L("%@ in %@", site, app))
+    }
+
+    private func choose(_ selection: AdsViewModel.Selection) {
+        state.cursor = selection.rowID
+        isFocused = true
+        model.select(selection)
+    }
+
+    /// Every row shown, in order, with what it's inside.
+    private var shownRows: [(item: AdsItem, parent: AdsItem?)] {
+        items.flatMap { item -> [(item: AdsItem, parent: AdsItem?)] in
+            guard model.isExpanded(item.id) else { return [(item, nil)] }
+            let all = model.showingAll.contains(model.expansionKey(item.id))
+            let children = all ? item.children : Array(item.children.prefix(AdsViewModel.preview))
+            return [(item, nil)] + children.map { ($0, item) }
+        }
+    }
+
+    /// The row the keyboard is on: the one chosen, or the last one chosen.
+    private var currentIndex: Int? {
+        let id = model.selection?.rowID ?? state.cursor
+        return shownRows.firstIndex { selection($0.item, parent: $0.parent).rowID == id }
+    }
+
+    private func move(_ direction: MoveCommandDirection, _ proxy: ScrollViewProxy) {
+        let rows = shownRows
+        guard !rows.isEmpty else { return }
+        let index = currentIndex
+        switch direction {
+        case .up, .down:
+            let next = index.map { direction == .down ? min($0 + 1, rows.count - 1) : max($0 - 1, 0) } ?? 0
+            let target = selection(rows[next].item, parent: rows[next].parent)
+            state.cursor = target.rowID
+            if model.selection != target { model.select(target) }
+            proxy.scrollTo(rows[next].parent == nil ? rows[next].item.id : target.rowID)
+        case .right:
+            guard let index, rows[index].parent == nil, !rows[index].item.children.isEmpty else { return }
+            withAnimation(.easeInOut(duration: 0.15)) { model.setExpanded(rows[index].item.id, true) }
+        case .left:
+            guard let index else { return }
+            if let parent = rows[index].parent {
+                // Back up to the row it's inside.
+                let target = selection(parent, parent: nil)
+                state.cursor = target.rowID
+                model.select(target)
+                proxy.scrollTo(parent.id)
+            } else {
+                withAnimation(.easeInOut(duration: 0.15)) { model.setExpanded(rows[index].item.id, false) }
+            }
+        @unknown default:
+            break
+        }
+    }
+
+    /// Space or Return: chooses the row the keyboard is on, or lets it go.
+    private func chooseCurrent() {
+        let rows = shownRows
+        guard let index = currentIndex ?? (rows.isEmpty ? nil : 0) else { return }
+        choose(selection(rows[index].item, parent: rows[index].parent))
     }
 }
 
-private struct AdsRow: View {
-    let item: AdsItem
-    let icon: NSImage?
-    let fraction: Double
-    @Environment(\.splitListWidth) private var listWidth
+final class AdsListState: ObservableObject {
+    /// The row last chosen, so Space chooses it again once it's let go.
+    @Published var cursor: String?
+}
+
+/// No focus ring round the whole list: the chosen row's colour shows where
+/// the keyboard is, as in a sidebar.
+private struct NoFocusRing: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 14, *) { content.focusEffectDisabled() } else { content }
+    }
+}
+
+/// Space and Return, where macOS has `onKeyPress` (14 on).
+private struct ActivateKeys: ViewModifier {
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        if #available(macOS 14, *) {
+            content.onKeyPress(keys: [.space, .return]) { _ in
+                action()
+                return .handled
+            }
+        } else {
+            content
+        }
+    }
+}
+
+/// A row's right-click menu (#536), as the Log's: never or always block its
+/// site, in every app or only its app; stop filtering its app; remove a rule
+/// you made about it; copy its name.
+private struct AdsRowMenu: View {
+    @ObservedObject var model: AdsViewModel
+    let site: String?
+    let app: AdsViewModel.RuleApp?
+    let lists: [String]
+    let copy: String
 
     var body: some View {
-        HStack(spacing: 10) {
-            if let icon {
-                Image(nsImage: icon).resizable().frame(width: 20, height: 20).accessibilityHidden(true)
+        // Never block wouldn't let it through past a malware list (#317).
+        let neverBlocks = lists.isEmpty || !lists.allSatisfy(ListCatalogue.isThreat)
+        if let site {
+            if neverBlocks {
+                Button(L("Never Block %@", site)) { model.setSite(.neverBlock, site: site, app: nil) }
             }
-            VStack(alignment: .leading, spacing: 2) {
-                NameBeforeTags {
-                    Text(item.title).lineLimit(1).truncationMode(.middle)
-                } tags: { iconOnly in
-                    ForEach(item.lists, id: \.self) { list in
-                        if let topic = BlocklistTopic(rawValue: list) { ListTag(topic: topic, iconOnly: iconOnly) }
+            Button(L("Always Block %@", site)) { model.setSite(.alwaysBlock, site: site, app: nil) }
+            if let app {
+                if neverBlocks {
+                    Button(L("Never Block %@ in %@", site, app.name)) { model.setSite(.neverBlock, site: site, app: app) }
+                }
+                Button(L("Always Block %@ in %@", site, app.name)) { model.setSite(.alwaysBlock, site: site, app: app) }
+            }
+        }
+        if let app {
+            Divider()
+            Button(L("Don't Filter Ads in %@", app.name)) { model.dontFilter(app) }
+        }
+        let rules = model.adRules(site: site, appKey: app?.key)
+        if !rules.isEmpty {
+            Divider()
+            ForEach(rules) { rule in
+                Button(L("Remove Your Rule: %@", rule.shownSummary)) { model.remove(rule) }
+            }
+        }
+        Divider()
+        Button(L("Copy Name")) {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(copy, forType: .string)
+        }
+    }
+}
+
+// MARK: - Chart (#536)
+
+/// What the lists blocked over the period, one bar per hour, day or month,
+/// as Usage History's chart is drawn and read: hover a bar for its figures,
+/// click one to narrow the list to it (again, or Escape, to go back), and a
+/// row chosen in the list shows its share of each bar.
+private struct AdsChart: View {
+    @ObservedObject var model: AdsViewModel
+    let height: CGFloat
+    let width: CGFloat
+
+    private var ticks: [Int64] { AdsAxis.ticks(forMaximum: model.bins.map(\.count).max() ?? 0) }
+
+    private var top: Double { Double(ticks.last ?? 1) }
+
+    var body: some View {
+        Chart {
+            ForEach(segments) { segment in
+                BarMark(x: .value(L("Time"), segment.binStart, unit: model.scale.binComponent),
+                        yStart: .value(L("Blocked"), segment.low),
+                        yEnd: .value(L("Blocked"), segment.high),
+                        width: .fixed(barWidth))
+                    .foregroundStyle(color(segment))
+                    .cornerRadius(segment.roundsTop ? HistoryMetrics.barRadius : 0)
+                    // Each bar is read once, as its period and its figures.
+                    .accessibilityLabel(segment.label)
+                    .accessibilityValue(segment.value)
+                    .accessibilityHidden(!segment.isRead)
+            }
+        }
+        .chartXScale(domain: model.period.start...model.period.end)
+        .chartYScale(domain: 0...top)
+        .chartYAxis {
+            AxisMarks(position: .leading, values: ticks.map(Double.init)) { value in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 1))
+                    .foregroundStyle(Color.secondary.opacity(0.18))
+                AxisValueLabel {
+                    if let count = value.as(Double.self) {
+                        Text(Int64(count).formatted()).font(.system(size: 10)).monospacedDigit()
                     }
                 }
-                if let detail = item.detail {
-                    Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
-                        .lineLimit(1).truncationMode(.tail)
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: axisDates) { value in
+                AxisValueLabel {
+                    if let date = value.as(Date.self) {
+                        Text(HistoryFormat.axisLabel(date, scale: model.scale))
+                            .font(.system(size: 10))
+                    }
                 }
             }
-            Spacer(minLength: 8)
-            GeometryReader { geometry in
-                Capsule().fill(AppPalette.blocked.opacity(0.75))
-                    .frame(width: max(2, geometry.size.width * fraction), height: 4)
-                    .frame(maxHeight: .infinity)
-            }
-            .frame(width: SplitMetrics.bar(listWidth: listWidth,
-                                           fixed: AdsMetrics.rowFixed + (icon == nil ? 0 : AdsMetrics.rowIcon),
-                                           most: AdsMetrics.rowBarWidth), height: 20)
-            Text(item.count.formatted())
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .frame(minWidth: 48, alignment: .trailing)
         }
-        .font(.system(size: 13))
-        .padding(.horizontal, 20)
-        .padding(.vertical, 5)
-        .contentShape(Rectangle())
-        .help(item.detail.map { L("%@: %@", item.title, $0) } ?? item.title)
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                hoverLayer(proxy: proxy, geometry: geometry)
+            }
+        }
+        .frame(height: height)
+        .accessibilityLabel(model.scale.binComponent == .hour ? L("Blocked by hour")
+                            : model.scale == .year ? L("Blocked by month") : L("Blocked by day"))
+    }
+
+    // MARK: Geometry, as Usage History's
+
+    private var plotWidth: CGFloat { width - HistoryMetrics.yAxisWidth }
+
+    private var barWidth: CGFloat {
+        let slot = plotWidth / CGFloat(max(model.bins.count, 1))
+        return max(1, min(HistoryMetrics.maxBarWidth, (slot * 0.6).rounded()))
+    }
+
+    private var unitsPerPoint: Double {
+        top / Double(max(height - HistoryMetrics.xAxisHeight, 1))
+    }
+
+    struct Segment: Identifiable {
+        enum Part { case all, chosen, rest }
+        let binStart: Date
+        let part: Part
+        let low: Double
+        let high: Double
+        let roundsTop: Bool
+        /// The one mark of its bar VoiceOver reads; the others are hidden.
+        let isRead: Bool
+        let label: String
+        let value: String
+        var id: String { "\(binStart.timeIntervalSince1970)-\(part)-\(roundsTop)-\(isRead)" }
+    }
+
+    /// Each bar, or with a row chosen, the row's part of it at the bottom and
+    /// the rest above, 2 pt apart and rounded on top, as Usage History draws
+    /// its network types.
+    private var segments: [Segment] {
+        let gap = HistoryMetrics.segmentGap * unitsPerPoint
+        let radius = HistoryMetrics.barRadius * unitsPerPoint
+        var result: [Segment] = []
+        for bin in model.bins where bin.count > 0 {
+            let chosen = model.selection == nil ? nil : min(model.selectedCounts[bin.interval.start] ?? 0, bin.count)
+            let parts: [(Segment.Part, Double)] = chosen.map {
+                [(.chosen, Double($0)), (.rest, Double(bin.count - $0))].filter { $0.1 > 0 }
+            } ?? [(.all, Double(bin.count))]
+            let label = HistoryFormat.binTitle(bin.interval, scale: model.scale)
+            let value = AdsChart.value(bin.count, chosen: chosen, of: model.selection?.title)
+            var base = 0.0
+            for (index, part) in parts.enumerated() {
+                let isTop = index == parts.count - 1
+                let low = index > 0 && part.1 > 2 * gap ? base + gap : base
+                let high = base + part.1
+                let visibleHigh = max(high, low + unitsPerPoint)
+                result.append(Segment(binStart: bin.interval.start, part: part.0, low: low, high: visibleHigh,
+                                      roundsTop: isTop, isRead: index == 0, label: label, value: value))
+                if isTop && visibleHigh - low > 2 * radius {
+                    result.append(Segment(binStart: bin.interval.start, part: part.0, low: low,
+                                          high: low + (visibleHigh - low) / 2, roundsTop: false,
+                                          isRead: false, label: label, value: value))
+                }
+                base = high
+            }
+        }
+        return result
+    }
+
+    /// "40 blocked", or "40 blocked, 12 of them doubleclick.net".
+    static func value(_ count: Int64, chosen: Int64?, of title: String?) -> String {
+        let total = L("%@ blocked", count.formatted())
+        guard let chosen, let title else { return total }
+        return L("%@, %@", total, L("%@ of them %@", chosen.formatted(), title))
+    }
+
+    /// The bar under the pointer stands out, or else the bar picked.
+    private func isDimmed(_ start: Date) -> Bool {
+        if let hovered = model.hoveredBin { return hovered != start }
+        if let picked = model.spanStart { return picked != start }
+        return false
+    }
+
+    private func color(_ segment: Segment) -> Color {
+        let dimmed = isDimmed(segment.binStart)
+        switch segment.part {
+        case .all, .chosen: return AppPalette.blockedFaded(dimmed ? 0.55 : 0)
+        case .rest:         return AppPalette.blockedFaded(dimmed ? 0.8 : 0.5)
+        }
+    }
+
+    /// Where the x-axis labels go, as in Usage History.
+    private var axisDates: [Date] {
+        let stride: Int
+        switch model.scale {
+        case .day:   stride = 3
+        case .week:  stride = 1
+        case .month: stride = 7
+        case .year:  stride = 1
+        }
+        return model.bins.enumerated()
+            .filter { $0.offset % stride == 0 }
+            .map { $0.element.interval.start + $0.element.interval.duration / 2 }
+    }
+
+    // MARK: Hover, as Usage History's
+
+    @ViewBuilder
+    private func hoverLayer(proxy: ChartProxy, geometry: GeometryProxy) -> some View {
+        let plot = plotFrame(proxy, geometry)
+        ZStack(alignment: .topLeading) {
+            Rectangle()
+                .fill(Color.clear)
+                .contentShape(Rectangle())
+                .onContinuousHover { phase in
+                    switch phase {
+                    case .active(let location):
+                        model.hover(bin(at: location.x - plot.minX, proxy: proxy)?.interval.start)
+                    case .ended:
+                        model.hover(nil)
+                    }
+                }
+                .onTapGesture { location in
+                    if let bin = bin(at: location.x - plot.minX, proxy: proxy), bin.count > 0 {
+                        model.pick(binStarting: bin.interval.start)
+                    }
+                }
+
+            if let start = model.hoveredBin,
+               let bin = model.bins.first(where: { $0.interval.start == start }),
+               let x = proxy.position(forX: bin.interval.start + bin.interval.duration / 2) {
+                let width = HistoryMetrics.tooltipWidth + 30
+                tooltip(bin)
+                    .frame(width: width)
+                    .position(x: min(max(plot.minX + x, width / 2), geometry.size.width - width / 2),
+                              y: tooltipY(for: bin, proxy: proxy, plot: plot))
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    private func tooltip(_ bin: AdsViewModel.Bin) -> ChartTooltip {
+        var lines: [ChartTooltip.Line] = []
+        if let selection = model.selection {
+            lines.append(.init(color: AppPalette.blocked,
+                               value: (model.selectedCounts[bin.interval.start] ?? 0).formatted(),
+                               label: selection.title))
+        }
+        return ChartTooltip(title: HistoryFormat.binTitle(bin.interval, scale: model.scale),
+                            figure: L("%@ blocked", bin.count.formatted()), lines: lines)
+    }
+
+    private func tooltipY(for bin: AdsViewModel.Bin, proxy: ChartProxy, plot: CGRect) -> CGFloat {
+        let barTop = proxy.position(forY: Double(bin.count)).map { plot.minY + $0 } ?? plot.minY
+        let height = ChartTooltip.height(lines: model.selection == nil ? 0 : 1)
+        return max(barTop - 8 - height / 2, plot.minY + height / 2)
+    }
+
+    private func plotFrame(_ proxy: ChartProxy, _ geometry: GeometryProxy) -> CGRect {
+        if #available(macOS 14, *) {
+            return proxy.plotFrame.map { geometry[$0] } ?? .zero
+        }
+        return geometry[proxy.plotAreaFrame]
+    }
+
+    private func bin(at x: CGFloat, proxy: ChartProxy) -> AdsViewModel.Bin? {
+        guard let date: Date = proxy.value(atX: x) else { return nil }
+        let bins = model.bins
+        guard let index = UsageHistory.binIndex(of: date, in: bins.map(\.interval.start)),
+              bins[index].interval.contains(date)
+        else { return nil }
+        return bins[index]
     }
 }
 
@@ -373,13 +808,11 @@ enum AdsMetrics {
     /// View, as Connections' and Usage History's have it.
     static let minWidth: CGFloat = 820
     static let minHeight: CGFloat = 480
+    /// Sites and Apps are Usage History's rows (#536): this either side of
+    /// them puts a row's name in line with the header's 20 pt.
+    static let listInset: CGFloat = 12
     static let rowBarWidth: CGFloat = 90
-    /// A Sites or Apps row's width besides its name and bar: 20 pt padding
-    /// each side, three 10 pt gaps, the least space before the bar (8) and
-    /// the figure (48).
-    static let rowFixed: CGFloat = 40 + 3 * 10 + 8 + 48
-    /// An app's icon and its gap.
-    static let rowIcon: CGFloat = 20 + 10
+    static let figureWidth: CGFloat = 48
     static let logTime: CGFloat = 76
     static let logApp: CGFloat = 170
     static let logDecision: CGFloat = 76

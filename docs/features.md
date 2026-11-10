@@ -134,7 +134,8 @@ connects. See [Connections](connections.md).
 ## Ads and Trackers
 
 One switch blocks ads, trackers and malware sites in every app. **Overview** shows what was
-blocked in the period, on a chart and by site and app; **Log** shows each connection live,
+blocked in the period, on a chart and by site and app, both used as Usage History's are:
+hover or click a bar, choose or open a row (#536); **Log** shows each connection live,
 as the filter decides it. The lists and your own rules are in its settings. See
 [Ads and Trackers](connections.md#ads-and-trackers).
 

@@ -321,8 +321,10 @@ func runFilterTests() {
                                           (app("Chrome"), "evil.example", "malware"),
                                           (app("Slack"), "pagead2.googlesyndication.com", "ads")], now: now)
                 let blocks = history.listBlocks(from: day.start, to: day.end)
+                let hour = calendar.dateInterval(of: .hour, for: now)!.start
                 Check.expectEqual(blocks.first, ListBlock(appKey: "Chrome", appName: "Chrome",
-                                                          name: "pagead2.googlesyndication.com", list: "ads", count: 2))
+                                                          name: "pagead2.googlesyndication.com", list: "ads", count: 2,
+                                                          last: hour))
                 Check.expectEqual(blocks.count, 3)
                 Check.expectEqual(history.listBlockCount(from: day.start, to: day.end), 4)
 
@@ -334,6 +336,28 @@ func runFilterTests() {
 
                 reopened.clear(now: now)
                 Check.expectEqual(reopened.listBlockCount(from: day.start, to: day.end), 0, "Clear History clears it")
+            }
+        }
+
+        // #536: a row chosen in Ads and Trackers' list shows its share of
+        // each bar: an app's blocks, a site's (its names, not another site's
+        // that ends the same), or a site's in one app.
+        Check.test("the Ads chart's hours narrow to an app, a site, or a site in an app") {
+            withHistory { history, _ in
+                let later = now.addingTimeInterval(3600)
+                history.recordListBlocks([(app("Chrome"), "ad.doubleclick.net", "ads"),
+                                          (app("Chrome"), "doubleclick.net", "ads"),
+                                          (app("Chrome"), "notdoubleclick.net", "ads"),
+                                          (app("Slack"), "ad.doubleclick.net", "ads")], now: now)
+                history.recordListBlocks([(app("Slack"), "stats.doubleclick.net", "ads")], now: later)
+                let span = (day.start, day.end)
+                func counts(_ hours: [(hour: Date, count: Int64)]) -> [Int64] { hours.map(\.count) }
+                Check.expectEqual(counts(history.listBlockHours(from: span.0, to: span.1)), [4, 1])
+                Check.expectEqual(counts(history.listBlockHours(from: span.0, to: span.1, appKey: "Chrome")), [3])
+                Check.expectEqual(counts(history.listBlockHours(from: span.0, to: span.1, site: "doubleclick.net")),
+                                  [3, 1], "the site and the names under it, not notdoubleclick.net")
+                Check.expectEqual(counts(history.listBlockHours(from: span.0, to: span.1, appKey: "Slack",
+                                                                site: "doubleclick.net")), [1, 1])
             }
         }
 
@@ -371,6 +395,81 @@ func runFilterTests() {
             Check.expectEqual(report.apps[0].detail, "googlesyndication.com, doubleclick.net")
             Check.expectEqual(report.apps[1].lists, ["malware"])
             Check.expectEqual(AdsReport.listed(["a", "b", "c", "d"]), "a, b and 2 more")
+        }
+
+        // #536: a site's chevron opens the apps that tried it, an app's the
+        // sites it tried, each with its count, lists and last hour.
+        Check.test("each Ads row has what's inside it, most first, with when it was last blocked") {
+            let early = day.start.addingTimeInterval(2 * 3600)
+            let late = day.start.addingTimeInterval(9 * 3600)
+            let report = AdsReport([
+                ListBlock(appKey: "chrome", appName: "Chrome", name: "ad.doubleclick.net", list: "ads", count: 5,
+                          last: late),
+                ListBlock(appKey: "safari", appName: "Safari", name: "doubleclick.net", list: "ads", count: 2,
+                          last: early),
+                ListBlock(appKey: "safari", appName: "Safari", name: "evil.example", list: "malware", count: 1,
+                          last: late),
+            ]) { key in key == "safari" ? "/Applications/Safari.app" : nil }
+            let site = report.sites[0]
+            Check.expectEqual(site.id, "doubleclick.net")
+            Check.expectEqual(site.children.map(\.title), ["Chrome", "Safari"])
+            Check.expectEqual(site.children.map(\.count), [5, 2])
+            Check.expectEqual(site.children[1].bundlePath, "/Applications/Safari.app")
+            Check.expectEqual(site.children[1].last, early)
+            Check.expectEqual(site.last, late)
+            let safari = report.apps.first { $0.id == "safari" }!
+            Check.expectEqual(safari.children.map(\.title), ["doubleclick.net", "evil.example"])
+            Check.expectEqual(safari.children[1].lists, ["malware"])
+            Check.expectEqual(safari.last, late)
+        }
+
+        // #536: a bar clicked narrows the list, a row chosen shows its share;
+        // Escape lets go of the bar first, then the row. A chosen row belongs
+        // to its list, and Sites and Apps keep their own open rows.
+        Check.test("the Ads window's bar, row and Escape go back in the order they were added") {
+            let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("ads-choose-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let defaults = UserDefaults(suiteName: "ads-choose-\(UUID().uuidString)")!
+            let ads = AdsViewModel(monitor: MonitorViewModel(store: UsageStore(storeURL: dir.appendingPathComponent("usage.json"))),
+                                   defaults: defaults)
+            let row = AdsViewModel.Selection(grouping: .sites, parent: "doubleclick.net", title: "doubleclick.net")
+            ads.select(row)
+            Check.expectEqual(ads.selection, row)
+            ads.pick(binStarting: day.start)
+            Check.expectEqual(ads.spanStart, day.start)
+            Check.expectTrue(ads.canGoBack)
+            ads.goBack()
+            Check.expectNil(ads.spanStart, "the bar goes first")
+            Check.expectEqual(ads.selection, row)
+            ads.goBack()
+            Check.expectNil(ads.selection)
+            Check.expectTrue(!ads.canGoBack)
+
+            ads.select(row)
+            ads.select(row)
+            Check.expectNil(ads.selection, "choosing it again lets it go")
+            ads.pick(binStarting: day.start)
+            ads.pick(binStarting: day.start)
+            Check.expectNil(ads.spanStart, "so does clicking the bar again")
+
+            ads.select(row)
+            ads.setExpanded("doubleclick.net", true)
+            ads.grouping = .apps
+            Check.expectNil(ads.selection, "a chosen row belongs to its list")
+            Check.expectTrue(!ads.isExpanded("doubleclick.net"))
+            ads.grouping = .sites
+            Check.expectTrue(ads.isExpanded("doubleclick.net"))
+            Check.expectEqual(AdsViewModel.Selection(grouping: .apps, parent: "safari", child: "doubleclick.net",
+                                                     title: "").site, "doubleclick.net")
+        }
+
+        Check.test("the Ads chart's gridlines are whole connections, past the busiest bar") {
+            Check.expectEqual(AdsAxis.ticks(forMaximum: 0), [0, 1])
+            Check.expectEqual(AdsAxis.ticks(forMaximum: 1), [0, 1])
+            Check.expectEqual(AdsAxis.ticks(forMaximum: 7), [0, 5, 10])
+            Check.expectEqual(AdsAxis.ticks(forMaximum: 70), [0, 25, 50, 75])
+            Check.expectEqual(AdsAxis.ticks(forMaximum: 1_200), [0, 500, 1_000, 1_500])
         }
 
         // #402: the header shows one total; its ⓘ lists each list's share,
