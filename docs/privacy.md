@@ -17,8 +17,15 @@ leaves your Mac.
   [how it tells networks apart](features.md#a-total-per-connection)). It comes from
   macOS's own network configuration, which needs no permission.
 - **The Wi-Fi network's name**, to show it in Usage History instead of *Wi-Fi · 3f2a*.
-  macOS shares it only with Location permission, so NetworkMonitor asks for that. It
-  uses it for the name and nothing else: it never asks where you are.
+  macOS shares it only with Location permission, so NetworkMonitor asks for that.
+- **Which country your Mac is in**, for where the Connections map's lines start (#231),
+  only while the map is on screen and at most every ten minutes. From Location, once
+  you've allowed it for Wi-Fi names (it's never asked for just for this): the place is
+  turned into a country on your Mac, with the map's own outlines, not Apple's address
+  lookup, which would send it to Apple. Only the country is kept, and only in memory.
+  Without Location, the country of your Mac's own internet address when it holds one
+  the internet sees (behind a home router it doesn't, and no outside service is asked),
+  then your Mac's Region setting.
 - **The installed apps' update settings**, only when you switch on
   [Hotspot mode](hotspot-mode.md), to know what it can pause and to put it back.
 
@@ -97,9 +104,11 @@ it every server your Mac talks to. The data is
 
 ## Permissions
 
-- **Location, to read the Wi-Fi network's name.** Offered in the welcome window when the
+- **Location, to read the Wi-Fi network's name**, and then also to find your country
+  for the Connections map (#231). Offered in the welcome window when the
   app first opens, and in Settings after that (#134). Leave it off and
-  everything works, with networks named like *Wi-Fi · 3f2a*.
+  everything works, with networks named like *Wi-Fi · 3f2a* and the map starting from
+  your Mac's Region setting.
   Updates keep the answer: every release is signed with the same Developer ID.
   Updating from 1.13 or earlier asks once more, because that signature is new (#119).
 - **A content filter, only if you allow it** (#128), in the welcome window or

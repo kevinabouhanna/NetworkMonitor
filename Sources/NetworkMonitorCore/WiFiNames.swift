@@ -6,9 +6,11 @@ import Foundation
 /// out only with Location permission, so the app asks for that.
 ///
 /// Checked on macOS 27 without it: CoreWLAN's `ssid()` is nil, configd's
-/// `SSID_STR` is empty and `ipconfig getsummary` prints `<redacted>`. The
-/// permission is used for the name and nothing else: no location is ever
-/// requested.
+/// `SSID_STR` is empty and `ipconfig getsummary` prints `<redacted>`.
+///
+/// Once allowed, it also tells the Connections map which country the Mac is
+/// in (#231), with `locate`. That never asks for Location, and only the
+/// country is kept: see `HomeCountry`.
 ///
 /// macOS asks only when the person turns names on, in the welcome window or
 /// Settings (#134), never by itself at launch.
@@ -30,6 +32,9 @@ public final class WiFiNames: NSObject, ObservableObject, CLLocationManagerDeleg
     public var onChange: (() -> Void)?
 
     private let manager: CLLocationManager
+    /// Waiting for `locate`'s fix.
+    private var located: [(CLLocation?) -> Void] = []
+    private var locateRound = 0
     /// Whether names may be read, for the path watcher's queue.
     private let lock = NSLock()
     private var readable = false
@@ -93,6 +98,41 @@ public final class WiFiNames: NSObject, ObservableObject, CLLocationManagerDeleg
         status = manager.authorizationStatus
         updateReadable()
         onChange?()
+    }
+
+    /// Where the Mac is, once, for the map's country (#231): only when
+    /// Location is already allowed, so it never asks; nil otherwise or when
+    /// macOS can't tell. Kilometre accuracy is plenty for a country. On the
+    /// main thread.
+    public func locate(_ answer: @escaping (CLLocation?) -> Void) {
+        refresh()
+        guard access == .allowed else { return answer(nil) }
+        located.append(answer)
+        guard located.count == 1 else { return }
+        manager.desiredAccuracy = kCLLocationAccuracyKilometer
+        manager.requestLocation()
+        // An answer always comes, but should one not, the next asks again.
+        locateRound += 1
+        let round = locateRound
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in
+            guard let self, self.locateRound == round else { return }
+            self.answerLocate(nil)
+        }
+    }
+
+    public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        answerLocate(locations.last)
+    }
+
+    public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        answerLocate(nil)
+    }
+
+    private func answerLocate(_ location: CLLocation?) {
+        locateRound += 1
+        let waiting = located
+        located = []
+        waiting.forEach { $0(location) }
     }
 
     /// The name of the Wi-Fi network on `interface`, if it may be read. Safe to

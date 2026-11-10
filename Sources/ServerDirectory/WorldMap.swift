@@ -151,6 +151,81 @@ public struct WorldMap {
         return inside
     }
 
+    /// The country at a longitude and latitude, from the outlines alone: no
+    /// lookup online. For where the Mac is, from Location, so the map's lines
+    /// start from there (#231). Nil out at sea or on land no code covers.
+    ///
+    /// - The outline it's inside, or else, just off a coast the simplified
+    ///   outlines cut (Beirut is one), the nearest within `coastReach`, about
+    ///   30 km. A dot nearer than that coast, within `dotReach`, about 110 km,
+    ///   is an island too small for an outline, such as Bahrain.
+    /// - A place drawn as a dot on another country's island or coast, far
+    ///   from that country, is the dot's: Réunion and French Guiana are parts
+    ///   of France's outline. Near home, as Vatican City is in Rome, the
+    ///   outline wins, or the dot would swallow the city around it.
+    public func country(longitude: Double, latitude: Double) -> String? {
+        let (x, y) = EqualEarth.project(longitude: longitude, latitude: latitude)
+        let point = Point(x: x, y: y)
+        let named = countries.filter { !$0.code.isEmpty }
+        let nearestDot = named.filter(\.isDot)
+            .map { (country: $0, distance: Self.distance(point, $0.label)) }
+            .filter { $0.distance <= Self.dotReach }
+            .min { $0.distance < $1.distance }
+
+        let outline: Country
+        if let inside = named.first(where: { !$0.isDot && Self.contains(point, rings: $0.rings) }) {
+            outline = inside
+        } else if let coast = named.filter({ !$0.isDot })
+                    .map({ (country: $0, distance: Self.distance(point, toRings: $0.rings)) })
+                    .filter({ $0.distance <= Self.coastReach })
+                    .min(by: { $0.distance < $1.distance }),
+                  coast.distance <= nearestDot?.distance ?? .infinity {
+            outline = coast.country
+        } else {
+            return nearestDot?.country.code
+        }
+        // The island or coast it's on, and a dot drawn on that same one.
+        guard Self.distance(point, outline.label) > Self.farFromHome,
+              let ring = outline.rings.first(where: { Self.contains(point, rings: [$0]) })
+                ?? outline.rings.min(by: { Self.distance(point, toRings: [$0]) < Self.distance(point, toRings: [$1]) })
+        else { return outline.code }
+        return named.filter { $0.isDot && Self.contains($0.label, rings: [ring]) }
+            .min { Self.distance(point, $0.label) < Self.distance(point, $1.label) }?.code
+            ?? outline.code
+    }
+
+    /// In projected units, where one is about 6,000 km and the map 5.4 across.
+    static let coastReach = 0.005
+    static let dotReach = 0.018
+    /// About 1,200 km from where the country's name goes: overseas, not a
+    /// neighbourhood of it.
+    static let farFromHome = 0.2
+
+    static func distance(_ a: Point, _ b: Point) -> Double {
+        hypot(a.x - b.x, a.y - b.y)
+    }
+
+    static func distance(_ point: Point, toRings rings: [[Point]]) -> Double {
+        var nearest = Double.infinity
+        for ring in rings {
+            var previous = ring.last ?? point
+            for current in ring {
+                nearest = min(nearest, distance(point, from: previous, to: current))
+                previous = current
+            }
+        }
+        return nearest
+    }
+
+    /// From `point` to the segment between `a` and `b`.
+    static func distance(_ point: Point, from a: Point, to b: Point) -> Double {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let length = dx * dx + dy * dy
+        guard length > 0 else { return distance(point, a) }
+        let t = max(0, min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / length))
+        return distance(point, Point(x: a.x + t * dx, y: a.y + t * dy))
+    }
+
     private struct Reader {
         let data: Data
         var offset = 0

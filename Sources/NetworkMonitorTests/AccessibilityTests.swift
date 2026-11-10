@@ -100,6 +100,25 @@ func runAccessibilityTests() {
                 window.orderOut(nil)
             } }
 
+            // Where the map's lines start, as hovering its ring shows (#231).
+            if code == Localization.source { Check.test("VoiceOver reads where the map's lines start, and why") {
+                let located = ConnectionsViewModel(monitor: model, defaults: defaults, homeSources: .init(
+                    location: { $0("LB") }, internetAddress: { $0(nil) }, region: { "US" }))
+                located.layout = .map
+                let controller = ConnectionsWindowController(model: located)
+                let window = controller.window
+                window.title = "Connections, located"
+                window.alphaValue = 0
+                window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
+                window.orderFrontRegardless()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+                let names = AccessibilityAudit.namesOwnWindow(titled: window.title)
+                Check.expectTrue(names.contains { $0.hasPrefix("World map of") && $0.hasSuffix(" Your Mac, in Lebanon (from Location): the lines start there.") },
+                                 "the map doesn't say where its lines start: \(names.filter { $0.contains("map") })")
+                window.orderOut(nil)
+                withExtendedLifetime(controller) {}
+            } }
+
             // The main window (#436). Its split view can't be read through from
             // this process (AppKit lays it out on the asking thread), so each
             // part is checked in a window of its own: the sections, with their

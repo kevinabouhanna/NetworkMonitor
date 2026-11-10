@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import CoreLocation
 import FirewallPolicy
 import ServerDirectory
 
@@ -99,8 +100,11 @@ public final class ConnectionsViewModel: ObservableObject {
     public var windowIsVisible = false {
         didSet { refreshLive() }
     }
-    /// Where the map's lines start: the Mac's Region setting, never Location.
-    public let homeCountry: String? = Locale.current.region?.identifier
+    /// Where the map's lines start, and where that came from (#231).
+    @Published public private(set) var home: HomeCountry?
+    private let homeSources: HomeCountryFinder.Sources?
+    private lazy var homeFinder = HomeCountryFinder(sources: homeSources ?? liveHomeSources())
+    private var homeSubscription: AnyCancellable?
     /// The offer of website names above the list, until it's taken or closed
     /// (#134). Closed, it stays closed: Connections' settings still has it.
     @Published public var offersWebsiteNames: Bool {
@@ -189,11 +193,14 @@ public final class ConnectionsViewModel: ObservableObject {
     private var directory: ServerDirectory?
     private var directoryOpened = false
 
+    /// `homeSources`: where the Mac's country comes from, for tests; the
+    /// app's own otherwise.
     public init(monitor: MonitorViewModel, calendar: Calendar = .current,
-                defaults: UserDefaults = .standard) {
+                defaults: UserDefaults = .standard, homeSources: HomeCountryFinder.Sources? = nil) {
         self.monitor = monitor
         self.calendar = calendar
         self.defaults = defaults
+        self.homeSources = homeSources
         layout = defaults.string(forKey: Self.layoutKey).flatMap(Layout.init) ?? .both
         offersWebsiteNames = !defaults.bool(forKey: Self.websiteNamesOfferClosedKey)
         period = HistoryPeriod(scale: .day, containing: Date(), calendar: calendar)
@@ -202,6 +209,7 @@ public final class ConnectionsViewModel: ObservableObject {
             self.naming.async { self.directoryOpened = false }
             self.reload()
         }
+        homeSubscription = homeFinder.$home.sink { [weak self] in self?.home = $0 }
     }
 
     private var history: UsageHistory? { monitor.store.history }
@@ -429,7 +437,42 @@ public final class ConnectionsViewModel: ObservableObject {
                                     filter: ConnectionsFilter(keys: selected.mapValues(\.key)), search: search)
     }
 
-    public func mapDidAppear() { mapsShown += 1 }
+    public func mapDidAppear() {
+        mapsShown += 1
+        homeFinder.refresh()
+    }
+
+    /// Location, through Wi-Fi names' permission; the Mac's own address; the
+    /// Region setting.
+    private func liveHomeSources() -> HomeCountryFinder.Sources {
+        HomeCountryFinder.Sources(
+            location: { [wifiNames = monitor.wifiNames] answer in
+                wifiNames.locate { location in
+                    // The coordinates go no further than this.
+                    answer(location.flatMap {
+                        WorldShapes.shared?.map.country(longitude: $0.coordinate.longitude,
+                                                        latitude: $0.coordinate.latitude)
+                    })
+                }
+            },
+            internetAddress: { [weak self] answer in
+                guard let self else { return answer(nil) }
+                self.internetAddressCountry(answer)
+            },
+            region: { Locale.current.region?.identifier })
+    }
+
+    /// The country DB-IP places the Mac's own internet address in, when it
+    /// holds one the internet sees (#231). Answers on the main thread.
+    private func internetAddressCountry(_ answer: @escaping (String?) -> Void) {
+        naming.async { [weak self] in
+            guard let self else { return }
+            self.openDirectoryIfNeeded()
+            let country = MacAddresses.publicAddresses().lazy
+                .compactMap { self.directory?.lookup($0).country }.first
+            DispatchQueue.main.async { answer(country) }
+        }
+    }
 
     public func mapDidDisappear() { mapsShown = max(0, mapsShown - 1) }
 

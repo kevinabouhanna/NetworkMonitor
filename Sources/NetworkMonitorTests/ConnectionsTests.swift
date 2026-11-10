@@ -265,4 +265,140 @@ func runConnectionsTests() {
             Check.expectFalse(model.isLive, "closed")
         }
     }
+
+    Check.suite("Connections — where the map's lines start (#231)") {
+
+        Check.test("Location first, then the Mac's own address, then the Region setting") {
+            Check.expectEqual(HomeCountry.first(location: "LB", internetAddress: "DE", region: "US"),
+                              HomeCountry(code: "LB", source: .location))
+            Check.expectEqual(HomeCountry.first(location: nil, internetAddress: "DE", region: "US"),
+                              HomeCountry(code: "DE", source: .internetAddress))
+            Check.expectEqual(HomeCountry.first(location: nil, internetAddress: nil, region: "US"),
+                              HomeCountry(code: "US", source: .region))
+            Check.expectNil(HomeCountry.first(location: nil, internetAddress: nil, region: nil))
+        }
+
+        Check.test("a Region that's no country, such as the world, names none") {
+            Check.expectNil(HomeCountry.first(location: nil, internetAddress: nil, region: "001"))
+            Check.expectEqual(HomeCountry.first(location: "lb", internetAddress: nil, region: "150"),
+                              HomeCountry(code: "LB", source: .location))
+        }
+
+        Check.test("hovering the starting point says where it came from") {
+            Check.expectEqual(HomeCountry(code: "LB", source: .location).description(locale: english),
+                              "Your Mac, in Lebanon (from Location)")
+            Check.expectEqual(HomeCountry(code: "US", source: .region).description(locale: english),
+                              "Your Mac, in United States (from your Mac's Region setting)")
+            Check.expectEqual(HomeCountry(code: "DE", source: .internetAddress).description(locale: english),
+                              "Your Mac, in Germany (from its internet address)")
+        }
+
+        /// Sources whose answers the test gives when it chooses.
+        final class Fake {
+            var locationAsked = 0, addressAsked = 0
+            var location: ((String?) -> Void)?
+            var address: ((String?) -> Void)?
+            var region: String? = "US"
+            var sources: HomeCountryFinder.Sources {
+                HomeCountryFinder.Sources(
+                    location: { self.locationAsked += 1; self.location = $0 },
+                    internetAddress: { self.addressAsked += 1; self.address = $0 },
+                    region: { self.region })
+            }
+        }
+
+        Check.test("Region straight away; Location replaces it when it answers") {
+            let fake = Fake()
+            let finder = HomeCountryFinder(sources: fake.sources)
+            Check.expectEqual(finder.home, HomeCountry(code: "US", source: .region), "before anything is asked")
+            finder.refresh()
+            Check.expectEqual(finder.home?.source, .region, "while Location works it out")
+            fake.address?(nil)
+            fake.location?("LB")
+            Check.expectEqual(finder.home, HomeCountry(code: "LB", source: .location))
+        }
+
+        Check.test("without Location, the Mac's address; without either, the Region setting") {
+            let fake = Fake()
+            let finder = HomeCountryFinder(sources: fake.sources)
+            finder.refresh()
+            fake.location?(nil)
+            fake.address?("LB")
+            Check.expectEqual(finder.home, HomeCountry(code: "LB", source: .internetAddress))
+
+            let behindRouter = Fake()
+            let other = HomeCountryFinder(sources: behindRouter.sources)
+            other.refresh()
+            behindRouter.location?(nil)
+            behindRouter.address?(nil)
+            Check.expectEqual(other.home, HomeCountry(code: "US", source: .region))
+        }
+
+        Check.test("Location wins whichever answers first; withdrawn, the address takes over") {
+            var time = Date(timeIntervalSince1970: 0)
+            let fake = Fake()
+            let finder = HomeCountryFinder(sources: fake.sources, now: { time })
+            finder.refresh()
+            fake.location?("LB")
+            fake.address?("DE")
+            Check.expectEqual(finder.home?.code, "LB", "Location before the address, whichever answers first")
+
+            time += HomeCountryFinder.interval + 1
+            finder.refresh()
+            fake.location?(nil)
+            Check.expectEqual(finder.home, HomeCountry(code: "DE", source: .internetAddress))
+        }
+
+        Check.test("asked at most every ten minutes, however often the map shows") {
+            var time = Date(timeIntervalSince1970: 0)
+            let fake = Fake()
+            let finder = HomeCountryFinder(sources: fake.sources, now: { time })
+            finder.refresh()
+            time += 60
+            finder.refresh()
+            Check.expectEqual(fake.locationAsked, 1)
+            Check.expectEqual(fake.addressAsked, 1)
+            time += HomeCountryFinder.interval
+            finder.refresh()
+            Check.expectEqual(fake.locationAsked, 2)
+        }
+
+        Check.test("the Region setting is read afresh each time") {
+            let fake = Fake()
+            let finder = HomeCountryFinder(sources: fake.sources)
+            fake.region = "FR"
+            finder.refresh()
+            Check.expectEqual(finder.home, HomeCountry(code: "FR", source: .region))
+        }
+
+        Check.test("the map asks when it appears, through the window's model") {
+            let defaults = UserDefaults(suiteName: "connections-home-\(UUID().uuidString)")!
+            let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("connections-home-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
+            let metering = MeteringController(store: store,
+                                              journal: SuppressionJournal(url: dir.appendingPathComponent("journal.json")),
+                                              suppressors: [], defaults: defaults)
+            let fake = Fake()
+            let model = ConnectionsViewModel(monitor: MonitorViewModel(store: store, metering: metering),
+                                             defaults: defaults, homeSources: fake.sources)
+            Check.expectEqual(model.home?.source, .region)
+            Check.expectEqual(fake.locationAsked, 0, "nothing asked until the map shows")
+            model.mapDidAppear()
+            fake.location?("LB")
+            Check.expectEqual(model.home, HomeCountry(code: "LB", source: .location))
+        }
+
+        Check.test("only an address the internet sees as it is says where the Mac is") {
+            func isPublic(_ text: String) -> Bool { IPAddress(text).map(MacAddresses.isPublic) ?? false }
+            Check.expectTrue(isPublic("185.22.12.7"))
+            Check.expectTrue(isPublic("2a02:c38:1::5"))
+            for address in ["192.168.1.118", "10.0.0.2", "172.20.1.1", "100.64.3.4", "169.254.9.9",
+                            "127.0.0.1", "fe80::1", "fd12:3456::1", "2001:db8::1", "2002:c000:204::1",
+                            "2001:0:4136::1", "::1"] {
+                Check.expectFalse(isPublic(address), address)
+            }
+        }
+    }
 }

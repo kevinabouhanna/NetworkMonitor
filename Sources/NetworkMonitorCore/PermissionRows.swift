@@ -24,7 +24,7 @@ public enum SetupCopy {
     public static var hotspotUpdatesOn: String { L("Any app's updater is stopped while you're on a hotspot, including ones listed as can't be paused when they update with a program of their own. Choose Blocked in Connections to see them.") }
 
     public static var wifiTitle: String { L("Know your Wi-Fi networks by name") }
-    public static var wifiSummary: String { L("Usage History calls them Home and Office, not “Wi-Fi · 3f2a”. macOS calls this Location, but NetworkMonitor never looks up where you are.") }
+    public static var wifiSummary: String { L("Usage History calls them Home and Office, not “Wi-Fi · 3f2a”. macOS calls this Location. NetworkMonitor also uses it to find your country for the Connections map, and keeps only the country.") }
 
     // The steps name what macOS shows, word for word, so they can be followed.
     public static var websitesSteps: [String] {

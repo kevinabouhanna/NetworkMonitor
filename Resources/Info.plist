@@ -30,15 +30,17 @@
 	<key>LSUIElement</key>
 	<true/>
 
-	<!-- Asked for a few seconds after launch (#85): macOS shares the Wi-Fi
-	     network's name only with Location permission. Network identity still
-	     comes from the router's address, which needs none. -->
+	<!-- Asked for when names are turned on (#85, #134): macOS shares the
+	     Wi-Fi network's name only with Location permission. Network identity
+	     still comes from the router's address, which needs none. Once
+	     allowed, it also gives the Connections map the Mac's country (#231).
+	     Chinese copies: zh-Hans.lproj/InfoPlist.strings. -->
 	<key>NSLocationUsageDescription</key>
-	<string>NetworkMonitor uses Location only to read your Wi-Fi network's name, to show it in Usage History. It never looks up where you are.</string>
+	<string>NetworkMonitor uses Location to read your Wi-Fi network's name, for Usage History, and to find which country your Mac is in, for the Connections map. It keeps only the country.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>NetworkMonitor uses Location only to read your Wi-Fi network's name, to show it in Usage History. It never looks up where you are.</string>
+	<string>NetworkMonitor uses Location to read your Wi-Fi network's name, for Usage History, and to find which country your Mac is in, for the Connections map. It keeps only the country.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>NetworkMonitor uses Location only to read your Wi-Fi network's name, to show it in Usage History. It never looks up where you are.</string>
+	<string>NetworkMonitor uses Location to read your Wi-Fi network's name, for Usage History, and to find which country your Mac is in, for the Connections map. It keeps only the country.</string>
 
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Kevin Abouhanna</string>

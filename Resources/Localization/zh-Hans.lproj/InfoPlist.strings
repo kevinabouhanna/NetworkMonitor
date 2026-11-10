@@ -1,0 +1,4 @@
+/* The Location question's text (Info.plist), in Chinese (#231). */
+"NSLocationUsageDescription" = "NetworkMonitor 使用定位服务读取你的 Wi-Fi 网络名称，用于“流量历史”；并确定你的 Mac 所在的国家或地区，用于“连接”地图。它只保留国家或地区。";
+"NSLocationWhenInUseUsageDescription" = "NetworkMonitor 使用定位服务读取你的 Wi-Fi 网络名称，用于“流量历史”；并确定你的 Mac 所在的国家或地区，用于“连接”地图。它只保留国家或地区。";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "NetworkMonitor 使用定位服务读取你的 Wi-Fi 网络名称，用于“流量历史”；并确定你的 Mac 所在的国家或地区，用于“连接”地图。它只保留国家或地区。";
