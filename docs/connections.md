@@ -222,9 +222,11 @@ and the toolbar's search (⌘F) covers both.
 
 **Overview:**
 
-- **How many were blocked** in the period (a day, week, month or year, with ‹ Today ›), by
-  list, with an ⓘ saying how it works. The period is in the toolbar on Overview only: the
-  Log is the present, so it's hidden there (#311).
+- **How many were blocked** in the period (a day, week, month or year, with ‹ Today ›). The
+  ⓘ beside the total says how it's counted, and what each list blocked, largest first
+  (#402). A list switched off since keeps what it blocked while it was on, marked *off*.
+  The period is in the toolbar on Overview only: the Log is the present, so it's hidden
+  there (#311).
 - **A chart** of blocks over the period, by hour or by day.
 - **Sites**, by the part of the name a person would call the site (`doubleclick.net`), with
   the names under it that were blocked; and **Apps**, with the sites each tried most.
