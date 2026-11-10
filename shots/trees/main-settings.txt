@@ -14,20 +14,25 @@ AXWindow (AXStandardWindow) title="Settings" 1300
           AXGroup h40
             AXStaticText value="Language" h16
             AXPopUpButton description="Language" help="The language NetworkMonitor's windows, menus and VoiceOver are in. Same as the Mac follows System Settings › General › Language & Region." 152x24
-          AXGroup h36
+          AXGroup h76
             AXStaticText value="Start at login" h16
             AXCheckBox (AXToggle) description="Start at login" help="Opens NetworkMonitor automatically when you log in. Quitting still quits it — it won't reopen until your next login." 36x16
+            AXStaticText value="Show NetworkMonitor in" h16
+            AXRadioGroup description="Show NetworkMonitor in" help="Menu bar: the live speeds in the menu bar, and a Dock icon only while a window is open. Dock: nothing in the menu bar; the Dock icon shows the speeds or the app's icon, and its menu has what the menu bar item's menu has. Both: the menu bar item, and a Dock icon all the time, showing the app's icon or the speeds." 244x24
+              AXRadioButton (AXSegment) description="Menu bar" 80x24
+              AXRadioButton (AXSegment) description="Dock" 80x24
+              AXRadioButton (AXSegment) description="Both" 80x24
           AXGroup h40
             AXStaticText value="Show speeds in" h16
-            AXRadioGroup description="Show speeds in" help="In the menu bar and the speed test. Data you've used is always counted in MB and GB, the way data plans are sold." 116x24
+            AXRadioGroup description="Show speeds in" help="In the menu bar or on the Dock icon, and in the speed test. Data you've used is always counted in MB and GB, the way data plans are sold." 116x24
               AXRadioButton (AXSegment) description="Mbps" 60x24
               AXRadioButton (AXSegment) description="MB/s" 60x24
-          AXGroup h72
+          AXGroup h88
             AXImage description="Wi-Fi" identifier="wifi" 20x12
             AXStaticText value="Know your Wi-Fi networks by name" h16
-            AXStaticText value="Usage History calls them Home and Office, not “Wi-Fi · #f#a”. macOS calls this Location, but NetworkMonitor never looks up where you are." h32
+            AXStaticText value="Usage History calls them Home and Office, not “Wi-Fi · #f#a”. macOS calls this Location. NetworkMonitor also uses it to find your country for the Connections map, and keeps only the country." h48
             AXButton description="Turn On…" 84x24
-          AXHeading description="Menu bar colors" 104x16
+          AXHeading description="Speed colors" 84x16
           AXGroup h172
             AXStaticText value="Download" h16
             AXColorWell value="rgb # # # #" h24

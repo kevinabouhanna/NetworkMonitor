@@ -14,20 +14,25 @@ AXWindow (AXStandardWindow) title="设置" 1300
           AXGroup h40
             AXStaticText value="语言" h16
             AXPopUpButton description="语言" help="NetworkMonitor 的窗口、菜单和 VoiceOver 使用的语言。“跟随系统”使用“系统设置 › 通用 › 语言与地区”中的语言。" 100x24
-          AXGroup h36
+          AXGroup h76
             AXStaticText value="登录时启动" h16
             AXCheckBox (AXToggle) description="登录时启动" help="登录 macOS 后自动打开 NetworkMonitor。退出应用仍然会退出；下次登录前不会再次打开。" 36x16
+            AXStaticText value="NetworkMonitor 显示在" h16
+            AXRadioGroup description="NetworkMonitor 显示在" help="菜单栏：实时网速显示在菜单栏中，只有打开窗口时才有程序坞图标。程序坞：菜单栏中不显示任何内容；程序坞图标显示网速或应用图标，它的菜单包含菜单栏项目菜单中的所有内容。两者：既有菜单栏项目，也始终有程序坞图标，显示应用图标或网速。" 188x24
+              AXRadioButton (AXSegment) description="菜单栏" 64x24
+              AXRadioButton (AXSegment) description="程序坞" 64x24
+              AXRadioButton (AXSegment) description="两者" 64x24
           AXGroup h40
             AXStaticText value="速度显示单位" h16
-            AXRadioGroup description="速度显示单位" help="用于菜单栏和网速测试。已用的流量始终以 MB 和 GB 计算，与流量套餐的计算方式相同。" 116x24
+            AXRadioGroup description="速度显示单位" help="用于菜单栏或程序坞图标，以及网速测试。已用的流量始终以 MB 和 GB 计算，与流量套餐的计算方式相同。" 116x24
               AXRadioButton (AXSegment) description="Mbps" 60x24
               AXRadioButton (AXSegment) description="MB/s" 60x24
-          AXGroup h72
+          AXGroup h88
             AXImage description="Wi-Fi" identifier="wifi" 20x12
             AXStaticText value="按名称识别你的 Wi-Fi 网络" h16
-            AXStaticText value="“流量历史”会显示“家”和“办公室”这样的名称，而不是“Wi-Fi · #f#a”。macOS 把这项权限称为“定位服务”，但 NetworkMonitor 从不查询你的位置。" h32
+            AXStaticText value="“流量历史”会显示“家”和“办公室”这样的名称，而不是“Wi-Fi · #f#a”。macOS 把这项权限称为“定位服务”。NetworkMonitor 还会用它为“连接”地图确定你所在的国家或地区，并且只保留国家或地区。" h48
             AXButton description="打开…" 60x24
-          AXHeading description="菜单栏颜色" 64x16
+          AXHeading description="网速颜色" 52x16
           AXGroup h172
             AXStaticText value="下载" h16
             AXColorWell value="rgb # # # #" h24

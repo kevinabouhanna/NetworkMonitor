@@ -13,18 +13,29 @@ AXWindow (AXStandardWindow) title="Ads and Trackers" 1300
       AXTabGroup description="Show" 124x24
         AXRadioButton (AXTabButton) description="Overview" 12x24
         AXRadioButton (AXTabButton) description="Log" 12x24
-      data: AXStaticText
+      AXStaticText value="Group by" h16
+      AXTabGroup 456x24
+        AXRadioButton (AXTabButton) description="Sites" 224x24
+        AXRadioButton (AXTabButton) description="Apps" 224x24
+      data: AXButton AXStaticText
       AXMenuButton title="Pause" help="Let ads through for a while, in every app" 56x16
       AXStaticText value="Today" h16
-      data: AXGroup AXUnknown
-      AXStaticText value="Sites" h16
-      AXStaticText value="Apps" h16
-      AXScrollArea
-        data: AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
-      AXScrollArea
-        data: AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+      data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXStaticText
+      AXGroup description="Blocked by hour" h580
+        AXUnknown description="# – ‹time›" h12
+        AXUnknown description="# – ‹time›" h56
+        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h8
+        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h196
+        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h312
+        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h112
+        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h508
   AXToolbar 1300x52
     AXButton description="Sidebar" help="Hide Sidebar" 44x52
+    AXGroup help="The list, both side by side, or the chart" h52
+      AXRadioGroup description="View" 120x40
+        AXRadioButton (AXSegment) description="List" help="List" 36x36
+        AXRadioButton (AXSegment) description="Both" help="Both" 40x36
+        AXRadioButton (AXSegment) description="Chart" help="Chart" 44x36
     AXGroup help="A day, week, month or year at a time" h52
       AXRadioGroup description="Period" 284x40
         AXRadioButton (AXSegment) description="Day" 72x36

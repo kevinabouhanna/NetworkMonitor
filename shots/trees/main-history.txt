@@ -22,13 +22,16 @@ AXWindow (AXStandardWindow) title="Usage History" 1300
       AXStaticText value="Today" h24
       AXStaticText value="# ‹unit›" h16
       AXStaticText value="used" h16
-      data: AXGroup AXStaticText AXUnknown
       AXScrollArea
         data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
-      AXStaticText value="Every hour is kept on this Mac, per app and per network." h16
-      AXButton description="Export CSV…" 104x24
+      data: AXButton AXGroup AXStaticText AXUnknown
   AXToolbar 1300x52
     AXButton description="Sidebar" help="Hide Sidebar" 44x52
+    AXGroup help="The list, both side by side, or the chart" h52
+      AXRadioGroup description="View" 120x40
+        AXRadioButton (AXSegment) description="List" help="List" 36x36
+        AXRadioButton (AXSegment) description="Both" help="Both" 40x36
+        AXRadioButton (AXSegment) description="Chart" help="Chart" 44x36
     AXGroup help="A day, week, month or year at a time" h52
       AXRadioGroup description="Period" 284x40
         AXRadioButton (AXSegment) description="Day" 72x36
