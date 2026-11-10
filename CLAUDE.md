@@ -7,6 +7,10 @@ through without asking. What's particular to NetworkMonitor:
 
 - **Releasing is routine here.** Carry each change on to a release, the installed app and
   the website without asking.
+  - **Only when the app changes (#484).** A tag offers every installed copy an update, so
+    tooling-only work (Scripts/, CI, the site's tooling, development docs) is done once
+    merged into `main` or `gh-pages`, and rides along with the next release. Release when
+    something the app ships changes: `Sources/`, or `Resources/` it bundles.
 - **Work in a worktree of your own, never in the main checkout:** several sessions
   work here at once (`docs/development.md#working-in-parallel`). Before your first
   edit, call `EnterWorktree` with the branch's name; a hook makes
