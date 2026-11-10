@@ -13,8 +13,9 @@ History in the main window's sidebar.
 ## Using it
 
 - **List, Both or Chart**, at the start of the toolbar, as Connections has List, Both or
-  Map (#524): the lists alone, the chart above them (the default), or the chart filling
-  the window. Whichever you choose is remembered. With the chart alone, **Show** is
+  Map (#524): the lists alone, the lists on the left and the chart on the right with its
+  legend under it (the default, side by side as Connections has its list and map, #534),
+  or the chart filling the window. Whichever you choose is remembered. With the chart alone, **Show** is
   hidden, as there's no list for it to change.
 - **Day, Week, Month or Year**, in the toolbar, with **‹ Today ›** beside it (⌘← and ⌘→
   step too), as every section has them. Periods are

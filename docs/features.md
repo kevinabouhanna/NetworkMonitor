@@ -157,7 +157,8 @@ One window with a sidebar: **Usage History**, **Connections**, **Ads and Tracker
 with its button or **View › Hide Sidebar** (⌃⌘S).
 
 Each section's toolbar starts with the view: **List, Both or Chart** in Usage History and
-Ads and Trackers, **List, Both or Map** in Connections (#524). It has the period (**Day,
+Ads and Trackers, **List, Both or Map** in Connections (#524); Both is always the list on
+the left and the chart or the map on the right (#534). It has the period (**Day,
 Week, Month, Year**) in the middle, then
 **‹ Today ›**, a search button that opens into a field (⌘F), and a **gear**. The gear shows
 that section's own settings in place, with a back button. Network is about now, so it has

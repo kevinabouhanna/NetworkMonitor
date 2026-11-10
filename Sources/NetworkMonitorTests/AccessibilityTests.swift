@@ -163,7 +163,21 @@ func runAccessibilityTests() {
                     window.orderOut(nil)
                 }
             }
+            // Both is the list and the chart side by side, as in Connections
+            // (#534): the list's Show and the chart are both there to read.
             historyModel.layout = .both
+            Check.test("Usage History's Both has the list and the chart\(language)") {
+                let window = historyController.window
+                window.alphaValue = 0
+                window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
+                window.orderFrontRegardless()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                let names = AccessibilityAudit.namesOwnWindow(titled: window.title)
+                let chart = [L("Usage by hour"), L("Usage by day"), L("Usage by month")]
+                Check.expectTrue(names.contains(L("Show")) && names.contains { chart.contains($0) },
+                                 "Both doesn't have the list's Show and the chart: \(names)")
+                window.orderOut(nil)
+            }
             adsModel.layout = .both
             let main = MainWindowController(model: model, history: HistoryViewModel(monitor: model),
                                             connections: connections, ads: AdsViewModel(monitor: model))

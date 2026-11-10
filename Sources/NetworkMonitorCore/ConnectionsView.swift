@@ -34,10 +34,7 @@ public struct ConnectionsView: View {
                 case .map:
                     ConnectionsMap(model: model)
                 case .both:
-                    HStack(alignment: .top, spacing: 14) {
-                        list.frame(width: (geometry.size.width - 40) * 0.46)
-                        ConnectionsMap(model: model)
-                    }
+                    SideBySide { list } detail: { ConnectionsMap(model: model) }
                 }
                 Divider()
                 footer
@@ -403,19 +400,24 @@ private struct WebsiteNamesOffer: View {
 }
 
 /// What a row's rule says, beside its name: red for blocked, orange for
-/// blocked on hotspots, green for always allowed.
+/// blocked on hotspots, green for always allowed. As an icon where the name
+/// needs the room (#534).
 struct RuleBadge: View {
     let action: RuleAction
     /// A rule for one network says which (#200).
     var networkTitle: String? = nil
+    var iconOnly = false
 
     var body: some View {
-        Text((networkTitle.map { L("%@ on %@", action.badge, $0) } ?? action.badge).uppercased())
-            .font(.system(size: 8, weight: .bold))
-            .padding(.horizontal, 4).padding(.vertical, 1)
-            .background(color.opacity(0.18), in: Capsule())
-            .foregroundStyle(color)
-            .fixedSize()
+        RowTag(word: (networkTitle.map { L("%@ on %@", action.badge, $0) } ?? action.badge).uppercased(),
+               symbol: symbol, color: color, iconOnly: iconOnly)
+    }
+
+    private var symbol: String {
+        switch action {
+        case .block, .blockOnHotspots: return "nosign"
+        case .allow:                   return "checkmark.circle.fill"
+        }
     }
 
     private var color: Color {
@@ -432,14 +434,12 @@ struct RuleBadge: View {
 /// switched on or not: Connections says what it is either way.
 struct ListTag: View {
     let topic: BlocklistTopic
+    var iconOnly = false
 
     var body: some View {
-        Text(tag)
-            .font(.system(size: 8, weight: .bold))
-            .padding(.horizontal, 4).padding(.vertical, 1)
-            .background(color.opacity(0.18), in: Capsule())
-            .foregroundStyle(color)
-            .help(L("On the %@ list, from %@", topic.shownTitle.lowercased(), topic.source))
+        RowTag(word: tag, symbol: topic == .malware ? "ladybug.fill" : "megaphone.fill", color: color,
+               detail: L("On the %@ list, from %@", topic.shownTitle.lowercased(), topic.source),
+               iconOnly: iconOnly)
     }
 
     /// `topic.tag` in the language shown: FirewallPolicy can't call `L` (#433).
@@ -451,6 +451,62 @@ struct ListTag: View {
     }
 
     private var color: Color { topic == .malware ? .purple : .red }
+}
+
+/// A word in a capsule beside a row's name: METERED, HOST, ADS, a rule. Where
+/// the name needs the room it's the word's icon, which still says the word
+/// to VoiceOver and in its tooltip (#534).
+struct RowTag: View {
+    let word: String
+    let symbol: String
+    let color: Color
+    /// The tooltip's explanation, after the word.
+    var detail: String? = nil
+    var iconOnly = false
+
+    var body: some View {
+        if let tooltip { capsule.help(tooltip) } else { capsule }
+    }
+
+    /// The icon's says its word; the word's says only what explains it.
+    private var tooltip: String? {
+        guard iconOnly else { return detail }
+        return detail.map { L("%@: %@", word, $0) } ?? word
+    }
+
+    private var capsule: some View {
+        Group {
+            if iconOnly {
+                Image(systemName: symbol)
+                    .font(.system(size: 8, weight: .bold))
+                    .padding(.horizontal, 3).padding(.vertical, 1)
+                    .accessibilityLabel(word)
+            } else {
+                Text(word)
+                    .font(.system(size: 8, weight: .bold))
+                    .padding(.horizontal, 4).padding(.vertical, 1)
+            }
+        }
+        .background(color.opacity(0.18), in: Capsule())
+        .foregroundStyle(color)
+        .fixedSize()
+    }
+}
+
+/// A row's name and its tags, the name first (#534): the name and the tags'
+/// words if they fit; then the name in full with the tags as icons; and only
+/// then the name shortened, beside the icons.
+struct NameBeforeTags<Name: View, Tags: View>: View {
+    @ViewBuilder let name: Name
+    @ViewBuilder let tags: (_ iconOnly: Bool) -> Tags
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) { name.fixedSize(horizontal: true, vertical: false); tags(false) }
+            HStack(spacing: 6) { name.fixedSize(horizontal: true, vertical: false); tags(true) }
+            HStack(spacing: 6) { name; tags(true) }
+        }
+    }
 }
 
 private struct ConnectionsRow: View {
@@ -473,6 +529,12 @@ private struct ConnectionsRow: View {
 
     /// Not `@State`, which needs Xcode from the macOS 27 SDK on.
     @StateObject private var hover = HistoryRowHover()
+    @Environment(\.splitListWidth) private var listWidth
+    private var barWidth: CGFloat {
+        SplitMetrics.bar(listWidth: listWidth,
+                         fixed: ConnectionsMetrics.rowFixed + (indent > 0 ? ConnectionsMetrics.rowIndent : 0),
+                         most: ConnectionsMetrics.rowBarWidth)
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -494,22 +556,19 @@ private struct ConnectionsRow: View {
             leading.accessibilityHidden(true)
                 .frame(width: 18, height: 18)
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
+                NameBeforeTags {
                     Text(item.title)
                         .font(.system(size: 12))
                         .foregroundStyle(indent > 0 ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                         .lineLimit(1)
                         .truncationMode(.middle)
+                } tags: { iconOnly in
                     if item.isHost {
-                        Text(L("HOST"))
-                            .font(.system(size: 8, weight: .bold))
-                            .padding(.horizontal, 4).padding(.vertical, 1)
-                            .background(Color.secondary.opacity(0.18), in: Capsule())
-                            .foregroundStyle(.secondary)
-                            .help(L("A network that carries many companies' traffic"))
+                        RowTag(word: L("HOST"), symbol: "server.rack", color: .secondary,
+                               detail: L("A network that carries many companies' traffic"), iconOnly: iconOnly)
                     }
-                    if let listed { ListTag(topic: listed) }
-                    if let rule { RuleBadge(action: rule.action, networkTitle: rule.networkTitle) }
+                    if let listed { ListTag(topic: listed, iconOnly: iconOnly) }
+                    if let rule { RuleBadge(action: rule.action, networkTitle: rule.networkTitle, iconOnly: iconOnly) }
                 }
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
@@ -521,7 +580,7 @@ private struct ConnectionsRow: View {
             }
             Spacer(minLength: 12)
             bar
-                .frame(width: ConnectionsMetrics.rowBarWidth, alignment: .leading)
+                .frame(width: barWidth, alignment: .leading)
             Text(format(item.total))
                 .font(.system(size: 12, weight: .medium))
                 .monospacedDigit()
@@ -566,7 +625,7 @@ private struct ConnectionsRow: View {
     private var bar: some View {
         RoundedRectangle(cornerRadius: 2)
             .fill(AppPalette.connections.opacity(indent > 0 ? 0.55 : 0.85))
-            .frame(width: max(3, ConnectionsMetrics.rowBarWidth * min(max(fraction, 0), 1)), height: 6)
+            .frame(width: max(3, barWidth * min(max(fraction, 0), 1)), height: 6)
     }
 }
 
@@ -644,6 +703,12 @@ enum ConnectionsMetrics {
     static let minWidth: CGFloat = 920
     static let minHeight: CGFloat = 520
     static let rowBarWidth: CGFloat = 140
+    /// A row's width besides its name and bar: 8 pt padding each side, the
+    /// disclosure (14), the icon (18), five 8 pt gaps, the least space before
+    /// the bar (12) and the figure (76).
+    static let rowFixed: CGFloat = 16 + 14 + 18 + 5 * 8 + 12 + 76
+    /// An indented row's indent and its gap.
+    static let rowIndent: CGFloat = 22 + 8
     static let timelineHeight: CGFloat = 54
     /// Below this, Both shows the list alone.
     static let bothMinWidth: CGFloat = 900
