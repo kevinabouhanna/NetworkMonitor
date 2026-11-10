@@ -680,6 +680,47 @@ func maskedFrames(_ window: AXUIElement, _ shot: Shot) -> [CGRect] {
 
 // MARK: - Kevin's screens
 
+/// The screen every window is read and taken on (#487): the built-in Retina
+/// display, or another Retina one; nil without one. The pictures are 2x, so
+/// it's a Retina screen; it's the same whichever screen is the main one.
+func stage() -> NSScreen? {
+    let retina = NSScreen.screens.filter { $0.backingScaleFactor >= 2 }
+    let builtIn = retina.first { screen in
+        (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)
+            .map { CGDisplayIsBuiltin($0.uint32Value) != 0 } ?? false
+    }
+    return builtIn ?? retina.first
+}
+
+/// Where the app keeps its windows (`NSWindow Frame Main`): a run moves them
+/// onto the stage, and puts them back once the app has quit, so Kevin's
+/// window opens where he left it.
+struct SavedFrames {
+    let bundle: CFString
+    let frames: [String: CFPropertyList]
+
+    init(bundle: String) {
+        self.bundle = bundle as CFString
+        CFPreferencesAppSynchronize(self.bundle)
+        let keys = CFPreferencesCopyKeyList(self.bundle, kCFPreferencesCurrentUser, kCFPreferencesAnyHost) as? [String] ?? []
+        var frames: [String: CFPropertyList] = [:]
+        for key in keys where key.hasPrefix("NSWindow Frame ") {
+            frames[key] = CFPreferencesCopyAppValue(key as CFString, self.bundle)
+        }
+        self.frames = frames
+    }
+
+    /// Only once the app has quit, or it would write its own over them.
+    func restore() {
+        CFPreferencesAppSynchronize(bundle)
+        let now = CFPreferencesCopyKeyList(bundle, kCFPreferencesCurrentUser, kCFPreferencesAnyHost) as? [String] ?? []
+        for key in Set(now.filter { $0.hasPrefix("NSWindow Frame ") }).union(frames.keys) {
+            CFPreferencesSetAppValue(key as CFString, frames[key], bundle)
+        }
+        CFPreferencesAppSynchronize(bundle)
+    }
+}
+
 /// When this run last clicked with the real pointer: that click counts as input.
 nonisolated(unsafe) var lastOwnInput: Date?
 
@@ -835,19 +876,27 @@ struct Session {
         throw Failure("\(wait.element) didn't appear within \(Int(wait.seconds)) s; the window showed:\n\(showing)")
     }
 
-    /// Moves a window that's on a 1x screen onto a Retina one, which captures
-    /// it at full resolution.
-    func ensureRetina(_ window: AXUIElement) {
-        guard let f = frame(window) else { return }
+    /// Puts a window in one place before it's read or taken (#487): on the
+    /// stage screen, `stage()`, 60 points from its visible frame's left and 40
+    /// from its top. A window lays out to whole points on a 1x screen and to
+    /// half points on a Retina one, so a toolbar segment 37.5 points wide on
+    /// one is 38 on the other and rounds to another size; and a translucent
+    /// sidebar shows what's behind it. Where the window last was, or which
+    /// screen is the main one, changes neither. A popover and the menu bar
+    /// readout stay where they are: the popover opens on the Retina screen
+    /// itself (`-popoverScreen retina`).
+    func place(_ window: AXUIElement) {
+        guard role(window) == "AXWindow", let f = frame(window), let screen = stage() else { return }
         let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
-        func flipped(_ r: CGRect) -> CGRect { CGRect(x: r.minX, y: primaryHeight - r.maxY, width: r.width, height: r.height) }
-        let here = NSScreen.screens.first { flipped($0.frame).contains(CGPoint(x: f.midX, y: f.minY + 10)) }
-        guard here?.backingScaleFactor ?? 2 < 2, let retina = NSScreen.screens.first(where: { $0.backingScaleFactor >= 2 }) else { return }
-        var to = CGPoint(x: flipped(retina.visibleFrame).minX + 60, y: flipped(retina.visibleFrame).minY + 40)
-        if let value = AXValueCreate(.cgPoint, &to) {
-            AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value)
-            usleep(500_000)
-        }
+        // In screen points from the top left, as accessibility has them.
+        let visible = CGRect(x: screen.visibleFrame.minX, y: primaryHeight - screen.visibleFrame.maxY,
+                             width: screen.visibleFrame.width, height: screen.visibleFrame.height)
+        var to = CGPoint(x: visible.minX + max(0, min(60, visible.width - f.width)),
+                         y: visible.minY + max(0, min(40, visible.height - f.height)))
+        guard f.origin != to, let value = AXValueCreate(.cgPoint, &to) else { return }
+        AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value)
+        // It lays out again for the new screen's scale.
+        usleep(800_000)
     }
 
     func capture(_ window: AXUIElement, crop: Crop?) async throws -> CGImage {
@@ -882,7 +931,7 @@ struct Session {
 
     /// The window as it looks now, active, with the tree's masks laid on it.
     func look(_ window: AXUIElement, _ shot: Shot) async throws -> (look: Look, picture: CGImage, masks: [CGRect]) {
-        ensureRetina(window)
+        place(window)
         var picture = try await picture(window, crop: shot.crop)
         for _ in 0..<4 where shot.crop == nil && !isActive(picture.image, window: window) {
             bringForward(window)
@@ -1665,6 +1714,12 @@ struct SiteShots {
             guard AXIsProcessTrusted() else { throw Failure("give this terminal Accessibility in System Settings › Privacy & Security") }
             var manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
             if let app { manifest.app = app }
+            // Trees and pictures are read on a Retina screen; on a 1x one
+            // they'd differ from the records without any change (#487).
+            if stage() == nil, ["check", "update", "record"].contains(command) {
+                throw Failure("no Retina screen to read the windows on: the records are read on one (#487)")
+            }
+            let savedFrames = SavedFrames(bundle: manifest.bundle)
             var session = Session(manifest: manifest)
             // Reading the tree needs no focus; a picture shows the window active.
             session.background = ["check", "tree", "audit"].contains(command) && !(command == "check" && compareLooks)
@@ -1689,7 +1744,10 @@ struct SiteShots {
             // Put the app back as it was: the installed one, even after a run
             // with another copy (`--app`).
             let installed = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
-            if wasRunning { try? Session(manifest: installed).launch([]) } else { session.quit() }
+            // Its windows back where Kevin had them, once it has quit (#487).
+            session.quit()
+            savedFrames.restore()
+            if wasRunning { try? Session(manifest: installed).launch([]) }
             exit(status)
         } catch {
             print("site-shots: \(error)")
@@ -1776,6 +1834,8 @@ struct SiteShots {
                     try session.launch(shot.open)
                     window = try session.window(shot.window)
                 }
+                // On the stage, before anything reads it (#487).
+                session.place(window)
                 if let spec = shot.skipIf, find(spec, in: window) != nil {
                     print("\(shot.name): skipped while \(spec) shows; it's tried again on the next update")
                     cached = nil
