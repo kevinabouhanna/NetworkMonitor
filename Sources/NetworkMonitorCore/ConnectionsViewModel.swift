@@ -27,7 +27,8 @@ public final class ConnectionsViewModel: ObservableObject {
     }
 
     /// What the window shows: the list, the map, or both side by side.
-    public enum Layout: String, CaseIterable, Identifiable {
+    /// The toolbar's View (#524), as Usage History's and Ads and Trackers'.
+    public enum Layout: String, SectionLayout, Identifiable {
         case list, both, map
         public var id: String { rawValue }
         public var label: String {
@@ -35,6 +36,13 @@ public final class ConnectionsViewModel: ObservableObject {
             case .list: return L("List")
             case .both: return L("Both")
             case .map:  return L("Map")
+            }
+        }
+        public var symbol: String {
+            switch self {
+            case .list: return "list.bullet"
+            case .both: return "rectangle.split.2x1"
+            case .map:  return "map"
             }
         }
     }

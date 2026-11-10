@@ -233,9 +233,15 @@ and the toolbar's search (⌘F) covers both.
   (#402). A list switched off since keeps what it blocked while it was on, marked *off*.
   The period is in the toolbar on Overview only: the Log is the present, so it's hidden
   there (#311).
+- **List, Both or Chart**, at the start of the toolbar, as Connections has List, Both or
+  Map (#524): the list alone, the chart above it (the default), or the chart filling the
+  window. Whichever you choose is remembered, and it's hidden on Log with the period.
 - **A chart** of blocks over the period, by hour or by day.
-- **Sites**, by the part of the name a person would call the site (`doubleclick.net`), with
-  the names under it that were blocked; and **Apps**, with the sites each tried most.
+- **Sites or Apps**, at the end of the row under the toolbar, where Connections and Usage
+  History have All, Wi-Fi or Hotspot: **Sites**, by the part of the name a person would
+  call the site (`doubleclick.net`), with the names under it that were blocked; or
+  **Apps**, with the sites each tried most. One at a time, each list has the window's
+  width (#524).
 - **Pause:** for an hour or until tomorrow, in every app. The lists stay chosen, the filter
   is sent none until then, and the popover says it's paused. Kept across a relaunch.
   **Whenever on** *this network* (#253) turns ad blocking off on the network the Mac is on,

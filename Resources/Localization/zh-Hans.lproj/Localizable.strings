@@ -907,3 +907,8 @@
 /* The menu bar readout, read by VoiceOver (#424). */
 "Download %@, upload %@" = "下载 %@，上传 %@";
 "Speed test: download %@, upload %@" = "网速测试：下载 %@，上传 %@";
+
+/* The View in Usage History's and Ads and Trackers' toolbars, and Ads and Trackers' Sites and Apps (#524). */
+"Chart" = "图表";
+"The list, both one above the other, or the chart" = "列表、两者上下排列，或图表";
+"The sites blocked, or the apps that tried to reach them" = "已拦截的网站，或尝试访问它们的应用";
