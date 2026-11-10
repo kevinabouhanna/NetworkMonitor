@@ -66,17 +66,21 @@ struct AdsView: View {
                 if model.report.total == 0 {
                     empty
                 } else {
-                    // The toolbar's View (#524): the chart above the list, as
-                    // Usage History has it, so the period's hours or days read
-                    // across the window's width.
+                    // The toolbar's View (#524): the list on the left and the
+                    // chart on the right, as Connections has its list and map
+                    // (#534).
                     switch model.layout {
                     case .both:
-                        chart
-                            .frame(height: AdsMetrics.chartHeight)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 14)
-                        Divider()
-                        lists
+                        SideBySide {
+                            lists
+                        } detail: {
+                            chart
+                                .padding(12)
+                                .splitCard()
+                                .padding(.top, 14)
+                                .padding(.bottom, 20)
+                        }
+                        .padding(.trailing, 20)
                     case .list:
                         lists
                     case .chart:
@@ -365,7 +369,6 @@ enum AdsMetrics {
     /// View, as Connections' and Usage History's have it.
     static let minWidth: CGFloat = 820
     static let minHeight: CGFloat = 480
-    static let chartHeight: CGFloat = 120
     static let rowBarWidth: CGFloat = 90
     static let logTime: CGFloat = 76
     static let logApp: CGFloat = 170

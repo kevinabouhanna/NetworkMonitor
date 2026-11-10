@@ -440,6 +440,10 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
         world.connections.layout = layout
         shoot("connections-\(layout.rawValue)", settle: 1.5)
     }
+    // Both at the window's least, beside Usage History's and Ads and
+    // Trackers', which share its split (#534).
+    world.connections.layout = .both
+    shootAtMinimum("connections-both-min", settle: 1.5)
     main.show(.ads)
     for tab in AdsViewModel.Tab.allCases {
         main.ads.select(tab)

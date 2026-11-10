@@ -34,10 +34,7 @@ public struct ConnectionsView: View {
                 case .map:
                     ConnectionsMap(model: model)
                 case .both:
-                    HStack(alignment: .top, spacing: 14) {
-                        list.frame(width: (geometry.size.width - 40) * 0.46)
-                        ConnectionsMap(model: model)
-                    }
+                    SideBySide { list } detail: { ConnectionsMap(model: model) }
                 }
                 Divider()
                 footer

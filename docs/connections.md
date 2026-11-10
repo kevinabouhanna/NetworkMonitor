@@ -234,8 +234,9 @@ and the toolbar's search (⌘F) covers both.
   The period is in the toolbar on Overview only: the Log is the present, so it's hidden
   there (#311).
 - **List, Both or Chart**, at the start of the toolbar, as Connections has List, Both or
-  Map (#524): the list alone, the chart above it (the default), or the chart filling the
-  window. Whichever you choose is remembered, and it's hidden on Log with the period.
+  Map (#524): the list alone, the list on the left and the chart on the right (the
+  default, side by side as Connections has its list and map, #534), or the chart filling
+  the window. Whichever you choose is remembered, and it's hidden on Log with the period.
 - **A chart** of blocks over the period, by hour or by day.
 - **Sites or Apps**, at the end of the row under the toolbar, where Connections and Usage
   History have All, Wi-Fi or Hotspot: **Sites**, by the part of the name a person would

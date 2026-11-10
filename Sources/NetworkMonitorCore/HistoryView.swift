@@ -22,15 +22,23 @@ public struct HistoryView: View {
         VStack(alignment: .leading, spacing: ScopeMetrics.below) {
             scopeBar
             heading
-            // The toolbar's View (#524): the chart above the list, as it always
-            // was, rather than beside it: a period's hours or days read across
-            // the window's width, and the list's rows keep theirs.
+            // The toolbar's View (#524): the list on the left and the chart
+            // on the right, the chart's legend under it, as Connections has
+            // its list and map (#534).
             switch model.layout {
             case .both:
-                HistoryChart(model: model)
-                legend
-                Divider()
-                listStack
+                SideBySide {
+                    listStack
+                } detail: {
+                    VStack(alignment: .leading, spacing: 10) {
+                        GeometryReader { geometry in
+                            HistoryChart(model: model, height: geometry.size.height, width: geometry.size.width)
+                        }
+                        legend
+                    }
+                    .padding(12)
+                    .splitCard()
+                }
             case .list:
                 legend
                 Divider()
@@ -437,6 +445,9 @@ private struct HistoryChart: View {
     /// The chart's height: fixed above the list, the window's when it's
     /// the chart alone (#524).
     var height: CGFloat = HistoryMetrics.chartHeight
+    /// The chart's width, beside the list (#534); otherwise the bars are
+    /// as wide as they always were.
+    var width: CGFloat?
 
     private var report: HistoryReport { model.report }
 
@@ -493,7 +504,7 @@ private struct HistoryChart: View {
     // MARK: Geometry
 
     private var plotWidth: CGFloat {
-        SettingsMetrics.paneWidth - 40 - HistoryMetrics.yAxisWidth
+        (width ?? SettingsMetrics.paneWidth - 40) - HistoryMetrics.yAxisWidth
     }
 
     /// At most 24 pt, and never more than 60% of a bar's slot.

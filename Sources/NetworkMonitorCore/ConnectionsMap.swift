@@ -46,8 +46,7 @@ struct ConnectionsMap: View {
                 }
             }
         }
-        .background(Color.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .splitCard()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
         .onAppear { model.mapDidAppear() }

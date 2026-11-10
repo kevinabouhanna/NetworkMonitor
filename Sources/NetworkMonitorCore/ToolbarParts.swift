@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// What every section's toolbar shares (#436), so Usage History,
 /// Connections and Ads and Trackers read the same way: the period centred,
@@ -40,8 +41,8 @@ public protocol SectionLayout: Hashable, CaseIterable where AllCases == [Self] {
     var symbol: String { get }
 }
 
-/// Usage History's and Ads and Trackers' View (#524): the list, the chart
-/// above the list, or the chart filling the window.
+/// Usage History's and Ads and Trackers' View (#524): the list, the list
+/// with the chart beside it (#534), or the chart filling the window.
 public enum ChartLayout: String, SectionLayout, Identifiable {
     case list, both, chart
     public var id: String { rawValue }
@@ -55,7 +56,7 @@ public enum ChartLayout: String, SectionLayout, Identifiable {
     public var symbol: String {
         switch self {
         case .list:  return "list.bullet"
-        case .both:  return "rectangle.split.1x2"
+        case .both:  return "rectangle.split.2x1"
         case .chart: return "chart.bar"
         }
     }
@@ -100,7 +101,43 @@ enum ViewControl {
 
     /// The toolbar item's name and tooltip: what the middle segment puts together.
     static func names(chart: Bool) -> (label: String, help: String) {
-        (L("View"), chart ? L("The list, both one above the other, or the chart") : L("The list, both side by side, or the map"))
+        (L("View"), chart ? L("The list, both side by side, or the chart") : L("The list, both side by side, or the map"))
+    }
+}
+
+/// Both, in every section (#534): the list on the left, and the map or the
+/// chart on the right on a card (`splitCard()`), whose edge is what divides
+/// them. Connections' split, which Usage History and Ads and Trackers share
+/// so the three read the same.
+struct SideBySide<Leading: View, Trailing: View>: View {
+    @ViewBuilder let list: Leading
+    @ViewBuilder let detail: Trailing
+
+    var body: some View {
+        GeometryReader { geometry in
+            HStack(alignment: .top, spacing: SplitMetrics.gap) {
+                list.frame(width: SplitMetrics.listWidth(geometry.size.width))
+                detail.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+}
+
+enum SplitMetrics {
+    /// The list's share of the width, the rest going to what's beside it.
+    static let listShare: CGFloat = 0.46
+    static let gap: CGFloat = 14
+    static let cornerRadius: CGFloat = 8
+
+    static func listWidth(_ width: CGFloat) -> CGFloat { (width * listShare).rounded() }
+}
+
+extension View {
+    /// The card the map or the chart sits on beside the list, and the map
+    /// on its own.
+    func splitCard() -> some View {
+        background(Color.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: SplitMetrics.cornerRadius))
+            .clipShape(RoundedRectangle(cornerRadius: SplitMetrics.cornerRadius))
     }
 }
 
