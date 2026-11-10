@@ -1,8 +1,9 @@
 name: Wiki
 
-# The wiki is a copy of docs/ and SECURITY.md (#177), rebuilt by
-# Scripts/wiki.py whenever they change on main, so it's never edited by hand
-# and never falls behind. Run it by hand from the Actions tab to rebuild it now.
+# The wiki is a copy of docs/ and SECURITY.md (#177), rebuilt by docs-kit
+# (Scripts/docs-kit, #334) whenever they change on main, so it's never edited
+# by hand and never falls behind. Run it by hand from the Actions tab to
+# rebuild it now.
 on:
   push:
     branches: [main]
@@ -10,8 +11,8 @@ on:
       - "docs/**"
       - "SECURITY.md"
       - "Resources/README/**"
-      - "Resources/Localization/*/Glossary.json"
-      - "Scripts/wiki.py"
+      - "Scripts/docs-kit"
+      - ".docs-kit.json"
       - ".github/workflows/wiki.yml"
   workflow_dispatch:
 
@@ -38,7 +39,7 @@ jobs:
           path: wiki
 
       - name: Build the pages
-        run: python3 -I Scripts/wiki.py wiki "$GITHUB_SHA"
+        run: python3 -I Scripts/docs-kit wiki wiki "$GITHUB_SHA"
 
       # Every page's footer names the commit, so a run on a new commit always
       # has something to push; a manual run on the same one may not.

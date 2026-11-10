@@ -39,6 +39,15 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: make translation-check BASE=origin/${{ github.base_ref }}
 
+      # A change to the app's text changes the docs too, or the description
+      # says why not: "No docs needed: <why>" (#334).
+      - name: Check the docs changed with the app's text
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: make docs-check BASE=origin/${{ github.base_ref }}
+
       - name: Swift version
         run: swift --version
 

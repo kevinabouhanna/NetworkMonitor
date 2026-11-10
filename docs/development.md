@@ -56,6 +56,9 @@ make run     # build build/NetworkMonitor.app and open it
 | `make site-shots` | Retakes those pictures, or the ones in `NAMES`, and updates the page |
 | `make site-trees NAMES=…` | Records those windows' trees as they read now, without retaking their pictures, after marking more of them as data (below) |
 | `make asset-check` | Fails on any image, GIF or video the site, README or docs use that isn't listed with the window it shows (below) |
+| `make docs-check` | Fails when this branch changes the app's text but no page of the docs for people using it ([The docs](#the-docs)) |
+| `make docs-site SITE=…` | Builds the website's docs pages from `docs/` into that `gh-pages` checkout |
+| `make docs-anchors` | Every docs page's address on the website and its anchors, as JSON |
 | `make translation-check` | Fails when this branch changes an English page for people using the app but not its translation ([Languages](#languages)) |
 | `make translation-review FROM=vX.Y.Z` | The text added or changed since that release in each language, as a table for its native reviewer ([Adding a language](#adding-a-language)) |
 | `make site-audit` | Checks the installed app's windows, with real data, for what VoiceOver can't name |
@@ -220,7 +223,8 @@ is the same, with a fallback copy) runs the two jobs `.github/workflows/ci.yml` 
 `.claude/ci.conf.sh`, and records each on the commit under its name. Both must be green before a
 merge. `ci.yml` itself runs only when dispatched by hand.
 
-- **`build-and-test`:** on a pull request, `make translation-check` first; then build,
+- **`build-and-test`:** on a pull request, `make translation-check` and `make docs-check`
+  ([The docs](#the-docs)) first; then build,
   `make test` (live tests skipped), `make asset-check` (against `gh-pages`, or the
   pull request's branch with `-site`:
   [Changing both branches](#changing-both-branches)), `make app`, checks on the bundle
@@ -374,7 +378,8 @@ beside the main checkout. Changes to it get an issue and a pull request against
 - Don't merge with `gh pr merge --delete-branch` while the branch is checked out in the
   worktree: `gh` removes the worktree along with it.
 - After each release, update the hero's version, the download line's version and DMG
-  size (in 1024-based MB), and the "What's in version" link, and run `make site-shots`
+  size (in 1024-based MB), and the "What's in version" link, rebuild the docs pages with
+  `make docs-site SITE=<site worktree>` ([The docs](#the-docs)), and run `make site-shots`
   (below).
 - **Every image is a real capture of the app**, never a mock-up. The Settings section
   shows each pane as a capture in `assets/settings/`, with the window's size in points on
@@ -634,20 +639,40 @@ two branches are paired by name:
    already passed against `main`'s branch. Checks that run in between fail, `main`'s
    own included: run them again once both are in.
 
-## The wiki
+## The docs
 
-The [wiki](https://github.com/kevinabouhanna/NetworkMonitor/wiki) is a copy of `docs/` and
-`SECURITY.md`, made by `Scripts/wiki.py` (#177). The **Wiki** workflow
-(`.github/workflows/wiki.yml`) rebuilds it whenever they change on `main`, so change the
-docs here, never the wiki.
+`docs/` is the one source of the docs (#334). The website's docs pages and the wiki are
+built from it and never edited by hand, by **docs-kit**, a tool shared with Kevin's other
+projects (the `docs-kit` plugin, in the `kevinabouhanna` marketplace; this repository's copy
+is `Scripts/docs-kit`). What's particular to NetworkMonitor is in `.docs-kit.json`: the pages
+for developers, the languages, which changes need docs, the site's templates.
 
-- A page comes and goes with its doc, and the sidebar follows the tables in
-  `docs/README.md`.
-- Links are rewritten for the wiki, and images point at the commit that was copied.
-- Only files git tracks are copied, so the private notes git ignores in `docs/` stay
+- **The docs change with the feature.** `make docs-check` (CI's `build-and-test`) fails a
+  pull request that changes the app's text (an `L("…")` in `Sources/`, outside the tests)
+  and no page for people using the app (any page in `docs/` or `SECURITY.md` but
+  `architecture.md`, `decisions.md`, `development.md` and `roadmap.md`). Write the docs in
+  the same pull request, in every language. When it really needs none, a line in the pull
+  request's description says why: `No docs needed: <why>`.
+- **Headings are addresses.** Each heading's anchor is GitHub's (`## The popover` →
+  `#the-popover`), the same on GitHub, the wiki and the website, so a renamed heading moves
+  an address. `make docs-anchors` lists every page's address and anchors, as JSON, for links
+  into the docs (#230). An address that must outlive its wording gets `<a id="name"></a>` on
+  the line before its heading.
+- **The website's docs** are `docs/` and `zh/docs/` on `gh-pages`: every page for people
+  using the app, in the site's look (`docs/_template.html` and `zh/docs/_template.html`
+  there, and `assets/docs.css`), rendered by GitHub, with images from the repository at
+  that commit. They're rebuilt **with each release**, in its site pull request, so they
+  describe the version people can download: `make docs-site SITE=<site worktree>` from the
+  tag (it needs `gh` signed in). A fix to the docs alone can go out the same way at any
+  time.
+- **The wiki** ([wiki](https://github.com/kevinabouhanna/NetworkMonitor/wiki)) is rebuilt by
+  the **Wiki** workflow (`.github/workflows/wiki.yml`, on GitHub, `docs-kit wiki`) whenever
+  the docs change on `main`. A page comes and goes with its doc, and the sidebar follows the
+  tables in `docs/README.md`. To rebuild it by hand, run the workflow from the Actions tab.
+- Only files git tracks are built from, so the private notes git ignores in `docs/` stay
   private.
-- To rebuild it by hand, run the workflow from the Actions tab, or
-  `python3 Scripts/wiki.py <wiki checkout>` and push.
+- **A newer docs-kit:** `docs-kit vendor` copies the plugin's into `Scripts/docs-kit`, in a
+  pull request of its own; `docs-kit vendor --check` says whether this copy is behind.
 
 ## Languages
 
@@ -733,8 +758,10 @@ way, and its files are the examples. `<code>` is the language's code as macOS wr
    - **The README:** `README.<code>.md`, linked to and from `README.md` under the title.
    - **The docs:** a copy in `docs/<code>/` of each page in `docs/zh-Hans/`, its index
      included, each linked to and from its English page.
-   - **The wiki:** nothing to do. `Scripts/wiki.py` publishes each copy, and gives the
-     language a section of the sidebar, under its glossary's `name`.
+   - **The wiki and the website's docs:** add the language to `.docs-kit.json`'s
+     `languages`, with its name and its folder on the site, and a template for its docs
+     pages on `gh-pages` (`<folder>/docs/_template.html`) in `site.templates`. The wiki gives
+     it a section of the sidebar; `make docs-site` builds its pages.
    - **The website:** a page in a folder of its own (`zh/index.html` for Chinese) on
      `gh-pages`, with the language switch and `hreflang` on every page. Add the language
      to `shots/shots.json`'s `languages`, with its page and its pictures' folder

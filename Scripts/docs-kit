@@ -1,0 +1,791 @@
+#!/usr/bin/env python3
+#
+# docs-kit: one source for a project's docs (claude-parallel-sessions#36).
+#
+# docs/ in the repository is the source. Everything else is built from it and
+# never edited by hand: the website's docs pages and the GitHub wiki. A check
+# holds the docs to the features they describe: a change to the app's text
+# with no change to a page for users fails, unless the pull request says why.
+#
+# Everything particular to a project is in its .docs-kit.json, found at the
+# top of the git checkout this runs in. One file, Python's standard library
+# only, so it runs anywhere: on the Mac, in local-ci, in a GitHub workflow.
+# Each project keeps a copy (Scripts/docs-kit, `docs-kit vendor`), so its CI
+# needs no plugin.
+#
+# Usage:
+#   docs-kit check [base]          docs changed with the feature? (base: origin/main)
+#   docs-kit site <site checkout>  the website's docs pages
+#   docs-kit wiki <wiki checkout> [commit]
+#   docs-kit anchors               every page's address and headings, as JSON
+#   docs-kit vendor [--check]      copy this file into the project
+#   docs-kit init                  write a starting .docs-kit.json
+#   docs-kit version
+#
+# The full reference is plugins/docs-kit/README.md in claude-parallel-sessions.
+
+import fnmatch
+import html
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+import unicodedata
+
+VERSION = "1.0.0"
+CONFIG = ".docs-kit.json"
+
+LINK = re.compile(r"(!?)\[([^\]]*)\]\(([^)\s]+)\)")
+ATTRIBUTE = re.compile(r'(src|href)="([^"]+)"')
+ISSUE = re.compile(r"(?<![\w/&\[])#(\d{1,5})\b(?!\])")
+ANCHOR_TAG = re.compile(r'<a\s+(?:id|name)="([^"]+)"')
+
+
+def fail(message: str) -> None:
+    sys.exit(f"docs-kit: {message}")
+
+
+def git(*args: str, root: pathlib.Path) -> str:
+    return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True).stdout
+
+
+# --------------------------------------------------------------------------
+# The project
+
+
+class Project:
+    """A checkout and its .docs-kit.json."""
+
+    def __init__(self, root: pathlib.Path):
+        self.root = root
+        path = root / CONFIG
+        if not path.exists():
+            fail(f"no {CONFIG} at {root} (`docs-kit init` writes one)")
+        self.config = json.loads(path.read_text(encoding="utf-8"))
+        c = self.config
+        if "repo" not in c:
+            fail(f"{CONFIG} needs \"repo\": \"owner/name\"")
+        self.repo = c["repo"]
+        self.name = c.get("name", self.repo.split("/")[-1])
+        self.web = f"https://github.com/{self.repo}"
+        self.raw = f"https://raw.githubusercontent.com/{self.repo}"
+        self.branch = c.get("branch", "main")
+        self.docs = c.get("docs", "docs").strip("/")
+        self.index = f"{self.docs}/README.md"
+        # Pages outside docs/ that are part of the docs (SECURITY.md), each
+        # with the file its translations are in docs/<code>/.
+        self.extra = c.get("extra_pages", {})
+        self.developer = set(c.get("developer_pages", []))
+        self.languages = c.get("languages", {})
+
+    @staticmethod
+    def find() -> "Project":
+        try:
+            top = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=True,
+                                 capture_output=True, text=True).stdout.strip()
+        except subprocess.CalledProcessError:
+            fail("not in a git checkout")
+        return Project(pathlib.Path(top))
+
+    def tracked(self) -> list[str]:
+        """The docs' pages git tracks: docs/*.md, each language's docs/<code>/*.md,
+        and the extra pages. docs/ may also hold private notes git ignores, and
+        what's built from it is public."""
+        files = git("ls-files", f"{self.docs}/*.md", *self.extra, root=self.root).split()
+
+        def is_page(f: str) -> bool:
+            if f in self.extra:
+                return True
+            rest = f.removeprefix(f"{self.docs}/")
+            if "/" not in rest:
+                return rest != "README.md"
+            code, _, name = rest.partition("/")
+            return code in self.languages and "/" not in name and name != "README.md"
+        return [f for f in files if is_page(f)]
+
+    def language(self, file: str) -> str | None:
+        """The language a translated page is in, or None for the source language."""
+        parts = file.split("/")
+        if len(parts) == 3 and parts[0] == self.docs and parts[1] in self.languages:
+            return parts[1]
+        return None
+
+    def original(self, file: str) -> str:
+        """The page a translation is a copy of."""
+        code = self.language(file)
+        if not code:
+            return file
+        name = file.rsplit("/", 1)[1]
+        for extra, spec in self.extra.items():
+            if spec.get("copy") == name:
+                return extra
+        return f"{self.docs}/{name}"
+
+    def for_users(self, file: str) -> bool:
+        return self.original(file) not in self.developer
+
+    def stem(self, file: str) -> str:
+        """A page's short name, from its English file: features, security."""
+        original = self.original(file)
+        if original in self.extra:
+            return self.extra[original].get("slug", pathlib.PurePosixPath(original).stem.lower())
+        return pathlib.PurePosixPath(original).stem
+
+    def title(self, file: str) -> str:
+        for line in (self.root / file).read_text(encoding="utf-8").split("\n"):
+            if line.startswith("# "):
+                return strip_inline(line[2:]).strip()
+        return self.stem(file).replace("-", " ").capitalize()
+
+
+def resolve_path(target: str, source: str) -> tuple[str, str]:
+    """A relative link in `source` as a path from the repository's top, and its anchor."""
+    path, _, anchor = target.partition("#")
+    parts: list[str] = []
+    for part in (pathlib.PurePosixPath(source).parent / path).parts:
+        if part == "..":
+            if parts:
+                parts.pop()
+        elif part != ".":
+            parts.append(part)
+    return "/".join(parts), anchor
+
+
+def is_external(target: str) -> bool:
+    return bool(re.match(r"^[a-z][a-z0-9+.-]*:", target)) or target.startswith("#") or target.startswith("//")
+
+
+def map_links(text: str, rewrite, issues: str = "") -> str:
+    """Every Markdown link and HTML src/href outside code, through rewrite(target, image),
+    and with `issues` (the repository's address) each #N a link to its issue."""
+    lines, fenced = [], False
+    for line in text.split("\n"):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        elif not fenced:
+            pieces = line.split("`")
+            for i in range(0, len(pieces), 2):
+                pieces[i] = LINK.sub(lambda m: f"{m.group(1)}[{m.group(2)}]({rewrite(m.group(3), bool(m.group(1)))})",
+                                     pieces[i])
+                pieces[i] = ATTRIBUTE.sub(lambda m: f'{m.group(1)}="{rewrite(m.group(2), m.group(1) == "src")}"',
+                                          pieces[i])
+            line = "`".join(pieces)
+            if issues:
+                line = link_issues(line, issues)
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def link_issues(line: str, web: str) -> str:
+    """#N to a link to the issue, outside inline code and outside links already there."""
+    def issue(m: re.Match) -> str:
+        return f"[#{m.group(1)}]({web}/issues/{m.group(1)})"
+
+    def outside_links(piece: str) -> str:
+        out, last = [], 0
+        for m in LINK.finditer(piece):
+            out += [ISSUE.sub(issue, piece[last:m.start()]), m.group(0)]
+            last = m.end()
+        return "".join(out) + ISSUE.sub(issue, piece[last:])
+
+    pieces = line.split("`")
+    pieces[::2] = [outside_links(p) for p in pieces[::2]]
+    return "`".join(pieces)
+
+
+def strip_inline(text: str) -> str:
+    """A heading's text as GitHub shows it: links, code, emphasis and HTML taken out."""
+    text = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = text.replace("`", "")
+    text = re.sub(r"(\*\*|__|\*|~~)", "", text)
+    text = re.sub(r"(?<!\w)_(.+?)_(?!\w)", r"\1", text)
+    return html.unescape(text)
+
+
+def slug(text: str) -> str:
+    """GitHub's anchor for a heading (github-slugger): lowercase, punctuation
+    and symbols removed, each space a hyphen. Letters in any script stay."""
+    out = []
+    for ch in text.lower():
+        if ch == " ":
+            out.append("-")
+        elif ch in "-_" or unicodedata.category(ch)[0] in "LNM":
+            out.append(ch)
+    return "".join(out)
+
+
+def headings(text: str) -> list[tuple[int, str, str]]:
+    """Each heading outside code: (level, text, anchor), anchors numbered as
+    GitHub numbers repeats (name, name-1, name-2)."""
+    seen: dict[str, int] = {}
+    found, fenced = [], False
+    for line in text.split("\n"):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        m = re.match(r"^(#{1,6})\s+(.*?)\s*#*\s*$", line)
+        if fenced or not m:
+            continue
+        words = strip_inline(m.group(2)).strip()
+        base = slug(words)
+        anchor = base if base not in seen else f"{base}-{seen[base]}"
+        seen[base] = seen.get(base, 0) + 1
+        found.append((len(m.group(1)), words, anchor))
+    return found
+
+
+def anchors_in(text: str) -> list[str]:
+    """Headings' anchors and the page's own <a id="…">s."""
+    fenced, own = False, []
+    for line in text.split("\n"):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        elif not fenced:
+            own += ANCHOR_TAG.findall(line)
+    return [a for _, _, a in headings(text)] + own
+
+
+# --------------------------------------------------------------------------
+# check: docs change with the feature
+
+
+def changes(project: Project, base: str) -> tuple[str, list[tuple[str, str]]]:
+    root = project.root
+    start = git("merge-base", base, "HEAD", root=root).strip()
+    status = git("diff", "--name-status", "--no-renames", start, root=root)
+    files = [tuple(line.split("\t", 1)) for line in status.splitlines() if "\t" in line]
+    files += [("A", f) for f in git("ls-files", "--others", "--exclude-standard", root=root).splitlines()]
+    return start, sorted(set(files))
+
+
+def changed_lines(project: Project, start: str, file: str) -> list[str]:
+    path = project.root / file
+    tracked = subprocess.run(["git", "cat-file", "-e", f"{start}:{file}"], cwd=project.root,
+                             capture_output=True).returncode == 0
+    if not tracked:
+        try:
+            return path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            return []
+    diff = git("diff", "--unified=0", start, "--", file, root=project.root)
+    return [l[1:] for l in diff.splitlines() if l[:1] in "+-" and not l.startswith(("+++", "---"))]
+
+
+def matches(file: str, patterns: list[str]) -> bool:
+    for pattern in patterns:
+        # ** for any depth, including none: Sources/**/*.swift matches Sources/a.swift.
+        if fnmatch.fnmatchcase(file, pattern) or fnmatch.fnmatchcase(file, pattern.replace("**/", "")):
+            return True
+    return False
+
+
+def pr_body() -> str:
+    if "PR_BODY" in os.environ:
+        return os.environ["PR_BODY"]
+    command = ["gh", "pr", "view", "--json", "body", "--jq", ".body"]
+    if os.environ.get("PR"):
+        command.insert(3, os.environ["PR"])
+    try:
+        return subprocess.run(command, capture_output=True, text=True, timeout=60).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def check(project: Project, base: str) -> int:
+    settings = project.config.get("check", {})
+    rules = settings.get("needs_docs", [])
+    phrase = settings.get("phrase", "No docs needed")
+    if not rules:
+        print("docs-check: nothing in .docs-kit.json's check.needs_docs, so nothing to check")
+        return 0
+    start, files = changes(project, base)
+
+    pages = set(project.tracked())
+    docs_changed = [f for _, f in files if (f in pages or f == project.index) and project.for_users(f)]
+
+    needing: list[str] = []
+    for _, file in files:
+        for rule in rules:
+            if not matches(file, rule.get("paths", [])) or matches(file, rule.get("except", [])):
+                continue
+            pattern = rule.get("lines")
+            if pattern:
+                hits = [l.strip() for l in changed_lines(project, start, file) if re.search(pattern, l)]
+                if hits:
+                    needing.append(f"{file}: {hits[0][:100]}" + (f" (+{len(hits) - 1} more)" if len(hits) > 1 else ""))
+            else:
+                needing.append(file)
+            break
+
+    if not needing:
+        print("docs-check: nothing changed that the docs describe")
+        return 0
+    if docs_changed:
+        print(f"docs-check: the docs changed with it ({', '.join(docs_changed)})")
+        return 0
+    body = pr_body().replace("\r", "")
+    reason = next((l.strip() for l in body.split("\n")
+                   if re.match(rf"^\s*{re.escape(phrase)}:\s*\S", l, re.IGNORECASE)), None)
+    if reason:
+        print(f"docs-check: no docs, as the pull request says ({reason}), for:")
+        print("\n".join(f"  {n}" for n in needing))
+        return 0
+    print("docs-check: this changes what the app says or does, and no page for its users:")
+    print("\n".join(f"  {n}" for n in needing))
+    print(f"Change the page in {project.docs}/ that describes it (and its translations) in this pull request.")
+    print("If the docs really don't need it, add a line to the pull request's description, then run the check again:")
+    print(f"  {phrase}: <why>")
+    return 1
+
+
+# --------------------------------------------------------------------------
+# The website's docs pages
+
+
+def render(project: Project, markdown: str) -> str:
+    """GitHub's own rendering, as github.com shows a file (mode=markdown: a
+    line break is a space, as in the repository, not a <br> as in a comment),
+    so the site shows what github.com shows.
+    DOCS_KIT_RENDER names a command to use instead (Markdown in, HTML out),
+    for tests and for working offline."""
+    command = os.environ.get("DOCS_KIT_RENDER")
+    if command:
+        args = ["/bin/sh", "-c", command]
+    else:
+        args = ["gh", "api", "-X", "POST", "/markdown", "-f", "mode=markdown", "-F", "text=@-"]
+    out = subprocess.run(args, input=markdown, capture_output=True, text=True, timeout=120)
+    if out.returncode != 0:
+        fail(f"rendering failed: {out.stderr.strip()}")
+    return out.stdout
+
+
+def tidy(rendered: str, anchors: list[tuple[int, str, str]]) -> str:
+    """GitHub's HTML for a page of our own: each heading gets its anchor, ids
+    lose GitHub's user-content- prefix, and its table wrapper becomes a div
+    that scrolls on a narrow screen."""
+    queue = list(anchors)
+
+    def heading(m: re.Match) -> str:
+        level, attrs, inner = m.group(1), m.group(2), m.group(3)
+        text = html.unescape(re.sub(r"<[^>]+>", "", inner)).strip()
+        anchor = None
+        for i, (lvl, words, a) in enumerate(queue):
+            if str(lvl) == level and words == text:
+                anchor = a
+                del queue[:i + 1]
+                break
+        if anchor is None:
+            anchor = slug(text)
+        attrs = re.sub(r'\s*id="[^"]*"', "", attrs)
+        return f'<h{level} id="{html.escape(anchor, quote=True)}"{attrs}>{inner}</h{level}>'
+
+    out = re.sub(r"<h([1-6])((?:\s[^>]*)?)>(.*?)</h\1>", heading, rendered, flags=re.S)
+    out = out.replace('id="user-content-', 'id="').replace('name="user-content-', 'name="')
+    out = out.replace('href="#user-content-', 'href="#')
+    out = out.replace("<markdown-accessiblity-table>", '<div class="table">')
+    out = out.replace("</markdown-accessiblity-table>", "</div>")
+    return out
+
+
+def description(text: str) -> str:
+    """The first paragraph of prose, for the page's <meta name=description>."""
+    for block in re.split(r"\n\s*\n", text):
+        block = block.strip()
+        if not block or block[0] in "#|<>`![-*" or block.startswith("English"):
+            continue
+        words = re.sub(r"\s+", " ", strip_inline(block))
+        return words if len(words) <= 160 else words[:157].rsplit(" ", 1)[0] + "…"
+    return ""
+
+
+class Site:
+    """Each page at <prefix>docs/<stem>/index.html, the index at <prefix>docs/,
+    where <prefix> is the language's folder on the site ("" for the source
+    language, "zh/" for one in zh/). Pages for developers stay on GitHub."""
+
+    def __init__(self, project: Project, out: pathlib.Path, commit: str):
+        self.p = project
+        self.out = out
+        self.commit = commit
+        c = project.config.get("site", {})
+        if "url" not in c:
+            fail(f"{CONFIG} needs \"site\": {{\"url\": …}}")
+        self.url = c["url"].rstrip("/") + "/"
+        self.folder = c.get("folder", "docs").strip("/")
+        self.source_language = c.get("language", "en")
+        self.templates = c.get("templates", {})
+        self.strip = c.get("strip_lines", [])
+        self.prefixes = {None: ""}
+        for code, spec in project.languages.items():
+            if spec.get("site") is not None:
+                self.prefixes[code] = spec["site"].strip("/") + "/" if spec["site"].strip("/") else ""
+
+        # Every published page, by file: its address from the site's top.
+        self.pages: dict[str, str] = {}
+        for code, prefix in self.prefixes.items():
+            index = project.index if code is None else f"{project.docs}/{code}/README.md"
+            if (project.root / index).exists():
+                self.pages[index] = f"{prefix}{self.folder}/"
+        for file in project.tracked():
+            code = project.language(file)
+            if project.for_users(file) and code in self.prefixes:
+                self.pages[file] = f"{self.prefixes[code]}{self.folder}/{project.stem(file)}/"
+
+    def address(self, file: str, code: str | None) -> str | None:
+        """Where `file` (an English page) is in `code`'s language, or None."""
+        if code is None:
+            return self.pages.get(file)
+        if file == self.p.index:
+            return self.pages.get(f"{self.p.docs}/{code}/README.md")
+        name = self.p.extra.get(file, {}).get("copy") or file.rsplit("/", 1)[1]
+        return self.pages.get(f"{self.p.docs}/{code}/{name}")
+
+    def link(self, target: str, source: str, image: bool, here: str) -> str:
+        if is_external(target):
+            return target
+        file, anchor = resolve_path(target, source)
+        suffix = f"#{anchor}" if anchor else ""
+        if file in self.pages:
+            return relative(self.pages[file], here) + suffix
+        if file == "README.md" or re.match(r"^README\.[\w-]+\.md$", file):
+            return f"{self.p.web}/blob/{self.p.branch}/{file}{suffix}"
+        if image or re.search(r"\.(png|gif|jpe?g|svg|webp|mp4|webm|mov)$", file, re.I):
+            return f"{self.p.raw}/{self.commit}/{file}"
+        kind = "blob" if "." in file.rsplit("/", 1)[-1] else "tree"
+        return f"{self.p.web}/{kind}/{self.p.branch}/{file}{suffix}"
+
+    def nav(self, code: str | None, here: str, current: str) -> str:
+        """The index's sections and pages, as links, the current page marked."""
+        index = self.p.index if code is None else f"{self.p.docs}/{code}/README.md"
+        text = (self.p.root / index).read_text(encoding="utf-8")
+        title = self.p.title(index)
+        items = [f'<li><a href="{relative(self.pages[index], here)}"'
+                 f'{" aria-current=page" if current == index else ""}>{html.escape(title)}</a></li>']
+        sections: list[str] = []
+        section: list[str] = []
+        heading = ""
+
+        def close() -> None:
+            if section:
+                sections.append(f'<li><span class="docs-nav-section">{html.escape(heading)}</span><ul>'
+                                + "".join(section) + "</ul></li>")
+        for line in text.split("\n"):
+            if line.startswith("## "):
+                close()
+                heading, section = strip_inline(line[3:]).strip(), []
+            elif line.startswith("| ["):
+                m = LINK.search(line)
+                file, _ = resolve_path(m.group(3), index)
+                if file in self.pages:
+                    mark = " aria-current=page" if file == current else ""
+                    section.append(f'<li><a href="{relative(self.pages[file], here)}"{mark}>'
+                                   f"{html.escape(strip_inline(m.group(2)))}</a></li>")
+        close()
+        return "<ul>" + "".join(items + sections) + "</ul>"
+
+    def build(self) -> list[str]:
+        written: list[str] = []
+        for file, here in self.pages.items():
+            code = self.p.language(file) if file != self.p.index else None
+            if file.endswith("/README.md") and file != self.p.index:
+                code = file.split("/")[1]
+            source = (self.p.root / file).read_text(encoding="utf-8")
+            # Lines the site has its own way of showing (a page's own language
+            # switch: the site's is in its nav), by site.strip_lines.
+            kept = [l for l in source.split("\n") if not any(re.search(p, l) for p in self.strip)]
+            text = map_links("\n".join(kept), lambda t, image: self.link(t, file, image, here), self.p.web)
+            body = tidy(render(self.p, text), headings(source))
+
+            english = self.p.original(file)
+            alternates = {self.source_language: self.pages.get(english)}
+            for other in self.prefixes:
+                if other is not None:
+                    alternates[other] = self.address(english, other)
+            switch = " · ".join(
+                f'<a href="{relative(address, here)}" lang="{lang}" hreflang="{lang}" data-lang="{lang}">'
+                f"{html.escape(self.language_name(lang))}</a>"
+                for lang, address in alternates.items() if address and address != here)
+            links = "\n".join(f'<link rel="alternate" hreflang="{lang}" href="{self.url}{address}">'
+                              for lang, address in alternates.items() if address)
+
+            values = {
+                "lang": code or self.source_language,
+                "title": html.escape(self.p.title(file)),
+                "description": html.escape(description(source), quote=True),
+                "root": relative("", here),
+                "url": self.url + here,
+                "alternates": links,
+                "switch": switch,
+                "nav": self.nav(code, here, file),
+                "content": body,
+                "source": f"{self.p.web}/blob/{self.p.branch}/{file}",
+                "commit": self.commit[:7],
+                "commit_url": f"{self.p.web}/commit/{self.commit}",
+                "project": html.escape(self.p.name),
+            }
+            template = self.template(code)
+            page = re.sub(r"\{\{(\w+)\}\}", lambda m: values.get(m.group(1), m.group(0)), template)
+            target = self.out / here / "index.html"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(page, encoding="utf-8")
+            written.append(f"{here}index.html")
+        return written
+
+    def language_name(self, code: str) -> str:
+        if code == self.source_language:
+            return self.p.config.get("site", {}).get("language_name", "English")
+        return self.p.languages.get(code, {}).get("name", code)
+
+    def template(self, code: str | None) -> str:
+        name = self.templates.get(code or self.source_language) or self.templates.get(self.source_language)
+        if not name:
+            fail(f"{CONFIG} needs site.templates.{self.source_language}: the page's template in the site checkout")
+        path = self.out / name
+        if not path.exists():
+            fail(f"no template at {path}")
+        return path.read_text(encoding="utf-8")
+
+
+def relative(target: str, here: str) -> str:
+    """From the page at `here` (a folder, from the site's top) to `target`."""
+    up = "../" * here.count("/")
+    return (up + target) or "./"
+
+
+def site(project: Project, out: pathlib.Path, commit: str) -> None:
+    builder = Site(project, out, commit)
+    manifest = out / builder.folder / ".docs-kit-pages"
+    before = set(manifest.read_text().split()) if manifest.exists() else set()
+    written = builder.build()
+    for stale in sorted(before - set(written)):
+        path = out / stale
+        if path.exists():
+            path.unlink()
+            try:
+                path.parent.rmdir()
+            except OSError:
+                pass
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_text("\n".join(sorted(written)) + "\n")
+    print(f"docs-site: {len(written)} pages in {out}, from {commit[:7]}")
+    for page in sorted(written):
+        print(f"  {page}")
+
+
+# --------------------------------------------------------------------------
+# The wiki
+
+
+class Wiki:
+    def __init__(self, project: Project, commit: str):
+        self.p = project
+        self.commit = commit
+        self.c = project.config.get("wiki", {})
+        self.names = self.c.get("names", {})
+        self.pages = {f: self.page_name(f) for f in project.tracked()}
+
+    def page_name(self, file: str) -> str:
+        code = self.p.language(file)
+        if code:
+            return f"{self.page_name(self.p.original(file))}-{code}"
+        if file in self.names:
+            return self.names[file]
+        words = pathlib.PurePosixPath(file).stem.split("-")
+        return "-".join(w if w == "and" else w.capitalize() for w in words)
+
+    def resolve(self, target: str, source: str, image: bool) -> str:
+        if is_external(target):
+            return target
+        file, anchor = resolve_path(target, source)
+        suffix = f"#{anchor}" if anchor else ""
+        if file in self.pages:
+            return self.pages[file] + suffix
+        if file == self.p.index:
+            return "Home" + suffix
+        if self.p.language(file) and file.endswith("/README.md"):
+            return f"Home-{self.p.language(file)}" + suffix
+        if file == "README.md":
+            return f"{self.p.web}{suffix or '#readme'}"
+        if image or re.search(r"\.(png|gif|jpe?g|svg)$", file):
+            return f"{self.p.raw}/{self.commit}/{file}"
+        kind = "blob" if "." in file.rsplit("/", 1)[-1] else "tree"
+        return f"{self.p.web}/{kind}/{self.p.branch}/{file}{suffix}"
+
+    def convert(self, text: str, source: str) -> str:
+        lines, fenced = [], False
+        for line in text.split("\n"):
+            if line.lstrip().startswith("```"):
+                fenced = not fenced
+            elif not fenced:
+                line = LINK.sub(lambda m: f"{m.group(1)}[{m.group(2)}]"
+                                f"({self.resolve(m.group(3), source, bool(m.group(1)))})", line)
+                line = ATTRIBUTE.sub(lambda m: f'{m.group(1)}="'
+                                     f'{self.resolve(m.group(2), source, m.group(1) == "src")}"', line)
+                line = link_issues(line, self.p.web)
+            lines.append(line)
+        return "\n".join(lines)
+
+    def sidebar(self, index: str, translations: dict[str, str]) -> str:
+        lines, listed = ["**[Home](Home)**"], set()
+
+        def add(index: str, folder: str) -> None:
+            for line in index.split("\n"):
+                if line.startswith("## "):
+                    lines.extend(["", f"**{line[3:]}**", ""])
+                elif line.startswith("| ["):
+                    m = LINK.search(line)
+                    file = os.path.normpath(f"{folder}/{m.group(3)}")
+                    # A translation's index lists again the pages it has no
+                    # copy of, under its own headings.
+                    if file in self.pages and (folder != self.p.docs or file not in listed):
+                        lines.append(f"- [{m.group(2)}]({self.pages[file]})")
+                        listed.add(file)
+
+        add(index, self.p.docs)
+        for code, translated in translations.items():
+            lines.extend(["", f"**[{self.p.languages[code]['name']}](Home-{code})**"])
+            add(translated, f"{self.p.docs}/{code}")
+        unlisted = [f for f in self.pages if f not in listed]
+        if unlisted:
+            lines += ["", "**More**", ""] + [f"- [{self.pages[f].replace('-', ' ')}]({self.pages[f]})" for f in unlisted]
+        return "\n".join(lines) + "\n"
+
+    def build(self, wiki: pathlib.Path) -> None:
+        root = self.p.root
+        written = {"Home.md", "_Sidebar.md", "_Footer.md"}
+        for file, page in self.pages.items():
+            (wiki / f"{page}.md").write_text(self.convert((root / file).read_text(), file))
+            written.add(f"{page}.md")
+
+        index = (root / self.p.index).read_text()
+        body = index.split("\n", 1)[1].lstrip("\n") if index.startswith("# ") else index
+        intro = self.c.get("home", "").replace("{web}", self.p.web)
+        (wiki / "Home.md").write_text(intro + self.convert(body, self.p.index))
+        translations = {}
+        for code in self.p.languages:
+            translated = root / f"{self.p.docs}/{code}/README.md"
+            if translated.exists():
+                translations[code] = translated.read_text()
+                (wiki / f"Home-{code}.md").write_text(
+                    self.convert(translations[code], f"{self.p.docs}/{code}/README.md"))
+                written.add(f"Home-{code}.md")
+        (wiki / "_Sidebar.md").write_text(self.sidebar(index, translations))
+        (wiki / "_Footer.md").write_text(
+            f"Copied from [`{self.p.docs}/`]({self.p.web}/tree/{self.p.branch}/{self.p.docs}) at "
+            f"[`{self.commit[:7]}`]({self.p.web}/commit/{self.commit}). "
+            "The repository is the source: change the docs there, in a pull request, and the wiki follows.\n")
+        for stale in wiki.glob("*.md"):
+            if stale.name not in written:
+                stale.unlink()
+
+
+# --------------------------------------------------------------------------
+# anchors, vendor, init
+
+
+def anchors(project: Project) -> None:
+    """Every page the site publishes, with its address and its anchors, so an
+    app's links into its docs can be tested without building anything."""
+    builder = Site(project, project.root, "HEAD")
+    out = []
+    for file, here in sorted(builder.pages.items(), key=lambda kv: kv[1]):
+        text = (project.root / file).read_text(encoding="utf-8")
+        out.append({"file": file, "path": here, "url": builder.url + here, "anchors": anchors_in(text)})
+    print(json.dumps(out, ensure_ascii=False, indent=1))
+
+
+def vendor(project: Project, check_only: bool) -> int:
+    target = project.root / project.config.get("vendor", "Scripts/docs-kit")
+    me = pathlib.Path(__file__).resolve()
+    if check_only:
+        if target.exists() and target.read_bytes() == me.read_bytes():
+            print(f"docs-kit: {target.relative_to(project.root)} is this copy ({VERSION})")
+            return 0
+        theirs = re.search(rb'^VERSION = "([^"]+)"', target.read_bytes(), re.M) if target.exists() else None
+        print(f"docs-kit: {target.relative_to(project.root)} is "
+              f"{theirs.group(1).decode() if theirs else 'missing'}, this is {VERSION}: run `docs-kit vendor`")
+        return 1
+    if target.exists() and target.resolve() == me:
+        print("docs-kit: that's this file")
+        return 0
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(me.read_bytes())
+    target.chmod(0o755)
+    print(f"docs-kit: copied {VERSION} to {target.relative_to(project.root)}")
+    return 0
+
+
+def init() -> None:
+    try:
+        top = pathlib.Path(subprocess.run(["git", "rev-parse", "--show-toplevel"], check=True,
+                                          capture_output=True, text=True).stdout.strip())
+    except subprocess.CalledProcessError:
+        fail("not in a git checkout")
+    path = top / CONFIG
+    if path.exists():
+        fail(f"{path} is already there")
+    repo = subprocess.run(["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
+                          cwd=top, capture_output=True, text=True).stdout.strip() or "owner/name"
+    owner, name = repo.split("/", 1)
+    config = {
+        "repo": repo,
+        "name": name,
+        "docs": "docs",
+        "developer_pages": [],
+        "languages": {},
+        "check": {"needs_docs": [{"paths": ["src/**"], "lines": ""}], "phrase": "No docs needed"},
+        "site": {"url": f"https://{owner.lower()}.github.io/{name}/", "folder": "docs",
+                 "templates": {"en": "docs/_template.html"}},
+        "wiki": {"home": "", "names": {}},
+    }
+    path.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n")
+    print(f"docs-kit: wrote {path}. Set check.needs_docs to the files and lines that change what users see,")
+    print("list the pages for developers in developer_pages, and see the README for the rest.")
+
+
+def main(argv: list[str]) -> int:
+    if not argv or argv[0] in ("-h", "--help", "help"):
+        head = open(__file__, encoding="utf-8").read().split("# Usage:\n", 1)[1].split("\n#\n", 1)[0]
+        print("usage:\n" + "\n".join(l[1:] for l in head.split("\n")))
+        return 0
+    if argv[0] == "-C" and len(argv) > 2:
+        # As git -C: run as if started in that folder (a site's checkout can
+        # be built from the app's, `docs-kit -C app site .`).
+        os.chdir(argv[1])
+        argv = argv[2:]
+    command, rest = argv[0], argv[1:]
+    if command == "version":
+        print(VERSION)
+        return 0
+    if command == "init":
+        init()
+        return 0
+    project = Project.find()
+    if command == "check":
+        return check(project, rest[0] if rest else "origin/main")
+    if command == "site":
+        if len(rest) not in (1, 2):
+            fail("usage: docs-kit site <site checkout> [commit]")
+        commit = rest[1] if len(rest) == 2 else git("rev-parse", "HEAD", root=project.root).strip()
+        site(project, pathlib.Path(rest[0]).resolve(), commit)
+        return 0
+    if command == "wiki":
+        if len(rest) not in (1, 2):
+            fail("usage: docs-kit wiki <wiki checkout> [commit]")
+        commit = rest[1] if len(rest) == 2 else git("rev-parse", "HEAD", root=project.root).strip()
+        Wiki(project, commit).build(pathlib.Path(rest[0]))
+        return 0
+    if command == "anchors":
+        anchors(project)
+        return 0
+    if command == "vendor":
+        return vendor(project, "--check" in rest)
+    fail(f"no command {command!r}: check, site, wiki, anchors, vendor, init, version")
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

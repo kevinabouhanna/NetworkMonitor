@@ -1,4 +1,4 @@
-.PHONY: all build test hooks design-shots review app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check translation-check translation-review site-shots site-trees site-audit clean
+.PHONY: all build test hooks design-shots review app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check translation-check docs-check docs-site docs-anchors translation-review site-shots site-trees site-audit clean
 
 all: test app
 
@@ -139,6 +139,25 @@ asset-check: build/site-shots
 BASE ?= origin/main
 translation-check:
 	@$(if $(PR),PR=$(PR) )./Scripts/translation-check.sh $(BASE)
+
+# The docs change with the feature (#334): a branch that changes the app's text
+# (an L("…") in Sources/) and no page of the docs for people using it fails,
+# unless the pull request's description says `No docs needed: <why>`. Files only:
+# CI runs it on every pull request. docs-kit (Scripts/docs-kit, shared with
+# other projects through the docs-kit plugin) reads .docs-kit.json.
+docs-check:
+	@$(if $(PR),PR=$(PR) )python3 -I Scripts/docs-kit check $(BASE)
+
+# The website's docs pages, built from docs/ into a gh-pages checkout (SITE):
+# with each release, in its site pull request. Rendered by GitHub, so gh must
+# be signed in (docs/development.md#the-docs).
+docs-site:
+	@case "$(abspath $(SITE))" in */NetworkMonitor-site) echo "docs-site: SITE=<your own gh-pages worktree>; ../NetworkMonitor-site stays as it is"; exit 2;; esac
+	@python3 -I Scripts/docs-kit site $(SITE)
+
+# Every docs page's address on the website and its anchors, as JSON (#230).
+docs-anchors:
+	@python3 -I Scripts/docs-kit anchors
 
 # What a release says for the first time, or differently, in each language,
 # as a table for its native reviewer to read in the updated app (#434). FROM
