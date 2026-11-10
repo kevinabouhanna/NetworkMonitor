@@ -131,7 +131,7 @@ struct GeneralSettingsPane: View {
                         .disabled(colors.isDefault)
                 }
             } header: {
-                Text(L("Menu bar colors"))
+                Text(L("Speed colors"))
             }
 
             Section {

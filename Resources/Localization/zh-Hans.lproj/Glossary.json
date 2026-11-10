@@ -54,6 +54,7 @@
     { "en": "Language", "text": "语言" },
     { "en": "Start at login", "text": "登录时启动" },
     { "en": "Show NetworkMonitor in", "text": "NetworkMonitor 显示在", "note": "Menu bar, Dock or Both (#69)" },
+    { "en": "Speed colors", "text": "网速颜色", "note": "the section that colours the live speeds, in the menu bar and on the Dock icon (#517). The speeds are 网速, as in 实时网速" },
     { "en": "Menu bar", "text": "菜单栏", "everywhere": true, "note": "macOS's own name for it" },
     { "en": "Dock", "text": "程序坞", "everywhere": true, "note": "macOS's own name for it" },
 

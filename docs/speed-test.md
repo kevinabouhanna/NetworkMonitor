@@ -39,7 +39,7 @@ test Apple ships with every Mac since Monterey, against Apple's nearest servers.
 - **The Network page** runs it in place, with the same dial and figures as the card.
 - **The menu bar**, always. While the test runs, the readout shows it in cyan, so its
   figures are never mistaken for the live rate, at exactly the readout's usual width. If
-  you've given the live rates colours close to cyan (Settings › Menu bar colors),
+  you've given the live rates colours close to cyan (Settings › Speed colors),
   the test uses pink, amber or violet instead, and Settings shows which.
   It holds the result for 8 seconds, then the live rates return. Start a test from the
   right-click menu and this is where you watch it.

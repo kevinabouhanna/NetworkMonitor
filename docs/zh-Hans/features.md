@@ -6,7 +6,7 @@ NetworkMonitor 能做的一切，以及在哪里找到它们。
 
 ## 菜单栏读数
 
-两行，始终可见：绿色的 <strong>↓ 下载</strong> 在上，浅灰色的 <strong>↑ 上传</strong> 在下，单位为 <strong>MB/s</strong> 或 <strong>Mbps</strong>（<strong>设置 › 速度显示单位</strong>）。Mbps 与宽带套餐的标称速度一致；MB/s 与流量总计一致。数据量始终以 MB 和 GB 显示，与流量套餐的计算方式相同。你可以在 <strong>设置 › 菜单栏颜色</strong> 中选择其他颜色。
+两行，始终可见：绿色的 <strong>↓ 下载</strong> 在上，浅灰色的 <strong>↑ 上传</strong> 在下，单位为 <strong>MB/s</strong> 或 <strong>Mbps</strong>（<strong>设置 › 速度显示单位</strong>）。Mbps 与宽带套餐的标称速度一致；MB/s 与流量总计一致。数据量始终以 MB 和 GB 显示，与流量套餐的计算方式相同。你可以在 <strong>设置 › 网速颜色</strong> 中选择其他颜色。
 
 读数<strong>宽度固定</strong>，所以数字变化时，菜单栏中它旁边的项目不会跳来跳去。它每秒最多更新两次，使用电池和低电量模式时更新得更少（请参阅[电池](accuracy-and-battery.md#电池)）。网速测试进行时，读数会以青色显示测试结果；如果你选的颜色接近青色，则改用另一组颜色，这样测试结果永远不会被误认为实时速度。
 
@@ -104,7 +104,7 @@ NetworkMonitor 能做的一切，以及在哪里找到它们。
 - <strong>NetworkMonitor 显示在</strong>：菜单栏、程序坞或两者
 - <strong>速度显示单位</strong>：MB/s 或 Mbps
 - <strong>Wi-Fi 名称</strong>（打开之前显示）
-- <strong>菜单栏颜色</strong>：下载、上传、网速测试的颜色、使用默认颜色
+- <strong>网速颜色</strong>（菜单栏读数和程序坞图标的颜色）：下载、上传、网速测试的颜色、使用默认颜色
 - <strong>弹出窗口中的累计值</strong>：统计开始于、采样、立即重置
 - <strong>自动检查更新</strong>，以及 立即检查
 - <strong>各部分</strong>：每个部分的设置各有一行，与它的齿轮图标打开的页面相同
