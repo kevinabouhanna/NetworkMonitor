@@ -39,7 +39,7 @@ AXWindow (AXStandardWindow) title="Usage History" 1300
       AXGroup description="Go" h40
         AXButton (AXSegment) description="Previous" help="Previous (⌘←)" 36x36
         AXButton (AXSegment) description="Today" help="Back to the present" 60x36
-        AXButton (AXSegment) description="Next" help="Next (⌘→)" 40x36
+        AXButton (AXSegment) description="Next" help="Next (⌘→)" 36x36
     AXGroup help="Search apps and networks (⌘F)" h52
       AXButton (AXSearchField) description="Search" 40x40
     AXButton description="Settings" help="Settings for Usage History" 40x52

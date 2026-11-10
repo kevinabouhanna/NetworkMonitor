@@ -1,12 +1,21 @@
 AXPopover 348
   AXGroup (AXHostingView)
-    AXStaticText value="Total" h12
-    AXButton description="Speed test" identifier="gauge.with.dots.needle.#percent" help="Test internet speed" 12x12
-    AXButton description="Connections" identifier="globe" help="Connections" 12x12
-    AXButton description="Usage History" identifier="chart.bar.xaxis" help="Usage History" 12x12
-    AXButton description="Settings" identifier="gearshape.fill" help="Settings" 12x12
-    AXStaticText value="# ‹unit›" h20
-    AXStaticText value="Using hotspot · Kevin's iPhone" h12
-    AXButton description="# ads and trackers blocked today" help="Ads and trackers blocked today. See what was blocked, and where" h12
+    AXStaticText value="Period" h16
+    AXTabGroup 48x16
+      AXRadioButton (AXTabButton) description="Today" 12x16
+      AXRadioButton (AXTabButton) description="Week" 12x16
+      AXRadioButton (AXTabButton) description="Month" 12x16
+    AXButton description="Open Usage History (⌘Y)" identifier="square.grid.#x#" help="Open Usage History (⌘Y)" 28x28
+    AXButton description="Settings" identifier="gearshape" help="Settings (⌘,)" 28x28
+    AXButton description="Data, Today, # ‹unit›" help="Data your apps used, on every network · Today" h44
+    AXButton description="Connections, Today, #" help="Connections: each app talking to a server counts once · Today" h44
+    AXButton description="Ads blocked, Today, #" help="Ads, trackers and malware sites blocked · Today" h44
+    data: optional
+    AXStaticText value="Group by" h16
+    AXTabGroup 76x80
+      AXRadioButton (AXTabButton) description="Apps" 32x80
+      AXRadioButton (AXTabButton) description="Networks" 32x80
+    AXStaticText value="# apps" h12
     AXScrollArea
       data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+    AXButton description="Open Usage History" 296x28

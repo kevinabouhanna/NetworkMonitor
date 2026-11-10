@@ -45,7 +45,7 @@ AXWindow (AXStandardWindow) title="网络" 1300
           AXStaticText value="使用 macOS 内置的 networkQuality，只在你开始测试时运行：先测下载，再测上传。每次都会重新测量，所以每次都会消耗流量 — 通常为 #–# ‹unit›，网速很快时会更多。速度使用“通用”中选择的单位。" h28
   AXToolbar 1300x52
     AXButton description="边栏" help="隐藏边栏" 44x52
-    AXButton description="设置" help="速度测试的设置" 40x52
+    AXButton description="设置" help="网速测试的设置" 40x52
   AXButton (AXCloseButton) 16x16
   AXButton (AXFullScreenButton) help="此按钮也可以执行缩放窗口的操作" 16x16
     AXGroup h16
