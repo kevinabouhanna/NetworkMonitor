@@ -128,6 +128,11 @@ release of its own:
   then `EnterWorktree` with its `path`. Point the pictures at it with
   `make site-shots SITE=<that path>`, run from your main-branch worktree.
   `../NetworkMonitor-site` stays on `gh-pages`; never switch its branch.
+- `gh-pages` takes only pull requests that pass its `asset-check` (a ruleset,
+  #426). Nothing pushes to it directly.
+- A change both branches' asset checks depend on (a shot renamed, what
+  `site-shots` finds) goes in order or on paired branches, `<branch>` and
+  `<branch>-site` (`docs/development.md#changing-both-branches`).
 - `Closes #N` closes issues only for pull requests into `main`. Close the issue
   by hand once the PR is merged.
 - Merge and clean up as for `main`: without `--delete-branch`, which removes the

@@ -109,9 +109,14 @@ else
   git -C "$root" worktree prune
   git -C "$root" worktree add -q --detach "$src" "$sha"
 fi
-git -C "$root" fetch -q origin main gh-pages
-if [[ -e "$site/.git" ]]; then git -C "$site" checkout -q --detach -f origin/gh-pages
-else git -C "$root" worktree add -q --detach "$site" origin/gh-pages; fi
+# The website as CI.yml finds it: gh-pages, or the pull request's branch with -site (#426).
+head=""
+[[ "$target" =~ ^[0-9]+$ ]] && head="$(gh pr view "$target" -R "$REPO" --json headRefName --jq .headRefName)"
+site_ref=gh-pages
+if [[ -n "$head" ]] && git -C "$root" ls-remote --exit-code --heads origin "$head-site" >/dev/null; then site_ref="$head-site"; fi
+git -C "$root" fetch -q origin main "$site_ref"
+if [[ -e "$site/.git" ]]; then git -C "$site" checkout -q --detach -f "origin/$site_ref"
+else git -C "$root" worktree add -q --detach "$site" "origin/$site_ref"; fi
 
 # The smoke test stops every running copy, the installed one too: hold the app's lane, and open
 # the installed copy again if it was running.
@@ -132,7 +137,7 @@ build_and_test() {
   else PR_BODY="" make translation-check BASE=origin/main; fi
   swift build
   CI=true make test # as on GitHub: skips the tests that need live traffic
-  make asset-check SITE="$site"
+  GITHUB_BASE_REF=main GITHUB_HEAD_REF="$head" make asset-check SITE="$site"
   make app
   codesign --verify --verbose=1 build/NetworkMonitor.app
   for f in Info.plist Resources/AppIcon.icns Resources/Geo/countries.bin Resources/Geo/owners.bin \

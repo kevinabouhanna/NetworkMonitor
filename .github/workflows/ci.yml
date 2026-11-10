@@ -55,12 +55,29 @@ jobs:
 
       # Every image, GIF and video the site, the README and the docs use must
       # be listed with the window it shows, so none goes stale unnoticed (#413).
-      # Reads files only: no app.
+      # Reads files only: no app. The site is gh-pages, or a branch named after
+      # this one with -site, for a change to both branches: each pull request
+      # is then checked against the other (#426,
+      # docs/development.md#changing-both-branches).
       - name: Check out the website
         uses: actions/checkout@v4
         with:
           ref: gh-pages
           path: site
+
+      # Files only, read and never run.
+      - name: Use the website's paired branch, if there is one
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD: ${{ github.head_ref }}
+        run: |
+          if git -C site ls-remote --exit-code --heads origin "$HEAD-site" >/dev/null; then
+            git -C site fetch -q origin "refs/heads/$HEAD-site"
+            git -C site checkout -q --detach FETCH_HEAD
+            echo "The website from $HEAD-site"
+          else
+            echo "The website from gh-pages"
+          fi
 
       - name: Check every picture, GIF and video is listed
         run: make asset-check SITE=site
