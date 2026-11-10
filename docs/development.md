@@ -393,7 +393,8 @@ as `site-shots` does, until the keyboard and mouse have been idle.
   the exit status, and `site-shots` doesn't retake a window for it: look at the two,
   and retake the ones that changed with `make site-shots NAMES=…`. Pixels
   follow things the app doesn't (the wallpaper behind a translucent sidebar, the
-  screen a window is on), which a few hours' captures on one Mac can't rule out.
+  Mac's appearance), which a few hours' captures on one Mac can't rule out. The
+  screen and the window's place on it are always the same (see below, #487).
 - **How it was tuned** (#423): fresh captures of all fourteen windows, in English and
   Chinese, against pictures taken hours before on the same Mac, Ethernet both times:
   no cell differed. A red 8-point square over a sidebar icon changed 2 cells, a
@@ -432,6 +433,18 @@ retaken only when the popover's tree differs from the one it was last taken with
 `shots/trees/<name>.base.txt`), or when named, and a check never runs it.
 It's skipped on a hotspot (`skipIf`), where the app asks before spending the data, and
 tried again on the next update.
+
+**Every window on one screen, in one place** (#487). Before it reads a window, the tool
+moves it onto the stage: the built-in Retina display (another Retina screen without
+one), 60 points from the left of its visible frame and 40 from the top. Trees, looks
+and pictures are all read there, whichever screen is the main one and wherever the
+window last was. A window lays out to whole points on a 1x screen and to half points on
+a Retina one: the Connections toolbar's *Next* is 38 points wide on the 1x external
+screen and 37.5 on the Retina, which round to 40 and 36, and a translucent sidebar shows
+what's behind it. Once the app has quit, the tool puts its saved window frames (`NSWindow
+Frame Main`) back, so the window opens where it was left. A popover and the menu bar
+readout aren't moved: the popover opens on the Retina screen itself. Without a Retina
+screen, `check`, `update` and `record` stop and say so, rather than name every window.
 
 Each tree is read once it has settled (the same twice in a row), since lists and charts
 fill in a moment after a window opens, and a window that doesn't show is tried once more
