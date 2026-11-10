@@ -445,6 +445,8 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     // The main window (#436): each section, and each section's settings in place.
     let main = MainWindowController(model: world.model, history: world.historyModel,
                                     connections: world.connections, ads: world.ads)
+    // The size a first opening has, whatever an earlier run left remembered.
+    main.window.setContentSize(NSSize(width: 1300, height: 800))
     func shoot(_ name: String, settle: TimeInterval = 1.2) {
         guard wanted(prefix + name) else { return }
         show(main.window, appearance: appearance)
@@ -452,8 +454,24 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
         RunLoop.main.run(until: Date().addingTimeInterval(settle))
         save(main.window, prefix + name, appearance: appearance)
     }
+    /// The same, at the narrowest and shortest the window can be for the
+    /// section shown, then back to the size it had.
+    func shootAtMinimum(_ name: String, settle: TimeInterval = 1.2) {
+        guard wanted(prefix + name) else { return }
+        let frame = main.window.frame
+        main.window.setContentSize(main.window.contentMinSize)
+        shoot(name, settle: settle)
+        main.window.setFrame(frame, display: false)
+    }
     main.show(.history)
     shoot("history", settle: 1.5)
+    // The View's layouts (#524), at the window's default size and its least.
+    for layout in ChartLayout.allCases {
+        world.historyModel.layout = layout
+        if layout != .both { shoot("history-\(layout.rawValue)") }
+        shootAtMinimum("history-\(layout.rawValue)-min")
+    }
+    world.historyModel.layout = .both
     // Search open, holding a search (#436).
     world.historyModel.search = "Sa"
     shoot("history-search", settle: 1.0)
@@ -469,6 +487,19 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
         shoot("ads-\(tab.rawValue)")
     }
     main.ads.select(.overview)
+    // The View's layouts and Sites or Apps (#524), at the window's default
+    // size and its least.
+    for layout in ChartLayout.allCases {
+        world.ads.layout = layout
+        for grouping in PopoverAdsGrouping.allCases where layout.showsList || grouping == .sites {
+            world.ads.grouping = grouping
+            let name = "ads-\(layout.rawValue)" + (grouping == .apps ? "-apps" : "")
+            if name != "ads-both" { shoot(name) }
+            shootAtMinimum(name + "-min")
+        }
+    }
+    world.ads.layout = .both
+    world.ads.grouping = .sites
     world.connections.search = "Goo"
     main.show(.connections)
     shoot("connections-search", settle: 1.5)
@@ -502,12 +533,13 @@ func measureToolbars(_ world: World) {
     let window = main.window
     // Measured with search open, as wide as it gets while it's used.
     for search in [main.history.search, main.connections.search, main.ads.search] { search.show("x") }
-    for section in MainSection.allCases {
+    for (pass, section) in ([MainSection.allCases[0]] + MainSection.allCases).enumerated() {
         main.show(section)
         window.contentMinSize = NSSize(width: 300, height: 300)
         show(window, appearance: .darkAqua, settle: 0.6)
         var width: CGFloat = 1600
         var fits = width
+        var first = ""
         while width >= 300 {
             window.setContentSize(NSSize(width: width, height: 700))
             window.layoutIfNeeded()
@@ -515,11 +547,19 @@ func measureToolbars(_ world: World) {
             let skip: Set<NSToolbarItem.Identifier> = [.flexibleSpace, .space, .sidebarTrackingSeparator]
             let items = window.toolbar?.items.filter { !skip.contains($0.itemIdentifier) } ?? []
             let visible = window.toolbar?.visibleItems?.filter { !skip.contains($0.itemIdentifier) } ?? []
-            if visible.count < items.count { break }
+            if visible.count < items.count {
+                let shown = Set(visible.map(\.itemIdentifier))
+                first = items.filter { !shown.contains($0.itemIdentifier) }.map(\.itemIdentifier.rawValue)
+                    .joined(separator: ", ")
+                break
+            }
             fits = width
             width -= 2
         }
-        print("\(section.rawValue): toolbar fits from \(Int(fits)) pt")
+        // The first pass only warms the window up: measured first, a section
+        // read 200 pt wider than it needs.
+        if pass == 0 { continue }
+        print("\(section.rawValue): toolbar fits from \(Int(fits)) pt" + (first.isEmpty ? "" : "; narrower, \(first) goes first"))
     }
     window.orderOut(nil)
 }

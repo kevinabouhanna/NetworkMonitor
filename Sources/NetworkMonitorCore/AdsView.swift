@@ -41,7 +41,14 @@ struct AdsView: View {
                 Divider().frame(height: 16)
                 AdsLogControls(model: model)
             } else {
-                Spacer(minLength: 0)
+                Spacer(minLength: 12)
+                // Sites or Apps, where Connections and Usage History have All ·
+                // Wi-Fi · Hotspot, while there's a list to show (#524).
+                if model.layout.showsList {
+                    GlassSegmented(name: L("Group by"), options: PopoverAdsGrouping.allCases,
+                                   selection: $model.grouping, label: { $0.label }, size: .small)
+                        .help(L("The sites blocked, or the apps that tried to reach them"))
+                }
             }
         }
         .frame(height: ScopeMetrics.height)
@@ -59,30 +66,54 @@ struct AdsView: View {
                 if model.report.total == 0 {
                     empty
                 } else {
-                    chart
-                        .frame(height: AdsMetrics.chartHeight)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 14)
-                    Divider()
-                    HStack(alignment: .top, spacing: 0) {
-                        AdsList(title: L("Sites"), items: searched(model.report.sites), total: model.report.total,
-                                model: model) {
-                            item in
-                            if !item.onlyThreats {
-                                Button(L("Never Block %@", item.id)) { model.setSite(.neverBlock, site: item.id, app: nil) }
-                            }
-                        }
+                    // The toolbar's View (#524): the chart above the list, as
+                    // Usage History has it, so the period's hours or days read
+                    // across the window's width.
+                    switch model.layout {
+                    case .both:
+                        chart
+                            .frame(height: AdsMetrics.chartHeight)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 14)
                         Divider()
-                        AdsList(title: L("Apps"), items: searched(model.report.apps), total: model.report.total,
-                                model: model) {
-                            item in
-                            Button(L("Don't Filter Ads in %@", item.title)) {
-                                model.dontFilter(.init(key: item.id, name: item.title))
-                            }
+                        lists
+                    case .list:
+                        lists
+                    case .chart:
+                        chart
+                            .frame(maxHeight: .infinity)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 14)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Sites or Apps, as the switch at the top right says (#524): they were
+    /// side by side, but one at a time each gets the window's width.
+    private var lists: some View {
+        ZStack(alignment: .top) {
+            Group {
+                switch model.grouping {
+                case .sites:
+                    AdsList(items: searched(model.report.sites), total: model.report.total, model: model) { item in
+                        if !item.onlyThreats {
+                            Button(L("Never Block %@", item.id)) { model.setSite(.neverBlock, site: item.id, app: nil) }
+                        }
+                    }
+                case .apps:
+                    AdsList(items: searched(model.report.apps), total: model.report.total, model: model) { item in
+                        Button(L("Don't Filter Ads in %@", item.title)) {
+                            model.dontFilter(.init(key: item.id, name: item.title))
                         }
                     }
                 }
             }
+            // The other list fades in as the switch's pill slides, as Usage
+            // History's lists do (#436).
+            .id(model.grouping)
+            .transition(Motion.swap)
         }
     }
 
@@ -263,7 +294,6 @@ struct AdsView: View {
 
 /// Sites or apps, most blocked first, each with a bar for its share.
 private struct AdsList<Menu: View>: View {
-    let title: String
     let items: [AdsItem]
     let total: Int64
     let model: AdsViewModel
@@ -271,11 +301,6 @@ private struct AdsList<Menu: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(items) { item in
@@ -284,7 +309,7 @@ private struct AdsList<Menu: View>: View {
                             .contextMenu { menu(item) }
                     }
                 }
-                .padding(.bottom, 10)
+                .padding(.vertical, 8)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -334,11 +359,11 @@ private struct AdsRow: View {
 }
 
 enum AdsMetrics {
-    /// With the tabs in the window (#358), the toolbar (title, period and
-    /// ‹ Today ›) fits down to 620; at 700 the Sites and Apps names still
-    /// read. Measured on the
-    /// real app, so no control is ever hidden in the toolbar's » menu (#315).
-    static let minWidth: CGFloat = 700
+    /// What the toolbar needs with the View in it (#524) and search open:
+    /// 812, measured with `make design-shots` and `--measure`, so no control
+    /// is ever hidden in the toolbar's » menu (#315). It was 700 before the
+    /// View, as Connections' and Usage History's have it.
+    static let minWidth: CGFloat = 820
     static let minHeight: CGFloat = 480
     static let chartHeight: CGFloat = 120
     static let rowBarWidth: CGFloat = 90

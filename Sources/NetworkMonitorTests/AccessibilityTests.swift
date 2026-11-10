@@ -125,12 +125,46 @@ func runAccessibilityTests() {
             // toolbars, as the windows they were; the sidebar; Network; and
             // each section's settings page.
             check(ConnectionsWindowController(model: connections).window, "Connections\(language)")
-            check(HistoryWindowController(model: HistoryViewModel(monitor: model)).window, "Usage History\(language)")
-            let adsController = AdsWindowController(model: AdsViewModel(monitor: model))
+            // Each of the View's layouts (#524), and Ads and Trackers' Sites and Apps.
+            let historyModel = HistoryViewModel(monitor: model, defaults: defaults)
+            let historyController = HistoryWindowController(model: historyModel)
+            for layout in ChartLayout.allCases {
+                historyModel.layout = layout
+                check(historyController.window, "Usage History › \(layout.label)\(language)")
+            }
+            let adsModel = AdsViewModel(monitor: model, defaults: defaults)
+            let adsController = AdsWindowController(model: adsModel)
             for tab in AdsViewModel.Tab.allCases {
                 adsController.select(tab)
                 check(adsController.window, "Ads and Trackers › \(tab.label)\(language)")
             }
+            adsController.select(.overview)
+            for layout in ChartLayout.allCases {
+                adsModel.layout = layout
+                for grouping in PopoverAdsGrouping.allCases where layout.showsList || grouping == .sites {
+                    adsModel.grouping = grouping
+                    check(adsController.window,
+                          "Ads and Trackers › \(layout.label) › \(grouping.label)\(language)")
+                }
+            }
+            adsModel.grouping = .sites
+            // The same View as Connections' (#524): named View, each segment
+            // by its layout, in the language shown.
+            Check.test("Usage History's and Ads and Trackers' View reads as Connections'\(language)") {
+                for window in [historyController.window, adsController.window] {
+                    window.alphaValue = 0
+                    window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
+                    window.orderFrontRegardless()
+                    RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                    let names = AccessibilityAudit.namesOwnWindow(titled: window.title)
+                    for name in [L("View")] + ChartLayout.allCases.map(\.label) {
+                        Check.expectTrue(names.contains(name), "\(window.title) has no \(name) in \(names)")
+                    }
+                    window.orderOut(nil)
+                }
+            }
+            historyModel.layout = .both
+            adsModel.layout = .both
             let main = MainWindowController(model: model, history: HistoryViewModel(monitor: model),
                                             connections: connections, ads: AdsViewModel(monitor: model))
             func part(_ controller: NSViewController, _ title: String, width: CGFloat = 760, height: CGFloat = 640) -> NSWindow {

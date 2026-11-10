@@ -152,7 +152,9 @@ One window with a sidebar: **Usage History**, **Connections**, **Ads and Tracker
 **Network**, in the popover's order, with **Settings** pinned at the bottom. Hide the sidebar
 with its button or **View › Hide Sidebar** (⌃⌘S).
 
-Each section's toolbar has the period (**Day, Week, Month, Year**) in the middle, then
+Each section's toolbar starts with the view: **List, Both or Chart** in Usage History and
+Ads and Trackers, **List, Both or Map** in Connections (#524). It has the period (**Day,
+Week, Month, Year**) in the middle, then
 **‹ Today ›**, a search button that opens into a field (⌘F), and a **gear**. The gear shows
 that section's own settings in place, with a back button. Network is about now, so it has
 only the gear.
@@ -161,7 +163,7 @@ only the gear.
 |---|---|---|
 | **Usage History** | The period's use by network type, then its apps, networks or sessions · Export CSV… | Keep history for · Clear History… |
 | **Connections** | Who your apps talked to, on a list and a map, or what was blocked | Website names, Turn On… while they're off · Let apps connect, every rule you've made, Export… and Import… · Encrypt lookups · Opens with List, Both or Map · Where the names come from, and Update them monthly |
-| **Ads and Trackers** | Overview: the period, a chart, sites and apps · Log: each connection as the filter decides it | Block ads and trackers · Update the lists weekly · Lists · Your Rules |
+| **Ads and Trackers** | Overview: the period, a chart, sites or apps · Log: each connection as the filter decides it | Block ads and trackers · Update the lists weekly · Lists · Your Rules |
 | **Network** | The connection you're on · This is a hotspot, and what it's detected as Right now · Stop apps updating on hotspots, what's paused and what can't be paused · the speed test | Show the test in the popover as Card or Compact |
 
 ## Settings

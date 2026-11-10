@@ -5,17 +5,20 @@ import SwiftUI
 /// The Usage History window (#436): its own, like Connections and Ads and
 /// Trackers, rather than a pane of Settings; now a section of the main window,
 /// a window of its own only for the accessibility tests. The
-/// same toolbar as theirs: the period centred, ‹ Today › trailing, and the
-/// gear, which opens Usage History's settings.
+/// same toolbar as theirs: the View leading (List · Both · Chart, #524), the
+/// period centred, ‹ Today › trailing, and the gear, which opens Usage
+/// History's settings.
 public final class HistoryWindowController: NSObject, NSToolbarDelegate {
 
     public let window: NSWindow
     private let model: HistoryViewModel
+    private let layoutControl = NSSegmentedControl()
     private let scaleControl = NSSegmentedControl()
     private let stepControl = NSSegmentedControl()
     private var observation: AnyCancellable?
     private var languageObservation: AnyCancellable?
 
+    private static let layoutItem = ViewControl.identifier
     private static let scaleItem = NSToolbarItem.Identifier("scale")
     private static let stepItem = NSToolbarItem.Identifier("step")
     /// Search, in the toolbar: a magnifying glass until it's used (#436).
@@ -80,6 +83,7 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
     public func windowWillClose() { model.windowDidClose() }
 
     private func configureControls() {
+        ViewControl.configure(layoutControl, ChartLayout.self, target: self, action: #selector(layoutChosen))
         PeriodControl.configure(scaleControl, target: self, action: #selector(scaleChosen))
         search.onChange = { [weak self] in self?.model.search = $0 }
 
@@ -94,6 +98,7 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
     private func nameControls() {
         window.title = L("Usage History")
 
+        ViewControl.name(layoutControl, ChartLayout.self)
         PeriodControl.name(scaleControl)
         nameSearch()
 
@@ -117,6 +122,7 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
     /// A toolbar item's name and tooltip, in the language shown.
     private static func names(for identifier: NSToolbarItem.Identifier) -> (label: String, help: String)? {
         switch identifier {
+        case layoutItem: return ViewControl.names(chart: true)
         case scaleItem: return (L("Period"), L("A day, week, month or year at a time"))
         case stepItem:  return (L("Go"), L("Move through time"))
         case SettingsGear.identifier: return (L("Settings"), L("Settings for Usage History"))
@@ -125,6 +131,7 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
     }
 
     private func refreshControls() {
+        ViewControl.select(model.layout, in: layoutControl)
         scaleControl.selectedSegment = HistoryScale.allCases.firstIndex(of: model.scale) ?? 0
         stepControl.setEnabled(model.canStepBack, forSegment: 0)
         stepControl.setEnabled(model.canStepForward, forSegment: 2)
@@ -134,6 +141,10 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
 
     private func nameSearch() {
         search.name(placeholder: L("Search apps and networks"), help: L("Search apps and networks (⌘F)"))
+    }
+
+    @objc private func layoutChosen(_ sender: NSSegmentedControl) {
+        model.layout = ViewControl.chosen(sender)
     }
 
     @objc private func scaleChosen(_ sender: NSSegmentedControl) {
@@ -154,7 +165,7 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         (standalone ? [] : MainWindowController.sidebarItems)
-            + [.flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, search.restingIdentifier,
+            + [Self.layoutItem, .flexibleSpace, Self.scaleItem, .flexibleSpace, Self.stepItem, search.restingIdentifier,
                .space, SettingsGear.identifier]
     }
 
@@ -171,6 +182,7 @@ public final class HistoryWindowController: NSObject, NSToolbarDelegate {
         if let item = search.item(for: identifier, in: toolbar) { return item }
         let item = NSToolbarItem(itemIdentifier: identifier)
         switch identifier {
+        case Self.layoutItem: item.view = layoutControl
         case Self.scaleItem: item.view = scaleControl
         case Self.stepItem:  item.view = stepControl
         default:             return nil

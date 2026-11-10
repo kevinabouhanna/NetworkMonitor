@@ -23,7 +23,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
     private var occlusion: AnyCancellable?
     private var languageObservation: AnyCancellable?
 
-    private static let layoutItem = NSToolbarItem.Identifier("layout")
+    private static let layoutItem = ViewControl.identifier
     private static let scaleItem = NSToolbarItem.Identifier("scale")
     private static let stepItem = NSToolbarItem.Identifier("step")
 
@@ -95,11 +95,8 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
     // MARK: Controls
 
     private func configureControls() {
-        let layouts = ConnectionsViewModel.Layout.allCases
-        layoutControl.segmentCount = layouts.count
-        layoutControl.trackingMode = .selectOne
-        layoutControl.target = self
-        layoutControl.action = #selector(layoutChosen)
+        ViewControl.configure(layoutControl, ConnectionsViewModel.Layout.self,
+                              target: self, action: #selector(layoutChosen))
 
         PeriodControl.configure(scaleControl, target: self, action: #selector(scaleChosen))
         search.onChange = { [weak self] in self?.model.search = $0 }
@@ -116,11 +113,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
     private func nameControls() {
         window.title = L("Connections")
 
-        for (index, layout) in ConnectionsViewModel.Layout.allCases.enumerated() {
-            layoutControl.setImage(NSImage(systemSymbolName: Self.symbol(for: layout),
-                                           accessibilityDescription: layout.label), forSegment: index)
-            layoutControl.setToolTip(layout.label, forSegment: index)
-        }
+        ViewControl.name(layoutControl, ConnectionsViewModel.Layout.self)
 
         PeriodControl.name(scaleControl)
 
@@ -146,7 +139,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
     /// A toolbar item's name and tooltip, in the language shown.
     private static func names(for identifier: NSToolbarItem.Identifier) -> (label: String, help: String)? {
         switch identifier {
-        case layoutItem: return (L("View"), L("The list, both side by side, or the map"))
+        case layoutItem: return ViewControl.names(chart: false)
         case scaleItem:  return (L("Period"), L("A day, week, month or year at a time"))
         case stepItem:   return (L("Go"), L("Move through time"))
         case SettingsGear.identifier: return (L("Settings"), L("Settings for Connections"))
@@ -155,7 +148,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
     }
 
     private func refreshControls() {
-        layoutControl.selectedSegment = ConnectionsViewModel.Layout.allCases.firstIndex(of: model.layout) ?? 0
+        ViewControl.select(model.layout, in: layoutControl)
         scaleControl.selectedSegment = HistoryScale.allCases.firstIndex(of: model.scale) ?? 0
         stepControl.setEnabled(model.canStepBack, forSegment: 0)
         stepControl.setEnabled(model.canStepForward, forSegment: 2)
@@ -164,7 +157,7 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
     }
 
     @objc private func layoutChosen(_ sender: NSSegmentedControl) {
-        model.layout = ConnectionsViewModel.Layout.allCases[sender.selectedSegment]
+        model.layout = ViewControl.chosen(sender)
     }
 
     @objc private func scaleChosen(_ sender: NSSegmentedControl) {
@@ -180,14 +173,6 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
     }
 
     @objc private func openSettings() { onSettings() }
-
-    static func symbol(for layout: ConnectionsViewModel.Layout) -> String {
-        switch layout {
-        case .list: return "list.bullet"
-        case .both: return "rectangle.split.2x1"
-        case .map:  return "map"
-        }
-    }
 
     // MARK: NSToolbarDelegate
 
