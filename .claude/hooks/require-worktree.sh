@@ -26,7 +26,14 @@ case "$(field .tool_name)" in
   Bash)
     here=$(cd "$cwd" 2>/dev/null && pwd -P) || exit 0
     [ "$here" = "$main" ] || exit 0
-    if grep -Eq '(^|[;&|(`[:space:]])git([[:space:]]+-[^[:space:]]+)*[[:space:]]+(checkout|switch)([[:space:]]|$)' <<<"$(field .tool_input.command)"; then
+    command=$(field .tool_input.command)
+    # A command aimed at a worktree (`git -C .claude/worktrees/<branch> …`, or a
+    # `cd` there first) only touches that worktree, e.g. `git checkout --theirs`
+    # while resolving a merge: let it through (#484).
+    if grep -Eq '(-C|cd)[[:space:]]+"?[^[:space:]";&|]*\.claude/worktrees/[^[:space:]";&|/]+' <<<"$command"; then
+      exit 0
+    fi
+    if grep -Eq '(^|[;&|(`[:space:]])git([[:space:]]+-[^[:space:]]+)*[[:space:]]+(checkout|switch)([[:space:]]|$)' <<<"$command"; then
       deny
     fi
     ;;
