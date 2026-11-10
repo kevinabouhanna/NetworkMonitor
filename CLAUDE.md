@@ -61,7 +61,9 @@ through without asking. What's particular to NetworkMonitor:
       retakes each picture whose window's interface changed, and About, and
       updates the page (`docs/development.md#website-pictures`). Rewrite the alt
       text of any picture it retook for an interface change, from the diff it
-      prints, describing the interface, not its numbers.
+      prints, describing the interface, not its numbers. Pictures it reports as
+      not taken (the Mac was in use) don't hold the release: list them in your
+      summary for a later run.
     - videos it names as showing a changed window: ask Kevin before
       remaking them, since they take real work. The pictures, the popover's
       and the speed test's included, it retakes itself, and copies the
@@ -193,17 +195,20 @@ release of its own:
     holds the lane until that copy quits.
   - `screen`: the pointer, screen captures and recordings. `site-shots` (`make
     site-check`, `site-shots`…, `build/site-shots tree`) takes both `screen` and
-    `networkmonitor` itself, only while it reads or takes windows: it waits for Kevin
-    to step away with the lanes free (#504).
+    `networkmonitor` itself, only while it reads or takes windows (#504).
 
   A busy lane waits and names its holder. Run those commands in the background so a
   wait can't time out. `mac-lane status` lists every lane, who holds it and for how long.
   Other apps' lanes (`home-control`…) don't wait on ours.
 - **Stay off Kevin's two screens (#475).** Open the app with `open -g`, never a plain
   `open`, and pass `-background YES` with `-open` when only the accessibility tree is
-  needed. Anything that brings a window forward or moves the real pointer waits until
-  he steps away: `make site-shots` does (`MAC_LANE_IDLE=90`: no keyboard or mouse for
-  90 s, or the screen locked); for your own, take `screen` with `MAC_LANE_IDLE=90`.
+  needed. Never ask Kevin to step away, in a notification or in chat (#521,
+  kevinabouhanna/claude-parallel-sessions#27): he keeps using the Mac. Anything that
+  brings a window forward or moves the real pointer happens only while the Mac is idle
+  (`MAC_LANE_IDLE=90`: no keyboard or mouse for 90 s, or the screen locked); otherwise
+  it isn't done. `make site-shots` and `make site-check LOOK=1` report those pictures as
+  not taken, and why: say so, and never hold a release or a review on them; a later run
+  takes them. For your own, take `screen` with `MAC_LANE_IDLE=90`, which waits silently.
 - **Quit and reopen the app through `Scripts/quit-and-open.sh`** (`nm_quit`,
   `nm_open`), never `pkill` and `open` straight after: launchd can keep a dead launch
   job and fail the `open` with error 37 (#508).

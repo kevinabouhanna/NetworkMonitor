@@ -284,11 +284,14 @@ are kept apart differently:
     site-check`, `site-shots`, `site-trees`, `site-audit`, and `build/site-shots tree`)
     takes it as well as `networkmonitor`, by itself, only while it reads or takes
     windows (#504). A window it has to bring forward, or click with the real pointer,
-    waits until Kevin steps away, with both lanes free: it reads every other window
-    first, lets the lanes go, says which shots wait and why (*main-network-apps needs
-    a click: waiting until you step away, lanes free*), and takes the lanes again for
-    those alone once the keyboard and mouse have been idle 90 s (`MAC_LANE_IDLE`) or
-    the screen is locked. Each time it lets them go it puts the app back: every copy
+    it takes only while the Mac is idle: no keyboard or mouse for 90 s
+    (`MAC_LANE_IDLE`), or the screen locked. Kevin is never asked to step away (#521).
+    While he's using the Mac it reads every other window, then lists the rest as not
+    taken, and why (*main-network-apps needs a click*), leaves their pictures and trees
+    as they were, and ends as it would without them: not a failure, and nothing to
+    hold a release or a review on. `WAIT=<minutes>` (`--wait-away`, up to 240) waits
+    that long first, silently with both lanes free, in case the Mac is left idle or
+    locked, then takes the lanes again for those alone. Each time it lets them go it puts the app back: every copy
     quit, its windows where they were, and the installed copy running again if it was
     when it took them, whichever copy it read (`--app`, #506), and however the run
     ends, an error or Ctrl-C included.
@@ -409,9 +412,9 @@ regions, a number, a setting's value, an ignored line, a scroll bar) are left ou
 LOOK=1` take a fresh capture, mask it the same way, and name the windows where more
 than one cell differs by more than one level in a channel, or whose size changed. A
 plain `site-check` doesn't: it reads trees behind the other windows, without focus
-(#475), and a look needs each window in front and active, so with `LOOK=1` it waits,
-as `site-shots` does, until the keyboard and mouse have been idle, with the Mac lanes
-free (#504).
+(#475), and a look needs each window in front and active, so with `LOOK=1` it takes
+looks, as `site-shots` does, only while the Mac is idle, and reports the rest as not
+taken (#521; `WAIT=<minutes>` waits for it, silently, with the Mac lanes free, #504).
 
 - **Advice, not a failure.** It's listed after the tree's changes and doesn't change
   the exit status, and `site-shots` doesn't retake a window for it: look at the two,
@@ -435,6 +438,7 @@ free (#504).
 make site-check                         # what changed; exits 1 if anything did
 make site-shots                         # retake what changed, update index.html
 make site-shots NAMES="settings-ads"    # retake these whether or not they changed
+make site-shots WAIT=60                 # wait up to an hour for the Mac to be left idle
 ```
 
 `site-shots` retakes each changed window with ScreenCaptureKit, at 2x and active, and

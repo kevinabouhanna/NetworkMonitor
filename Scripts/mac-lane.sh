@@ -33,9 +33,13 @@
 # mouse for that long, or the screen is locked; then checks again once the lane is held. Use it,
 # with the screen lane, for anything that moves the real pointer or drives the UI (drag tests,
 # computer use): MAC_LANE=screen MAC_LANE_IDLE=90. Inside, `mac-lane idle` tells a long test
-# whether someone is back, so it can stop. MAC_LANE_NOTIFY=0 skips the notification it posts once
-# while waiting.
-# MAC_LANE_TIMEOUT (seconds) gives up with exit status 75 instead of waiting as long as it takes.
+# whether someone is back, so it can stop. It waits silently: Kevin is never asked to step away
+# (claude-parallel-sessions#28), so it runs only if he leaves or locks the Mac anyway.
+# No wait is unbounded (claude-parallel-sessions#12): a busy lane is waited for up to an hour, and
+# the idle gate (MAC_LANE_IDLE) up to four hours, then it gives up with exit status 75 and says
+# who held it. MAC_LANE_TIMEOUT (seconds) sets the limit; MAC_LANE_TIMEOUT=none waits as long as
+# it takes, only for a wait a person paces (a review build that waits for Kevin's last one).
+# MAC_LANE_DEFAULT_TIMEOUT and MAC_LANE_IDLE_DEFAULT_TIMEOUT change the defaults (the tests do).
 # MAC_LANE_WHAT names what you're doing in the holder text. Inside a lane MAC_LANE_HELD lists the
 # lanes held, so nested scripts and make calls run straight through rather than wait on themselves.
 #
@@ -87,8 +91,12 @@ mac_lane_free() { # [lane]
 # is locked. MAC_LANE_IDLE_SOURCE, a command that prints seconds, replaces it in tests.
 mac_lane_idle_seconds() {
   if [ -n "${MAC_LANE_IDLE_SOURCE:-}" ]; then eval "$MAC_LANE_IDLE_SOURCE"; return; fi
-  if ioreg -n Root -d 1 2>/dev/null | grep -q '"CGSSessionScreenIsLocked"=Yes'; then echo 999999; return; fi
-  ioreg -c IOHIDSystem -d 4 2>/dev/null | awk '/"HIDIdleTime"/ { print int($NF / 1000000000); exit }'
+  # Read whole, not piped into grep -q: under pipefail, grep stopping early fails the pipe.
+  local root hid
+  root="$(ioreg -n Root -d 1 2>/dev/null || true)"
+  case "$root" in *'"CGSSessionScreenIsLocked"=Yes'*) echo 999999; return ;; esac
+  hid="$(ioreg -c IOHIDSystem -d 4 2>/dev/null || true)"
+  awk '/"HIDIdleTime"/ { print int($NF / 1000000000); exit }' <<<"$hid"
 }
 
 mac_lane_wait_idle() { # <seconds> <deadline or empty>: returns 75 past the deadline
@@ -99,10 +107,7 @@ mac_lane_wait_idle() { # <seconds> <deadline or empty>: returns 75 past the dead
     if [ "$idle" -ge "$need" ]; then return 0; fi
     if [ -z "$told" ]; then
       told=1
-      echo "==> Waiting until the keyboard and mouse have been idle ${need}s, or the screen is locked (idle ${idle}s now)…" >&2
-      if [ "${MAC_LANE_NOTIFY:-1}" != 0 ]; then
-        osascript -e "display notification \"An agent will use the screen when you step away for $((need / 60 > 0 ? need / 60 : 1)) min: ${MAC_LANE_WHAT:-$0}\" with title \"Waiting for you to step away\"" >/dev/null 2>&1 || true
-      fi
+      echo "==> Waiting until the keyboard and mouse have been idle ${need}s, or the screen is locked (idle ${idle}s now). Kevin isn't told and won't be asked to step away (#28)…" >&2
     fi
     if [ -n "$deadline" ] && [ "$(date +%s)" -ge "$deadline" ]; then return 75; fi
     sleep "${MAC_LANE_IDLE_POLL:-5}"
@@ -120,11 +125,18 @@ mac_lane_enter() {
   for l in ${MAC_LANE_HELD:-}; do held=$((held + 1)); done
   local fd=$((9 - held))
   if [ "$fd" -lt 5 ]; then echo "mac-lane: too many lanes held at once" >&2; exit 2; fi
-  local deadline="" left
-  if [ -n "${MAC_LANE_TIMEOUT:-}" ]; then deadline=$(($(date +%s) + MAC_LANE_TIMEOUT)); fi
+  local deadline="" left limit="${MAC_LANE_TIMEOUT:-}"
+  if [ -z "$limit" ]; then
+    if [ -n "${MAC_LANE_IDLE:-}" ]; then limit="${MAC_LANE_IDLE_DEFAULT_TIMEOUT:-14400}"; else limit="${MAC_LANE_DEFAULT_TIMEOUT:-3600}"; fi
+  fi
+  case "$limit" in
+    none) limit="" ;;
+    "" | *[!0-9]*) echo "mac-lane: MAC_LANE_TIMEOUT must be seconds, or none" >&2; exit 2 ;;
+  esac
+  if [ -n "$limit" ]; then deadline=$(($(date +%s) + limit)); fi
   while :; do
     if [ -n "${MAC_LANE_IDLE:-}" ] && ! mac_lane_wait_idle "$MAC_LANE_IDLE" "$deadline"; then
-      echo "==> Gave up after ${MAC_LANE_TIMEOUT}s: the keyboard or mouse was in use" >&2
+      echo "==> Gave up after ${limit}s: the keyboard or mouse was in use (MAC_LANE_TIMEOUT sets how long)" >&2
       exit 75
     fi
     eval "exec $fd>>\"\$(mac_lane_file \"\$lane\" lock)\""
@@ -133,7 +145,7 @@ mac_lane_enter() {
       left="${deadline:+$((deadline > $(date +%s) ? deadline - $(date +%s) : 0))}"
       echo "    Waiting${left:+ up to ${left}s}…" >&2
       if ! lockf -s -k ${left:+-t "$left"} "$fd"; then
-        echo "==> Gave up after ${MAC_LANE_TIMEOUT:-?}s. Lane '$lane' still busy: $(mac_lane_holder "$lane")" >&2
+        echo "==> Gave up after ${limit}s (MAC_LANE_TIMEOUT sets how long). Lane '$lane' still busy: $(mac_lane_holder "$lane")" >&2
         exit 75
       fi
     fi
