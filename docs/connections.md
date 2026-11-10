@@ -44,6 +44,10 @@ Connections shows the list, the map, or both side by side (**List | Both | Map**
 the default, and whichever you choose is remembered. Too narrow for both, it shows
 the list until you widen the window.
 
+In a narrow window, a row's bar shortens before its name does, here and in Usage History's
+and Ads and Trackers' Both (#534). A tag beside a name (*ALWAYS ALLOWED*, *ADS*, *METERED*)
+becomes its icon before the name is cut short; hover it, or ask VoiceOver, for its word.
+
 - **Countries are shaded by how much data went there**, on a logarithmic scale, so a
   country with a few kilobytes still shows beside one with gigabytes.
 - **Hover a country** for a card with its top companies. **Click it** to narrow

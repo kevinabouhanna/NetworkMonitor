@@ -324,6 +324,7 @@ private struct AdsRow: View {
     let item: AdsItem
     let icon: NSImage?
     let fraction: Double
+    @Environment(\.splitListWidth) private var listWidth
 
     var body: some View {
         HStack(spacing: 10) {
@@ -331,10 +332,11 @@ private struct AdsRow: View {
                 Image(nsImage: icon).resizable().frame(width: 20, height: 20).accessibilityHidden(true)
             }
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+                NameBeforeTags {
                     Text(item.title).lineLimit(1).truncationMode(.middle)
+                } tags: { iconOnly in
                     ForEach(item.lists, id: \.self) { list in
-                        if let topic = BlocklistTopic(rawValue: list) { ListTag(topic: topic) }
+                        if let topic = BlocklistTopic(rawValue: list) { ListTag(topic: topic, iconOnly: iconOnly) }
                     }
                 }
                 if let detail = item.detail {
@@ -348,7 +350,9 @@ private struct AdsRow: View {
                     .frame(width: max(2, geometry.size.width * fraction), height: 4)
                     .frame(maxHeight: .infinity)
             }
-            .frame(width: AdsMetrics.rowBarWidth, height: 20)
+            .frame(width: SplitMetrics.bar(listWidth: listWidth,
+                                           fixed: AdsMetrics.rowFixed + (icon == nil ? 0 : AdsMetrics.rowIcon),
+                                           most: AdsMetrics.rowBarWidth), height: 20)
             Text(item.count.formatted())
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -370,6 +374,12 @@ enum AdsMetrics {
     static let minWidth: CGFloat = 820
     static let minHeight: CGFloat = 480
     static let rowBarWidth: CGFloat = 90
+    /// A Sites or Apps row's width besides its name and bar: 20 pt padding
+    /// each side, three 10 pt gaps, the least space before the bar (8) and
+    /// the figure (48).
+    static let rowFixed: CGFloat = 40 + 3 * 10 + 8 + 48
+    /// An app's icon and its gap.
+    static let rowIcon: CGFloat = 20 + 10
     static let logTime: CGFloat = 76
     static let logApp: CGFloat = 170
     static let logDecision: CGFloat = 76

@@ -712,6 +712,12 @@ private struct HistoryListRow: View {
 
     /// Not `@State`, which needs Xcode from the macOS 27 SDK on.
     @StateObject private var hover = HistoryRowHover()
+    @Environment(\.splitListWidth) private var listWidth
+    private var barWidth: CGFloat {
+        SplitMetrics.bar(listWidth: listWidth,
+                         fixed: HistoryMetrics.rowFixed + (indented ? HistoryMetrics.rowIndent : 0),
+                         most: HistoryMetrics.rowBarWidth)
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -719,19 +725,17 @@ private struct HistoryListRow: View {
             disclosureButton
             leading()
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
+                NameBeforeTags {
                     Text(title)
                         .font(.system(size: 12))
                         .foregroundStyle(indented || isMuted
                                          ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                         .lineLimit(1)
                         .truncationMode(.tail)
+                } tags: { iconOnly in
                     if isMetered {
-                        Text(L("METERED"))
-                            .font(.system(size: 8, weight: .bold))
-                            .padding(.horizontal, 4).padding(.vertical, 1)
-                            .background(Color.orange.opacity(0.2), in: Capsule())
-                            .foregroundStyle(.orange)
+                        RowTag(word: L("METERED"), symbol: "antenna.radiowaves.left.and.right",
+                               color: .orange, iconOnly: iconOnly)
                     }
                 }
                 if let subtitle {
@@ -743,7 +747,7 @@ private struct HistoryListRow: View {
             }
             Spacer(minLength: 12)
             bar
-                .frame(width: HistoryMetrics.rowBarWidth, alignment: .leading)
+                .frame(width: barWidth, alignment: .leading)
             Text(ByteFormat.bytes(bytes))
                 .font(.system(size: 12, weight: .medium))
                 .monospacedDigit()
@@ -765,7 +769,7 @@ private struct HistoryListRow: View {
     /// that row's part of the chart: Wi-Fi then Hotspot, left to right, 1 pt
     /// apart as the chart's segments are 2 pt apart.
     private var bar: some View {
-        let width = max(3, HistoryMetrics.rowBarWidth * min(max(fraction, 0), 1))
+        let width = max(3, barWidth * min(max(fraction, 0), 1))
         let total = Double(kinds.values.reduce(0, +))
         let gap: CGFloat = 1
         // Parts under 2 pt read as noise on a short bar, not as a share. The
@@ -876,6 +880,12 @@ enum HistoryMetrics {
     static let tooltipWidth: CGFloat = 150
     static let listHeight: CGFloat = 220
     static let rowBarWidth: CGFloat = 150
+    /// A list row's width besides its name and bar: 8 pt padding each side,
+    /// the disclosure (12), what's on the left (18), five 8 pt gaps, the
+    /// least space before the bar (12) and the figure (76).
+    static let rowFixed: CGFloat = 16 + 12 + 18 + 5 * 8 + 12 + 76
+    /// An indented row's indent and its gap.
+    static let rowIndent: CGFloat = 22 + 8
 }
 
 /// The chart's four colours, one per network type, in light and dark steps.

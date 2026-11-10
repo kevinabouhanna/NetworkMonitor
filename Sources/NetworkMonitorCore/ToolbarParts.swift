@@ -117,13 +117,35 @@ struct SideBySide<Leading: View, Trailing: View>: View {
         GeometryReader { geometry in
             HStack(alignment: .top, spacing: SplitMetrics.gap) {
                 list.frame(width: SplitMetrics.listWidth(geometry.size.width))
+                    .environment(\.splitListWidth, SplitMetrics.listWidth(geometry.size.width))
                 detail.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
 }
 
+private struct SplitListWidthKey: EnvironmentKey { static let defaultValue: CGFloat? = nil }
+extension EnvironmentValues {
+    var splitListWidth: CGFloat? {
+        get { self[SplitListWidthKey.self] }
+        set { self[SplitListWidthKey.self] = newValue }
+    }
+}
+
 enum SplitMetrics {
+    /// Beside the chart or the map, a row's bar gives way before its name
+    /// (#534): it takes what the list's width leaves once the row's fixed
+    /// parts (`fixed`: padding, icons, gaps, the figure) and `nameRoom` are
+    /// counted, between `barLeast` and its usual width, `most`. On its own,
+    /// the list keeps every bar at `most`.
+    static func bar(listWidth: CGFloat?, fixed: CGFloat, most: CGFloat) -> CGFloat {
+        guard let listWidth else { return most }
+        return min(most, max(barLeast, listWidth - fixed - nameRoom))
+    }
+    /// What a row's name keeps before its bar gives way.
+    static let nameRoom: CGFloat = 170
+    /// The shortest a row's bar gets, still a bar to compare.
+    static let barLeast: CGFloat = 60
     /// The list's share of the width, the rest going to what's beside it.
     static let listShare: CGFloat = 0.46
     static let gap: CGFloat = 14
