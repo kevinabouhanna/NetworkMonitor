@@ -4,6 +4,12 @@ import Foundation
 //
 // Exits non-zero on any failure, so this works as a pre-commit or CI gate.
 
+// A line at a time, so a crash comes right after the last test that finished.
+// Into a pipe, as on CI, output went out 16 KB at a time, and a crash lost the
+// rest: two crashes in the Accessibility tests were read as UpdateWatch's and
+// UpdaterScan's (#488, #406).
+setvbuf(stdout, nil, _IOLBF, 0)
+
 print("NetworkMonitor test suite")
 print(String(repeating: "─", count: 62))
 
