@@ -32,7 +32,7 @@ brew install --cask kevinabouhanna/tap/networkmonitor
 
 ## 更新
 
-从 1.15 开始，NetworkMonitor 使用 Sparkle 自行更新（#132）。它每天向 GitHub 询问一次是否有新版本（使用热点时不会询问），并提示你：显示新功能，准备好后点按 <strong>安装更新</strong> 即可。从它的菜单中选择 <strong>检查更新…</strong> 会立即检查，在“设置”中关闭 <strong>自动检查更新</strong> 即可停止每日检查。只有当更新的磁盘映像使用应用内置的密钥签名时，才会安装它。
+从 1.15 开始，NetworkMonitor 使用 Sparkle 自行更新（#132）。它每天向 GitHub 询问一次是否有新版本（使用热点时不会询问），并提示你：显示新功能，准备好后点按 <strong>安装更新</strong> 即可。如果发现新版本时主窗口是打开的，它会以卡片的形式出现在边栏的 <strong>设置</strong> 上方：<strong>安装并重新启动</strong> 会下载新版本并重新启动到新版本，<strong>新功能</strong> 显示更新说明，点按 ✕ 则会收起卡片，等到第二天检查时再提醒。从它的菜单中选择 <strong>检查更新…</strong> 会立即检查，在“设置”中关闭 <strong>自动检查更新</strong> 即可停止每日检查。只有当更新的磁盘映像使用应用内置的密钥签名时，才会安装它。
 
 1.15 之前的版本，或者想手动更新时：
 

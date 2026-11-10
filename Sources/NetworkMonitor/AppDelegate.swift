@@ -766,6 +766,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// update on its own; back in the menu bar once it's done, unless one of
     /// NetworkMonitor's own windows is still open.
     private func showUpdatesGently() {
+        // While the main window is open, a new version found by the daily
+        // check waits on a card in its sidebar instead (#520).
+        model.updates.cardCanBeSeen = { [weak self] in
+            guard let window = self?.mainController?.window else { return false }
+            return window.isVisible && !window.isMiniaturized
+        }
         model.updates.onWillShowUpdate = { [weak self] userInitiated in
             guard let self else { return }
             self.showingUpdate = true
@@ -945,7 +951,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// macOS 27.
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow else { return }
-        if closing === mainController?.window { mainController?.windowWillClose() }
+        if closing === mainController?.window {
+            mainController?.windowWillClose()
+            // Its update card, unanswered, until the next daily check (#520):
+            // closed, the window can't show it, and Sparkle's would then.
+            model.updates.dismissPendingUpdate()
+        }
         settleActivationPolicy(closing: closing)
     }
 
