@@ -22,13 +22,11 @@ installed="/Applications/NetworkMonitor.app"
 build="build/NetworkMonitor.app"
 [ -d "$build" ] || { echo "no $build: run make app first" >&2; exit 1; }
 
-# Two copies would both write the same history and settings.
-if pgrep -xq NetworkMonitor; then
-  osascript -e 'tell application id "com.kevinabouhanna.NetworkMonitor" to quit' >/dev/null 2>&1 || true
-  for _ in $(seq 1 50); do pgrep -xq NetworkMonitor || break; sleep 0.2; done
-  sleep 2
-fi
-if pgrep -xq NetworkMonitor; then
+# Two copies would both write the same history and settings. Quit gracefully,
+# and wait until launchd lets go of the launch job (#508).
+. Scripts/quit-and-open.sh
+nm_quit
+if nm_running; then
   echo "the installed NetworkMonitor didn't quit; quit it and run this again" >&2
   exit 1
 fi
@@ -38,7 +36,6 @@ open -W -n -g "$build"
 
 # Back to the installed app, as it was.
 if [ -d "$installed" ]; then
-  sleep 2
-  open -g "$installed"
-  echo "the installed NetworkMonitor is back"
+  nm_quit
+  nm_open "$installed" && echo "the installed NetworkMonitor is back"
 fi

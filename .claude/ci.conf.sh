@@ -23,15 +23,12 @@ ci_prepare() {
 }
 
 # The smoke test stops every running copy, the installed one too: hold the app's lane (15 min at
-# most), and open the installed copy again in the background if it was running.
+# most). It opens the installed copy again itself if it was running, once launchd has let go of
+# the last launch (#508).
 nm_smoke() {
   . Scripts/mac-lane.sh
   MAC_LANE=networkmonitor MAC_LANE_TIMEOUT="${SMOKE_LANE_TIMEOUT:-900}" MAC_LANE_WHAT="local-ci smoke test ${CI_SHA:0:7}" mac_lane_enter
-  local was=false ok=0
-  pgrep -qf "/Applications/NetworkMonitor.app/Contents/MacOS" && was=true
-  ./Scripts/smoke-test.sh || ok=$?
-  if $was; then sleep 1; open -g /Applications/NetworkMonitor.app; fi
-  return $ok
+  ./Scripts/smoke-test.sh
 }
 
 ci_job_build_and_test() {

@@ -31,7 +31,11 @@
 //                    picture's look from the picture as it is
 //
 // It needs Accessibility and Screen Recording for the terminal it runs in. It
-// quits and relaunches the installed app, and puts it back running at the end.
+// takes the `networkmonitor` and `screen` Mac lanes itself, only while it reads
+// or takes windows: never while it waits for Kevin to step away before a click
+// or a window brought forward (#504). It quits and relaunches the app, and
+// whenever it lets the lanes go, however the run ends, puts the installed copy
+// back running if it was (#506).
 // Build with `make site-shots`; see docs/development.md#website-pictures.
 
 import AppKit
@@ -721,6 +725,9 @@ struct SavedFrames {
     }
 }
 
+/// Kept for the run: each puts the app back on a signal.
+nonisolated(unsafe) var signalSources: [DispatchSourceSignal] = []
+
 /// When this run last clicked with the real pointer: that click counts as input.
 nonisolated(unsafe) var lastOwnInput: Date?
 
@@ -734,14 +741,217 @@ func secondsIdle() -> Double {
     return idle
 }
 
-/// Waits until Kevin has stepped away (#475) before taking focus or moving the
-/// pointer: MAC_LANE_IDLE seconds (90) with no keyboard or mouse, or the screen
-/// locked. MAC_LANE_IDLE=0 doesn't wait.
-func awaitAway(_ what: String) {
-    let need = Double(ProcessInfo.processInfo.environment["MAC_LANE_IDLE"] ?? "") ?? 90
-    guard need > 0, secondsIdle() < need else { return }
-    print("  waiting until the keyboard and mouse have been idle \(Int(need))s, to \(what)")
-    while secondsIdle() < need { sleep(5) }
+/// How long Kevin has to have stepped away before a run takes focus or moves
+/// the pointer (#475): MAC_LANE_IDLE seconds (90) with no keyboard or mouse,
+/// or the screen locked. MAC_LANE_IDLE=0 never waits.
+let awayAfter = Double(ProcessInfo.processInfo.environment["MAC_LANE_IDLE"] ?? "") ?? 90
+
+func isAway() -> Bool { awayAfter <= 0 || secondsIdle() >= awayAfter }
+
+/// A shot that needs a window brought forward or a real click while Kevin is
+/// at the Mac. It isn't waited for there, with the lanes held (#504): the run
+/// reads every other window first, lets the lanes go, waits until he steps
+/// away, and takes them again for these.
+struct NeedsAway: Error { let what: String }
+
+/// Before taking focus or moving the pointer.
+func needAway(_ what: String) throws {
+    if !isAway() { throw NeedsAway(what: what) }
+}
+
+// MARK: - Launching
+
+/// Runs a tool to its end: its exit status, and what it printed.
+@discardableResult
+func runTool(_ path: String, _ arguments: [String]) -> (status: Int32, output: String) {
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: path)
+    p.arguments = arguments
+    let out = Pipe()
+    p.standardOutput = out
+    p.standardError = out
+    guard (try? p.run()) != nil else { return (-1, "couldn't run \(path)") }
+    let data = out.fileHandleForReading.readDataToEndOfFile()
+    p.waitUntilExit()
+    return (p.terminationStatus, String(decoding: data, as: UTF8.self))
+}
+
+/// The app's launch jobs in launchd (`application.<bundle>.<n>.<n>`), with
+/// each one's process, or nil for a job left with none (#508).
+func launchJobs(_ bundle: String) -> [(label: String, pid: Int32?)] {
+    runTool("/bin/launchctl", ["list"]).output.split(separator: "\n").compactMap { line in
+        let f = line.split(whereSeparator: { $0 == "\t" || $0 == " " })
+        guard f.count >= 3, f[2].hasPrefix("application.\(bundle).") else { return nil }
+        return (String(f[2]), Int32(f[0]))
+    }
+}
+
+/// Opens the app in the background (-g). Started straight after a quit, while
+/// launchd still has the last launch's job, `open` fails with launchd's error
+/// 37, "Operation already in progress" (#508): then it removes that job, the
+/// one with no process, and tries once more, saying so.
+func openApp(_ path: String, bundle: String, _ arguments: [String], until started: () -> Bool) throws {
+    var removed = false, last = ""
+    for attempt in 1...4 {
+        let open = runTool("/usr/bin/open", ["-g", "-a", path] + (arguments.isEmpty ? [] : ["--args"] + arguments))
+        if open.status == 0 {
+            for _ in 0..<40 where !started() { usleep(250_000) }
+            if started() { return }
+        }
+        last = open.output.trimmingCharacters(in: .whitespacesAndNewlines)
+        if open.output.contains("Code=37"), !removed {
+            removed = true
+            let dead = launchJobs(bundle).filter { $0.pid == nil }
+            for job in dead {
+                let r = runTool("/bin/launchctl", ["remove", job.label])
+                print("  launchd still had \(job.label) from the last launch, with no process (#508): "
+                      + (r.status == 0 ? "removed it" : "couldn't remove it (\(r.output.trimmingCharacters(in: .whitespacesAndNewlines)))"))
+            }
+            print("  opening \(path) again")
+            continue
+        }
+        if attempt >= 3 { break }
+        sleep(2)
+    }
+    throw Failure("\(path) didn't start" + (last.isEmpty ? "" : ": \(last)"))
+}
+
+// MARK: - The Mac lanes
+
+/// The Mac as a run uses it (#504, #506). The `networkmonitor` and `screen`
+/// lanes are held only while it reads or takes windows, never while it waits
+/// for Kevin to step away. Letting them go puts the app back: every copy quit,
+/// its windows' frames back where Kevin had them, and the installed copy
+/// running again if it was when they were taken, whichever copy the run used
+/// (`--app`).
+final class Mac: @unchecked Sendable {
+    let manifest: Manifest
+    let installed: Manifest
+    let command: String
+    private var lanes: Process?
+    private var lanesInput: Pipe?
+    private var lanesHeld = false
+    private var savedFrames: SavedFrames?
+    private var installedWasRunning = false
+    private let lock = NSLock()
+
+    init(manifest: Manifest, installed: Manifest, command: String) {
+        self.manifest = manifest; self.installed = installed; self.command = command
+    }
+
+    var holding: Bool { lock.withLock { savedFrames != nil } }
+
+    /// Lanes a caller holds already (`mac-lane build/site-shots …`) stay held
+    /// until it's done, waits included.
+    var callerHolds: Bool {
+        let held = (ProcessInfo.processInfo.environment["MAC_LANE_HELD"] ?? "").split(separator: " ")
+        return held.contains("networkmonitor") && held.contains("screen")
+    }
+
+    /// Takes both lanes, waiting for whoever holds them, and notes how the app is.
+    func hold(_ what: String) throws {
+        guard !holding else { return }
+        if !callerHolds { try takeLanes(what) }
+        lock.withLock {
+            let path = URL(fileURLWithPath: installed.app).resolvingSymlinksInPath().path
+            installedWasRunning = NSRunningApplication.runningApplications(withBundleIdentifier: installed.bundle)
+                .contains { $0.bundleURL?.resolvingSymlinksInPath().path == path }
+            savedFrames = SavedFrames(bundle: manifest.bundle)
+        }
+    }
+
+    /// Puts the app back as it was, then lets the lanes go.
+    func letGo() {
+        let (frames, reopen): (SavedFrames?, Bool) = lock.withLock {
+            defer { savedFrames = nil }
+            return (savedFrames, installedWasRunning)
+        }
+        guard let frames else { return }
+        Session(manifest: manifest).quit()
+        // Its windows back where Kevin had them, once it has quit (#487).
+        frames.restore()
+        if reopen {
+            do {
+                let app = installed
+                try openApp(app.app, bundle: app.bundle, []) {
+                    !NSRunningApplication.runningApplications(withBundleIdentifier: app.bundle).isEmpty
+                }
+            } catch { print("site-shots: couldn't open the installed app again: \(error)") }
+        }
+        releaseLanes()
+    }
+
+    /// Waits, with the lanes free, until Kevin has stepped away, then takes them
+    /// for what needs him away; again if he came back while they were busy.
+    func holdOnceAway(_ what: String) throws {
+        if callerHolds { print("  (the lanes stay held meanwhile: the command that ran this holds them)") }
+        var told = false
+        while true {
+            if !isAway() {
+                if !told, ProcessInfo.processInfo.environment["MAC_LANE_NOTIFY"] != "0" {
+                    runTool("/usr/bin/osascript", ["-e", "display notification \"site-shots will use the screen when you step away for "
+                        + "\(max(1, Int(awayAfter) / 60)) min\" with title \"Waiting for you to step away\""])
+                }
+                told = true
+                while !isAway() { sleep(5) }
+            }
+            try hold(what)
+            if isAway() { return }
+            // Back while the lanes were busy: let them go again, the app untouched.
+            lock.withLock { savedFrames = nil }
+            releaseLanes()
+        }
+    }
+
+    /// Both lanes, held by a `mac-lane` that runs until this run closes its
+    /// input, or ends: the lanes go with it however it ends.
+    private func takeLanes(_ what: String) throws {
+        let repoCopy = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
+            .deletingLastPathComponent().appendingPathComponent("../Scripts/mac-lane.sh").standardizedFileURL.path
+        let macLane = FileManager.default.isExecutableFile(atPath: repoCopy) ? repoCopy : "mac-lane"
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        p.arguments = ["MAC_LANE=networkmonitor", "MAC_LANE_WHAT=site-shots \(command): \(what)", macLane,
+                       "env", "MAC_LANE=screen", macLane, "/bin/sh", "-c", "echo held; exec cat >/dev/null"]
+        var env = ProcessInfo.processInfo.environment
+        env["MAC_LANE_IDLE"] = nil   // this run waits for Kevin itself, with the lanes free
+        p.environment = env
+        let input = Pipe(), output = Pipe()
+        p.standardInput = input
+        p.standardOutput = output
+        try p.run()
+        lock.withLock { lanes = p; lanesInput = input; lanesHeld = false }
+        var said = Data()
+        while !String(decoding: said, as: UTF8.self).contains("held") {
+            let more = output.fileHandleForReading.availableData
+            if more.isEmpty { break }
+            said += more
+        }
+        guard String(decoding: said, as: UTF8.self).contains("held") else {
+            p.waitUntilExit()
+            lock.withLock { lanes = nil; lanesInput = nil }
+            throw Failure("couldn't take the networkmonitor and screen Mac lanes (mac-lane exited \(p.terminationStatus))")
+        }
+        lock.withLock { lanesHeld = true }
+    }
+
+    private func releaseLanes() {
+        let (p, input, held): (Process?, Pipe?, Bool) = lock.withLock {
+            defer { lanes = nil; lanesInput = nil }
+            return (lanes, lanesInput, lanesHeld)
+        }
+        try? input?.fileHandleForWriting.close()
+        // Still waiting for them: it ignores the signals this run does.
+        if let p, !held, p.isRunning { kill(p.processIdentifier, SIGKILL) }
+        p?.waitUntilExit()
+    }
+
+    /// However the run ends: the app put back, the lanes let go, a wait for
+    /// them given up.
+    func end() {
+        letGo()
+        releaseLanes()
+    }
 }
 
 // MARK: - The app
@@ -756,29 +966,23 @@ struct Session {
         NSRunningApplication.runningApplications(withBundleIdentifier: manifest.bundle).first
     }
 
+    /// Quits every copy, the installed one and a development build alike: they
+    /// share settings. Gracefully, then waits until launchd has let go of each
+    /// one's launch job, or opening it again can fail (#508).
     func quit() {
-        guard let app = running else { return }
-        app.terminate()
-        for _ in 0..<80 where running != nil { usleep(250_000) }
-        if let app = running { app.forceTerminate(); usleep(500_000) }
-        // `open` straight after a quit can fail with -600.
-        sleep(2)
+        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: manifest.bundle)
+        guard !apps.isEmpty else { return }
+        apps.forEach { $0.terminate() }
+        for _ in 0..<80 where apps.contains(where: { !$0.isTerminated }) { usleep(250_000) }
+        for app in apps where !app.isTerminated { app.forceTerminate(); usleep(500_000) }
+        for _ in 0..<60 where !launchJobs(manifest.bundle).isEmpty { usleep(250_000) }
+        usleep(500_000)
     }
 
     func launch(_ arguments: [String]) throws {
         quit()
-        for attempt in 1...3 {
-            let open = Process()
-            open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            // -g: never brings the app forward by itself (#475).
-            open.arguments = ["-g", "-a", manifest.app, "--args"] + arguments + (background ? ["-background", "YES"] : [])
-            try open.run()
-            open.waitUntilExit()
-            for _ in 0..<40 where running == nil { usleep(250_000) }
-            if running != nil { return }
-            if attempt < 3 { sleep(2) }
-        }
-        throw Failure("\(manifest.app) didn't start")
+        // -g: never brings the app forward by itself (#475).
+        try openApp(manifest.app, bundle: manifest.bundle, arguments + (background ? ["-background", "YES"] : [])) { running != nil }
     }
 
     func window(_ title: String) throws -> AXUIElement {
@@ -800,8 +1004,8 @@ struct Session {
         throw Failure("no window \"\(title)\"")
     }
 
-    func bringForward(_ window: AXUIElement) {
-        awaitAway("bring a window forward")
+    func bringForward(_ window: AXUIElement) throws {
+        try needAway("its window brought forward")
         guard let app = running else { return }
         let ax = AXUIElementCreateApplication(app.processIdentifier)
         for _ in 0..<3 {
@@ -829,8 +1033,9 @@ struct Session {
             usleep(1_200_000)
             if before == nil || text(element, kAXValueAttribute) != before { return }
         }
+        try needAway("a click")
         for _ in 0..<4 {
-            bringForward(window)
+            try bringForward(window)
             let point = CGPoint(x: f.minX + min(40, f.width / 2), y: f.midY)
             let saved = CGEvent(source: nil)?.location
             for type in [CGEventType.leftMouseDown, .leftMouseUp] {
@@ -934,7 +1139,7 @@ struct Session {
         place(window)
         var picture = try await picture(window, crop: shot.crop)
         for _ in 0..<4 where shot.crop == nil && !isActive(picture.image, window: window) {
-            bringForward(window)
+            try bringForward(window)
             picture = try await self.picture(window, crop: shot.crop)
         }
         let masks = maskedFrames(window, shot).map { f in
@@ -1605,6 +1810,8 @@ func diff(_ old: [String], _ new: [String]) -> [String] {
 struct SiteShots {
     static func main() async {
         _ = NSApplication.shared   // ScreenCaptureKit needs a connection to the window server
+        // Line by line into a log too, so a run in the background says what it waits for.
+        setvbuf(stdout, nil, _IOLBF, 0)
         var args = Array(CommandLine.arguments.dropFirst())
         var site = URL(fileURLWithPath: "../NetworkMonitor-site")
         if let i = args.firstIndex(of: "--site"), i + 1 < args.count {
@@ -1719,11 +1926,22 @@ struct SiteShots {
             if stage() == nil, ["check", "update", "record"].contains(command) {
                 throw Failure("no Retina screen to read the windows on: the records are read on one (#487)")
             }
-            let savedFrames = SavedFrames(bundle: manifest.bundle)
+            // Put back as it was, the installed copy, even after a run with
+            // another copy (`--app`, #506).
+            var installed = manifest
+            installed.app = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json"))).app
+            let mac = Mac(manifest: manifest, installed: installed, command: command)
+            // However the run ends: Ctrl-C or a kill too.
+            for sig in [SIGINT, SIGTERM, SIGHUP] {
+                signal(sig, SIG_IGN)
+                let source = DispatchSource.makeSignalSource(signal: sig, queue: .global())
+                source.setEventHandler { mac.end(); exit(128 + sig) }
+                source.resume()
+                signalSources.append(source)
+            }
             var session = Session(manifest: manifest)
             // Reading the tree needs no focus; a picture shows the window active.
             session.background = ["check", "tree", "audit"].contains(command) && !(command == "check" && compareLooks)
-            let wasRunning = session.running != nil
             var status: Int32 = 0
             // English, then each language's page with the same shots in it.
             let languages: [Language?] = [nil] + (manifest.languages ?? []).map { $0 }
@@ -1731,7 +1949,7 @@ struct SiteShots {
                 if let language { print("\n\(language.code), for \(language.page):") }
                 do {
                     let translator = try language.map { try Translator(app: manifest.app, language: $0) }
-                    let s = try await run(command, names: names, manifest: manifest, session: session, site: site,
+                    let s = try await run(command, names: names, manifest: manifest, session: session, mac: mac, site: site,
                                           repo: repo, repoAssets: repoAssets, language: language, translator: translator)
                     status = max(status, s)
                     if let missing = translator?.missing, !missing.isEmpty {
@@ -1741,13 +1959,7 @@ struct SiteShots {
                     }
                 } catch { status = 2; print("site-shots: \(error)") }
             }
-            // Put the app back as it was: the installed one, even after a run
-            // with another copy (`--app`).
-            let installed = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
-            // Its windows back where Kevin had them, once it has quit (#487).
-            session.quit()
-            savedFrames.restore()
-            if wasRunning { try? Session(manifest: installed).launch([]) }
+            mac.end()
             exit(status)
         } catch {
             print("site-shots: \(error)")
@@ -1755,7 +1967,7 @@ struct SiteShots {
         }
     }
 
-    static func run(_ command: String, names: Set<String>, manifest: Manifest, session: Session, site: URL, repo: URL,
+    static func run(_ command: String, names: Set<String>, manifest: Manifest, session: Session, mac: Mac, site: URL, repo: URL,
                     repoAssets: RepoAssets?, language: Language? = nil, translator: Translator? = nil) async throws -> Int32 {
         var shots = manifest.shots.filter { names.isEmpty || names.contains($0.name) }
         if shots.isEmpty { throw Failure("no shot named \(names.sorted().joined(separator: ", "))") }
@@ -1791,193 +2003,218 @@ struct SiteShots {
         let appVersion = Versions.app(manifest.app)
 
         var current: [String: [String]] = [:]
-        for shot in shots {
-            do {
-                // A costly shot follows its base window: retaken only when the
-                // base's tree differs from the one it was last taken with.
-                var baseTree: [String]?
-                if let base = shot.when, command == "record" {
-                    // Can't be read without taking it (a speed test): record
-                    // only that it was taken with the base window as it reads
-                    // now, so a new mark there doesn't retake it.
-                    guard let now = current[base] else { print("\(shot.name): name \(base) too, to record its base"); continue }
-                    try (now.joined(separator: "\n") + "\n").write(
-                        to: trees.appendingPathComponent("\(shot.name).base.txt"), atomically: true, encoding: .utf8)
-                    print("\(shot.name): recorded \(base) as it was taken with")
-                    continue
-                }
-                if let base = shot.when {
-                    let baseFile = trees.appendingPathComponent("\(shot.name).base.txt")
-                    let taken = (try? String(contentsOf: baseFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
-                    guard let now = current[base] else {
-                        print("\(shot.name): needs \(base) checked first, in the same run"); continue
-                    }
-                    let named = names.contains(shot.name)
-                    if taken == now && !named { print("\(shot.name): unchanged (\(base) is)"); continue }
-                    if command != "update" || (taken != nil && !named && command == "check") {
-                        print("\(shot.name): \(base) changed, so it's retaken on update")
-                        changed.append(shot.name); continue
-                    }
-                    if command != "update" { continue }
-                    baseTree = now
-                }
-                // Shots that open the same window without clicks share a launch.
-                if cached?.args != shot.open || cached?.window != shot.window || shot.click != nil {
-                    cached = nil
-                    try session.launch(shot.open)
-                    cached = (shot.open, shot.window)
-                }
-                // Once more from a fresh launch if it doesn't show: a popover
-                // now and then doesn't open on the first try.
-                var window: AXUIElement
-                do { window = try session.window(shot.window) } catch {
-                    try session.launch(shot.open)
-                    window = try session.window(shot.window)
-                }
-                // On the stage, before anything reads it (#487).
-                session.place(window)
-                if let spec = shot.skipIf, find(spec, in: window) != nil {
-                    print("\(shot.name): skipped while \(spec) shows; it's tried again on the next update")
-                    cached = nil
-                    continue
-                }
-                if shot.click != nil { cached = nil }
-                for spec in shot.click ?? [] { try session.click(spec, in: window) }
-                if let spec = shot.scroll { try session.scrollToEnd(spec, in: window) }
-                if let wait = shot.waitFor { try session.wait(for: wait, in: window) }
-                // A click can rebuild what was clicked in, such as a popover
-                // that grows: find the window again.
-                if shot.click != nil || shot.scroll != nil { window = try session.window(shot.window) }
-                // Read it once it has settled: lists and charts fill in a
-                // moment after the window opens.
-                var now = tree(window, data: shot.data ?? [], ignore: shot.ignore ?? [])
-                for _ in 0..<12 {
-                    usleep(700_000)
-                    let again = tree(window, data: shot.data ?? [], ignore: shot.ignore ?? [])
-                    if again == now { break }
-                    now = again
-                }
-                current[shot.name] = now
-                if command == "tree" { print(now.joined(separator: "\n")); continue }
-                if command == "audit" {
-                    let found = AccessibilityAudit.audit(window).map { "\(shot.window): \($0)" }
-                    print("\(shot.name): " + (found.isEmpty ? "nothing missing" : "\(found.count) to fix"))
-                    problems += found
-                    continue
-                }
-
-                let treeFile = trees.appendingPathComponent("\(shot.name).txt")
-                let before = (try? String(contentsOf: treeFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
-                let differs = before != now
-                // The look, against the one kept from the picture (#423).
-                let lookFile = trees.appendingPathComponent("\(shot.name).look")
-                if let file = shot.file, command == "record" {
-                    // From the picture, with the window's masks laid on it as
-                    // it is now: the picture is what the site shows.
-                    let fresh = try await session.look(window, shot)
-                    if let picture = NSImage(contentsOf: site.appendingPathComponent(file))?
-                        .cgImage(forProposedRect: nil, context: nil, hints: nil),
-                       picture.width == fresh.picture.width, picture.height == fresh.picture.height,
-                       let look = Look(picture, masks: fresh.masks) {
-                        try look.text.write(to: lookFile, atomically: true, encoding: .utf8)
-                        let d = fresh.look.differing(from: look)
-                        print("\(shot.name): kept its look, from \(file)" + (d.map { $0.count > 0 ? " (\($0.count) of \($0.of) cells differ now)" : "" } ?? ""))
-                    } else {
-                        print("\(shot.name): \(file) isn't the window's size now, so its look isn't kept; retake it")
-                    }
-                } else if shot.file != nil,
-                          // An update compares what it won't retake anyway.
-                          (command == "check" && compareLooks)
-                            || (command == "update" && !(differs || names.contains(shot.name) || shot.always == true)),
-                          let kept = (try? String(contentsOf: lookFile, encoding: .utf8)).flatMap(Look.init(text:)) {
-                    let fresh = try await session.look(window, shot)
-                    if let d = fresh.look.differing(from: kept) {
-                        if d.count > Look.threshold {
-                            looks.append("\(shot.name): \(d.count) of \(d.of) cells differ")
-                        } else if d.count > 0 {
-                            print("\(shot.name): looks the same (\(d.count) of \(d.of) cells differ, within \(Look.threshold))")
-                        }
-                    } else {
-                        looks.append("\(shot.name): its picture is \(kept.width)×\(kept.height), the window \(fresh.look.width)×\(fresh.look.height) now")
-                    }
-                }
-                if command == "record" {
-                    try record(shot, now: now, before: before, handMade: handMade[shot.name] ?? [], trees: trees)
-                    continue
-                }
-                if let before, differs {
-                    print("\(shot.name): the interface changed")
-                    diff(before, now).prefix(40).forEach { print($0) }
-                    changed.append(shot.name)
-                } else {
-                    print(differs ? "\(shot.name): no tree recorded yet" : "\(shot.name): unchanged")
+        // One shot, read and taken.
+        func take(_ shot: Shot) async throws {
+            // A costly shot follows its base window: retaken only when the
+            // base's tree differs from the one it was last taken with.
+            var baseTree: [String]?
+            if let base = shot.when, command == "record" {
+                // Can't be read without taking it (a speed test): record
+                // only that it was taken with the base window as it reads
+                // now, so a new mark there doesn't retake it.
+                guard let now = current[base] else { print("\(shot.name): name \(base) too, to record its base"); return }
+                try (now.joined(separator: "\n") + "\n").write(
+                    to: trees.appendingPathComponent("\(shot.name).base.txt"), atomically: true, encoding: .utf8)
+                print("\(shot.name): recorded \(base) as it was taken with")
+                return
+            }
+            if let base = shot.when {
+                let baseFile = trees.appendingPathComponent("\(shot.name).base.txt")
+                let taken = (try? String(contentsOf: baseFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
+                guard let now = current[base] else {
+                    print("\(shot.name): needs \(base) checked first, in the same run"); return
                 }
                 let named = names.contains(shot.name)
-                // What's made by hand from this window is compared with the
-                // tree it was made from: retaking the window's own picture
-                // doesn't remake them, so it doesn't end the reminder. Only an
-                // update by the window's name does, once they're remade.
-                let hand = handMade[shot.name] ?? []
-                let madeFile = trees.appendingPathComponent("\(shot.name).made.txt")
-                let madeOnDisk = (try? String(contentsOf: madeFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
-                let made = madeOnDisk ?? before
-                if !hand.isEmpty, let made, made != now, !(command == "update" && named) {
-                    flagged += hand.map { "\($0), from \(shot.name)" }
+                if taken == now && !named { print("\(shot.name): unchanged (\(base) is)"); return }
+                if command != "update" || (taken != nil && !named && command == "check") {
+                    print("\(shot.name): \(base) changed, so it's retaken on update")
+                    changed.append(shot.name); return
                 }
-                guard command == "update", differs || named || shot.always == true || baseTree != nil else { continue }
-                // A window that only flags videos keeps its old tree until
-                // they're remade and it's updated by name, so the reminder stays.
-                if shot.file == nil, before != nil, !named { continue }
-
-                if let file = shot.file {
-                    // Active, with its look kept from the same capture.
-                    let taken = try await session.look(window, shot)
-                    let image = taken.picture
-                    // A crop leaves out the traffic lights that tell.
-                    if shot.crop == nil && !isActive(image, window: window) { print("  warning: \(file) shows the window inactive") }
-                    try writePNG(image, to: site.appendingPathComponent(file))
-                    try taken.look.text.write(to: lookFile, atomically: true, encoding: .utf8)
-                    page.setSize(of: file, pixels: CGSize(width: image.width, height: image.height))
-                    print("  retook \(file) (\(image.width)×\(image.height))")
-                    // And the README's copy of it, in this language (#434).
-                    for copy in try copyToRepo(manifest: manifest, site: site, repo: repo, repoAssets: repoAssets,
-                                               language: language, shots: [shot.name]) {
-                        print("  copied it to \(copy)")
-                    }
-                }
-                let windowFrame = frame(window) ?? .zero
-                for area in shot.areas ?? [] {
-                    guard var element = find(area.element, in: window) else { print("  warning: no \(area.element) for \(area.match)"); continue }
-                    if area.parent == true, let p = parent(of: element) { element = p }
-                    guard let r = frame(element) else { continue }
-                    page.place(area, at: r.offsetBy(dx: -windowFrame.minX, dy: -windowFrame.minY), windowWidth: windowFrame.width)
-                }
-                // Each record keeps its version while it holds the same tree.
-                let treeName = treeFile.lastPathComponent, madeName = madeFile.lastPathComponent
-                if !hand.isEmpty {
-                    if named {
-                        try (now.joined(separator: "\n") + "\n").write(to: madeFile, atomically: true, encoding: .utf8)
-                        versions[madeName] = (madeOnDisk == now ? versions[madeName] : before == now ? versions[treeName] : nil) ?? appVersion
-                    } else if madeOnDisk == nil, let before {
-                        try (before.joined(separator: "\n") + "\n").write(to: madeFile, atomically: true, encoding: .utf8)
-                        versions[madeName] = versions[treeName]
-                    }
-                }
-                try (now.joined(separator: "\n") + "\n").write(to: treeFile, atomically: true, encoding: .utf8)
-                versions[treeName] = (before == now ? versions[treeName] : nil) ?? appVersion
-                if language == nil { try Versions.write(versions, to: trees) }
-                if let baseTree {
-                    try (baseTree.joined(separator: "\n") + "\n").write(
-                        to: trees.appendingPathComponent("\(shot.name).base.txt"), atomically: true, encoding: .utf8)
-                }
-                // Saved as it goes, so a later failure doesn't leave a picture
-                // without its size and areas.
-                try page.save()
-            } catch {
-                print("\(shot.name): \(error)")
-                failed.append(shot.name)
-                cached = nil
+                if command != "update" { return }
+                baseTree = now
             }
+            // Shots that open the same window without clicks share a launch.
+            if cached?.args != shot.open || cached?.window != shot.window || shot.click != nil {
+                cached = nil
+                try session.launch(shot.open)
+                cached = (shot.open, shot.window)
+            }
+            // Once more from a fresh launch if it doesn't show: a popover
+            // now and then doesn't open on the first try.
+            var window: AXUIElement
+            do { window = try session.window(shot.window) } catch {
+                try session.launch(shot.open)
+                window = try session.window(shot.window)
+            }
+            // On the stage, before anything reads it (#487).
+            session.place(window)
+            if let spec = shot.skipIf, find(spec, in: window) != nil {
+                print("\(shot.name): skipped while \(spec) shows; it's tried again on the next update")
+                cached = nil
+                return
+            }
+            if shot.click != nil { cached = nil }
+            for spec in shot.click ?? [] { try session.click(spec, in: window) }
+            if let spec = shot.scroll { try session.scrollToEnd(spec, in: window) }
+            if let wait = shot.waitFor { try session.wait(for: wait, in: window) }
+            // A click can rebuild what was clicked in, such as a popover
+            // that grows: find the window again.
+            if shot.click != nil || shot.scroll != nil { window = try session.window(shot.window) }
+            // Read it once it has settled: lists and charts fill in a
+            // moment after the window opens.
+            var now = tree(window, data: shot.data ?? [], ignore: shot.ignore ?? [])
+            for _ in 0..<12 {
+                usleep(700_000)
+                let again = tree(window, data: shot.data ?? [], ignore: shot.ignore ?? [])
+                if again == now { break }
+                now = again
+            }
+            current[shot.name] = now
+            if command == "tree" { print(now.joined(separator: "\n")); return }
+            if command == "audit" {
+                let found = AccessibilityAudit.audit(window).map { "\(shot.window): \($0)" }
+                print("\(shot.name): " + (found.isEmpty ? "nothing missing" : "\(found.count) to fix"))
+                problems += found
+                return
+            }
+
+            let treeFile = trees.appendingPathComponent("\(shot.name).txt")
+            let before = (try? String(contentsOf: treeFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
+            let differs = before != now
+            // The look, against the one kept from the picture (#423).
+            let lookFile = trees.appendingPathComponent("\(shot.name).look")
+            if let file = shot.file, command == "record" {
+                // From the picture, with the window's masks laid on it as
+                // it is now: the picture is what the site shows.
+                let fresh = try await session.look(window, shot)
+                if let picture = NSImage(contentsOf: site.appendingPathComponent(file))?
+                    .cgImage(forProposedRect: nil, context: nil, hints: nil),
+                   picture.width == fresh.picture.width, picture.height == fresh.picture.height,
+                   let look = Look(picture, masks: fresh.masks) {
+                    try look.text.write(to: lookFile, atomically: true, encoding: .utf8)
+                    let d = fresh.look.differing(from: look)
+                    print("\(shot.name): kept its look, from \(file)" + (d.map { $0.count > 0 ? " (\($0.count) of \($0.of) cells differ now)" : "" } ?? ""))
+                } else {
+                    print("\(shot.name): \(file) isn't the window's size now, so its look isn't kept; retake it")
+                }
+            } else if shot.file != nil,
+                      // An update compares what it won't retake anyway.
+                      (command == "check" && compareLooks)
+                        || (command == "update" && !(differs || names.contains(shot.name) || shot.always == true)),
+                      let kept = (try? String(contentsOf: lookFile, encoding: .utf8)).flatMap(Look.init(text:)) {
+                let fresh = try await session.look(window, shot)
+                if let d = fresh.look.differing(from: kept) {
+                    if d.count > Look.threshold {
+                        looks.append("\(shot.name): \(d.count) of \(d.of) cells differ")
+                    } else if d.count > 0 {
+                        print("\(shot.name): looks the same (\(d.count) of \(d.of) cells differ, within \(Look.threshold))")
+                    }
+                } else {
+                    looks.append("\(shot.name): its picture is \(kept.width)×\(kept.height), the window \(fresh.look.width)×\(fresh.look.height) now")
+                }
+            }
+            if command == "record" {
+                try record(shot, now: now, before: before, handMade: handMade[shot.name] ?? [], trees: trees)
+                return
+            }
+            if let before, differs {
+                print("\(shot.name): the interface changed")
+                diff(before, now).prefix(40).forEach { print($0) }
+                changed.append(shot.name)
+            } else {
+                print(differs ? "\(shot.name): no tree recorded yet" : "\(shot.name): unchanged")
+            }
+            let named = names.contains(shot.name)
+            // What's made by hand from this window is compared with the
+            // tree it was made from: retaking the window's own picture
+            // doesn't remake them, so it doesn't end the reminder. Only an
+            // update by the window's name does, once they're remade.
+            let hand = handMade[shot.name] ?? []
+            let madeFile = trees.appendingPathComponent("\(shot.name).made.txt")
+            let madeOnDisk = (try? String(contentsOf: madeFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
+            let made = madeOnDisk ?? before
+            if !hand.isEmpty, let made, made != now, !(command == "update" && named) {
+                flagged += hand.map { "\($0), from \(shot.name)" }
+            }
+            guard command == "update", differs || named || shot.always == true || baseTree != nil else { return }
+            // A window that only flags videos keeps its old tree until
+            // they're remade and it's updated by name, so the reminder stays.
+            if shot.file == nil, before != nil, !named { return }
+
+            if let file = shot.file {
+                // Active, with its look kept from the same capture.
+                let taken = try await session.look(window, shot)
+                let image = taken.picture
+                // A crop leaves out the traffic lights that tell.
+                if shot.crop == nil && !isActive(image, window: window) { print("  warning: \(file) shows the window inactive") }
+                try writePNG(image, to: site.appendingPathComponent(file))
+                try taken.look.text.write(to: lookFile, atomically: true, encoding: .utf8)
+                page.setSize(of: file, pixels: CGSize(width: image.width, height: image.height))
+                print("  retook \(file) (\(image.width)×\(image.height))")
+                // And the README's copy of it, in this language (#434).
+                for copy in try copyToRepo(manifest: manifest, site: site, repo: repo, repoAssets: repoAssets,
+                                           language: language, shots: [shot.name]) {
+                    print("  copied it to \(copy)")
+                }
+            }
+            let windowFrame = frame(window) ?? .zero
+            for area in shot.areas ?? [] {
+                guard var element = find(area.element, in: window) else { print("  warning: no \(area.element) for \(area.match)"); continue }
+                if area.parent == true, let p = parent(of: element) { element = p }
+                guard let r = frame(element) else { continue }
+                page.place(area, at: r.offsetBy(dx: -windowFrame.minX, dy: -windowFrame.minY), windowWidth: windowFrame.width)
+            }
+            // Each record keeps its version while it holds the same tree.
+            let treeName = treeFile.lastPathComponent, madeName = madeFile.lastPathComponent
+            if !hand.isEmpty {
+                if named {
+                    try (now.joined(separator: "\n") + "\n").write(to: madeFile, atomically: true, encoding: .utf8)
+                    versions[madeName] = (madeOnDisk == now ? versions[madeName] : before == now ? versions[treeName] : nil) ?? appVersion
+                } else if madeOnDisk == nil, let before {
+                    try (before.joined(separator: "\n") + "\n").write(to: madeFile, atomically: true, encoding: .utf8)
+                    versions[madeName] = versions[treeName]
+                }
+            }
+            try (now.joined(separator: "\n") + "\n").write(to: treeFile, atomically: true, encoding: .utf8)
+            versions[treeName] = (before == now ? versions[treeName] : nil) ?? appVersion
+            if language == nil { try Versions.write(versions, to: trees) }
+            if let baseTree {
+                try (baseTree.joined(separator: "\n") + "\n").write(
+                    to: trees.appendingPathComponent("\(shot.name).base.txt"), atomically: true, encoding: .utf8)
+            }
+            // Saved as it goes, so a later failure doesn't leave a picture
+            // without its size and areas.
+            try page.save()
+        }
+
+        // Every window that needs nothing of Kevin first, behind the others
+        // and without focus. A window to bring forward or click for real while
+        // he is at the Mac waits until the others are done; then the lanes go
+        // while the run waits for him to step away, and come back for those
+        // alone (#504).
+        var queue = shots
+        try mac.hold("reading windows")
+        while true {
+            cached = nil
+            var later: [Shot] = [], reasons: [String] = []
+            for shot in queue {
+                // A costly shot follows its base window, so waits with it.
+                if let base = shot.when, later.contains(where: { $0.name == base }) { later.append(shot); continue }
+                do { try await take(shot) } catch let away as NeedsAway {
+                    later.append(shot)
+                    reasons.append("\(shot.name) needs \(away.what)")
+                    cached = nil
+                } catch {
+                    print("\(shot.name): \(error)")
+                    failed.append(shot.name)
+                    cached = nil
+                }
+            }
+            if later.isEmpty { break }
+            queue = later
+            mac.letGo()
+            print("\n" + reasons.joined(separator: "; ") + ": waiting until you step away, lanes free")
+            try mac.holdOnceAway(later.map(\.name).joined(separator: ", ") + ", with Kevin away")
         }
 
         if command == "update" {

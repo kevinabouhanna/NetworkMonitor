@@ -231,7 +231,8 @@ How it runs here:
 - One run at a time, in one kept worktree in `~/Library/Caches/networkmonitor-dev/ci` whose
   `.build` stays, so SwiftPM builds incrementally; the website is checked out beside it.
 - The smoke test runs in the `networkmonitor` Mac lane (15 min at most), and opens the
-  installed copy again in the background afterwards.
+  installed copy again in the background afterwards (see
+  [Quitting and opening the app](#quitting-and-opening-the-app)).
 - **Nothing waits forever** (#483): another run here is waited for up to 2 h
   (`LOCAL_CI_LOCK_MINUTES`; exits 75), and a job past `LOCAL_CI_JOB_MINUTES` (60) is stopped,
   with everything it started, and fails.
@@ -279,14 +280,36 @@ are kept apart differently:
   - **`networkmonitor`**: the app, filter, helper and settings. `install.sh`,
     `uninstall.sh`, `install-helper.sh`, `smoke-test.sh`, `review-build.sh` and `make run`
     take it themselves.
-  - **`screen`**: the pointer, screen captures and recordings. `make site-check` and
-    `make site-shots` take it as well as `networkmonitor`.
+  - **`screen`**: the pointer, screen captures and recordings. `site-shots` (`make
+    site-check`, `site-shots`, `site-trees`, `site-audit`, and `build/site-shots tree`)
+    takes it as well as `networkmonitor`, by itself, only while it reads or takes
+    windows (#504). A window it has to bring forward, or click with the real pointer,
+    waits until Kevin steps away, with both lanes free: it reads every other window
+    first, lets the lanes go, says which shots wait and why (*main-network-apps needs
+    a click: waiting until you step away, lanes free*), and takes the lanes again for
+    those alone once the keyboard and mouse have been idle 90 s (`MAC_LANE_IDLE`) or
+    the screen is locked. Each time it lets them go it puts the app back: every copy
+    quit, its windows where they were, and the installed copy running again if it was
+    when it took them, whichever copy it read (`--app`, #506), and however the run
+    ends, an error or Ctrl-C included.
 
   Other projects have their own app lanes (`home-control`), so a review build here
   doesn't hold up their installs. A second caller waits, and is told who holds the lane
   and for how long. The lock is the kernel's, so it goes when its holder dies.
   `mac-lane status` lists every lane. `install.sh` builds and notarizes before
   taking the lane, so the lane is held only for stopping, copying and starting the app.
+- <a id="quitting-and-opening-the-app"></a>**Quitting and opening the app (#508).**
+  Opened again straight after a quit or a `pkill`, while runningboardd is still tearing
+  down the last launch, `open` fails with `OSLaunchdErrorDomain` 37, "Operation already in
+  progress", and `launchctl list` can keep the app's launch job
+  (`application.com.kevinabouhanna.NetworkMonitor.<n>.<n>`) with no process. So every
+  script that quits the app (`smoke-test.sh`, `install.sh`, `review-build.sh`, `make run`,
+  through `Scripts/quit-and-open.sh`; `site-shots` the same way in Swift) quits it
+  gracefully, as its Quit item does, waits until launchd no longer lists that job, and
+  then opens it with `open -g`. If `open` still fails with error 37, it removes the dead
+  job (the one with no process) with `launchctl remove`, says so, and tries once more.
+  `Scripts/quit-and-open.sh cycle 20` quits and reopens the installed copy 20 times, in
+  the lane, and says how many left it running.
 - **Ports.** Local test servers take a port the system picks (see
   [Launch arguments](#launch-arguments)).
 - **Overlaps.** [Worktrunk](https://worktrunk.dev)'s `wt list` (`brew install worktrunk`)
@@ -387,7 +410,8 @@ LOOK=1` take a fresh capture, mask it the same way, and name the windows where m
 than one cell differs by more than one level in a channel, or whose size changed. A
 plain `site-check` doesn't: it reads trees behind the other windows, without focus
 (#475), and a look needs each window in front and active, so with `LOOK=1` it waits,
-as `site-shots` does, until the keyboard and mouse have been idle.
+as `site-shots` does, until the keyboard and mouse have been idle, with the Mac lanes
+free (#504).
 
 - **Advice, not a failure.** It's listed after the tree's changes and doesn't change
   the exit status, and `site-shots` doesn't retake a window for it: look at the two,
