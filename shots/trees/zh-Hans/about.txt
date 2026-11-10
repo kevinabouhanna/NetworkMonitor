@@ -3,7 +3,7 @@ AXWindow (AXDialog) identifier="_NS:#" 284x316
   AXStaticText value="NetworkMonitor" identifier="_NS:#" h20
   AXStaticText value="版本# (#)" identifier="_NS:#" h16
   AXScrollArea identifier="_NS:#" h116
-    AXTextArea identifier="_NS:#" 268x116
+    AXTextArea description="致谢" identifier="_NS:#" 268x116
       AXLink (AXTextLink) title="网站 " 140x12
       AXLink (AXTextLink) title="新功能 " 144x12
       AXLink (AXTextLink) title="源代码 " 144x12
