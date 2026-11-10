@@ -24,14 +24,13 @@ through without asking. What's particular to NetworkMonitor:
   holds the work), `git pull --ff-only` in the main checkout so it has the latest hooks,
   and delete the branch: `git branch -D <branch>`, `git push origin --delete <branch>`.
 - CI checks: `build-and-test`, `universal`. Merge once both pass.
-  - They run on GitHub Actions first. The repo is public, so its macOS runners cost
-    nothing, and the shared Mac stays free.
-  - If GitHub can't run them, run `Scripts/local-ci.sh --fallback <pr>` in the background
-    (#456). That covers a billing or spending-limit error, no check appearing for a job, or a job
-    still queued after 15 minutes.
-  - The script watches GitHub's checks, and runs both jobs on this Mac only when GitHub
-    can't. It records each result under the same check name, so the merge rule doesn't
-    change.
+  - They run on this Mac, never on GitHub Actions (Kevin, 10 Nov 2026: local first, GitHub
+    only for releases; #490). For every pull request run `local-ci <pr>` (the `shared-mac`
+    plugin's; `Scripts/local-ci.sh <pr>` is the same, with a fallback copy) from your worktree,
+    in the background: 5–15 minutes. It runs both jobs from `.claude/ci.conf.sh` and records
+    each under its check name. Its smoke test takes the `networkmonitor` lane, so tell other
+    sessions first.
+  - Nothing in it waits forever: another run up to 2 h, a job up to 60 min (#483).
   - Releases stay on GitHub's Release workflow: the signing, notary and Sparkle keys are
     GitHub secrets, not on this Mac.
 - **Release it and update the app on this Mac.**
@@ -39,8 +38,13 @@ through without asking. What's particular to NetworkMonitor:
     request before tagging: short bullets, each a bold lead and the issue,
     with no `]]>`. The Release workflow fails without it, and puts it both in
     the update window and in the release notes.
+  - Before tagging, `gh-actions can-run` (seconds: the Actions billing, or the no-op
+    `canary.yml`; kept an hour). If it says no, stop and tell Kevin: without the signing keys
+    on this Mac there's no local release, and keys are never copied around.
   - Tag `vX.Y.Z` on `main` and push the tag. The Release workflow builds,
     tests and publishes `NetworkMonitor.dmg` and the appcast Sparkle reads.
+    Watch it in the background with `gh-actions watch --ref vX.Y.Z --jobs release`: 0 passed,
+    1 failed (fix it), 4 GitHub couldn't run it (stop and tell Kevin), 3 still running.
   - Do the release in a worktree too: `EnterWorktree` `release-X.Y.Z` for the
     release notes' pull request; once the tag is pushed, `git switch --detach
     vX.Y.Z` there, install, and clean up as above.

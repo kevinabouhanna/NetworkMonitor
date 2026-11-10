@@ -1,2 +1,0 @@
-build-and-test	fail	4m2s	https://github.com/kevinabouhanna/NetworkMonitor/actions/runs/1/job/201
-universal	pass	6m9s	https://github.com/kevinabouhanna/NetworkMonitor/actions/runs/1/job/202

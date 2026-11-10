@@ -109,13 +109,10 @@ and exits non-zero if anything fails.
 - **The asset check's cases.** `make test` also runs `build/site-shots coverage-test`:
   made-up pages that put a picture in each place [the asset check](#every-asset-is-listed)
   must find it (#425).
-- **The CI fallback's decisions.** `make test` also runs `Scripts/tests/local-ci-test.sh`:
-  `Scripts/local-ci.sh --fallback` against a stand-in `gh` that answers from files in
-  `Scripts/tests/local-ci/`, one folder per case, with GitHub's own billing texts (#461). It
-  checks only which way the script decides: GitHub passed or failed, so report that; or a
-  billing or spending-limit error, a job still queued after the start window, or a job with
-  no check at all (either one, #483), so run both jobs here. Then that each of its waits
-  gives up (#483). Nothing is built or fetched, and it takes seconds.
+- **The CI config.** `make test` also runs `Scripts/tests/ci-conf-test.sh`: `.claude/ci.conf.sh`
+  loads, names both jobs and defines each. How `local-ci` and `gh-actions` decide is tested
+  where they live, in the shared-mac plugin (claude-parallel-sessions `tests/`, with the
+  fixtures that were here, #461, #483).
 - **Live tests**, which need a real network and a real `nettop`, are skipped when `CI` is
   set. Run them anyway with `NETMON_LIVE_TESTS=1`. They include guards such as "the stream
   stays under 25% of a core" and "changing the interval leaves exactly one `nettop`".
@@ -217,8 +214,11 @@ even in dark mode. The file name has no version, so
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every push to `main` and every pull request. Both jobs
-must be green before a merge.
+Pull requests run on this Mac, not on GitHub Actions (Kevin, 10 Nov 2026: local first, GitHub
+only for releases; #490). `local-ci <pr>` (the shared-mac plugin's; `Scripts/local-ci.sh <pr>`
+is the same, with a fallback copy) runs the two jobs `.github/workflows/ci.yml` describes, from
+`.claude/ci.conf.sh`, and records each on the commit under its name. Both must be green before a
+merge. `ci.yml` itself runs only when dispatched by hand.
 
 - **`build-and-test`:** on a pull request, `make translation-check` first; then build,
   `make test` (live tests skipped), `make asset-check` (against `gh-pages`, or the
@@ -227,24 +227,18 @@ must be green before a merge.
   (signature, plist, icon), and the smoke test.
 - **`universal`:** `make universal`, and checks that both architectures are there.
 
-**When GitHub can't run it** (a billing or spending-limit error, or no runner for 15 minutes),
-`Scripts/local-ci.sh --fallback <pr>` runs the same two jobs on this Mac (#456). It records
-each result on the commit under the same name, so a pull request reads the same either way.
-- It watches GitHub's checks first, and doesn't run anything here when GitHub can do it.
-- Without `--fallback`, it runs here straight away.
-- `CI_START_MINUTES` (15) sets how long it waits for GitHub to start. After that, a job
-  with no check at all counts as one GitHub can't run, even when the other passed (#483).
-- **Nothing waits forever** (#483). Each wait gives up with a message saying what it was
-  waiting for: GitHub's result after `CI_WAIT_MINUTES` (the start window + 60; exits 2),
-  another run here after `LOCAL_CI_LOCK_MINUTES` (120; exits 75), and each job here after
-  `LOCAL_CI_JOB_MINUTES` (60), when it's stopped, with everything it started, and fails.
-- `CI_START_SECONDS`, `CI_WAIT_SECONDS`, `LOCAL_CI_LOCK_SECONDS`, `CI_POLL_SECONDS` and
-  `LOCAL_CI_DECIDE_ONLY=1` are for its tests (see [Tests](#tests)).
-- Builds reuse one worktree in `~/Library/Caches/networkmonitor-dev/ci`, one run at a time.
-- The smoke test runs in the `networkmonitor` Mac lane, and opens the installed copy again
-  afterwards.
+How it runs here:
+- One run at a time, in one kept worktree in `~/Library/Caches/networkmonitor-dev/ci` whose
+  `.build` stays, so SwiftPM builds incrementally; the website is checked out beside it.
+- The smoke test runs in the `networkmonitor` Mac lane (15 min at most), and opens the
+  installed copy again in the background afterwards.
+- **Nothing waits forever** (#483): another run here is waited for up to 2 h
+  (`LOCAL_CI_LOCK_MINUTES`; exits 75), and a job past `LOCAL_CI_JOB_MINUTES` (60) is stopped,
+  with everything it started, and fails.
+- It takes 5–15 minutes: run it in the background.
 
-Releases stay on GitHub. The keys they're signed with are repository secrets.
+Releases stay on GitHub, the one thing it runs: the keys they're signed with are repository
+secrets. Check that GitHub can take one first ([Releasing](#releasing)).
 
 ## Contributing
 
@@ -309,7 +303,15 @@ are kept apart differently:
    everything older, so a reader several versions behind sees each version they missed
    (#163). The workflow puts this version's file alone in the release notes, under
    **What's new in X.Y.Z**. A tag without it fails in the first seconds.
-2. Tag `main` and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+2. Check GitHub can run it: `gh-actions can-run` (seconds; the shared-mac plugin). It reads the
+   account's Actions billing, or dispatches `.github/workflows/canary.yml`, a no-op job a billing
+   block stops within seconds; the answer is kept an hour. If it says no, stop and tell Kevin:
+   a release can't be built here without the signing keys (`~/.config/networkmonitor-signing/`),
+   and keys are never copied around.
+   Then tag `main` and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`, and watch it
+   in the background: `gh-actions watch --ref vX.Y.Z --jobs release`. It exits 0 once the
+   release passed, 1 if it failed on its own, 4 if GitHub couldn't run it (billing, or not
+   started in 15 min: stop and tell Kevin), and 3 if it's still running after 90 min.
 3. The **Release** workflow (`.github/workflows/release.yml`) runs the tests, builds the
    universal DMG with the tag's version, checks the version, the helper, the content filter
    and the signature, signs the update and writes the appcast with `SPARKLE_ED_KEY`, and
