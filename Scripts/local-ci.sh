@@ -30,8 +30,10 @@
 #                        a job without one runs $CI_COMMAND (default: make ci)
 #   ci_prepare           runs once in the checkout before the jobs (optional)
 #   CI_WORKTREE          fresh (default) or kept; CI_KEEP=(…) paths a kept one keeps (.build)
-# The jobs see CI_SRC (the checkout), CI_SHA, CI_PR (the pull request's number, if any), CI_HEAD
-# (its branch), CI_ROOT (the repo the run started from), CI_DIR, CI_CACHE, CI_NAME and CI_REPO.
+# A pull request runs merged with the newest base branch (CI_MERGE_BASE=no: its head alone); one
+# that doesn't merge cleanly fails at once. The jobs see CI_SRC (the checkout), CI_SHA, CI_PR (the
+# pull request's number, if any), CI_HEAD (its branch), CI_BASE (the branch it merges into),
+# CI_ROOT (the repo the run started from), CI_DIR, CI_CACHE, CI_NAME and CI_REPO.
 #
 # CI_NO_STATUS=1 records nothing on GitHub. A repo's copy of this file hands over to the shared
 # one on PATH; LOCAL_CI_NO_SHARED=1 keeps the copy that was called.
@@ -89,11 +91,11 @@ span() { if (($1 % 60)); then echo "${1}s"; else echo "$(($1 / 60)) min"; fi; }
 job_fn() { echo "ci_job_$(printf '%s' "$1" | tr -c 'A-Za-z0-9' '_')"; }
 
 # The commit: a pull request's head, or a branch on origin, or any commit.
-CI_PR="" CI_HEAD=""
+CI_PR="" CI_HEAD="" CI_BASE=""
 if [[ "$target" =~ ^[0-9]+$ ]]; then
   CI_PR="$target"
-  read -r CI_SHA CI_HEAD < <(gh pr view "$target" -R "$CI_REPO" --json headRefOid,headRefName \
-    --jq '.headRefOid + " " + .headRefName') || true
+  read -r CI_SHA CI_HEAD CI_BASE < <(gh pr view "$target" -R "$CI_REPO" --json headRefOid,headRefName,baseRefName \
+    --jq '.headRefOid + " " + .headRefName + " " + .baseRefName') || true
   [[ -n "${CI_SHA:-}" ]] || { echo "local-ci: couldn't read pull request $target on $CI_REPO" >&2; exit 2; }
 else
   git -C "$CI_ROOT" fetch -q origin
@@ -101,7 +103,8 @@ else
   git -C "$CI_ROOT" rev-parse --verify -q "origin/$target" >/dev/null && CI_HEAD="$target"
 fi
 short="${CI_SHA:0:7}"
-export CI_ROOT CI_NAME CI_REPO CI_CACHE CI_DIR CI_SHA CI_PR CI_HEAD
+CI_BASE="${CI_BASE:-main}"
+export CI_ROOT CI_NAME CI_REPO CI_CACHE CI_DIR CI_SHA CI_PR CI_HEAD CI_BASE
 
 here_jobs=("${CI_JOBS[@]}")
 
@@ -187,7 +190,22 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for job in "${here_jobs[@]}"; do status "$job" pending "Running on Kevin's Mac"; done
+# A pull request runs merged with the newest base branch (home-control#349): two pull requests
+# that each passed on their own once broke main together. The result is still recorded on the
+# pull request's head. CI_MERGE_BASE=no runs the head alone.
+with=""
+if [[ -n "$CI_PR" && "${CI_MERGE_BASE:-yes}" != no ]]; then
+  git -C "$CI_ROOT" fetch -q origin "$CI_BASE"
+  base_sha="$(git -C "$CI_ROOT" rev-parse "origin/$CI_BASE")"
+  if ! git -C "$CI_SRC" -c user.name=local-ci -c user.email=local-ci@localhost merge -q --no-edit "$base_sha" >/dev/null 2>&1; then
+    git -C "$CI_SRC" merge --abort >/dev/null 2>&1 || true
+    for job in "${here_jobs[@]}"; do status "$job" failure "Doesn't merge with $CI_BASE: merge $CI_BASE into the branch"; done
+    echo "local-ci: FAILED: $short doesn't merge cleanly with $CI_BASE (${base_sha:0:7}): merge $CI_BASE into the branch"
+    exit 1
+  fi
+  with=" with $CI_BASE ${base_sha:0:7}"
+fi
+for job in "${here_jobs[@]}"; do status "$job" pending "Running$with on Kevin's Mac"; done
 
 run_job() { # <job>
   cd "$CI_SRC"
@@ -213,14 +231,14 @@ failed=0
 for job in "${here_jobs[@]}"; do
   log="$CI_DIR/logs/$job.log"
   started=$SECONDS
-  echo "local-ci: $job on $short (log: $log)"
+  echo "local-ci: $job on $short$with (log: $log)"
   set +e
   bounded "$job_timeout" run_job "$job" >"$log" 2>&1
   rc=$?
   set -e
   took=$((SECONDS - started))
   if ((rc == 0)); then
-    status "$job" success "Passed on Kevin's Mac in ${took}s"
+    status "$job" success "Passed$with on Kevin's Mac in ${took}s"
     echo "local-ci: $job passed in ${took}s"
   elif ((rc == 124)); then
     status "$job" failure "Stopped after $(span "$job_timeout") on Kevin's Mac"
