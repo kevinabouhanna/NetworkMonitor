@@ -30,7 +30,7 @@ at once.
 
 - **Menu bar**, the default: the readout above, and a Dock icon only while a window is open.
 - **Dock**: nothing in the menu bar. A **Dock icon** choice appears under it (#523):
-  - **Speeds**, the default: the whole Dock icon is the live speeds, download over upload,
+  - **Speeds**, Dock's default: the whole Dock icon is the live speeds, download over upload,
     drawn like the app's icon: its shape and lighting, near black in dark mode and near
     white in light, following the Mac as it switches. Each speed is the icon's arrow and
     its figure to three significant figures (12.3), as large as fits, with its unit under
@@ -42,7 +42,9 @@ at once.
   readout's right-click menu has, the Dock's own Quit included; with Speeds it starts with
   the speeds in words, which is how VoiceOver reads them there. There's no popover in this
   mode: a speed test that needs your OK on a hotspot asks on the **Network** page.
-- **Both**: the readout in the menu bar, and a Dock icon all the time.
+- **Both**: the readout in the menu bar, and a Dock icon all the time. The same **Dock
+  icon** choice appears under it, with **App icon** to begin with, so the Dock icon is the
+  app's until you choose **Speeds**. Dock and Both each keep their own choice.
 
 There's no choice of neither: there'd be no way back to the app.
 
@@ -176,7 +178,7 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 
 - **Language**: the Mac's, or one chosen for the app
 - **Start at login**
-- **Show NetworkMonitor in** the Menu bar, the Dock or Both, and with the Dock, **Dock icon**: Speeds or App icon
+- **Show NetworkMonitor in** the Menu bar, the Dock or Both, and with the Dock or Both, **Dock icon**: Speeds or App icon
 - **Show speeds in** MB/s or Mbps
 - **Wi-Fi names**, until they're on
 - **Speed colors** (the readout's and the Dock icon's): Download, Upload, the speed test's colours, Use Default Colors

@@ -183,7 +183,7 @@ func runAccessibilityTests() {
             AppPlacementSetting.shared.placement = .dock
             let dockSettings = part(main.generalController, "Main window Settings, Dock")
             check(dockSettings, "The main window › Settings with Dock chosen\(language)")
-            if code == Localization.source { Check.test("Dock icon is there only while Dock is chosen") {
+            if code == Localization.source { Check.test("Dock icon is there only while Dock or Both is chosen") {
                 dockSettings.orderFrontRegardless()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
                 let shown = AccessibilityAudit.outlineOwnWindow(titled: dockSettings.title)
@@ -194,8 +194,12 @@ func runAccessibilityTests() {
                 Check.expectEqual(choices(shown).count, 2, "no Dock icon choice with Dock chosen: \(shown)")
                 AppPlacementSetting.shared.placement = .both
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                let both = AccessibilityAudit.outlineOwnWindow(titled: dockSettings.title)
+                Check.expectEqual(choices(both).count, 2, "no Dock icon choice with Both chosen: \(both)")
+                AppPlacementSetting.shared.placement = .menuBar
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
                 let hidden = AccessibilityAudit.outlineOwnWindow(titled: dockSettings.title)
-                Check.expectEqual(choices(hidden), [], "a Dock icon choice with Both chosen")
+                Check.expectEqual(choices(hidden), [], "a Dock icon choice with Menu bar chosen")
                 dockSettings.orderOut(nil)
             } }
             AppPlacementSetting.shared.placement = placement

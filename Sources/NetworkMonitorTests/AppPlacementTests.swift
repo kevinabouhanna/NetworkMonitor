@@ -19,31 +19,49 @@ func runAppPlacementTests() {
                               "Menu bar mode has a Dock icon only while a window is open")
         }
 
-        // The speeds are drawn on the Dock icon only where they aren't in the
-        // menu bar, and only when the Dock icon is to show them (#523).
-        Check.test("only Dock mode with Speeds draws the speeds on the Dock icon") {
-            Check.expectEqual(AppPlacement.allCases.filter { $0.drawsSpeedsOnDock(.speeds) }, [.dock])
+        // The speeds are drawn on the Dock icon only where there's one all
+        // the time, and it's to show them (#523).
+        Check.test("Dock and Both draw the speeds on the Dock icon with Speeds") {
+            Check.expectEqual(AppPlacement.allCases.filter { $0.drawsSpeedsOnDock(.speeds) }, [.dock, .both])
             Check.expectEqual(AppPlacement.allCases.filter { $0.drawsSpeedsOnDock(.appIcon) }, [])
         }
 
-        Check.test("the Dock icon is the speeds by default, and the choice kept") {
+        // Each mode keeps its own choice: Speeds to begin with in Dock, where
+        // the speeds are nowhere else, and the app's icon in Both, as it was
+        // before there was a choice.
+        Check.test("the Dock icon's choice, per mode, with its own default") {
             let name = "AppPlacementTests-\(UUID().uuidString)"
             let defaults = UserDefaults(suiteName: name)!
             defer { defaults.removePersistentDomain(forName: name) }
 
             let setting = AppPlacementSetting(defaults: defaults)
-            Check.expectEqual(setting.dockIcon, .speeds)
+            Check.expectEqual(setting.dockIcon, .appIcon, "Menu bar mode's Dock icon is the app's")
+            Check.expectFalse(setting.drawsSpeedsOnDock)
             setting.placement = .dock
+            Check.expectEqual(setting.dockIcon, .speeds)
             Check.expectTrue(setting.drawsSpeedsOnDock)
+            setting.placement = .both
+            Check.expectEqual(setting.dockIcon, .appIcon, "existing Both users see no change")
+            Check.expectFalse(setting.drawsSpeedsOnDock)
+
+            setting.dockIcon = .speeds
+            Check.expectTrue(setting.drawsSpeedsOnDock)
+            setting.placement = .dock
             setting.dockIcon = .appIcon
             Check.expectFalse(setting.drawsSpeedsOnDock)
-            Check.expectEqual(AppPlacementSetting(defaults: defaults).dockIcon, .appIcon)
-            AppPlacementSetting(defaults: defaults).dockIcon = .speeds
-            Check.expectNil(defaults.object(forKey: AppPlacementSetting.dockIconKey),
-                            "the default isn't saved, so a future default reaches everyone")
-            defaults.set("sideways", forKey: AppPlacementSetting.dockIconKey)
-            Check.expectEqual(AppPlacementSetting(defaults: defaults).dockIcon, .speeds,
-                              "an unknown value falls back to the speeds")
+            let reread = AppPlacementSetting(defaults: defaults)
+            Check.expectEqual(reread.dockIconInDock, .appIcon)
+            Check.expectEqual(reread.dockIconInBoth, .speeds, "choosing in Dock leaves Both's alone")
+
+            reread.dockIconInDock = .speeds
+            reread.dockIconInBoth = .appIcon
+            for mode in [AppPlacement.dock, .both] {
+                Check.expectNil(defaults.object(forKey: AppPlacementSetting.dockIconKey(mode)),
+                                "a default isn't saved, so a future default reaches everyone")
+            }
+            defaults.set("sideways", forKey: AppPlacementSetting.dockIconKey(.dock))
+            Check.expectEqual(AppPlacementSetting(defaults: defaults).dockIconInDock, .speeds,
+                              "an unknown value falls back to the default")
         }
 
         Check.test("the menu bar by default, and the choice kept") {

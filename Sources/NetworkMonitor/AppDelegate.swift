@@ -69,10 +69,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private var closingPopover = false
     /// Menu bar, Dock or both (#69), as last applied; see `apply(_:)`.
     private var placement = AppPlacementSetting.shared.placement
-    /// What the Dock icon shows in Dock mode (#523), as last applied.
+    /// What the Dock icon shows in Dock and Both modes (#523), as last applied.
     private var dockIcon = AppPlacementSetting.shared.dockIcon
     private var placementObserver: AnyCancellable?
-    /// The Dock icon that is the live speeds, in Dock mode with Speeds only.
+    /// The Dock icon that is the live speeds, with Dock icon: Speeds only.
     private var dockSpeedView: DockSpeedView?
     /// Redraws it when the Mac switches between light and dark.
     private var appearanceObserver: NSKeyValueObservation?
@@ -677,9 +677,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     }
 
     /// The Dock icon's menu: what the status item's right-click menu has
-    /// (#69). The Dock adds Quit itself, so it isn't here twice. In Dock mode
-    /// it opens on the readout in words, which is also how VoiceOver reads
-    /// the speeds there: the Dock doesn't read what's drawn on an icon.
+    /// (#69). The Dock adds Quit itself, so it isn't here twice. When the
+    /// icon shows the speeds (#523) it opens on the readout in words, which is
+    /// also how VoiceOver reads them there: the Dock doesn't read what's drawn
+    /// on an icon.
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         makeAppMenu(forDock: true)
     }
@@ -971,7 +972,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // `@Published` sends before the property changes, so the new values
         // are taken from what's sent.
         let setting = AppPlacementSetting.shared
-        placementObserver = setting.$placement.combineLatest(setting.$dockIcon)
+        placementObserver = setting.$placement.combineLatest(setting.$dockIconInDock, setting.$dockIconInBoth)
+            .map { placement, inDock, inBoth in
+                (placement, AppPlacementSetting.dockIcon(for: placement, inDock: inDock, inBoth: inBoth))
+            }
             .dropFirst()
             .removeDuplicates { $0 == $1 }
             .sink { [weak self] placement, dockIcon in self?.apply(placement, dockIcon) }
@@ -1020,7 +1024,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// menu bar's readout updates twice a second (plugged in).
     private static let dockRedrawInterval: TimeInterval = 1
 
-    /// The live speeds on the Dock icon, in Dock mode: on the menu bar
+    /// The live speeds on the Dock icon, with Dock icon: Speeds: on the menu bar
     /// readout's own signal, so never more often than it, and only when the
     /// figures changed. While nobody can see the screen there's no signal, so
     /// nothing is drawn (`MonitorViewModel.setAttention`).

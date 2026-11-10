@@ -11,7 +11,8 @@ public enum AppPlacement: String, CaseIterable, Identifiable {
     /// Nothing in the menu bar: a Dock icon all the time, showing the live
     /// speeds or the app's icon, as `DockIcon` says (#523).
     case dock
-    /// The readout in the menu bar, and a Dock icon all the time.
+    /// The readout in the menu bar, and a Dock icon all the time, showing the
+    /// app's icon or the live speeds (#523).
     case both
 
     public var id: String { rawValue }
@@ -20,9 +21,14 @@ public enum AppPlacement: String, CaseIterable, Identifiable {
     public var showsMenuBar: Bool { self != .dock }
     /// A Dock icon all the time, not only while a window is open.
     public var showsDock: Bool { self != .menuBar }
-    /// The live speeds on the Dock icon: only when they aren't in the menu
-    /// bar, and the Dock icon is to show them (#523).
-    public func drawsSpeedsOnDock(_ icon: DockIcon) -> Bool { self == .dock && icon == .speeds }
+    /// The live speeds on the Dock icon: when there's a Dock icon all the
+    /// time and it's to show them (#523).
+    public func drawsSpeedsOnDock(_ icon: DockIcon) -> Bool { showsDock && icon == .speeds }
+
+    /// What the Dock icon shows until it's chosen: the speeds in Dock mode,
+    /// where they're nowhere else, and the app's icon in Both, as it was
+    /// before there was a choice (#523).
+    public var defaultDockIcon: DockIcon { self == .dock ? .speeds : .appIcon }
 
     public var label: String {
         switch self {
@@ -33,12 +39,13 @@ public enum AppPlacement: String, CaseIterable, Identifiable {
     }
 }
 
-/// What the Dock icon shows in Dock mode (#523): **Settings › General › Dock
-/// icon**, a choice that's there only while Dock is chosen.
+/// What the Dock icon shows in Dock and Both modes (#523): **Settings ›
+/// General › Dock icon**, a choice that's there only while one of them is
+/// chosen. Each mode keeps its own.
 public enum DockIcon: String, CaseIterable, Identifiable {
-    /// The whole icon is the readout. The default.
+    /// The whole icon is the readout. Dock mode's default.
     case speeds
-    /// The app's own icon, with no speeds.
+    /// The app's own icon, with no speeds. Both mode's default.
     case appIcon
 
     public var id: String { rawValue }
@@ -74,18 +81,39 @@ public final class AppPlacementSetting: ObservableObject {
         }
     }
 
-    public static let dockIconKey = "dockIcon"
+    /// Where each mode's Dock icon choice is kept.
+    public static func dockIconKey(_ placement: AppPlacement) -> String {
+        placement == .both ? "dockIconInBoth" : "dockIcon"
+    }
 
-    /// What the Dock icon shows in Dock mode (#523). Kept when another mode
-    /// is chosen, for the next time Dock is.
-    @Published public var dockIcon: DockIcon {
-        didSet {
-            guard dockIcon != oldValue else { return }
-            if dockIcon == .speeds {
-                defaults.removeObject(forKey: Self.dockIconKey)
-            } else {
-                defaults.set(dockIcon.rawValue, forKey: Self.dockIconKey)
+    /// What the Dock icon shows in Dock mode, and in Both (#523). Each mode
+    /// keeps its own, so choosing in one never changes the other. Saved only
+    /// while it differs from that mode's default.
+    @Published public var dockIconInDock: DockIcon {
+        didSet { save(dockIconInDock, for: .dock) }
+    }
+    @Published public var dockIconInBoth: DockIcon {
+        didSet { save(dockIconInBoth, for: .both) }
+    }
+
+    /// What the Dock icon shows in the chosen mode: the choice Settings
+    /// shows and changes. In Menu bar mode, the app's icon.
+    public var dockIcon: DockIcon {
+        get { Self.dockIcon(for: placement, inDock: dockIconInDock, inBoth: dockIconInBoth) }
+        set {
+            switch placement {
+            case .dock:    dockIconInDock = newValue
+            case .both:    dockIconInBoth = newValue
+            case .menuBar: break
             }
+        }
+    }
+
+    public static func dockIcon(for placement: AppPlacement, inDock: DockIcon, inBoth: DockIcon) -> DockIcon {
+        switch placement {
+        case .dock:    return inDock
+        case .both:    return inBoth
+        case .menuBar: return .appIcon
         }
     }
 
@@ -95,12 +123,24 @@ public final class AppPlacementSetting: ObservableObject {
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         placement = defaults.string(forKey: Self.key).flatMap(AppPlacement.init) ?? .menuBar
-        dockIcon = defaults.string(forKey: Self.dockIconKey).flatMap(DockIcon.init) ?? .speeds
+        func stored(_ mode: AppPlacement) -> DockIcon {
+            defaults.string(forKey: Self.dockIconKey(mode)).flatMap(DockIcon.init) ?? mode.defaultDockIcon
+        }
+        dockIconInDock = stored(.dock)
+        dockIconInBoth = stored(.both)
+    }
+
+    private func save(_ icon: DockIcon, for mode: AppPlacement) {
+        if icon == mode.defaultDockIcon {
+            defaults.removeObject(forKey: Self.dockIconKey(mode))
+        } else {
+            defaults.set(icon.rawValue, forKey: Self.dockIconKey(mode))
+        }
     }
 }
 
 /// The readout's two lines and their colours: what the menu bar draws, and the
-/// Dock icon in Dock mode (#69, #523).
+/// Dock icon when it shows the speeds (#69, #523).
 public struct SpeedReadout: Equatable {
     public let down: String
     public let up: String
@@ -114,7 +154,7 @@ public struct SpeedReadout: Equatable {
 }
 
 
-/// The Dock icon in Dock mode with **Dock icon: Speeds** (#523): the whole
+/// The Dock icon with **Dock icon: Speeds**, in Dock or Both mode (#523): the whole
 /// icon is the readout, drawn like the app's own icon: its squircle and
 /// lighting, near black in dark mode and near white in light, following the
 /// Mac's appearance. Each speed is an arrow like the icon's and its figure,

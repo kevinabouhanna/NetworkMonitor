@@ -313,7 +313,8 @@ Two stacked lines, `↓` download in green (`#51FF70`) over `↑` upload in ligh
   or the Dock icon choice changes. The status item is hidden (`isVisible`), not removed, so it comes back where
   it was. One function, `settleActivationPolicy`, decides between regular and accessory
   for every case: a window open, Sparkle's update window, or Dock and Both modes, which
-  never drop to accessory. In Dock mode with **Dock icon: Speeds** (#523, `DockIcon`)
+  never drop to accessory. In Dock or Both with **Dock icon: Speeds** (#523, `DockIcon`,
+  kept per mode)
   the Dock tile's content view (`DockSpeedView`) is the whole icon, drawn on the app
   icon's grid, squircle and lighting (Scripts/make-icon.swift), light or dark with the
   Mac, with `MonitorViewModel.readout`, the same lines the menu bar draws, as the icon's
@@ -618,8 +619,9 @@ Preferences (`com.kevinabouhanna.NetworkMonitor`):
   `meteringUpdatesInHistory`, `helperOfferedForBuild`.
 - **Start at login:** `hasConfiguredLoginItem`.
 - **Menu bar, Dock or both:** `showIn` (`menuBar` when absent; `-showIn dock` as a
-  launch argument tries it for one run), and `dockIcon` (`speeds` when absent;
-  `-dockIcon appIcon` likewise).
+  launch argument tries it for one run), and what the Dock icon shows in each mode:
+  `dockIcon` in Dock (`speeds` when absent) and `dockIconInBoth` in Both (`appIcon`
+  when absent); `-dockIcon appIcon` and `-dockIconInBoth speeds` likewise.
 - **Updates:** Sparkle's own `SU…` keys.
 
 `powerProfile` is read only as a launch argument, never stored.
