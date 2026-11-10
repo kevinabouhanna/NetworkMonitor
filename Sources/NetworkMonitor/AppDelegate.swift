@@ -69,9 +69,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private var closingPopover = false
     /// Menu bar, Dock or both (#69), as last applied; see `apply(_:)`.
     private var placement = AppPlacementSetting.shared.placement
+    /// What the Dock icon shows in Dock and Both modes (#523), as last applied.
+    private var dockIcon = AppPlacementSetting.shared.dockIcon
     private var placementObserver: AnyCancellable?
-    /// The Dock icon with the live speeds on it, in Dock mode only.
+    /// The Dock icon that is the live speeds, with Dock icon: Speeds only.
     private var dockSpeedView: DockSpeedView?
+    /// Redraws it when the Mac switches between light and dark.
+    private var appearanceObserver: NSKeyValueObservation?
     /// When the Dock icon was last redrawn, and whether a redraw is waiting
     /// its turn; see `drawDockReadout()`.
     private var dockDrawnAt: TimeInterval = 0
@@ -84,7 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         setUpPopover()
         // Before anything can open a window, so the first one finds the app
         // already as it should be.
-        apply(placement)
+        apply(placement, dockIcon)
         observePlacement()
         // Installs predating SMAppService still have a LaunchAgent plist; it
         // has to go before the first-launch check, or both would start a copy.
@@ -673,9 +677,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     }
 
     /// The Dock icon's menu: what the status item's right-click menu has
-    /// (#69). The Dock adds Quit itself, so it isn't here twice. In Dock mode
-    /// it opens on the readout in words, which is also how VoiceOver reads
-    /// the speeds there: the Dock doesn't read what's drawn on an icon.
+    /// (#69). The Dock adds Quit itself, so it isn't here twice. When the
+    /// icon shows the speeds (#523) it opens on the readout in words, which is
+    /// also how VoiceOver reads them there: the Dock doesn't read what's drawn
+    /// on an icon.
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         makeAppMenu(forDock: true)
     }
@@ -686,7 +691,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // Shortcuts belong to the menu bar's menus; the Dock's shows none.
         func key(_ equivalent: String) -> String { forDock ? "" : equivalent }
 
-        if forDock, placement.drawsSpeedsOnDock {
+        if forDock, placement.drawsSpeedsOnDock(dockIcon) {
             let item = NSMenuItem(title: model.menuBarSpoken, action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)
@@ -961,27 +966,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
     // MARK: Menu bar, Dock or both (#69)
 
-    /// Switching in Settings takes effect at once, without a relaunch.
+    /// Switching in Settings, the mode or what the Dock icon shows (#523),
+    /// takes effect at once, without a relaunch.
     private func observePlacement() {
-        // `@Published` sends before the property changes, so the new value
-        // is taken from what's sent.
-        placementObserver = AppPlacementSetting.shared.$placement
+        // `@Published` sends before the property changes, so the new values
+        // are taken from what's sent.
+        let setting = AppPlacementSetting.shared
+        placementObserver = setting.$placement.combineLatest(setting.$dockIconInDock, setting.$dockIconInBoth)
+            .map { placement, inDock, inBoth in
+                (placement, AppPlacementSetting.dockIcon(for: placement, inDock: inDock, inBoth: inBoth))
+            }
             .dropFirst()
-            .removeDuplicates()
-            .sink { [weak self] placement in self?.apply(placement) }
+            .removeDuplicates { $0 == $1 }
+            .sink { [weak self] placement, dockIcon in self?.apply(placement, dockIcon) }
+        // The Dock icon's square follows light and dark.
+        appearanceObserver = NSApp.observe(\.effectiveAppearance) { [weak self] _, _ in
+            DispatchQueue.main.async { self?.redrawDockIcon() }
+        }
     }
 
     /// The status item shows or hides, rather than being removed, so it comes
     /// back where it was in the menu bar.
-    private func apply(_ placement: AppPlacement) {
+    private func apply(_ placement: AppPlacement, _ dockIcon: DockIcon) {
         self.placement = placement
+        self.dockIcon = dockIcon
         if !placement.showsMenuBar, popover.isShown { closePopover() }
         statusItem.isVisible = placement.showsMenuBar
         applyTitle()
         settleActivationPolicy()
 
         let tile = NSApp.dockTile
-        if placement.drawsSpeedsOnDock {
+        if placement.drawsSpeedsOnDock(dockIcon) {
             if dockSpeedView == nil {
                 let view = DockSpeedView(frame: NSRect(origin: .zero, size: tile.size))
                 tile.contentView = view
@@ -996,12 +1011,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
     }
 
+    /// The Dock icon drawn again with the figures it has, for a switch
+    /// between light and dark.
+    private func redrawDockIcon() {
+        guard let view = dockSpeedView else { return }
+        view.needsDisplay = true
+        NSApp.dockTile.display()
+    }
+
     /// The fewest seconds between two Dock icon redraws. Each is drawn by the
     /// Dock, in another process, so it's held to once a second even when the
     /// menu bar's readout updates twice a second (plugged in).
     private static let dockRedrawInterval: TimeInterval = 1
 
-    /// The live speeds on the Dock icon, in Dock mode: on the menu bar
+    /// The live speeds on the Dock icon, with Dock icon: Speeds: on the menu bar
     /// readout's own signal, so never more often than it, and only when the
     /// figures changed. While nobody can see the screen there's no signal, so
     /// nothing is drawn (`MonitorViewModel.setAttention`).

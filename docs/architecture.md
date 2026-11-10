@@ -309,14 +309,25 @@ Two stacked lines, `↓` download in green (`#51FF70`) over `↑` upload in ligh
   (`SIGTERM`, `SIGINT`, `SIGHUP`) routed through a normal quit, so `nettop` is always
   stopped.
 - **Menu bar, Dock or both** (#69, `AppPlacement`): the app starts as an accessory
-  and `AppDelegate.apply(_:)` sets it up from the setting, and again whenever it
-  changes. The status item is hidden (`isVisible`), not removed, so it comes back where
+  and `AppDelegate.apply(_:_:)` sets it up from the setting, and again whenever it
+  or the Dock icon choice changes. The status item is hidden (`isVisible`), not removed, so it comes back where
   it was. One function, `settleActivationPolicy`, decides between regular and accessory
   for every case: a window open, Sparkle's update window, or Dock and Both modes, which
-  never drop to accessory. In Dock mode the Dock tile's content view (`DockSpeedView`)
-  draws `MonitorViewModel.readout`, the same lines the menu bar draws, on the readout's
-  own signal and at most once a second; `applicationDockMenu` builds the right-click
-  menu's items, with the speeds in words first.
+  never drop to accessory. In Dock or Both with **Dock icon: Speeds** (#523, `DockIcon`,
+  kept per mode)
+  the Dock tile's content view (`DockSpeedView`) is the whole icon, drawn on the app
+  icon's grid, squircle and lighting (Scripts/make-icon.swift), light or dark with the
+  Mac, with `MonitorViewModel.readout`, the same lines the menu bar draws, as the icon's
+  arrows, figures cut to three significant figures, and units, as large as fit. The Dock
+  is handed one 256 px picture whatever it's given (`NSDockTile` and
+  `applicationIconImage` alike) and shrinks it to its size, so legibility comes from the
+  figures' size and weight, with edges on whole pixels of that picture. It's drawn on the
+  readout's own signal and at most once a second, and again when the appearance
+  changes; `MenuBarColors.readable` darkens the speed colors on light (and lightens
+  any too dark on dark) by OKLab lightness alone. With App icon the tile has no content
+  view, so the Dock shows the app's icon. `applicationDockMenu` builds the right-click
+  menu's items, with the speeds in words first when they're on the icon.
+  `DesignShots --dock-icons <dir>` draws the icon at the Dock's sizes, light and dark.
 - **Start at login** uses `SMAppService.mainApp`, which works with an ad-hoc signature.
   It replaced a hand-written LaunchAgent, which Login Items showed as a generic "exec"
   tile because macOS ignores `AssociatedBundleIdentifiers` without a Team ID. It's on by
@@ -608,7 +619,9 @@ Preferences (`com.kevinabouhanna.NetworkMonitor`):
   `meteringUpdatesInHistory`, `helperOfferedForBuild`.
 - **Start at login:** `hasConfiguredLoginItem`.
 - **Menu bar, Dock or both:** `showIn` (`menuBar` when absent; `-showIn dock` as a
-  launch argument tries it for one run).
+  launch argument tries it for one run), and what the Dock icon shows in each mode:
+  `dockIcon` in Dock (`speeds` when absent) and `dockIconInBoth` in Both (`appIcon`
+  when absent); `-dockIcon appIcon` and `-dockIconInBoth speeds` likewise.
 - **Updates:** Sparkle's own `SU…` keys.
 
 `powerProfile` is read only as a launch argument, never stored.
