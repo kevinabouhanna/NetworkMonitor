@@ -53,6 +53,9 @@
     { "en": "Same as the Mac", "text": "跟随系统", "everywhere": true, "note": "the Language setting's first choice" },
     { "en": "Language", "text": "语言" },
     { "en": "Start at login", "text": "登录时启动" },
+    { "en": "Show NetworkMonitor in", "text": "NetworkMonitor 显示在", "note": "Menu bar, Dock or Both (#69)" },
+    { "en": "Menu bar", "text": "菜单栏", "everywhere": true, "note": "macOS's own name for it" },
+    { "en": "Dock", "text": "程序坞", "everywhere": true, "note": "macOS's own name for it" },
 
     { "en": "Universal", "where": "docs", "text": "通用版（Apple 芯片和 Intel）", "note": "the download, on the website's download line" },
     { "en": "Accuracy and battery", "where": "docs", "text": "统计准确性与耗电量", "note": "the docs page's title" }

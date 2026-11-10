@@ -129,6 +129,11 @@ public enum MenuBarTitle {
         image(speedTestAttributed(downBits: downBits, upBits: upBits, unit: unit, tints: tints))
     }
 
+    /// A readout, live or a speed test's, drawn as the status item shows it.
+    public static func image(_ readout: SpeedReadout) -> NSImage {
+        image(attributed(readout.down, readout.tints.down, readout.up, readout.tints.up))
+    }
+
     private static func image(_ text: NSAttributedString) -> NSImage {
         let textSize = text.size()
         let size = NSSize(width: ceil(textSize.width), height: menuBarHeight)

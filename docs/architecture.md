@@ -308,6 +308,15 @@ Two stacked lines, `↓` download in green (`#51FF70`) over `↑` upload in ligh
   copies would each run a `nettop` and double-count every byte; and quit signals
   (`SIGTERM`, `SIGINT`, `SIGHUP`) routed through a normal quit, so `nettop` is always
   stopped.
+- **Menu bar, Dock or both** (#69, `AppPlacement`): the app starts as an accessory
+  and `AppDelegate.apply(_:)` sets it up from the setting, and again whenever it
+  changes. The status item is hidden (`isVisible`), not removed, so it comes back where
+  it was. One function, `settleActivationPolicy`, decides between regular and accessory
+  for every case: a window open, Sparkle's update window, or Dock and Both modes, which
+  never drop to accessory. In Dock mode the Dock tile's content view (`DockSpeedView`)
+  draws `MonitorViewModel.readout`, the same lines the menu bar draws, on the readout's
+  own signal and at most once a second; `applicationDockMenu` builds the right-click
+  menu's items, with the speeds in words first.
 - **Start at login** uses `SMAppService.mainApp`, which works with an ad-hoc signature.
   It replaced a hand-written LaunchAgent, which Login Items showed as a generic "exec"
   tile because macOS ignores `AssociatedBundleIdentifiers` without a Team ID. It's on by
@@ -598,6 +607,8 @@ Preferences (`com.kevinabouhanna.NetworkMonitor`):
 - **Hotspot mode:** `meteringEnabled`, `meteringExcludedItems`, `meteringUpdateSightings`,
   `meteringUpdatesInHistory`, `helperOfferedForBuild`.
 - **Start at login:** `hasConfiguredLoginItem`.
+- **Menu bar, Dock or both:** `showIn` (`menuBar` when absent; `-showIn dock` as a
+  launch argument tries it for one run).
 - **Updates:** Sparkle's own `SU…` keys.
 
 `powerProfile` is read only as a launch argument, never stored.

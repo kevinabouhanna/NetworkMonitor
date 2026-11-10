@@ -31,8 +31,9 @@ brew install --cask kevinabouhanna/tap/networkmonitor
 ```
 
 The ↓ ↑ readout appears in the menu bar. NetworkMonitor has no Dock icon until you
-open its window; everything starts from the readout. It registers itself to
-start at login, which you can turn off in **Settings**.
+open its window; everything starts from the readout. To have it in the Dock
+instead, or in both, choose in **Settings › Show NetworkMonitor in**. It
+registers itself to start at login, which you can turn off in **Settings**.
 
 The first time, a welcome window offers two things, both optional (#134):
 

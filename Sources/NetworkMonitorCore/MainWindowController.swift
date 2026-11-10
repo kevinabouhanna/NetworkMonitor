@@ -213,6 +213,10 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
 
     public var isVisible: Bool { window.isVisible }
 
+    /// The section on screen, or last on screen: where the Dock icon reopens
+    /// the window (#69).
+    public var section: MainSection { navigation.section }
+
     private func use(_ toolbar: NSToolbar) {
         // The same toolbar set again would be laid out again, a flicker (#399).
         if window.toolbar !== toolbar { window.toolbar = toolbar }

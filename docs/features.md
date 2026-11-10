@@ -23,6 +23,22 @@ looks like the live rates.
   Trackers…** (⌘B), **Network…**, **Settings…** (⌘,), **About NetworkMonitor**, **Check for
   Updates…**, **Uninstall NetworkMonitor…** and **Quit**.
 
+## In the Dock instead
+
+**Settings › Show NetworkMonitor in** chooses where the app lives (#69). It takes effect
+at once.
+
+- **Menu bar**, the default: the readout above, and a Dock icon only while a window is open.
+- **Dock**: nothing in the menu bar. The live speeds are drawn on the Dock icon, download
+  over upload in the same colours, updating as the readout would, at most once a second.
+  Click the icon for the main window, on the section it was last on. Its menu has what the
+  readout's right-click menu has, the Dock's own Quit included, and starts with the speeds
+  in words, which is how VoiceOver reads them there. There's no popover in this mode: a
+  speed test that needs your OK on a hotspot asks on the **Network** page.
+- **Both**: the readout in the menu bar, and a Dock icon all the time.
+
+There's no choice of neither: there'd be no way back to the app.
+
 ## The popover
 
 - **Today | Week | Month**, at the top, sets the period for every figure under it: today,
@@ -151,6 +167,7 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 
 - **Language**: the Mac's, or one chosen for the app
 - **Start at login**
+- **Show NetworkMonitor in** the Menu bar, the Dock or Both
 - **Show speeds in** MB/s or Mbps
 - **Wi-Fi names**, until they're on
 - **Menu bar colors**: Download, Upload, the speed test's colours, Use Default Colors
@@ -163,14 +180,15 @@ window: the version, links to the website, what's new and the source code, and t
 
 While the main window is open, NetworkMonitor has a Dock icon and a menu, so ⌘W, ⌘,, ⌘Y,
 ⌘K, ⌘B and ⌘F work and ⌘-Tab can find it. It goes back to living in the menu bar when you
-close it.
+close it, unless it's set to show in the Dock or both.
 
 With the main window open behind another app, a click on the menu bar item shows only the
 popover, and the window stays behind. ⌘-Tab or the Dock icon shows the window on its own.
 
 ## Staying out of the way
 
-- No Dock icon, no app switcher entry, no window to manage. Just the menu bar.
+- No Dock icon, no app switcher entry, no window to manage. Just the menu bar, unless you
+  choose the Dock or both.
 - **Starts at login** by default, once. Turn it off in Settings and it stays off.
 - **Quit stays quit.** Quitting ends it for the session without turning off Start at
   login, and turning that off doesn't quit the running app.

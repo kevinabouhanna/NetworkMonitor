@@ -797,13 +797,20 @@ public final class MonitorViewModel: ObservableObject {
     /// A running speed test takes the title over and keeps it for a few seconds
     /// after with the result. Same width, tints kept clear of the live colours;
     /// see `MenuBarTitle.speedTestImage` and `MenuBarColors`.
-    public var menuBarImage: NSImage {
+    public var menuBarImage: NSImage { MenuBarTitle.image(readout) }
+
+    /// The readout's two lines and colours, for the menu bar and, in Dock
+    /// mode, the Dock icon (#69).
+    public var readout: SpeedReadout {
+        let unit = speedTest.unit
         if let reading = speedTest.menuBarReading {
-            return MenuBarTitle.speedTestImage(downBits: reading.down, upBits: reading.up,
-                                               unit: speedTest.unit, tints: menuBarColors.test)
+            return SpeedReadout(down: "↓ \(ByteFormat.menuBarSpeed(reading.down, unit: unit))",
+                                up: "↑ \(ByteFormat.menuBarSpeed(reading.up, unit: unit))",
+                                tints: menuBarColors.test)
         }
-        return MenuBarTitle.image(down: downBytesPerSecond, up: upBytesPerSecond, unit: speedTest.unit,
-                                  tints: firewall.blocksEverything ? .blockingEverything : menuBarColors.live)
+        return SpeedReadout(down: MenuBarTitle.downLine(downBytesPerSecond, unit: unit),
+                            up: MenuBarTitle.upLine(upBytesPerSecond, unit: unit),
+                            tints: firewall.blocksEverything ? .blockingEverything : menuBarColors.live)
     }
 
     /// The readout in words, for VoiceOver (#424): "Download 2.61 MB/s,
