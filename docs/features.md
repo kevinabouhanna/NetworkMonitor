@@ -31,9 +31,11 @@ at once.
 - **Menu bar**, the default: the readout above, and a Dock icon only while a window is open.
 - **Dock**: nothing in the menu bar. A **Dock icon** choice appears under it (#523):
   - **Speeds**, the default: the whole Dock icon is the live speeds, download over upload,
-    each figure as large as fits with its unit under it, in the speed colors, on a plain
-    rounded square that follows light and dark mode (on light, the colours are drawn
-    darker so they read). It updates as the readout would, at most once a second.
+    drawn like the app's icon: its shape and lighting, near black in dark mode and near
+    white in light, following the Mac as it switches. Each speed is the icon's arrow and
+    its figure to three significant figures (12.3), as large as fits, with its unit under
+    it, in the speed colors (on light, drawn darker so they read). It updates as the
+    readout would, at most once a second.
   - **App icon**: NetworkMonitor's own icon, with no speeds.
 
   Click the icon for the main window, on the section it was last on. Its menu has what the

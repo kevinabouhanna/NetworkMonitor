@@ -115,10 +115,18 @@ public struct SpeedReadout: Equatable {
 
 
 /// The Dock icon in Dock mode with **Dock icon: Speeds** (#523): the whole
-/// icon is the readout, on a plain rounded square that follows light and
-/// dark, with no app icon behind it. Each speed is its arrow and figure, as
-/// large as fits, with its unit under it: two lines of the menu bar's eleven
-/// characters would leave the figures half as tall.
+/// icon is the readout, drawn like the app's own icon: its squircle and
+/// lighting, near black in dark mode and near white in light, following the
+/// Mac's appearance. Each speed is an arrow like the icon's and its figure,
+/// as large as fits, with its unit under it.
+///
+/// The Dock gets one 256 px picture of the tile (128 pt at 2x, however it's
+/// given) and shrinks it to its own size, 116 px for a 58 pt Dock: measured
+/// with `NSDockTile` and `applicationIconImage` alike, so nothing drawn here
+/// can match the Dock's pixels. What keeps it sharp is size and weight: three
+/// significant figures, which the Dock has room to show twice as tall as the
+/// readout's five, in SF Pro Rounded bold, and every edge on a whole pixel of
+/// the picture.
 ///
 /// The Dock draws a tile's content view only when told to
 /// (`NSDockTile.display()`), so this costs nothing between readings; see
@@ -128,17 +136,22 @@ public final class DockSpeedView: NSView {
         didSet { if readout != oldValue { needsDisplay = true } }
     }
 
-    /// The icon's rounded square, as a fraction of the tile on each side
-    /// (100 of 1,024 px, as macOS draws every app icon), and its corners.
+    /// The app icon's grid, on a 1,024 canvas: an 824 squircle with a 100
+    /// margin all round (Scripts/make-icon.swift draws the icon on it).
     static let iconInset: CGFloat = 100 / 1024
-    static let cornerRadius: CGFloat = 185 / 1024
-    /// Space between the text and the square's sides, as a fraction of the tile.
-    static let textPadding: CGFloat = 0.06
+    /// Space between the figures and the squircle's sides and top and
+    /// bottom, as fractions of the tile.
+    static let padding = NSSize(width: 0.065, height: 0.075)
     /// A unit's size, as a fraction of its figure's.
-    static let unitScale: CGFloat = 0.55
-    /// The widest figure there can be, so the size and the left edge stay put
-    /// whatever the figures.
-    static let template = "↓ 88888"
+    static let unitScale: CGFloat = 0.5
+    /// The widest figure there is, so the size and the right edge stay put
+    /// whatever the figures: three significant figures and a point.
+    static let template = "88.8"
+    /// An arrow's width, and the gaps, as fractions of the figures' cap height.
+    static let arrowWidth: CGFloat = 0.62
+    static let arrowGap: CGFloat = 0.32
+    static let unitGap: CGFloat = 0.28
+    static let rowGap: CGFloat = 0.36
 
     public override init(frame: NSRect) {
         super.init(frame: frame)
@@ -151,49 +164,108 @@ public final class DockSpeedView: NSView {
     var isDark: Bool { effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua }
 
     public override func draw(_ dirtyRect: NSRect) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
         let dark = isDark
-        let square = Self.squareRect(in: bounds)
-        let radius = bounds.width * Self.cornerRadius
-        // A shadow under the square, as every icon in the Dock has.
-        NSGraphicsContext.saveGraphicsState()
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.3)
-        shadow.shadowBlurRadius = bounds.width * 0.02
-        shadow.shadowOffset = NSSize(width: 0, height: -bounds.width * 0.01)
-        shadow.set()
-        Self.background(dark: dark).setFill()
-        NSBezierPath(roundedRect: square, xRadius: radius, yRadius: radius).fill()
-        NSGraphicsContext.restoreGraphicsState()
+        let body = Self.squareRect(in: bounds)
+        let shape = Self.squircle(in: body)
+
+        // The icon's lighting: a slight lift from bottom to top.
+        context.saveGState()
+        context.addPath(shape)
+        context.clip()
+        let (top, bottom) = Self.background(dark: dark)
+        if let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
+                                     colors: [top.cgColor, bottom.cgColor] as CFArray, locations: [0, 1]) {
+            context.drawLinearGradient(gradient, start: CGPoint(x: 0, y: body.maxY),
+                                       end: CGPoint(x: 0, y: body.minY), options: [])
+        }
+        context.restoreGState()
+        // On light, a hairline keeps its edge against a light Dock.
+        if !dark {
+            context.saveGState()
+            context.addPath(shape)
+            context.setStrokeColor(NSColor.black.withAlphaComponent(0.14).cgColor)
+            context.setLineWidth(bounds.width / 256)
+            context.strokePath()
+            context.restoreGState()
+        }
 
         guard let readout else { return }
-        let layout = Self.layout(for: readout, in: bounds)
+        // Pixels per point in the picture being drawn, for whole-pixel edges.
+        let scale = context.userSpaceToDeviceSpaceTransform.a
+        let layout = Self.layout(for: readout, in: bounds, pixelsPerPoint: scale)
         let tints = [readout.tints.down, readout.tints.up].map { MenuBarColors.readable($0, onDark: dark) }
-        for (line, tint) in zip(layout.lines, tints) {
+        for (index, (line, tint)) in zip(layout.lines, tints).enumerated() {
+            context.setFillColor(tint.cgColor)
+            context.addPath(Self.arrow(in: line.arrowFrame, pointingDown: index == 0))
+            context.fillPath()
             NSAttributedString(string: line.figure, attributes: [.font: layout.figureFont, .foregroundColor: tint])
-                .draw(at: line.figureOrigin)
+                .draw(at: NSPoint(x: line.figureFrame.minX, y: line.figureFrame.minY + layout.figureFont.descender))
             NSAttributedString(string: line.unit, attributes: [.font: layout.unitFont, .foregroundColor: tint])
-                .draw(at: line.unitOrigin)
+                .draw(at: NSPoint(x: line.unitFrame.minX, y: line.unitFrame.minY + layout.unitFont.descender))
         }
     }
 
-    /// The square's colour: near black in dark, near white in light.
-    public static func background(dark: Bool) -> NSColor {
-        dark ? NSColor(srgbRed: 0.11, green: 0.11, blue: 0.12, alpha: 1)
-             : NSColor(srgbRed: 0.98, green: 0.98, blue: 0.98, alpha: 1)
+    /// The squircle's colours, top and bottom: the app icon's near black in
+    /// dark, and near white in light.
+    public static func background(dark: Bool) -> (top: NSColor, bottom: NSColor) {
+        dark ? (NSColor(srgbRed: 0.19, green: 0.19, blue: 0.20, alpha: 1),
+                NSColor(srgbRed: 0.09, green: 0.09, blue: 0.10, alpha: 1))
+             : (NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 1),
+                NSColor(srgbRed: 0.90, green: 0.90, blue: 0.91, alpha: 1))
     }
 
-    /// Where the icon's rounded square goes on a tile of `bounds`.
+    /// Where the icon's squircle goes on a tile of `bounds`.
     public static func squareRect(in bounds: NSRect) -> NSRect {
         bounds.insetBy(dx: bounds.width * iconInset, dy: bounds.height * iconInset)
     }
 
-    /// One speed: its arrow and figure, and its unit, each in its own box.
+    /// Apple's icon shape, as the app icon draws it: a superellipse that
+    /// matches the 185 radius on an 824 body.
+    static func squircle(in rect: CGRect) -> CGPath {
+        let path = CGMutablePath()
+        let exponent: CGFloat = 2 / 6.2
+        for step in 0...360 {
+            let t = CGFloat(step) / 360 * 2 * .pi
+            let c = cos(t), s = sin(t)
+            let point = CGPoint(x: rect.midX + rect.width / 2 * (c < 0 ? -1 : 1) * pow(abs(c), exponent),
+                                y: rect.midY + rect.height / 2 * (s < 0 ? -1 : 1) * pow(abs(s), exponent))
+            if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        }
+        path.closeSubpath()
+        return path
+    }
+
+    /// The app icon's blunt arrow: a stem on a full-width head.
+    static func arrow(in rect: CGRect, pointingDown: Bool) -> CGPath {
+        let head = rect.height * 0.5
+        let stem = rect.width * 0.42
+        let path = CGMutablePath()
+        if pointingDown {
+            path.addRect(CGRect(x: rect.midX - stem / 2, y: rect.minY + head * 0.98,
+                                width: stem, height: rect.height - head * 0.98))
+            path.addLines(between: [CGPoint(x: rect.minX, y: rect.minY + head),
+                                    CGPoint(x: rect.maxX, y: rect.minY + head),
+                                    CGPoint(x: rect.midX, y: rect.minY)])
+        } else {
+            path.addRect(CGRect(x: rect.midX - stem / 2, y: rect.minY,
+                                width: stem, height: rect.height - head * 0.98))
+            path.addLines(between: [CGPoint(x: rect.minX, y: rect.maxY - head),
+                                    CGPoint(x: rect.maxX, y: rect.maxY - head),
+                                    CGPoint(x: rect.midX, y: rect.maxY)])
+        }
+        path.closeSubpath()
+        return path
+    }
+
+    /// One speed: its arrow, figure and unit, each in its own box.
     public struct Line {
         public let figure: String
         public let unit: String
-        public let figureOrigin: NSPoint
-        public let unitOrigin: NSPoint
+        public let arrowFrame: NSRect
+        /// From the baseline to the top of the figures' caps.
         public let figureFrame: NSRect
+        /// From the baseline to the top of the unit's caps.
         public let unitFrame: NSRect
     }
 
@@ -203,82 +275,99 @@ public final class DockSpeedView: NSView {
         public let lines: [Line]
     }
 
-    /// A readout line, "↓ 12.34 MB/s", as its figure, "↓ 12.34", and unit,
-    /// "MB/s". The figure keeps its padding, as figure spaces, so it's always
-    /// the width of `template`.
+    /// A readout line, "↓ 12.34 MB/s", as its figure to three significant
+    /// figures, "12.3", and its unit, "MB/s". Five figures are what the menu
+    /// bar has room for; the Dock has room for three at twice the size.
     static func split(_ line: String) -> (figure: String, unit: String) {
-        var trimmed = Substring(line)
-        while trimmed.last == " " { trimmed.removeLast() }
-        guard let space = trimmed.lastIndex(of: " ") else { return (spaced(String(trimmed)), "") }
-        return (spaced(String(trimmed[..<space])), String(trimmed[trimmed.index(after: space)...]))
+        let words = line.split(separator: " ")
+        guard words.count >= 3, let value = Double(words[1]) else {
+            return (words.dropFirst().first.map(String.init) ?? "", words.last.map(String.init) ?? "")
+        }
+        return (figure(value), String(words[2]))
     }
 
-    /// The readout pads its figures with spaces to one width in a monospaced
-    /// font. Here, in a narrower one with figures of one width, figure spaces
-    /// keep that padding the width of a digit.
-    static func spaced(_ text: String) -> String {
-        text.replacingOccurrences(of: " ", with: "\u{2007}")
+    /// Three significant figures, or fewer: 0, 1.23, 12.3, 123. Never four, so
+    /// a 999.7 the readout hasn't moved on to the next unit for is 999.
+    static func figure(_ value: Double) -> String {
+        switch value {
+        case ..<0.005: return "0"
+        case ..<9.995: return String(format: "%.2f", value)
+        case ..<99.95: return String(format: "%.1f", value)
+        default:       return String(format: "%.0f", min(value.rounded(), 999))
+        }
     }
 
-    /// Condensed, bold and with figures of one width: the most legible way to
-    /// get a figure across a Dock icon.
-    static func font(ofSize size: CGFloat, weight: NSFont.Weight = .bold) -> NSFont {
-        let base = NSFont.systemFont(ofSize: size, weight: weight, width: .condensed)
-        let tabular = base.fontDescriptor.addingAttributes([.featureSettings: [[
-            NSFontDescriptor.FeatureKey.typeIdentifier: kNumberSpacingType,
-            NSFontDescriptor.FeatureKey.selectorIdentifier: kMonospacedNumbersSelector,
-        ]]])
-        return NSFont(descriptor: tabular, size: size) ?? base
+    /// SF Pro Rounded with figures of one width.
+    static func font(ofSize size: CGFloat, weight: NSFont.Weight) -> NSFont {
+        let base = NSFont.systemFont(ofSize: size, weight: weight)
+        let descriptor = (base.fontDescriptor.withDesign(.rounded) ?? base.fontDescriptor)
+            .addingAttributes([.featureSettings: [[
+                NSFontDescriptor.FeatureKey.typeIdentifier: kNumberSpacingType,
+                NSFontDescriptor.FeatureKey.selectorIdentifier: kMonospacedNumbersSelector,
+            ]]])
+        return NSFont(descriptor: descriptor, size: size) ?? base
     }
 
-    /// The figures as large as fit the square, across and down: download's
-    /// figure, its unit under it at the figure's right edge, then upload's,
-    /// the four centred as a block.
-    public static func layout(for readout: SpeedReadout, in bounds: NSRect) -> Layout {
-        let box = squareRect(in: bounds).insetBy(dx: bounds.width * textPadding, dy: bounds.width * textPadding)
+    /// The figures as large as fit the squircle, across and down: download's
+    /// arrow and figure, its unit under the figure's right edge, then upload's,
+    /// the two centred as a block, every edge on a whole pixel.
+    public static func layout(for readout: SpeedReadout, in bounds: NSRect,
+                              pixelsPerPoint: CGFloat = 2) -> Layout {
+        let box = squareRect(in: bounds).insetBy(dx: bounds.width * padding.width,
+                                                 dy: bounds.height * padding.height)
         let parts = [split(readout.down), split(readout.up)]
         func width(_ text: String, _ font: NSFont) -> CGFloat {
             NSAttributedString(string: text, attributes: [.font: font]).size().width
         }
-        func height(_ font: NSFont) -> CGFloat { font.ascender - font.descender }
+        func snap(_ value: CGFloat) -> CGFloat { (value * pixelsPerPoint).rounded() / pixelsPerPoint }
+        func rowWidth(_ font: NSFont) -> CGFloat {
+            let figures = ([template] + parts.map(\.figure)).map { width($0, font) }.max() ?? 0
+            return font.capHeight * (arrowWidth + arrowGap) + figures
+        }
+        func blockHeight(_ font: NSFont, _ unitFont: NSFont) -> CGFloat {
+            2 * (font.capHeight * (1 + unitGap) + unitFont.capHeight) + font.capHeight * rowGap
+        }
 
         let reference: CGFloat = 20
-        let measuring = font(ofSize: reference)
+        let measuring = font(ofSize: reference, weight: .bold)
         let measuringUnit = font(ofSize: reference * unitScale, weight: .semibold)
-        let widest = ([spaced(template)] + parts.map(\.figure)).map { width($0, measuring) }.max() ?? 1
-        let across = box.width / max(widest, 1)
-        let down = box.height / (2 * (height(measuring) + height(measuringUnit)))
-        let size = floor(reference * min(across, down) * 10) / 10
-        let figureFont = font(ofSize: size)
+        let across = box.width / rowWidth(measuring)
+        let down = box.height / blockHeight(measuring, measuringUnit)
+        let size = floor(reference * min(across, down) * 4) / 4
+        let figureFont = font(ofSize: size, weight: .bold)
         let unitFont = font(ofSize: size * unitScale, weight: .semibold)
 
-        // From a fixed left edge, so the figures never shift as they change.
-        let figureWidth = max(width(spaced(template), figureFont), parts.map { width($0.figure, figureFont) }.max() ?? 0)
-        let left = box.midX - figureWidth / 2
-        let right = left + figureWidth
-        let figureHeight = height(figureFont), unitHeight = height(unitFont)
-        var top = box.midY + (figureHeight + unitHeight)
+        let cap = figureFont.capHeight
+        let unitCap = unitFont.capHeight
+        let rowFull = rowWidth(figureFont)
+        let left = snap(box.midX - rowFull / 2)
+        let right = snap(left + rowFull)
+        var top = box.midY + blockHeight(figureFont, unitFont) / 2
         let lines = parts.map { part -> Line in
-            let figureFrame = NSRect(x: left, y: top - figureHeight,
-                                     width: width(part.figure, figureFont), height: figureHeight)
-            top -= figureHeight
+            let capTop = snap(top)
+            let baseline = snap(top - cap)
+            let arrowFrame = NSRect(x: left, y: baseline, width: snap(cap * arrowWidth), height: capTop - baseline)
+            let figureWidth = width(part.figure, figureFont)
+            let figureFrame = NSRect(x: snap(right - figureWidth), y: baseline,
+                                     width: figureWidth, height: capTop - baseline)
+            let unitBaseline = snap(top - cap * (1 + unitGap) - unitCap)
             let unitWidth = width(part.unit, unitFont)
-            let unitFrame = NSRect(x: right - unitWidth, y: top - unitHeight, width: unitWidth, height: unitHeight)
-            top -= unitHeight
-            return Line(figure: part.figure, unit: part.unit,
-                        figureOrigin: figureFrame.origin, unitOrigin: unitFrame.origin,
+            let unitFrame = NSRect(x: snap(right - unitWidth), y: unitBaseline, width: unitWidth, height: unitCap)
+            top -= cap * (1 + unitGap) + unitCap + cap * rowGap
+            return Line(figure: part.figure, unit: part.unit, arrowFrame: arrowFrame,
                         figureFrame: figureFrame, unitFrame: unitFrame)
         }
         return Layout(figureFont: figureFont, unitFont: unitFont, lines: lines)
     }
 
-    /// The icon as a picture, at `side` points and twice that in pixels, for
-    /// the tests and for checking it by eye (`DesignShots --dock-icons`).
-    public static func image(_ readout: SpeedReadout, side: CGFloat, dark: Bool) -> NSImage {
+    /// The icon as a picture, at `side` points and `scale` times that in
+    /// pixels, for the tests and for checking it by eye
+    /// (`DesignShots --dock-icons`).
+    public static func image(_ readout: SpeedReadout?, side: CGFloat, dark: Bool, scale: CGFloat = 2) -> NSImage {
         let view = DockSpeedView(frame: NSRect(x: 0, y: 0, width: side, height: side))
         view.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         view.readout = readout
-        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(side * 2), pixelsHigh: Int(side * 2),
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(side * scale), pixelsHigh: Int(side * scale),
                                    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                                    colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
         rep.size = view.bounds.size

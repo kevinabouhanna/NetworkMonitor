@@ -63,13 +63,13 @@ func runAppPlacementTests() {
         }
 
         // The widest figures there are, live and a speed test's, fit the
-        // icon's square across and down at every tile size, never overlap,
-        // and stay big enough to read in the Dock (#523).
+        // icon's squircle across and down at every tile size, never overlap,
+        // sit on whole pixels, and stay big enough to read in the Dock (#523).
         Check.test("the Dock icon's speeds fit its square") {
             let widest = [
                 SpeedReadout(down: MenuBarTitle.downLine(999_000_000, unit: .bytes),
                              up: MenuBarTitle.upLine(0, unit: .bytes), tints: .live),
-                SpeedReadout(down: MenuBarTitle.downLine(999_000_000, unit: .bits),
+                SpeedReadout(down: MenuBarTitle.downLine(99_960, unit: .bits),
                              up: MenuBarTitle.upLine(123_456, unit: .bits), tints: .live),
                 SpeedReadout(down: "↓ \(ByteFormat.menuBarSpeed(950_000_000, unit: .bits))",
                              up: "↑ \(ByteFormat.menuBarSpeed(45_000_000, unit: .bits))",
@@ -78,9 +78,12 @@ func runAppPlacementTests() {
             for side in [CGFloat(32), 64, 128, 256] {
                 let bounds = NSRect(x: 0, y: 0, width: side, height: side)
                 let square = DockSpeedView.squareRect(in: bounds)
+                let quiet = DockSpeedView.layout(for: SpeedReadout(down: MenuBarTitle.downLine(0),
+                                                                   up: MenuBarTitle.upLine(0), tints: .live),
+                                                 in: bounds)
                 for readout in widest {
                     let layout = DockSpeedView.layout(for: readout, in: bounds)
-                    let boxes = layout.lines.flatMap { [$0.figureFrame, $0.unitFrame] }
+                    let boxes = layout.lines.flatMap { [$0.arrowFrame, $0.figureFrame, $0.unitFrame] }
                     Check.expectEqual(layout.lines.map(\.unit).filter(\.isEmpty), [],
                                       "\(readout.down) has no unit")
                     Check.expectTrue(boxes.allSatisfy { square.contains($0) },
@@ -91,15 +94,34 @@ func runAppPlacementTests() {
                                               "\(readout.down): two boxes overlap at \(side) pt")
                         }
                     }
-                    Check.expectTrue(layout.figureFont.pointSize >= side * 0.17,
+                    // Baselines, arrows and left edges are whole pixels at 2x.
+                    let edges = boxes.map(\.minY) + layout.lines.flatMap {
+                        [$0.arrowFrame.maxY, $0.arrowFrame.minX, $0.arrowFrame.maxX,
+                         $0.figureFrame.minX, $0.unitFrame.minX] }
+                    Check.expectTrue(edges.allSatisfy { ($0 * 2).rounded() == $0 * 2 },
+                                     "an edge between pixels at \(side) pt")
+                    Check.expectTrue(layout.figureFont.pointSize >= side * 0.22,
                                      "\(layout.figureFont.pointSize) pt is too small to read on a \(side) pt tile")
-                    // The same size whatever the figures, so it never jumps.
-                    let quiet = DockSpeedView.layout(for: SpeedReadout(down: MenuBarTitle.downLine(0),
-                                                                       up: MenuBarTitle.upLine(0), tints: .live),
-                                                     in: bounds)
+                    // The same size and edges whatever the figures, so it never jumps.
                     Check.expectEqual(Double(quiet.figureFont.pointSize), Double(layout.figureFont.pointSize))
-                    Check.expectEqual(Double(quiet.lines[0].figureOrigin.x), Double(layout.lines[0].figureOrigin.x))
+                    Check.expectEqual(Double(quiet.lines[0].arrowFrame.minX), Double(layout.lines[0].arrowFrame.minX))
+                    Check.expectTrue(abs(quiet.lines[1].figureFrame.maxX - layout.lines[1].figureFrame.maxX) <= 0.5,
+                                     "the figures' right edge moves at \(side) pt")
                 }
+            }
+        }
+
+        // Three significant figures: what the Dock has room to show large.
+        Check.test("the Dock icon shows three significant figures") {
+            let cases: [(String, String, String)] = [
+                ("↓  0.00 B/s ", "0", "B/s"), ("↑  1.23 KB/s", "1.23", "KB/s"), ("↓ 12.34 MB/s", "12.3", "MB/s"),
+                ("↓ 99.96 MB/s", "100", "MB/s"), ("↑ 948.2 Mb/s", "948", "Mb/s"), ("↓ 999.7 KB/s", "999", "KB/s"),
+            ]
+            for (line, figure, unit) in cases {
+                let layout = DockSpeedView.layout(for: SpeedReadout(down: line, up: line, tints: .live),
+                                                  in: NSRect(x: 0, y: 0, width: 128, height: 128))
+                Check.expectEqual(layout.lines[0].figure, figure, line)
+                Check.expectEqual(layout.lines[0].unit, unit, line)
             }
         }
 
@@ -126,7 +148,8 @@ func runAppPlacementTests() {
                 for dark in [false, true] {
                     for tint in [tints.down, tints.up] {
                         let drawn = MenuBarColors.readable(tint, onDark: dark)
-                        Check.expectTrue(contrast(drawn, DockSpeedView.background(dark: dark)) >= 3,
+                        let (top, bottom) = DockSpeedView.background(dark: dark)
+                        Check.expectTrue(min(contrast(drawn, top), contrast(drawn, bottom)) >= 3,
                                          "\(MenuBarColors.hex(tint)) doesn't read on \(dark ? "dark" : "light")")
                     }
                 }

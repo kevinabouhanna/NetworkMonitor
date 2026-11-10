@@ -29,8 +29,9 @@ _ = NSApplication.shared
 NSApp.setActivationPolicy(.accessory)
 NSApp.finishLaunching()
 
-// `--dock-icons <dir>`: the Dock icon that is the speeds (#523), at the Dock's
-// sizes, in light and in dark, one strip each, on a stand-in for the Dock.
+// `--dock-icons <dir>`: the Dock icon that is the speeds (#523), in light and
+// in dark, one strip each, on a stand-in for the Dock. Drawn as the Dock gets
+// it, one 256 px picture, and shrunk to the Dock's sizes as the Dock does.
 // Drawn offscreen, so it needs neither the screen nor the bundle.
 if let dockDirectory = argument("--dock-icons") {
     let readouts = [
@@ -40,7 +41,7 @@ if let dockDirectory = argument("--dock-icons") {
                      up: "↑ \(ByteFormat.menuBarSpeed(41_070_000, unit: .bits))", tints: MenuBarTints.testChoices[0]),
         SpeedReadout(down: MenuBarTitle.downLine(2_100), up: MenuBarTitle.upLine(870), tints: .blockingEverything),
     ]
-    let sides: [CGFloat] = [32, 48, 64, 96, 128]
+    let sides: [CGFloat] = [32, 48, 58, 64, 96, 128]
     let gap: CGFloat = 16
     let width = (sides.reduce(0, +) + gap * CGFloat(sides.count)) * CGFloat(readouts.count) + gap
     let height = sides.max()! + 2 * gap
@@ -54,11 +55,12 @@ if let dockDirectory = argument("--dock-icons") {
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
         NSColor(white: dark ? 0.2 : 0.86, alpha: 1).setFill()
         NSRect(x: 0, y: 0, width: width, height: height).fill()
+        NSGraphicsContext.current?.imageInterpolation = .high
         var x = gap
         for readout in readouts {
+            let tile = DockSpeedView.image(readout, side: 128, dark: dark)
             for side in sides {
-                DockSpeedView.image(readout, side: side, dark: dark)
-                    .draw(in: NSRect(x: x, y: gap, width: side, height: side))
+                tile.draw(in: NSRect(x: x, y: gap, width: side, height: side))
                 x += side + gap
             }
         }

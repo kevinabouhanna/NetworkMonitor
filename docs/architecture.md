@@ -314,9 +314,13 @@ Two stacked lines, `↓` download in green (`#51FF70`) over `↑` upload in ligh
   it was. One function, `settleActivationPolicy`, decides between regular and accessory
   for every case: a window open, Sparkle's update window, or Dock and Both modes, which
   never drop to accessory. In Dock mode with **Dock icon: Speeds** (#523, `DockIcon`)
-  the Dock tile's content view (`DockSpeedView`) is the whole icon: a plain rounded
-  square that follows light and dark, with `MonitorViewModel.readout`, the same lines
-  the menu bar draws, split into figure and unit, as large as fit. It's drawn on the
+  the Dock tile's content view (`DockSpeedView`) is the whole icon, drawn on the app
+  icon's grid, squircle and lighting (Scripts/make-icon.swift), light or dark with the
+  Mac, with `MonitorViewModel.readout`, the same lines the menu bar draws, as the icon's
+  arrows, figures cut to three significant figures, and units, as large as fit. The Dock
+  is handed one 256 px picture whatever it's given (`NSDockTile` and
+  `applicationIconImage` alike) and shrinks it to its size, so legibility comes from the
+  figures' size and weight, with edges on whole pixels of that picture. It's drawn on the
   readout's own signal and at most once a second, and again when the appearance
   changes; `MenuBarColors.readable` darkens the speed colors on light (and lightens
   any too dark on dark) by OKLab lightness alone. With App icon the tile has no content
