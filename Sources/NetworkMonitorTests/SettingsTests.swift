@@ -124,5 +124,23 @@ func runSettingsTests() {
                 Check.expectTrue((widths.first ?? 0) >= 64, "\(section.rawValue): wide enough")
             }
         }
+
+        // An ⓘ is there while the pointer is over its row or it's open, and
+        // while it has keyboard focus too, so Tab never lands on a button no
+        // one can see (#512). Otherwise it's out of the way.
+        Check.test("an ⓘ shows under the pointer, while open, and while it has keyboard focus") {
+            let info = RowInfoState()
+            Check.expectTrue(!info.isShown, "hidden at rest")
+            info.isHovering = true
+            Check.expectTrue(info.isShown, "shown under the pointer")
+            info.isHovering = false
+            info.showsInfo = true
+            Check.expectTrue(info.isShown, "shown while open")
+            info.showsInfo = false
+            info.hasFocus = true
+            Check.expectTrue(info.isShown, "shown while it has keyboard focus")
+            info.hasFocus = false
+            Check.expectTrue(!info.isShown, "hidden again once focus moves on")
+        }
     }
 }

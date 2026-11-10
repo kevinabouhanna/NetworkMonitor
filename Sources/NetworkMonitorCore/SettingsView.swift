@@ -763,11 +763,20 @@ struct UncoveredAppRow: View {
 /// what it says is a tooltip, or a popover when clicked (#185). VoiceOver
 /// gets it from the row instead, unless it has a name of its own: then it's a
 /// button VoiceOver reads by that name, whose popover it can open (#402).
+///
+/// It also shows while it has keyboard focus, with the focus ring round it
+/// (#512): with Keyboard navigation on, Tab reaches it, and focus on a button
+/// no one can see leaves whoever moves with the keyboard lost. A button takes
+/// focus only from the keyboard, never from a click (#452), so the pointer
+/// sees no change.
 struct RowInfoButton<Content: View>: View {
     let help: String
     @ObservedObject var state: RowInfoState
     var accessibilityLabel: String? = nil
     @ViewBuilder let content: Content
+    /// A property wrapper, not a macro like `@State`, so it builds with
+    /// Command Line Tools; mirrored into `state`, which decides what shows.
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         Button { state.showsInfo.toggle() } label: {
@@ -775,7 +784,9 @@ struct RowInfoButton<Content: View>: View {
         }
         .buttonStyle(.borderless)
         .help(help)
-        .opacity(state.isHovering || state.showsInfo ? 1 : 0)
+        .focused($isFocused)
+        .onChange(of: isFocused) { state.hasFocus = $0 }
+        .opacity(state.isShown ? 1 : 0)
         .accessibilityLabel(accessibilityLabel ?? "")
         .accessibilityHidden(accessibilityLabel == nil)
         .popover(isPresented: $state.showsInfo, arrowEdge: .bottom) {
@@ -843,10 +854,17 @@ struct ExplainedRow<Control: View>: View {
     }
 }
 
-/// Whether the pointer is over a row, and whether its ⓘ is open.
-final class RowInfoState: ObservableObject {
-    @Published var isHovering = false
-    @Published var showsInfo = false
+/// Whether the pointer is over a row, whether its ⓘ is open, and whether the
+/// ⓘ has keyboard focus (#512). Public for the tests.
+public final class RowInfoState: ObservableObject {
+    @Published public var isHovering = false
+    @Published public var showsInfo = false
+    @Published public var hasFocus = false
+
+    public init() {}
+
+    /// Whether the ⓘ shows: under the pointer, open, or reached with Tab.
+    public var isShown: Bool { isHovering || showsInfo || hasFocus }
 }
 
 // MARK: - About
