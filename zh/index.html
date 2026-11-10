@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NetworkMonitor — 在 Mac 菜单栏中查看实时网速和每个应用的流量</title>
-<meta name="description" content="一款免费、开源的 macOS 菜单栏应用。实时显示下载和上传速度，告诉你哪些应用用了你的网络，在移动热点上暂停自动更新，还能随时测网速。没有遥测，没有程序坞图标。">
+<meta name="description" content="一款免费、开源的 macOS 菜单栏应用。实时显示下载和上传速度，告诉你哪些应用用了你的网络，在移动热点上暂停自动更新，还能随时测网速。没有遥测，只在你需要时才显示程序坞图标。">
 <link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/">
 <link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/">
 <link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/">
@@ -577,7 +577,7 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <p class="eyebrow reveal">解决方案</p>
       <h2 class="h2 reveal d1">隆重介绍 NetworkMonitor。</h2>
-      <p class="lead reveal d2">一款小巧的菜单栏应用：实时显示网速，准确告诉你哪些应用在当前网络下消耗了多少流量、它们在和谁通信；只要你愿意，还能<strong>在你使用热点时阻止它们更新</strong>。它常驻菜单栏，想看细节时再打开一个窗口，也不需要账户。</p>
+      <p class="lead reveal d2">一款小巧的菜单栏应用：实时显示网速，准确告诉你哪些应用在当前网络下消耗了多少流量、它们在和谁通信；只要你愿意，还能<strong>在你使用热点时阻止它们更新</strong>。它常驻菜单栏（你也可以让它显示在程序坞中），想看细节时再打开一个窗口，也不需要账户。</p>
       <div class="pillars">
         <div class="pillar reveal">
           <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M14 6v22" stroke="#51ff70" stroke-width="5"/><path d="M5 25l9 13 9-13z" fill="#51ff70"/><path d="M30 38V16" stroke="#e5e5e5" stroke-width="5"/><path d="M21 19l9-13 9 13z" fill="#e5e5e5"/></svg>
@@ -603,7 +603,7 @@ footer a { color: var(--text-2); }
     <div class="wrap">
       <p class="eyebrow reveal">在菜单栏中</p>
       <h2 class="h2 reveal d1">两行数字。<br>每秒两次。</h2>
-      <p class="lead reveal d2" style="max-width:700px;margin-inline:auto">下载是绿色，上传是白色：和图标上的两个箭头一样，也可以<strong>换成你选的颜色</strong>。读数<strong>宽度固定</strong>，数字变化时，旁边的图标不会跟着晃动。它可以按字节计数，也就是流量套餐使用的单位；也可以按比特计数，也就是宽带销售时使用的单位。<strong>由你选择</strong>，网速测试也会跟着使用同样的单位。</p>
+      <p class="lead reveal d2" style="max-width:700px;margin-inline:auto">下载是绿色，上传是白色：和图标上的两个箭头一样，也可以<strong>换成你选的颜色</strong>。读数<strong>宽度固定</strong>，数字变化时，旁边的图标不会跟着晃动。它可以按字节计数，也就是流量套餐使用的单位；也可以按比特计数，也就是宽带销售时使用的单位。<strong>由你选择</strong>，网速测试也会跟着使用同样的单位。想让菜单栏保持清爽？可以改为显示在<strong>程序坞</strong>中，同样的网速会显示在它的图标上；也可以两处都显示。</p>
       <figure class="menubar-shot reveal" style="margin-bottom:0">
         <img src="../assets/menubar.png?v=905a75c6" width="652" height="60" loading="lazy"
              alt="macOS 菜单栏的一段：NetworkMonitor 显示下载 2.61 MB/s、上传 117.0 KB/s，位于麦克风图标与音量、蓝牙、80% 电池和 Wi‑Fi 图标之间。">
@@ -778,7 +778,7 @@ footer a { color: var(--text-2); }
         </div>
         <div class="reveal">
           <h3>看看它拦下了什么。</h3>
-          <p><b>广告与跟踪器</b>有自己的部分：一天、一周、一个月或一年内拦截了多少，随时间的变化，以及被拦截最多的网站和应用。它的<b>日志</b>会在每个连接被判定时显示出来，并说明原因；每个列表也会显示它拦截了什么，所以很容易找出拦截过多的那个列表。弹出窗口会显示今天、本周或本月拦截了多少，“连接”会给每个被列入的服务器标上<b>广告</b>或<b>恶意软件</b>。</p>
+          <p><b>广告与跟踪器</b>有自己的部分：一天、一周、一个月或一年内拦截了多少（一个总数，各列表的拦截次数在它旁边的 ⓘ 中），随时间的变化，以及被拦截最多的网站和应用。它的<b>日志</b>会在每个连接被判定时显示出来，并说明原因；每个列表也会显示它拦截了什么，所以很容易找出拦截过多的那个列表。弹出窗口会显示今天、本周或本月拦截了多少，“连接”会给每个被列入的服务器标上<b>广告</b>或<b>恶意软件</b>。</p>
         </div>
         <div class="reveal">
           <h3>自动保持最新。</h3>
@@ -852,7 +852,7 @@ footer a { color: var(--text-2); }
             <button class="prefs-tab" id="prefs-tab-network" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="network" style="--x:-640;--y:160;--w:170;--h:32"
                     data-caption="你正在使用的连接、它是不是热点、在热点上会暂停什么和不能暂停什么，以及网速测试。点按一个列表即可展开。">网络</button>
             <button class="prefs-tab" id="prefs-tab-settings" role="tab" type="button" aria-selected="false" aria-controls="prefs-panel" tabindex="-1" data-pane="settings" style="--x:-640;--y:760;--w:170;--h:32"
-                    data-caption="适用于整个应用的设置：语言、登录时启动、速度单位、菜单栏颜色、更新，以及通往各部分设置的入口。">设置</button>
+                    data-caption="适用于整个应用的设置：语言、登录时启动、NetworkMonitor 显示在菜单栏、程序坞或两者、速度单位、网速颜色、更新，以及通往各部分设置的入口。">设置</button>
           </div>
           <div id="prefs-panel" role="tabpanel" aria-labelledby="prefs-tab-history">
             <img class="prefs-shot on" data-shot="history" data-w="1300" data-h="800" src="../assets/zh-Hans/main/history.png?v=18b1c0e7" width="2600" height="1600"
@@ -930,7 +930,7 @@ footer a { color: var(--text-2); }
       <h2 class="h2 reveal d1">它只计算用了多少。<br>从不查看内容。</h2>
       <p class="lead reveal d2" style="max-width:640px;margin-inline:auto">NetworkMonitor 统计的是用了多少、去了哪里，从不关心内容是什么。<strong>关于你的流量，任何信息都不会离开你的 Mac。</strong></p>
       <div class="privacy-grid">
-        <div class="reveal"><h3>两项权限，都是可选的。</h3><p>定位服务，只因为 macOS 不通过其他方式提供 Wi‑Fi 网络的名称；它从不查询你的位置。以及网站名称，用于查看和阻止应用连接的去向。两者都会在首次打开时提供，也都可以以后再打开。热点模式的辅助程序只需在“系统设置”中打开一个开关，无需输入密码。</p></div>
+        <div class="reveal"><h3>两项权限，都是可选的。</h3><p>定位服务，因为 macOS 不通过其他方式提供 Wi‑Fi 网络的名称。允许之后，它也用来确定你的 Mac 所在的国家或地区，作为“连接”地图上线条的起点：在你的 Mac 上换算，不发送到任何地方，只保留国家或地区，而且只保存在内存中。以及网站名称，用于查看和阻止应用连接的去向。两者都会在首次打开时提供，也都可以以后再打开。热点模式的辅助程序只需在“系统设置”中打开一个开关，无需输入密码。</p></div>
         <div class="reveal d1"><h3>三项小型下载，都可以由你关闭。</h3><p>每月一次，下载新的国家或地区与网络数据，每个人拿到的都是同一个文件；在你打开的情况下每周一次，从列表作者发布的地方下载广告和恶意软件列表，以及你选择的其他列表；每天一次，检查是否有新版本。我们自己的文件来自 GitHub，并经过签名。这些下载都不会在热点上进行，也都不会透露任何关于你流量的信息。除此之外，只有你主动开始的网速测试。没有分析，没有遥测，也不需要账户。</p></div>
         <div class="reveal d2"><h3>保留在你的 Mac 上。</h3><p>你的用量以及应用访问过的服务器，都保存在你 Mac 上的本地文件中，你可以随时删除。国家或地区和公司的名称来自应用内的数据。打开<b>加密域名查询</b>后，你的 Mac 查询的域名会加密发送到 Cloudflare、Quad9 或 Google，而不是以明文发送给网络的运营者。</p></div>
         <div class="reveal d3"><h3>开源。</h3><p>采用 Apache 2.0 许可证。运行之前，你可以<a href="https://github.com/kevinabouhanna/NetworkMonitor">读遍每一行代码</a>。</p></div>
