@@ -67,10 +67,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Set while `closePopover` closes it, so `popoverShouldClose` can tell
     /// that apart from Esc.
     private var closingPopover = false
+    /// Menu bar, Dock or both (#69), as last applied; see `apply(_:)`.
+    private var placement = AppPlacementSetting.shared.placement
+    private var placementObserver: AnyCancellable?
+    /// The Dock icon with the live speeds on it, in Dock mode only.
+    private var dockSpeedView: DockSpeedView?
+    /// When the Dock icon was last redrawn, and whether a redraw is waiting
+    /// its turn; see `drawDockReadout()`.
+    private var dockDrawnAt: TimeInterval = 0
+    private var dockDrawPending = false
+    /// While Sparkle shows an update (#132), which keeps the Dock icon.
+    private var showingUpdate = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
         setUpPopover()
+        // Before anything can open a window, so the first one finds the app
+        // already as it should be.
+        apply(placement)
+        observePlacement()
         // Installs predating SMAppService still have a LaunchAgent plist; it
         // has to go before the first-launch check, or both would start a copy.
         LoginItem.migrateLegacyAgentIfNeeded()
@@ -207,7 +222,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Title construction lives in `MenuBarTitle` so its width-stability and
     /// menu-bar-fit invariants are covered by the test suite.
     private func applyTitle() {
-        guard let button = statusItem.button else { return }
+        drawDockReadout()
+        // Hidden in Dock mode, so nothing to draw; `apply(_:)` draws it on the
+        // way back.
+        guard placement.showsMenuBar, let button = statusItem.button else { return }
         button.image = model.menuBarImage
         // The readout is a picture, so VoiceOver had nothing to read but
         // "image" (#424): the app's name, and the rates in words. It's also
@@ -305,7 +323,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             closePopover(returningFocus: true)
             return
         }
-        guard let button = statusItem.button else { return }
+        // In Dock mode there's no status item to open it from (#69).
+        guard placement.showsMenuBar, let button = statusItem.button else { return }
         model.setPopoverOpen(true)
         if !NSApp.isActive, !openWindows.isEmpty {
             appUnderPopover = NSWorkspace.shared.frontmostApplication
@@ -602,11 +621,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         window.makeKeyAndOrderFront(nil)
     }
 
-    /// The Dock icon, which is there only while a window is open. It can be
-    /// clicked with the app already active, behind the popover, and then
-    /// nothing else brings the window forward.
+    /// The Dock icon. In Menu bar mode it's there only while a window is
+    /// open, and can be clicked with the app already active, behind the
+    /// popover, and then nothing else brings the window forward. In Dock and
+    /// Both modes it's always there, and with no window open it opens the main
+    /// window, on the section it was last on (#69).
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        guard let frontmost = openWindows.first else { return true }
+        guard let frontmost = openWindows.first else {
+            guard placement.showsDock else { return true }
+            show(section: main.section)
+            return false
+        }
         if let mainController, frontmost === mainController.window {
             present(mainController.window, reposition: false)
         } else {
@@ -641,7 +666,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // decides whether to open the popover by whether it is shut.
         if popover.isShown { closePopover(returningFocus: true) }
 
+        statusItem.menu = makeAppMenu(forDock: false)
+        statusItem.button?.performClick(nil)
+        // Detach immediately so the next left-click opens the popover, not the menu.
+        statusItem.menu = nil
+    }
+
+    /// The Dock icon's menu: what the status item's right-click menu has
+    /// (#69). The Dock adds Quit itself, so it isn't here twice. In Dock mode
+    /// it opens on the readout in words, which is also how VoiceOver reads
+    /// the speeds there: the Dock doesn't read what's drawn on an icon.
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        makeAppMenu(forDock: true)
+    }
+
+    /// The right-click menu, or the Dock icon's.
+    private func makeAppMenu(forDock: Bool) -> NSMenu {
         let menu = NSMenu()
+        // Shortcuts belong to the menu bar's menus; the Dock's shows none.
+        func key(_ equivalent: String) -> String { forDock ? "" : equivalent }
+
+        if forDock, placement.drawsSpeedsOnDock {
+            let item = NSMenuItem(title: model.menuBarSpoken, action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            menu.addItem(item)
+            menu.addItem(.separator())
+        }
 
         if SpeedTestRunner.isAvailable {
             let running = model.speedTest.phase.isRunning
@@ -675,15 +725,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
         // In the sidebar's order (#436).
         menu.addItem(withTitle: L("Usage History…"),
-                     action: #selector(showHistory), keyEquivalent: "y")
+                     action: #selector(showHistory), keyEquivalent: key("y"))
         menu.addItem(withTitle: L("Connections…"),
-                     action: #selector(showConnections), keyEquivalent: "k")
+                     action: #selector(showConnections), keyEquivalent: key("k"))
         menu.addItem(withTitle: L("Ads and Trackers…"),
-                     action: #selector(showAds), keyEquivalent: "b")
+                     action: #selector(showAds), keyEquivalent: key("b"))
         menu.addItem(withTitle: L("Network…"),
                      action: #selector(showNetwork), keyEquivalent: "")
         menu.addItem(withTitle: L("Settings…"),
-                     action: #selector(showSettings), keyEquivalent: ",")
+                     action: #selector(showSettings), keyEquivalent: key(","))
         menu.addItem(withTitle: L("About NetworkMonitor"),
                      action: #selector(showAbout), keyEquivalent: "")
         if model.updates.isAvailable {
@@ -694,17 +744,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         menu.addItem(.separator())
         menu.addItem(withTitle: L("Uninstall NetworkMonitor…"),
                      action: #selector(uninstall), keyEquivalent: "")
-        menu.addItem(withTitle: L("Quit"),
-                     action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-
         for item in menu.items where item.action != nil { item.target = self }
-        // Quit stays wired to NSApp rather than to us.
-        menu.items.last?.target = NSApp
-
-        statusItem.menu = menu
-        statusItem.button?.performClick(nil)
-        // Detach immediately so the next left-click opens the popover, not the menu.
-        statusItem.menu = nil
+        if !forDock {
+            // Wired to NSApp rather than to us.
+            menu.addItem(withTitle: L("Quit"),
+                         action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q").target = NSApp
+        }
+        return menu
     }
 
     /// From the right-click menu. The popover stays shut unless the test needs
@@ -717,6 +763,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private func showUpdatesGently() {
         model.updates.onWillShowUpdate = { [weak self] userInitiated in
             guard let self else { return }
+            self.showingUpdate = true
             NSApp.mainMenu = self.mainMenu
             NSApp.setActivationPolicy(.regular)
             if !userInitiated { NSApp.dockTile.badgeLabel = "1" }
@@ -724,9 +771,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         model.updates.onUpdateAttended = { NSApp.dockTile.badgeLabel = nil }
         model.updates.onUpdateSessionEnded = { [weak self] in
             NSApp.dockTile.badgeLabel = nil
-            guard let self, self.openWindows.isEmpty else { return }
-            NSApp.setActivationPolicy(.accessory)
-            NSApp.mainMenu = nil
+            self?.showingUpdate = false
+            self?.settleActivationPolicy()
         }
     }
 
@@ -748,9 +794,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             return
         }
         speedTest.run()
-        if case .confirming = speedTest.phase, !popover.isShown {
-            togglePopover()
-        }
+        guard case .confirming = speedTest.phase, !popover.isShown else { return }
+        // In Dock mode the question is asked where the test also is, on
+        // Network's page (#69).
+        if placement.showsMenuBar { togglePopover() } else { showNetwork() }
     }
 
     // MARK: Uninstall
@@ -894,11 +941,88 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow else { return }
         if closing === mainController?.window { mainController?.windowWillClose() }
-        // Still a regular app while another window is open.
-        let stillOpen = ourWindows.contains { $0 !== closing && $0.isVisible }
-        guard !stillOpen else { return }
-        NSApp.setActivationPolicy(.accessory)
-        NSApp.mainMenu = nil
+        settleActivationPolicy(closing: closing)
+    }
+
+    /// A regular app, with a Dock icon and a menu bar of its own, while one of
+    /// its windows or Sparkle's is open, or all the time in Dock and Both
+    /// modes (#69); otherwise back to living in the menu bar. `closing` is a
+    /// window about to close, still visible.
+    private func settleActivationPolicy(closing: NSWindow? = nil) {
+        let windowOpen = ourWindows.contains { $0 !== closing && $0.isVisible }
+        if placement.showsDock || windowOpen || showingUpdate {
+            NSApp.mainMenu = mainMenu
+            NSApp.setActivationPolicy(.regular)
+        } else {
+            NSApp.setActivationPolicy(.accessory)
+            NSApp.mainMenu = nil
+        }
+    }
+
+    // MARK: Menu bar, Dock or both (#69)
+
+    /// Switching in Settings takes effect at once, without a relaunch.
+    private func observePlacement() {
+        // `@Published` sends before the property changes, so the new value
+        // is taken from what's sent.
+        placementObserver = AppPlacementSetting.shared.$placement
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] placement in self?.apply(placement) }
+    }
+
+    /// The status item shows or hides, rather than being removed, so it comes
+    /// back where it was in the menu bar.
+    private func apply(_ placement: AppPlacement) {
+        self.placement = placement
+        if !placement.showsMenuBar, popover.isShown { closePopover() }
+        statusItem.isVisible = placement.showsMenuBar
+        applyTitle()
+        settleActivationPolicy()
+
+        let tile = NSApp.dockTile
+        if placement.drawsSpeedsOnDock {
+            if dockSpeedView == nil {
+                let view = DockSpeedView(frame: NSRect(origin: .zero, size: tile.size))
+                tile.contentView = view
+                dockSpeedView = view
+            }
+            dockDrawnAt = 0
+            drawDockReadout()
+        } else if dockSpeedView != nil {
+            tile.contentView = nil
+            dockSpeedView = nil
+            tile.display()
+        }
+    }
+
+    /// The fewest seconds between two Dock icon redraws. Each is drawn by the
+    /// Dock, in another process, so it's held to once a second even when the
+    /// menu bar's readout updates twice a second (plugged in).
+    private static let dockRedrawInterval: TimeInterval = 1
+
+    /// The live speeds on the Dock icon, in Dock mode: on the menu bar
+    /// readout's own signal, so never more often than it, and only when the
+    /// figures changed. While nobody can see the screen there's no signal, so
+    /// nothing is drawn (`MonitorViewModel.setAttention`).
+    private func drawDockReadout() {
+        guard let view = dockSpeedView else { return }
+        let readout = model.readout
+        guard readout != view.readout else { return }
+        let wait = dockDrawnAt + Self.dockRedrawInterval - ProcessInfo.processInfo.systemUptime
+        guard wait <= 0 else {
+            // The latest figures, a moment later.
+            guard !dockDrawPending else { return }
+            dockDrawPending = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in
+                self?.dockDrawPending = false
+                self?.drawDockReadout()
+            }
+            return
+        }
+        dockDrawnAt = ProcessInfo.processInfo.systemUptime
+        view.readout = readout
+        NSApp.dockTile.display()
     }
 
     /// The menu bar NetworkMonitor shows while one of its windows is open, and

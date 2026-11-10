@@ -21,7 +21,7 @@ NetworkMonitor 使用 Kevin Abou Hanna 的 Apple <strong>Developer ID</strong>�
 brew install --cask kevinabouhanna/tap/networkmonitor
 ```
 
-菜单栏中会出现 ↓ ↑ 读数。在你打开它的窗口之前，NetworkMonitor 没有程序坞图标；一切都从这个读数开始。它会把自己设为登录时启动，你可以在 <strong>设置</strong> 中关闭。
+菜单栏中会出现 ↓ ↑ 读数。在你打开它的窗口之前，NetworkMonitor 没有程序坞图标；一切都从这个读数开始。如果想让它改为显示在程序坞中，或两者都显示，可以在 <strong>设置 › NetworkMonitor 显示在</strong> 中选择。它会把自己设为登录时启动，你可以在 <strong>设置</strong> 中关闭。
 
 第一次打开时，欢迎窗口会提供两个选项，都不是必需的（#134）：
 

@@ -27,6 +27,8 @@ struct GeneralSettingsPane: View {
     @ObservedObject var wifiNames: WiFiNames
     @ObservedObject var state: SettingsPaneState
     @ObservedObject var updates: UpdateController
+    /// Menu bar, Dock or both (#69).
+    @ObservedObject var placement: AppPlacementSetting
     /// Opens a section's settings in the main window (#436).
     let onOpenSection: (MainSection) -> Void
     /// Uninstall…, which the old About pane had.
@@ -40,6 +42,7 @@ struct GeneralSettingsPane: View {
         self.wifiNames = model.wifiNames
         self.state = state
         self.updates = model.updates
+        self.placement = AppPlacementSetting.shared
         self.onOpenSection = onOpenSection
         self.onUninstall = onUninstall
     }
@@ -60,6 +63,19 @@ struct GeneralSettingsPane: View {
                         .labelsHidden()
                         .onChange(of: state.launchAtLogin) { enabled in apply(enabled) }
                 }
+                // Where the app shows (#69): one control with three choices,
+                // never neither. Takes effect at once.
+                ExplainedRow(L("Show NetworkMonitor in"),
+                             L("Menu bar: the live speeds in the menu bar, and a Dock icon only while a window is open. Dock: nothing in the menu bar; the speeds are drawn on the Dock icon, and its menu has what the menu bar item's menu has. Both: the menu bar item, and a Dock icon all the time.")) {
+                    Picker(L("Show NetworkMonitor in"), selection: $placement.placement) {
+                        ForEach(AppPlacement.allCases) { place in
+                            Text(place.label).tag(place)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                }
             }
 
             // One choice for every speed, so the menu bar and the speed test never
@@ -69,7 +85,7 @@ struct GeneralSettingsPane: View {
                 // like every other control here. A segmented Picker sized to fit
                 // keeps its label, and stopped short of the edge (#51).
                 ExplainedRow(L("Show speeds in"),
-                             L("In the menu bar and the speed test. Data you've used is always counted in MB and GB, the way data plans are sold.")) {
+                             L("In the menu bar or on the Dock icon, and in the speed test. Data you've used is always counted in MB and GB, the way data plans are sold.")) {
                     Picker(L("Show speeds in"), selection: $speedTest.unit) {
                         ForEach(SpeedUnit.allCases) { unit in
                             Text(unit.label).tag(unit)
