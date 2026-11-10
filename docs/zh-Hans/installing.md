@@ -15,6 +15,12 @@ NetworkMonitor 使用 Kevin Abou Hanna 的 Apple <strong>Developer ID</strong>�
 1. [下载 NetworkMonitor.dmg](https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg)，打开它，然后将 <strong>NetworkMonitor</strong> 拖到 <strong>应用程序</strong> 文件夹中。
 2. 从“应用程序”文件夹中打开 NetworkMonitor。
 
+也可以用 [Homebrew](https://brew.sh) 从 NetworkMonitor 自己的 [tap](https://github.com/kevinabouhanna/homebrew-tap) 安装：
+
+```sh
+brew install --cask kevinabouhanna/tap/networkmonitor
+```
+
 菜单栏中会出现 ↓ ↑ 读数。在你打开它的窗口之前，NetworkMonitor 没有程序坞图标；一切都从这个读数开始。它会把自己设为登录时启动，你可以在 <strong>设置</strong> 中关闭。
 
 第一次打开时，欢迎窗口会提供两个选项，都不是必需的（#134）：
@@ -40,6 +46,8 @@ NetworkMonitor 使用 Kevin Abou Hanna 的 Apple <strong>Developer ID</strong>�
 
 如果你使用[热点模式](hotspot-mode.md)，它的辅助程序会随新版本一起更新，不会询问任何问题。如果你之前使用的版本中辅助程序要求输入密码，NetworkMonitor 会提示一次新的辅助程序：在“系统设置”中打开它后，旧辅助程序的 sudoers 规则就会被移除。
 
+用 Homebrew 安装的版本也会这样自己更新；除非你加上 `--greedy`，`brew upgrade` 不会更新它。每个新版本发布后一天之内，cask 就会跟上。
+
 如果从源代码检出构建，`make update` 会拉取代码、运行测试、重新构建并重新安装。测试会先运行，所以有问题的拉取不会替换掉正常工作的版本。
 
 ## 卸载
@@ -53,6 +61,8 @@ NetworkMonitor 使用 Kevin Abou Hanna 的 Apple <strong>Developer ID</strong>�
 5. 将应用移到废纸篓。
 
 <strong>直接把应用拖到废纸篓是不一样的。</strong>辅助程序会在一小时内发现应用已经不在了，然后恢复它所做的更改（系统更新设置、受管理的策略、低数据模式），并移除自己。但那些不需要密码就能更改的更新设置会一直保持关闭，因为记录如何撤销这些更改的是应用本身，而它已经不在运行，没有东西能读取这些记录。如果你已经把它拖到了废纸篓，请把它拖回来，打开它，再从菜单中卸载。
+
+如果你是用 Homebrew 安装的，请先从菜单中卸载，再运行 `brew uninstall --cask networkmonitor`，它只会移除剩下的部分。
 
 如果从源代码检出构建，`Scripts/uninstall.sh` 会做同样的事。
 
