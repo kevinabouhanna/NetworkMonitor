@@ -17,7 +17,7 @@ AXWindow (AXStandardWindow) title="连接设置" 1300x800
           AXHeading description="阻止" 28x16
           AXGroup h120
             AXStaticText value="允许应用连接" h16
-            AXRadioGroup description="允许应用连接" 424x24
+            AXRadioGroup description="允许应用连接" 420x24
               AXRadioButton (AXSegment) description="任何地方" 140x24
               AXRadioButton (AXSegment) description="询问我" 140x24
               AXRadioButton (AXSegment) description="仅允许已授权的连接" 140x24
@@ -27,7 +27,7 @@ AXWindow (AXStandardWindow) title="连接设置" 1300x800
             AXButton description="导入…" 60x24
           AXStaticText value="除了你阻止的内容，一切都可以连接。规则从应用的下一次连接开始生效：已建立的连接会持续到关闭为止。" h16
           AXHeading description="域名查询" 52x16
-          AXGroup h80
+          AXGroup h76
             AXStaticText value="加密域名查询" h16
             AXCheckBox (AXToggle) description="加密域名查询" help="应用连接到某个网站之前，你的 Mac 会先查询它的域名。这些域名查询通常不加密，因此你的互联网服务提供商以及同一 Wi-Fi 上的任何人都能看到每个域名。开启后，NetworkMonitor 会通过 DNS over HTTPS 将每次域名查询加密发送到你选择的解析服务器，并原样返回结果。只有你的网络才知道的名称（例如路由器的名称）仍会发送到你的网络。如果解析服务器没有响应，域名查询会像以前一样发送到你的网络，因此域名仍能正常解析。自行加密域名查询的应用（例如开启了安全 DNS 的 Chrome）不受影响。" 36x16
             AXStaticText value="发送到" h16

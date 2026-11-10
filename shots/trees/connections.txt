@@ -42,7 +42,7 @@ AXWindow (AXStandardWindow) title="Connections" 1300
     AXButton description="Sidebar" help="Hide Sidebar" 44x52
     AXGroup help="The list, both side by side, or the map" h52
       AXRadioGroup description="View" 116x40
-        AXRadioButton (AXSegment) description="List" help="List" 40x36
+        AXRadioButton (AXSegment) description="List" help="List" 36x36
         AXRadioButton (AXSegment) description="Both" help="Both" 40x36
         AXRadioButton (AXSegment) description="Map" help="Map" 40x36
     AXGroup help="A day, week, month or year at a time" h52
@@ -55,7 +55,7 @@ AXWindow (AXStandardWindow) title="Connections" 1300
       AXGroup description="Go" h40
         AXButton (AXSegment) description="Previous" help="Previous (⌘←)" 36x36
         AXButton (AXSegment) description="Today" help="Back to the present" 60x36
-        AXButton (AXSegment) description="Next" help="Next (⌘→)" 40x36
+        AXButton (AXSegment) description="Next" help="Next (⌘→)" 36x36
     AXGroup help="Search companies, apps, countries and addresses (⌘F)" h52
       AXButton (AXSearchField) description="Search" 40x40
     AXButton description="Settings" help="Settings for Connections" 40x52

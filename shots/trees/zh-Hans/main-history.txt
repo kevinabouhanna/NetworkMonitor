@@ -39,7 +39,7 @@ AXWindow (AXStandardWindow) title="流量历史" 1300
       AXGroup description="前往" h40
         AXButton (AXSegment) description="上一个" help="上一个（⌘←）" 36x36
         AXButton (AXSegment) description="今天" help="回到当前" 48x36
-        AXButton (AXSegment) description="下一个" help="下一个（⌘→）" 40x36
+        AXButton (AXSegment) description="下一个" help="下一个（⌘→）" 36x36
     AXGroup help="搜索应用和网络（⌘F）" h52
       AXButton (AXSearchField) description="搜索" 40x40
     AXButton description="设置" help="流量历史的设置" 40x52

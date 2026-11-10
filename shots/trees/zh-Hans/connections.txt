@@ -20,9 +20,9 @@ AXWindow (AXStandardWindow) title="连接" 1300
         AXRadioButton (AXTabButton) description="已阻止" 12x24
       AXStaticText value="网络" h16
       AXTabGroup 308x24
-        AXRadioButton (AXTabButton) description="全部" 100x24
+        AXRadioButton (AXTabButton) description="全部" 96x24
         AXRadioButton (AXTabButton) description="Wi-Fi" 96x24
-        AXRadioButton (AXTabButton) description="热点" 100x24
+        AXRadioButton (AXTabButton) description="热点" 96x24
       AXStaticText value="今天" h24
       AXStaticText value="# ‹unit›" h16
       AXStaticText value="与服务器往来" h16
@@ -42,7 +42,7 @@ AXWindow (AXStandardWindow) title="连接" 1300
     AXButton description="边栏" help="隐藏边栏" 44x52
     AXGroup help="列表、两者并排，或地图" h52
       AXRadioGroup description="视图" 116x40
-        AXRadioButton (AXSegment) description="列表" help="列表" 40x36
+        AXRadioButton (AXSegment) description="列表" help="列表" 36x36
         AXRadioButton (AXSegment) description="两者" help="两者" 40x36
         AXRadioButton (AXSegment) description="地图" help="地图" 40x36
     AXGroup help="每次显示一天、一周、一个月或一年" h52
@@ -55,7 +55,7 @@ AXWindow (AXStandardWindow) title="连接" 1300
       AXGroup description="前往" h40
         AXButton (AXSegment) description="上一个" help="上一个（⌘←）" 36x36
         AXButton (AXSegment) description="今天" help="回到当前" 48x36
-        AXButton (AXSegment) description="下一个" help="下一个（⌘→）" 40x36
+        AXButton (AXSegment) description="下一个" help="下一个（⌘→）" 36x36
     AXGroup help="搜索公司、应用、国家或地区和地址（⌘F）" h52
       AXButton (AXSearchField) description="搜索" 40x40
     AXButton description="设置" help="“连接”的设置" 40x52

@@ -35,7 +35,7 @@ AXWindow (AXStandardWindow) title="广告与跟踪器" 1300
       AXGroup description="前往" h40
         AXButton (AXSegment) description="上一个" help="上一个" 36x36
         AXButton (AXSegment) description="今天" help="回到当前" 48x36
-        AXButton (AXSegment) description="下一个" help="下一个" 40x36
+        AXButton (AXSegment) description="下一个" help="下一个" 36x36
     AXGroup help="搜索网站和应用（⌘F）" h52
       AXButton (AXSearchField) description="搜索" 40x40
     AXButton description="设置" help="广告与跟踪器的设置：列表和你的规则" 40x52

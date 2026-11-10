@@ -14,7 +14,7 @@ AXWindow (AXStandardWindow) title="流量历史设置" 1300x800
           AXGroup h52
             AXStaticText value="今天已用 # ‹unit›、每小时的数据都按应用和网络保存在这台 Mac 上" h32
             AXButton description="打开流量历史…" help="也可按 ⌘Y" 112x24
-          AXGroup h84
+          AXGroup h80
             AXStaticText value="历史记录保留" h16
             AXPopUpButton description="历史记录保留" 72x24
             AXStaticText value="清除历史记录" h16

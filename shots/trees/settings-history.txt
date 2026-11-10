@@ -14,7 +14,7 @@ AXWindow (AXStandardWindow) title="Usage History Settings" 1300x800
           AXGroup h52
             AXStaticText value="# ‹unit› used today, Every hour is kept on this Mac, per app and per network" h32
             AXButton description="Open Usage History…" help="Also ⌘Y" 156x24
-          AXGroup h84
+          AXGroup h80
             AXStaticText value="Keep history for" h16
             AXPopUpButton description="Keep history for" 92x24
             AXStaticText value="Clear History" h16
