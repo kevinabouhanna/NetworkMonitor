@@ -19,6 +19,12 @@ enum AppPalette {
     static let blocked = dynamic(light: 0xD3302C, dark: 0xFF6B66)
     static let hotspot = dynamic(light: 0xD9570F, dark: 0xFF9A3D)
 
+    /// Blocked, mixed into the window's background: Ads and Trackers' bars
+    /// that step back while another is read, and a bar's part that isn't the
+    /// row chosen (#536). Mixed rather than translucent, as Usage History's,
+    /// since a bar's top is drawn as two overlapping marks.
+    static func blockedFaded(_ fade: CGFloat) -> Color { dynamic(light: 0xD3302C, dark: 0xFF6B66, fade: fade) }
+
     /// The same colours for AppKit.
     static func ns(_ color: Color) -> NSColor { NSColor(color) }
 

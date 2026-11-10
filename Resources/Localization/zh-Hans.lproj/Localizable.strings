@@ -71,6 +71,13 @@
 "Once a week, NetworkMonitor downloads the lists from GitHub, the same signed file for everyone, never on a hotspot." = "NetworkMonitor 每周从 GitHub 下载一次列表，每个人下载的都是同一个已签名的文件，在热点上从不下载。";
 
 /* AdsView.swift */
+"Show Everything Again" = "重新显示全部";
+"%@ in %@" = "%2$@ 中的 %1$@";
+"Last blocked %@" = "最近一次拦截：%@";
+"Blocked by hour" = "每小时拦截次数";
+"Blocked by day" = "每日拦截次数";
+"Blocked by month" = "每月拦截次数";
+"%@ of them %@" = "其中 %2$@ %1$@ 次";
 "View" = "视图";
 "Sites" = "网站";
 "Never Block %@" = "永不阻止 %@";

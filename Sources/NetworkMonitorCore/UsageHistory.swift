@@ -1,3 +1,4 @@
+import FirewallPolicy
 import Foundation
 
 // MARK: - Model
@@ -277,13 +278,17 @@ public struct ListBlock: Equatable {
     /// ones, such as `ads`.
     public let list: String
     public let count: Int64
+    /// The last hour in the span it was blocked (#536), for "last blocked at
+    /// 3 PM" under a site's apps and an app's sites.
+    public let last: Date?
 
-    public init(appKey: String, appName: String, name: String, list: String, count: Int64) {
+    public init(appKey: String, appName: String, name: String, list: String, count: Int64, last: Date? = nil) {
         self.appKey = appKey
         self.appName = appName
         self.name = name
         self.list = list
         self.count = count
+        self.last = last
     }
 }
 
@@ -926,7 +931,7 @@ public final class UsageHistory {
     private static func queryListBlocks(_ database: SQLiteDatabase, from start: Date, to end: Date) -> [ListBlock] {
         do {
             let query = try database.prepare("""
-                SELECT b.app_key, p.name, b.name, b.list, SUM(b.count)
+                SELECT b.app_key, p.name, b.name, b.list, SUM(b.count), MAX(b.hour)
                 FROM list_blocks b
                 LEFT JOIN apps p ON p.key = b.app_key
                 WHERE b.hour >= ?1 AND b.hour < ?2
@@ -939,7 +944,8 @@ public final class UsageHistory {
                 let key = query.string(0) ?? ""
                 rows.append(ListBlock(appKey: key, appName: query.string(1) ?? (key as NSString).lastPathComponent,
                                       name: query.string(2) ?? "", list: query.string(3) ?? "",
-                                      count: query.int64(4)))
+                                      count: query.int64(4),
+                                      last: Date(timeIntervalSince1970: TimeInterval(query.int64(5)))))
             }
             return rows
         } catch {
@@ -955,20 +961,43 @@ public final class UsageHistory {
 
     /// What the lists blocked, hour by hour, for the Ads window's chart (#251).
     /// Hours with none are left out.
-    public func listBlockHours(from start: Date, to end: Date) -> [(hour: Date, count: Int64)] {
+    ///
+    /// Narrowed to one app, one site, or one site in one app (#536): a row
+    /// chosen in the window's list shows its share of each bar. A site is the
+    /// name and every name under it whose site it is, as the list groups them.
+    public func listBlockHours(from start: Date, to end: Date, appKey: String? = nil,
+                               site: String? = nil) -> [(hour: Date, count: Int64)] {
         guard let database else { return [] }
         flush()
         return queue.sync {
             do {
+                var conditions = ["hour >= ?1", "hour < ?2"]
+                var values: [SQLiteStatement.Value] = [.int(Int64(start.timeIntervalSince1970)),
+                                             .int(Int64(end.timeIntervalSince1970))]
+                if let appKey {
+                    values.append(.text(appKey))
+                    conditions.append("app_key = ?\(values.count)")
+                }
+                if let site {
+                    // The names that could be under it; SiteName decides below.
+                    values.append(.text(site))
+                    conditions.append("(name = ?\(values.count) OR name LIKE '%.' || ?\(values.count))")
+                }
                 let query = try database.prepare("""
-                    SELECT hour, SUM(count) FROM list_blocks
-                    WHERE hour >= ?1 AND hour < ?2
-                    GROUP BY hour ORDER BY hour
+                    SELECT hour, name, SUM(count) FROM list_blocks
+                    WHERE \(conditions.joined(separator: " AND "))
+                    GROUP BY hour, name ORDER BY hour
                     """)
-                query.bind([.int(Int64(start.timeIntervalSince1970)), .int(Int64(end.timeIntervalSince1970))])
+                query.bind(values)
                 var hours: [(hour: Date, count: Int64)] = []
                 while try query.step() {
-                    hours.append((Date(timeIntervalSince1970: TimeInterval(query.int64(0))), query.int64(1)))
+                    if let site, SiteName.site(of: query.string(1) ?? "") != site { continue }
+                    let hour = Date(timeIntervalSince1970: TimeInterval(query.int64(0)))
+                    if hours.last?.hour == hour {
+                        hours[hours.count - 1].count += query.int64(2)
+                    } else {
+                        hours.append((hour, query.int64(2)))
+                    }
                 }
                 return hours
             } catch {

@@ -17,17 +17,45 @@ public struct AdsItem: Equatable, Identifiable {
     public let lists: [String]
     /// An app's bundle, for its icon.
     public let bundlePath: String?
+    /// What its chevron opens (#536): under a site, the apps that tried to
+    /// reach it; under an app, the sites it tried. Most first.
+    public let children: [AdsItem]
+    /// The last hour it was blocked in the period.
+    public let last: Date?
 
     /// Blocked only by malware lists, which *never block* doesn't change (#317).
     public var onlyThreats: Bool { !lists.isEmpty && lists.allSatisfy(ListCatalogue.isThreat) }
 
-    public init(id: String, title: String, detail: String?, count: Int64, lists: [String], bundlePath: String? = nil) {
+    public init(id: String, title: String, detail: String?, count: Int64, lists: [String], bundlePath: String? = nil,
+                children: [AdsItem] = [], last: Date? = nil) {
         self.id = id
         self.title = title
         self.detail = detail
         self.count = count
         self.lists = lists
         self.bundlePath = bundlePath
+        self.children = children
+        self.last = last
+    }
+}
+
+/// The chart's gridlines: from zero to just past the busiest bar, in round
+/// steps of whole connections (#536), as `HistoryAxis` has them in bytes.
+public enum AdsAxis {
+    public static func ticks(forMaximum maximum: Int64, approximateCount: Int = 3) -> [Int64] {
+        guard maximum > 0 else { return [0, 1] }
+        let rough = Double(maximum) / Double(max(approximateCount, 1))
+        let magnitude = pow(10, floor(log10(rough)))
+        // 2.5 only where it's still a whole number.
+        let steps = magnitude >= 10 ? [1, 2, 2.5, 5, 10] : [1.0, 2, 5, 10]
+        let step = max(1, steps.map { $0 * magnitude }.first { $0 >= rough } ?? 10 * magnitude)
+        var ticks: [Int64] = [0]
+        var value = 0.0
+        while value < Double(maximum) {
+            value += step
+            ticks.append(Int64(value.rounded()))
+        }
+        return ticks
     }
 }
 
@@ -50,26 +78,44 @@ public struct AdsReport: Equatable {
         lists = byList.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
             .map { ($0.key, $0.value) }
 
-        // Sites, by the part of the name a person would call the site.
-        var sites: [String: (count: Int64, names: [String: Int64], lists: Set<String>)] = [:]
-        var apps: [String: (name: String, count: Int64, sites: [String: Int64], lists: Set<String>)] = [:]
+        // Sites, by the part of the name a person would call the site, and
+        // apps; each with what's under it, for its chevron (#536).
+        struct Tally {
+            var title: String
+            var count: Int64 = 0
+            var lists: Set<String> = []
+            var last: Date?
+            mutating func add(_ block: ListBlock) {
+                count += block.count
+                lists.insert(block.list)
+                if let hour = block.last { last = max(last ?? hour, hour) }
+            }
+        }
+        var sites: [String: (tally: Tally, names: [String: Int64], apps: [String: Tally])] = [:]
+        var apps: [String: (tally: Tally, sites: [String: Tally])] = [:]
         for block in blocks {
             let site = SiteName.site(of: block.name)
-            sites[site, default: (0, [:], [])].count += block.count
+            sites[site, default: (Tally(title: site), [:], [:])].tally.add(block)
             sites[site]?.names[block.name, default: 0] += block.count
-            sites[site]?.lists.insert(block.list)
-            apps[block.appKey, default: (block.appName, 0, [:], [])].count += block.count
-            apps[block.appKey]?.sites[site, default: 0] += block.count
-            apps[block.appKey]?.lists.insert(block.list)
+            sites[site]?.apps[block.appKey, default: Tally(title: block.appName)].add(block)
+            apps[block.appKey, default: (Tally(title: block.appName), [:])].tally.add(block)
+            apps[block.appKey]?.sites[site, default: Tally(title: site)].add(block)
+        }
+        func item(_ id: String, _ tally: Tally, detail: String? = nil, bundlePath: String? = nil,
+                  children: [AdsItem] = []) -> AdsItem {
+            AdsItem(id: id, title: tally.title, detail: detail, count: tally.count, lists: tally.lists.sorted(),
+                    bundlePath: bundlePath, children: children, last: tally.last)
         }
         self.sites = sites.map { site, entry in
             let names = Self.busiest(entry.names).filter { $0 != site }
-            return AdsItem(id: site, title: site, detail: Self.listed(names), count: entry.count,
-                           lists: entry.lists.sorted())
+            return item(site, entry.tally, detail: Self.listed(names),
+                        children: entry.apps.map { item($0.key, $0.value, bundlePath: bundlePath($0.key)) }
+                            .sorted(by: Self.order))
         }.sorted(by: Self.order)
         self.apps = apps.map { key, entry in
-            AdsItem(id: key, title: entry.name, detail: Self.listed(Self.busiest(entry.sites)), count: entry.count,
-                    lists: entry.lists.sorted(), bundlePath: bundlePath(key))
+            item(key, entry.tally, detail: Self.listed(Self.busiest(entry.sites.mapValues(\.count))),
+                 bundlePath: bundlePath(key),
+                 children: entry.sites.map { item($0.key, $0.value) }.sorted(by: Self.order))
         }.sorted(by: Self.order)
     }
 
@@ -185,7 +231,10 @@ public final class AdsViewModel: ObservableObject {
     }
     /// Overview's list: the sites blocked, or the apps that tried to reach
     /// them (#524), as the popover groups them.
-    @Published public var grouping: PopoverAdsGrouping = .sites
+    @Published public var grouping: PopoverAdsGrouping = .sites {
+        // A chosen row belongs to its list (#536).
+        didSet { if grouping != oldValue { clearSelection() } }
+    }
     public static let layoutKey = "adsLayout"
     @Published public var setupTab: SetupTab = .lists
     @Published public var logShow: AdsLog.Show = .all
@@ -427,9 +476,16 @@ public final class AdsViewModel: ObservableObject {
 
     /// Your rules about a log row's site or app.
     public func adRules(for entry: AdsLogEntry) -> [AdRule] {
-        let domains = Set(entry.name.map(SiteName.domains(of:)) ?? [])
+        adRules(site: entry.name, appKey: entry.appKey)
+    }
+
+    /// Your rules about a name or a site, in every app or `appKey`'s, and
+    /// about that app; or, with no site, the app's own (#536).
+    public func adRules(site: String?, appKey: String?) -> [AdRule] {
+        guard let site else { return adRules.filter { $0.appKey != nil && $0.appKey == appKey } }
+        let domains = Set(SiteName.domains(of: site))
         return adRules.filter { rule in
-            (rule.appKey == nil || rule.appKey == entry.appKey)
+            (rule.appKey == nil || rule.appKey == appKey)
                 && (rule.site.map(domains.contains) ?? (rule.appKey != nil))
         }
     }
@@ -561,7 +617,14 @@ public final class AdsViewModel: ObservableObject {
 
     /// `reset` false: the section shown again in the open window (#436).
     public func windowDidOpen(reset: Bool = true) {
-        if reset { period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar) }
+        if reset {
+            period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar)
+            spanStart = nil
+            selection = nil
+            selectedCounts = [:]
+            expanded.removeAll()
+            showingAll.removeAll()
+        }
         reload()
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
@@ -603,17 +666,141 @@ public final class AdsViewModel: ObservableObject {
 
     private func show(_ period: HistoryPeriod) {
         self.period = period
+        spanStart = nil
+        hoveredBin = nil
         reload()
     }
 
     public func reload() {
         guard let history = monitor.store.history else { return }
-        let blocks = history.listBlocks(from: period.start, to: period.end)
-        report = AdsReport(blocks) { key in AppIdentityResolver.identity(forKey: key).bundlePath }
         bins = Self.chart(for: period, hours: history.listBlockHours(from: period.start, to: period.end),
                           calendar: calendar)
+        let shown = spanInterval ?? DateInterval(start: period.start, end: period.end)
+        let blocks = history.listBlocks(from: shown.start, to: shown.end)
+        report = AdsReport(blocks) { key in AppIdentityResolver.identity(forKey: key).bundlePath }
         recordingSince = history.listBlocksSince()
+        reloadSelection()
         reloadToday()
+    }
+
+    // MARK: The chart and the list (#536)
+
+    /// A row chosen in the list: a site or an app, or one inside the other.
+    /// The chart shows its share of each bar, as Usage History's chart shows
+    /// the app chosen there.
+    public struct Selection: Equatable {
+        public let grouping: PopoverAdsGrouping
+        /// The row: a site, or an app's key.
+        public let parent: String
+        /// A row inside it: an app's key under a site, or a site under an app.
+        public let child: String?
+        /// What it's called, for its chip and the chart's tooltip: "Safari",
+        /// or "doubleclick.net in Safari".
+        public let title: String
+
+        public init(grouping: PopoverAdsGrouping, parent: String, child: String? = nil, title: String) {
+            self.grouping = grouping
+            self.parent = parent
+            self.child = child
+            self.title = title
+        }
+
+        public var site: String? { grouping == .sites ? parent : child }
+        public var appKey: String? { grouping == .apps ? parent : child }
+        /// The row's id in the list, as `rowID` makes it.
+        public var rowID: String { AdsViewModel.rowID(parent, child) }
+    }
+
+    /// A list row's id: a site or an app, or one inside it.
+    public static func rowID(_ parent: String, _ child: String? = nil) -> String {
+        child.map { parent + "\u{1}" + $0 } ?? parent
+    }
+
+    /// The bar under the pointer, for its tooltip, as in Usage History.
+    @Published public var hoveredBin: Date?
+    /// The bar clicked, as in Connections: the list and the total are that
+    /// hour's, day's or month's. nil for the whole period.
+    @Published public private(set) var spanStart: Date?
+    @Published public private(set) var selection: Selection?
+    /// The chosen row's blocks in each bar, by the bar's start.
+    @Published public private(set) var selectedCounts: [Date: Int64] = [:]
+    /// Rows open, by `grouping` and row id, so Sites and Apps keep their own.
+    @Published public var expanded: Set<String> = []
+    /// Rows whose whole inside is shown, past the first few.
+    @Published public var showingAll: Set<String> = []
+    /// How many of a row's inside show before "Show all", as in Connections.
+    public static let preview = ConnectionsViewModel.sectionPreview
+
+    public func hover(_ binStart: Date?) {
+        if hoveredBin != binStart { hoveredBin = binStart }
+    }
+
+    /// Narrows the list to a bar, or back to the period when it's the bar
+    /// already picked.
+    public func pick(binStarting start: Date) {
+        spanStart = spanStart == start ? nil : start
+        reload()
+    }
+
+    public func clearSpan() {
+        guard spanStart != nil else { return }
+        spanStart = nil
+        reload()
+    }
+
+    /// The bar picked, while it's one of the period's.
+    public var spanInterval: DateInterval? {
+        guard let spanStart else { return nil }
+        return bins.first { $0.interval.start == spanStart }?.interval
+    }
+
+    /// "9 – 10 AM", "Wed, Oct 21".
+    public var spanTitle: String? {
+        spanInterval.map { HistoryFormat.binTitle($0, scale: period.scale) }
+    }
+
+    /// Chooses a row, or lets go of the one chosen.
+    public func select(_ next: Selection) {
+        selection = selection == next ? nil : next
+        reloadSelection()
+    }
+
+    public func clearSelection() {
+        guard selection != nil else { return }
+        selection = nil
+        selectedCounts = [:]
+    }
+
+    /// Escape: the bar first, then the row, as each was added.
+    public func goBack() {
+        if spanStart != nil { clearSpan() } else { clearSelection() }
+    }
+
+    public var canGoBack: Bool { spanStart != nil || selection != nil }
+
+    public func expansionKey(_ id: String) -> String { grouping.rawValue + ":" + id }
+
+    public func isExpanded(_ id: String) -> Bool { expanded.contains(expansionKey(id)) }
+
+    public func setExpanded(_ id: String, _ open: Bool) {
+        let key = expansionKey(id)
+        if open { expanded.insert(key) } else { expanded.remove(key) }
+    }
+
+    public func toggleExpanded(_ id: String) { setExpanded(id, !isExpanded(id)) }
+
+    /// Everything blocked in the period, whichever bar is picked.
+    public var periodTotal: Int64 { bins.reduce(0) { $0 + $1.count } }
+
+    private func reloadSelection() {
+        guard let selection, let history = monitor.store.history else {
+            selectedCounts = [:]
+            return
+        }
+        let hours = history.listBlockHours(from: period.start, to: period.end,
+                                           appKey: selection.appKey, site: selection.site)
+        selectedCounts = Dictionary(uniqueKeysWithValues: Self.chart(for: period, hours: hours, calendar: calendar)
+            .map { ($0.interval.start, $0.count) })
     }
 
     /// What each list blocked today, for the lists in Ads and Trackers' settings.

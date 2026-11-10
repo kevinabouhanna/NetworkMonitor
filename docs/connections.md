@@ -241,12 +241,27 @@ and the toolbar's search (⌘F) covers both.
   Map (#524): the list alone, the list on the left and the chart on the right (the
   default, side by side as Connections has its list and map, #534), or the chart filling
   the window. Whichever you choose is remembered, and it's hidden on Log with the period.
-- **A chart** of blocks over the period, by hour or by day.
+- **A chart** of blocks over the period, by hour, day or month, drawn and read as Usage
+  History's (#536). Hover a bar for its time and count. Click one to narrow the list and
+  the total to that hour or day, as a timeline bar does in Connections: its chip above the
+  list, a click on the bar again, or Escape shows the whole period again.
 - **Sites or Apps**, at the end of the row under the toolbar, where Connections and Usage
   History have All, Wi-Fi or Hotspot: **Sites**, by the part of the name a person would
   call the site (`doubleclick.net`), with the names under it that were blocked; or
   **Apps**, with the sites each tried most. One at a time, each list has the window's
-  width (#524).
+  width (#524). The rows are Usage History's (#536):
+  - **Click a row** to choose it: the chart shows its share of each bar, the bar's own
+    colour under the rest, and the hovered bar's count for it. Its chip, a click on it
+    again, or Escape (after a picked bar's) lets it go.
+  - **The chevron** opens a site's apps, the apps that tried to reach it, or an app's
+    sites, each with its count and the hour it was last blocked; the first eight, then
+    **Show all**. Click one inside to see that site in that app on the chart.
+  - **Right-click** a row, as in the Log: never or always block its site, in every app or
+    only its app, stop filtering its app, remove a rule you made about it, or copy its
+    name.
+  - **The keyboard**, once a row is clicked (or the list is reached with Tab): ↑ and ↓
+    choose the row above or below, → opens a row, ← closes it or goes back up to the row
+    it's in, and Space or Return chooses the row again once it's let go.
 - **Pause:** for an hour or until tomorrow, in every app. The lists stay chosen, the filter
   is sent none until then, and the popover says it's paused. Kept across a relaunch.
   **Whenever on** *this network* (#253) turns ad blocking off on the network the Mac is on,

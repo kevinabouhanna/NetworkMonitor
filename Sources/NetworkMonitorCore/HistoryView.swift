@@ -281,7 +281,7 @@ public struct HistoryView: View {
                     .resizable().frame(width: 18, height: 18).accessibilityHidden(true)) },
                 title: L("System (%@)", String(systemRows.count)),
                 subtitle: nil,
-                bytes: report.systemTotal,
+                figure: ByteFormat.bytes(report.systemTotal),
                 fraction: fraction(report.systemTotal, of: largest),
                 kinds: systemRows.reduce(into: [:]) {
                     $0.merge($1.kinds, uniquingKeysWith: +)
@@ -310,7 +310,7 @@ public struct HistoryView: View {
                 .resizable().frame(width: 18, height: 18).accessibilityHidden(true)) },
             title: row.displayName,
             subtitle: nil,
-            bytes: row.total,
+            figure: ByteFormat.bytes(row.total),
             fraction: fraction(row.total, of: largest),
             kinds: row.kinds,
             indented: indented,
@@ -329,7 +329,7 @@ public struct HistoryView: View {
                 title: model.networkName(network.id, defaultLabel: network.defaultLabel),
                 subtitle: nil,
                 isMetered: network.isMetered,
-                bytes: network.bytes,
+                figure: ByteFormat.bytes(network.bytes),
                 fraction: fraction(network.bytes, of: largest),
                 barColor: HistoryPalette.color(for: network.kind),
                 isSelected: model.filter.networkID == network.id,
@@ -356,7 +356,7 @@ public struct HistoryView: View {
                     + HistoryFormat.duration(session.end.timeIntervalSince(session.start))
                     + (updates.isEmpty ? "" : " · " + Self.gotThrough(updates.count)),
                 isMetered: session.isMetered,
-                bytes: total.bytes,
+                figure: ByteFormat.bytes(total.bytes),
                 fraction: fraction(total.bytes, of: largest),
                 barColor: HistoryPalette.color(for: session.kind),
                 isSelected: model.filter.sessionID == session.id,
@@ -650,30 +650,57 @@ private struct HistoryTooltip: View {
     let scale: HistoryScale
     let canOpen: Bool
 
-    static func height(kinds: Int) -> CGFloat {
-        CGFloat(38 + 15 * kinds)
+    static func height(kinds: Int) -> CGFloat { ChartTooltip.height(lines: kinds) }
+
+    var body: some View {
+        ChartTooltip(title: HistoryFormat.binTitle(bin.interval, scale: scale),
+                     figure: ByteFormat.bytes(bin.total),
+                     lines: NetworkFingerprint.Kind.charted.compactMap { kind in
+                         guard let bytes = bin.byKind[kind], bytes > 0 else { return nil }
+                         return .init(color: HistoryPalette.color(for: kind), value: ByteFormat.bytes(bytes),
+                                      label: kind.historyLabel)
+                     })
+    }
+}
+
+/// A hovered bar's figures, over the chart: when, how much, then each part
+/// with its colour. Usage History's and Ads and Trackers' (#536).
+struct ChartTooltip: View {
+    struct Line: Identifiable {
+        let color: Color
+        let value: String
+        let label: String
+        var id: String { label }
+    }
+
+    let title: String
+    let figure: String
+    var lines: [Line] = []
+
+    static func height(lines: Int) -> CGFloat {
+        CGFloat(38 + 15 * lines)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(HistoryFormat.binTitle(bin.interval, scale: scale))
+            Text(title)
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
-            Text(ByteFormat.bytes(bin.total))
+            Text(figure)
                 .font(.system(size: 13, weight: .semibold))
-            ForEach(NetworkFingerprint.Kind.charted, id: \.self) { kind in
-                if let bytes = bin.byKind[kind], bytes > 0 {
-                    HStack(spacing: 5) {
-                        Capsule()
-                            .fill(HistoryPalette.color(for: kind))
-                            .frame(width: 8, height: 2)
-                        Text(ByteFormat.bytes(bytes))
-                            .monospacedDigit()
-                        Text(kind.historyLabel)
-                            .foregroundStyle(.secondary)
-                    }
-                    .font(.system(size: 10))
+            ForEach(lines) { line in
+                HStack(spacing: 5) {
+                    Capsule()
+                        .fill(line.color)
+                        .frame(width: 8, height: 2)
+                    Text(line.value)
+                        .monospacedDigit()
+                    Text(line.label)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
+                .font(.system(size: 10))
             }
         }
         .padding(.horizontal, 8)
@@ -688,13 +715,17 @@ private struct HistoryTooltip: View {
 // MARK: - Rows
 
 /// One row of any of the three lists: something on the left, a name, a bar
-/// for its share, and its figure.
-private struct HistoryListRow: View {
+/// for its share, and its figure. Ads and Trackers' Sites and Apps are made
+/// of it too (#536), so a row looks and behaves the same in both.
+struct HistoryListRow: View {
     let leading: () -> AnyView
     let title: String
     let subtitle: String?
     var isMetered = false
-    let bytes: Int64
+    /// Tags after METERED, as icons when `iconOnly` (Ads' ADS and MALWARE).
+    var tags: (_ iconOnly: Bool) -> AnyView = { _ in AnyView(EmptyView()) }
+    /// "1.2 GB", or Ads and Trackers' "1,234".
+    let figure: String
     let fraction: Double
     /// An app's bytes by network type, which split its bar into the chart's
     /// colours (#70). Empty for Networks and Sessions, which are one type each.
@@ -708,6 +739,13 @@ private struct HistoryListRow: View {
     /// nil for a row with nothing to expand; otherwise whether it is open.
     var disclosure: Bool?
     var onToggleDisclosure: () -> Void = {}
+    /// How a name too long for the row is shortened: a site's in the middle.
+    var truncation: Text.TruncationMode = .tail
+    /// The bar's usual width: Ads and Trackers' are shorter, so a site's
+    /// name and its tags have the room (#536).
+    var barMost: CGFloat = HistoryMetrics.rowBarWidth
+    /// The figure's column: bytes need 76 pt, Ads and Trackers' counts 48.
+    var figureWidth: CGFloat = 76
     let onSelect: () -> Void
 
     /// Not `@State`, which needs Xcode from the macOS 27 SDK on.
@@ -715,8 +753,9 @@ private struct HistoryListRow: View {
     @Environment(\.splitListWidth) private var listWidth
     private var barWidth: CGFloat {
         SplitMetrics.bar(listWidth: listWidth,
-                         fixed: HistoryMetrics.rowFixed + (indented ? HistoryMetrics.rowIndent : 0),
-                         most: HistoryMetrics.rowBarWidth)
+                         fixed: HistoryMetrics.rowFixed - 76 + figureWidth
+                             + (indented ? HistoryMetrics.rowIndent : 0),
+                         most: barMost)
     }
 
     var body: some View {
@@ -731,12 +770,13 @@ private struct HistoryListRow: View {
                         .foregroundStyle(indented || isMuted
                                          ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                         .lineLimit(1)
-                        .truncationMode(.tail)
+                        .truncationMode(truncation)
                 } tags: { iconOnly in
                     if isMetered {
                         RowTag(word: L("METERED"), symbol: "antenna.radiowaves.left.and.right",
                                color: .orange, iconOnly: iconOnly)
                     }
+                    tags(iconOnly)
                 }
                 if let subtitle {
                     Text(subtitle)
@@ -748,10 +788,10 @@ private struct HistoryListRow: View {
             Spacer(minLength: 12)
             bar
                 .frame(width: barWidth, alignment: .leading)
-            Text(ByteFormat.bytes(bytes))
+            Text(figure)
                 .font(.system(size: 12, weight: .medium))
                 .monospacedDigit()
-                .frame(width: 76, alignment: .trailing)
+                .frame(width: figureWidth, alignment: .trailing)
         }
         .padding(.horizontal, 8)
         .frame(height: subtitle == nil ? 30 : 38)
@@ -851,6 +891,8 @@ struct FilterChip: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .help(L("Show everything again"))
+            // What it does, not its symbol (#536).
+            .accessibilityLabel(L("Show everything again"))
         }
         .font(.system(size: 11))
         .padding(.leading, 8)
