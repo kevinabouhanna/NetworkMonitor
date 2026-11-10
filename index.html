@@ -415,6 +415,8 @@ p code, li code { background: #1d1d1f; border: 1px solid var(--hair); border-rad
 .way > p strong, .way .aside b { color: var(--text); font-weight: 600; }
 .way .get { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 24px; }
 .way .get .meta { font-size: 13px; color: var(--text-3); }
+.way .brew { margin: 16px 0 0; font-size: 13px; line-height: 1.5; color: var(--text-3); }
+.way .brew code { display: block; margin-top: 6px; padding: 10px 14px; background: #1d1d1f; border: 1px solid var(--hair); border-radius: 10px; color: var(--text); font-size: 14px; overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
 .dmg-shot { margin: 26px -14px 0; }
 .dmg-shot img { width: 100%; }
 .steps { list-style: none; counter-reset: step; margin: 22px 0 0; padding: 0; display: grid; gap: 14px; scroll-margin-top: 120px; }
@@ -951,6 +953,7 @@ footer a { color: var(--text-2); }
             <a class="btn" href="https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg" data-download>Download NetworkMonitor.dmg</a>
             <span class="meta">Version 1.28.2 · 14.5 MB · Universal</span>
           </div>
+          <p class="brew">Or with <a href="https://brew.sh">Homebrew</a>: <code>brew install --cask kevinabouhanna/tap/networkmonitor</code></p>
           <figure class="dmg-shot" style="margin-bottom:0">
             <img src="assets/dmg-window.png?v=5630c3c3" width="1424" height="1104" loading="lazy"
                  alt="The NetworkMonitor disk image open in Finder: the title Install NetworkMonitor, the line Drag it into your Applications folder, and the app icon with a green arrow pointing to the Applications folder.">
@@ -961,7 +964,7 @@ footer a { color: var(--text-2); }
             <li>The welcome window says what it can do with your OK: website names, and Wi‑Fi networks by name. Both are optional.</li>
             <li>Look for <span class="green">↓</span><span style="color:var(--light)">↑</span> in your menu bar.</li>
           </ol>
-          <p class="aside"><b>Updating:</b> from 1.15 on, NetworkMonitor offers each new version itself, and <b>Check for Updates…</b> in its menu asks at once. Coming from 1.14 or earlier, download this version and drag it over the old one, choosing <b>Replace</b>, once. Your settings and history stay. <b>Removing:</b> right-click the menu bar item and choose <b>Uninstall NetworkMonitor…</b>, which puts back every setting it changed first.</p>
+          <p class="aside"><b>Updating:</b> from 1.15 on, NetworkMonitor offers each new version itself, and <b>Check for Updates…</b> in its menu asks at once. Coming from 1.14 or earlier, download this version and drag it over the old one, choosing <b>Replace</b>, once. Your settings and history stay. <b>Removing:</b> right-click the menu bar item and choose <b>Uninstall NetworkMonitor…</b>, which puts back every setting it changed first. Installed with Homebrew? Then run <code>brew uninstall --cask networkmonitor</code>.</p>
         </article>
       </div>
 
