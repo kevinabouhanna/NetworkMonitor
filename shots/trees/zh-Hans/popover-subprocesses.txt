@@ -10,7 +10,7 @@ AXPopover 348
     AXButton description="数据，今天，# ‹unit›" help="你的应用在所有网络上使用的数据量 · 今天" h44
     AXButton description="连接，今天，#" help="连接：一个应用与一台服务器通信计为一次 · 今天" h44
     AXButton description="已拦截，今天，#" help="已拦截的广告、跟踪器和恶意网站 · 今天" h44
-    AXButton description="网络，以太网" help="这台 Mac 连接的网络，以及它是否是热点" 72x44
+    data: optional
     AXStaticText value="分组方式" h16
     AXTabGroup 80x80
       AXRadioButton (AXTabButton) description="应用" 36x80

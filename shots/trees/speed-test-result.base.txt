@@ -10,7 +10,7 @@ AXPopover 348
     AXButton description="Data, Today, # ‹unit›" help="Data your apps used, on every network · Today" h44
     AXButton description="Connections, Today, #" help="Connections: each app talking to a server counts once · Today" h44
     AXButton description="Ads blocked, Today, #" help="Ads, trackers and malware sites blocked · Today" h44
-    AXButton description="Network, Ethernet" help="What the Mac is connected to, and whether it's a hotspot" 72x44
+    data: optional
     AXStaticText value="Group by" h16
     AXTabGroup 76x80
       AXRadioButton (AXTabButton) description="Apps" 32x80
