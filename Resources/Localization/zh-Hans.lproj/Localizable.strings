@@ -645,7 +645,7 @@
 "During a speed test" = "网速测试期间";
 "A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates." = "网速测试的数值使用自己的颜色，与这些颜色区分开，因此不会被误认为是实时速度。";
 "Use Default Colors" = "使用默认颜色";
-"Menu bar colors" = "菜单栏颜色";
+"Speed colors" = "网速颜色";
 "Counting since" = "统计开始于";
 "What this connection has used, per app, all the time. The totals start over when you join a different network, and at midnight. History keeps every hour of it." = "按应用持续统计此连接用了多少流量。加入其他网络时以及每天午夜，累计值会重新开始。“历史记录”会保留每个小时的数据。";
 "Sampling" = "采样";

@@ -9,7 +9,7 @@ Everything NetworkMonitor does, and where to find it.
 Two lines, always visible: **↓ download** in green over **↑ upload** in light grey, in
 **MB/s** or **Mbps** (**Settings › Show speeds in**). Mbps matches how your line
 is sold; MB/s matches the data totals. Amounts of data are always in MB and GB, the way
-data plans are sold. Pick other colours under **Settings › Menu bar colors**.
+data plans are sold. Pick other colours under **Settings › Speed colors**.
 
 The readout keeps a **fixed width**, so nothing beside it in the menu bar jumps around as
 the numbers change. It updates up to twice a second, less often on battery and in Low Power
@@ -170,7 +170,7 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 - **Show NetworkMonitor in** the Menu bar, the Dock or Both
 - **Show speeds in** MB/s or Mbps
 - **Wi-Fi names**, until they're on
-- **Menu bar colors**: Download, Upload, the speed test's colours, Use Default Colors
+- **Speed colors** (the readout's and the Dock icon's): Download, Upload, the speed test's colours, Use Default Colors
 - **Popover totals**: Counting since, Sampling, Reset Now
 - **Check for updates automatically**, and Check Now
 - **Sections**: a row to each section's settings, the same pages its gear shows
