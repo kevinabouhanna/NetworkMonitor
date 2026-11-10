@@ -155,7 +155,8 @@ puts the connection in Low Data Mode, and tells you which apps it can't stop. Se
 
 One window with a sidebar: **Usage History**, **Connections**, **Ads and Trackers** and
 **Network**, in the popover's order, with **Settings** pinned at the bottom. Hide the sidebar
-with its button or **View › Hide Sidebar** (⌃⌘S).
+with its button or **View › Hide Sidebar** (⌃⌘S). When a new version is out, a card above
+**Settings** offers it ([Update](installing.md#update)).
 
 Each section's toolbar starts with the view: **List, Both or Chart** in Usage History and
 Ads and Trackers, **List, Both or Map** in Connections (#524); Both is always the list on

@@ -88,7 +88,7 @@ NetworkMonitor 能做的一切，以及在哪里找到它们。
 
 ## 主窗口
 
-一个带边栏的窗口：<strong>流量历史</strong>、<strong>连接</strong>、<strong>广告与跟踪器</strong> 和 <strong>网络</strong>，顺序与弹出窗口相同，<strong>设置</strong> 固定在底部。点按边栏按钮，或选择 <strong>视图 › 隐藏边栏</strong>（⌃⌘S），即可隐藏边栏。
+一个带边栏的窗口：<strong>流量历史</strong>、<strong>连接</strong>、<strong>广告与跟踪器</strong> 和 <strong>网络</strong>，顺序与弹出窗口相同，<strong>设置</strong> 固定在底部。点按边栏按钮，或选择 <strong>视图 › 隐藏边栏</strong>（⌃⌘S），即可隐藏边栏。有新版本时，<strong>设置</strong> 上方会出现一张卡片提供更新（[更新](installing.md#更新)）。
 
 每个部分的工具栏以视图开头：流量历史和广告与跟踪器中是 <strong>列表、两者或图表</strong>，“连接”中是 <strong>列表、两者或地图</strong>（#524）；“两者”总是列表在左，图表或地图在右（#534）。工具栏中间是统计周期（<strong>日、周、月、年</strong>），然后是 <strong>‹ 今天 ›</strong>、一个点按后展开为输入框的搜索按钮（⌘F），以及一个 <strong>齿轮图标</strong>。齿轮图标会在原处显示该部分自己的设置，并带有返回按钮。“网络”只关注当下，所以它只有齿轮图标。
 
