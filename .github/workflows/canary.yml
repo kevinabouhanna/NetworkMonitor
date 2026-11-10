@@ -1,0 +1,18 @@
+# Can GitHub Actions run anything right now? `gh-actions can-run` (the shared-mac plugin,
+# claude-parallel-sessions#12) dispatches this before handing GitHub a release: a billing or
+# spending-limit block fails it within seconds, with GitHub's billing annotation, and a job that
+# starts means GitHub can take the release. It does nothing else, on the cheapest runner, and only
+# when dispatched: copy it to .github/workflows/canary.yml unchanged.
+name: Canary
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: echo "GitHub Actions can run"
