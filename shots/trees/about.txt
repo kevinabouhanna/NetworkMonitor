@@ -3,7 +3,7 @@ AXWindow (AXDialog) identifier="_NS:#" 284x328
   AXStaticText value="NetworkMonitor" identifier="_NS:#" h20
   AXStaticText value="Version # (#)" identifier="_NS:#" h16
   AXScrollArea identifier="_NS:#" h132
-    AXTextArea identifier="_NS:#" 268x132
+    AXTextArea description="Credits" identifier="_NS:#" 268x132
       AXLink (AXTextLink) title="Website " 152x12
       AXLink (AXTextLink) title="What's new " 160x12
       AXLink (AXTextLink) title="Source code " 160x12
