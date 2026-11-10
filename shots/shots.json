@@ -312,6 +312,11 @@
       "always": true
     },
     {
+      "name": "menubar",
+      "open": [],
+      "window": "AXMenuBarItem"
+    },
+    {
       "name": "popover",
       "open": [
         "-open",
@@ -426,7 +431,8 @@
       "shows": [
         "popover"
       ],
-      "made": "1.26.7"
+      "made": "1.26.7",
+      "stale": "#458"
     },
     {
       "file": "assets/live.mp4",
@@ -461,19 +467,21 @@
       "shows": [
         "popover"
       ],
-      "made": "1.4.1",
-      "stale": "#420"
+      "made": "1.28.1"
     },
     {
       "file": "assets/zh-Hans/social-card.png",
       "shows": [
         "popover"
       ],
-      "made": "1.27.0"
+      "made": "1.28.1"
     },
     {
       "file": "assets/menubar.png",
-      "none": "the menu bar readout, which has no accessibility tree to compare: check it by eye when the readout changes"
+      "shows": [
+        "menubar"
+      ],
+      "made": "1.1.0"
     },
     {
       "file": "assets/dmg-window.png",
