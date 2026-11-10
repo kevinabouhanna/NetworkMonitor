@@ -122,35 +122,27 @@ public enum AccessibilityAudit {
         return out
     }
 
-    /// This process's window titled `title`, read from another thread while
-    /// the main one keeps answering: the Accessibility API asks the main
-    /// thread, so asking from it would wait forever.
-    public static func auditOwnWindow(titled title: String, symbols: Set<String> = [],
-                                      timeout: TimeInterval = 10) -> [Problem]? {
-        onOwnWindow(titled: title, timeout: timeout) { audit($0, symbols: symbols) }
+    /// This process's window titled `title`, read on the main thread.
+    ///
+    /// Asked about its own process, the Accessibility API sends no message:
+    /// it calls AppKit's and SwiftUI's accessibility code directly, on the
+    /// thread that asks. Read from a thread of its own while the main one
+    /// kept running, SwiftUI's views were walked and updated at once, and the
+    /// suite crashed now and then: "_DictionaryStorage deallocated with
+    /// non-zero retain count" (#488). On the main thread nothing else runs
+    /// while the tree is read, and nothing waits on anything.
+    public static func auditOwnWindow(titled title: String, symbols: Set<String> = []) -> [Problem]? {
+        onOwnWindow(titled: title) { audit($0, symbols: symbols) }
     }
 
     public static func outlineOwnWindow(titled title: String) -> [String] {
-        onOwnWindow(titled: title, timeout: 10, outline) ?? []
+        onOwnWindow(titled: title, outline) ?? []
     }
 
-    static func onOwnWindow<T>(titled title: String, timeout: TimeInterval,
-                               _ body: @escaping (AXUIElement) -> T) -> T? {
-        var result: T?
-        let done = DispatchSemaphore(value: 0)
-        Thread.detachNewThread {
-            let app = AXUIElementCreateApplication(getpid())
-            AXUIElementSetMessagingTimeout(app, Float(timeout))
-            let windows = value(app, kAXWindowsAttribute) as? [AXUIElement] ?? []
-            if let window = windows.first(where: { string($0, kAXTitleAttribute) == title }) {
-                result = body(window)
-            }
-            done.signal()
-        }
-        let deadline = Date().addingTimeInterval(timeout + 2)
-        while done.wait(timeout: .now()) == .timedOut, Date() < deadline {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.02))
-        }
-        return result
+    static func onOwnWindow<T>(titled title: String, _ body: (AXUIElement) -> T) -> T? {
+        precondition(Thread.isMainThread, "read this process's windows on the main thread (#488)")
+        let app = AXUIElementCreateApplication(getpid())
+        let windows = value(app, kAXWindowsAttribute) as? [AXUIElement] ?? []
+        return windows.first(where: { string($0, kAXTitleAttribute) == title }).map(body)
     }
 }
