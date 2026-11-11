@@ -144,7 +144,7 @@ translation-check:
 # (an L("…") in Sources/) and no page of the docs for people using it fails,
 # unless the pull request's description says `No docs needed: <why>`. Files only:
 # CI runs it on every pull request. docs-kit (Scripts/docs-kit, shared with
-# other projects through the docs-kit plugin) reads .docs-kit.json.
+# other projects through the product-kit plugin) reads .docs-kit.json.
 docs-check:
 	@$(if $(PR),PR=$(PR) )python3 -I Scripts/docs-kit check $(BASE)
 

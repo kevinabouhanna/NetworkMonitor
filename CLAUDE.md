@@ -123,8 +123,8 @@ problems; Kevin answers what it can't judge (#346).
   change to the English changes the copy too, using the app's own words
   (`docs/development.md#languages`).
 - **The docs change with the feature** (#334). `docs/` is the one source: the
-  website's docs pages and the wiki are built from it by docs-kit (the `docs-kit`
-  plugin's skill; `Scripts/docs-kit`, `.docs-kit.json`), never edited. A pull
+  website's docs pages and the wiki are built from it by docs-kit (the `product-kit`
+  plugin's `docs-kit` skill; `Scripts/docs-kit`, `.docs-kit.json`), never edited. A pull
   request that changes the app's text changes the page in `docs/` that describes
   it, in every language; `make docs-check` (CI) fails it otherwise, unless the
   description says `No docs needed: <why>` (`docs/development.md#the-docs`).

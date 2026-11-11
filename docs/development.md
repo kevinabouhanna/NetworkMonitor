@@ -658,8 +658,9 @@ two branches are paired by name:
 
 `docs/` is the one source of the docs (#334). The website's docs pages and the wiki are
 built from it and never edited by hand, by **docs-kit**, a tool shared with Kevin's other
-projects (the `docs-kit` plugin, in the `kevinabouhanna` marketplace; this repository's copy
-is `Scripts/docs-kit`). What's particular to NetworkMonitor is in `.docs-kit.json`: the pages
+projects (the docs part of the `product-kit` plugin, kevinabouhanna/product-kit, in the
+`kevinabouhanna` marketplace; this repository's copy is `Scripts/docs-kit`, kept current with
+`docs-kit vendor`). What's particular to NetworkMonitor is in `.docs-kit.json`: the pages
 for developers, the languages, which changes need docs, the site's templates.
 
 - **The docs change with the feature.** `make docs-check` (CI's `build-and-test`) fails a
