@@ -8,7 +8,8 @@
 # holds the docs to the features they describe: a change to the app's text
 # with no change to a page for users fails, unless the pull request says why.
 #
-# Everything particular to a project is in its .docs-kit.json, found at the
+# Everything particular to a project is in its .product-kit.json (or, before
+# product-kit, .docs-kit.json), found at the
 # top of the git checkout this runs in. One file, Python's standard library
 # only, so it runs anywhere: on the Mac, in local-ci, in a GitHub workflow.
 # Each project keeps a copy (Scripts/docs-kit, `docs-kit vendor`), so its CI
@@ -20,7 +21,7 @@
 #   docs-kit wiki <wiki checkout> [commit]
 #   docs-kit anchors               every page's address and headings, as JSON
 #   docs-kit vendor [--check]      copy this file into the project
-#   docs-kit init                  write a starting .docs-kit.json
+#   docs-kit init                  write a starting .product-kit.json
 #   docs-kit version
 #
 # The full reference is docs/docs-kit.md in kevinabouhanna/product-kit.
@@ -35,8 +36,10 @@ import subprocess
 import sys
 import unicodedata
 
-VERSION = "1.0.1"
-CONFIG = ".docs-kit.json"
+VERSION = "1.1.0"
+# The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
+CONFIGS = (".product-kit.json", ".docs-kit.json")
+CONFIG = CONFIGS[0]
 
 LINK = re.compile(r"(!?)\[([^\]]*)\]\(([^)\s]+)\)")
 ATTRIBUTE = re.compile(r'(src|href)="([^"]+)"')
@@ -57,10 +60,12 @@ def git(*args: str, root: pathlib.Path) -> str:
 
 
 class Project:
-    """A checkout and its .docs-kit.json."""
+    """A checkout and its .product-kit.json."""
 
     def __init__(self, root: pathlib.Path):
         self.root = root
+        global CONFIG
+        CONFIG = next((name for name in CONFIGS if (root / name).exists()), CONFIGS[0])
         path = root / CONFIG
         if not path.exists():
             fail(f"no {CONFIG} at {root} (`docs-kit init` writes one)")
@@ -300,7 +305,7 @@ def check(project: Project, base: str) -> int:
     rules = settings.get("needs_docs", [])
     phrase = settings.get("phrase", "No docs needed")
     if not rules:
-        print("docs-check: nothing in .docs-kit.json's check.needs_docs, so nothing to check")
+        print(f"docs-check: nothing in {CONFIG}'s check.needs_docs, so nothing to check")
         return 0
     start, files = changes(project, base)
 
@@ -725,9 +730,10 @@ def init() -> None:
                                           capture_output=True, text=True).stdout.strip())
     except subprocess.CalledProcessError:
         fail("not in a git checkout")
-    path = top / CONFIG
-    if path.exists():
-        fail(f"{path} is already there")
+    for name in CONFIGS:
+        if (top / name).exists():
+            fail(f"{top / name} is already there")
+    path = top / CONFIGS[0]
     repo = subprocess.run(["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
                           cwd=top, capture_output=True, text=True).stdout.strip() or "owner/name"
     owner, name = repo.split("/", 1)

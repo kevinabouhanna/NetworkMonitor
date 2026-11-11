@@ -7,10 +7,14 @@ build:
 
 # Not `swift test`: neither XCTest nor swift-testing ships with Command Line
 # Tools, so the suite is a plain executable. See Sources/NetworkMonitorTests.
+# Then every language's table: every piece of text, its placeholders and its
+# glossary's words (#434; lang-kit, Scripts/lang-kit, shared with other projects
+# through the product-kit plugin, reads .product-kit.json).
 # Then the asset check's own cases, on made-up pages: where it finds media (#425).
 # Then that .claude/ci.conf.sh, the CI `local-ci` runs, names and defines both jobs (#490).
 test: build/site-shots
 	@./Scripts/swiftpm.sh run NetworkMonitorTests
+	@python3 -I Scripts/lang-kit strings
 	@build/site-shots coverage-test
 	@./Scripts/tests/ci-conf-test.sh
 
@@ -138,13 +142,13 @@ asset-check: build/site-shots
 # request whose description to read, the current branch's otherwise.
 BASE ?= origin/main
 translation-check:
-	@$(if $(PR),PR=$(PR) )./Scripts/translation-check.sh $(BASE)
+	@$(if $(PR),PR=$(PR) )python3 -I Scripts/lang-kit check $(BASE)
 
 # The docs change with the feature (#334): a branch that changes the app's text
 # (an L("…") in Sources/) and no page of the docs for people using it fails,
 # unless the pull request's description says `No docs needed: <why>`. Files only:
 # CI runs it on every pull request. docs-kit (Scripts/docs-kit, shared with
-# other projects through the product-kit plugin) reads .docs-kit.json.
+# other projects through the product-kit plugin) reads .product-kit.json.
 docs-check:
 	@$(if $(PR),PR=$(PR) )python3 -I Scripts/docs-kit check $(BASE)
 
@@ -163,7 +167,7 @@ docs-anchors:
 # as a table for its native reviewer to read in the updated app (#434). FROM
 # is the last release's tag; TO is HEAD unless given.
 translation-review:
-	@python3 -I Scripts/translation-review.py $(FROM) $(TO)
+	@python3 -I Scripts/lang-kit review $(FROM) $(TO)
 
 # Retaking pictures brings each window forward (#475), so it does that only while the Mac is
 # idle: no keyboard or mouse for 90 s (MAC_LANE_IDLE), or the screen locked. Otherwise it

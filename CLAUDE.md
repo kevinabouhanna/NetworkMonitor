@@ -124,12 +124,13 @@ problems; Kevin answers what it can't judge (#346).
   (`docs/development.md#languages`).
 - **The docs change with the feature** (#334). `docs/` is the one source: the
   website's docs pages and the wiki are built from it by docs-kit (the `product-kit`
-  plugin's `docs-kit` skill; `Scripts/docs-kit`, `.docs-kit.json`), never edited. A pull
+  plugin's `docs-kit` skill; `Scripts/docs-kit`, `.product-kit.json`), never edited. A pull
   request that changes the app's text changes the page in `docs/` that describes
   it, in every language; `make docs-check` (CI) fails it otherwise, unless the
   description says `No docs needed: <why>` (`docs/development.md#the-docs`).
 - **Each language's glossary** (`<code>.lproj/Glossary.json`) names features and
-  settings; `make test` holds the app's table to it, and the docs and site use the
+  settings; `make test` holds the app's table to it (lang-kit: the `product-kit`
+  plugin's `lang-kit` skill; `Scripts/lang-kit`, `lang` in `.product-kit.json`), and the docs and site use the
   same words. `make translation-check` (CI) fails a pull request that changes an
   English page but not its copy; when that's deliberate, the description says
   `No translation needed: <why>`. A new language follows
