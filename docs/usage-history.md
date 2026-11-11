@@ -41,6 +41,9 @@ History in the main window's sidebar.
 - **The lists are the filters.** Click a row to see only that app, network or session,
   and the chart and totals follow; click it again, or its chip at the end of the lists'
   row (#192), to undo. Filters combine, with each other and with the switch.
+- **The keyboard** (#546): Tab reaches the list as one stop, or click a row. ↑ and ↓ move
+  from row to row, marked with a ring; → opens an app's parts or System, ← closes them or
+  goes back up; Space or Return does what a click on the row does.
 - **Search** (⌘F), the magnifying glass in the toolbar, finds apps and networks, and
   shows as a chip like the other filters.
 - **Name a network** by right-clicking it under Networks and choosing **Rename…**. The name is used in History

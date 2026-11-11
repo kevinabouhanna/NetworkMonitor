@@ -505,30 +505,6 @@ final class AdsListState: ObservableObject {
     @Published var cursor: String?
 }
 
-/// No focus ring round the whole list: the chosen row's colour shows where
-/// the keyboard is, as in a sidebar.
-private struct NoFocusRing: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(macOS 14, *) { content.focusEffectDisabled() } else { content }
-    }
-}
-
-/// Space and Return, where macOS has `onKeyPress` (14 on).
-private struct ActivateKeys: ViewModifier {
-    let action: () -> Void
-
-    func body(content: Content) -> some View {
-        if #available(macOS 14, *) {
-            content.onKeyPress(keys: [.space, .return]) { _ in
-                action()
-                return .handled
-            }
-        } else {
-            content
-        }
-    }
-}
-
 /// A row's right-click menu (#536), as the Log's: never or always block its
 /// site, in every app or only its app; stop filtering its app; remove a rule
 /// you made about it; copy its name.

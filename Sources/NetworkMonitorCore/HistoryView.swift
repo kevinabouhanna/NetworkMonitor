@@ -11,6 +11,8 @@ import SwiftUI
 /// with the list the user was already reading.
 public struct HistoryView: View {
     @ObservedObject var model: HistoryViewModel
+    /// The row the keyboard is on (#546). Not `@State`; see `SettingsPaneState`.
+    @StateObject private var cursor = ListCursor()
 
     public init(model: HistoryViewModel) {
         self.model = model
@@ -188,14 +190,23 @@ public struct HistoryView: View {
     // MARK: Lists
 
     private var list: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                switch model.tab {
-                case .apps:     appRows
-                case .networks: networkRows
-                case .sessions: sessionRows
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    switch model.tab {
+                    case .apps:     appRows
+                    case .networks: networkRows
+                    case .sessions: sessionRows
+                    }
                 }
             }
+            // One stop, the arrow keys moving through it (#546).
+            .listKeys(keyRows, cursor: cursor, name: model.tab.label, proxy: proxy,
+                      open: { row, open in
+                          if row.id == Self.systemID { model.systemExpanded = open }
+                          else if model.expandedApps.contains(row.id) != open { model.toggleExpanded(row.id) }
+                      },
+                      choose: choose)
         }
         .frame(minHeight: HistoryMetrics.listMinHeight, maxHeight: .infinity)
         .overlay {
@@ -204,6 +215,64 @@ public struct HistoryView: View {
         // Another tab's list fades in as the switch's pill slides (#436).
         .id(model.tab)
         .transition(Motion.swap)
+    }
+
+    /// The row everything System does sits under.
+    static let systemID = "\u{1}system"
+
+    /// The rows shown, in order, as the arrow keys go through them.
+    private var keyRows: [KeyRow] {
+        switch model.tab {
+        case .apps:
+            var rows: [KeyRow] = []
+            for app in apps {
+                let open = model.expandedApps.contains(app.id)
+                rows.append(KeyRow(id: app.id, spoken: L("%@, %@", app.displayName, ByteFormat.bytes(app.total)),
+                                   isOpen: app.hasChildren ? open : nil))
+                if open {
+                    rows += app.children.map {
+                        KeyRow(id: $0.id, spoken: L("%@, %@", $0.displayName, ByteFormat.bytes($0.total)), parent: app.id)
+                    }
+                }
+            }
+            if !systemRows.isEmpty {
+                rows.append(KeyRow(id: Self.systemID,
+                                   spoken: L("%@, %@", L("System (%@)", String(systemRows.count)),
+                                             ByteFormat.bytes(report.systemTotal)),
+                                   isOpen: model.systemExpanded))
+                if model.systemExpanded {
+                    rows += systemRows.map {
+                        KeyRow(id: $0.id, spoken: L("%@, %@", $0.displayName, ByteFormat.bytes($0.total)),
+                               parent: Self.systemID)
+                    }
+                }
+            }
+            return rows
+        case .networks:
+            return networks.map {
+                KeyRow(id: $0.id, spoken: L("%@, %@", model.networkName($0.id, defaultLabel: $0.defaultLabel),
+                                            ByteFormat.bytes($0.bytes)))
+            }
+        case .sessions:
+            return sessions.map {
+                KeyRow(id: String($0.session.id),
+                       spoken: L("%@, %@", model.networkName($0.session.networkID, defaultLabel: $0.session.defaultLabel),
+                                 ByteFormat.bytes($0.bytes)))
+            }
+        }
+    }
+
+    /// Space or Return on a row, or a click: what a click on it does.
+    private func choose(_ row: KeyRow) {
+        cursor.id = row.id
+        switch model.tab {
+        case .apps:
+            if row.id == Self.systemID { model.systemExpanded.toggle() } else { model.toggleApp(row.id) }
+        case .networks:
+            model.toggleNetwork(row.id)
+        case .sessions:
+            if let id = Int64(row.id) { model.toggleSession(id) }
+        }
     }
 
     private var isListEmpty: Bool {
@@ -288,9 +357,12 @@ public struct HistoryView: View {
                 },
                 isMuted: true,
                 isSelected: false,
+                isCurrent: cursor.marks(Self.systemID),
                 disclosure: model.systemExpanded,
                 onToggleDisclosure: { model.systemExpanded.toggle() },
-                onSelect: { model.systemExpanded.toggle() })
+                disclosureTakesFocus: false,
+                onSelect: { cursor.id = Self.systemID; model.systemExpanded.toggle() })
+            .id(Self.systemID)
             if model.systemExpanded {
                 ForEach(systemRows) { row in
                     appRow(row, largest: largest, indented: true)
@@ -315,9 +387,12 @@ public struct HistoryView: View {
             kinds: row.kinds,
             indented: indented,
             isSelected: model.filter.appKey == row.id,
+            isCurrent: cursor.marks(row.id),
             disclosure: row.hasChildren ? model.expandedApps.contains(row.id) : nil,
             onToggleDisclosure: { model.toggleExpanded(row.id) },
-            onSelect: { model.toggleApp(row.id) })
+            disclosureTakesFocus: false,
+            onSelect: { cursor.id = row.id; model.toggleApp(row.id) })
+            .id(row.id)
     }
 
     @ViewBuilder
@@ -333,7 +408,9 @@ public struct HistoryView: View {
                 fraction: fraction(network.bytes, of: largest),
                 barColor: HistoryPalette.color(for: network.kind),
                 isSelected: model.filter.networkID == network.id,
-                onSelect: { model.toggleNetwork(network.id) })
+                isCurrent: cursor.marks(network.id),
+                onSelect: { cursor.id = network.id; model.toggleNetwork(network.id) })
+            .id(network.id)
             .contextMenu {
                 Button(L("Rename…")) {
                     model.rename(networkID: network.id, defaultLabel: network.defaultLabel,
@@ -360,7 +437,9 @@ public struct HistoryView: View {
                 fraction: fraction(total.bytes, of: largest),
                 barColor: HistoryPalette.color(for: session.kind),
                 isSelected: model.filter.sessionID == session.id,
-                onSelect: { model.toggleSession(session.id) })
+                isCurrent: cursor.marks(String(session.id)),
+                onSelect: { cursor.id = String(session.id); model.toggleSession(session.id) })
+            .id(String(session.id))
             // Listed once the visit is chosen: what got through on it (#96).
             if model.filter.sessionID == session.id {
                 ForEach(updates) { update in
@@ -736,6 +815,8 @@ struct HistoryListRow: View {
     /// matches its part of the chart. Apps take theirs from `kinds`.
     var barColor: Color = AppPalette.data
     let isSelected: Bool
+    /// The row the keyboard is on, in a list it moves through (#546).
+    var isCurrent = false
     /// nil for a row with nothing to expand; otherwise whether it is open.
     var disclosure: Bool?
     var onToggleDisclosure: () -> Void = {}
@@ -802,6 +883,7 @@ struct HistoryListRow: View {
             RoundedRectangle(cornerRadius: 6)
                 .fill(isSelected ? Color.accentColor.opacity(0.18)
                       : hover.isHovering ? Color.secondary.opacity(0.08) : Color.clear))
+        .modifier(CursorMark(isOn: isCurrent))
         .contentShape(Rectangle())
         .onHover { hover.isHovering = $0 }
         .onTapGesture(perform: onSelect)

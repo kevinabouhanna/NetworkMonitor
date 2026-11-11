@@ -13,6 +13,8 @@ import SwiftUI
 public struct ConnectionsView: View {
     @ObservedObject var model: ConnectionsViewModel
     @ObservedObject var firewall: FirewallRules
+    /// The row the keyboard is on (#546). Not `@State`; see `SettingsPaneState`.
+    @StateObject private var cursor = ListCursor()
 
     public init(model: ConnectionsViewModel) {
         self.model = model
@@ -152,20 +154,70 @@ public struct ConnectionsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             let largest = model.groups.first?.item.total ?? 1
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    // One element per group, its rows inside it. Flattened, the
-                    // same company or country under two apps gave the lazy stack
-                    // two rows with one identity, and it left a blank where one
-                    // group's sections should have been.
-                    ForEach(model.groups) { group in
-                        VStack(alignment: .leading, spacing: 0) {
-                            groupRows(group, largest: largest)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        // One element per group, its rows inside it. Flattened, the
+                        // same company or country under two apps gave the lazy stack
+                        // two rows with one identity, and it left a blank where one
+                        // group's sections should have been.
+                        ForEach(model.groups) { group in
+                            VStack(alignment: .leading, spacing: 0) {
+                                groupRows(group, largest: largest)
+                            }
                         }
                     }
                 }
+                // One stop, the arrow keys moving through it (#546).
+                .listKeys(keyRows, cursor: cursor, name: model.grouping.label, proxy: proxy,
+                          open: { row, open in
+                              if model.expanded.contains(row.id) != open { model.toggle(row.id) }
+                          },
+                          choose: choose)
             }
             .frame(maxHeight: .infinity)
+        }
+    }
+
+    /// A row inside a group, kept apart from the same item in another group.
+    private static func rowID(_ item: ConnectionsItem, in group: ConnectionsGroup,
+                              _ section: ConnectionsGroup.Section) -> String {
+        group.id + "/" + section.id + "/" + item.id
+    }
+
+    /// The sections' rows shown under an open group.
+    private func shownItems(_ section: ConnectionsGroup.Section, in group: ConnectionsGroup) -> [ConnectionsItem] {
+        model.showingAll.contains(group.id + "/" + section.id)
+            ? section.items : Array(section.items.prefix(ConnectionsViewModel.sectionPreview))
+    }
+
+    /// The rows shown, in order, as the arrow keys go through them.
+    private var keyRows: [KeyRow] {
+        model.groups.flatMap { group -> [KeyRow] in
+            let open = model.expanded.contains(group.id)
+            var rows = [KeyRow(id: group.id, spoken: L("%@, %@", group.item.title, model.format(group.item.total)),
+                               isOpen: open)]
+            if open {
+                for section in group.sections where !section.items.isEmpty {
+                    rows += shownItems(section, in: group).map {
+                        KeyRow(id: Self.rowID($0, in: group, section),
+                               spoken: L("%@, %@", $0.title, model.format($0.total)), parent: group.id)
+                    }
+                }
+            }
+            return rows
+        }
+    }
+
+    /// Space or Return on a row: what a click on it does.
+    private func choose(_ row: KeyRow) {
+        cursor.id = row.id
+        guard let parent = row.parent else { return model.toggle(row.id) }
+        guard let group = model.groups.first(where: { $0.id == parent }) else { return }
+        for section in group.sections {
+            if let item = section.items.first(where: { Self.rowID($0, in: group, section) == row.id }) {
+                return model.narrow(to: item, in: group.item)
+            }
         }
     }
 
@@ -192,11 +244,13 @@ public struct ConnectionsView: View {
                        icon: model.icon(for: group.item), fraction: fraction(group.item.total, of: largest),
                        indent: 0, disclosure: isOpen, rule: firewall.rule(for: group.item),
                        listed: model.listed(group.item),
+                       isCurrent: cursor.marks(group.id),
                        onToggleDisclosure: { model.toggle(group.id) },
-                       onSelect: { model.toggle(group.id) },
+                       onSelect: { cursor.id = group.id; model.toggle(group.id) },
                        help: isOpen ? L("Click to close") : L("Click to see its %@", sectionNames(group)),
                        format: model.format)
             .contextMenu { ruleMenu(for: group.item) }
+            .id(group.id)
         if isOpen {
             ForEach(group.sections.filter { !$0.items.isEmpty }) { section in
                 sectionRows(section, in: group)
@@ -207,8 +261,7 @@ public struct ConnectionsView: View {
     @ViewBuilder
     private func sectionRows(_ section: ConnectionsGroup.Section, in group: ConnectionsGroup) -> some View {
         let sectionID = group.id + "/" + section.id
-        let showingAll = model.showingAll.contains(sectionID)
-        let shown = showingAll ? section.items : Array(section.items.prefix(ConnectionsViewModel.sectionPreview))
+        let shown = shownItems(section, in: group)
         let largest = section.items.first?.total ?? 1
         Text(L("%@ · %@", section.dimension.plural, String(section.items.count)))
             .font(.system(size: 10, weight: .semibold))
@@ -217,12 +270,16 @@ public struct ConnectionsView: View {
             .padding(.top, 6)
             .padding(.bottom, 2)
         ForEach(shown) { item in
+            let id = Self.rowID(item, in: group, section)
             ConnectionsRow(item: item, subtitle: subtitle(for: item), icon: model.icon(for: item),
                            fraction: fraction(item.total, of: largest), indent: 1, disclosure: nil,
                            rule: firewall.rule(for: item), listed: model.listed(item),
-                           onToggleDisclosure: {}, onSelect: { model.narrow(to: item, in: group.item) },
+                           isCurrent: cursor.marks(id),
+                           onToggleDisclosure: {},
+                           onSelect: { cursor.id = id; model.narrow(to: item, in: group.item) },
                            help: L("Click to see only %@", item.title), format: model.format)
                 .contextMenu { ruleMenu(for: item) }
+                .id(id)
         }
         if section.items.count > shown.count {
             Button(L("Show all %@", String(section.items.count))) { model.showingAll.insert(sectionID) }
@@ -521,6 +578,8 @@ private struct ConnectionsRow: View {
     let rule: FirewallRule?
     /// A named server on an ad, tracker or malware list (#176).
     let listed: BlocklistTopic?
+    /// The row the keyboard is on (#546).
+    var isCurrent = false
     let onToggleDisclosure: () -> Void
     let onSelect: () -> Void
     let help: String
@@ -547,8 +606,9 @@ private struct ConnectionsRow: View {
                         .frame(width: 14, height: 14)
                 }
                 .buttonStyle(.plain)
+                // The list is the stop; → and ← open and close a row (#546).
+                .focusable(false)
                 .accessibilityLabel(disclosure ? L("Collapse") : L("Expand"))
-                // Which row, as Tab goes down them (#455).
                 .accessibilityValue(item.title)
                 .foregroundStyle(.secondary)
             } else {
@@ -593,6 +653,7 @@ private struct ConnectionsRow: View {
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(hover.isHovering ? Color.secondary.opacity(0.08) : Color.clear))
+        .modifier(CursorMark(isOn: isCurrent))
         .contentShape(Rectangle())
         .onHover { hover.isHovering = $0 }
         .onTapGesture(perform: onSelect)

@@ -32,19 +32,30 @@ func runKeyboardTests() {
 
         // The check itself: a window with each problem in it must fail, or a
         // pass below means nothing.
-        Check.test("the tour finds a control that's two stops and a stop with no name") {
+        func faultyProblems(_ view: some View, _ title: String) -> [String] {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 200),
                                   styleMask: [.titled], backing: .buffered, defer: false)
-            window.title = "Faulty keyboard"
-            window.contentView = NSHostingView(rootView: FaultyKeyboardView())
+            window.title = title
+            window.contentView = NSHostingView(rootView: view)
             place(window)
             settle(0.4)
-            let problems = KeyboardTour.problems(in: window, KeyboardTour.walk(window))
+            defer { window.orderOut(nil) }
+            return KeyboardTour.problems(in: window, KeyboardTour.walk(window))
+        }
+        Check.test("the tour finds a control that's two stops and a stop with no name") {
+            let problems = faultyProblems(FaultyKeyboardView(), "Faulty keyboard")
             Check.expectTrue(problems.contains { $0.contains("one control, two stops") },
                              "missed the switch whose choices are stops too: \(problems)")
             Check.expectTrue(problems.contains { $0.contains("nothing VoiceOver can read out") },
                              "missed the stop with no name: \(problems)")
-            window.orderOut(nil)
+        }
+        // A window of its own: beside other controls, Tab's order by where
+        // they sit put one between the rows now and then.
+        Check.test("the tour finds a list's rows that are each a stop (#546)") {
+            let rows = VStack { ForEach(0..<3) { _ in Button("Expand") {}.buttonStyle(.plain) } }
+            let problems = faultyProblems(rows, "Faulty list")
+            Check.expectTrue(problems.contains { $0.contains("a list's rows each a stop") },
+                             "missed the rows that are each a stop: \(problems)")
         }
 
         let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("keyboard-\(UUID().uuidString)")

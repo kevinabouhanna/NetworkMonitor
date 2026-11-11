@@ -332,6 +332,17 @@ public enum KeyboardTour {
             }
         }
         if !tour.closes { problems.append("Tab doesn't come back round to the first stop") }
+        // A list whose rows are each a stop, though it isn't one itself
+        // (#546): the same control, row after row.
+        var run = 1
+        for index in tour.stops.indices.dropFirst() {
+            let (a, b) = (tour.stops[index - 1], tour.stops[index])
+            run = a.role != nil && a.role == b.role && a.name == b.name ? run + 1 : 1
+            if run == 3 {
+                problems.append("stops \(index - 1) to \(index + 1) are each \(b): a list's rows each a stop, "
+                                + "rather than the list one the arrow keys move through")
+            }
+        }
         // Every control is in a stop, or inside one (a switch's choices, a
         // list's rows), or is the window's own.
         let unreached = AccessibilityAudit.onOwnWindow(titled: window.title) { root -> [String] in
