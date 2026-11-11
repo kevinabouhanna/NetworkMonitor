@@ -32,7 +32,7 @@ func runKeyboardTests() {
 
         // The check itself: a window with each problem in it must fail, or a
         // pass below means nothing.
-        Check.test("the tour finds a control that's two stops and a stop with no name") {
+        Check.test("the tour finds a control that's two stops, a stop with no name, and rows that are each a stop") {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 200),
                                   styleMask: [.titled], backing: .buffered, defer: false)
             window.title = "Faulty keyboard"
@@ -44,6 +44,8 @@ func runKeyboardTests() {
                              "missed the switch whose choices are stops too: \(problems)")
             Check.expectTrue(problems.contains { $0.contains("nothing VoiceOver can read out") },
                              "missed the stop with no name: \(problems)")
+            Check.expectTrue(problems.contains { $0.contains("a list's rows each a stop") },
+                             "missed the rows that are each a stop: \(problems)")
             window.orderOut(nil)
         }
 
@@ -162,7 +164,8 @@ func runKeyboardTests() {
 }
 
 /// One of each problem the tour looks for: a switch whose choices are stops
-/// as well as the switch, and a focusable picture with no name.
+/// as well as the switch, a focusable picture with no name, and rows that
+/// are each a stop.
 private struct FaultyKeyboardView: View {
     var body: some View {
         VStack {
@@ -177,6 +180,8 @@ private struct FaultyKeyboardView: View {
             Button {} label: { Image(systemName: "gearshape.fill") }
                 .buttonStyle(.plain)
                 .accessibilityHidden(true)
+            // A list's rows, each a stop of its own (#546).
+            ForEach(0..<3) { _ in Button("Expand") {}.buttonStyle(.plain) }
         }
     }
 }

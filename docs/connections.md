@@ -27,6 +27,9 @@ networks it covers. Then the period's name, its total, and the counts.
   servers.
 - **Click a row inside a group** to narrow everything to it. Choosing Teams inside
   Microsoft reads *Microsoft › Teams*, and each chip's ✕ undoes its part.
+- **The keyboard** (#546): Tab reaches the list as one stop, or click a row. ↑ and ↓ move
+  from row to row, marked with a ring; → opens a group, ← closes it or goes back up to the
+  group a row is in; Space or Return does what a click on the row does.
 - **Drag across the timeline**, or click a bar, to see one part of the day: what your
   apps contacted in the hour after a call, say. Click the same bar again, or the chip's
   ✕, for the whole period.

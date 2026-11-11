@@ -139,10 +139,12 @@ and exits non-zero if anything fails.
   control with focus, and the setting is answered for that process only. Each stop is
   matched to what VoiceOver reads there. It fails on a stop VoiceOver can't name, a
   control that is two stops (a switch and each of its choices, the sidebar and each
-  section), a control Tab never reaches, and a loop that doesn't come back round; and it
+  section), a list whose rows are each a stop (#546), a control Tab never reaches, and a
+  loop that doesn't come back round; and it
   checks what ↑ ↓ do in the sidebar, ← → in a switch, and ⌘F and Escape in search. `make
   design-shots KEYBOARD=1` prints the same tour of every window with rows in its lists,
-  stop by stop, and fails on the same problems. What it can't check: that Space or
+  stop by stop, and fails on the same problems; it also checks the lists' keys (↓ ↑, →
+  opens a row, ← goes back up and closes it) in Usage History and Connections. What it can't check: that Space or
   Return on a focused button does what a click does (SwiftUI takes those only in the
   key window of the active app), and whether the order makes sense to someone who
   can't see it.

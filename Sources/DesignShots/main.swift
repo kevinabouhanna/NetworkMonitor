@@ -683,6 +683,59 @@ func tourKeyboard(_ world: World) -> Int32 {
         settle()
         tour("\(section.rawValue)-settings", main.window)
     }
+
+    // The lists' keys (#546): Tab to the list, ↓ to the first row, → opens
+    // it, ↓ goes in, ← back up to it, ← closes it. VoiceOver hears each row
+    // as the list's value.
+    func expect(_ ok: Bool, _ what: String) {
+        print("  " + (ok ? "✓ " : "✗ ") + what)
+        if !ok { failed += 1 }
+    }
+    for (name, section, list, firstOpenable) in [
+        ("history-keys", MainSection.history, L("Apps"), { world.historyModel.report.apps.first { $0.hasChildren }?.displayName }),
+        ("connections-keys", .connections, world.connections.grouping.label, { world.connections.groups.first?.item.title }),
+    ] as [(String, MainSection, String, () -> String?)] where wanted(name) {
+        main.show(section)
+        settle(1.2)
+        print("\n\(name)")
+        let stops = KeyboardTour.walk(main.window).stops
+        guard let index = stops.firstIndex(where: { $0.role == "AXScrollArea" && $0.name == list }) else {
+            expect(false, "Tab reaches the list \(list)")
+            continue
+        }
+        main.window.makeFirstResponder(nil)
+        for _ in 0...index { KeyboardTour.press(.tab, in: main.window, settle: 0.05) }
+        guard let target = firstOpenable() else {
+            // Nothing in this list opens: ↓ and ↑ alone.
+            KeyboardTour.press(.down, in: main.window)
+            let first = KeyboardTour.focused(in: main.window)?.value ?? ""
+            KeyboardTour.press(.down, in: main.window)
+            let second = KeyboardTour.focused(in: main.window)?.value ?? ""
+            KeyboardTour.press(.up, in: main.window)
+            let back = KeyboardTour.focused(in: main.window)?.value ?? ""
+            expect(!first.isEmpty && second != first && back == first,
+                   "↓ and ↑ move from row to row, and VoiceOver hears each (\(first); \(second))")
+            continue
+        }
+        // Down to the first row that opens.
+        var value = ""
+        for _ in 0..<40 {
+            KeyboardTour.press(.down, in: main.window)
+            value = KeyboardTour.focused(in: main.window)?.value ?? ""
+            if value.hasPrefix(target) { break }
+        }
+        expect(value.hasPrefix(target), "↓ reaches \(target), and VoiceOver hears it (\(value))")
+        KeyboardTour.press(.right, in: main.window, settle: 0.6)
+        KeyboardTour.press(.down, in: main.window)
+        let inside = KeyboardTour.focused(in: main.window)?.value ?? ""
+        expect(!inside.isEmpty && inside != value, "→ opens it and ↓ goes in (\(inside))")
+        KeyboardTour.press(.left, in: main.window)
+        expect(KeyboardTour.focused(in: main.window)?.value?.hasPrefix(target) == true, "← goes back up to it")
+        KeyboardTour.press(.left, in: main.window, settle: 0.6)
+        KeyboardTour.press(.down, in: main.window)
+        let next = KeyboardTour.focused(in: main.window)?.value ?? ""
+        expect(next != inside, "← closes it: ↓ goes to the next row (\(next))")
+    }
     main.windowWillClose()
     main.window.orderOut(nil)
     print(failed == 0 ? "\nNo problems." : "\n\(failed) problem(s).")
