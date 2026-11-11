@@ -25,9 +25,7 @@ func argument(_ name: String) -> String? {
     return arguments[index + 1]
 }
 
-_ = NSApplication.shared
-NSApp.setActivationPolicy(.accessory)
-NSApp.finishLaunching()
+OutOfSight.startApp()
 
 // `--dock-icons <dir>`: the Dock icon that is the speeds (#523), in light and
 // in dark, one strip each, on a stand-in for the Dock. Drawn as the Dock gets
@@ -365,6 +363,8 @@ func save(_ window: NSWindow, _ name: String, appearance: NSAppearance.Name) {
 
 func show(_ window: NSWindow, appearance: NSAppearance.Name, settle: TimeInterval = 1.2) {
     window.appearance = NSAppearance(named: appearance)
+    // Clicks go through it to whatever is underneath (#553).
+    window.ignoresMouseEvents = true
     // Out of sight but for its top-left corner's single point, which is
     // rounded off and so transparent, just inside the sharpest screen's
     // bottom-right corner: a window wholly off every screen is drawn at 1x.
@@ -645,9 +645,7 @@ func tourKeyboard(_ world: World) -> Int32 {
         }
     }
     func place(_ window: NSWindow) {
-        window.alphaValue = 0
-        window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-        window.orderFrontRegardless()
+        window.placeOutOfSight()
     }
     func settle(_ seconds: TimeInterval = 0.8) { RunLoop.main.run(until: Date().addingTimeInterval(seconds)) }
 

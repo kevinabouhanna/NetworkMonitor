@@ -9,16 +9,12 @@ import NetworkMonitorCore
 /// design-shots KEYBOARD=1` tours the same windows with rows in their lists.
 func runKeyboardTests() {
     Check.suite("Keyboard and VoiceOver") {
-        _ = NSApplication.shared
-        NSApp.setActivationPolicy(.accessory)
-        NSApp.finishLaunching()
+        OutOfSight.startApp()
         KeyboardTour.start()
         defer { KeyboardTour.stop() }
 
         func place(_ window: NSWindow) {
-            window.alphaValue = 0
-            window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-            window.orderFrontRegardless()
+            window.placeOutOfSight()
         }
         func settle(_ seconds: TimeInterval = 0.6) { RunLoop.main.run(until: Date().addingTimeInterval(seconds)) }
         func expectNoProblems(_ window: NSWindow, _ name: String) {
