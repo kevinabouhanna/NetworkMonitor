@@ -22,12 +22,9 @@ ci_prepare() {
   else git -C "$CI_ROOT" worktree add -q --detach "$nm_site" "origin/$site_ref"; fi
 }
 
-# The smoke test stops every running copy, the installed one too: hold the app's lane (15 min at
-# most). It opens the installed copy again itself if it was running, once launchd has let go of
-# the last launch (#508).
+# The smoke test runs in a throwaway VM (mac-vm): it takes no Mac lane and quits nothing, so it
+# doesn't wait on a review build or the installed app (#528).
 nm_smoke() {
-  . Scripts/mac-lane.sh
-  MAC_LANE=networkmonitor MAC_LANE_TIMEOUT="${SMOKE_LANE_TIMEOUT:-900}" MAC_LANE_WHAT="local-ci smoke test ${CI_SHA:0:7}" mac_lane_enter
   ./Scripts/smoke-test.sh
 }
 

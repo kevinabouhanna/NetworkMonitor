@@ -33,8 +33,8 @@ through without asking. What's particular to NetworkMonitor:
     only for releases; #490). For every pull request run `local-ci <pr>` (the `shared-mac`
     plugin's; `Scripts/local-ci.sh <pr>` is the same, with a fallback copy) from your worktree,
     in the background: 5–15 minutes. It runs both jobs from `.claude/ci.conf.sh` and records
-    each under its check name. Its smoke test takes the `networkmonitor` lane, so tell other
-    sessions first.
+    each under its check name. Its smoke test runs in a VM (`mac-vm`), so it takes no lane
+    and runs while a review build is open (#528).
   - Nothing in it waits forever: another run up to 2 h, a job up to 60 min (#483).
   - Releases stay on GitHub's Release workflow: the signing, notary and Sparkle keys are
     GitHub secrets, not on this Mac.
@@ -213,7 +213,7 @@ release of its own:
   `disown`). `Scripts/mac-lane.sh` is the fallback copy for GitHub's runners and anywhere
   without the plugin, and hands over to the shared one when it's there. This repo's lanes:
   - `networkmonitor`: the installed app, the filter, the helper, settings, a development
-    build and `pkill`. The install, uninstall, helper, smoke-test and review-build scripts and
+    build and `pkill`. The install, uninstall, helper and review-build scripts (the smoke test only outside a VM) and
     `make run` take it themselves. Launch a development build through it too:
     `MAC_LANE=networkmonitor mac-lane open -W -n build/NetworkMonitor.app --args …`
     holds the lane until that copy quits.

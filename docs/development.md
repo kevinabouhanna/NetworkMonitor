@@ -234,7 +234,9 @@ even in dark mode. The file name has no version, so
   `helper-setup.sh` the app uses.
 - `Scripts/smoke-test.sh` launches the built app and fails if it isn't still running five
   seconds later. Deliberately shallow: a crash on launch is the one bug an auto-updater
-  would ship to everyone.
+  would ship to everyone. On this Mac it runs in a throwaway VM (`mac-vm`, the shared-mac
+  plugin), so it quits nothing and shows nothing on the screen (#528); on GitHub's runners,
+  in place. `SMOKE_WHERE=here` or `vm` chooses.
 - `Scripts/appcast.sh` and `Scripts/ed25519-sign.swift` sign a release's disk image with the
   update key and write its appcast (#132). `Scripts/geodata.sh` and `GeoDataBuilder package`
   convert and sign a month of country data (#121).
@@ -258,8 +260,11 @@ merge. `ci.yml` itself runs only when dispatched by hand.
 How it runs here:
 - One run at a time, in one kept worktree in `~/Library/Caches/networkmonitor-dev/ci` whose
   `.build` stays, so SwiftPM builds incrementally; the website is checked out beside it.
-- The smoke test runs in the `networkmonitor` Mac lane (15 min at most), and opens the
-  installed copy again in the background afterwards (see
+- The smoke test runs in a throwaway VM (`mac-vm`; about 40 s, the boot included): it takes
+  no Mac lane and quits nothing, so it runs while a review build is open or the installed
+  copy is in use (#528). The bundle goes in zipped, since the VM's shared folder breaks its
+  symlinks. On GitHub's runners it runs in place, in the `networkmonitor` lane, and opens the
+  installed copy again afterwards (see
   [Quitting and opening the app](#quitting-and-opening-the-app)).
 - **Nothing waits forever** (#483): another run here is waited for up to 2 h
   (`LOCAL_CI_LOCK_MINUTES`; exits 75), and a job past `LOCAL_CI_JOB_MINUTES` (60) is stopped,
@@ -306,8 +311,8 @@ are kept apart differently:
   `Scripts/mac-lane.sh` is the fallback for GitHub's runners and hands over to it when it's
   there:
   - **`networkmonitor`**: the app, filter, helper and settings. `install.sh`,
-    `uninstall.sh`, `install-helper.sh`, `smoke-test.sh`, `review-build.sh` and `make run`
-    take it themselves.
+    `uninstall.sh`, `install-helper.sh`, `review-build.sh` and `make run` take it
+    themselves, and `smoke-test.sh` when it runs in place rather than in a VM.
   - **`screen`**: the pointer, screen captures and recordings. `site-shots` (`make
     site-check`, `site-shots`, `site-trees`, `site-audit`, and `build/site-shots tree`)
     takes it as well as `networkmonitor`, by itself, only while it reads or takes
