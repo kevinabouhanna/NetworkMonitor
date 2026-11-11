@@ -17,11 +17,17 @@ struct ConnectionsMap: View {
         GeometryReader { geometry in
             let frame = MapFrame(size: geometry.size, zoom: state.zoom, pan: state.pan)
             ZStack {
-                canvas(frame)
-                if model.isLive, let home = homeShape {
-                    LivePulses(live: model.live, frame: frame, home: home)
+                ZStack {
+                    canvas(frame)
+                    if model.isLive, let home = homeShape {
+                        LivePulses(live: model.live, frame: frame, home: home)
+                    }
+                    homeRing(frame)
                 }
-                homeRing(frame)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibilityLabel)
+                // Beside the map rather than in it, so VoiceOver reaches the
+                // zoom buttons Tab reaches (#455).
                 overlays(frame)
             }
             .contentShape(Rectangle())
@@ -47,8 +53,6 @@ struct ConnectionsMap: View {
             }
         }
         .splitCard()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel)
         .onAppear { model.mapDidAppear() }
         .onDisappear { model.mapDidDisappear() }
     }
@@ -224,6 +228,7 @@ struct ConnectionsMap: View {
         Button(action: action) { Image(systemName: symbol).frame(width: 18, height: 16) }
             .buttonStyle(.borderless)
             .help(help)
+            .accessibilityLabel(help)
             .padding(.horizontal, 2)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 5))
     }

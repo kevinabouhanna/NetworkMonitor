@@ -165,6 +165,9 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         window.contentViewController = split
         window.setContentSize(NSSize(width: 1300, height: 800))
         window.isReleasedWhenClosed = false
+        // Tab reaches what each section brings in, not just the first one's
+        // (#455).
+        window.autorecalculatesKeyViewLoop = true
         window.toolbarStyle = .unified
         window.setFrameAutosaveName("Main")
 
@@ -505,10 +508,15 @@ struct MainSidebar: View {
         VStack(spacing: 0) {
             ScrollView(.vertical) {
                 VStack(spacing: 2) {
-                    ForEach(MainSection.features) { row($0) }
+                    // The list is the one stop, ↑ and ↓ moving in it (#455).
+                    ForEach(MainSection.features) { row($0).focusable(false) }
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
+                // What VoiceOver says as Tab reaches it (#455).
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(L("Sections"))
+                .accessibilityValue(navigation.section.title)
                 // ↑ and ↓ move through the sections, as in a sidebar list.
                 .keyboardFocusable()
                 .onMoveCommand { direction in

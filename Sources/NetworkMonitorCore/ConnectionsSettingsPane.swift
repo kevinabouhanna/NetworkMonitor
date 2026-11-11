@@ -152,6 +152,8 @@ struct ConnectionsSettingsPane: View {
                             }
                             .buttonStyle(.borderless)
                             .help(L("Remove this rule"))
+                            // Which rule, as Tab goes down them (#455).
+                            .accessibilityLabel(L("Remove the rule for %@", rule.shownTitle))
                         }
                     } label: {
                         Label {

@@ -62,6 +62,7 @@ make run     # build build/NetworkMonitor.app and open it
 | `make translation-check` | Fails when this branch changes an English page for people using the app but not its translation ([Languages](#languages)) |
 | `make translation-review FROM=vX.Y.Z` | The text added or changed since that release in each language, as a table for its native reviewer ([Adding a language](#adding-a-language)) |
 | `make site-audit` | Checks the installed app's windows, with real data, for what VoiceOver can't name |
+| `make design-shots KEYBOARD=1` | Tours every window with Tab, with made-up rows in its lists: each stop and what VoiceOver says there ([Tests](#tests)) |
 | `make hooks` | Points git at `Scripts/hooks`, so `pre-push` runs the tests |
 | `make clean` | Removes `.build` and `build` |
 
@@ -131,6 +132,20 @@ and exits non-zero if anything fails.
   check itself on a window with each problem in it. The windows are built with empty data,
   so `make site-audit` runs the same rules against the installed app, with real list rows.
   What a program can't judge is asked of Kevin (see CLAUDE.md).
+- **The keyboard** (#455): `KeyboardTests.swift` tours the same windows with Tab, as
+  someone with System Settings › Keyboard › Keyboard navigation on does, and with
+  VoiceOver's ears (`KeyboardTour`). Out of sight, in its own process, so it needs no
+  screen and no Mac lane: Tab is AppKit's `selectNextKeyView`, the arrow keys go to the
+  control with focus, and the setting is answered for that process only. Each stop is
+  matched to what VoiceOver reads there. It fails on a stop VoiceOver can't name, a
+  control that is two stops (a switch and each of its choices, the sidebar and each
+  section), a control Tab never reaches, and a loop that doesn't come back round; and it
+  checks what ↑ ↓ do in the sidebar, ← → in a switch, and ⌘F and Escape in search. `make
+  design-shots KEYBOARD=1` prints the same tour of every window with rows in its lists,
+  stop by stop, and fails on the same problems. What it can't check: that Space or
+  Return on a focused button does what a click does (SwiftUI takes those only in the
+  key window of the active app), and whether the order makes sense to someone who
+  can't see it.
 
 ## How the app is built
 

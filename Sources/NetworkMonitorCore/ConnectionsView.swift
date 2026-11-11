@@ -63,16 +63,16 @@ public struct ConnectionsView: View {
             LabelledControl(L("Group by")) {
                 GlassSegmented(name: L("Group by"), options: ConnectionsGrouping.allCases,
                                selection: Binding(get: { model.grouping }, set: { model.grouping = $0 }),
-                               label: { $0.label }, size: .small)
-                    .help(L("Group the list by company, app or country. A row inside a group narrows the window to it."))
+                               label: { $0.label }, size: .small,
+                               help: L("Group the list by company, app or country. A row inside a group narrows the window to it."))
             }
             // What was blocked (#114), once there's a filter to block anything.
             if model.filter.state != .unavailable {
                 LabelledControl(L("Show")) {
                     GlassSegmented(name: L("Show"), options: [ServerMeasure.bytes, .blocked],
                                    selection: Binding(get: { model.measure }, set: { model.measure = $0 }),
-                                   label: { $0 == .bytes ? L("Traffic") : L("Blocked") }, size: .small)
-                        .help(L("What your apps sent and received, or the connections that were blocked"))
+                                   label: { $0 == .bytes ? L("Traffic") : L("Blocked") }, size: .small,
+                                   help: L("What your apps sent and received, or the connections that were blocked"))
                 }
             }
             if model.spanTitle != nil || !model.chips.isEmpty || !query.isEmpty {
@@ -94,8 +94,8 @@ public struct ConnectionsView: View {
             // All, Wi-Fi and Hotspot say what they are; no label needed.
             GlassSegmented(name: L("Networks"), options: [nil, .wifi, .hotspot],
                            selection: Binding(get: { model.kind }, set: { model.setKind($0) }),
-                           label: { $0?.historyLabel ?? L("All") }, size: .small)
-                .help(L("Every connection, Wi-Fi only, or hotspots only"))
+                           label: { $0?.historyLabel ?? L("All") }, size: .small,
+                           help: L("Every connection, Wi-Fi only, or hotspots only"))
         }
         .frame(height: ScopeMetrics.height)
     }
@@ -548,6 +548,8 @@ private struct ConnectionsRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(disclosure ? L("Collapse") : L("Expand"))
+                // Which row, as Tab goes down them (#455).
+                .accessibilityValue(item.title)
                 .foregroundStyle(.secondary)
             } else {
                 Spacer().frame(width: 14)

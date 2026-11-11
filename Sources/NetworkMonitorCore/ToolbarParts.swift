@@ -116,9 +116,13 @@ struct SideBySide<Leading: View, Trailing: View>: View {
     var body: some View {
         GeometryReader { geometry in
             HStack(alignment: .top, spacing: SplitMetrics.gap) {
+                // Tab goes through the list, then the map or the chart: by
+                // where they sit alone, it went row, zoom button, row (#455).
                 list.frame(width: SplitMetrics.listWidth(geometry.size.width))
                     .environment(\.splitListWidth, SplitMetrics.listWidth(geometry.size.width))
+                    .focusSection()
                 detail.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .focusSection()
             }
         }
     }
@@ -189,6 +193,8 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
     /// Whether the field is open, or opening, rather than the glass.
     public private(set) var isOpen = false
     private var placeholder = ""
+    /// Where focus was before ⌘F, to go back to when the search closes (#455).
+    private weak var focusBefore: NSResponder?
     private let size: NSLayoutConstraint
     private var clicks: Any?
 
@@ -251,13 +257,26 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
     }
 
     /// ⌘F, or the glass clicked: the field, with the cursor in it.
-    public func begin() { open(focus: true) }
+    public func begin() {
+        if !hasFocus, let window = field.window, window.firstResponder !== window {
+            focusBefore = window.firstResponder
+        }
+        open(focus: true)
+    }
 
     /// Back to the glass, if the field holds no search.
     public func finish() {
         guard isOpen, field.stringValue.isEmpty else { return }
         isOpen = false
-        if hasFocus { field.window?.makeFirstResponder(nil) }
+        if hasFocus, let window = field.window {
+            // Back where it was, as long as that's still in the window.
+            if let view = focusBefore as? NSView, view.window === window, view.canBecomeKeyView {
+                window.makeFirstResponder(view)
+            } else {
+                window.makeFirstResponder(nil)
+            }
+        }
+        focusBefore = nil
         field.placeholderString = nil
         resize(to: glassWidth)
     }

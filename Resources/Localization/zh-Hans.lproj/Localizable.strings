@@ -923,3 +923,10 @@
 "Chart" = "图表";
 "The list, both side by side, or the chart" = "列表、两者并排，或图表";
 "The sites blocked, or the apps that tried to reach them" = "已拦截的网站，或尝试访问它们的应用";
+
+/* What VoiceOver calls the ⓘ beside a row when Tab reaches it (#455). */
+"Explanation" = "说明";
+/* What VoiceOver calls a rule's ⊖ button, naming the rule (#455). */
+"Remove the rule for %@" = "移除“%@”的规则";
+/* What VoiceOver calls a paused network's ⊖ button (#455). */
+"Block ads on %@ again" = "在“%@”上重新拦截广告";
