@@ -37,7 +37,14 @@
 //   version
 //
 // What's particular to a project is in its `.product-kit.json` (`--repo`, the
-// current folder by default): `shots` (see `Config`) and `site.url`.
+// current folder by default): `shots` (see `Config`) and `site.url`. A project
+// with no website keeps `shots/shots.json` in its own checkout (product-kit#8).
+//
+// Or the project draws its pictures itself (product-kit#8): the manifest's
+// `render` builds it and runs a command that writes each picture, out of sight,
+// from fixed data. Then `check` compares each drawing with its picture, pixel
+// by pixel, and `update` copies the ones that differ: no app, no screen, no
+// lanes. See `Rendered`.
 //
 // It needs Accessibility and Screen Recording for the terminal it runs in. It
 // takes the app's Mac lane and `screen` itself (mac-lane, from the shared-mac
@@ -58,7 +65,7 @@ import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
 
-let shotsKitVersion = "1.0.0"
+let shotsKitVersion = "1.1.0"
 
 // MARK: - Config
 
@@ -120,7 +127,46 @@ struct Manifest: Decodable {
     /// The other languages the site has a page in (NetworkMonitor#431). Each shot is taken
     /// again in each, for its page.
     var languages: [Language]?
+    /// Pictures the project draws itself (product-kit#8): no app or window to
+    /// open, so its shots name only their `file` and their `render`.
+    var render: Render?
+
+    enum CodingKeys: String, CodingKey { case app, bundle, shots, assets, languages, render }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        assets = try c.decodeIfPresent([HandMade].self, forKey: .assets)
+        languages = try c.decodeIfPresent([Language].self, forKey: .languages)
+        render = try c.decodeIfPresent(Render.self, forKey: .render)
+        if render != nil {
+            app = try c.decodeIfPresent(String.self, forKey: .app) ?? ""
+            bundle = try c.decodeIfPresent(String.self, forKey: .bundle) ?? ""
+            shots = try c.decode([Rendered.Shot].self, forKey: .shots).map {
+                Shot(name: $0.name, file: $0.file, open: [], window: "", render: $0.render)
+            }
+        } else {
+            app = try c.decode(String.self, forKey: .app)
+            bundle = try c.decode(String.self, forKey: .bundle)
+            shots = try c.decode([Shot].self, forKey: .shots)
+        }
+    }
 }
+
+/// `shots/shots.json`: on the site, or in the project's checkout when it has no
+/// site (product-kit#8).
+func loadManifest(_ site: URL) throws -> Manifest {
+    let file = site.appendingPathComponent("shots/shots.json")
+    guard FileManager.default.fileExists(atPath: file.path) else {
+        throw Failure(manifestInRepo
+            ? "no shots/shots.json: put it in the project's checkout, or say where the site is (shots.site in .product-kit.json, or --site)"
+            : "no shots/shots.json in \(site.path)")
+    }
+    return try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: file))
+}
+
+/// The project has no site: the manifest and its pictures are in its checkout,
+/// and the README's and the docs' assets are listed in it (product-kit#8).
+nonisolated(unsafe) var manifestInRepo = false
 
 /// A language the site has a page in (NetworkMonitor#431). Its pictures are taken from the
 /// app shown in that language (`-language`), into a folder of their own, for
@@ -342,6 +388,8 @@ struct Shot: Decodable {
     /// each was made from (`made`, NetworkMonitor#421), an entry here fails the check: list
     /// it under `assets` instead.
     var flags: [String]?
+    /// The file the manifest's `render` writes for it (product-kit#8).
+    var render: String?
 
     /// The same shot in `language`: the app opened in it, its elements named
     /// in it, its picture in the language's folder. Videos and staged pictures
@@ -1583,8 +1631,11 @@ enum Coverage {
             }
         }
 
-        // The site: each asset is a shot's picture, a flag, or listed.
-        let siteUses = try siteUses(site)
+        // The site: each asset is a shot's picture, a flag, or listed. Without
+        // a site, the README's and the docs' are, against the one list (product-kit#8).
+        let inRepo = manifestInRepo && repo != nil
+        var siteUses = try siteUses(site)
+        if inRepo, let repo { siteUses.merge(try repoUses(repo)) { $0.union($1) } }
         // Each shot's picture, and its copy in each language (NetworkMonitor#431).
         var pictures: [(file: String, shot: String)] = manifest.shots.compactMap { s in s.file.map { ($0, s.name) } }
         var translated: [(file: String, shot: String)] = []
@@ -1601,11 +1652,11 @@ enum Coverage {
         let flagged = manifest.shots.flatMap { shot in (shot.flags ?? []).map { HandMade(file: $0, shows: [shot.name]) } }
         checkList((manifest.assets ?? []) + flagged.filter { f in !(manifest.assets ?? []).contains { $0.file == f.file } },
                   root: site, listName: "shots/shots.json", uses: siteUses, taken: shotFiles)
-        var summary = "\(siteUses.count) assets on the site"
+        var summary = inRepo ? "\(siteUses.count) assets in the README and docs" : "\(siteUses.count) assets on the site"
 
         // The README and the docs.
-        let onMain = problems.count
-        if let repo {
+        let onMain = inRepo ? 0 : problems.count
+        if let repo, !inRepo {
             let uses = try repoUses(repo)
             // A copy of a shot's picture is listed once, in English; each
             // language's copy of it comes with it (NetworkMonitor#434).
@@ -1643,7 +1694,7 @@ enum Coverage {
     static func report(_ problems: [String], onMain: Int, checking: String?, head: String?) -> [String] {
         let groups: [(branch: String, what: String, problems: ArraySlice<String>)] = [
             (config.siteBranch, "the site's pages and shots/shots.json", problems[..<onMain]),
-            (config.repoBranch, "the README, the docs and \(repoAssetsPath)", problems[onMain...]),
+            (config.repoBranch, "the README, the docs and \(manifestInRepo ? "shots/shots.json" : repoAssetsPath)", problems[onMain...]),
         ]
         var lines: [String] = []
         for group in groups where !group.problems.isEmpty {
@@ -1876,6 +1927,178 @@ enum CoverageTests {
     }
 }
 
+// MARK: - Drawn by the project
+
+/// The manifest's `render` (product-kit#8): how the project draws its own pictures.
+/// `{out}` in either command is the folder the drawings go in. Both run in the
+/// project's checkout.
+struct Render: Decodable {
+    /// Builds what draws them, such as `["./build.sh"]`. Optional.
+    var build: [String]?
+    /// Draws every picture into `{out}`, out of sight and from fixed data:
+    /// `["build/App.app/Contents/MacOS/App", "--snapshot", "shots/demo.json", "{out}"]`.
+    var command: [String]
+}
+
+/// Pictures the project draws itself, from fixed data with a fixed clock, out of
+/// sight (product-kit#8). A drawing that differs from its picture by a pixel means
+/// the interface changed, since nothing else can: so `check` compares them, and
+/// `update` copies the ones that differ. No app is opened, nothing is shown, and
+/// no Mac lane is taken.
+enum Rendered {
+    /// A shot of a manifest with `render`: its picture and the drawing it's from.
+    struct Shot: Decodable {
+        var name: String
+        var file: String
+        var render: String
+    }
+
+    /// How long each command may take before it's stopped.
+    static let buildLimit: TimeInterval = 20 * 60, drawLimit: TimeInterval = 10 * 60
+
+    static func run(_ command: String, names: Set<String>, manifest: Manifest, render: Render, site: URL, repo: URL) -> Int32 {
+        guard ["check", "update"].contains(command) else {
+            print("\(command): not for pictures the project draws itself (the manifest's `render`); check and update are")
+            return 2
+        }
+        let shots = manifest.shots.filter { names.isEmpty || names.contains($0.name) }
+        let unknown = names.subtracting(manifest.shots.map(\.name))
+        if !unknown.isEmpty || shots.isEmpty {
+            print("\(command): no shot named \((unknown.isEmpty ? names : unknown).sorted().joined(separator: ", "))")
+            return 2
+        }
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("shots-kit-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: out) }
+        do {
+            try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+            func expand(_ argv: [String]) -> [String] { argv.map { $0.replacingOccurrences(of: "{out}", with: out.path) } }
+            if let build = render.build, !build.isEmpty {
+                print("building: \(build.joined(separator: " "))")
+                try runCommand(expand(build), in: repo, limit: buildLimit, what: "the build")
+            }
+            print("drawing: \(render.command.joined(separator: " "))")
+            try runCommand(expand(render.command), in: repo, limit: drawLimit, what: "the drawing")
+        } catch {
+            print("\(command): \(error)")
+            return 2
+        }
+
+        var changed: [String] = [], missing: [String] = []
+        for shot in shots {
+            guard let drawing = shot.render else { continue }
+            let drawn = out.appendingPathComponent(drawing)
+            guard FileManager.default.fileExists(atPath: drawn.path) else {
+                print("\(shot.name): the drawing made no \(drawing)")
+                missing.append(shot.name)
+                continue
+            }
+            let picture = site.appendingPathComponent(shot.file ?? "")
+            guard let difference = compare(drawn, picture) else {
+                print("\(shot.name): unchanged")
+                continue
+            }
+            changed.append(shot.name)
+            if command == "update" {
+                do {
+                    try FileManager.default.createDirectory(at: picture.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    if FileManager.default.fileExists(atPath: picture.path) { try FileManager.default.removeItem(at: picture) }
+                    try FileManager.default.copyItem(at: drawn, to: picture)
+                    print("\(shot.name): redrawn (\(difference)), \(shot.file ?? "")")
+                } catch {
+                    print("\(shot.name): couldn't write \(shot.file ?? ""): \(error)")
+                    missing.append(shot.name)
+                }
+            } else {
+                print("\(shot.name): changed: \(difference)")
+            }
+        }
+        // What's made by hand from a window that changed: remade by hand, when asked.
+        let handMade = (manifest.assets ?? []).compactMap { asset -> String? in
+            let shows = (asset.shows ?? []).filter(changed.contains)
+            return shows.isEmpty ? nil : "\(asset.file) (shows \(shows.joined(separator: ", ")))"
+        }
+        if !handMade.isEmpty {
+            print("Made by hand, and showing what changed; remake by hand when asked:")
+            handMade.forEach { print("  " + $0) }
+        }
+        let total = shots.filter { $0.render != nil }.count
+        if command == "check" {
+            print(changed.isEmpty ? "check: all \(total) pictures are as drawn"
+                                  : "check: \(changed.count) of \(total) pictures differ from the drawing; `shots-kit update` copies the drawings")
+            return missing.isEmpty ? (changed.isEmpty ? 0 : 1) : 2
+        }
+        print(changed.isEmpty ? "update: all \(total) pictures were as drawn" : "update: redrew \(changed.count) of \(total)")
+        return missing.isEmpty ? 0 : 2
+    }
+
+    /// Runs `argv` in `dir`, stopped after `limit` seconds; throws with the end of
+    /// its output when it fails.
+    static func runCommand(_ argv: [String], in dir: URL, limit: TimeInterval, what: String) throws {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        p.arguments = argv
+        p.currentDirectoryURL = dir
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = pipe
+        try p.run()
+        let timer = DispatchWorkItem { if p.isRunning { p.terminate() } }
+        DispatchQueue.global().asyncAfter(deadline: .now() + limit, execute: timer)
+        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        p.waitUntilExit()
+        timer.cancel()
+        if p.terminationReason == .uncaughtSignal, p.terminationStatus == SIGTERM {
+            throw Failure("\(what) took more than \(Int(limit / 60)) minutes, so it was stopped")
+        }
+        guard p.terminationStatus == 0 else {
+            let tail = output.split(separator: "\n", omittingEmptySubsequences: false).suffix(20).joined(separator: "\n")
+            throw Failure("\(what) failed (exit \(p.terminationStatus)):\n\(tail)")
+        }
+    }
+
+    /// How a drawing differs from its picture, or nil when it doesn't.
+    static func compare(_ drawn: URL, _ picture: URL) -> String? {
+        guard let a = try? Data(contentsOf: drawn) else { return "no drawing" }
+        guard let b = try? Data(contentsOf: picture) else { return "a new picture" }
+        if a == b { return nil }
+        guard let x = pixels(a) else { return "the drawing isn't an image" }
+        guard let y = pixels(b) else { return "the picture isn't an image" }
+        if x.width != y.width || x.height != y.height {
+            return "its size, \(y.width)×\(y.height) to \(x.width)×\(x.height) pixels"
+        }
+        // The same pixels written differently (another PNG encoder) aren't a change.
+        var count = 0, minX = Int.max, minY = Int.max, maxX = -1, maxY = -1
+        for row in 0..<x.height {
+            for col in 0..<x.width {
+                let i = (row * x.width + col) * 4
+                var differs = false
+                for k in 0..<4 where abs(Int(x.bytes[i + k]) - Int(y.bytes[i + k])) > 2 { differs = true; break }
+                guard differs else { continue }
+                count += 1
+                minX = min(minX, col); maxX = max(maxX, col); minY = min(minY, row); maxY = max(maxY, row)
+            }
+        }
+        guard count > 0 else { return nil }
+        return "\(count) pixels differ, within \(maxX - minX + 1)×\(maxY - minY + 1) at (\(minX), \(minY)) of \(x.width)×\(x.height)"
+    }
+
+    /// An image's pixels as sRGB RGBA, 8 bits each.
+    static func pixels(_ data: Data) -> (width: Int, height: Int, bytes: [UInt8])? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil),
+              let space = CGColorSpace(name: CGColorSpace.sRGB) else { return nil }
+        let w = image.width, h = image.height
+        var bytes = [UInt8](repeating: 0, count: w * h * 4)
+        let drawn = bytes.withUnsafeMutableBytes { buffer -> Bool in
+            guard let ctx = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                      space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+            return true
+        }
+        return drawn ? (w, h, bytes) : nil
+    }
+}
+
 // MARK: - Running
 
 struct Failure: Error, CustomStringConvertible {
@@ -1906,15 +2129,15 @@ struct ShotsKit {
         repoRoot = repo
         config = Config.load(repo: repo)
         // The site's checkout: `--site`, or the config's, from the main checkout.
-        var site: URL?
+        var givenSite: URL?
         if let i = args.firstIndex(of: "--site"), i + 1 < args.count {
-            site = URL(fileURLWithPath: args[i + 1]); args.removeSubrange(i...(i + 1))
+            givenSite = URL(fileURLWithPath: args[i + 1]); args.removeSubrange(i...(i + 1))
         } else if let path = config.site {
             let common = runTool("/usr/bin/git", ["-C", repo.path, "rev-parse", "--path-format=absolute", "--git-common-dir"])
             let main = common.status == 0
                 ? URL(fileURLWithPath: common.output.trimmingCharacters(in: .whitespacesAndNewlines)).deletingLastPathComponent()
                 : repo
-            site = URL(fileURLWithPath: path, relativeTo: main).standardizedFileURL
+            givenSite = URL(fileURLWithPath: path, relativeTo: main).standardizedFileURL
         }
         // Another copy of the app than the manifest's, such as a development
         // build of a version not yet released.
@@ -1942,16 +2165,17 @@ struct ShotsKit {
             print("usage: shots-kit check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE] [--wait-away MINUTES]|version")
             exit(2)
         }
-        guard let site = site ?? (command == "coverage-test" ? repo : nil) else {
-            print("shots-kit: no site: give --site, or shots.site in .product-kit.json")
-            exit(2)
-        }
+        // No site: the manifest is the project's own (product-kit#8).
+        if givenSite == nil, command != "coverage-test" { manifestInRepo = true }
+        let site = givenSite ?? repo
         let names = Set(args.dropFirst())
         if command == "record", names.isEmpty {
             print("record: name the windows whose marks changed; recording every tree would hide a real change")
             exit(2)
         }
-        let repoAssets = try? JSONDecoder().decode(RepoAssets.self, from: Data(contentsOf: repo.appendingPathComponent(repoAssetsPath)))
+        // With the manifest in the repo, it lists the README's assets itself.
+        let repoAssets = manifestInRepo ? nil
+            : try? JSONDecoder().decode(RepoAssets.self, from: Data(contentsOf: repo.appendingPathComponent(repoAssetsPath)))
 
         // Made-up pages only: where `coverage` looks for media (NetworkMonitor#425).
         if command == "coverage-test" {
@@ -1973,8 +2197,8 @@ struct ShotsKit {
         // Files only, so first, before anything that needs the app.
         if command == "coverage" {
             do {
-                let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
-                if repoAssets == nil, FileManager.default.fileExists(atPath: repo.appendingPathComponent(repoAssetsPath).path) {
+                let manifest = try loadManifest(site)
+                if !manifestInRepo, repoAssets == nil, FileManager.default.fileExists(atPath: repo.appendingPathComponent(repoAssetsPath).path) {
                     throw Failure("\(repoAssetsPath) doesn't read as a list of assets")
                 }
                 let found = try Coverage.problems(manifest: manifest, site: site, repoAssets: repoAssets, repo: repo)
@@ -2002,7 +2226,7 @@ struct ShotsKit {
         // Files only too: the README's copies of the site's pictures.
         if command == "readme" {
             do {
-                let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
+                let manifest = try loadManifest(site)
                 let languages: [Language?] = [nil] + (manifest.languages ?? []).map { $0 }
                 var copied: [String] = []
                 for language in languages where only == nil || only == (language?.code ?? "en") {
@@ -2016,6 +2240,10 @@ struct ShotsKit {
                 exit(2)
             }
         }
+        // Drawn by the project: no app, no screen, no lanes (product-kit#8).
+        if let manifest = try? loadManifest(site), let render = manifest.render {
+            exit(Rendered.run(command, names: names, manifest: manifest, render: render, site: site, repo: repo))
+        }
         // One run at a time: each quits and relaunches the app, so two at once,
         // from two terminals or two sessions, spoil each other's windows.
         let lock = open(NSHomeDirectory() + "/Library/Caches/shots-kit.lock", O_CREAT | O_RDWR, 0o644)
@@ -2025,7 +2253,7 @@ struct ShotsKit {
         }
         do {
             guard AXIsProcessTrusted() else { throw Failure("give this terminal Accessibility in System Settings › Privacy & Security") }
-            var manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
+            var manifest = try loadManifest(site)
             if let app { manifest.app = app }
             // Trees and pictures are read on a Retina screen; on a 1x one
             // they'd differ from the records without any change (NetworkMonitor#487).
@@ -2035,7 +2263,7 @@ struct ShotsKit {
             // Put back as it was, the installed copy, even after a run with
             // another copy (`--app`, NetworkMonitor#506).
             var installed = manifest
-            installed.app = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json"))).app
+            installed.app = try loadManifest(site).app
             let mac = Mac(manifest: manifest, installed: installed, command: command)
             // However the run ends: Ctrl-C or a kill too.
             for sig in [SIGINT, SIGTERM, SIGHUP] {
