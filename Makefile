@@ -107,20 +107,20 @@ public-suffixes:
 dmg-background:
 	@swift Scripts/make-dmg-background.swift
 
-# The website's pictures of the app (#329). Both run against the installed app,
-# quitting and relaunching it, so both wait their turn in the Mac lanes (#342):
-# site-shots takes `networkmonitor` and `screen` itself, only while it reads or
-# takes windows (#504). Kevin is never asked to step away (#521): what needs the real
-# screen while he's using the Mac is reported as not taken. WAIT=<minutes> waits up to
+# The website's pictures of the app (#329). They're taken in a throwaway macOS VM
+# (shots.vm in .product-kit.json, #561; docs/development.md#website-pictures): nothing
+# on Kevin's screens, nothing waits, the installed app untouched, no Mac lane.
+# HERE=1 uses this Mac's screen and installed app instead, quitting and relaunching it,
+# in the Mac lanes (#342): `networkmonitor` and `screen`, only while it reads or takes
+# windows (#504). Kevin is never asked to step away (#521): what needs the real screen
+# while he's using the Mac is then reported as not taken. WAIT=<minutes> waits up to
 # that long, silently with the lanes free, in case the Mac is left idle or locked.
 # They read the NetworkMonitor-site worktree beside the main checkout, found
 # through git so it works from any worktree, unless SITE says otherwise.
 # `site-check` says which pictures show a window whose interface changed;
 # `site-shots` retakes them (or those in NAMES) and updates the page.
 # LOOK=1 makes `site-check` compare each picture's look too (#423), which
-# brings each window forward: only while the Mac is idle, or they're reported as not taken.
-# VM=1 runs them in a throwaway macOS VM instead (mac-vm; product-kit#10): nothing on
-# Kevin's screens and nothing waits. Not the default until #561 has checked its pictures.
+# brings each window forward (with HERE=1, only while the Mac is idle).
 SITE ?= $(abspath $(dir $(shell git rev-parse --path-format=absolute --git-common-dir))../NetworkMonitor-site)
 # It shares the accessibility rules with the tests.
 build/site-shots: Scripts/site-shots.swift Sources/NetworkMonitorCore/AccessibilityAudit.swift
@@ -129,7 +129,7 @@ build/site-shots: Scripts/site-shots.swift Sources/NetworkMonitorCore/Accessibil
 
 site-check: build/site-shots
 	@build/site-shots coverage --site $(SITE)
-	@build/site-shots check $(if $(LOOK),--look) $(if $(VM),--vm) $(if $(WAIT),--wait-away $(WAIT)) --site $(SITE) $(NAMES)
+	@build/site-shots check $(if $(LOOK),--look) $(if $(HERE),--here) $(if $(WAIT),--wait-away $(WAIT)) --site $(SITE) $(NAMES)
 
 # Every image, GIF and video the site, the README and the docs use is listed
 # with the window it shows, or why it shows none (#413). Files only, no app:
@@ -176,18 +176,18 @@ translation-review:
 # reports those pictures as not taken, and why, and ends as usual (#521); WAIT=<minutes>
 # waits up to that long first, silently with the lanes free (#504).
 site-shots: build/site-shots
-	@build/site-shots update $(if $(VM),--vm) $(if $(WAIT),--wait-away $(WAIT)) --site $(SITE) $(NAMES)
+	@build/site-shots update $(if $(HERE),--here) $(if $(WAIT),--wait-away $(WAIT)) --site $(SITE) $(NAMES)
 
 # Records the trees of the windows in NAMES as they read now, without retaking
 # their pictures: after marking more of a window as data or ignored, such as
 # what follows the Mac's connection (#416).
 site-trees: build/site-shots
-	@build/site-shots record $(if $(VM),--vm) --site $(SITE) $(NAMES)
+	@build/site-shots record $(if $(HERE),--here) --site $(SITE) $(NAMES)
 
 # The installed app's windows, with real data, against the tests' accessibility
 # rules (#346).
 site-audit: build/site-shots
-	@build/site-shots audit $(if $(VM),--vm) --site $(SITE) $(NAMES)
+	@build/site-shots audit $(if $(HERE),--here) --site $(SITE) $(NAMES)
 
 # Pictures of every window from a made-up dataset, at 2x in light and dark,
 # for the design work (#437): no real connections, sites or rules, and no

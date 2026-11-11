@@ -478,14 +478,37 @@ taken (#521; `WAIT=<minutes>` waits for it, silently, with the Mac lanes free, #
 make site-check                         # what changed; exits 1 if anything did
 make site-shots                         # retake what changed, update index.html
 make site-shots NAMES="settings-ads"    # retake these whether or not they changed
-make site-shots WAIT=60                 # wait up to an hour for the Mac to be left idle
-make site-check VM=1                    # in a throwaway VM: nothing on the screen, nothing waits
+make site-check HERE=1                  # on this Mac's screen instead of the VM
+make site-shots HERE=1 WAIT=60          # …waiting up to an hour for the Mac to be left idle
 ```
 
-`VM=1` (shots-kit's `--vm`, product-kit#10) takes the pictures in a `mac-vm` clone and
-brings back what changed. The clone has none of this Mac's apps or settings, so its pictures
-differ from the site's until #561 sets it up; until then, use it for checking, not for the
-site's pictures.
+**In a VM** (#561). The pictures are taken in a throwaway macOS VM (shots-kit's `vm`
+in `.product-kit.json`, product-kit#10 and #12; `mac-vm`, from the shared-mac plugin), never
+on Kevin's screens: nothing shows, nothing waits for the Mac to be idle, a real click (the
+Network section's disclosure rows, #541) is fine, and the installed app is never quit. Each
+run clones `claude-image-networkmonitor`, which has NetworkMonitor installed with its content
+filter, background item and Location Services allowed, and dark mode switchable. Then it
+makes the clone look like this Mac:
+
+- `vm.files`: NetworkMonitor's data (`~/Library/Application Support/NetworkMonitor`, the
+  history and lists) and its settings, so the windows show Kevin's real traffic.
+- `vm.prepare`, `Scripts/shots-vm-prepare.sh`, here: this Mac's time zone, light or dark,
+  and a stand-in for each of this Mac's apps that the history names or the Network section
+  finds (`Scripts/shots-vm-icons.swift`): its Info.plist, its icon as this Mac draws it, a
+  program that does nothing, and empty copies of what the updater scan looks for. Nothing
+  of the apps themselves.
+- `vm.setup`, `Scripts/shots-vm-setup.sh`, in the clone: sets the time zone and the
+  appearance, and puts each stand-in where it is on this Mac.
+
+The VM's screen is 3200×2000 pixels at 2x (1600×1000 points), so every window is read and
+taken at the size it has on the built-in display. What changed comes back to the site and the
+README; nothing else is touched. `HERE=1` uses this Mac's screen as before, behind the idle
+gate.
+
+**The image, again** after a macOS update of the golden image (`--fresh`) or when a new
+version's filter asks to be allowed: `Scripts/shots-vm-image.sh` installs the app in the
+image and waits while the approvals are given over `mac-vm look` and `mac-vm vnc`; the
+script lists them.
 
 `site-shots` retakes each changed window with ScreenCaptureKit, at 2x and active, and
 records its new tree. It then updates the page: each picture's `width`, `height`,

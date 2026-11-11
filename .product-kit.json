@@ -92,6 +92,17 @@
       ]
     },
     "audit": "Sources/NetworkMonitorCore/AccessibilityAudit.swift",
-    "vendor": "Scripts/site-shots.swift"
+    "vendor": "Scripts/site-shots.swift",
+    "vm": {
+      "default": true,
+      "image": "networkmonitor",
+      "display": "3200x2000",
+      "files": [
+        "~/Library/Application Support/NetworkMonitor",
+        "~/Library/Preferences/com.kevinabouhanna.NetworkMonitor.plist"
+      ],
+      "prepare": "Scripts/shots-vm-prepare.sh",
+      "setup": "Scripts/shots-vm-setup.sh"
+    }
   }
 }

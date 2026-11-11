@@ -69,9 +69,9 @@ through without asking. What's particular to NetworkMonitor:
       updates the page (`docs/development.md#website-pictures`; it's product-kit's
       shots-kit, vendored as `Scripts/site-shots.swift`, the `shots-kit` skill). Rewrite the alt
       text of any picture it retook for an interface change, from the diff it
-      prints, describing the interface, not its numbers. Pictures it reports as
-      not taken (the Mac was in use) don't hold the release: list them in your
-      summary for a later run.
+      prints, describing the interface, not its numbers. It runs in a VM, from
+      the installed copy (#561): if the new version's filter asks to be allowed
+      again there, remake the image (`Scripts/shots-vm-image.sh`) first.
     - videos it names as showing a changed window: ask Kevin before
       remaking them, since they take real work. The pictures, the popover's
       and the speed test's included, it retakes itself, and copies the
@@ -217,9 +217,9 @@ release of its own:
     `make run` take it themselves. Launch a development build through it too:
     `MAC_LANE=networkmonitor mac-lane open -W -n build/NetworkMonitor.app --args …`
     holds the lane until that copy quits.
-  - `screen`: the pointer, screen captures and recordings. `site-shots` (`make
-    site-check`, `site-shots`…, `build/site-shots tree`) takes both `screen` and
-    `networkmonitor` itself, only while it reads or takes windows (#504).
+  - `screen`: the pointer, screen captures and recordings. `site-shots` with `HERE=1`
+    takes both `screen` and `networkmonitor` itself, only while it reads or takes windows
+    (#504); in its VM, the default, it takes neither.
 
   A busy lane waits and names its holder. Run those commands in the background so a
   wait can't time out. `mac-lane status` lists every lane, who holds it and for how long.
@@ -232,12 +232,14 @@ release of its own:
   (Kevin, 11 Nov 2026: a NetworkMonitor window every few seconds while pictures were taken;
   "I cannot use the computer"). On this Mac: installing and relaunching his own copy, and
   work that opens no windows.
-  - `site-shots` (`make site-check`, `site-shots`, `site-trees`, `site-audit`, `build/site-shots
-    tree`) opens the app's windows over and over. Until it runs in a VM (#561), run it only
-    while the Mac is idle, waiting silently:
-    `MAC_LANE=screen MAC_LANE_IDLE=90 mac-lane make site-check` (no keyboard or mouse for
-    90 s, or the screen locked; it gives up after four hours). If it gives up, report it as not
-    done; never hold a release or a review on it.
+  - `site-shots` (`make site-check`, `site-shots`, `site-trees`, `site-audit`) runs in a VM
+    (#561): run it any time, in the background (a few minutes; one VM run per site at a time).
+    Its image, `claude-image-networkmonitor`, has the app's approvals; after a macOS update of
+    the golden image, or when a new version's filter asks to be allowed again, remake it with
+    `Scripts/shots-vm-image.sh` (`docs/development.md#website-pictures`). `HERE=1` uses this
+    Mac's screen instead: only while the Mac is idle, waiting silently
+    (`MAC_LANE=screen MAC_LANE_IDLE=90 mac-lane make site-check HERE=1`), and never hold a
+    release or a review on it.
   - Never ask Kevin to step away, in a notification or in chat (#521,
     kevinabouhanna/claude-parallel-sessions#27): he keeps using the Mac.
 - **Quit and reopen the app through `Scripts/quit-and-open.sh`** (`nm_quit`,
