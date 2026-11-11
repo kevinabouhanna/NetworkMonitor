@@ -1,5 +1,7 @@
-// site-shots: keeps the website's pictures of the app current, without anyone
-// looking at them.
+// shots-kit: keeps a website's pictures of a macOS app current, without anyone
+// looking at them. Part of product-kit (kevinabouhanna/product-kit#6); it grew
+// out of NetworkMonitor's site-shots (NetworkMonitor#329), whose issues the
+// notes below name.
 //
 // Each picture on the site has an entry in the site's `shots/shots.json`: the
 // launch arguments that open its window, anything to click first, and which
@@ -13,37 +15,99 @@
 //                    show a window that changed (they're remade by hand).
 //                    With --look, and on `update`, also as advice the windows
 //                    that look different from their pictures, outside what's
-//                    masked (`<name>.look`, #423)
+//                    masked (`<name>.look`)
 //   update [names]   retakes the pictures whose window changed (or the ones
 //                    named), records their trees, and updates the page: each
 //                    picture's size, the clickable areas laid over it, and the
 //                    `?v=` on every asset link
 //   tree <name>      prints the masked tree, for writing an entry
-//   audit [names]    checks each window for what VoiceOver can't name (#346),
-//                    with the rules the tests use, but on real data: list
-//                    rows, scanned apps, the popover with traffic
+//   audit [names]    checks each window for what VoiceOver can't name, on
+//                    real data: list rows, the popover with traffic
 //   readme           copies the site's pictures the README uses into it, in
-//                    every language (#434). Files only. `update` copies each
-//                    one it retakes
+//                    every language. Files only. `update` copies each one it
+//                    retakes
 //   record <names>   records the named windows' trees as they read now,
 //                    without retaking their pictures: after marking more of
-//                    a window as data or ignored (#416). And keeps each
-//                    picture's look from the picture as it is
+//                    a window as data or ignored. And keeps each picture's
+//                    look from the picture as it is
+//   coverage         every image, GIF and video the site, the README and the
+//                    docs use is a shot's picture or listed with the windows
+//                    it shows. Files only, so it runs in CI
+//   coverage-test    where `coverage` looks for media, on made-up pages
+//   version
+//
+// What's particular to a project is in its `.product-kit.json` (`--repo`, the
+// current folder by default): `shots` (see `Config`) and `site.url`.
 //
 // It needs Accessibility and Screen Recording for the terminal it runs in. It
-// takes the `networkmonitor` and `screen` Mac lanes itself, only while it reads
-// or takes windows (#504). A shot that needs a window brought forward or a real
-// click, while Kevin is using the Mac, isn't taken: it's reported as not taken,
-// and why, and never waited on unless asked (`--wait-away MINUTES`: silently,
-// with the lanes free). Kevin is never asked to step away (#521). It quits and
-// relaunches the app, and whenever it lets the lanes go, however the run ends,
-// puts the installed copy back running if it was (#506).
-// Build with `make site-shots`; see docs/development.md#website-pictures.
+// takes the app's Mac lane and `screen` itself (mac-lane, from the shared-mac
+// plugin), only while it reads or takes windows. A shot that needs a window
+// brought forward or a real click while someone is using the Mac isn't taken:
+// it's reported as not taken, and why, and never waited on unless asked
+// (`--wait-away MINUTES`: silently, with the lanes free). Nobody is ever asked
+// to step away. It quits and relaunches the app, and whenever it lets the
+// lanes go, however the run ends, puts the installed copy back running if it
+// was.
+//
+// Build: swiftc -O -parse-as-library shots-kit.swift AccessibilityAudit.swift
+// (`shots-kit` in product-kit does it, and keeps the build), with the project's
+// own AccessibilityAudit.swift when it has one (`shots.audit`).
 
 import AppKit
 import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
+
+let shotsKitVersion = "1.0.0"
+
+// MARK: - Config
+
+/// What's particular to a project: `shots` in its `.product-kit.json`, and
+/// the site's address from `site.url`. Every key is optional.
+struct Config {
+    /// The site's checkout, from the project's main checkout (so the same from
+    /// any worktree): `../NetworkMonitor-site`. `--site` overrides it.
+    var site: String?
+    /// The README's and the docs' list of their assets, in the repo.
+    var repoAssets = "assets.json"
+    /// The app's Mac lane; the bundle id's last part, lowercased, by default.
+    var lane: String?
+    /// Launch arguments that open windows behind the others without
+    /// activating the app, for commands that only read the tree.
+    var background: [String] = []
+    /// Launch arguments that show the app in a language; `{code}` is its code.
+    var language = ["-AppleLanguages", "({code})"]
+    /// The app's table for a language, in its bundle; `{code}` is its code.
+    var strings = "Contents/Resources/{code}.lproj/Localizable.strings"
+    /// The site's address: links to its assets written with it are the site's.
+    var siteURL: String?
+    /// The branches the site and the repo are on, for the asset check's report.
+    var siteBranch = "gh-pages"
+    var repoBranch = "main"
+
+    static func load(repo: URL) -> Config {
+        var c = Config()
+        guard let data = try? Data(contentsOf: repo.appendingPathComponent(".product-kit.json")),
+              let top = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return c }
+        c.siteURL = (top["site"] as? [String: Any])?["url"] as? String
+        guard let shots = top["shots"] as? [String: Any] else { return c }
+        c.site = shots["site"] as? String
+        if let v = shots["repo_assets"] as? String { c.repoAssets = v }
+        c.lane = shots["lane"] as? String
+        let launch = shots["launch"] as? [String: Any]
+        if let v = launch?["background"] as? [String] { c.background = v }
+        if let v = launch?["language"] as? [String] { c.language = v }
+        if let v = shots["strings"] as? String { c.strings = v }
+        let branches = shots["branches"] as? [String: String]
+        if let v = branches?["site"] { c.siteBranch = v }
+        if let v = branches?["repo"] { c.repoBranch = v }
+        return c
+    }
+}
+
+nonisolated(unsafe) var config = Config()
+/// The project's checkout (`--repo`).
+nonisolated(unsafe) var repoRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 
 // MARK: - Manifest
 
@@ -53,12 +117,12 @@ struct Manifest: Decodable {
     var shots: [Shot]
     /// The site's assets this tool doesn't take: see `HandMade`.
     var assets: [HandMade]?
-    /// The other languages the site has a page in (#431). Each shot is taken
+    /// The other languages the site has a page in (NetworkMonitor#431). Each shot is taken
     /// again in each, for its page.
     var languages: [Language]?
 }
 
-/// A language the site has a page in (#431). Its pictures are taken from the
+/// A language the site has a page in (NetworkMonitor#431). Its pictures are taken from the
 /// app shown in that language (`-language`), into a folder of their own, for
 /// its page; their trees are kept apart too. Element specs are translated with
 /// the app's own table, so the manifest names each element once, in English.
@@ -93,7 +157,7 @@ final class Translator {
     private(set) var missing: Set<String> = []
 
     init(app: String, language: Language) throws {
-        let url = URL(fileURLWithPath: app).appendingPathComponent("Contents/Resources/\(language.code).lproj/Localizable.strings")
+        let url = URL(fileURLWithPath: app).appendingPathComponent(config.strings.replacingOccurrences(of: "{code}", with: language.code))
         guard let table = NSDictionary(contentsOf: url) as? [String: String] else {
             throw Failure("\(app) has no \(language.code) table; is it a version with that language?")
         }
@@ -124,7 +188,7 @@ final class Translator {
     }
 }
 
-/// An image, GIF or video the pages use that isn't a shot's picture (#413).
+/// An image, GIF or video the pages use that isn't a shot's picture (NetworkMonitor#413).
 /// Every asset a page uses must be either a shot's `file` or one of these, so
 /// none can go stale unnoticed: `coverage` fails on any that isn't.
 struct HandMade: Decodable {
@@ -134,22 +198,22 @@ struct HandMade: Decodable {
     var shows: [String]?
     /// Or why it shows no window this tool can check: an icon, the menu bar.
     var none: String?
-    /// Or, in the README's list, the shot whose picture it's a copy of (#434):
+    /// Or, in the README's list, the shot whose picture it's a copy of (NetworkMonitor#434):
     /// `update` copies the site's picture here, and each language's to
     /// `<folder>/<code>/<name>`, which needn't be listed.
     var copy: String?
     /// With `shows`, required: the app version it was made from, such as
-    /// `1.28.1` (#421). It fails the check when it's older than the record of
+    /// `1.28.1` (NetworkMonitor#421). It fails the check when it's older than the record of
     /// a window it shows (`Versions`), so an asset that was out of date on the
     /// day it was listed doesn't pass.
     var made: String?
-    /// The issue its remake waits on, such as `#458`, when it's out of date
+    /// The issue its remake waits on, such as `NetworkMonitor#458`, when it's out of date
     /// and can't be remade yet: the check names it without failing. It fails
     /// again once the asset is as new as its windows, until this comes out.
     var stale: String?
 }
 
-/// The app version each window's record was taken from (#421), in
+/// The app version each window's record was taken from (NetworkMonitor#421), in
 /// `shots/trees/versions.json`, by file name: `{"popover.txt": "1.28.1",
 /// "popover.made.txt": "1.28.1"}`. English only, as what's made by hand is.
 /// `update` keeps a record's version while the tree it holds stays the same,
@@ -198,8 +262,8 @@ struct RepoAssets: Decodable {
     var assets: [HandMade]
 }
 
-/// Where the main branch's list lives, relative to its checkout.
-let repoAssetsPath = "Resources/README/assets.json"
+/// Where the repo's list lives, relative to its checkout.
+var repoAssetsPath: String { config.repoAssets }
 
 /// A language's copy of one of the README's pictures: `Resources/README/<code>/speed-test.png`.
 func repoFile(_ english: String, in language: Language?) -> String {
@@ -209,7 +273,7 @@ func repoFile(_ english: String, in language: Language?) -> String {
     return (folder == "." ? "" : folder + "/") + language.code + "/" + url.lastPathComponent
 }
 
-/// Copies into the README each site picture it uses, in `language` (#434), so
+/// Copies into the README each site picture it uses, in `language` (NetworkMonitor#434), so
 /// the README's pictures in every language come from the run that takes the
 /// site's: those of the shots in `shots`, or all of them. Only those a page
 /// uses, or that are there already, so a language without a README gets none.
@@ -275,7 +339,7 @@ struct Shot: Decodable {
     /// Videos and staged pictures that show this window. They're reported when
     /// it changes, for remaking by hand. The older way of saying what the
     /// manifest's `assets` say with `shows`. With nowhere to say which version
-    /// each was made from (`made`, #421), an entry here fails the check: list
+    /// each was made from (`made`, NetworkMonitor#421), an entry here fails the check: list
     /// it under `assets` instead.
     var flags: [String]?
 
@@ -286,7 +350,7 @@ struct Shot: Decodable {
         var shot = self
         // AppleLanguages too, so dates and times come out as that language
         // writes them, as on a Mac set to it.
-        shot.open = open + ["-language", language.code, "-AppleLanguages", "(\(language.code))"]
+        shot.open = open + config.language.map { $0.replacingOccurrences(of: "{code}", with: language.code) }
         shot.window = t.window(window)
         shot.file = file.map(language.file)
         shot.click = click?.map(t.spec)
@@ -330,7 +394,7 @@ struct DataRegion: Decodable {
     /// a chart's bars. Absent, the region is the `from` element alone.
     var until: String?
     /// Lines that come and go with the Mac's state, such as Network's status
-    /// lines on a hotspot (#416): the region may be empty, and only that it's
+    /// lines on a hotspot (NetworkMonitor#416): the region may be empty, and only that it's
     /// there is kept, not its roles.
     var optional: Bool?
 }
@@ -446,7 +510,7 @@ func mask(_ s: String) -> String {
     s = s.replacingOccurrences(of: "\\b(\(months))\\b", with: "‹month›", options: .regularExpression)
     s = s.replacingOccurrences(of: "\\b(\(weekdays))\\b", with: "‹day›", options: .regularExpression)
     s = s.replacingOccurrences(of: "#\\s?(AM|PM|am|pm)\\b", with: "‹time›", options: .regularExpression)
-    // Chinese times and days (#431): 早上5:51, 下午#, 星期一, 周一.
+    // Chinese times and days (NetworkMonitor#431): 早上5:51, 下午#, 星期一, 周一.
     s = s.replacingOccurrences(of: "(凌晨|早上|上午|中午|下午|晚上)\\s?#", with: "‹time›", options: .regularExpression)
     s = s.replacingOccurrences(of: "(星期|周)[一二三四五六日天]", with: "‹day›", options: .regularExpression)
     // A total is in KB one day and GB the next.
@@ -473,7 +537,7 @@ func line(_ element: AXUIElement) -> String {
         let shown = settingRoles.contains(r) ? labels(element).dropLast(text(element, kAXValueAttribute) == nil ? 0 : 1) : labels(element)[...]
         let hasNumber = shown.contains { $0.rangeOfCharacter(from: .decimalDigits) != nil }
         // The menu bar readout keeps its width, rates and all: it's drawn at
-        // one width in either unit, so a change in it is the readout's (#424).
+        // one width in either unit, so a change in it is the readout's (NetworkMonitor#424).
         let keepsWidth = r == "AXMenuBarItem"
         parts.append(!keepsWidth && (r == "AXStaticText" || hasNumber || containerRoles.contains(r))
                      ? "h\(rounded(f.height))" : "\(rounded(f.width))x\(rounded(f.height))")
@@ -501,7 +565,7 @@ let ignoredRoles: Set<String> = ["AXScrollBar"]
 
 /// `masked` is told of each element whose looks the tree doesn't keep: data,
 /// what's left out, a number or a date, a setting's value. The look check
-/// leaves them out of the picture too (#423).
+/// leaves them out of the picture too (NetworkMonitor#423).
 func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = [],
           masked: ((AXUIElement) -> Void)? = nil) -> [String] {
     var out: [String] = []
@@ -570,7 +634,7 @@ func showsData(_ element: AXUIElement) -> Bool {
     return labels(element).contains { mask($0) != $0.replacingOccurrences(of: "\n", with: " ") }
 }
 
-// MARK: - The look (#423)
+// MARK: - The look (NetworkMonitor#423)
 
 /// What a window looks like, for what its tree can't tell: a colour, an icon,
 /// spacing, a font. A small thumbnail of its picture, its average colour in
@@ -647,13 +711,13 @@ struct Look {
     }
 
     /// A cell differs when a channel is off by more than this many levels of
-    /// 32: one level is a colour on a level's edge (#423).
+    /// 32: one level is a colour on a level's edge (NetworkMonitor#423).
     static let tolerance = 1
 
     /// How many cells may differ before the window is named. On real
     /// captures hours apart none did; an 8-point icon in another colour
     /// changes 2, a 16-point one 6, a line moved by 2 points over a hundred
-    /// (docs/development.md#website-pictures).
+    /// (product-kit docs/shots-kit.md).
     static let threshold = 1
 
     /// The cells, masked in neither, whose colour differs; nil when the
@@ -676,7 +740,7 @@ struct Look {
 nonisolated(unsafe) var compareLooks = false
 
 /// How long a run may wait, silently, for the Mac to be left idle or locked
-/// before it takes what needs the real screen (`--wait-away MINUTES`, #521).
+/// before it takes what needs the real screen (`--wait-away MINUTES`, NetworkMonitor#521).
 /// None by default: those shots are reported as not taken.
 nonisolated(unsafe) var waitAway: Double = 0
 
@@ -689,9 +753,9 @@ func maskedFrames(_ window: AXUIElement, _ shot: Shot) -> [CGRect] {
     return frames
 }
 
-// MARK: - Kevin's screens
+// MARK: - The screens
 
-/// The screen every window is read and taken on (#487): the built-in Retina
+/// The screen every window is read and taken on (NetworkMonitor#487): the built-in Retina
 /// display, or another Retina one; nil without one. The pictures are 2x, so
 /// it's a Retina screen; it's the same whichever screen is the main one.
 func stage() -> NSScreen? {
@@ -704,8 +768,8 @@ func stage() -> NSScreen? {
 }
 
 /// Where the app keeps its windows (`NSWindow Frame Main`): a run moves them
-/// onto the stage, and puts them back once the app has quit, so Kevin's
-/// window opens where he left it.
+/// onto the stage, and puts them back once the app has quit, so the
+/// person's window opens where they left it.
 struct SavedFrames {
     let bundle: CFString
     let frames: [String: CFPropertyList]
@@ -743,22 +807,21 @@ func secondsIdle() -> Double {
     if let session = CGSessionCopyCurrentDictionary() as? [String: Any],
        session["CGSSessionScreenIsLocked"] as? Bool == true { return .infinity }
     let idle = CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
-    // No input since this run's own click, which it made only while Kevin was away.
+    // No input since this run's own click, which it made only while the Mac was idle.
     if let last = lastOwnInput, idle >= Date().timeIntervalSince(last) - 1 { return .infinity }
     return idle
 }
 
 /// How long the Mac has to have been left alone before a run takes focus or
-/// moves the pointer (#475): MAC_LANE_IDLE seconds (90) with no keyboard or
+/// moves the pointer (NetworkMonitor#475): MAC_LANE_IDLE seconds (90) with no keyboard or
 /// mouse, or the screen locked. MAC_LANE_IDLE=0 takes them whenever.
 let awayAfter = Double(ProcessInfo.processInfo.environment["MAC_LANE_IDLE"] ?? "") ?? 90
 
 func isAway() -> Bool { awayAfter <= 0 || secondsIdle() >= awayAfter }
 
-/// A shot that needs a window brought forward or a real click while Kevin is
-/// at the Mac. It isn't waited for there, with the lanes held (#504): the run
-/// reads every other window first, lets the lanes go, waits until he steps
-/// away, and takes them again for these.
+/// A shot that needs a window brought forward or a real click while someone
+/// is at the Mac. It isn't waited for there, with the lanes held (NetworkMonitor#504): the run
+/// reads every other window first, lets the lanes go, waits until the Mac is idle, and takes them again for these.
 struct NeedsAway: Error { let what: String }
 
 /// Before taking focus or moving the pointer.
@@ -784,7 +847,7 @@ func runTool(_ path: String, _ arguments: [String]) -> (status: Int32, output: S
 }
 
 /// The app's launch jobs in launchd (`application.<bundle>.<n>.<n>`), with
-/// each one's process, or nil for a job left with none (#508).
+/// each one's process, or nil for a job left with none (NetworkMonitor#508).
 func launchJobs(_ bundle: String) -> [(label: String, pid: Int32?)] {
     runTool("/bin/launchctl", ["list"]).output.split(separator: "\n").compactMap { line in
         let f = line.split(whereSeparator: { $0 == "\t" || $0 == " " })
@@ -795,7 +858,7 @@ func launchJobs(_ bundle: String) -> [(label: String, pid: Int32?)] {
 
 /// Opens the app in the background (-g). Started straight after a quit, while
 /// launchd still has the last launch's job, `open` fails with launchd's error
-/// 37, "Operation already in progress" (#508): then it removes that job, the
+/// 37, "Operation already in progress" (NetworkMonitor#508): then it removes that job, the
 /// one with no process, and tries once more, saying so.
 func openApp(_ path: String, bundle: String, _ arguments: [String], until started: () -> Bool) throws {
     var removed = false, last = ""
@@ -811,7 +874,7 @@ func openApp(_ path: String, bundle: String, _ arguments: [String], until starte
             let dead = launchJobs(bundle).filter { $0.pid == nil }
             for job in dead {
                 let r = runTool("/bin/launchctl", ["remove", job.label])
-                print("  launchd still had \(job.label) from the last launch, with no process (#508): "
+                print("  launchd still had \(job.label) from the last launch, with no process: "
                       + (r.status == 0 ? "removed it" : "couldn't remove it (\(r.output.trimmingCharacters(in: .whitespacesAndNewlines)))"))
             }
             print("  opening \(path) again")
@@ -825,10 +888,10 @@ func openApp(_ path: String, bundle: String, _ arguments: [String], until starte
 
 // MARK: - The Mac lanes
 
-/// The Mac as a run uses it (#504, #506). The `networkmonitor` and `screen`
+/// The Mac as a run uses it (NetworkMonitor#504, NetworkMonitor#506). The app's lane and `screen`
 /// lanes are held only while it reads or takes windows, never while it waits
-/// for the Mac to be idle (#521). Letting them go puts the app back: every copy quit,
-/// its windows' frames back where Kevin had them, and the installed copy
+/// for the Mac to be idle (NetworkMonitor#521). Letting them go puts the app back: every copy quit,
+/// its windows' frames back where they were, and the installed copy
 /// running again if it was when they were taken, whichever copy the run used
 /// (`--app`).
 final class Mac: @unchecked Sendable {
@@ -851,8 +914,13 @@ final class Mac: @unchecked Sendable {
     /// Lanes a caller holds already (`mac-lane build/site-shots …`) stay held
     /// until it's done, waits included.
     var callerHolds: Bool {
-        let held = (ProcessInfo.processInfo.environment["MAC_LANE_HELD"] ?? "").split(separator: " ")
-        return held.contains("networkmonitor") && held.contains("screen")
+        let held = (ProcessInfo.processInfo.environment["MAC_LANE_HELD"] ?? "").split(separator: " ").map(String.init)
+        return held.contains(lane) && held.contains("screen")
+    }
+
+    /// The app's lane: the config's, or its bundle id's last part, lowercased.
+    var lane: String {
+        config.lane ?? (manifest.bundle.split(separator: ".").last.map { $0.lowercased() } ?? "app")
     }
 
     /// Takes both lanes, waiting for whoever holds them, and notes how the app is.
@@ -875,7 +943,7 @@ final class Mac: @unchecked Sendable {
         }
         guard let frames else { return }
         Session(manifest: manifest).quit()
-        // Its windows back where Kevin had them, once it has quit (#487).
+        // Its windows back where they were, once it has quit (NetworkMonitor#487).
         frames.restore()
         if reopen {
             do {
@@ -883,13 +951,13 @@ final class Mac: @unchecked Sendable {
                 try openApp(app.app, bundle: app.bundle, []) {
                     !NSRunningApplication.runningApplications(withBundleIdentifier: app.bundle).isEmpty
                 }
-            } catch { print("site-shots: couldn't open the installed app again: \(error)") }
+            } catch { print("shots-kit: couldn't open the installed app again: \(error)") }
         }
         releaseLanes()
     }
 
-    /// Waits silently, with the lanes free, until Kevin happens to be away
-    /// (#521): he's never told or asked to step away. Then takes them for what
+    /// Waits silently, with the lanes free, until the Mac happens to be idle
+    /// (NetworkMonitor#521): nobody is ever told or asked to step away. Then takes them for what
     /// needs him away; again if he came back while they were busy. Gives up at
     /// `deadline`, returning false, with the lanes free.
     func holdOnceAway(_ what: String, until deadline: Date) throws -> Bool {
@@ -910,15 +978,15 @@ final class Mac: @unchecked Sendable {
     /// Both lanes, held by a `mac-lane` that runs until this run closes its
     /// input, or ends: the lanes go with it however it ends.
     private func takeLanes(_ what: String) throws {
-        let repoCopy = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
-            .deletingLastPathComponent().appendingPathComponent("../Scripts/mac-lane.sh").standardizedFileURL.path
+        // The project's fallback copy, where it has one; the shared one otherwise.
+        let repoCopy = repoRoot.appendingPathComponent("Scripts/mac-lane.sh").standardizedFileURL.path
         let macLane = FileManager.default.isExecutableFile(atPath: repoCopy) ? repoCopy : "mac-lane"
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        p.arguments = ["MAC_LANE=networkmonitor", "MAC_LANE_WHAT=site-shots \(command): \(what)", macLane,
+        p.arguments = ["MAC_LANE=\(lane)", "MAC_LANE_WHAT=shots-kit \(command): \(what)", macLane,
                        "env", "MAC_LANE=screen", macLane, "/bin/sh", "-c", "echo held; exec cat >/dev/null"]
         var env = ProcessInfo.processInfo.environment
-        env["MAC_LANE_IDLE"] = nil   // this run waits for Kevin itself, with the lanes free
+        env["MAC_LANE_IDLE"] = nil   // this run waits for the Mac to be idle itself, with the lanes free
         p.environment = env
         let input = Pipe(), output = Pipe()
         p.standardInput = input
@@ -934,7 +1002,7 @@ final class Mac: @unchecked Sendable {
         guard String(decoding: said, as: UTF8.self).contains("held") else {
             p.waitUntilExit()
             lock.withLock { lanes = nil; lanesInput = nil }
-            throw Failure("couldn't take the networkmonitor and screen Mac lanes (mac-lane exited \(p.terminationStatus))")
+            throw Failure("couldn't take the \(lane) and screen Mac lanes (mac-lane exited \(p.terminationStatus))")
         }
         lock.withLock { lanesHeld = true }
     }
@@ -962,8 +1030,8 @@ final class Mac: @unchecked Sendable {
 
 struct Session {
     let manifest: Manifest
-    /// Opens windows behind the others without activating the app
-    /// (`-background YES`, #475), for commands that only read the tree.
+    /// Opens windows behind the others without activating the app (the
+    /// config's `launch.background`, NetworkMonitor#475), for commands that only read the tree.
     var background = false
 
     var running: NSRunningApplication? {
@@ -972,7 +1040,7 @@ struct Session {
 
     /// Quits every copy, the installed one and a development build alike: they
     /// share settings. Gracefully, then waits until launchd has let go of each
-    /// one's launch job, or opening it again can fail (#508).
+    /// one's launch job, or opening it again can fail (NetworkMonitor#508).
     func quit() {
         let apps = NSRunningApplication.runningApplications(withBundleIdentifier: manifest.bundle)
         guard !apps.isEmpty else { return }
@@ -985,8 +1053,8 @@ struct Session {
 
     func launch(_ arguments: [String]) throws {
         quit()
-        // -g: never brings the app forward by itself (#475).
-        try openApp(manifest.app, bundle: manifest.bundle, arguments + (background ? ["-background", "YES"] : [])) { running != nil }
+        // -g: never brings the app forward by itself (NetworkMonitor#475).
+        try openApp(manifest.app, bundle: manifest.bundle, arguments + (background ? config.background : [])) { running != nil }
     }
 
     func window(_ title: String) throws -> AXUIElement {
@@ -995,7 +1063,7 @@ struct Session {
         for _ in 0..<60 {
             var windows = attribute(ax, kAXWindowsAttribute) as? [AXUIElement] ?? []
             // The menu bar readout isn't in a window: it's the app's status
-            // item, `AXMenuBarItem` in its extras menu bar (#424).
+            // item, `AXMenuBarItem` in its extras menu bar (NetworkMonitor#424).
             if let extras = attribute(ax, kAXExtrasMenuBarAttribute) { windows.append(extras as! AXUIElement) }
             let found = title.hasPrefix("AX") ? windows.lazy.compactMap { find(title, in: $0) }.first
                 : windows.first { (text($0, kAXTitleAttribute) ?? "") == title }
@@ -1085,7 +1153,7 @@ struct Session {
         throw Failure("\(wait.element) didn't appear within \(Int(wait.seconds)) s; the window showed:\n\(showing)")
     }
 
-    /// Puts a window in one place before it's read or taken (#487): on the
+    /// Puts a window in one place before it's read or taken (NetworkMonitor#487): on the
     /// stage screen, `stage()`, 60 points from its visible frame's left and 40
     /// from its top. A window lays out to whole points on a 1x screen and to
     /// half points on a Retina one, so a toolbar segment 37.5 points wide on
@@ -1113,7 +1181,7 @@ struct Session {
     }
 
     /// A capture, with where its top left is on screen and its points to
-    /// pixels: to place the masks of the look check on it (#423).
+    /// pixels: to place the masks of the look check on it (NetworkMonitor#423).
     func picture(_ window: AXUIElement, crop: Crop?) async throws -> (image: CGImage, origin: CGPoint, scale: CGFloat) {
         guard let app = running, let f = frame(window) else { throw Failure("no window to capture") }
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
@@ -1283,13 +1351,13 @@ struct Page {
 // MARK: - Coverage
 
 /// Every image, GIF and video the pages use, each with the pages using it,
-/// checked against the lists (#413). Reads files only: no app, no
+/// checked against the lists (NetworkMonitor#413). Reads files only: no app, no
 /// Accessibility, so it runs in CI.
 enum Coverage {
     static let media = "png|jpe?g|gif|webp|svg|mp4|webm|mov"
 
-    /// The site's files a browser reads for media (#425): its pages, at the
-    /// top and in folders (each language's, zh/index.html, #430), their
+    /// The site's files a browser reads for media (NetworkMonitor#425): its pages, at the
+    /// top and in folders (each language's, zh/index.html, NetworkMonitor#430), their
     /// stylesheets and their scripts. Not the folders that aren't the site:
     /// hidden ones (.github), shots/ (this tool's), and another checkout
     /// inside it (the app's, which the site's workflow puts in app/).
@@ -1317,8 +1385,13 @@ enum Coverage {
     /// written: an attribute, a `srcset`'s list, a stylesheet's `url(…)`, a
     /// string in a script that adds it. Another site's `/assets/` isn't ours.
     static func siteUses(_ site: URL) throws -> [String: Set<String>] {
+        // The site's own address, without its scheme: `example.github.io/App/`.
+        let own = config.siteURL.map { url -> String in
+            let bare = url.replacingOccurrences(of: #"^[a-z]+://"#, with: "", options: .regularExpression)
+            return "|" + NSRegularExpression.escapedPattern(for: bare.hasSuffix("/") ? bare : bare + "/")
+        } ?? ""
         let regex = try NSRegularExpression(
-            pattern: #"(?:^|["'`(=,\s]|github\.io/NetworkMonitor/)(?:\.\./)*(assets/[A-Za-z0-9_./@-]+\.(?:"# + media + #"))"#,
+            pattern: #"(?:^|["'`(=,\s]"# + own + #")(?:\.\./)*(assets/[A-Za-z0-9_./@-]+\.(?:"# + media + #"))"#,
             options: [.caseInsensitive, .anchorsMatchLines])
         var uses: [String: Set<String>] = [:]
         // A page in a folder climbs out with ../; a script's paths are the
@@ -1334,8 +1407,8 @@ enum Coverage {
     }
 
     /// The README's, SECURITY's and the docs' Markdown pages: README.<code>.md
-    /// for each language (#430), and every page under docs/, however deep
-    /// (docs/<code>/, the design log's docs/design-overhaul, #437).
+    /// for each language (NetworkMonitor#430), and every page under docs/, however deep
+    /// (docs/<code>/, the design log's docs/design-overhaul, NetworkMonitor#437).
     static func repoPages(_ repo: URL) -> [String] {
         let fm = FileManager.default
         var pages = ["README.md", "SECURITY.md"]
@@ -1454,13 +1527,13 @@ enum Coverage {
 
     /// What's wrong, one line each; empty when every asset is accounted for.
     /// The site's come first, fixed on `gh-pages`; from `onMain` on, the
-    /// README's and the docs', fixed on `main` (#426). And what's known to be
+    /// README's and the docs', fixed on `main` (NetworkMonitor#426). And what's known to be
     /// out of date, waiting on an issue (`stale`), which doesn't fail it.
     static func problems(manifest: Manifest, site: URL, repoAssets: RepoAssets?, repo: URL?) throws
         -> (problems: [String], onMain: Int, summary: String, stale: [String]) {
         var problems: [String] = [], stale: [String] = []
         let shotNames = Set(manifest.shots.map(\.name))
-        // Each window's record, as the version it was taken from (#421): the
+        // Each window's record, as the version it was taken from (NetworkMonitor#421): the
         // tree what's made by hand was last remade from, or the window's own.
         let trees = site.appendingPathComponent("shots/trees")
         let versions = Versions.read(trees)
@@ -1484,9 +1557,9 @@ enum Coverage {
                                     + (listName == repoAssetsPath ? renamedOnSite : ""))
                 }
                 // Made from a window older than its record: out of date on
-                // the day it was listed, or since a remake of its window (#421).
+                // the day it was listed, or since a remake of its window (NetworkMonitor#421).
                 if !shows.isEmpty, !(asset.made.map(Versions.valid) ?? false) {
-                    problems.append("\(file) in \(listName) needs `made`: the app version it was made from, such as \"1.28.1\" (#421)")
+                    problems.append("\(file) in \(listName) needs `made`: the app version it was made from, such as \"1.28.1\"")
                 } else if !shows.isEmpty, let made = asset.made {
                     let newer = shows.compactMap { name in recorded(name).flatMap { Versions.older(made, than: $0) ? "\(name) (\($0))" : nil } }
                     if newer.isEmpty, let issue = asset.stale {
@@ -1512,7 +1585,7 @@ enum Coverage {
 
         // The site: each asset is a shot's picture, a flag, or listed.
         let siteUses = try siteUses(site)
-        // Each shot's picture, and its copy in each language (#431).
+        // Each shot's picture, and its copy in each language (NetworkMonitor#431).
         var pictures: [(file: String, shot: String)] = manifest.shots.compactMap { s in s.file.map { ($0, s.name) } }
         var translated: [(file: String, shot: String)] = []
         for language in manifest.languages ?? [] {
@@ -1535,7 +1608,7 @@ enum Coverage {
         if let repo {
             let uses = try repoUses(repo)
             // A copy of a shot's picture is listed once, in English; each
-            // language's copy of it comes with it (#434).
+            // language's copy of it comes with it (NetworkMonitor#434).
             var copies = Set<String>()
             for asset in repoAssets?.assets ?? [] {
                 guard let name = asset.copy else { continue }
@@ -1547,7 +1620,7 @@ enum Coverage {
                     let file = repoFile(asset.file, in: language)
                     copies.insert(file)
                     if uses[file] != nil, !FileManager.default.fileExists(atPath: repo.appendingPathComponent(file).path) {
-                        problems.append("\(file), the \(language.code) copy of \(asset.file), doesn't exist; `make site-shots` makes it")
+                        problems.append("\(file), the \(language.code) copy of \(asset.file), doesn't exist; `update` makes it")
                     }
                 }
             }
@@ -1558,29 +1631,31 @@ enum Coverage {
     }
 
     /// A shot `main` names, gone from `gh-pages`: the usual cause is a change
-    /// there, so say where to follow it (#426).
-    static let renamedOnSite = " on gh-pages. If a change there renamed or removed it, change \(repoAssetsPath) on main to match"
+    /// there, so say where to follow it (NetworkMonitor#426).
+    static var renamedOnSite: String {
+        " on \(config.siteBranch). If a change there renamed or removed it, change \(repoAssetsPath) on \(config.repoBranch) to match"
+    }
 
     /// Each branch's problems under its name, so a failure says which branch to
     /// fix. `checking` is the branch the check runs for, from GitHub's
     /// variables; where it's the other one, a note says the problems come from
-    /// across the branches (#426).
+    /// across the branches (NetworkMonitor#426).
     static func report(_ problems: [String], onMain: Int, checking: String?, head: String?) -> [String] {
         let groups: [(branch: String, what: String, problems: ArraySlice<String>)] = [
-            ("gh-pages", "the site's pages and shots/shots.json", problems[..<onMain]),
-            ("main", "the README, the docs and \(repoAssetsPath)", problems[onMain...]),
+            (config.siteBranch, "the site's pages and shots/shots.json", problems[..<onMain]),
+            (config.repoBranch, "the README, the docs and \(repoAssetsPath)", problems[onMain...]),
         ]
         var lines: [String] = []
         for group in groups where !group.problems.isEmpty {
             lines.append("On \(group.branch) (\(group.what)), fixed in a pull request into \(group.branch):")
             if let checking, checking != group.branch {
                 let this = head == nil ? "this push" : "this pull request"
-                let pair = group.branch == "gh-pages"
+                let pair = group.branch == config.siteBranch
                     ? "name that branch \(head ?? "<main's branch>")-site"
                     : "name this branch after that one, with -site"
                 lines.append("  Not in \(this)'s files: \(group.branch) changed, or \(this) changes what \(group.branch) has to match. "
                              + "Fix them in a pull request into \(group.branch). To land both at once, \(pair), and each is "
-                             + "checked against the other (docs/development.md#changing-both-branches).")
+                             + "checked against the other.")
             }
             lines += group.problems.map { "  " + $0 }
         }
@@ -1590,7 +1665,7 @@ enum Coverage {
 
 // MARK: - Coverage tests
 
-/// Where the check looks for media, each place a case (#425): made-up pages in
+/// Where the check looks for media, each place a case (NetworkMonitor#425): made-up pages in
 /// a folder of their own, scanned like the real ones. `make test` runs them,
 /// with `site-shots coverage-test`, so a page that hides a picture from the
 /// check can't come back unnoticed.
@@ -1633,7 +1708,7 @@ enum CoverageTests {
              expect: ["assets/inline.gif": ["index.html"], "assets/script.png": ["app.js"],
                       "assets/tick.svg": ["app.js"], "assets/clip.mp4": ["js/more.mjs"]]),
         Case(name: "the site's own address, in a social preview",
-             files: ["index.html": #"<meta property="og:image" content="https://kevinabouhanna.github.io/NetworkMonitor/assets/card.png?v=1">"#],
+             files: ["index.html": #"<meta property="og:image" content="https://example.github.io/App/assets/card.png?v=1">"#],
              expect: ["assets/card.png": ["index.html"]]),
         Case(name: "not the site: other sites, this tool's folder, hidden folders, another checkout",
              files: ["index.html": #"<img src="https://example.com/assets/theirs.png"><img src="/assets/root.png">"#,
@@ -1700,7 +1775,7 @@ enum CoverageTests {
     ]
 
     /// A change on one branch that fails the other's check says which branch
-    /// to fix, and that the problem came from there (#426). Each case is the
+    /// to fix, and that the problem came from there (NetworkMonitor#426). Each case is the
     /// branch the check runs for, the pull request's branch, and what each
     /// group must say, or must not.
     static let branches: [(name: String, checking: String?, head: String?, site: [String], main: [String], notSite: [String], notMain: [String])] = [
@@ -1772,6 +1847,10 @@ enum CoverageTests {
 
     /// What failed, one line each.
     static func run() throws -> [String] {
+        // The config these cases are written for, whatever the project's.
+        config = Config()
+        config.siteURL = "https://example.github.io/App/"
+        config.repoAssets = "Resources/README/assets.json"
         var failures = try runBranches()
         let fm = FileManager.default
         for (kind, cases) in [("site", site), ("README and docs", repo)] {
@@ -1811,20 +1890,31 @@ func diff(_ old: [String], _ new: [String]) -> [String] {
 }
 
 @main
-struct SiteShots {
+struct ShotsKit {
     static func main() async {
         _ = NSApplication.shared   // ScreenCaptureKit needs a connection to the window server
         // Line by line into a log too, so a run in the background says what it waits for.
         setvbuf(stdout, nil, _IOLBF, 0)
         var args = Array(CommandLine.arguments.dropFirst())
-        var site = URL(fileURLWithPath: "../NetworkMonitor-site")
-        if let i = args.firstIndex(of: "--site"), i + 1 < args.count {
-            site = URL(fileURLWithPath: args[i + 1]); args.removeSubrange(i...(i + 1))
-        }
-        // The main checkout, for the README's and the docs' assets: this one.
+        if args.first == "version" { print(shotsKitVersion); exit(0) }
+        // The project's checkout, for its config and the README's and the
+        // docs' assets: this one.
         var repo = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         if let i = args.firstIndex(of: "--repo"), i + 1 < args.count {
             repo = URL(fileURLWithPath: args[i + 1]); args.removeSubrange(i...(i + 1))
+        }
+        repoRoot = repo
+        config = Config.load(repo: repo)
+        // The site's checkout: `--site`, or the config's, from the main checkout.
+        var site: URL?
+        if let i = args.firstIndex(of: "--site"), i + 1 < args.count {
+            site = URL(fileURLWithPath: args[i + 1]); args.removeSubrange(i...(i + 1))
+        } else if let path = config.site {
+            let common = runTool("/usr/bin/git", ["-C", repo.path, "rev-parse", "--path-format=absolute", "--git-common-dir"])
+            let main = common.status == 0
+                ? URL(fileURLWithPath: common.output.trimmingCharacters(in: .whitespacesAndNewlines)).deletingLastPathComponent()
+                : repo
+            site = URL(fileURLWithPath: path, relativeTo: main).standardizedFileURL
         }
         // Another copy of the app than the manifest's, such as a development
         // build of a version not yet released.
@@ -1832,11 +1922,11 @@ struct SiteShots {
         if let i = args.firstIndex(of: "--app"), i + 1 < args.count {
             app = args[i + 1]; args.removeSubrange(i...(i + 1))
         }
-        // One language only: `en`, or a language's code (#431). All of them otherwise.
+        // One language only: `en`, or a language's code (NetworkMonitor#431). All of them otherwise.
         var only: String?
-        // A check compares looks too (#423), which needs each window in
-        // front and active: only while Kevin is away (#475), so a look it
-        // can't take is reported as not taken (#521).
+        // A check compares looks too (NetworkMonitor#423), which needs each window in
+        // front and active: only while the Mac is idle (NetworkMonitor#475), so a look it
+        // can't take is reported as not taken (NetworkMonitor#521).
         if let i = args.firstIndex(of: "--look") { compareLooks = true; args.remove(at: i) }
         if let i = args.firstIndex(of: "--wait-away"), i + 1 < args.count {
             guard let minutes = Double(args[i + 1]), minutes >= 0, minutes <= 240 else {
@@ -1849,7 +1939,11 @@ struct SiteShots {
             only = args[i + 1]; args.removeSubrange(i...(i + 1))
         }
         guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "coverage-test", "readme", "record"].contains(command) else {
-            print("usage: site-shots check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE] [--wait-away MINUTES]")
+            print("usage: shots-kit check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE] [--wait-away MINUTES]|version")
+            exit(2)
+        }
+        guard let site = site ?? (command == "coverage-test" ? repo : nil) else {
+            print("shots-kit: no site: give --site, or shots.site in .product-kit.json")
             exit(2)
         }
         let names = Set(args.dropFirst())
@@ -1859,7 +1953,7 @@ struct SiteShots {
         }
         let repoAssets = try? JSONDecoder().decode(RepoAssets.self, from: Data(contentsOf: repo.appendingPathComponent(repoAssetsPath)))
 
-        // Made-up pages only: where `coverage` looks for media (#425).
+        // Made-up pages only: where `coverage` looks for media (NetworkMonitor#425).
         if command == "coverage-test" {
             do {
                 let failures = try CoverageTests.run()
@@ -1887,16 +1981,16 @@ struct SiteShots {
                 if found.problems.isEmpty {
                     print("coverage: \(found.summary), all accounted for")
                 } else {
-                    print("coverage: every image, GIF and video a page uses must be listed, so a change to the window it shows can't leave it stale (#413):")
+                    print("coverage: every image, GIF and video a page uses must be listed, so a change to the window it shows can't leave it stale:")
                     // The branch a pull request goes into, or a push went to, on GitHub.
                     let env = ProcessInfo.processInfo.environment
                     let checking = [env["GITHUB_BASE_REF"], env["GITHUB_REF_NAME"]]
-                        .compactMap { $0 }.first { !$0.isEmpty }.flatMap { ["main", "gh-pages"].contains($0) ? $0 : nil }
+                        .compactMap { $0 }.first { !$0.isEmpty }.flatMap { [config.repoBranch, config.siteBranch].contains($0) ? $0 : nil }
                     let head = env["GITHUB_HEAD_REF"].flatMap { $0.isEmpty ? nil : $0 }
                     Coverage.report(found.problems, onMain: found.onMain, checking: checking, head: head).forEach { print($0) }
                 }
                 if !found.stale.isEmpty {
-                    print("Out of date, each waiting on its issue (#421):")
+                    print("Out of date, each waiting on its issue:")
                     found.stale.forEach { print("  " + $0) }
                 }
                 exit(found.problems.isEmpty ? 0 : 1)
@@ -1924,9 +2018,9 @@ struct SiteShots {
         }
         // One run at a time: each quits and relaunches the app, so two at once,
         // from two terminals or two sessions, spoil each other's windows.
-        let lock = open(NSHomeDirectory() + "/Library/Caches/site-shots.lock", O_CREAT | O_RDWR, 0o644)
+        let lock = open(NSHomeDirectory() + "/Library/Caches/shots-kit.lock", O_CREAT | O_RDWR, 0o644)
         guard lock >= 0, flock(lock, LOCK_EX | LOCK_NB) == 0 else {
-            print("site-shots: another run is driving the app; try again once it's done")
+            print("shots-kit: another run is driving an app; try again once it's done")
             exit(2)
         }
         do {
@@ -1934,12 +2028,12 @@ struct SiteShots {
             var manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
             if let app { manifest.app = app }
             // Trees and pictures are read on a Retina screen; on a 1x one
-            // they'd differ from the records without any change (#487).
+            // they'd differ from the records without any change (NetworkMonitor#487).
             if stage() == nil, ["check", "update", "record"].contains(command) {
-                throw Failure("no Retina screen to read the windows on: the records are read on one (#487)")
+                throw Failure("no Retina screen to read the windows on: the records are read on one")
             }
             // Put back as it was, the installed copy, even after a run with
-            // another copy (`--app`, #506).
+            // another copy (`--app`, NetworkMonitor#506).
             var installed = manifest
             installed.app = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json"))).app
             let mac = Mac(manifest: manifest, installed: installed, command: command)
@@ -1969,12 +2063,12 @@ struct SiteShots {
                               + "(a name is fine; otherwise add it to the language's `specs`): "
                               + missing.sorted().joined(separator: " | "))
                     }
-                } catch { status = 2; print("site-shots: \(error)") }
+                } catch { status = 2; print("shots-kit: \(error)") }
             }
             mac.end()
             exit(status)
         } catch {
-            print("site-shots: \(error)")
+            print("shots-kit: \(error)")
             exit(2)
         }
     }
@@ -1989,13 +2083,13 @@ struct SiteShots {
         try FileManager.default.createDirectory(at: trees, withIntermediateDirectories: true)
         var page = try Page(site: site, path: language?.page ?? "index.html", up: language?.up ?? "")
         var changed: [String] = [], flagged: [String] = [], failed: [String] = []
-        /// Windows whose look differs from their picture's (#423).
+        /// Windows whose look differs from their picture's (NetworkMonitor#423).
         var looks: [String] = []
         var problems: [String] = []
         var cached: (args: [String], window: String)?
 
         // What's made by hand from each window, on the site and in the README
-        // and docs (#413), to name when the window changes.
+        // and docs (NetworkMonitor#413), to name when the window changes.
         // Named once, from English: they're remade from that window in every
         // language at the same time.
         var handMade: [String: [String]] = [:]
@@ -2009,7 +2103,7 @@ struct SiteShots {
             }
         }
 
-        // The version each record was taken from (#421), English only: what's
+        // The version each record was taken from (NetworkMonitor#421), English only: what's
         // made by hand is checked against it.
         var versions = language == nil ? Versions.read(trees) : [:]
         let appVersion = Versions.app(manifest.app)
@@ -2058,7 +2152,7 @@ struct SiteShots {
                 try session.launch(shot.open)
                 window = try session.window(shot.window)
             }
-            // On the stage, before anything reads it (#487).
+            // On the stage, before anything reads it (NetworkMonitor#487).
             session.place(window)
             if let spec = shot.skipIf, find(spec, in: window) != nil {
                 print("\(shot.name): skipped while \(spec) shows; it's tried again on the next update")
@@ -2093,7 +2187,7 @@ struct SiteShots {
             let treeFile = trees.appendingPathComponent("\(shot.name).txt")
             let before = (try? String(contentsOf: treeFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
             let differs = before != now
-            // The look, against the one kept from the picture (#423).
+            // The look, against the one kept from the picture (NetworkMonitor#423).
             let lookFile = trees.appendingPathComponent("\(shot.name).look")
             if let file = shot.file, command == "record" {
                 // From the picture, with the window's masks laid on it as
@@ -2163,7 +2257,7 @@ struct SiteShots {
                 try taken.look.text.write(to: lookFile, atomically: true, encoding: .utf8)
                 page.setSize(of: file, pixels: CGSize(width: image.width, height: image.height))
                 print("  retook \(file) (\(image.width)×\(image.height))")
-                // And the README's copy of it, in this language (#434).
+                // And the README's copy of it, in this language (NetworkMonitor#434).
                 for copy in try copyToRepo(manifest: manifest, site: site, repo: repo, repoAssets: repoAssets,
                                            language: language, shots: [shot.name]) {
                     print("  copied it to \(copy)")
@@ -2199,13 +2293,13 @@ struct SiteShots {
             try page.save()
         }
 
-        // Every window that needs nothing of Kevin first, behind the others
+        // Every window that needs nothing of the person at the Mac first, behind the others
         // and without focus. A window to bring forward or click for real while
-        // he is at the Mac isn't taken (#521): it's reported as not taken, and
+        // someone is at the Mac isn't taken (NetworkMonitor#521): it's reported as not taken, and
         // why, and the run goes on and ends as it would without it. Only with
         // `--wait-away MINUTES` does it wait, silently and with the lanes free,
-        // in case he leaves or locks the Mac anyway, then takes those alone
-        // (#504).
+        // in case the Mac is left idle or locked anyway, then takes those alone
+        // (NetworkMonitor#504).
         var queue = shots
         var notTaken: [String] = []
         let deadline = Date().addingTimeInterval(waitAway * 60)
@@ -2245,21 +2339,21 @@ struct SiteShots {
             try page.save()
         }
         // Advice, not a failure: it reads pixels, which the Mac can change
-        // without the app (#423).
+        // without the app (NetworkMonitor#423).
         if !looks.isEmpty {
-            print("\nThese look different from their pictures (a colour, an icon, spacing, a font), whatever their trees say "
-                  + "(#423). Compare them by eye, and retake the ones that changed with `make site-shots NAMES=…`:")
+            print("\nThese look different from their pictures (a colour, an icon, spacing, a font), whatever their trees say. "
+                  + "Compare them by eye, and retake the ones that changed with `update <names>`:")
             looks.forEach { print("  " + $0) }
         }
         if !flagged.isEmpty {
             print("\nThese show a window that changed since they were made. Remake them by hand, then run `update` with the window's name:")
             Set(flagged).sorted().forEach { print("  \($0)") }
         }
-        // Not a failure, and nothing to hold a release or a review on (#521):
+        // Not a failure, and nothing to hold a release or a review on (NetworkMonitor#521):
         // what's left is said, and taken on a later run.
         if !notTaken.isEmpty {
             print("\nNot taken: they need the real screen (a window brought forward, or a real click), and the Mac was "
-                  + "in use. Their pictures and trees are as they were; a later run takes them (#521):")
+                  + "in use. Their pictures and trees are as they were; a later run takes them:")
             notTaken.forEach { print("  " + $0) }
         }
         if command == "audit", !problems.isEmpty {
@@ -2275,7 +2369,7 @@ struct SiteShots {
     }
 
     /// Records a window's tree as it reads now, without retaking its picture
-    /// (#416): for after a mark in the manifest changed what's data or left
+    /// (NetworkMonitor#416): for after a mark in the manifest changed what's data or left
     /// out, such as the Mac's connection. The diff it prints should be only
     /// what the new marks cover. A reminder to remake what's made by hand
     /// stays: the tree each was made from is updated only if it was the
