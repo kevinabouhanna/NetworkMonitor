@@ -141,7 +141,7 @@ func runListLibraryTests() {
     Check.suite("More lists — keeping them (#254)") {
         func library() -> (ListLibrary, URL) {
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("lists-\(UUID().uuidString)")
-            let library = ListLibrary(defaults: UserDefaults(suiteName: "lists-\(UUID().uuidString)")!,
+            let library = ListLibrary(defaults: Check.defaults("lists"),
                                       directory: directory)
             library.mayDownload = { false }
             return (library, directory)
@@ -212,7 +212,7 @@ func runListLibraryTests() {
     }
 
     Check.suite("More lists — recommended (#314)") {
-        func library(_ defaults: UserDefaults = UserDefaults(suiteName: "lists-\(UUID().uuidString)")!)
+        func library(_ defaults: UserDefaults = Check.defaults("lists"))
             -> ListLibrary {
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("lists-\(UUID().uuidString)")
             let library = ListLibrary(defaults: defaults, directory: directory)
@@ -232,7 +232,7 @@ func runListLibraryTests() {
         }
 
         Check.test("lists chosen before #314 stay chosen") {
-            let defaults = UserDefaults(suiteName: "lists-\(UUID().uuidString)")!
+            let defaults = Check.defaults("lists")
             defaults.set(["hagezi-pro", "adguard-dns"], forKey: ListLibrary.enabledKey)
             let library = library(defaults)
             Check.expectFalse(library.usesRecommended)
@@ -247,7 +247,7 @@ func runListLibraryTests() {
         }
 
         Check.test("Recommended and back finds your own choice as you left it") {
-            let defaults = UserDefaults(suiteName: "lists-\(UUID().uuidString)")!
+            let defaults = Check.defaults("lists")
             let first = library(defaults)
             first.setUsesRecommended(false)
             Check.expectEqual(first.enabled, [], "nothing chosen yet")
@@ -274,7 +274,7 @@ func runListLibraryTests() {
 
     Check.suite("More lists — what the filter is sent (#352)") {
         Check.test("a choice changed while the app was closed reaches the filter at start") {
-            let defaults = UserDefaults(suiteName: "lists-\(UUID().uuidString)")!
+            let defaults = Check.defaults("lists")
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("lists-\(UUID().uuidString)")
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             func copy(_ id: String, _ name: String) -> DownloadedList {
@@ -304,7 +304,7 @@ func runListLibraryTests() {
 
         Check.test("with no lists and no file, nothing is sent") {
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("lists-\(UUID().uuidString)")
-            let defaults = UserDefaults(suiteName: "lists-\(UUID().uuidString)")!
+            let defaults = Check.defaults("lists")
             defaults.set(false, forKey: ListLibrary.recommendedKey)
             let library = ListLibrary(defaults: defaults, directory: directory)
             var sent = 0

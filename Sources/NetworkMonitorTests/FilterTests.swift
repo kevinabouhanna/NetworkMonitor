@@ -362,7 +362,7 @@ func runFilterTests() {
         }
 
         Check.test("the popover's count takes History's when it's higher, and starts again each day") {
-            let defaults = UserDefaults(suiteName: "list-block-count-\(UUID().uuidString)")!
+            let defaults = Check.defaults("list-block-count")
             let count = ListBlockCount(defaults: defaults, calendar: calendar, now: now)
             count.add(3, now: now)
             count.seed(10, now: now)
@@ -430,7 +430,7 @@ func runFilterTests() {
             let dir = URL(fileURLWithPath: NSTemporaryDirectory())
                 .appendingPathComponent("ads-choose-\(UUID().uuidString)")
             defer { try? FileManager.default.removeItem(at: dir) }
-            let defaults = UserDefaults(suiteName: "ads-choose-\(UUID().uuidString)")!
+            let defaults = Check.defaults("ads-choose")
             let ads = AdsViewModel(monitor: MonitorViewModel(store: UsageStore(storeURL: dir.appendingPathComponent("usage.json"))),
                                    defaults: defaults)
             let row = AdsViewModel.Selection(grouping: .sites, parent: "doubleclick.net", title: "doubleclick.net")
@@ -523,7 +523,7 @@ func runFilterTests() {
             Check.expectEqual(FirewallRules.activeLists(lists, pausedUntil: now.addingTimeInterval(60), now: now), [])
             Check.expectEqual(FirewallRules.activeLists(lists, pausedUntil: now.addingTimeInterval(-60), now: now), lists)
 
-            let defaults = UserDefaults(suiteName: "ads-pause-\(UUID().uuidString)")!
+            let defaults = Check.defaults("ads-pause")
             let rules = FirewallRules(defaults: defaults, teamOf: { _ in nil })
             let later = Date().addingTimeInterval(3600)
             rules.pauseLists(until: later)

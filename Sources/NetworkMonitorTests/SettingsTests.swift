@@ -26,7 +26,7 @@ func runSettingsTests() {
             let dir = URL(fileURLWithPath: NSTemporaryDirectory())
                 .appendingPathComponent("settings-main-\(UUID().uuidString)")
             defer { try? FileManager.default.removeItem(at: dir) }
-            let defaults = UserDefaults(suiteName: "settings-main-\(UUID().uuidString)")!
+            let defaults = Check.defaults("settings-main")
             let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
             let metering = MeteringController(store: store,
                                               journal: SuppressionJournal(url: dir.appendingPathComponent("journal.json")),
@@ -102,7 +102,7 @@ func runSettingsTests() {
             let dir = URL(fileURLWithPath: NSTemporaryDirectory())
                 .appendingPathComponent("settings-period-\(UUID().uuidString)")
             defer { try? FileManager.default.removeItem(at: dir) }
-            let defaults = UserDefaults(suiteName: "settings-period-\(UUID().uuidString)")!
+            let defaults = Check.defaults("settings-period")
             let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
             let model = MonitorViewModel(store: store,
                                          metering: MeteringController(

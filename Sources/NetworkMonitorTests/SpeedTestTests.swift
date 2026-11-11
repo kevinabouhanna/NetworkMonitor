@@ -517,7 +517,7 @@ private func runSpeedTestRunnerTests() {
 private func runSpeedTestControllerTests() {
     Check.suite("SpeedTestController — phases") {
         let script = makeStandIn()
-        let defaults = UserDefaults(suiteName: "speedtest-tests-\(UUID().uuidString)")!
+        let defaults = Check.defaults("speedtest-tests")
 
         func controller() -> SpeedTestController {
             SpeedTestController(runner: SpeedTestRunner(executable: script.path),
@@ -538,10 +538,10 @@ private func runSpeedTestControllerTests() {
         // menu bar as it was; a unit chosen for the speed test before it covered
         // the menu bar stays the user's choice.
         Check.test("speeds default to MB/s, and an earlier choice carries over") {
-            let fresh = UserDefaults(suiteName: "speedunit-fresh-\(UUID().uuidString)")!
+            let fresh = Check.defaults("speedunit-fresh")
             Check.expectEqual(SpeedTestController(runner: SpeedTestRunner(executable: script.path),
                                                   defaults: fresh).unit, .bytes)
-            let chosen = UserDefaults(suiteName: "speedunit-chosen-\(UUID().uuidString)")!
+            let chosen = Check.defaults("speedunit-chosen")
             chosen.set("bits", forKey: "speedTestUnit")
             Check.expectEqual(SpeedTestController(runner: SpeedTestRunner(executable: script.path),
                                                   defaults: chosen).unit, .bits)
@@ -635,7 +635,7 @@ private func runSpeedTestControllerTests() {
         }
 
         Check.test("the card is the default style, and a choice of compact is kept") {
-            let suite = UserDefaults(suiteName: "speedstyle-\(UUID().uuidString)")!
+            let suite = Check.defaults("speedstyle")
             suite.set(false, forKey: "speedTestInMenuBar")
             let first = SpeedTestController(runner: SpeedTestRunner(executable: script.path),
                                             defaults: suite)

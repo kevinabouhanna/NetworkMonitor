@@ -110,6 +110,13 @@ harness (`Harness.swift`): `Check.suite`, `Check.test`, `expectEqual` and friend
 after XCTest so moving to a real test target later is a rename. It prints a line per test
 and exits non-zero if anything fails.
 
+- **Settings of a test's own** (#557): `Check.defaults("name")`, or `Check.suite("name")`
+  for its domain, never `UserDefaults(suiteName:)` with a name. They live in a folder of
+  the run's own under the temporary folder, deleted at the end, and the last test fails if
+  any is in `~/Library/Preferences`. Named suites there were never deleted: an emptied
+  domain keeps its file, and one deleted while open comes back when the process quits.
+  `Scripts/sweep-test-settings.sh` counts what earlier runs left there; `--delete` deletes
+  those files, and only those.
 - **The asset check's cases.** `make test` also runs `build/site-shots coverage-test`:
   made-up pages that put a picture in each place [the asset check](#every-asset-is-listed)
   must find it (#425).

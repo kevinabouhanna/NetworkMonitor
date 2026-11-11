@@ -67,7 +67,7 @@ func runAskSiteTests() {
         }
 
         Check.test("answers until it quits go when it quits, and at launch if it's gone") {
-            let defaults = UserDefaults(suiteName: "until-quit-\(UUID().uuidString)")!
+            let defaults = Check.defaults("until-quit")
             let firewall = FirewallRules(defaults: defaults)
             let figma = FirewallRule(subject: .site, key: "segment.io", title: "*.segment.io", action: .allow,
                                      appKey: "/Applications/Figma.app", appTitle: "Figma", untilQuit: true)

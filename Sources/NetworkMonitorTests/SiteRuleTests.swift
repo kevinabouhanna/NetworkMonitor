@@ -125,7 +125,7 @@ func runSiteRuleTests() {
         }
 
         Check.test("its row shows the narrowest site rule covering it, then its address's") {
-            let defaults = UserDefaults(suiteName: "site-rules-\(UUID().uuidString)")!
+            let defaults = Check.defaults("site-rules")
             let firewall = FirewallRules(defaults: defaults)
             let row = server("stats.wp.com", "192.0.77.32")
             Check.expectNil(firewall.rule(for: row))

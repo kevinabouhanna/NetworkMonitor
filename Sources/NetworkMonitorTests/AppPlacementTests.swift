@@ -30,9 +30,7 @@ func runAppPlacementTests() {
         // the speeds are nowhere else, and the app's icon in Both, as it was
         // before there was a choice.
         Check.test("the Dock icon's choice, per mode, with its own default") {
-            let name = "AppPlacementTests-\(UUID().uuidString)"
-            let defaults = UserDefaults(suiteName: name)!
-            defer { defaults.removePersistentDomain(forName: name) }
+            let defaults = Check.defaults("app-placement")
 
             let setting = AppPlacementSetting(defaults: defaults)
             Check.expectEqual(setting.dockIcon, .appIcon, "Menu bar mode's Dock icon is the app's")
@@ -65,9 +63,7 @@ func runAppPlacementTests() {
         }
 
         Check.test("the menu bar by default, and the choice kept") {
-            let name = "AppPlacementTests-\(UUID().uuidString)"
-            let defaults = UserDefaults(suiteName: name)!
-            defer { defaults.removePersistentDomain(forName: name) }
+            let defaults = Check.defaults("app-placement")
 
             Check.expectEqual(AppPlacementSetting(defaults: defaults).placement, .menuBar)
             AppPlacementSetting(defaults: defaults).placement = .dock

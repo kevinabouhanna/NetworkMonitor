@@ -32,7 +32,7 @@ func runNetworkRuleTests() {
         }
 
         Check.test("made from a row, with the network's name; old rules and policies still read") {
-            let firewall = FirewallRules(defaults: UserDefaults(suiteName: "network-rules-\(UUID().uuidString)")!)
+            let firewall = FirewallRules(defaults: Check.defaults("network-rules"))
             let row = ConnectionsItem(dimension: .company, key: "Meta", title: "Meta", subtitle: nil, isHost: false,
                                       symbol: nil, bundlePath: nil)
             firewall.set(.block, for: row, network: .init(id: office, name: "Office Wi-Fi"))

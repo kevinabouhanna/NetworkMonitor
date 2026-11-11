@@ -51,7 +51,7 @@ func runKeyboardTests() {
 
         let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("keyboard-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }
-        let defaults = UserDefaults(suiteName: "keyboard-\(UUID().uuidString)")!
+        let defaults = Check.defaults("keyboard")
         let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
         let metering = MeteringController(store: store,
                                           journal: SuppressionJournal(url: dir.appendingPathComponent("journal.json")),

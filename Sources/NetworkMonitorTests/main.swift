@@ -82,4 +82,12 @@ runAccessibilityTests()
 runKeyboardTests()
 runAssetCheckTests()
 
+// Last: every test's own settings, gone, files and all (#557).
+Check.suite("Settings the tests made (#557)") {
+    Check.test("none is left in ~/Library/Preferences") {
+        let left = Check.removeDefaults()
+        Check.expectTrue(left.isEmpty, "still there: \(left.prefix(5))")
+    }
+}
+
 exit(Check.summarize())

@@ -123,7 +123,7 @@ func runAdRuleTests() {
         }
 
         Check.test("kept and sent: one rule per site and app, an old filter reads none") {
-            let firewall = FirewallRules(defaults: UserDefaults(suiteName: "ad-rules-\(UUID().uuidString)")!)
+            let firewall = FirewallRules(defaults: Check.defaults("ad-rules"))
             firewall.add(AdRule(kind: .neverBlock, site: "example.com"))
             firewall.add(AdRule(kind: .alwaysBlock, site: "example.com"))
             firewall.add(AdRule(kind: .alwaysBlock, site: "example.com", appKey: chrome))
@@ -165,7 +165,7 @@ func runAdRuleTests() {
             Check.expectNil(AdRule(kind: .alwaysBlock, site: "example.com", team: "X").team)
             Check.expectEqual(skip.id, unsigned.id)
             // Made in the app, it's signed for by the app's team, and saved without one if none.
-            let firewall = FirewallRules(defaults: UserDefaults(suiteName: "ad-team-\(UUID().uuidString)")!,
+            let firewall = FirewallRules(defaults: Check.defaults("ad-team"),
                                          teamOf: { $0 == bank ? "BANKTEAM01" : nil })
             firewall.add(unsigned)
             firewall.add([AdRule(kind: .alwaysBlock, site: "ads.example.com", appKey: chrome)])
@@ -224,7 +224,7 @@ func runAdRuleTests() {
     Check.suite("Ad blocking — off on a network (#253)") {
 
         Check.test("no lists are sent on a network where it's off, and it's kept") {
-            let suite = "ad-networks-\(UUID().uuidString)"
+            let suite = Check.suite("ad-networks")
             let firewall = FirewallRules(defaults: UserDefaults(suiteName: suite)!)
             firewall.lists = [.ads]
             firewall.pauseLists(on: .init(id: "router-1", name: "Office"), true)

@@ -33,9 +33,8 @@ func runLocalizationTests() {
                 try? "\"Settings\" = \"设置\";".write(to: lproj.appendingPathComponent("Localizable.strings"),
                                                      atomically: true, encoding: .utf8)
             }
-            let suite = "l10n-\(UUID().uuidString)"
+            let suite = Check.suite("l10n")
             let defaults = UserDefaults(suiteName: suite)!
-            defer { defaults.removePersistentDomain(forName: suite) }
             let mac = ["zh-Hans-CN", "en-US"]
             let localization = Localization(defaults: defaults, domain: suite, arguments: [:],
                                             systemLanguages: { mac }, directory: dir)
