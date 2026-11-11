@@ -70,7 +70,7 @@ import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
 
-let shotsKitVersion = "1.2.0"
+let shotsKitVersion = "1.3.0"
 
 // MARK: - Config
 
@@ -120,6 +120,8 @@ struct Config {
             if let v = vm["display"] as? String { c.vm.display = v }
             if let v = vm["files"] as? [String] { c.vm.files = v }
             c.vm.setup = vm["setup"] as? String
+            c.vm.prepare = vm["prepare"] as? String
+            c.vm.image = vm["image"] as? String
         }
         return c
     }
@@ -138,7 +140,15 @@ struct VMConfig {
     var files: [String] = []
     /// A command run in the VM from the project's copy, once the app is
     /// installed (`$SHOTS_APP`) and before any picture: the app's first-run state.
+    /// What `prepare` made is in `$SHOTS_VM_DIR`.
     var setup: String?
+    /// A command run on this Mac, in the project, before the VM starts: it
+    /// writes into `$SHOTS_VM_DIR`, which goes into the VM, what has to be made
+    /// from this Mac (other apps' icons, its time zone) (product-kit#12).
+    var prepare: String?
+    /// The project's own image to clone (`mac-vm image`), set up once with
+    /// what the app needs approved, rather than the golden image (product-kit#12).
+    var image: String?
 }
 
 nonisolated(unsafe) var config = Config()
@@ -1287,8 +1297,11 @@ struct Session {
     func look(_ window: AXUIElement, _ shot: Shot) async throws -> (look: Look, picture: CGImage, masks: [CGRect]) {
         place(window)
         var picture = try await picture(window, crop: shot.crop)
-        for _ in 0..<4 where shot.crop == nil && !isActive(picture.image, window: window) {
+        for attempt in 0..<8 where shot.crop == nil && !isActive(picture.image, window: window) {
+            InVM.allowSystemAlert()
             try bringForward(window)
+            // Longer each time: something else can hold the front for a few seconds.
+            if attempt >= 3 { usleep(UInt32(attempt) * 400_000) }
             picture = try await self.picture(window, crop: shot.crop)
         }
         let masks = maskedFrames(window, shot).map { f in
@@ -2157,6 +2170,24 @@ enum InVM {
         return nil
     }
 
+    /// In the VM only: a system alert in front (UserNotificationCenter), such
+    /// as macOS asking again whether captures made over SSH may bypass the
+    /// window picker, is answered Allow, so the app's window can come forward.
+    /// The VM is this run's own, so there's nobody else to answer it.
+    static func allowSystemAlert() {
+        guard inside, let front = NSWorkspace.shared.frontmostApplication,
+              front.bundleIdentifier == "com.apple.UserNotificationCenter" else { return }
+        let ax = AXUIElementCreateApplication(front.processIdentifier)
+        for window in attribute(ax, kAXWindowsAttribute) as? [AXUIElement] ?? [] {
+            if let allow = find("AXButton:Allow", in: window) {
+                AXUIElementPerformAction(allow, kAXPressAction as CFString)
+                print("  answered a system alert in the VM: Allow")
+                usleep(1_000_000)
+                return
+            }
+        }
+    }
+
     /// Quoted for the VM's shell.
     static func q(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
 
@@ -2254,17 +2285,39 @@ enum InVM {
                 before[copy.name] = hashes(into)
             }
 
+            // What has to be made from this Mac, by the project, into the VM.
+            let prepared = share.appendingPathComponent("prepared")
+            try fm.createDirectory(at: prepared, withIntermediateDirectories: true)
+            if let prepare = config.vm.prepare {
+                let p = Process()
+                p.executableURL = URL(fileURLWithPath: "/bin/bash")
+                p.arguments = ["-c", prepare]
+                p.currentDirectoryURL = repo
+                var env = ProcessInfo.processInfo.environment
+                env["SHOTS_VM_DIR"] = prepared.path
+                env["SHOTS_APP"] = app ?? manifest.app
+                p.environment = env
+                try p.run()
+                p.waitUntilExit()
+                guard p.terminationStatus == 0 else { throw Failure("vm.prepare failed (exit \(p.terminationStatus)): \(prepare)") }
+            }
+
             let inside = "/Volumes/My Shared Files/\(share.lastPathComponent)"
             var script = [
                 "set -e",
                 "s=\(q(inside))",
+                "export SHOTS_VM_DIR=\"$s/prepared\"",
                 // The installed copy's place, whichever copy goes in (`--app`).
                 "app=\(q(manifest.app))",
+                // Quit, whoever opened it (a login item does at boot), so it
+                // reads the files placed below when it opens again.
+                "osascript -e \(q("tell application id \"\(manifest.bundle)\" to quit")) >/dev/null 2>&1 || true",
+                "pkill -f \"$app/Contents/MacOS/\" 2>/dev/null || true",
                 "t=$(mktemp -d /tmp/shots-app.XXXXXX)",
                 "ditto -x -k \"$s/app.zip\" \"$t\"",
-                "mkdir -p \"$(dirname \"$app\")\"",
-                "rm -rf \"$app\"",
-                "mv \"$t\"/*.app \"$app\"",
+                // The same app kept, so what an image approved for it stays (product-kit#12).
+                "if [ -d \"$app\" ] && diff -rq \"$app\" \"$t\"/*.app >/dev/null 2>&1; then echo \"shots-kit: $app in the VM is this app already\"",
+                "else mkdir -p \"$(dirname \"$app\")\"; rm -rf \"$app\"; mv \"$t\"/*.app \"$app\"; fi",
             ]
             // This Mac's files, to the same place in the VM.
             let home = NSHomeDirectory()
@@ -2282,6 +2335,8 @@ enum InVM {
                 let there = path.hasPrefix(home + "/") ? "\"$HOME\"/" + q(String(path.dropFirst(home.count + 1))) : q(path)
                 script.append("mkdir -p \"$(dirname \(there))\" && rm -rf \(there) && ditto \"$s\"/files/\(i)/\(q(name)) \(there)")
             }
+            // Settings are read again from the files just placed.
+            script.append("killall -u \"$USER\" cfprefsd 2>/dev/null || true")
             script.append("cd \"$s/repo\"")
             if let setup = config.vm.setup { script.append("SHOTS_APP=\"$app\" /bin/bash -c \(q(setup))") }
             // The VM's screen is this run's alone: taken whenever, with no Mac lanes.
@@ -2290,11 +2345,13 @@ enum InVM {
                           + arguments.map(q).joined(separator: " ")
                           + " --repo \"$s/repo\"" + (manifestInRepo ? "" : " --site \"$s/site\""))
 
-            print("shots-kit: \(arguments.first ?? "") in a VM (mac-vm, a \(config.vm.display) screen)…")
+            print("shots-kit: \(arguments.first ?? "") in a VM (mac-vm"
+                  + (config.vm.image.map { ", the \($0) image" } ?? "") + ", a \(config.vm.display) screen)…")
             let p = Process()
             p.executableURL = URL(fileURLWithPath: macVM)
-            p.arguments = ["run", "--share", share.path, "--display", config.vm.display, "--",
-                           "/bin/bash", "-c", script.joined(separator: "\n")]
+            p.arguments = ["run", "--share", share.path, "--display", config.vm.display]
+                + (config.vm.image.map { ["--image", $0] } ?? [])
+                + ["--", "/bin/bash", "-c", script.joined(separator: "\n")]
             try p.run()
             // Stopped from outside: mac-vm deletes its clone, then this folder goes.
             for sig in [SIGINT, SIGTERM, SIGHUP] {
@@ -2726,7 +2783,12 @@ struct ShotsKit {
                 let taken = try await session.look(window, shot)
                 let image = taken.picture
                 // A crop leaves out the traffic lights that tell.
-                if shot.crop == nil && !isActive(image, window: window) { print("  warning: \(file) shows the window inactive") }
+                if shot.crop == nil && !isActive(image, window: window) {
+                    // What had the front instead, to find what takes it.
+                    let front = NSWorkspace.shared.frontmostApplication
+                    print("  warning: \(file) shows the window inactive; in front: "
+                          + "\(front?.localizedName ?? "nothing") (\(front?.bundleIdentifier ?? "?"))")
+                }
                 try writePNG(image, to: site.appendingPathComponent(file))
                 try taken.look.text.write(to: lookFile, atomically: true, encoding: .utf8)
                 page.setSize(of: file, pixels: CGSize(width: image.width, height: image.height))
