@@ -22,13 +22,7 @@ AXWindow (AXStandardWindow) title="广告与跟踪器" 1300
       AXStaticText value="今天" h16
       data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXStaticText
       AXGroup description="每小时拦截次数" h580
-        AXUnknown description="‹time›时至#时" h12
-        AXUnknown description="‹time›时至#时" h56
-        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h8
-        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h196
-        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h312
-        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h112
-        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h512
+        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h608
   AXToolbar 1300x52
     AXButton description="边栏" help="隐藏边栏" 44x52
     AXGroup help="列表、两者并排，或图表" h52

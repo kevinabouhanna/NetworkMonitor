@@ -22,13 +22,7 @@ AXWindow (AXStandardWindow) title="Ads and Trackers" 1300
       AXStaticText value="Today" h16
       data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXStaticText
       AXGroup description="Blocked by hour" h580
-        AXUnknown description="# – ‹time›" h12
-        AXUnknown description="# – ‹time›" h56
-        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h8
-        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h196
-        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h312
-        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h112
-        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h508
+        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h608
   AXToolbar 1300x52
     AXButton description="Sidebar" help="Hide Sidebar" 44x52
     AXGroup help="The list, both side by side, or the chart" h52
