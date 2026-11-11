@@ -66,7 +66,8 @@ through without asking. What's particular to NetworkMonitor:
     - any copy the change affects
     - the pictures: `make site-shots` once the new version is installed. It
       retakes each picture whose window's interface changed, and About, and
-      updates the page (`docs/development.md#website-pictures`). Rewrite the alt
+      updates the page (`docs/development.md#website-pictures`; it's product-kit's
+      shots-kit, vendored as `Scripts/site-shots.swift`, the `shots-kit` skill). Rewrite the alt
       text of any picture it retook for an interface change, from the diff it
       prints, describing the interface, not its numbers. Pictures it reports as
       not taken (the Mac was in use) don't hold the release: list them in your
