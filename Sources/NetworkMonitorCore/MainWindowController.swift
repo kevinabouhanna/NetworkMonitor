@@ -151,7 +151,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         generalHost.sizingOptions = []
         general = generalHost
 
-        let sidebar = NSHostingController(rootView: MainSidebar(navigation: navigation,
+        let sidebar = NSHostingController(rootView: MainSidebar(navigation: navigation, updates: model.updates,
                                                                 onSelect: { [weak self] in self?.show($0) })
             .localizedRoot())
         let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebar)
@@ -496,9 +496,11 @@ final class MainContainerController: NSViewController {
 
 /// The sidebar: the four sections, as the popover's four buttons, and
 /// Settings pinned to the bottom (#436). The chosen one is raised on glass,
-/// as every choice in the app is, and the glass slides to the next.
+/// as every choice in the app is, and the glass slides to the next. Above
+/// Settings, a new version while one waits (#520).
 struct MainSidebar: View {
     @ObservedObject var navigation: MainNavigation
+    @ObservedObject var updates: UpdateController
     let onSelect: (MainSection) -> Void
 
     /// Not `@State`; see `SettingsPaneState`. A property wrapper, not a macro.
@@ -531,12 +533,20 @@ struct MainSidebar: View {
                     }
                 }
             }
+            if let version = updates.pendingVersion {
+                UpdateCard(version: version, onInstall: updates.installPendingUpdate,
+                           onWhatsNew: updates.showPendingUpdate, onDismiss: updates.dismissPendingUpdate)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 10)
+                    .transition(Motion.swap)
+            }
             Divider()
             row(.settings)
                 .help(L("Settings (⌘,)"))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
         }
+        .animation(Motion.content, value: updates.pendingVersion)
     }
 
     private func row(_ section: MainSection) -> some View {
@@ -568,6 +578,62 @@ struct MainSidebar: View {
         .buttonStyle(.plain)
         .accessibilityLabel(section.title)
         .accessibilityAddTraits(chosen ? [.isSelected] : [])
+    }
+}
+
+/// A new version, found by the daily check while the window was open
+/// (#520): an offer, as the app's others are, with a ✕ that puts it away
+/// until the next check. The buttons stack, as two side by side don't fit
+/// the sidebar's width.
+struct UpdateCard: View {
+    let version: String
+    let onInstall: () -> Void
+    let onWhatsNew: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Image(systemName: "gift")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.accentColor)
+                    .accessibilityHidden(true)
+                Text(L("Update available"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 0)
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 14, height: 18)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L("Remind Me Later"))
+                .help(L("Remind me tomorrow"))
+            }
+            Text(L("Version %@ is ready to install.", version))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 6) {
+                Button(action: onInstall) {
+                    Text(L("Install & Restart")).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                Button(action: onWhatsNew) {
+                    Text(L("What's New")).frame(maxWidth: .infinity)
+                }
+            }
+            .controlSize(.regular)
+        }
+        .padding(10)
+        .background(Color.accentColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(L("Update available"))
     }
 }
 

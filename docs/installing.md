@@ -50,7 +50,10 @@ used: website names in Connections' settings, Wi-Fi names in Settings.
 
 From 1.15 on, NetworkMonitor updates itself with Sparkle (#132). Once a day it asks
 GitHub whether there's a newer version, never on a hotspot, and offers it: what's new,
-and **Install Update** when you're ready. **Check for Updates…** in its menu asks at
+and **Install Update** when you're ready. Found while the main window is open, it waits on a
+card above **Settings** in the sidebar instead: **Install & Restart** downloads it and
+relaunches into it, **What's New** shows the release notes, and its ✕ puts it away until
+the next day's check. **Check for Updates…** in its menu asks at
 once, and **Check for updates automatically** in Settings switches the daily check off. An update installs only if its
 disk image is signed with the key built into the app.
 

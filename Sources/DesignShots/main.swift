@@ -561,6 +561,12 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     shoot("network")
     main.show(.settings)
     shoot("settings-general")
+    // A new version waiting on its card, above Settings (#520).
+    main.show(.history)
+    world.model.updates.previewCard(version: "1.30.0")
+    shoot("update-card")
+    world.model.updates.previewCard(version: nil)
+    main.show(.settings)
     for section in MainSection.features {
         main.show(section)
         main.showSettings()

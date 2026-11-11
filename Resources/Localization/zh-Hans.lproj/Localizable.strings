@@ -924,6 +924,13 @@
 "The list, both side by side, or the chart" = "列表、两者并排，或图表";
 "The sites blocked, or the apps that tried to reach them" = "已拦截的网站，或尝试访问它们的应用";
 
+/* A new version, on a card above Settings in the main window's sidebar (#520). */
+"Update available" = "有可用的更新";
+"Version %@ is ready to install." = "版本 %@ 已可安装。";
+"Install & Restart" = "安装并重新启动";
+"What's New" = "新功能";
+"Remind Me Later" = "稍后提醒我";
+"Remind me tomorrow" = "明天提醒我";
 /* What VoiceOver calls the ⓘ beside a row when Tab reaches it (#455). */
 "Explanation" = "说明";
 /* What VoiceOver calls a rule's ⊖ button, naming the rule (#455). */

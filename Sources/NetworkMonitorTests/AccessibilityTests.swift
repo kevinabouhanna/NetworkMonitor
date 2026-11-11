@@ -197,6 +197,23 @@ func runAccessibilityTests() {
                 return window
             }
             check(part(main.sidebarController, "Main window sidebar", width: 220), "The main window's sidebar\(language)")
+            // A new version waiting on its card, above Settings (#520): the ✕
+            // says what it does, and each button reads as it's labelled.
+            model.updates.previewCard(version: "9.9.9")
+            let updateSidebar = part(main.sidebarController, "Main window sidebar, update", width: 220)
+            check(updateSidebar, "The main window's sidebar with an update waiting\(language)")
+            Check.test("The update card's buttons are named\(language)") {
+                updateSidebar.alphaValue = 0
+                updateSidebar.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
+                updateSidebar.orderFrontRegardless()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                let names = AccessibilityAudit.namesOwnWindow(titled: updateSidebar.title)
+                for name in [L("Install & Restart"), L("What's New"), L("Remind Me Later")] {
+                    Check.expectTrue(names.contains(name), "the update card has no \(name) in \(names)")
+                }
+                updateSidebar.orderOut(nil)
+            }
+            model.updates.previewCard(version: nil)
             check(part(main.networkController, "Main window Network"), "The main window › Network\(language)")
             check(part(main.generalController, "Main window Settings"), "The main window › Settings\(language)")
             // With Dock chosen, and so its Dock icon choice showing (#523).
