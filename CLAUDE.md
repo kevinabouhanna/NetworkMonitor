@@ -223,22 +223,28 @@ release of its own:
   A busy lane waits and names its holder. Run those commands in the background so a
   wait can't time out. `mac-lane status` lists every lane, who holds it and for how long.
   Other apps' lanes (`home-control`…) don't wait on ours.
-- **Stay off Kevin's two screens (#475).** Open the app with `open -g`, never a plain
-  `open`, and pass `-background YES` with `-open` when only the accessibility tree is
-  needed. Never ask Kevin to step away, in a notification or in chat (#521,
-  kevinabouhanna/claude-parallel-sessions#27): he keeps using the Mac. Anything that
-  brings a window forward or moves the real pointer happens only while the Mac is idle
-  (`MAC_LANE_IDLE=90`: no keyboard or mouse for 90 s, or the screen locked); otherwise
-  it isn't done. `make site-shots` and `make site-check LOOK=1` report those pictures as
-  not taken, and why: say so, and never hold a release or a review on them; a later run
-  takes them. For your own, take `screen` with `MAC_LANE_IDLE=90`, which waits silently.
+- **Stay off Kevin's two screens (#475,
+  kevinabouhanna/claude-parallel-sessions#62).** Testing the app — anything that shows its
+  windows: launching a build to look at it, UI checks, reading windows' trees, pictures,
+  smoke tests with windows — runs in a VM (`mac-vm`, the shared-mac skill), not on his Mac.
+  `open -g` and `-background YES` keep focus but the windows still appear on his screens
+  (Kevin, 11 Nov 2026: a NetworkMonitor window every few seconds while pictures were taken;
+  "I cannot use the computer"). On this Mac: installing and relaunching his own copy, and
+  work that opens no windows.
+  - `site-shots` (`make site-check`, `site-shots`, `site-trees`, `site-audit`, `build/site-shots
+    tree`) opens the app's windows over and over. Until it runs in a VM (#561), run it only
+    while the Mac is idle, waiting silently:
+    `MAC_LANE=screen MAC_LANE_IDLE=90 mac-lane make site-check` (no keyboard or mouse for
+    90 s, or the screen locked; it gives up after four hours). If it gives up, report it as not
+    done; never hold a release or a review on it.
+  - Never ask Kevin to step away, in a notification or in chat (#521,
+    kevinabouhanna/claude-parallel-sessions#27): he keeps using the Mac.
 - **Quit and reopen the app through `Scripts/quit-and-open.sh`** (`nm_quit`,
   `nm_open`), never `pkill` and `open` straight after: launchd can keep a dead launch
   job and fail the `open` with error 37 (#508).
-- **Computer use has its own lock, held until the session exits.** Check windows
-  with the accessibility tree (`make site-check`, `build/site-shots tree <name>`)
-  first. Use computer use only for what that can't show, from a short session that
-  exits when it's done.
+- **Computer use goes to a VM** (`mac-vm`'s look/vnc loop, the shared-mac skill): a clone
+  with the app copied in, its own screen and pointer. Claude Code's computer-use tool drives
+  Kevin's screen: only for what a VM can't do, from a short session, while the Mac is idle.
 - **Local test servers take a port the system picks**
   (`python3 -m http.server 0 --bind 127.0.0.1`), never a fixed one.
 - **Measure a power profile without unplugging:**
