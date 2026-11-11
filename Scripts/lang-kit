@@ -1,0 +1,711 @@
+#!/usr/bin/env python3
+#
+# lang-kit: every language a product speaks, kept whole and in its own words
+# (kevinabouhanna/product-kit#4), part of product-kit.
+#
+# Each language has a table of the app's text and a glossary: the words it uses
+# for the app's windows, features and settings, settled with a native speaker
+# before anything else is translated. lang-kit holds the tables to the app's
+# text and to their glossaries, asks for a page's translations when the
+# English page changes, lists what a release changed for each language's
+# reviewer, and starts a new language.
+#
+# Everything particular to a project is in .product-kit.json (its "languages",
+# and its "lang" settings), found at the top of the git checkout this runs in.
+# One file, Python's standard library only. Each project keeps a copy
+# (Scripts/lang-kit, `lang-kit vendor`), so its CI needs no plugin.
+#
+# Usage:
+#   lang-kit strings               every table whole, with its glossary's words
+#   lang-kit check [base]          pages changed with their translations? (base: origin/main)
+#   lang-kit review <from> [to]    what changed in each language, for its reviewer
+#   lang-kit add <code> [name]     start a new language
+#   lang-kit keys                  the text to translate, one per line
+#   lang-kit vendor [--check]      copy this file into the project
+#   lang-kit version
+#
+# The full reference is docs/lang-kit.md in kevinabouhanna/product-kit.
+
+import fnmatch
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+import xml.etree.ElementTree as ET
+
+VERSION = "1.0.0"
+CONFIGS = (".product-kit.json", ".docs-kit.json")
+
+
+def fail(message: str) -> None:
+    sys.exit(f"lang-kit: {message}")
+
+
+def git(*args: str, root: pathlib.Path, check: bool = True) -> str:
+    result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+    if check and result.returncode != 0:
+        fail(f"git {' '.join(args)}: {result.stderr.strip()}")
+    return result.stdout
+
+
+def glob_match(path: str, pattern: str) -> bool:
+    """fnmatch, with `**/` matching any depth, including none."""
+    if fnmatch.fnmatchcase(path, pattern):
+        return True
+    return "**/" in pattern and fnmatch.fnmatchcase(path, pattern.replace("**/", ""))
+
+
+# --------------------------------------------------------------------------
+# Escapes and placeholders
+
+
+def unescape(literal: str) -> str:
+    """A C-like string literal's text: \\n \\t \\0 \\" \\\\, \\u{…} (Swift),
+    \\uXXXX and \\UXXXXXXXX (C#, .strings)."""
+    out = []
+    i = 0
+    while i < len(literal):
+        c = literal[i]
+        if c != "\\" or i + 1 == len(literal):
+            out.append(c)
+            i += 1
+            continue
+        e = literal[i + 1]
+        i += 2
+        if e == "n":
+            out.append("\n")
+        elif e == "t":
+            out.append("\t")
+        elif e == "r":
+            out.append("\r")
+        elif e == "0":
+            out.append("\0")
+        elif e in "uU":
+            m = re.match(r"\{([0-9A-Fa-f]+)\}", literal[i:]) or \
+                re.match(r"[0-9A-Fa-f]{8}" if e == "U" else r"[0-9A-Fa-f]{4}", literal[i:])
+            if m:
+                out.append(chr(int(m.group(1) if m.groups() else m.group(0), 16)))
+                i += m.end()
+            else:
+                out.append(e)
+        else:
+            out.append(e)
+    return "".join(out)
+
+
+def without_comment(line: str) -> str:
+    """A line of code up to a // comment outside its strings."""
+    quoted = False
+    i = 0
+    while i < len(line):
+        c = line[i]
+        if c == "\\" and quoted:
+            i += 2
+            continue
+        if c == '"':
+            quoted = not quoted
+        elif not quoted and line.startswith("//", i):
+            return line[:i]
+        i += 1
+    return line
+
+
+PRINTF = re.compile(r"%(?:(\d+)\$)?[-+#0]*\d*(?:\.\d+)?(?:hh|h|ll|l|q|L|z|t|j)?([@dDuUxXoOfFeEgGcCsSpaA%])")
+BRACES = re.compile(r"(?<!\{)\{(\w+)(?:[,:][^}]*)?\}(?!\})")
+QT = re.compile(r"%(\d+)")
+
+
+def placeholders(text: str, style: str) -> list[str]:
+    """The placeholders in a piece of text, numbered, so `%@ of %@` and
+    `%2$@ 中的 %1$@` say the same: ['%1$@', '%2$@']."""
+    if style == "printf":
+        found, n = [], 0
+        for m in PRINTF.finditer(text):
+            if m.group(2) == "%":
+                continue
+            n += 1
+            found.append(f"%{m.group(1) or n}${m.group(2)}")
+        return sorted(found)
+    if style == "braces":
+        return sorted(set(m.group(1) for m in BRACES.finditer(text)))
+    if style == "qt":
+        return sorted(set(m.group(1) for m in QT.finditer(text)))
+    return []
+
+
+# --------------------------------------------------------------------------
+# Tables, one reader per format. Each reads a file's text into {key: text}.
+
+
+STRINGS_LINE = re.compile(r'"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"\s*;')
+
+
+def decode(data: bytes) -> str:
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return data.decode("utf-16")
+    return data.decode("utf-8-sig")
+
+
+def read_strings(text: str, code: str) -> dict[str, str]:
+    """Apple's .strings: "key" = "text"; with /* */ and // comments."""
+    text = _blank_strings_comments(text)
+    return {unescape(k): unescape(v) for k, v in STRINGS_LINE.findall(text)}
+
+
+def _blank_strings_comments(text: str) -> str:
+    """Comments out, quotes kept: a // inside a string isn't a comment."""
+    out, i = [], 0
+    while i < len(text):
+        c = text[i]
+        if c == '"':
+            j = i + 1
+            while j < len(text) and text[j] != '"':
+                j += 2 if text[j] == "\\" else 1
+            out.append(text[i:j + 1])
+            i = j + 1
+        elif text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            i = len(text) if j < 0 else j + 2
+        elif text.startswith("//", i):
+            j = text.find("\n", i)
+            i = len(text) if j < 0 else j
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
+
+
+def read_xcstrings(text: str, code: str) -> dict[str, str]:
+    """Xcode's string catalog: every language in one file."""
+    catalog = json.loads(text)
+    source = catalog.get("sourceLanguage", "en")
+    table = {}
+    for key, entry in catalog.get("strings", {}).items():
+        if entry.get("shouldTranslate") is False:
+            continue
+        unit = entry.get("localizations", {}).get(code, {}).get("stringUnit", {})
+        if unit.get("value") is not None and unit.get("state") != "new":
+            table[key] = unit["value"]
+        elif code == source:
+            table[key] = key
+    return table
+
+
+def read_json(text: str, code: str) -> dict[str, str]:
+    """A JSON table, nested objects flattened with dots: {"menu": {"quit": "Quit"}} is menu.quit."""
+    table = {}
+
+    def walk(node, prefix):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                walk(v, f"{prefix}{k}" if not prefix else f"{prefix}.{k}")
+        elif isinstance(node, str):
+            table[prefix] = node
+    walk(json.loads(text), "")
+    return table
+
+
+def read_resx(text: str, code: str) -> dict[str, str]:
+    """.NET's .resx: <data name="key"><value>text</value></data>."""
+    table = {}
+    for data in ET.fromstring(text).iter("data"):
+        if data.get("type") or data.get("mimetype"):
+            continue
+        value = data.find("value")
+        table[data.get("name")] = (value.text or "") if value is not None else ""
+    return table
+
+
+def read_ts(text: str, code: str) -> dict[str, str]:
+    """Qt's .ts: each message's source and its finished translation. The key is
+    the source text; Qt's own marks leave out unfinished and obsolete ones."""
+    table = {}
+    for message in ET.fromstring(text).iter("message"):
+        source = message.findtext("source") or ""
+        translation = message.find("translation")
+        kind = translation.get("type") if translation is not None else "unfinished"
+        if kind in ("obsolete", "vanished"):
+            continue
+        if kind != "unfinished" and translation is not None and (translation.text or "").strip():
+            table[source] = translation.text
+        else:
+            table.setdefault(source, None)
+    return table
+
+
+FORMATS = {
+    "strings": (read_strings, "printf"),
+    "xcstrings": (read_xcstrings, "printf"),
+    "json": (read_json, "braces"),
+    "resx": (read_resx, "braces"),
+    "ts": (read_ts, "qt"),
+}
+
+
+# --------------------------------------------------------------------------
+# The project
+
+
+class Project:
+    """A checkout, its languages and its lang settings."""
+
+    def __init__(self, root: pathlib.Path):
+        self.root = root
+        for name in CONFIGS:
+            if (root / name).exists():
+                self.config_name = name
+                break
+        else:
+            fail(f"no .product-kit.json at {root} (`lang-kit add <code>` starts one)")
+        self.config = json.loads((root / self.config_name).read_text(encoding="utf-8"))
+        c = self.config
+        self.lang = c.get("lang", {})
+        self.source = self.lang.get("source") or c.get("site", {}).get("language") or "en"
+        self.languages = {code: v for code, v in c.get("languages", {}).items() if code != self.source}
+        self.phrase = self.lang.get("phrase", "No translation needed")
+        tables = self.lang.get("strings")
+        self.tables = tables
+        if tables:
+            fmt = tables.get("format", "strings")
+            if fmt not in FORMATS:
+                fail(f"lang.strings.format {fmt!r}: one of {', '.join(FORMATS)}")
+            self.reader, style = FORMATS[fmt]
+            self.style = tables.get("placeholders", style)
+            self.format = fmt
+
+    @staticmethod
+    def find() -> "Project":
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+        if top.returncode != 0:
+            fail("not in a git checkout")
+        return Project(pathlib.Path(top.stdout.strip()))
+
+    # Tables
+
+    def table_path(self, code: str) -> str:
+        if code == self.source and self.tables.get("source_path"):
+            return self.tables["source_path"]
+        return self.tables["path"].replace("{code}", code)
+
+    def table(self, code: str, ref: str | None = None) -> dict[str, str] | None:
+        """A language's table, as it is in the checkout, or at a commit."""
+        path = self.table_path(code)
+        if ref:
+            shown = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=self.root, capture_output=True)
+            if shown.returncode != 0:
+                return None
+            data = shown.stdout
+        else:
+            file = self.root / path
+            if not file.exists():
+                return None
+            data = file.read_bytes()
+        try:
+            return self.reader(decode(data), code)
+        except (ValueError, ET.ParseError) as error:
+            fail(f"{path} doesn't read: {error}")
+
+    def keys(self) -> set[str]:
+        """The text to translate: from the sources (`keys.scan`), or the
+        source language's table, or (Qt) every message any table lists."""
+        spec = self.tables.get("keys", {})
+        if spec.get("scan"):
+            return self.scan(spec)
+        if self.format == "ts":
+            keys = set()
+            for code in self.languages:
+                keys |= set((self.table(code) or {}).keys())
+            return keys
+        table = self.table(self.source)
+        if table is None:
+            fail(f"no table for {self.source} at {self.table_path(self.source)}, and no lang.strings.keys.scan")
+        return set(table)
+
+    def english(self, ref: str | None = None) -> dict[str, str]:
+        """Each key's text in the source language, where the key isn't the text
+        itself (JSON's menu.quit, a .resx name); empty when it is."""
+        if self.tables.get("keys", {}).get("scan") or self.format == "ts":
+            return {}
+        return {k: v for k, v in (self.table(self.source, ref) or {}).items() if v is not None and v != k}
+
+    def scan(self, spec: dict) -> set[str]:
+        """Every literal passed to the call (`L("…")`) in the files scanned,
+        line by line, comments left out. A literal with an interpolation in it,
+        or added to another, isn't a key; the project's own tests catch those."""
+        call = re.escape(spec.get("call", "L"))
+        pattern = re.compile(spec.get("pattern") or rf'(?<![\w.]){call}\(\s*"((?:[^"\\]|\\.)*)"\s*[,)]')
+        keys = set()
+        files = git("ls-files", root=self.root).split("\n")
+        files += git("ls-files", "--others", "--exclude-standard", root=self.root).split("\n")
+        for file in sorted(set(f for f in files if f)):
+            if not any(glob_match(file, p) for p in spec["scan"]):
+                continue
+            if any(glob_match(file, p) for p in spec.get("except", [])):
+                continue
+            path = self.root / file
+            if not path.exists():
+                continue
+            for line in path.read_text(encoding="utf-8", errors="replace").split("\n"):
+                stripped = line.strip()
+                if stripped.startswith(("//", "*", "#")):
+                    continue
+                line = without_comment(line)
+                for m in pattern.finditer(line):
+                    if "\\(" not in m.group(1):
+                        keys.add(unescape(m.group(1)))
+        return keys
+
+    def glossary(self, code: str) -> tuple[dict | None, str | None]:
+        """A language's glossary and its path, or (None, path) when it's missing."""
+        pattern = self.lang.get("glossary")
+        if not pattern:
+            return None, None
+        path = pattern.replace("{code}", code)
+        file = self.root / path
+        if not file.exists():
+            return None, path
+        try:
+            return json.loads(file.read_text(encoding="utf-8")), path
+        except ValueError as error:
+            fail(f"{path} doesn't read: {error}")
+
+    def name(self, code: str) -> str:
+        glossary, _ = self.glossary(code)
+        return (glossary or {}).get("name") or self.languages.get(code, {}).get("name") or code
+
+    # Pages
+
+    def pages(self) -> list[dict]:
+        """English pages and where each language's copy is, as
+        [{"page": glob, "copy": "docs/{code}/{name}", "except": [...]}]. From
+        lang.pages, or the docs config: README.md, docs/*.md but the pages for
+        developers, and extra_pages with a copy."""
+        if "pages" in self.lang:
+            return self.lang["pages"]
+        c = self.config
+        docs = c.get("docs", "docs").strip("/")
+        pages = [{"page": "README.md", "copy": "README.{code}.md"}]
+        for file, extra in c.get("extra_pages", {}).items():
+            if extra.get("copy"):
+                pages.append({"page": file, "copy": f"{docs}/{{code}}/{extra['copy']}"})
+        pages.append({"page": f"{docs}/*.md", "copy": f"{docs}/{{code}}/{{name}}",
+                      "except": c.get("developer_pages", [])})
+        return pages
+
+    def copy_of(self, file: str, code: str) -> str | None:
+        for rule in self.pages():
+            pattern = rule["page"]
+            # `*` stays in its folder: docs/*.md isn't docs/zh-Hans/index.md.
+            if file.count("/") != pattern.count("/") or not fnmatch.fnmatchcase(file, pattern):
+                continue
+            if any(fnmatch.fnmatchcase(file, e) for e in rule.get("except", [])):
+                continue
+            return rule["copy"].replace("{code}", code).replace("{name}", file.rsplit("/", 1)[-1]).replace("{path}", file)
+        return None
+
+    def copy_patterns(self, code: str) -> list[str]:
+        """Every place a language's pages are, for git diff."""
+        out = []
+        for rule in self.pages():
+            copy = rule["copy"].replace("{code}", code)
+            out.append(copy.split("{name}")[0].split("{path}")[0] if "{" in copy else copy)
+        return out
+
+    def pr_body(self) -> str:
+        if "PR_BODY" in os.environ:
+            return os.environ["PR_BODY"]
+        args = ["gh", "pr", "view"] + ([os.environ["PR"]] if os.environ.get("PR") else []) + ["--json", "body", "--jq", ".body"]
+        result = subprocess.run(args, cwd=self.root, capture_output=True, text=True)
+        return result.stdout if result.returncode == 0 else ""
+
+
+# --------------------------------------------------------------------------
+# lang-kit strings
+
+
+def glossary_problems(glossary: dict, table: dict, keys: set[str]) -> list[str]:
+    """Where the table names things otherwise than its glossary."""
+    problems = []
+    for term in glossary.get("terms", []):
+        if term.get("where") == "docs":
+            continue
+        en, text, said = term["en"], term["text"], False
+        if en in keys:
+            said = True
+            if table.get(en) != text:
+                problems.append(f'"{en}" is "{table.get(en) or ""}", but the glossary says "{text}"')
+        if term.get("everywhere"):
+            word = re.compile(r"\b" + re.escape(en) + r"\b", re.I)
+            for key in sorted(keys):
+                if word.search(key):
+                    said = True
+                    translated = table.get(key)
+                    if translated is not None and text not in translated:
+                        problems.append(f'"{key}" → "{translated}" doesn\'t say "{text}" for "{en}"')
+        if not said:
+            problems.append(f'the app no longer says "{en}": change the glossary\'s term, or mark it "where": "docs"')
+    for avoid in glossary.get("avoid", []):
+        for english, translated in sorted(table.items()):
+            if translated and avoid["text"] in translated:
+                problems.append(f'"{english}" → "{translated}" uses "{avoid["text"]}": {avoid["why"]}')
+    return problems
+
+
+def strings(project: Project) -> int:
+    if not project.tables:
+        fail(f"{project.config_name} has no lang.strings: where the tables are, and their format")
+    keys = project.keys()
+    source = project.english()
+    failed = 0
+    if not keys:
+        print("lang-kit: no text to translate found")
+        return 1
+    for code in sorted(project.languages):
+        table = project.table(code)
+        problems = []
+        if table is None:
+            problems.append(f"no table at {project.table_path(code)}")
+            table = {}
+        done = {k: v for k, v in table.items() if v is not None}
+        missing = sorted(keys - set(done))
+        if missing:
+            problems.append(f"{len(missing)} missing, such as: " + " | ".join(m.replace("\n", "\\n") for m in missing[:5]))
+        if project.format != "ts":
+            stale = sorted(set(table) - keys)
+            if stale:
+                problems.append(f"{len(stale)} the app no longer says, such as: " + " | ".join(stale[:5]))
+        for key, translated in sorted(done.items()):
+            english = source.get(key, key)
+            if placeholders(english, project.style) != placeholders(translated, project.style):
+                problems.append(f'placeholders differ: "{english}" → "{translated}"')
+        glossary, path = project.glossary(code)
+        if path and glossary is None:
+            problems.append(f"no glossary at {path}: write it first (`lang-kit add` starts one)")
+        elif glossary is not None:
+            if glossary.get("language", code) != code:
+                problems.append(f"{path} says it's {glossary.get('language')!r}")
+            # The glossary is in English words, whatever the keys are.
+            problems += glossary_problems(glossary, {source.get(k, k): v for k, v in done.items()},
+                                          {source.get(k, k) for k in keys})
+        if problems:
+            failed += 1
+            print(f"lang-kit: {project.name(code)} ({code}):")
+            for p in problems:
+                print(f"  {p}")
+        else:
+            print(f"lang-kit: {project.name(code)} ({code}): all {len(keys)} pieces of text, in its glossary's words")
+    return 1 if failed else 0
+
+
+# --------------------------------------------------------------------------
+# lang-kit check
+
+
+def check(project: Project, base: str) -> int:
+    root = project.root
+    start = git("merge-base", base, "HEAD", root=root).strip()
+    changes = {}
+    for line in git("diff", "--name-status", "--no-renames", start, root=root).splitlines():
+        status, _, file = line.partition("\t")
+        changes[file] = status[0]
+    for file in git("ls-files", "--others", "--exclude-standard", root=root).splitlines():
+        changes[file] = "A"
+    codes = sorted(project.languages)
+    problems = []
+    for file, status in sorted(changes.items()):
+        if status == "D":
+            continue
+        for code in codes:
+            copy = project.copy_of(file, code)
+            if not copy:
+                continue
+            if (root / copy).exists() or copy in changes:
+                if copy not in changes:
+                    problems.append(f"{file} changed, but not {copy}")
+            elif status == "A":
+                problems.append(f"{file} is new, with no {copy}")
+    if not problems:
+        print(f"lang-kit: every changed page's translations changed with it ({', '.join(codes) or 'no languages'})")
+        return 0
+    phrase = re.compile(rf"^\s*{re.escape(project.phrase)}:\s*\S", re.I | re.M)
+    reason = next((l.strip() for l in project.pr_body().replace("\r", "").split("\n") if phrase.match(l)), None)
+    if reason:
+        print(f"lang-kit: {project.source} only, as the pull request says ({reason}):")
+        for p in problems:
+            print(f"  {p}")
+        return 0
+    print("lang-kit: a page changed without its translation:")
+    for p in problems:
+        print(f"  {p}")
+    print("Change each translation in the same pull request, in the glossary's words.")
+    print("If it's deliberately one language only, add a line to the pull request's description, then run the check again:")
+    print(f"  {project.phrase}: <why>")
+    return 1
+
+
+# --------------------------------------------------------------------------
+# lang-kit review
+
+
+def cell(text: str) -> str:
+    return text.replace("\n", " ").replace("|", "\\|")
+
+
+def review(project: Project, old: str, new: str) -> int:
+    for code in sorted(project.languages):
+        name = project.name(code)
+        glossary, _ = project.glossary(code)
+        reviewer = (glossary or {}).get("reviewer") or project.languages[code].get("reviewer")
+        rows = []
+        if project.tables:
+            before = project.table(code, old) or {}
+            after = project.table(code, new) or {}
+            source = project.english(new)
+            # In the table's own order, which keeps a window's text together.
+            rows = [(source.get(k, k), v) for k, v in after.items() if v is not None and before.get(k) != v]
+        pages = git("diff", "--name-only", old, new, "--", *project.copy_patterns(code), root=project.root).split()
+        print(f"### {name} ({code}), {old} to {new}" + (f", for @{reviewer}" if reviewer else ""))
+        print()
+        if not rows and not pages:
+            print("Nothing new or changed.\n")
+            continue
+        if rows:
+            print(f"{len(rows)} new or changed in the app:\n")
+            print(f"| {'English' if project.source == 'en' else project.source} | {name} |")
+            print("|---|---|")
+            for english, translated in rows:
+                print(f"| {cell(english)} | {cell(translated)} |")
+            print()
+        if pages:
+            print("Pages changed: " + ", ".join(f"`{p}`" for p in pages))
+            print()
+    return 0
+
+
+# --------------------------------------------------------------------------
+# lang-kit add
+
+
+def add(project: Project | None, root: pathlib.Path, code: str, name: str | None) -> int:
+    if project is None:
+        path = root / CONFIGS[0]
+        path.write_text(json.dumps({"languages": {}, "lang": {"source": "en"}}, indent=2) + "\n")
+        print(f"lang-kit: wrote {CONFIGS[0]}; set lang.strings (where the tables are) before checking them")
+        project = Project(root)
+    config_path = root / project.config_name
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    if code == project.source:
+        fail(f"{code} is the source language")
+    done = []
+    if code not in config.setdefault("languages", {}):
+        config["languages"][code] = {"name": name or code}
+        config_path.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        done.append(f"added {code} to {project.config_name}'s languages")
+    project = Project(root)
+    pattern = project.lang.get("glossary")
+    if pattern:
+        path = root / pattern.replace("{code}", code)
+        if not path.exists():
+            like = next((project.glossary(c)[0] for c in sorted(project.languages) if c != code and project.glossary(c)[0]), None)
+            terms = [{"en": t["en"], "text": "", **({"everywhere": True} if t.get("everywhere") else {}),
+                      **({"where": t["where"]} if t.get("where") else {})} for t in (like or {}).get("terms", [])]
+            glossary = {"language": code, "name": name or code, "reviewer": "",
+                        "about": "This language's words for the app's windows, sections, features and settings. "
+                                 "Settled with the native reviewer before anything else is translated.",
+                        "style": [], "avoid": [], "terms": terms}
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(glossary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            done.append(f"wrote {path.relative_to(root)}" + (f", with {len(terms)} terms to translate" if terms else ""))
+    if project.tables and project.format in ("strings", "json"):
+        path = root / project.table_path(code)
+        if not path.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("{}\n" if project.format == "json" else
+                            f"/* {name or code}: the app's text (`lang-kit strings` lists what's missing). */\n",
+                            encoding="utf-8")
+            done.append(f"wrote {path.relative_to(root)}")
+    for line in done:
+        print(f"lang-kit: {line}")
+    print(f"""
+Then, in order:
+  1. The glossary first: each term's text, the language's style, words to avoid, and
+     its reviewer (the native speaker's GitHub login). Settle it with them.
+  2. Everything in one pass, in the glossary's words: the app's table (`lang-kit strings`
+     lists what's missing), README.{code}.md, a copy of each page in docs/<code>/, the
+     website's page for it, and its folder in languages.{code}.site.
+  3. Release it. Then post `lang-kit review <the last release's tag>` for the reviewer.
+  4. Its pictures (`product-kit shots`, once there) and, only if wanted, its videos.""")
+    return 0
+
+
+# --------------------------------------------------------------------------
+# lang-kit vendor
+
+
+def vendor(project: Project, check_only: bool) -> int:
+    target = project.root / project.lang.get("vendor", "Scripts/lang-kit")
+    me = pathlib.Path(__file__).resolve()
+    rel = target.relative_to(project.root)
+    if check_only:
+        if target.exists() and target.read_bytes() == me.read_bytes():
+            print(f"lang-kit: {rel} is this copy ({VERSION})")
+            return 0
+        theirs = re.search(rb'^VERSION = "([^"]+)"', target.read_bytes(), re.M) if target.exists() else None
+        print(f"lang-kit: {rel} is {theirs.group(1).decode() if theirs else 'missing'}, this is {VERSION}: run `lang-kit vendor`")
+        return 1
+    if target.exists() and target.resolve() == me:
+        print("lang-kit: that's this file")
+        return 0
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(me.read_bytes())
+    target.chmod(0o755)
+    print(f"lang-kit: copied {VERSION} to {rel}")
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    if not argv or argv[0] in ("-h", "--help", "help"):
+        head = open(__file__, encoding="utf-8").read().split("# Usage:\n", 1)[1].split("\n#\n", 1)[0]
+        print("usage:\n" + "\n".join(l[1:] for l in head.split("\n")))
+        return 0
+    if argv[0] == "-C" and len(argv) > 2:
+        os.chdir(argv[1])
+        argv = argv[2:]
+    command, rest = argv[0], argv[1:]
+    if command == "version":
+        print(VERSION)
+        return 0
+    if command == "add":
+        if not rest:
+            fail("usage: lang-kit add <code> [name]")
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+        if top.returncode != 0:
+            fail("not in a git checkout")
+        root = pathlib.Path(top.stdout.strip())
+        project = Project(root) if any((root / c).exists() for c in CONFIGS) else None
+        return add(project, root, rest[0], rest[1] if len(rest) > 1 else None)
+    project = Project.find()
+    if command == "strings":
+        return strings(project)
+    if command == "keys":
+        if not project.tables:
+            fail(f"{project.config_name} has no lang.strings")
+        for key in sorted(project.keys()):
+            print(key.replace("\n", "\\n"))
+        return 0
+    if command == "check":
+        return check(project, rest[0] if rest else "origin/main")
+    if command == "review":
+        if not rest:
+            fail("usage: lang-kit review <from> [to]")
+        return review(project, rest[0], rest[1] if len(rest) > 1 else "HEAD")
+    if command == "vendor":
+        return vendor(project, "--check" in rest)
+    fail(f"no command {command!r}: strings, check, review, add, keys, vendor, version")
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -660,8 +660,9 @@ two branches are paired by name:
 built from it and never edited by hand, by **docs-kit**, a tool shared with Kevin's other
 projects (the docs part of the `product-kit` plugin, kevinabouhanna/product-kit, in the
 `kevinabouhanna` marketplace; this repository's copy is `Scripts/docs-kit`, kept current with
-`docs-kit vendor`). What's particular to NetworkMonitor is in `.docs-kit.json`: the pages
-for developers, the languages, which changes need docs, the site's templates.
+`docs-kit vendor`). What's particular to NetworkMonitor is in `.product-kit.json`, which
+docs-kit shares with lang-kit ([Languages](#languages)): the pages for developers, the
+languages, which changes need docs, the site's templates.
 
 - **The docs change with the feature.** `make docs-check` (CI's `build-and-test`) fails a
   pull request that changes the app's text (an `L("…")` in `Sources/`, outside the tests)
@@ -732,10 +733,18 @@ Language & Region › Applications writes, so the two are one setting.
   rules, and words no translation uses. The app's table, the docs, the README, the wiki
   and the website all use them. `make test` holds the app's table to it (below); the
   pages follow it by hand. `bundle.sh` leaves it out of the app.
+- **lang-kit** checks all this: a tool shared with Kevin's other projects, the languages
+  part of the `product-kit` plugin (kevinabouhanna/product-kit, #558). This repository's
+  copy is `Scripts/lang-kit` (`lang-kit vendor`), and its settings are under `lang` in
+  `.product-kit.json`: where the tables and glossaries are, and that the text to
+  translate is each `L("…")` in `Sources/NetworkMonitorCore` and `Sources/NetworkMonitor`.
+  The Swift tests keep what only they can check: `L()` given one plain literal, and no
+  English reaching the interface without it.
 - **Nothing drifts** (#434). A pull request that changes English changes every language
   with it, rather than in a catch-up later:
-  - **The app's text:** `make test` fails until each new or changed `L("…")` has a
-    translation in every table.
+  - **The app's text:** `make test` (`lang-kit strings`) fails until each new or
+    changed `L("…")` has a translation in every table, with the same placeholders, in
+    the glossary's words, and names any translation the app no longer says.
   - **The pages:** `make translation-check`, run by CI on every pull request, fails when
     the branch changes `README.md`, `SECURITY.md` or a page in `docs/` with a copy, but
     not the copy (`README.<code>.md`, `docs/<code>/security.md`, `docs/<code>/<page>`),
@@ -751,8 +760,10 @@ From an empty table to a release, in order (#434). Chinese (`zh-Hans`, #428) wen
 way, and its files are the examples. `<code>` is the language's code as macOS writes it:
 `fr`, `pt-BR`, `zh-Hant`.
 
-1. **The glossary, first.** Copy `Resources/Localization/zh-Hans.lproj/Glossary.json` to
-   `<code>.lproj/`. Keep each term's `en` and write its `text`; set `language`, the
+1. **The glossary, first.** `python3 -I Scripts/lang-kit add <code> <its own name>` adds the
+   language to `.product-kit.json`'s `languages` and writes `<code>.lproj/Glossary.json`
+   with Chinese's terms to translate, and an empty table. Keep each term's `en` and write
+   its `text`; set the
    language's own `name` (the wiki's sidebar uses it), its `style` rules and `avoid`
    words, and `reviewer`: the GitHub login of the native speaker who asked for it.
    Settle the words with them on the language's issue before translating anything
@@ -774,8 +785,8 @@ way, and its files are the examples. `<code>` is the language's code as macOS wr
    - **The README:** `README.<code>.md`, linked to and from `README.md` under the title.
    - **The docs:** a copy in `docs/<code>/` of each page in `docs/zh-Hans/`, its index
      included, each linked to and from its English page.
-   - **The wiki and the website's docs:** add the language to `.docs-kit.json`'s
-     `languages`, with its name and its folder on the site, and a template for its docs
+   - **The wiki and the website's docs:** give the language its folder on the site in
+     `.product-kit.json`'s `languages` (`"site"`), and a template for its docs
      pages on `gh-pages` (`<folder>/docs/_template.html`) in `site.templates`. The wiki gives
      it a section of the sidebar; `make docs-site` builds its pages.
    - **The website:** a page in a folder of its own (`zh/index.html` for Chinese) on
