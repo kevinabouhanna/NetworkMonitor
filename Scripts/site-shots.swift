@@ -36,6 +36,11 @@
 //   coverage-test    where `coverage` looks for media, on made-up pages
 //   version
 //
+// With --vm (or `vm.default` in the config, and not --here), check, update,
+// record, tree and audit run in a throwaway macOS VM (`mac-vm`, from the
+// shared-mac plugin) rather than on this Mac's screen, and bring back what they
+// changed (product-kit#10). See `InVM`.
+//
 // What's particular to a project is in its `.product-kit.json` (`--repo`, the
 // current folder by default): `shots` (see `Config`) and `site.url`. A project
 // with no website keeps `shots/shots.json` in its own checkout (product-kit#8).
@@ -65,7 +70,7 @@ import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
 
-let shotsKitVersion = "1.1.0"
+let shotsKitVersion = "1.2.0"
 
 // MARK: - Config
 
@@ -91,6 +96,8 @@ struct Config {
     /// The branches the site and the repo are on, for the asset check's report.
     var siteBranch = "gh-pages"
     var repoBranch = "main"
+    /// Taking the pictures in a throwaway VM (product-kit#10): see `InVM`.
+    var vm = VMConfig()
 
     static func load(repo: URL) -> Config {
         var c = Config()
@@ -108,8 +115,30 @@ struct Config {
         let branches = shots["branches"] as? [String: String]
         if let v = branches?["site"] { c.siteBranch = v }
         if let v = branches?["repo"] { c.repoBranch = v }
+        if let vm = shots["vm"] as? [String: Any] {
+            if let v = vm["default"] as? Bool { c.vm.byDefault = v }
+            if let v = vm["display"] as? String { c.vm.display = v }
+            if let v = vm["files"] as? [String] { c.vm.files = v }
+            c.vm.setup = vm["setup"] as? String
+        }
         return c
     }
+}
+
+/// `shots.vm`: how a run in a VM sets the VM up (product-kit#10).
+struct VMConfig {
+    /// Pictures are taken in a VM unless `--here` says this Mac.
+    var byDefault = false
+    /// The VM's screen in pixels, shown at 2x: 3200x2000 is a 1600×1000-point
+    /// Retina screen, where a 1300×800-point window fits.
+    var display = "3200x2000"
+    /// Files and folders of this Mac copied to the same place in the VM before
+    /// the app opens (`~` the home folder): the app's data and settings, for
+    /// pictures that show them.
+    var files: [String] = []
+    /// A command run in the VM from the project's copy, once the app is
+    /// installed (`$SHOTS_APP`) and before any picture: the app's first-run state.
+    var setup: String?
 }
 
 nonisolated(unsafe) var config = Config()
@@ -2099,6 +2128,207 @@ enum Rendered {
     }
 }
 
+// MARK: - In a VM (product-kit#10)
+
+/// Takes the pictures in a throwaway macOS VM (`mac-vm`, from the shared-mac
+/// plugin) rather than on this Mac's screen. The VM has its own screen, pointer
+/// and focus, so nothing shows on the person's screens, nothing waits for the
+/// Mac to be idle, and this Mac's copy of the app is never quit.
+///
+/// Through a shared folder go this tool, the app (zipped: through the shared
+/// folder a bundle's symbolic links come out as loops, NetworkMonitor#528), a
+/// copy of the project's and the site's files, and the config's `vm.files`.
+/// Inside, the app is installed where the manifest says, `vm.setup` runs, then
+/// this same tool, which may take the VM's screen whenever. Each file the run
+/// inside changed or added comes back; no other file here is touched, so
+/// something changed here meanwhile stays.
+enum InVM {
+    /// The commands that open the app; the rest read files only, here.
+    static let commands: Set<String> = ["check", "update", "record", "tree", "audit"]
+
+    /// This is the run inside the VM.
+    static var inside: Bool { ProcessInfo.processInfo.environment["SHOTS_KIT_IN_VM"] == "1" }
+
+    static func onPath(_ name: String) -> String? {
+        for dir in (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":") {
+            let path = "\(dir)/\(name)"
+            if FileManager.default.isExecutableFile(atPath: path) { return path }
+        }
+        return nil
+    }
+
+    /// Quoted for the VM's shell.
+    static func q(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+
+    /// The files of a checkout: what git tracks and doesn't ignore, so no
+    /// build folders; every file but `.git`'s outside one.
+    static func files(in dir: URL) -> [String] {
+        let fm = FileManager.default
+        func isFile(_ rel: String) -> Bool {
+            var folder: ObjCBool = false
+            return fm.fileExists(atPath: dir.appendingPathComponent(rel).path, isDirectory: &folder) && !folder.boolValue
+        }
+        let git = runTool("/usr/bin/git", ["-C", dir.path, "ls-files", "-z", "--cached", "--others", "--exclude-standard"])
+        if git.status == 0 {
+            return Set(git.output.split(separator: "\0").map(String.init)).filter(isFile).sorted()
+        }
+        return walk(dir)
+    }
+
+    /// Every file under a folder, by its path from there, without `.git`'s.
+    static func walk(_ dir: URL) -> [String] {
+        guard let e = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: [.isRegularFileKey]) else { return [] }
+        let base = dir.standardizedFileURL.resolvingSymlinksInPath().path + "/"
+        var found: [String] = []
+        for case let url as URL in e {
+            if url.lastPathComponent == ".git" { e.skipDescendants(); continue }
+            guard (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true,
+                  url.lastPathComponent != ".DS_Store" else { continue }
+            let path = url.standardizedFileURL.resolvingSymlinksInPath().path
+            if path.hasPrefix(base) { found.append(String(path.dropFirst(base.count))) }
+        }
+        return found.sorted()
+    }
+
+    static func hashes(_ dir: URL) -> [String: String] {
+        var all: [String: String] = [:]
+        for rel in walk(dir) {
+            guard let data = try? Data(contentsOf: dir.appendingPathComponent(rel)) else { continue }
+            all[rel] = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        }
+        return all
+    }
+
+    /// What changed under `from` since `before`, written over the same path under `to`.
+    static func bringBack(from: URL, to: URL, before: [String: String]) throws -> [String] {
+        var changed: [String] = []
+        for (rel, hash) in hashes(from).sorted(by: { $0.key < $1.key }) where before[rel] != hash {
+            let dest = to.appendingPathComponent(rel)
+            try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data(contentsOf: from.appendingPathComponent(rel)).write(to: dest, options: .atomic)
+            changed.append(rel)
+        }
+        return changed
+    }
+
+    /// Runs `arguments` (the command, its names and options) inside a VM;
+    /// returns its status. `app` is `--app`, if given.
+    static func run(_ arguments: [String], manifest: Manifest, site: URL, repo: URL, app: String?) -> Int32 {
+        guard let macVM = onPath("mac-vm") else {
+            print("shots-kit: a run in a VM needs mac-vm on PATH (the shared-mac plugin); --here takes the pictures on this Mac")
+            return 2
+        }
+        let fm = FileManager.default
+        let caches = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Caches/shots-kit/vm")
+        // One VM run per site at a time: two would bring back over each other.
+        // The lock is on the site's folder itself, so no lock file is left behind.
+        let lock = open(site.path, O_RDONLY)
+        guard lock >= 0, flock(lock, LOCK_EX | LOCK_NB) == 0 else {
+            print("shots-kit: another run is taking this site's pictures in a VM; try again once it's done")
+            return 2
+        }
+        let share = caches.appendingPathComponent("shots-\(getpid())")
+        try? fm.removeItem(at: share)
+        defer { try? fm.removeItem(at: share) }
+        do {
+            try fm.createDirectory(at: share, withIntermediateDirectories: true)
+            guard let me = Bundle.main.executablePath else { throw Failure("can't find this tool's own file") }
+            try fm.copyItem(atPath: me, toPath: share.appendingPathComponent("shots-kit").path)
+            let appPath = app ?? manifest.app
+            guard fm.fileExists(atPath: appPath) else { throw Failure("no app at \(appPath) to copy into the VM") }
+            let zip = runTool("/usr/bin/ditto", ["-c", "-k", "--keepParent", appPath, share.appendingPathComponent("app.zip").path])
+            guard zip.status == 0 else { throw Failure("couldn't zip \(appPath): \(zip.output)") }
+
+            // The project, and the site when it has one.
+            var copies: [(name: String, here: URL)] = [("repo", repo)]
+            if !manifestInRepo { copies.append(("site", site)) }
+            var before: [String: [String: String]] = [:]
+            for copy in copies {
+                let into = share.appendingPathComponent(copy.name)
+                for rel in files(in: copy.here) {
+                    let dest = into.appendingPathComponent(rel)
+                    try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try fm.copyItem(at: copy.here.appendingPathComponent(rel), to: dest)
+                }
+                try fm.createDirectory(at: into, withIntermediateDirectories: true)
+                before[copy.name] = hashes(into)
+            }
+
+            let inside = "/Volumes/My Shared Files/\(share.lastPathComponent)"
+            var script = [
+                "set -e",
+                "s=\(q(inside))",
+                // The installed copy's place, whichever copy goes in (`--app`).
+                "app=\(q(manifest.app))",
+                "t=$(mktemp -d /tmp/shots-app.XXXXXX)",
+                "ditto -x -k \"$s/app.zip\" \"$t\"",
+                "mkdir -p \"$(dirname \"$app\")\"",
+                "rm -rf \"$app\"",
+                "mv \"$t\"/*.app \"$app\"",
+            ]
+            // This Mac's files, to the same place in the VM.
+            let home = NSHomeDirectory()
+            for (i, file) in config.vm.files.enumerated() {
+                let path = (file as NSString).expandingTildeInPath
+                guard fm.fileExists(atPath: path) else {
+                    print("shots-kit: \(file) isn't on this Mac, so the VM goes without it")
+                    continue
+                }
+                let name = (path as NSString).lastPathComponent
+                let holder = share.appendingPathComponent("files/\(i)")
+                try fm.createDirectory(at: holder, withIntermediateDirectories: true)
+                let copied = runTool("/usr/bin/ditto", [path, holder.appendingPathComponent(name).path])
+                guard copied.status == 0 else { throw Failure("couldn't copy \(file): \(copied.output)") }
+                let there = path.hasPrefix(home + "/") ? "\"$HOME\"/" + q(String(path.dropFirst(home.count + 1))) : q(path)
+                script.append("mkdir -p \"$(dirname \(there))\" && rm -rf \(there) && ditto \"$s\"/files/\(i)/\(q(name)) \(there)")
+            }
+            script.append("cd \"$s/repo\"")
+            if let setup = config.vm.setup { script.append("SHOTS_APP=\"$app\" /bin/bash -c \(q(setup))") }
+            // The VM's screen is this run's alone: taken whenever, with no Mac lanes.
+            let lane = Mac(manifest: manifest, installed: manifest, command: arguments.first ?? "").lane
+            script.append("MAC_LANE_IDLE=0 MAC_LANE_HELD=\(q("\(lane) screen")) SHOTS_KIT_IN_VM=1 \"$s/shots-kit\" "
+                          + arguments.map(q).joined(separator: " ")
+                          + " --repo \"$s/repo\"" + (manifestInRepo ? "" : " --site \"$s/site\""))
+
+            print("shots-kit: \(arguments.first ?? "") in a VM (mac-vm, a \(config.vm.display) screen)…")
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: macVM)
+            p.arguments = ["run", "--share", share.path, "--display", config.vm.display, "--",
+                           "/bin/bash", "-c", script.joined(separator: "\n")]
+            try p.run()
+            // Stopped from outside: mac-vm deletes its clone, then this folder goes.
+            for sig in [SIGINT, SIGTERM, SIGHUP] {
+                signal(sig, SIG_IGN)
+                let source = DispatchSource.makeSignalSource(signal: sig, queue: .global())
+                source.setEventHandler {
+                    if p.isRunning { kill(p.processIdentifier, SIGTERM) }
+                    p.waitUntilExit()
+                    try? fm.removeItem(at: share)
+                    exit(128 + sig)
+                }
+                source.resume()
+                signalSources.append(source)
+            }
+            p.waitUntilExit()
+
+            // Whatever the status: an update saves each picture as it goes.
+            var back: [String] = []
+            for copy in copies {
+                back += try bringBack(from: share.appendingPathComponent(copy.name), to: copy.here,
+                                      before: before[copy.name] ?? [:]).map { copy.here.appendingPathComponent($0).path }
+            }
+            if !back.isEmpty {
+                print("\nBrought back from the VM:")
+                back.forEach { print("  " + $0) }
+            }
+            return p.terminationStatus
+        } catch {
+            print("shots-kit: \(error)")
+            return 2
+        }
+    }
+}
+
 // MARK: - Running
 
 struct Failure: Error, CustomStringConvertible {
@@ -2161,8 +2391,13 @@ struct ShotsKit {
         if let i = args.firstIndex(of: "--language"), i + 1 < args.count {
             only = args[i + 1]; args.removeSubrange(i...(i + 1))
         }
+        // In a throwaway VM, or on this Mac's screen (product-kit#10): the
+        // config's `vm.default` otherwise.
+        var inVM: Bool?
+        if let i = args.firstIndex(of: "--vm") { inVM = true; args.remove(at: i) }
+        if let i = args.firstIndex(of: "--here") { inVM = false; args.remove(at: i) }
         guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "coverage-test", "readme", "record"].contains(command) else {
-            print("usage: shots-kit check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE] [--wait-away MINUTES]|version")
+            print("usage: shots-kit check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE] [--vm|--here] [--wait-away MINUTES]|version")
             exit(2)
         }
         // No site: the manifest is the project's own (product-kit#8).
@@ -2243,6 +2478,17 @@ struct ShotsKit {
         // Drawn by the project: no app, no screen, no lanes (product-kit#8).
         if let manifest = try? loadManifest(site), let render = manifest.render {
             exit(Rendered.run(command, names: names, manifest: manifest, render: render, site: site, repo: repo))
+        }
+        // In a VM: the app, the site and the project go in, what changed comes back.
+        if InVM.commands.contains(command), !InVM.inside, inVM ?? config.vm.byDefault {
+            do {
+                let manifest = try loadManifest(site)
+                exit(InVM.run(args + (compareLooks ? ["--look"] : []) + (only.map { ["--language", $0] } ?? []),
+                              manifest: manifest, site: site, repo: repo, app: app))
+            } catch {
+                print("shots-kit: \(error)")
+                exit(2)
+            }
         }
         // One run at a time: each quits and relaunches the app, so two at once,
         // from two terminals or two sessions, spoil each other's windows.

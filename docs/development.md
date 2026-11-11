@@ -479,7 +479,13 @@ make site-check                         # what changed; exits 1 if anything did
 make site-shots                         # retake what changed, update index.html
 make site-shots NAMES="settings-ads"    # retake these whether or not they changed
 make site-shots WAIT=60                 # wait up to an hour for the Mac to be left idle
+make site-check VM=1                    # in a throwaway VM: nothing on the screen, nothing waits
 ```
+
+`VM=1` (shots-kit's `--vm`, product-kit#10) takes the pictures in a `mac-vm` clone and
+brings back what changed. The clone has none of this Mac's apps or settings, so its pictures
+differ from the site's until #561 sets it up; until then, use it for checking, not for the
+site's pictures.
 
 `site-shots` retakes each changed window with ScreenCaptureKit, at 2x and active, and
 records its new tree. It then updates the page: each picture's `width`, `height`,
