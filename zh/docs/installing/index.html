@@ -67,7 +67,7 @@ document.addEventListener('click', function (e) {
 </ul>
 <p>这两项都不会再主动询问。如果你跳过了其中一项，在用到它的地方会有 <strong>打开…</strong> 按钮：网站名称在“连接”的设置中，Wi-Fi 名称在“设置”中。</p>
 <div class="markdown-heading"><h2 id="更新" class="heading-element">更新</h2><a id="更新" class="anchor" aria-label="Permalink: 更新" href="#更新"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
-<p>从 1.15 开始，NetworkMonitor 使用 Sparkle 自行更新（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>）。它每天向 GitHub 询问一次是否有新版本（使用热点时不会询问），并提示你：显示新功能，准备好后点按 <strong>安装更新</strong> 即可。从它的菜单中选择 <strong>检查更新…</strong> 会立即检查，在“设置”中关闭 <strong>自动检查更新</strong> 即可停止每日检查。只有当更新的磁盘映像使用应用内置的密钥签名时，才会安装它。</p>
+<p>从 1.15 开始，NetworkMonitor 使用 Sparkle 自行更新（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>）。它每天向 GitHub 询问一次是否有新版本（使用热点时不会询问），并提示你：显示新功能，准备好后点按 <strong>安装更新</strong> 即可。如果发现新版本时主窗口是打开的，它会以卡片的形式出现在边栏的 <strong>设置</strong> 上方：<strong>安装并重新启动</strong> 会下载新版本并重新启动到新版本，<strong>新功能</strong> 显示更新说明，点按 ✕ 则会收起卡片，等到第二天检查时再提醒。从它的菜单中选择 <strong>检查更新…</strong> 会立即检查，在“设置”中关闭 <strong>自动检查更新</strong> 即可停止每日检查。只有当更新的磁盘映像使用应用内置的密钥签名时，才会安装它。</p>
 <p>1.15 之前的版本，或者想手动更新时：</p>
 <ol>
 <li>下载新的 <code>NetworkMonitor.dmg</code>。</li>
@@ -94,7 +94,7 @@ document.addEventListener('click', function (e) {
 <div class="markdown-heading"><h2 id="macos-如何显示辅助程序" class="heading-element">macOS 如何显示辅助程序</h2><a id="macos-如何显示辅助程序" class="anchor" aria-label="Permalink: macOS 如何显示辅助程序" href="#macos-如何显示辅助程序"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>如果你打开热点模式，应用会注册一个小型辅助程序，macOS 会在 <strong>系统设置 › 通用 › 登录项与扩展</strong> 的 <strong>允许在后台</strong> 下、NetworkMonitor 名下列出它，等你打开（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>）。它每小时运行的自我修复任务也列在 NetworkMonitor 名下。它具体能做什么，请参阅<a href="../../../zh/docs/hotspot-mode/#%E8%BE%85%E5%8A%A9%E7%A8%8B%E5%BA%8F">热点模式</a>。</p>
 
-    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/installing.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/ef06fe142afe9f58030ee17286c6f002027561da"><code>ef06fe1</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/installing.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/4c110a81709d22c80486eadaed483f3d11b9d941"><code>4c110a8</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
   </main>
 </div>
 <script>
