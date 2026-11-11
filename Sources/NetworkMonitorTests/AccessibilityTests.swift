@@ -20,11 +20,7 @@ func runAccessibilityTests() {
     }
 
     Check.suite("Accessibility") {
-        _ = NSApplication.shared
-        NSApp.setActivationPolicy(.accessory)
-        // The Accessibility API only answers a process that has finished
-        // launching.
-        NSApp.finishLaunching()
+        OutOfSight.startApp()
 
         let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("a11y-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -39,9 +35,7 @@ func runAccessibilityTests() {
         /// Shows the window out of sight, lets SwiftUI lay it out, and audits it.
         func check(_ window: NSWindow, _ name: String) {
             Check.test("\(name) names everything VoiceOver reads") {
-                window.alphaValue = 0
-                window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-                window.orderFrontRegardless()
+                window.placeOutOfSight()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
                 guard let problems = AccessibilityAudit.auditOwnWindow(titled: window.title, symbols: symbols) else {
                     Check.expectTrue(false, "couldn't read the \(window.title) window's accessibility tree")
@@ -59,9 +53,7 @@ func runAccessibilityTests() {
                                   styleMask: [.titled], backing: .buffered, defer: false)
             window.title = "Faulty"
             window.contentView = NSHostingView(rootView: FaultyView())
-            window.alphaValue = 0
-            window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-            window.orderFrontRegardless()
+            window.placeOutOfSight()
             RunLoop.main.run(until: Date().addingTimeInterval(0.4))
             let rules = AccessibilityAudit.auditOwnWindow(titled: "Faulty", symbols: symbols)?.map(\.rule) ?? []
             Check.expectTrue(rules.contains { $0.hasPrefix("has no name") }, "missed the unnamed switch: \(rules)")
@@ -84,9 +76,7 @@ func runAccessibilityTests() {
                 window.title = "Network settings"
                 window.contentViewController = main.settingsPage(for: .network)
                 window.setContentSize(NSSize(width: 760, height: 900))
-                window.alphaValue = 0
-                window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-                window.orderFrontRegardless()
+                window.placeOutOfSight()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.6))
                 let outline = AccessibilityAudit.outlineOwnWindow(titled: window.title)
                 for style in ["Card", "Compact"] {
@@ -108,9 +98,7 @@ func runAccessibilityTests() {
                 let controller = ConnectionsWindowController(model: located)
                 let window = controller.window
                 window.title = "Connections, located"
-                window.alphaValue = 0
-                window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-                window.orderFrontRegardless()
+                window.placeOutOfSight()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.6))
                 let names = AccessibilityAudit.namesOwnWindow(titled: window.title)
                 Check.expectTrue(names.contains { $0.hasPrefix("World map of") && $0.hasSuffix(" Your Mac, in Lebanon (from Location): the lines start there.") },
@@ -159,9 +147,7 @@ func runAccessibilityTests() {
             // by its layout, in the language shown.
             Check.test("Usage History's and Ads and Trackers' View reads as Connections'\(language)") {
                 for window in [historyController.window, adsController.window] {
-                    window.alphaValue = 0
-                    window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-                    window.orderFrontRegardless()
+                    window.placeOutOfSight()
                     RunLoop.main.run(until: Date().addingTimeInterval(0.4))
                     let names = AccessibilityAudit.namesOwnWindow(titled: window.title)
                     for name in [L("View")] + ChartLayout.allCases.map(\.label) {
@@ -175,9 +161,7 @@ func runAccessibilityTests() {
             historyModel.layout = .both
             Check.test("Usage History's Both has the list and the chart\(language)") {
                 let window = historyController.window
-                window.alphaValue = 0
-                window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-                window.orderFrontRegardless()
+                window.placeOutOfSight()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
                 let names = AccessibilityAudit.namesOwnWindow(titled: window.title)
                 let chart = [L("Usage by hour"), L("Usage by day"), L("Usage by month")]
@@ -203,9 +187,7 @@ func runAccessibilityTests() {
             let updateSidebar = part(main.sidebarController, "Main window sidebar, update", width: 220)
             check(updateSidebar, "The main window's sidebar with an update waiting\(language)")
             Check.test("The update card's buttons are named\(language)") {
-                updateSidebar.alphaValue = 0
-                updateSidebar.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-                updateSidebar.orderFrontRegardless()
+                updateSidebar.placeOutOfSight()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
                 let names = AccessibilityAudit.namesOwnWindow(titled: updateSidebar.title)
                 for name in [L("Install & Restart"), L("What's New"), L("Remind Me Later")] {
@@ -254,8 +236,7 @@ func runAccessibilityTests() {
                     return
                 }
                 // Out of sight before the run loop draws it.
-                window.alphaValue = 0
-                window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
+                window.placeOutOfSight(order: false)
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
                 guard let problems = AccessibilityAudit.auditOwnWindow(titled: window.title, symbols: symbols) else {
                     Check.expectTrue(false, "couldn't read the About panel's accessibility tree")
