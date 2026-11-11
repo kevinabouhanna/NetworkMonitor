@@ -79,6 +79,7 @@ runWindowStackTests()
 runWiFiNamesTests()
 runLocalizationTests()
 runAccessibilityTests()
+runKeyboardTests()
 runAssetCheckTests()
 
 exit(Check.summarize())

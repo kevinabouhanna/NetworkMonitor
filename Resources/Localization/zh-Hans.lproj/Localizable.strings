@@ -931,3 +931,9 @@
 "What's New" = "新功能";
 "Remind Me Later" = "稍后提醒我";
 "Remind me tomorrow" = "明天提醒我";
+/* What VoiceOver calls the ⓘ beside a row when Tab reaches it (#455). */
+"Explanation" = "说明";
+/* What VoiceOver calls a rule's ⊖ button, naming the rule (#455). */
+"Remove the rule for %@" = "移除“%@”的规则";
+/* What VoiceOver calls a paused network's ⊖ button (#455). */
+"Block ads on %@ again" = "在“%@”上重新拦截广告";

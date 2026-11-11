@@ -18,6 +18,10 @@ struct GlassSegmented<Value: Hashable>: View {
     @Binding var selection: Value
     let label: (Value) -> String
     var size: Size = .regular
+    /// The tooltip, and what VoiceOver adds after the choice. Given here
+    /// rather than with `.help` round the switch, which VoiceOver read in
+    /// place of "tab group" (#455).
+    var help: String? = nil
 
     /// Not `@State`; see `SettingsPaneState`. A property wrapper, not a macro.
     @Namespace private var pill
@@ -32,6 +36,7 @@ struct GlassSegmented<Value: Hashable>: View {
         .frame(height: height)
         .background { track }
         .fixedSize()
+        .help(help ?? "")
         // One stop for the keyboard, ← and → moving the choice, as a native
         // segmented control has it.
         .keyboardFocusable()
@@ -51,6 +56,12 @@ struct GlassSegmented<Value: Hashable>: View {
                 ForEach(options, id: \.self) { option in Text(label(option)).tag(option) }
             }
             .pickerStyle(.segmented)
+            // Named, and where the switch is: with its label showing, the
+            // picker was laid out wider than the switch, and the name went
+            // to the label rather than the picker (#455).
+            .labelsHidden()
+            .fixedSize()
+            .accessibilityHint(help ?? "")
         }
     }
 
@@ -76,6 +87,9 @@ struct GlassSegmented<Value: Hashable>: View {
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        // The switch is the one stop; each choice alone would be another
+        // (#455).
+        .focusable(false)
     }
 
     @ViewBuilder private var track: some View {

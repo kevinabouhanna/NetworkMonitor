@@ -76,8 +76,8 @@ public struct HistoryView: View {
             if model.layout.showsList {
                 LabelledControl(L("Show")) {
                     GlassSegmented(name: L("Show"), options: HistoryViewModel.Tab.allCases, selection: $model.tab,
-                                   label: { $0.label }, size: .small)
-                        .help(L("Apps, networks or each visit to a network. A row narrows the window to it."))
+                                   label: { $0.label }, size: .small,
+                                   help: L("Apps, networks or each visit to a network. A row narrows the window to it."))
                 }
             }
             if hasChips {
@@ -89,8 +89,8 @@ public struct HistoryView: View {
             // Other stay under All, and on the Networks list.
             GlassSegmented(name: L("Networks"), options: [nil, .wifi, .hotspot],
                            selection: Binding(get: { model.kind }, set: { model.kind = $0 }),
-                           label: { $0?.historyLabel ?? L("All") }, size: .small)
-                .help(L("Every connection, Wi-Fi only, or hotspots only"))
+                           label: { $0?.historyLabel ?? L("All") }, size: .small,
+                           help: L("Every connection, Wi-Fi only, or hotspots only"))
         }
         .frame(height: ScopeMetrics.height)
     }
@@ -739,6 +739,9 @@ struct HistoryListRow: View {
     /// nil for a row with nothing to expand; otherwise whether it is open.
     var disclosure: Bool?
     var onToggleDisclosure: () -> Void = {}
+    /// Whether Tab stops on the ▸. Not in a list the arrow keys move
+    /// through, where → and ← open and close a row (#455).
+    var disclosureTakesFocus = true
     /// How a name too long for the row is shortened: a site's in the middle.
     var truncation: Text.TruncationMode = .tail
     /// The bar's usual width: Ads and Trackers' are shorter, so a site's
@@ -849,7 +852,10 @@ struct HistoryListRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .tabStop(disclosureTakesFocus)
             .accessibilityLabel(open ? L("Collapse") : L("Expand"))
+            // Which row, as Tab goes down them (#455).
+            .accessibilityValue(title)
             .foregroundStyle(.secondary)
         } else {
             Spacer().frame(width: 12)

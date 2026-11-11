@@ -156,7 +156,15 @@ public enum AccessibilityAudit {
     static func onOwnWindow<T>(titled title: String, _ body: (AXUIElement) -> T) -> T? {
         precondition(Thread.isMainThread, "read this process's windows on the main thread (#488)")
         let app = AXUIElementCreateApplication(getpid())
-        let windows = value(app, kAXWindowsAttribute) as? [AXUIElement] ?? []
-        return windows.first(where: { string($0, kAXTitleAttribute) == title }).map(body)
+        // Now and then the list comes back without the window, a moment
+        // after it's retitled or its content swapped (#455): asked again
+        // once things settle, it's there.
+        for attempt in 0..<5 {
+            let windows = value(app, kAXWindowsAttribute) as? [AXUIElement] ?? []
+            if let window = windows.first(where: { string($0, kAXTitleAttribute) == title }) { return body(window) }
+            if attempt < 4 { RunLoop.main.run(until: Date().addingTimeInterval(0.2)) }
+        }
+        return nil
     }
+
 }

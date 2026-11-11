@@ -43,8 +43,8 @@ struct AdsView: View {
         HStack(spacing: 10) {
             LabelledControl(L("Show")) {
                 GlassSegmented(name: L("Show"), options: AdsViewModel.Tab.allCases, selection: $model.tab,
-                               label: { $0.label }, size: .small)
-                    .help(L("What was blocked, and every connection as it's decided"))
+                               label: { $0.label }, size: .small,
+                               help: L("What was blocked, and every connection as it's decided"))
             }
             // The toolbar's search, as a filter like the others (#436).
             let query = model.logSearch.trimmingCharacters(in: .whitespaces)
@@ -70,8 +70,8 @@ struct AdsView: View {
                 // Wi-Fi · Hotspot, while there's a list to show (#524).
                 if model.layout.showsList {
                     GlassSegmented(name: L("Group by"), options: PopoverAdsGrouping.allCases,
-                                   selection: $model.grouping, label: { $0.label }, size: .small)
-                        .help(L("The sites blocked, or the apps that tried to reach them"))
+                                   selection: $model.grouping, label: { $0.label }, size: .small,
+                                   help: L("The sites blocked, or the apps that tried to reach them"))
                 }
             }
         }
@@ -382,6 +382,7 @@ private struct AdsList: View {
             isSelected: model.selection == selection,
             disclosure: open,
             onToggleDisclosure: { model.toggleExpanded(item.id) },
+            disclosureTakesFocus: false,
             truncation: isApp ? .tail : .middle,
             barMost: AdsMetrics.rowBarWidth,
             figureWidth: AdsMetrics.figureWidth,
@@ -946,8 +947,8 @@ struct AdsLogControls: View {
     var body: some View {
         HStack(spacing: 8) {
             GlassSegmented(name: L("Decisions"), options: AdsLog.Show.allCases, selection: $model.logShow,
-                           label: { $0.label }, size: .small)
-                .help(L("Every decision, or only some"))
+                           label: { $0.label }, size: .small,
+                           help: L("Every decision, or only some"))
             Spacer(minLength: 8)
             Button(model.logIsPaused ? L("Resume") : L("Pause")) { model.toggleLogPause() }
                 .help(model.logIsPaused ? L("Show new connections again") : L("Stop the list moving while you read it"))
@@ -1399,6 +1400,7 @@ struct AdsRulesView: View {
                         }
                         .buttonStyle(.borderless)
                         .help(L("Block ads on this network again"))
+                        .accessibilityLabel(L("Block ads on %@ again", network.name))
                     }
                     .font(.system(size: 13))
                     .padding(.vertical, 3)
@@ -1430,6 +1432,8 @@ struct AdsRulesView: View {
             }
             .buttonStyle(.borderless)
             .help(L("Remove this rule"))
+            // Which rule, as Tab goes down them (#455).
+            .accessibilityLabel(L("Remove the rule for %@", rule.site ?? rule.appTitle ?? rule.appKey ?? ""))
         }
         .font(.system(size: 13))
         .padding(.vertical, 3)

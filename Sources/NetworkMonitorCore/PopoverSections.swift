@@ -243,6 +243,9 @@ struct PopoverList<Content: View>: View {
                                                  systemExpanded: false, cap: cap))
         .scrollIndicators(PopoverMetrics.scrolls(appRows: rows, expandedChildRows: 0, systemRowCount: 0,
                                                  systemExpanded: false, cap: cap) ? .automatic : .never)
+        // Tab goes through every row before the Open row under the list,
+        // those scrolled out of sight too (#455).
+        .focusSection()
     }
 }
 

@@ -188,6 +188,8 @@ site-audit: build/site-shots
 # screen or installed app, so it needs no Mac lane. OUT is where they go;
 # ONLY narrows them to some names. In English for the United States, so they
 # look the same whoever takes them, and the map's home isn't theirs.
+# KEYBOARD=1 takes no pictures: it tours each window with Tab instead, and
+# prints each stop and what VoiceOver says there (#455).
 OUT ?= build/design-shots
 DESIGN_APP := build/DesignShots.app/Contents
 design-shots:
@@ -197,7 +199,7 @@ design-shots:
 	  cp "$$bin/DesignShots" $(DESIGN_APP)/MacOS/ && cp -R "$$bin/Sparkle.framework" $(DESIGN_APP)/MacOS/
 	@cp -R Resources/Geo Resources/Blocklists Resources/Localization/*.lproj $(DESIGN_APP)/Resources/
 	@cp Scripts/design-shots-Info.plist $(DESIGN_APP)/Info.plist
-	@$(DESIGN_APP)/MacOS/DesignShots --out "$(OUT)" $(if $(ONLY),--only $(ONLY)) \
+	@$(DESIGN_APP)/MacOS/DesignShots --out "$(OUT)" $(if $(ONLY),--only $(ONLY)) $(if $(KEYBOARD),--keyboard) \
 	  -AppleLanguages '(en)' -AppleLocale en_US
 
 clean:

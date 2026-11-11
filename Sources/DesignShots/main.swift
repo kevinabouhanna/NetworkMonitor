@@ -71,7 +71,7 @@ if let dockDirectory = argument("--dock-icons") {
     }
     exit(0)
 }
-guard CGPreflightScreenCaptureAccess() else {
+guard arguments.contains("--keyboard") || CGPreflightScreenCaptureAccess() else {
     FileHandle.standardError.write("needs Screen Recording for the terminal it runs in\n".data(using: .utf8)!)
     exit(1)
 }
@@ -626,6 +626,74 @@ func measureToolbars(_ world: World) {
 
 
 
+
+/// Every window toured with Tab, as with Keyboard navigation on, with rows
+/// in its lists (#455): each stop and what VoiceOver says there, and what
+/// someone moving with the keyboard would trip on. `--keyboard`; the test
+/// suite tours the same windows empty. Exits 1 on a problem.
+func tourKeyboard(_ world: World) -> Int32 {
+    KeyboardTour.start()
+    defer { KeyboardTour.stop() }
+    var failed = 0
+    func tour(_ name: String, _ window: NSWindow) {
+        guard wanted(name) else { return }
+        let tour = KeyboardTour.walk(window)
+        print("\n\(name)\n" + tour.description.split(separator: "\n").map { "  " + $0 }.joined(separator: "\n"))
+        for problem in KeyboardTour.problems(in: window, tour) {
+            print("  ✗ \(problem)")
+            failed += 1
+        }
+    }
+    func place(_ window: NSWindow) {
+        window.alphaValue = 0
+        window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
+        window.orderFrontRegardless()
+    }
+    func settle(_ seconds: TimeInterval = 0.8) { RunLoop.main.run(until: Date().addingTimeInterval(seconds)) }
+
+    let popover = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 480),
+                           styleMask: [.titled], backing: .buffered, defer: false)
+    popover.title = "Popover"
+    let host = NSHostingController(rootView: MenuBarPopoverView(model: world.model, onSettings: {}, onHistory: {},
+                                                                onConnections: {}, onAds: {}))
+    host.sizingOptions = [.preferredContentSize]
+    popover.contentViewController = host
+    resetPopoverChoices(world.model.glance)
+    world.model.setPopoverOpen(true)
+    place(popover)
+    for section in PopoverSection.allCases {
+        world.model.popoverSection = section
+        settle(0.4)
+        popover.setContentSize(host.view.fittingSize)
+        settle(0.4)
+        tour("popover-\(section.rawValue)", popover)
+    }
+    world.model.popoverSection = .today
+    popover.orderOut(nil)
+
+    let main = MainWindowController(model: world.model, history: world.historyModel,
+                                    connections: world.connections, ads: world.ads)
+    main.window.setContentSize(NSSize(width: 1300, height: 800))
+    place(main.window)
+    main.windowDidShow()
+    for section in MainSection.allCases {
+        main.show(section)
+        settle(1.2)
+        tour(section.rawValue, main.window)
+        guard section != .settings else { continue }
+        main.showSettings()
+        settle()
+        tour("\(section.rawValue)-settings", main.window)
+    }
+    main.windowWillClose()
+    main.window.orderOut(nil)
+    print(failed == 0 ? "\nNo problems." : "\n\(failed) problem(s).")
+    return failed == 0 ? 0 : 1
+}
+
+if arguments.contains("--keyboard") {
+    exit(tourKeyboard(makeWorld(.full, filter: .on)))
+}
 
 if arguments.contains("--measure") {
     measureToolbars(makeWorld(.full, filter: .on))

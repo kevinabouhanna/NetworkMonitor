@@ -818,8 +818,11 @@ struct RowInfoButton<Content: View>: View {
         .focused($isFocused)
         .onChange(of: isFocused) { state.hasFocus = $0 }
         .opacity(state.isShown ? 1 : 0)
-        .accessibilityLabel(accessibilityLabel ?? "")
-        .accessibilityHidden(accessibilityLabel == nil)
+        // With focus, VoiceOver reads it too, as Tab lands on it (#455):
+        // the explanation, which it otherwise reads off the row.
+        .accessibilityLabel(accessibilityLabel ?? L("Explanation"))
+        .accessibilityValue(accessibilityLabel == nil ? help : "")
+        .accessibilityHidden(accessibilityLabel == nil && !state.hasFocus)
         .popover(isPresented: $state.showsInfo, arrowEdge: .bottom) {
             content
                 .font(.system(size: 12))

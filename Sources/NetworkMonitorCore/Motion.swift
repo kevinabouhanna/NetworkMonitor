@@ -37,6 +37,13 @@ enum Motion {
 }
 
 extension View {
+    /// Left out of Tab's way when `takesFocus` is false, as the parts of a
+    /// control that is one stop itself (#455); otherwise as it was.
+    @ViewBuilder
+    func tabStop(_ takesFocus: Bool) -> some View {
+        if takesFocus { self } else { focusable(false) }
+    }
+
     /// Focusable as a button is (#452): only through keyboard navigation,
     /// Tab with System Settings › Keyboard › Keyboard navigation on, and
     /// never from a click. Plain `.focusable()` lets a click focus it as a

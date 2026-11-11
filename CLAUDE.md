@@ -87,6 +87,15 @@ problems; Kevin answers what it can't judge (#346).
   its SF Symbol ("Gear shape, filled"), or an image with no description that
   isn't hidden. `make site-audit` runs the same rules on the installed app,
   with real rows in its lists.
+- **The keyboard too (#455), never by hand.** `make test` tours every window
+  with Tab as with Keyboard navigation on, out of sight and without the
+  screen: it fails on a stop VoiceOver can't name, a control that is two
+  stops, a control Tab never reaches, and checks the sidebar's ↑ ↓, a
+  switch's ← → and search's ⌘F and Escape. `make design-shots KEYBOARD=1`
+  prints the tour of every window with rows in its lists: read it rather
+  than asking Kevin to Tab through. A new window or pane goes into
+  `KeyboardTests.swift`; a control that is one stop (a switch, a list the
+  arrows move through) takes its parts out of Tab with `.focusable(false)`.
 - **How to pass.** Name icon-only buttons and unlabelled switches and fields
   with `.accessibilityLabel` in plain words (what it does: "Settings", "Next",
   "Expand"). Hide an icon beside its own name with `.accessibilityHidden(true)`.
