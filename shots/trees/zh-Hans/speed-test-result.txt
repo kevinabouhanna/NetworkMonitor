@@ -1,7 +1,6 @@
 AXPopover 348x468
   AXGroup (AXHostingView) h444
-    AXStaticText value="统计周期" h16
-    AXTabGroup 48x16
+    AXTabGroup description="统计周期" 172x28
       AXRadioButton (AXTabButton) description="今天" 12x16
       AXRadioButton (AXTabButton) description="周" 12x16
       AXRadioButton (AXTabButton) description="月" 12x16
@@ -16,7 +15,7 @@ AXPopover 348x468
     AXStaticText value="#" h40
     AXStaticText value="#" h12
     AXStaticText value="#" h12
-    AXStaticText value="KB/s 下载" h12
+    AXStaticText value="MB/s 下载" h12
     AXStaticText value="下载" h12
     AXStaticText value="# ‹unit›" h16
     AXStaticText value="上传" h12

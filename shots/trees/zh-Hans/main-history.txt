@@ -2,23 +2,23 @@ AXWindow (AXStandardWindow) title="流量历史" 1300
   AXSplitGroup 1300
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXButton description="流量历史" 172x32
-        AXButton description="连接" 172x32
-        AXButton description="广告与跟踪器" 172x32
-        AXButton description="网络" 172x32
+        AXGroup description="各部分" h136
+          AXButton description="流量历史" 172x32
+          AXButton description="连接" 172x32
+          AXButton description="广告与跟踪器" 172x32
+          AXButton description="网络" 172x32
       AXButton description="设置" help="设置（⌘,）" 172x32
     AXSplitter value="#" h748
     AXGroup (AXHostingView)
       AXStaticText value="显示" h16
       AXTabGroup description="显示" 164x24
-        AXRadioButton (AXTabButton) description="应用" 12x24
-        AXRadioButton (AXTabButton) description="网络" 12x24
-        AXRadioButton (AXTabButton) description="连接时段" 12x24
-      AXStaticText value="网络" h16
-      AXTabGroup 484x24
-        AXRadioButton (AXTabButton) description="全部" 156x24
-        AXRadioButton (AXTabButton) description="Wi-Fi" 156x24
-        AXRadioButton (AXTabButton) description="热点" 156x24
+        AXRadioButton (AXTabButton) description="应用" 12x16
+        AXRadioButton (AXTabButton) description="网络" 12x16
+        AXRadioButton (AXTabButton) description="连接时段" 12x16
+      AXTabGroup description="网络" 148x24
+        AXRadioButton (AXTabButton) description="全部" 12x16
+        AXRadioButton (AXTabButton) description="Wi-Fi" 12x16
+        AXRadioButton (AXTabButton) description="热点" 12x16
       AXStaticText value="今天" h24
       AXStaticText value="# ‹unit›" h16
       AXStaticText value="已使用" h16
