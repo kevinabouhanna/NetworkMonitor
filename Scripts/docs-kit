@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 #
-# docs-kit: one source for a project's docs (claude-parallel-sessions#36).
+# docs-kit: one source for a project's docs (claude-parallel-sessions#36), part of
+# product-kit (kevinabouhanna/product-kit).
 #
 # docs/ in the repository is the source. Everything else is built from it and
 # never edited by hand: the website's docs pages and the GitHub wiki. A check
@@ -22,7 +23,7 @@
 #   docs-kit init                  write a starting .docs-kit.json
 #   docs-kit version
 #
-# The full reference is plugins/docs-kit/README.md in claude-parallel-sessions.
+# The full reference is docs/docs-kit.md in kevinabouhanna/product-kit.
 
 import fnmatch
 import html
@@ -34,7 +35,7 @@ import subprocess
 import sys
 import unicodedata
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 CONFIG = ".docs-kit.json"
 
 LINK = re.compile(r"(!?)\[([^\]]*)\]\(([^)\s]+)\)")
