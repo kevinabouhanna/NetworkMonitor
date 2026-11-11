@@ -259,7 +259,19 @@ public enum KeyboardTour {
         // A button drawn smaller than where it takes clicks: its image, a
         // ▸, inside the stop, and the only control there.
         let inside = controls.filter { frame.insetBy(dx: -1, dy: -1).contains($0.frame) && $0.frame.width > 1 }
-        return inside.count == 1 ? inside[0] : nil
+        if inside.count == 1 { return inside[0] }
+        // A switch VoiceOver reads through a stand-in laid out on its own,
+        // wider or narrower than the switch (macOS 26 lays it out otherwise
+        // than 27): mostly over the stop, or the stop mostly over it.
+        func covered(_ a: CGRect, _ b: CGRect) -> CGFloat {
+            let i = a.intersection(b)
+            guard !i.isNull, i.width > 0, i.height > 0 else { return 0 }
+            return (i.width * i.height) / min(a.width * a.height, b.width * b.height)
+        }
+        return candidates
+            .filter { ["AXTabGroup", "AXRadioGroup"].contains($0.role) || AccessibilityAudit.controls.contains($0.role) }
+            .filter { covered($0.frame, frame) > 0.5 && named($0) == 1 }
+            .max { covered($0.frame, frame) < covered($1.frame, frame) }
     }
 
     private static func named(_ e: Element) -> Int { AccessibilityAudit.name(of: e.element) == nil ? 0 : 1 }
@@ -280,6 +292,16 @@ public enum KeyboardTour {
         if let s = AccessibilityAudit.string(e, kAXValueAttribute), !s.isEmpty, s.count <= 40 { return s }
         if let s = AccessibilityAudit.string(e, "AXValueDescription"), !s.isEmpty { return s }
         return nil
+    }
+
+    /// What the Accessibility API has round a stop it couldn't match: to
+    /// say why, when a check fails on a Mac the tour wasn't written on.
+    public static func surroundings(of stop: Stop, in window: NSWindow) -> [String] {
+        AccessibilityAudit.onOwnWindow(titled: window.title) { root in
+            elements(in: root)
+                .filter { $0.frame.intersects(stop.frame.insetBy(dx: -20, dy: -20)) && $0.frame.width < 900 }
+                .map { "\($0.role) “\(AccessibilityAudit.name(of: $0.element) ?? "")” at \($0.frame)" }
+        } ?? []
     }
 
     // MARK: Checking

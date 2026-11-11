@@ -25,7 +25,13 @@ func runKeyboardTests() {
             let tour = KeyboardTour.walk(window)
             let problems = KeyboardTour.problems(in: window, tour)
             for problem in problems { Check.expectTrue(false, "\(name): \(problem)") }
-            if !problems.isEmpty { print("      \(name), Tab by Tab:\n" + tour.description.split(separator: "\n").map { "        " + $0 }.joined(separator: "\n")) }
+            if !problems.isEmpty {
+                print("      \(name), Tab by Tab:\n" + tour.description.split(separator: "\n").map { "        " + $0 }.joined(separator: "\n"))
+                for stop in tour.stops where stop.role == nil {
+                    print("      \(stop.responder) at \(stop.frame) has round it:")
+                    KeyboardTour.surroundings(of: stop, in: window).forEach { print("        \($0)") }
+                }
+            }
         }
 
         // The check itself: a window with each problem in it must fail, or a
