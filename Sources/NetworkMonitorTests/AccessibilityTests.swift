@@ -24,7 +24,7 @@ func runAccessibilityTests() {
 
         let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("a11y-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }
-        let defaults = UserDefaults(suiteName: "a11y-\(UUID().uuidString)")!
+        let defaults = Check.defaults("a11y")
         let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
         let metering = MeteringController(store: store,
                                           journal: SuppressionJournal(url: dir.appendingPathComponent("journal.json")),

@@ -24,10 +24,7 @@ func runPopoverPeriodTests() {
     }
 
     func defaults() -> UserDefaults {
-        let name = "popover-period-test-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
-        return defaults
+        Check.defaults("popover-period")
     }
 
     func waitForReport(_ glance: TodayGlance) {

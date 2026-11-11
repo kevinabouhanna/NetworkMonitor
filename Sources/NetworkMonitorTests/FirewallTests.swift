@@ -177,7 +177,7 @@ func runFirewallTests() {
         }
 
         Check.test("one rule per row, newest first, kept across launches") {
-            let defaults = UserDefaults(suiteName: "firewall-tests-\(UUID().uuidString)")!
+            let defaults = Check.defaults("firewall-tests")
             let rules = FirewallRules(defaults: defaults)
             rules.set(.block, for: item(.company, "Meta"))
             rules.set(.allow, for: item(.app, "/Applications/Slack.app"))
@@ -192,7 +192,7 @@ func runFirewallTests() {
         }
 
         Check.test("Unknown and Other servers can't have a rule: they're many things at once") {
-            let defaults = UserDefaults(suiteName: "firewall-tests-\(UUID().uuidString)")!
+            let defaults = Check.defaults("firewall-tests")
             let rules = FirewallRules(defaults: defaults)
             rules.set(.block, for: item(.company, ConnectionsReport.unknownKey))
             rules.set(.block, for: item(.company, ConnectionsReport.otherKey))
@@ -463,7 +463,7 @@ func runFirewallTests() {
         }
 
         Check.test("a rule for one app is listed, not shown on every app's row") {
-            let defaults = UserDefaults(suiteName: "firewall-tests-\(UUID().uuidString)")!
+            let defaults = Check.defaults("firewall-tests")
             let rules = FirewallRules(defaults: defaults)
             rules.add(FirewallRule(subject: .company, key: "Meta", title: "Meta", action: .block,
                                    appKey: "/Applications/Slack.app", appTitle: "Slack"))

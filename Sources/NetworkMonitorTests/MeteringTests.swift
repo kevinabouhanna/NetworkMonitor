@@ -567,7 +567,7 @@ func runMeteringControllerTests() {
             let store = UsageStore(storeURL: storeURL)
             store.setCurrentNetwork(fingerprint)
 
-            let defaults = UserDefaults(suiteName: "netmon.tests.\(UUID().uuidString)")!
+            let defaults = Check.defaults("netmon")
             defaults.set(enabled, forKey: MeteringController.enabledKey)
 
             let fake = FakeSuppressor()
@@ -619,7 +619,7 @@ func runMeteringControllerTests() {
                 store: UsageStore(storeURL: storeURL),
                 journal: SuppressionJournal(url: journalURL),
                 suppressors: [FakeTierSuppressor()],
-                defaults: UserDefaults(suiteName: "netmon.tests.\(UUID().uuidString)")!)
+                defaults: Check.defaults("netmon"))
 
             let rows = controller.toggleItems()
             Check.expectEqual(rows.count, 1)

@@ -559,7 +559,7 @@ func runLowDataModeMeteringTests() {
             let store = UsageStore(storeURL: storeURL)
             store.setCurrentNetwork(fingerprint)
 
-            let defaults = UserDefaults(suiteName: "netmon.tests.\(UUID().uuidString)")!
+            let defaults = Check.defaults("netmon")
             defaults.set(true, forKey: MeteringController.enabledKey)
 
             let helper = FakeLowDataHelper()

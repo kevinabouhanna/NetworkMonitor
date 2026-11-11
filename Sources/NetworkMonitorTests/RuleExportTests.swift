@@ -6,7 +6,7 @@ import NetworkMonitorCore
 
 func runRuleExportTests() {
     func store() -> FirewallRules {
-        FirewallRules(defaults: UserDefaults(suiteName: "rule-export-\(UUID().uuidString)")!)
+        FirewallRules(defaults: Check.defaults("rule-export"))
     }
     let meta = FirewallRule(subject: .company, key: "Meta", title: "Meta", action: .block)
     let ads = FirewallRule(subject: .site, key: "doubleclick.net", title: "*.doubleclick.net", action: .block)
