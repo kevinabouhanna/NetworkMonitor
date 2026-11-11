@@ -105,6 +105,51 @@ public enum Check {
         if value == nil { fail(message, file, line) }
     }
 
+    // MARK: Settings of a test's own
+
+    nonisolated(unsafe) private static var suites: [String] = []
+
+    /// Where this run's settings live: a folder of its own under the
+    /// temporary folder, never ~/Library/Preferences (#557). A suite named
+    /// by a path is kept at that path. Named suites there outlived every
+    /// attempt to remove them: removing a domain keeps its file, and a file
+    /// deleted while the domain was open came back when the process quit.
+    /// Fifty thousand had piled up.
+    static let settingsFolder: URL = {
+        let folder = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("netmon-tests-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }()
+
+    /// Settings of the test's own, empty to begin with, gone when the suite
+    /// ends.
+    public static func defaults(_ name: String) -> UserDefaults {
+        UserDefaults(suiteName: suite(name))!
+    }
+
+    /// The same, by name, for a test that opens it again or needs its domain.
+    public static func suite(_ name: String) -> String {
+        let suite = settingsFolder.appendingPathComponent("\(name).\(UUID().uuidString)").path
+        suites.append(suite)
+        return suite
+    }
+
+    /// Empties every suite `defaults(_:)` made and deletes their folder.
+    /// Returns the files in ~/Library/Preferences named after them, which
+    /// should be none.
+    public static func removeDefaults() -> [String] {
+        for suite in suites {
+            UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
+        }
+        try? FileManager.default.removeItem(at: settingsFolder)
+        let names = suites.map { URL(fileURLWithPath: $0).lastPathComponent }
+        let preferences = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Preferences")
+        let there = (try? FileManager.default.contentsOfDirectory(atPath: preferences.path)) ?? []
+        suites = []
+        return there.filter { file in names.contains { file.contains($0) } }
+    }
+
     /// Prints the summary and returns the process exit code.
     public static func summarize() -> Int32 {
         print(String(repeating: "─", count: 62))

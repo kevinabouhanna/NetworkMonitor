@@ -32,7 +32,7 @@ func runSignatureRuleTests() {
         }
 
         Check.test("a rule about an app remembers its team when it's made, and only then") {
-            let firewall = FirewallRules(defaults: UserDefaults(suiteName: "signature-\(UUID().uuidString)")!,
+            let firewall = FirewallRules(defaults: Check.defaults("signature"),
                                          teamOf: { $0 == figma ? "T8RA8NE3B7" : nil })
             firewall.add(FirewallRule(subject: .app, key: figma, title: "Figma", action: .block))
             Check.expectEqual(firewall.rules.first?.team, "T8RA8NE3B7")

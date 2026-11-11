@@ -225,7 +225,7 @@ func runConnectionsTests() {
     Check.suite("Connections — the map's pulses (#182)") {
 
         Check.test("live whenever a map someone can see shows traffic now, and only then") {
-            let defaults = UserDefaults(suiteName: "connections-live-\(UUID().uuidString)")!
+            let defaults = Check.defaults("connections-live")
             let dir = URL(fileURLWithPath: NSTemporaryDirectory())
                 .appendingPathComponent("connections-live-\(UUID().uuidString)")
             defer { try? FileManager.default.removeItem(at: dir) }
@@ -372,7 +372,7 @@ func runConnectionsTests() {
         }
 
         Check.test("the map asks when it appears, through the window's model") {
-            let defaults = UserDefaults(suiteName: "connections-home-\(UUID().uuidString)")!
+            let defaults = Check.defaults("connections-home")
             let dir = URL(fileURLWithPath: NSTemporaryDirectory())
                 .appendingPathComponent("connections-home-\(UUID().uuidString)")
             defer { try? FileManager.default.removeItem(at: dir) }

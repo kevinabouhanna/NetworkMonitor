@@ -361,7 +361,7 @@ func runNettopFailureTests() {
             let dir = URL(fileURLWithPath: NSTemporaryDirectory())
                 .appendingPathComponent("nettop-failure-\(UUID().uuidString)")
             defer { try? FileManager.default.removeItem(at: dir) }
-            let defaults = UserDefaults(suiteName: "nettop-failure-\(UUID().uuidString)")!
+            let defaults = Check.defaults("nettop-failure")
             let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
             let metering = MeteringController(
                 store: store,

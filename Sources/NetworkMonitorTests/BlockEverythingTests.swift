@@ -48,7 +48,7 @@ func runBlockEverythingTests() {
         }
 
         Check.test("lasts across a relaunch until it's turned off") {
-            let defaults = UserDefaults(suiteName: "block-everything-\(UUID().uuidString)")!
+            let defaults = Check.defaults("block-everything")
             let firewall = FirewallRules(defaults: defaults)
             Check.expectFalse(firewall.blocksEverything)
             firewall.blocksEverything = true

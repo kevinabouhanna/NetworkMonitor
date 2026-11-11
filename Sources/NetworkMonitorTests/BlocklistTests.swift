@@ -221,7 +221,7 @@ func runBlocklistTests() {
         }
 
         Check.test("today's count starts again tomorrow") {
-            let defaults = UserDefaults(suiteName: "list-blocks-\(UUID().uuidString)")!
+            let defaults = Check.defaults("list-blocks")
             let calendar = Calendar(identifier: .gregorian)
             let day = BlocklistUpdater.dateFormatter.date(from: "2026-11-10")!
             let count = ListBlockCount(defaults: defaults, calendar: calendar, now: day)

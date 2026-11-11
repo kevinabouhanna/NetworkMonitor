@@ -263,7 +263,7 @@ func runUpdateWatchTests() {
         }
 
         func freshDefaults() -> UserDefaults {
-            UserDefaults(suiteName: "netmon.tests.\(UUID().uuidString)")!
+            Check.defaults("netmon")
         }
 
         Check.test("a download whose app's traffic wasn't seen is reported by its size, as at most") {

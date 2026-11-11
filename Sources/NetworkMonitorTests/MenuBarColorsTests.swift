@@ -7,7 +7,7 @@ func runMenuBarColorsTests() {
 
         func hex(_ value: String) -> NSColor { MenuBarColors.color(hex: value)! }
         func freshDefaults() -> UserDefaults {
-            UserDefaults(suiteName: "menu-bar-colors-\(UUID().uuidString)")!
+            Check.defaults("menu-bar-colors")
         }
 
         // Nobody who keeps the defaults should see anything new, the test's
