@@ -160,9 +160,10 @@ public enum KeyboardTour {
     /// Where focus is, and what VoiceOver says there.
     public static func focused(in window: NSWindow) -> Stop? {
         guard let view = focusedView(in: window) else { return nil }
-        let frame = axFrame(of: view)
-        let match = AccessibilityAudit.onOwnWindow(titled: window.title) { element in
-            best(for: frame, among: elements(in: element))
+        var frame = CGRect.zero
+        let match = AccessibilityAudit.onOwnWindow(titled: window.title) { element -> Element? in
+            frame = axFrame(of: view, inWindowAt: self.frame(of: element))
+            return best(for: frame, among: elements(in: element))
         } ?? nil
         let responder = "\(type(of: view))"
         guard let match else { return Stop(responder: responder, frame: frame, role: nil, name: nil, value: nil) }
@@ -181,11 +182,20 @@ public enum KeyboardTour {
         return window.firstResponder as? NSView
     }
 
-    static func axFrame(of view: NSView) -> CGRect {
+    /// The view's place as the Accessibility API gives it, measured from
+    /// where it says the window is rather than from the screens: with the
+    /// displays asleep or the Mac locked, AppKit's screens and the
+    /// Accessibility API's disagreed, and no stop matched (#455).
+    static func axFrame(of view: NSView, inWindowAt windowFrame: CGRect?) -> CGRect {
         guard let window = view.window else { return .zero }
-        let r = window.convertToScreen(view.convert(view.bounds, to: nil))
+        let r = view.convert(view.bounds, to: nil)
+        if let windowFrame {
+            return CGRect(x: windowFrame.minX + r.minX, y: windowFrame.minY + window.frame.height - r.maxY,
+                          width: r.width, height: r.height)
+        }
+        let screen = window.convertToScreen(r)
         let top = NSScreen.screens.first?.frame.maxY ?? 0
-        return CGRect(x: r.minX, y: top - r.maxY, width: r.width, height: r.height)
+        return CGRect(x: screen.minX, y: top - screen.maxY, width: screen.width, height: screen.height)
     }
 
     struct Element {
