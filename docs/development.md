@@ -421,7 +421,13 @@ beside the main checkout. Changes to it get an issue and a pull request against
 ### Website pictures
 
 `Scripts/site-shots.swift` keeps the pictures of the app current (#329), so nobody has to
-notice that one went stale. `gh-pages` lists them in `shots/shots.json`: for each one,
+notice that one went stale. It's this repository's copy of **shots-kit**, the pictures
+part of the `product-kit` plugin (kevinabouhanna/product-kit, #564), shared with Kevin's
+other Mac apps: change it there and bring it here with `shots-kit vendor`. What's
+particular to NetworkMonitor is under `shots` in `.product-kit.json`: the site's
+checkout, the README's list, the `networkmonitor` lane, `-background YES` and
+`-language <code>` for launching, and the accessibility rules it's built with
+(`Sources/NetworkMonitorCore/AccessibilityAudit.swift`). `gh-pages` lists the pictures in `shots/shots.json`: for each one,
 the launch arguments that open its window, anything to click first, which parts of the
 window are data, an optional crop, and the clickable areas laid over it on the page.
 

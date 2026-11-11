@@ -74,5 +74,24 @@
       }
     },
     "glossary": "Resources/Localization/{code}.lproj/Glossary.json"
+  },
+  "shots": {
+    "site": "../NetworkMonitor-site",
+    "repo_assets": "Resources/README/assets.json",
+    "lane": "networkmonitor",
+    "launch": {
+      "background": [
+        "-background",
+        "YES"
+      ],
+      "language": [
+        "-language",
+        "{code}",
+        "-AppleLanguages",
+        "({code})"
+      ]
+    },
+    "audit": "Sources/NetworkMonitorCore/AccessibilityAudit.swift",
+    "vendor": "Scripts/site-shots.swift"
   }
 }
