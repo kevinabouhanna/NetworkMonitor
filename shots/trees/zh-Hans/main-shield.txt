@@ -2,27 +2,28 @@ AXWindow (AXStandardWindow) title="广告与跟踪器" 1300
   AXSplitGroup 1300
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXButton description="流量历史" 172x32
-        AXButton description="连接" 172x32
-        AXButton description="广告与跟踪器" 172x32
-        AXButton description="网络" 172x32
+        AXGroup description="各部分" h136
+          AXButton description="流量历史" 172x32
+          AXButton description="连接" 172x32
+          AXButton description="广告与跟踪器" 172x32
+          AXButton description="网络" 172x32
       AXButton description="设置" help="设置（⌘,）" 172x32
     AXSplitter value="#" h748
     AXGroup (AXHostingView)
       AXStaticText value="显示" h16
       AXTabGroup description="显示" 100x24
-        AXRadioButton (AXTabButton) description="概览" 12x24
-        AXRadioButton (AXTabButton) description="日志" 12x24
-      AXStaticText value="分组方式" h16
-      AXTabGroup 460x24
-        AXRadioButton (AXTabButton) description="网站" 224x24
-        AXRadioButton (AXTabButton) description="应用" 224x24
+        AXRadioButton (AXTabButton) description="概览" 12x16
+        AXRadioButton (AXTabButton) description="日志" 12x16
+      AXTabGroup description="分组方式" 100x24
+        AXRadioButton (AXTabButton) description="网站" 12x16
+        AXRadioButton (AXTabButton) description="应用" 12x16
       data: AXButton AXStaticText
       AXMenuButton title="暂停" help="在所有应用中暂时放行广告" 44x16
       AXStaticText value="今天" h16
-      data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXStaticText
+      data: AXButton AXButton(AXDecrementArrow) AXButton(AXDecrementPage) AXButton(AXIncrementArrow) AXButton(AXIncrementPage) AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXScrollBar AXStaticText AXValueIndicator
       AXGroup description="每小时拦截次数" h580
-        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h608
+        AXUnknown description="#年#月#日 ‹time›到#年#月#日 ‹time›" h492
+        AXUnknown description="‹time›时至#时" h184
   AXToolbar 1300x52
     AXButton description="边栏" help="隐藏边栏" 44x52
     AXGroup help="列表、两者并排，或图表" h52

@@ -2,27 +2,28 @@ AXWindow (AXStandardWindow) title="Ads and Trackers" 1300
   AXSplitGroup 1300
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXButton description="Usage History" 172x32
-        AXButton description="Connections" 172x32
-        AXButton description="Ads and Trackers" 172x32
-        AXButton description="Network" 172x32
+        AXGroup description="Sections" h136
+          AXButton description="Usage History" 172x32
+          AXButton description="Connections" 172x32
+          AXButton description="Ads and Trackers" 172x32
+          AXButton description="Network" 172x32
       AXButton description="Settings" help="Settings (⌘,)" 172x32
     AXSplitter value="#" h748
     AXGroup (AXHostingView)
       AXStaticText value="Show" h16
       AXTabGroup description="Show" 124x24
-        AXRadioButton (AXTabButton) description="Overview" 12x24
-        AXRadioButton (AXTabButton) description="Log" 12x24
-      AXStaticText value="Group by" h16
-      AXTabGroup 456x24
-        AXRadioButton (AXTabButton) description="Sites" 224x24
-        AXRadioButton (AXTabButton) description="Apps" 224x24
+        AXRadioButton (AXTabButton) description="Overview" 12x16
+        AXRadioButton (AXTabButton) description="Log" 12x16
+      AXTabGroup description="Group by" 100x24
+        AXRadioButton (AXTabButton) description="Sites" 12x16
+        AXRadioButton (AXTabButton) description="Apps" 12x16
       data: AXButton AXStaticText
       AXMenuButton title="Pause" help="Let ads through for a while, in every app" 56x16
       AXStaticText value="Today" h16
-      data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXStaticText
+      data: AXButton AXButton(AXDecrementArrow) AXButton(AXDecrementPage) AXButton(AXIncrementArrow) AXButton(AXIncrementPage) AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXScrollBar AXStaticText AXValueIndicator
       AXGroup description="Blocked by hour" h580
-        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h608
+        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h492
+        AXUnknown description="# – ‹time›" h184
   AXToolbar 1300x52
     AXButton description="Sidebar" help="Hide Sidebar" 44x52
     AXGroup help="The list, both side by side, or the chart" h52

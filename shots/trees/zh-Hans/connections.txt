@@ -2,27 +2,27 @@ AXWindow (AXStandardWindow) title="连接" 1300
   AXSplitGroup 1300
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXButton description="流量历史" 172x32
-        AXButton description="连接" 172x32
-        AXButton description="广告与跟踪器" 172x32
-        AXButton description="网络" 172x32
+        AXGroup description="各部分" h136
+          AXButton description="流量历史" 172x32
+          AXButton description="连接" 172x32
+          AXButton description="广告与跟踪器" 172x32
+          AXButton description="网络" 172x32
       AXButton description="设置" help="设置（⌘,）" 172x32
     AXSplitter value="#" h748
     AXGroup (AXHostingView)
       AXStaticText value="分组方式" h16
       AXTabGroup description="分组方式" 176x24
-        AXRadioButton (AXTabButton) description="公司" 12x24
-        AXRadioButton (AXTabButton) description="应用" 12x24
-        AXRadioButton (AXTabButton) description="国家或地区" 12x24
+        AXRadioButton (AXTabButton) description="公司" 12x16
+        AXRadioButton (AXTabButton) description="应用" 12x16
+        AXRadioButton (AXTabButton) description="国家或地区" 12x16
       AXStaticText value="显示" h16
       AXTabGroup description="显示" 104x24
-        AXRadioButton (AXTabButton) description="流量" 12x24
-        AXRadioButton (AXTabButton) description="已阻止" 12x24
-      AXStaticText value="网络" h16
-      AXTabGroup 308x24
-        AXRadioButton (AXTabButton) description="全部" 96x24
-        AXRadioButton (AXTabButton) description="Wi-Fi" 96x24
-        AXRadioButton (AXTabButton) description="热点" 96x24
+        AXRadioButton (AXTabButton) description="流量" 12x16
+        AXRadioButton (AXTabButton) description="已阻止" 12x16
+      AXTabGroup description="网络" 148x24
+        AXRadioButton (AXTabButton) description="全部" 12x16
+        AXRadioButton (AXTabButton) description="Wi-Fi" 12x16
+        AXRadioButton (AXTabButton) description="热点" 12x16
       AXStaticText value="今天" h24
       AXStaticText value="# ‹unit›" h16
       AXStaticText value="与服务器往来" h16
@@ -34,7 +34,11 @@ AXWindow (AXStandardWindow) title="连接" 1300
       AXStaticText value="‹time›时" h12
       AXScrollArea
         data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+      AXButton description="缩小" help="缩小" 12x12
+      AXButton description="放大" help="放大" 12x12
+      AXButton description="显示整个世界" help="显示整个世界" 12x12
       data: AXUnknown
+      AXStaticText value="Fastly 和 Cloudflare：# ‹unit› 由附近的数据中心响应，因此未在地图上标出。" help="这些网络会从离你最近的数据中心响应每个地址，因此无法确定流量去了哪个国家或地区。" h40
       AXLink description="IP 地理位置数据由 DB-IP 提供" 136x12
       AXStaticText value="·" h16
       AXStaticText value="所有名称都在这台 Mac 上识别，不会在线查询。" h12

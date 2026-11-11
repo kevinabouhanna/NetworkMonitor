@@ -2,10 +2,11 @@ AXWindow (AXStandardWindow) title="Usage History Settings" 1300x800
   AXSplitGroup 1300x800
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXButton description="Usage History" 172x32
-        AXButton description="Connections" 172x32
-        AXButton description="Ads and Trackers" 172x32
-        AXButton description="Network" 172x32
+        AXGroup description="Sections" h136
+          AXButton description="Usage History" 172x32
+          AXButton description="Connections" 172x32
+          AXButton description="Ads and Trackers" 172x32
+          AXButton description="Network" 172x32
       AXButton description="Settings" help="Settings (⌘,)" 172x32
     AXSplitter value="#" h748
     AXGroup (AXHostingView) h748
