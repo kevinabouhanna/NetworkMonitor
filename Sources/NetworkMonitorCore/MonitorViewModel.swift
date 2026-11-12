@@ -813,15 +813,17 @@ public final class MonitorViewModel: ObservableObject {
                             tints: firewall.blocksEverything ? .blockingEverything : menuBarColors.live)
     }
 
-    /// The readout in words, for VoiceOver (#424): "Download 2.61 MB/s,
-    /// upload 117 KB/s", in the unit chosen in General, or a speed test's.
+    /// The readout in words, for VoiceOver (#424) and the Dock's menu:
+    /// "Download 2.61 megabytes per second, upload 117 kilobytes per second",
+    /// the units spelled out (#497), in the unit chosen in General, or a
+    /// speed test's.
     public var menuBarSpoken: String {
         if let reading = speedTest.menuBarReading {
-            return L("Speed test: download %@, upload %@", ByteFormat.speed(reading.down, unit: speedTest.unit),
-                     ByteFormat.speed(reading.up, unit: speedTest.unit))
+            return L("Speed test: download %@, upload %@", ByteFormat.spokenSpeed(reading.down, unit: speedTest.unit),
+                     ByteFormat.spokenSpeed(reading.up, unit: speedTest.unit))
         }
-        return L("Download %@, upload %@", ByteFormat.speed(downBytesPerSecond * 8, unit: speedTest.unit),
-                 ByteFormat.speed(upBytesPerSecond * 8, unit: speedTest.unit))
+        return L("Download %@, upload %@", ByteFormat.spokenSpeed(downBytesPerSecond * 8, unit: speedTest.unit),
+                 ByteFormat.spokenSpeed(upBytesPerSecond * 8, unit: speedTest.unit))
     }
 
     /// Block Everything (#198). Like any rule it needs the content filter:

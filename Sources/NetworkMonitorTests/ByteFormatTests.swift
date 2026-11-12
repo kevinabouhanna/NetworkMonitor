@@ -33,6 +33,17 @@ func runByteFormatTests() {
                              "got \(ByteFormat.bytes(Int64.max))")
         }
 
+        // VoiceOver reads units in words, never "MB slash s" (#497).
+        Check.test("a speed read aloud spells its unit out") {
+            Check.expectEqual(ByteFormat.spokenSpeed(2.61 * 1024 * 1024 * 8, unit: .bytes), "2.61 megabytes per second")
+            Check.expectEqual(ByteFormat.spokenSpeed(117 * 1024 * 8, unit: .bytes), "117 kilobytes per second")
+            Check.expectEqual(ByteFormat.spokenSpeed(500 * 8, unit: .bytes), "500 bytes per second")
+            Check.expectEqual(ByteFormat.spokenSpeed(16_000_000, unit: .bits), "16.0 megabits per second")
+            Check.expectEqual(ByteFormat.spokenSpeed(1_200_000_000, unit: .bits), "1.20 gigabits per second")
+            Check.expectEqual(ByteFormat.spokenSpeed(0, unit: .bytes), "0 bytes per second")
+            Check.expectEqual(ByteFormat.spokenSpeed(0, unit: .bits), "0 bits per second")
+        }
+
         Check.test("rate formatting") {
             Check.expectEqual(ByteFormat.rate(0), "0 B/s")
             // Sub-1 B/s is sampler noise, not a rate.
