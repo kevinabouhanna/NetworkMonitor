@@ -292,12 +292,12 @@ Several Claude Code sessions often work here at once (#342). Files and the Mac i
 are kept apart differently:
 
 - **Files: a worktree each.** A session works in `.claude/worktrees/<branch>`, made with
-  `EnterWorktree` or `claude -w <branch>`. `.claude/hooks/worktree-create.sh` puts it on
-  branch `<branch>`, from a freshly fetched `origin/main`. The main checkout stays on
-  `main` and is never edited: `.claude/hooks/require-worktree.sh` refuses edits there,
-  and `git checkout` or `git switch`, until the session has entered a worktree, and from
-  then on Claude Code keeps the session out of the main checkout itself. Each worktree
-  builds into its own `.build/` and `build/`.
+  `EnterWorktree` or `claude -w <branch>`. The shared-mac plugin's hooks (the same in every
+  repo, claude-parallel-sessions#72) put it on branch `<branch>`, from a freshly fetched
+  `origin/main`. The main checkout stays on `main` and is never edited: the plugin refuses
+  edits there, and `git checkout` or `git switch`, until the session has entered a worktree,
+  and from then on Claude Code keeps the session out of the main checkout itself. Each
+  worktree builds into its own `.build/` and `build/`, and has its own port in `$PORT`.
 - **The Mac itself: one at a time, in Mac lanes (#342, #451).** A worktree doesn't keep
   these apart:
   - the one app in /Applications, its content filter and helper daemon;
