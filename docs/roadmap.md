@@ -52,9 +52,10 @@ can't run `nettop`.
 - Per-app rows add up to a little less than the total: wire overhead belongs to no app,
   and the last second before quitting is never completed.
 - Nothing from before the app started is counted, by design.
-- With a VPN, an app's traffic and the VPN's own encrypted connection can both appear as
-  rows, so rows may add up to more than the total. The total itself is capped at the
-  kernel's count, so it stays right.
+- Through a proxy or a VPN, an app's traffic is counted for the app once the proxy is
+  recognised (#356): a proxy NetworkMonitor doesn't know by name, and isn't a Network
+  Extension, still shows as carrying everything. The total is capped at the kernel's count,
+  so it stays right either way.
 
 **Hotspot mode**
 

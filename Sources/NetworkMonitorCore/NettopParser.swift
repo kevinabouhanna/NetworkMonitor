@@ -36,10 +36,28 @@ public struct NettopRow: Equatable {
     /// bytes still reach the process row.
     public internal(set) var servers: [String: ByteCounts]
 
+    /// Internet bytes on a tunnel (`utun`, `ipsec`…), by interface: what the
+    /// process sent into a proxy's or a VPN's tunnel (#356). Only filled when
+    /// the stream has an `interface` column. See `TunnelCredit`.
+    public internal(set) var tunnels: [String: ByteCounts]
+
+    public var tunnelBytes: ByteCounts {
+        tunnels.values.reduce(ByteCounts(bytesIn: 0, bytesOut: 0)) { var sum = $0; sum += $1; return sum }
+    }
+
+    /// The process's sockets on loopback, by port: how an app reaches a proxy
+    /// set as the system's (`127.0.0.1:7890`), and how the proxy answers. Only
+    /// filled when the stream has an `interface` column, which `-t external`
+    /// never shows loopback in. See `TunnelCredit`.
+    public internal(set) var loopback: [LoopbackSocket]
+
     public init(pid: Int32, processName: String, bytesIn: Int64, bytesOut: Int64,
                 localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
                 subtractableLocalIn: Int64 = 0, subtractableLocalOut: Int64 = 0,
-                servers: [String: ByteCounts] = [:]) {
+                servers: [String: ByteCounts] = [:], tunnels: [String: ByteCounts] = [:],
+                loopback: [LoopbackSocket] = []) {
+        self.tunnels = tunnels
+        self.loopback = loopback
         self.pid = pid
         self.processName = processName
         self.bytesIn = bytesIn
@@ -69,7 +87,8 @@ public struct ByteCounts: Equatable {
 }
 
 /// Parses the CSV stream produced by
-/// `nettop -n -x -d -L 0 -s <N> -t external -J time,bytes_in,bytes_out`
+/// `nettop -n -x -d -L 0 -s <N> -t external -J time,interface,bytes_in,bytes_out`, or the
+/// same with no `-t` for `TunnelCredit`'s stream; and the older layout with no `interface`
 /// (see `NettopStream`).
 ///
 /// Two findings drove this design, both verified against `nettop` on macOS 26:
@@ -90,6 +109,9 @@ public struct NettopParser {
     private var sawFirstSample = false
     private var pending: [NettopRow] = []
     private var buffer = ""
+    /// Whether rows carry an `interface` column before their counters, as the
+    /// header says (`time,,interface,bytes_in,bytes_out,`).
+    private var interfaceColumn = false
 
     public init() {}
 
@@ -109,17 +131,18 @@ public struct NettopParser {
             buffer = String(buffer[buffer.index(after: newline)...])
 
             if Self.isHeader(line) {
+                interfaceColumn = line.contains(",interface,")
                 if let sample = closeSample() { samples.append(sample) }
                 continue
             }
             // A connection row belongs to the process row above it — nettop emits
             // each process followed by its own sockets — so it is folded into the
             // row already pending rather than becoming a row of its own.
-            if let connection = Self.parseConnection(line) {
+            if let connection = Self.parseConnection(line, interfaceColumn: interfaceColumn) {
                 foldConnection(connection)
                 continue
             }
-            if let row = Self.parseRow(line) { pending.append(row) }
+            if let row = Self.parseRow(line, interfaceColumn: interfaceColumn) { pending.append(row) }
         }
         return samples
     }
@@ -128,6 +151,18 @@ public struct NettopParser {
     /// they stayed on the LAN, and to its servers if they crossed the internet.
     private mutating func foldConnection(_ connection: Connection) {
         guard let index = pending.indices.last else { return }
+        if let interface = connection.interface {
+            if Self.isTunnel(interface), !connection.scope.isLocal {
+                pending[index].tunnels[interface, default: ByteCounts(bytesIn: 0, bytesOut: 0)]
+                    += ByteCounts(bytesIn: connection.bytesIn, bytesOut: connection.bytesOut)
+            } else if interface.hasPrefix("lo"), let ports = connection.ports,
+                      connection.bytesIn > 0 || connection.bytesOut > 0 {
+                pending[index].loopback.append(LoopbackSocket(localPort: ports.local, remotePort: ports.remote,
+                                                              bytesIn: connection.bytesIn, bytesOut: connection.bytesOut))
+                // Never anyone's LAN traffic: it doesn't leave the Mac.
+                return
+            }
+        }
         guard connection.scope.isLocal else {
             // A wildcard peer has no address to record. Its bytes still count,
             // through the process row.
@@ -151,7 +186,9 @@ public struct NettopParser {
                 + (subtractable ? connection.bytesIn : 0),
             subtractableLocalOut: parent.subtractableLocalOut
                 + (subtractable ? connection.bytesOut : 0),
-            servers: parent.servers)
+            servers: parent.servers,
+            tunnels: parent.tunnels,
+            loopback: parent.loopback)
     }
 
     struct Connection {
@@ -160,6 +197,16 @@ public struct NettopParser {
         let bytesOut: Int64
         /// The far end's address, without its port. Nil for a wildcard peer.
         var remoteHost: String? = nil
+        /// The interface the socket is on, when the stream has the column.
+        var interface: String? = nil
+        /// Its two ports, when the stream has the column (for loopback).
+        var ports: (local: Int, remote: Int)? = nil
+    }
+
+    /// A tunnel's interface: a VPN's or a proxy's (`utun4`), never a link the
+    /// bytes physically cross.
+    public static func isTunnel(_ interface: String) -> Bool {
+        ["utun", "ipsec", "ppp", "tun", "tap"].contains { interface.hasPrefix($0) }
     }
 
     /// Parses a per-socket row such as
@@ -167,20 +214,30 @@ public struct NettopParser {
     ///
     /// These exist only because the stream does not pass `-P`. They carry the one
     /// thing the process rows cannot: where the bytes were going.
-    static func parseConnection(_ line: String) -> Connection? {
+    static func parseConnection(_ line: String, interfaceColumn: Bool = false) -> Connection? {
         guard line.contains("<->") else { return nil }
         var fields = line.components(separatedBy: ",")
         if fields.last?.isEmpty == true { fields.removeLast() }
-        guard fields.count >= 4 else { return nil }
+        guard fields.count >= (interfaceColumn ? 5 : 4) else { return nil }
 
         let bytesOut = Int64(fields.removeLast().trimmingCharacters(in: .whitespaces)) ?? 0
         let bytesIn = Int64(fields.removeLast().trimmingCharacters(in: .whitespaces)) ?? 0
+        let interface = interfaceColumn ? fields.removeLast().trimmingCharacters(in: .whitespaces) : nil
         let label = fields.dropFirst().joined(separator: ",")
             .trimmingCharacters(in: .whitespaces)
         let scope = RemoteEndpoint.scope(connectionLabel: label)
         // Only internet peers are kept by address, so only they are parsed again.
+        var ports: (local: Int, remote: Int)?
+        if interfaceColumn, let separator = label.range(of: "<->") {
+            let isIPv6 = RemoteEndpoint.isIPv6Label(label)
+            if let local = RemoteEndpoint.port(of: String(label[..<separator.lowerBound]), isIPv6: isIPv6),
+               let remote = RemoteEndpoint.port(of: String(label[separator.upperBound...]), isIPv6: isIPv6) {
+                ports = (local, remote)
+            }
+        }
         return Connection(scope: scope, bytesIn: bytesIn, bytesOut: bytesOut,
-                          remoteHost: scope.isLocal ? nil : RemoteEndpoint.remoteHost(connectionLabel: label))
+                          remoteHost: scope.isLocal ? nil : RemoteEndpoint.remoteHost(connectionLabel: label),
+                          interface: interface?.isEmpty == false ? interface : nil, ports: ports)
     }
 
     /// Emits whatever is buffered, for use when the stream ends.
@@ -235,17 +292,19 @@ public struct NettopParser {
     /// contain a comma (nettop does not quote it), which would break
     /// left-to-right field indexing; the trailing numeric columns are always the
     /// last two populated fields regardless.
-    public static func parseRow(_ line: String) -> NettopRow? {
+    public static func parseRow(_ line: String, interfaceColumn: Bool = false) -> NettopRow? {
         guard !line.isEmpty else { return nil }
 
         var fields = line.components(separatedBy: ",")
         // The row ends with a delimiter, leaving a trailing empty field.
         if fields.last?.isEmpty == true { fields.removeLast() }
-        // time + name + 2 counters
-        guard fields.count >= 4 else { return nil }
+        // time + name (+ an empty interface) + 2 counters
+        guard fields.count >= (interfaceColumn ? 5 : 4) else { return nil }
 
         let bytesOut = Int64(fields.removeLast().trimmingCharacters(in: .whitespaces)) ?? 0
         let bytesIn = Int64(fields.removeLast().trimmingCharacters(in: .whitespaces)) ?? 0
+        // A process row's interface is empty: its sockets each have their own.
+        if interfaceColumn { fields.removeLast() }
 
         // Whatever sits between the timestamp and the counters is the name,
         // rejoined so embedded commas survive.

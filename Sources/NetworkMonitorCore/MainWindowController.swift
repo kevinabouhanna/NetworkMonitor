@@ -738,6 +738,13 @@ struct NetworkView: View {
                                                      ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
                             }
                         }
+                        // A proxy or VPN carrying every app's traffic (#356):
+                        // said, so its row being small isn't a mystery.
+                        if let carrier = model.tunnelCarrierName {
+                            ExplainedRow(L("Traffic through %@", carrier), tunnelExplanation(carrier)) {
+                                Text(L("Counted for each app")).foregroundStyle(.secondary)
+                            }
+                        }
                     } header: {
                         Text(L("This network"))
                     } footer: {
@@ -797,6 +804,11 @@ struct NetworkView: View {
 
     private var hotspotExplanation: String {
         L("Pauses app updates and iCloud downloads while you're on this network. NetworkMonitor recognises an iPhone's hotspot by itself, but some phones look like ordinary Wi-Fi, or like Ethernet over USB: switch this on for those. It's remembered for this network.")
+    }
+
+    private func tunnelExplanation(_ carrier: String) -> String {
+        L("%@ carries every app's traffic, through its tunnel (TUN mode) or as the system's proxy, so macOS counts it all as %@'s. NetworkMonitor sees which app sent each connection into it and counts those bytes for that app. %@ keeps only what it adds itself. Works with proxies such as Clash (Mihomo) and sing-box, and with VPNs.",
+          carrier, carrier, carrier)
     }
 
     private var hotspotFootnote: String {
