@@ -18,8 +18,19 @@ func runKeyboardTests() {
         }
         func settle(_ seconds: TimeInterval = 0.6) { RunLoop.main.run(until: Date().addingTimeInterval(seconds)) }
         func expectNoProblems(_ window: NSWindow, _ name: String) {
-            let tour = KeyboardTour.walk(window)
-            let problems = KeyboardTour.problems(in: window, tour)
+            var tour = KeyboardTour.walk(window)
+            var problems = KeyboardTour.problems(in: window, tour)
+            // A section still being laid out gives a short tour: with the Mac
+            // busy (builds, VMs), Connections' was two stops, Tab ran out after
+            // Settings, and 20 of its controls "can't be reached" (#567). So
+            // look again, waiting longer each time, before calling it a
+            // problem. A real one is still there 7 s later.
+            for wait in [1.0, 2.0, 4.0] {
+                guard !problems.isEmpty else { break }
+                settle(wait)
+                tour = KeyboardTour.walk(window)
+                problems = KeyboardTour.problems(in: window, tour)
+            }
             for problem in problems { Check.expectTrue(false, "\(name): \(problem)") }
             if !problems.isEmpty {
                 print("      \(name), Tab by Tab:\n" + tour.description.split(separator: "\n").map { "        " + $0 }.joined(separator: "\n"))

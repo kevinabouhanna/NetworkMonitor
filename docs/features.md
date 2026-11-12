@@ -17,6 +17,9 @@ Mode (see [battery](accuracy-and-battery.md#battery)). While a speed test runs, 
 shows it in cyan, or in another pair of colours if yours come close to cyan, so a test never
 looks like the live rates.
 
+VoiceOver reads it in words, download first: *NetworkMonitor, Download 1.2 megabytes per
+second, upload 30 kilobytes per second*, or *Speed test: download …* while a test shows (#497).
+
 - **Click** it for the popover.
 - **Right-click** (or Control-click) it for **Test Internet Speed**, the last result,
   **Block Everything** (#198), **Usage History…** (⌘Y), **Connections…** (⌘K), **Ads and

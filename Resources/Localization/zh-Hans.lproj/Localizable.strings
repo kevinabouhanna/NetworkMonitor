@@ -924,6 +924,19 @@
 "Download %@, upload %@" = "下载 %@，上传 %@";
 "Speed test: download %@, upload %@" = "网速测试：下载 %@，上传 %@";
 
+/* Its speeds, the unit in words, as VoiceOver reads them (#497). */
+"%@ bytes per second" = "%@ 字节每秒";
+"%@ kilobytes per second" = "%@ 千字节每秒";
+"%@ megabytes per second" = "%@ 兆字节每秒";
+"%@ gigabytes per second" = "%@ 吉字节每秒";
+"%@ terabytes per second" = "%@ 太字节每秒";
+"%@ petabytes per second" = "%@ 拍字节每秒";
+"%@ bits per second" = "%@ 比特每秒";
+"%@ kilobits per second" = "%@ 千比特每秒";
+"%@ megabits per second" = "%@ 兆比特每秒";
+"%@ gigabits per second" = "%@ 吉比特每秒";
+"%@ terabits per second" = "%@ 太比特每秒";
+
 /* The View in Usage History's and Ads and Trackers' toolbars, and Ads and Trackers' Sites and Apps (#524). */
 "Chart" = "图表";
 "The list, both side by side, or the chart" = "列表、两者并排，或图表";
