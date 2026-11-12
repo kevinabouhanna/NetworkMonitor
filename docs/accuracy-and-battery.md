@@ -55,7 +55,8 @@ interface, which counts every byte once.
 
 It's never more than the proxy moved, so the apps can't add up to more than before. It
 starts a second or two after the proxy starts carrying traffic, and stops two minutes after
-it goes quiet. The servers in Usage History stay the proxy's for its share.
+it goes quiet; meanwhile a second copy of `nettop` runs, about as much CPU again as the first.
+The servers in Usage History stay the proxy's for its share.
 
 ## Why it won't match Activity Monitor
 
