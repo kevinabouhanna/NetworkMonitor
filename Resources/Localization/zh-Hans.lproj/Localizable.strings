@@ -679,6 +679,11 @@
 "Stop apps updating on hotspots" = "停止热点下的应用更新";
 "Right now" = "当前";
 "This network" = "此网络";
+
+/* Network, while a proxy or VPN carries every app's traffic (#356). */
+"Traffic through %@" = "经过 %@ 的流量";
+"Counted for each app" = "计入各个应用";
+"%@ carries every app's traffic, through its tunnel (TUN mode) or as the system's proxy, so macOS counts it all as %@'s. NetworkMonitor sees which app sent each connection into it and counts those bytes for that app. %@ keeps only what it adds itself. Works with proxies such as Clash (Mihomo) and sing-box, and with VPNs." = "%@ 承载所有应用的流量（通过它的隧道，即 TUN 模式，或作为系统代理），所以 macOS 把这些流量都算作 %@ 的。NetworkMonitor 能看出每个连接是哪个应用发进去的，并把这些流量计入该应用。%@ 只保留它自己额外产生的流量。适用于 Clash（Mihomo）、sing-box 等代理，以及 VPN。";
 "Also puts the hotspot in Low Data Mode, so iCloud and other background downloads wait until you're off it." = "还会让热点进入低数据模式，这样 iCloud 和其他后台下载会等到你断开热点后再进行。";
 "Nothing on this Mac to pause." = "这台 Mac 没有可暂停的应用。";
 "Found by looking inside the apps on this Mac. They're paused only while you're on a hotspot, and put back when you leave." = "通过查看这台 Mac 上的应用内部找到。它们只在你使用热点时暂停，断开后会恢复。";

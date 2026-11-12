@@ -18,23 +18,27 @@ public final class NettopStream {
     /// - `-L 0` CSV logging mode, unlimited samples
     /// - `-s N` one sample every N seconds, set by `PowerProfile`. Each sample is a
     ///   delta, so a longer interval changes the figures' age, not their total.
-    /// - `-t external` all non-loopback interfaces: keeps VPN tunnel traffic,
-    ///   drops localhost chatter from dev servers
-    /// - `-J …` only the columns we read
+    /// - `-t external` "all defined non-loopback interfaces": Wi-Fi, wired,
+    ///   cellular, AWDL. Drops localhost chatter from dev servers, and also a
+    ///   proxy's tunnel (`utun`), which has no type of its own: an app's sockets
+    ///   into Clash's tunnel don't show, only Clash's own (#356). `.all` has no
+    ///   `-t`, for `TunnelCredit`, which reads only the tunnels' rows.
+    /// - `-J …` only the columns we read; `interface` says which rows are a tunnel's
     ///
     /// **`-P` is deliberately absent.** It collapses output to one row per process,
     /// which discards the per-socket rows — and those rows carry the remote address
     /// that separates internet traffic from LAN traffic (`RemoteEndpoint`). Without
     /// them, mirroring to an Apple TV over the router reads as internet usage.
-    static func arguments(sampleInterval: Int) -> [String] {
-        [
-            "-n", "-x", "-d", "-L", "0", "-s", "\(max(sampleInterval, 1))",
-            "-t", "external",
-            "-J", "time,bytes_in,bytes_out",
-        ]
+    static func arguments(sampleInterval: Int, interfaces: Interfaces = .external) -> [String] {
+        ["-n", "-x", "-d", "-L", "0", "-s", "\(max(sampleInterval, 1))"]
+            + (interfaces == .external ? ["-t", "external"] : [])
+            + ["-J", "time,interface,bytes_in,bytes_out"]
     }
 
+    public enum Interfaces { case external, all }
+
     private let executable: String
+    private let interfaces: Interfaces
     private let queue = DispatchQueue(label: "com.networkmonitor.nettop")  // untranslated: queue label
 
     private var process: Process?
@@ -102,8 +106,9 @@ public final class NettopStream {
     }
 
     public init(sampleInterval: Int = 1, executable: String = "/usr/bin/nettop",
-                stallAfter: TimeInterval? = nil) {
+                stallAfter: TimeInterval? = nil, interfaces: Interfaces = .external) {
         self.executable = executable
+        self.interfaces = interfaces
         self.sampleInterval = max(sampleInterval, 1)
         self.stallOverride = stallAfter
     }
@@ -327,7 +332,7 @@ public final class NettopStream {
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: executable)
-        task.arguments = Self.arguments(sampleInterval: sampleInterval)
+        task.arguments = Self.arguments(sampleInterval: sampleInterval, interfaces: interfaces)
         let slaveHandle = FileHandle(fileDescriptor: slave, closeOnDealloc: false)
         task.standardOutput = slaveHandle
         task.standardError = slaveHandle

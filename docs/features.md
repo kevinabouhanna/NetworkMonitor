@@ -171,7 +171,7 @@ only the gear.
 | **Usage History** | The period's use by network type, then its apps, networks or sessions · Export CSV… | Keep history for · Clear History… |
 | **Connections** | Who your apps talked to, on a list and a map, or what was blocked | Website names, Turn On… while they're off · Let apps connect, every rule you've made, Export… and Import… · Encrypt lookups · Opens with List, Both or Map · Where the names come from, and Update them monthly |
 | **Ads and Trackers** | Overview: the period, a chart, sites or apps · Log: each connection as the filter decides it | Block ads and trackers · Update the lists weekly · Lists · Your Rules |
-| **Network** | The connection you're on · This is a hotspot, and what it's detected as Right now · Stop apps updating on hotspots, what's paused and what can't be paused · the speed test | Show the test in the popover as Card or Compact |
+| **Network** | The connection you're on · This is a hotspot, and what it's detected as Right now · Traffic through a proxy or VPN, counted for each app ([how](accuracy-and-battery.md#through-a-proxy-or-a-vpn)) · Stop apps updating on hotspots, what's paused and what can't be paused · the speed test | Show the test in the popover as Card or Compact |
 
 ## Settings
 

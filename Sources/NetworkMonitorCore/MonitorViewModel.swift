@@ -137,6 +137,8 @@ public final class MonitorViewModel: ObservableObject {
 
     private let identityResolver = AppIdentityResolver()
     private let nettop: NettopStream
+    /// Traffic through a proxy or a VPN, credited to the apps behind it (#356).
+    private let tunnelCredit: TunnelCreditor
     private let pathWatcher = NetworkIdentityWatcher()
 
     private var deltaTracker = InterfaceDeltaTracker()
@@ -183,6 +185,9 @@ public final class MonitorViewModel: ObservableObject {
     /// it runs. The total never depends on it, so the popover says the list is
     /// paused rather than letting it go quiet (#27). Cleared by the next sample.
     @Published public private(set) var perAppFailure: String?
+    /// The proxy or VPN whose traffic is being credited to the apps behind it,
+    /// by name, for Network to say so (#356); nil when there's none.
+    @Published public private(set) var tunnelCarrierName: String?
     /// The addresses of the servers moving data in each nettop sample, for the
     /// Connections map's Live view. Sent whether or not anyone listens, which
     /// costs nothing when nobody does.
@@ -198,7 +203,8 @@ public final class MonitorViewModel: ObservableObject {
                 speedTest: SpeedTestController = SpeedTestController(),
                 menuBarColors: MenuBarColors = MenuBarColors(),
                 wifiNames: WiFiNames = WiFiNames(),
-                nettop: NettopStream? = nil) {
+                nettop: NettopStream? = nil,
+                tunnelCredit: TunnelCreditor? = nil) {
         self.store = store
         self.metering = metering ?? MeteringController(store: store)
         self.speedTest = speedTest
@@ -210,6 +216,8 @@ public final class MonitorViewModel: ObservableObject {
         self.profile = profile
         self.sampleInterval = profile.interfaceInterval(unattended: false)
         self.nettop = nettop ?? NettopStream(sampleInterval: profile.nettopSampleInterval)
+        self.tunnelCredit = tunnelCredit
+            ?? TunnelCreditor(stream: NettopStream(sampleInterval: profile.nettopSampleInterval, interfaces: .all))
     }
 
     // MARK: Lifecycle
@@ -353,6 +361,10 @@ public final class MonitorViewModel: ObservableObject {
         nettop.onSample = { [weak self] sample in
             self?.handleNettopSample(sample)
         }
+        tunnelCredit.onActiveCarrierChange = { [weak self] pid in
+            guard let self else { return }
+            self.tunnelCarrierName = pid.map { self.identityResolver.identity(pid: $0, fallbackName: "").displayName }
+        }
         nettop.onFailure = { [weak self] message in
             DispatchQueue.main.async {
                 guard let self, self.perAppFailure != message else { return }
@@ -380,6 +392,7 @@ public final class MonitorViewModel: ObservableObject {
         if profile != next { profile = next }
         setSampleInterval(next.interfaceInterval(unattended: unattended))
         nettop.setSampleInterval(next.nettopSampleInterval)
+        tunnelCredit.setSampleInterval(next.nettopSampleInterval)
     }
 
     /// Applies a change to whether anyone can see the menu bar.
@@ -403,6 +416,7 @@ public final class MonitorViewModel: ObservableObject {
         sampleTimer = nil
         powerToken = nil
         nettop.stop()
+        tunnelCredit.stop()
         speedTest.stop()
         pathWatcher.stop()
         // Suppression is deliberately *not* lifted on quit. Quitting the app is
@@ -587,13 +601,14 @@ public final class MonitorViewModel: ObservableObject {
 
     // MARK: nettop sampling
 
-    private func handleNettopSample(_ sample: [NettopRow]) {
+    private func handleNettopSample(_ raw: [NettopRow]) {
         // Resolve identities on the main actor: AppIdentityResolver touches
         // NSWorkspace and its caches are not thread-safe.
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             if self.perAppFailure != nil { self.perAppFailure = nil }
             let now = Date()
+            let sample = self.tunnelCredit.credit(raw, now: now)
             let summary = SampleSummary(sample) {
                 self.identityResolver.identity(pid: $0.pid, fallbackName: $0.processName)
             }

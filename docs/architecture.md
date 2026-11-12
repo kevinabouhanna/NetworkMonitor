@@ -140,8 +140,42 @@ nettop -n -x -d -L 0 -s <1|3|10> -t external -J time,bytes_in,bytes_out
 | `-d` | **Delta mode.** Cumulative totals fall when sockets close, so diffing them under-counted browsers |
 | `-L 0` | CSV output, unlimited samples |
 | `-s N` | Seconds per sample, from the power profile. Each sample is a delta, so a longer interval changes freshness, not totals |
-| `-t external` | All non-loopback interfaces: keeps VPN traffic, drops localhost chatter from dev servers |
+| `-t external` | "All defined non-loopback interfaces": Wi-Fi, wired, cellular, AWDL. Drops localhost chatter from dev servers, and also a proxy's tunnel (`utun`), which has no type: see [proxies and VPNs](#proxies-and-vpns) |
+| `-J time,interface,bytes_in,bytes_out` | Only the columns read; `interface` says which connection rows are a tunnel's |
 | no `-P` | `-P` collapses each process to one row and throws away the per-connection rows that carry the remote address |
+
+### Proxies and VPNs
+
+A proxy in TUN mode (Clash Verge's Mihomo, sing-box), a proxy set as the system's, and a VPN
+carry every app's traffic and send it out as their own, so `-t external` credits all of it to
+them (#356). Measured in a VM with Mihomo 1.19.34: a 30 MB download by `curl` through its
+tunnel showed as 30 MB by `mihomo` and nothing by `curl`, with either TUN stack. Without
+`-t`, `curl`'s socket is there, on `utun4`, with its bytes; as the system's proxy, on `lo0`
+to `127.0.0.1:7890`.
+
+`TunnelCredit` (`TunnelCredit.swift`) puts it back:
+
+- **The carrier.** `TunnelCarrier`: a proxy by its executable's name (`mihomo`,
+  `verge-mihomo`, `clash`, `sing-box`, `FlClashCore`, `xray`, `v2ray`, `hysteria`,
+  `tun2socks`), or any Network Extension packet tunnel, an app extension's or a system
+  extension's, from its Info.plist.
+- **A second `nettop`, with no `-t`,** only while a carrier moves traffic, stopped two minutes
+  after it goes quiet. Of its rows it reads only two kinds: an app's bytes on a tunnel the
+  main stream doesn't show, and an app's bytes over loopback to a port the carrier listens on
+  (below 49152: the ports it connects from aren't a proxy's).
+- **Credited, never more than the carrier moved** in the main stream's sample, each way: added
+  to each app in proportion, and taken off the carriers. So the rows add up to what they did
+  before, and what's left on the carrier is its own traffic and overhead. What isn't credited
+  waits one more sample, as the two streams sample a moment apart.
+- **A tunnel the main stream shows** (some VPNs') is already the apps': its bytes only come
+  off the carrier, so they're counted once.
+- **Network names it** (`MonitorViewModel.tunnelCarrierName`) for a minute after the last
+  credit.
+
+Checked end to end in the VM with the development build: through Mihomo's tunnel, a 10 MB
+download was `curl`'s 10.4 MB; through it as the system's proxy, 10.2 MB. Connections and the
+firewall see apps' own connections already; Usage History's servers stay the carrier's for
+its share.
 
 <a id="nettop"></a>How it's run matters as much as the flags:
 

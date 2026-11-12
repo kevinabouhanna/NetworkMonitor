@@ -41,6 +41,22 @@ as internet. [Architecture](architecture.md#internet-not-your-own-network) has t
 including why multicast is never subtracted and why the total is clamped between the app
 rows and the kernel's count.
 
+## Through a proxy or a VPN
+
+A proxy such as Clash Verge (Mihomo) or sing-box, in its TUN mode or set as the system's
+proxy, carries every app's traffic, and so does a VPN. macOS then sees one app on the
+internet, the proxy, and that's all it would show (#356).
+
+NetworkMonitor sees which app sent each connection into the proxy, through its tunnel or its
+port on your Mac, and counts those bytes for that app. The proxy keeps only what it adds
+itself: its own connections and its overhead. While it does, **Network** says *Traffic through
+Clash Verge: Counted for each app*. Your total doesn't change: it comes from the network
+interface, which counts every byte once.
+
+It's never more than the proxy moved, so the apps can't add up to more than before. It
+starts a second or two after the proxy starts carrying traffic, and stops two minutes after
+it goes quiet. The servers in Usage History stay the proxy's for its share.
+
 ## Why it won't match Activity Monitor
 
 Activity Monitor's Network tab counts bytes since each process **started**, often days ago.
