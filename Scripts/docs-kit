@@ -42,7 +42,7 @@ import sys
 import time
 import unicodedata
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -784,10 +784,10 @@ def gh_graphql(query: str, variables: dict) -> dict:
                 fail("GitHub said: " + "; ".join(e.get("message", "?") for e in answer["errors"]))
             if out.returncode == 0 and isinstance(answer, dict) and "data" in answer:
                 return answer["data"]
-            problem = (out.stderr or out.stdout).strip().splitlines()[-1:] or ["no answer"]
-            problem = problem[0]
-            if "auth login" in problem or "not logged" in problem.lower():
-                fail(f"`gh` isn't signed in to GitHub ({problem})")
+            said = (out.stderr or out.stdout).strip()
+            if "gh auth login" in said or "GH_TOKEN" in said:
+                fail("`gh` isn't signed in to GitHub, so the plan can't be read (`gh auth login`)")
+            problem = (said.splitlines() or ["no answer"])[-1]
         if attempt < 4:
             time.sleep(wait * attempt)
     fail(f"couldn't read the plan from GitHub: {problem}")
