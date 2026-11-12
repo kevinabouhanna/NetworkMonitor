@@ -20,9 +20,14 @@
 #   docs-kit site <site checkout>  the website's docs pages
 #   docs-kit wiki <wiki checkout> [commit]
 #   docs-kit anchors               every page's address and headings, as JSON
+#   docs-kit plan check            the plan's pages, milestones, issues and board agree?
+#   docs-kit plan index [--check]  write the plan's index from GitHub
+#   docs-kit plan status [--write] each phase page's Milestone and Status line, from GitHub
 #   docs-kit vendor [--check]      copy this file into the project
 #   docs-kit init                  write a starting .product-kit.json
 #   docs-kit version
+#   docs-kit -C <dir> …            as if started in <dir>
+#   docs-kit --config <file> …     with that config instead of the checkout's
 #
 # The full reference is docs/docs-kit.md in kevinabouhanna/product-kit.
 
@@ -34,9 +39,10 @@ import pathlib
 import re
 import subprocess
 import sys
+import time
 import unicodedata
 
-VERSION = "1.1.0"
+VERSION = "1.2.1"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -62,11 +68,17 @@ def git(*args: str, root: pathlib.Path) -> str:
 class Project:
     """A checkout and its .product-kit.json."""
 
-    def __init__(self, root: pathlib.Path):
+    def __init__(self, root: pathlib.Path, config: pathlib.Path | None = None):
         self.root = root
         global CONFIG
-        CONFIG = next((name for name in CONFIGS if (root / name).exists()), CONFIGS[0])
-        path = root / CONFIG
+        if config:
+            # --config: one from elsewhere, to try a part on a project without writing into it.
+            CONFIG, path = str(config), config
+            if not path.exists():
+                fail(f"no config at {config}")
+        else:
+            CONFIG = next((name for name in CONFIGS if (root / name).exists()), CONFIGS[0])
+            path = root / CONFIG
         if not path.exists():
             fail(f"no {CONFIG} at {root} (`docs-kit init` writes one)")
         self.config = json.loads(path.read_text(encoding="utf-8"))
@@ -87,13 +99,13 @@ class Project:
         self.languages = c.get("languages", {})
 
     @staticmethod
-    def find() -> "Project":
+    def find(config: pathlib.Path | None = None) -> "Project":
         try:
             top = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=True,
                                  capture_output=True, text=True).stdout.strip()
         except subprocess.CalledProcessError:
             fail("not in a git checkout")
-        return Project(pathlib.Path(top))
+        return Project(pathlib.Path(top), config)
 
     def tracked(self) -> list[str]:
         """The docs' pages git tracks: docs/*.md, each language's docs/<code>/*.md,
@@ -689,6 +701,388 @@ class Wiki:
 
 
 # --------------------------------------------------------------------------
+# plan: the phases, as milestones, issues, the board and pages, in sync
+#
+# A phase is a milestone on GitHub and a page in plan.pages. Each plan in it is
+# an issue (its steps sub-issues), and the roadmap's order is the project
+# board's: an Order number and a Horizon (Now, Next, Later: the field's choices,
+# in their order). The pages say which milestone they are and its Status; the
+# index is written from GitHub. `plan check` holds the four together.
+
+PLAN_LINE = re.compile(r"^\*\*Milestone:\*\*\s*(.+?)\s*·\s*\*\*Status:\*\*\s*(.*?)\s*$")
+MENTION = re.compile(r"(?<![\w&])#(\d+)\b|/issues/(\d+)\b")
+INDEX_NOTE = ("<!-- Written by `docs-kit plan index` from the milestones, issues and project board on "
+              "GitHub: change those, then run it again. The text above the first ## heading is kept. -->")
+FIELD_TYPES = {"order": "NUMBER", "horizon": "SINGLE_SELECT", "start": "DATE", "target": "DATE"}
+
+PLAN_QUERY = """
+query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: String,
+      $order: String!, $horizon: String!) {
+  repository(owner: $owner, name: $name) {
+    milestones(first: 100, states: [OPEN, CLOSED]) {
+      nodes { number title state dueOn }
+    }
+    issues(states: OPEN, first: 100, after: $after) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        number title
+        milestone { title }
+        parent { number state }
+        projectItems(first: 20) {
+          nodes {
+            project { number owner { ... on User { login } ... on Organization { login } } }
+            order: fieldValueByName(name: $order) { ... on ProjectV2ItemFieldNumberValue { number } }
+            horizon: fieldValueByName(name: $horizon) { ... on ProjectV2ItemFieldSingleSelectValue { name } }
+          }
+        }
+      }
+    }
+  }
+  repositoryOwner(login: $board) {
+    ... on ProjectV2Owner {
+      projectV2(number: $number) {
+        title
+        fields(first: 100) {
+          nodes {
+            ... on ProjectV2FieldCommon { name dataType }
+            ... on ProjectV2SingleSelectField { options { name } }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def gh_graphql(query: str, variables: dict) -> dict:
+    """A GraphQL query through `gh api graphql`, tried again when the network
+    fails. DOCS_KIT_GH names a command run instead of `gh`, with the same
+    arguments (tests give it a recorded answer); DOCS_KIT_RETRY_WAIT the
+    seconds before trying again (3, then 6, then 9)."""
+    args = ["api", "graphql", "-f", f"query={query}"]
+    for key, value in variables.items():
+        if value is not None:
+            args += ["-F" if isinstance(value, int) else "-f", f"{key}={value}"]
+    stand_in = os.environ.get("DOCS_KIT_GH")
+    command = ["/bin/sh", "-c", stand_in + ' "$@"', "gh", *args] if stand_in else ["gh", *args]
+    wait = float(os.environ.get("DOCS_KIT_RETRY_WAIT", "3"))
+    problem = ""
+    for attempt in range(1, 5):
+        try:
+            out = subprocess.run(command, capture_output=True, text=True, timeout=90)
+        except FileNotFoundError:
+            fail("`gh` isn't installed: the plan is read from GitHub with it (https://cli.github.com)")
+        except subprocess.TimeoutExpired:
+            problem = "GitHub didn't answer within 90 s"
+        else:
+            try:
+                answer = json.loads(out.stdout)
+            except ValueError:
+                answer = None
+            if isinstance(answer, dict) and answer.get("errors"):
+                fail("GitHub said: " + "; ".join(e.get("message", "?") for e in answer["errors"]))
+            if out.returncode == 0 and isinstance(answer, dict) and "data" in answer:
+                return answer["data"]
+            said = (out.stderr or out.stdout).strip()
+            if "gh auth login" in said or "GH_TOKEN" in said:
+                fail("`gh` isn't signed in to GitHub, so the plan can't be read (`gh auth login`)")
+            problem = (said.splitlines() or ["no answer"])[-1]
+        if attempt < 4:
+            time.sleep(wait * attempt)
+    fail(f"couldn't read the plan from GitHub: {problem}")
+    return {}
+
+
+def natural(name: str) -> list:
+    """2-two before 10-ten."""
+    return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", name)]
+
+
+class Plan:
+    """The plan section of the config, the pages, and what GitHub has."""
+
+    def __init__(self, project: Project):
+        c = project.config.get("plan")
+        if not isinstance(c, dict):
+            fail(f"{CONFIG} has no \"plan\" section (docs/docs-kit.md in product-kit says what goes in it)")
+        self.p = project
+        self.folder = c.get("pages", "docs/phases").strip("/")
+        self.index = c.get("index", f"{self.folder}/README.md")
+        board = c.get("project")
+        if not isinstance(board, dict) or "number" not in board:
+            fail(f"{CONFIG} needs plan.project: {{\"owner\": \"…\", \"number\": N}}, the project board")
+        self.board_owner = board.get("owner", project.repo.split("/")[0])
+        self.board_number = int(board["number"])
+        self.fields = {"order": "Order", "horizon": "Horizon", "start": None, "target": None}
+        self.fields.update(c.get("fields", {}))
+        self.no_page = set(c.get("no_page", []))
+
+    # What's on disk
+
+    def pages(self) -> dict[str, dict]:
+        """Each phase page: its title, the milestone it names, its Status, its text."""
+        found = {}
+        folder = self.p.root / self.folder
+        if not folder.is_dir():
+            return found
+        for path in sorted(folder.glob("*.md"), key=lambda f: natural(f.name)):
+            file = f"{self.folder}/{path.name}"
+            if file == self.index:
+                continue
+            text = path.read_text(encoding="utf-8")
+            page = {"file": file, "text": text, "title": "", "milestone": None, "status": None}
+            for line in text.split("\n"):
+                if line.startswith("# ") and not page["title"]:
+                    page["title"] = strip_inline(line[2:]).strip()
+                m = PLAN_LINE.match(line)
+                if m:
+                    page["milestone"], page["status"] = m.group(1), m.group(2)
+                    break
+            found[file] = page
+        return found
+
+    # What's on GitHub
+
+    def load(self) -> None:
+        owner, name = self.p.repo.split("/", 1)
+        variables = {"owner": owner, "name": name, "board": self.board_owner, "number": self.board_number,
+                     "order": self.fields["order"], "horizon": self.fields["horizon"], "after": None}
+        milestones, issues, board = None, [], None
+        while True:
+            data = gh_graphql(PLAN_QUERY, variables)
+            repo = data.get("repository")
+            if not repo:
+                fail(f"GitHub has no repository {self.p.repo}")
+            if milestones is None:
+                milestones = repo["milestones"]["nodes"]
+                board = (data.get("repositoryOwner") or {}).get("projectV2")
+            issues += repo["issues"]["nodes"]
+            page = repo["issues"]["pageInfo"]
+            if not page["hasNextPage"]:
+                break
+            variables["after"] = page["endCursor"]
+        if not board:
+            fail(f"GitHub has no project board {self.board_owner} #{self.board_number} (plan.project in {CONFIG})")
+        self.board_title = board.get("title", "")
+        self.board_fields = {f["name"]: f for f in board["fields"]["nodes"] if f.get("name")}
+        horizon = self.board_fields.get(self.fields["horizon"] or "", {})
+        self.horizons = [o["name"] for o in horizon.get("options", [])]
+        self.milestones = {m["title"]: m for m in milestones}
+        self.issues = []
+        for issue in issues:
+            item = next((i for i in issue["projectItems"]["nodes"]
+                         if i["project"]["number"] == self.board_number
+                         and (i["project"].get("owner") or {}).get("login", "").lower() == self.board_owner.lower()),
+                        None)
+            parent = issue.get("parent")
+            self.issues.append({
+                "number": issue["number"],
+                "title": issue["title"].strip(),
+                "milestone": (issue.get("milestone") or {}).get("title"),
+                "plan": not (parent and parent.get("state") == "OPEN"),
+                "on_board": item is not None,
+                "order": ((item or {}).get("order") or {}).get("number"),
+                "horizon": ((item or {}).get("horizon") or {}).get("name"),
+            })
+
+    def open_in(self, milestone: str) -> list[dict]:
+        return [i for i in self.issues if i["milestone"] == milestone]
+
+    def status(self, milestone: str) -> tuple[str | None, str]:
+        """The Status a milestone's page should have, and why."""
+        m = self.milestones[milestone]
+        if m["state"] == "CLOSED":
+            return "Done", "its milestone is closed"
+        issues = self.open_in(milestone)
+        if not issues:
+            return "Done", "its milestone has no open issues"
+        placed = [i for i in issues if i["horizon"] in self.horizons]
+        if not placed:
+            return None, "none of its open issues has a Horizon"
+        first = min(placed, key=lambda i: (self.horizons.index(i["horizon"]), i["number"]))
+        return first["horizon"], f"#{first['number']} is {first['horizon']}"
+
+    def plans(self) -> list[dict]:
+        """The open plans, in the roadmap's order: by Order, then the milestone's
+        due date, then number."""
+        def key(i: dict) -> tuple:
+            due = (self.milestones.get(i["milestone"]) or {}).get("dueOn") or "9999"
+            order = i["order"] if i["order"] is not None else float("inf")
+            return (order, due, i["number"])
+        return sorted((i for i in self.issues if i["milestone"] and i["plan"]), key=key)
+
+    def line(self, milestone: str) -> str | None:
+        status, _ = self.status(milestone)
+        return f"**Milestone:** {milestone} · **Status:** {status}" if status else None
+
+    # The index
+
+    def render_index(self, pages: dict[str, dict]) -> str:
+        path = self.p.root / self.index
+        old = path.read_text(encoding="utf-8") if path.exists() else ""
+        old = "\n".join(l for l in old.split("\n") if l.strip() != INDEX_NOTE)
+        head = re.split(r"(?m)^## ", old, maxsplit=1)[0].strip("\n")
+        if not head.strip():
+            head = ("# The plan\n\nEach phase is a milestone on GitHub and a page here; each plan is an "
+                    "issue, in the order of the project board.")
+        by_milestone = {p["milestone"]: p for p in pages.values() if p["milestone"] in self.milestones}
+        here = pathlib.PurePosixPath(self.index).parent
+
+        def phase(milestone: str) -> str:
+            page = by_milestone.get(milestone)
+            if not page:
+                return milestone
+            return f"[{page['title'] or milestone}]({os.path.relpath(page['file'], here)})"
+
+        def number(n) -> str:
+            return "" if n is None else str(int(n)) if float(n).is_integer() else str(n)
+
+        out = [INDEX_NOTE, head, ""]
+        plans = self.plans()
+        for horizon in self.horizons:
+            rows = [i for i in plans if i["horizon"] == horizon]
+            if not rows:
+                continue
+            out += [f"## {horizon}", "", "| Order | Plan | Phase |", "|---|---|---|"]
+            for i in rows:
+                title = i["title"].replace("|", "\\|")
+                out.append(f"| {number(i['order'])} | #{i['number']} {title} | {phase(i['milestone'])} |")
+            out.append("")
+        done = [p for p in pages.values() if p["milestone"] in self.milestones
+                and self.status(p["milestone"])[0] == "Done"]
+        if done:
+            out += ["## Done", "", " ·\n".join(phase(p["milestone"]) for p in done), ""]
+        return "\n".join(out)
+
+    # The check
+
+    def problems(self, pages: dict[str, dict]) -> list[str]:
+        found: list[str] = []
+        where = f"the board ({self.board_owner} #{self.board_number})"
+        for key, name in self.fields.items():
+            if not name:
+                continue
+            field = self.board_fields.get(name)
+            if not field:
+                found.append(f"{where} has no field \"{name}\" (plan.fields.{key} in {CONFIG})")
+            elif key in FIELD_TYPES and field.get("dataType") != FIELD_TYPES[key]:
+                found.append(f"{where}'s field \"{name}\" is {field.get('dataType', '?').lower()}, "
+                             f"not {FIELD_TYPES[key].lower().replace('_', ' ')}")
+
+        named: dict[str, str] = {}
+        for page in pages.values():
+            file, milestone = page["file"], page["milestone"]
+            if milestone is None:
+                found.append(f"{file}: no \"**Milestone:** … · **Status:** …\" line under its title "
+                             "(`docs-kit plan status --write` adds it when the title is the milestone's)")
+                continue
+            if milestone not in self.milestones:
+                found.append(f"{file}: there's no milestone \"{milestone}\" on GitHub")
+                continue
+            if milestone in named:
+                found.append(f"{file}: {named[milestone]} is the page for \"{milestone}\" too")
+                continue
+            named[milestone] = file
+            status, why = self.status(milestone)
+            if status and page["status"] != status:
+                found.append(f"{file}: Status is {page['status'] or 'empty'}, and should be {status} ({why})")
+            mentioned = {int(a or b) for a, b in MENTION.findall(page["text"])}
+            for issue in self.open_in(milestone):
+                if issue["plan"] and issue["number"] not in mentioned:
+                    found.append(f"{file}: doesn't mention #{issue['number']} {issue['title']}, "
+                                 f"a plan in \"{milestone}\"")
+
+        for title, m in self.milestones.items():
+            if m["state"] != "OPEN":
+                continue
+            if title not in named and title not in self.no_page:
+                found.append(f"the milestone \"{title}\" has no page in {self.folder}/ "
+                             f"(or list it in plan.no_page in {CONFIG})")
+            if not self.open_in(title):
+                found.append(f"the milestone \"{title}\" is open with no open issues: close it on GitHub "
+                             "(its page's Status is then Done)")
+
+        for issue in self.issues:
+            if not issue["milestone"]:
+                continue
+            if not issue["on_board"]:
+                found.append(f"#{issue['number']} {issue['title']} (in \"{issue['milestone']}\") isn't on {where}")
+            elif issue["horizon"] not in self.horizons and self.horizons:
+                found.append(f"#{issue['number']} {issue['title']} (in \"{issue['milestone']}\") has no "
+                             f"{self.fields['horizon']} on the board")
+
+        index = self.p.root / self.index
+        if not index.exists() or index.read_text(encoding="utf-8") != self.render_index(pages):
+            found.append(f"{self.index} is out of date: run `docs-kit plan index`")
+        return found
+
+
+def plan(project: Project, rest: list[str]) -> int:
+    what = rest[0] if rest else ""
+    if what not in ("check", "index", "status"):
+        fail("usage: docs-kit plan check | plan index [--check] | plan status [--write]")
+    p = Plan(project)
+    pages = p.pages()
+    p.load()
+
+    if what == "index":
+        text = p.render_index(pages)
+        path = project.root / p.index
+        current = path.read_text(encoding="utf-8") if path.exists() else None
+        if "--check" in rest:
+            if current == text:
+                print(f"docs-kit plan: {p.index} is up to date")
+                return 0
+            print(f"docs-kit plan: {p.index} is out of date: run `docs-kit plan index`")
+            return 1
+        if current == text:
+            print(f"docs-kit plan: {p.index} was already up to date")
+            return 0
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        print(f"docs-kit plan: wrote {p.index}")
+        return 0
+
+    if what == "status":
+        write = "--write" in rest
+        for page in pages.values():
+            milestone = page["milestone"]
+            if milestone is None and page["title"] in p.milestones:
+                milestone = page["title"]
+            if milestone not in p.milestones:
+                print(f"{page['file']}: no milestone \"{milestone or page['title']}\" on GitHub")
+                continue
+            line = p.line(milestone)
+            if not line:
+                print(f"{page['file']}: {p.status(milestone)[1]}, so its Status can't be told")
+                continue
+            print(f"{page['file']}: {line}")
+            if write and (page["milestone"] != milestone or page["status"] != p.status(milestone)[0]):
+                lines = page["text"].split("\n")
+                at = next((n for n, l in enumerate(lines) if PLAN_LINE.match(l)), None)
+                if at is not None:
+                    lines[at] = line
+                else:
+                    title = next((n for n, l in enumerate(lines) if l.startswith("# ")), -1)
+                    lines[title + 1:title + 1] = ["", line] if title >= 0 else [line, ""]
+                (project.root / page["file"]).write_text("\n".join(lines), encoding="utf-8")
+        return 0
+
+    problems = p.problems(pages)
+    if not problems:
+        plans = len(p.plans())
+        print(f"docs-kit plan: {len(pages)} pages, {len(p.milestones)} milestones, {plans} plans "
+              f"and {p.index} agree with GitHub")
+        return 0
+    print(f"docs-kit plan: the plan's pages and GitHub don't agree ({len(problems)}):")
+    print("\n".join(f"  - {problem}" for problem in problems))
+    print("Change whichever is wrong, GitHub or the pages, so they agree, in the same pull request or session. "
+          "`docs-kit plan status --write` sets the pages' Status lines; `docs-kit plan index` writes the index.")
+    return 1
+
+
+# --------------------------------------------------------------------------
 # anchors, vendor, init
 
 
@@ -754,15 +1148,22 @@ def init() -> None:
 
 
 def main(argv: list[str]) -> int:
+    folder, config = None, None
+    while len(argv) > 2 and argv[0] in ("-C", "--config"):
+        if argv[0] == "-C":
+            # As git -C: run as if started in that folder (a site's checkout can
+            # be built from the app's, `docs-kit -C app site .`).
+            folder = argv[1]
+        else:
+            # Read from where it was started, before any -C.
+            config = pathlib.Path(argv[1]).resolve()
+        argv = argv[2:]
     if not argv or argv[0] in ("-h", "--help", "help"):
         head = open(__file__, encoding="utf-8").read().split("# Usage:\n", 1)[1].split("\n#\n", 1)[0]
         print("usage:\n" + "\n".join(l[1:] for l in head.split("\n")))
         return 0
-    if argv[0] == "-C" and len(argv) > 2:
-        # As git -C: run as if started in that folder (a site's checkout can
-        # be built from the app's, `docs-kit -C app site .`).
-        os.chdir(argv[1])
-        argv = argv[2:]
+    if folder:
+        os.chdir(folder)
     command, rest = argv[0], argv[1:]
     if command == "version":
         print(VERSION)
@@ -770,7 +1171,7 @@ def main(argv: list[str]) -> int:
     if command == "init":
         init()
         return 0
-    project = Project.find()
+    project = Project.find(config)
     if command == "check":
         return check(project, rest[0] if rest else "origin/main")
     if command == "site":
@@ -790,7 +1191,9 @@ def main(argv: list[str]) -> int:
         return 0
     if command == "vendor":
         return vendor(project, "--check" in rest)
-    fail(f"no command {command!r}: check, site, wiki, anchors, vendor, init, version")
+    if command == "plan":
+        return plan(project, rest)
+    fail(f"no command {command!r}: check, site, wiki, anchors, plan, vendor, init, version")
     return 2
 
 
