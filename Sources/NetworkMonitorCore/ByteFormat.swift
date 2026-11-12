@@ -175,6 +175,27 @@ public enum ByteFormat {
         return "\(parts.number) \(parts.unit)"
     }
 
+    /// A speed as VoiceOver says it, the unit in words: `2.61 megabytes per
+    /// second`, `16.0 megabits per second` (#497). Read aloud, "MB/s" and
+    /// "Mb/s" sound the same, and a slash can come out as "slash".
+    public static func spokenSpeed(_ bitsPerSecond: Double, unit: SpeedUnit) -> String {
+        let parts = speedParts(bitsPerSecond, unit: unit)
+        let number = Double(parts.number) == 0 ? "0" : parts.number
+        switch parts.unit {
+        case "KB/s": return L("%@ kilobytes per second", number)
+        case "MB/s": return L("%@ megabytes per second", number)
+        case "GB/s": return L("%@ gigabytes per second", number)
+        case "TB/s": return L("%@ terabytes per second", number)
+        case "PB/s": return L("%@ petabytes per second", number)
+        case "bps":  return L("%@ bits per second", number)
+        case "Kbps": return L("%@ kilobits per second", number)
+        case "Mbps": return L("%@ megabits per second", number)
+        case "Gbps": return L("%@ gigabits per second", number)
+        case "Tbps": return L("%@ terabits per second", number)
+        default:     return L("%@ bytes per second", number)
+        }
+    }
+
     /// A speed-test figure for the menu bar, at the live title's exact width in
     /// either unit.
     public static func menuBarSpeed(_ bitsPerSecond: Double, unit: SpeedUnit) -> String {

@@ -10,6 +10,8 @@ NetworkMonitor 能做的一切，以及在哪里找到它们。
 
 读数<strong>宽度固定</strong>，所以数字变化时，菜单栏中它旁边的项目不会跳来跳去。它每秒最多更新两次，使用电池和低电量模式时更新得更少（请参阅[电池](accuracy-and-battery.md#电池)）。网速测试进行时，读数会以青色显示测试结果；如果你选的颜色接近青色，则改用另一组颜色，这样测试结果永远不会被误认为实时速度。
 
+VoiceOver 用文字读出读数，先读下载：<em>NetworkMonitor，下载 1.2 兆字节每秒，上传 30 千字节每秒</em>；显示测试结果时读作 <em>网速测试：下载 …</em>（#497）。
+
 - <strong>点按</strong>它可打开弹出窗口。
 - <strong>右键点按</strong>（或按住 Control 键点按）它，可使用 <strong>测试网速</strong>、上一次的结果、<strong>全部阻止</strong>（#198）、<strong>流量历史…</strong>（⌘Y）、<strong>连接…</strong>（⌘K）、<strong>广告与跟踪器…</strong>（⌘B）、<strong>网络…</strong>、<strong>设置…</strong>（⌘,）、<strong>关于 NetworkMonitor</strong>、<strong>检查更新…</strong>、<strong>卸载 NetworkMonitor…</strong> 和 <strong>退出</strong>。
 
