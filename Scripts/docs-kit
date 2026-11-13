@@ -20,7 +20,9 @@
 #   docs-kit site <site checkout>  the website's docs pages
 #   docs-kit wiki <wiki checkout> [commit]
 #   docs-kit anchors               every page's address and headings, as JSON
-#   docs-kit plan check            the plan's pages, milestones, issues and board agree?
+#   docs-kit plan init [--dry-run] set a new project's plan up on GitHub (then sync)
+#   docs-kit plan sync [--dry-run] GitHub follows the plan's tree; the pages follow GitHub
+#   docs-kit plan check            the plan's pages, issues, milestones and board agree?
 #   docs-kit plan index [--check]  write the plan's index from GitHub
 #   docs-kit plan status [--write] each phase page's Milestone and Status line, from GitHub
 #   docs-kit vendor [--check]      copy this file into the project
@@ -42,7 +44,7 @@ import sys
 import time
 import unicodedata
 
-VERSION = "1.2.1"
+VERSION = "1.3.1"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -701,97 +703,104 @@ class Wiki:
 
 
 # --------------------------------------------------------------------------
-# plan: the phases, as milestones, issues, the board and pages, in sync
+# plan: the project's plan, docs-kit's first stage
 #
-# A phase is a milestone on GitHub and a page in plan.pages. Each plan in it is
-# an issue (its steps sub-issues), and the roadmap's order is the project
-# board's: an Order number and a Horizon (Now, Next, Later: the field's choices,
-# in their order). The pages say which milestone they are and its Status; the
-# index is written from GitHub. `plan check` holds the four together.
+# docs/PLAN.md and a page per phase (plan.pages), written with the project's
+# owner, are the plan in words. On GitHub the same plan is a tree of issues:
+# one root issue (label plan, pinned), a phase issue per phase (label phase,
+# named after its milestone and filed in it), each phase's items under it, and
+# their steps under them. The project board gives each a Level (Plan, Phase,
+# Item, Step), and items an Order and a Horizon (Now, Next, Later: the
+# field's choices, in their order), which their steps copy.
+#
+# `plan sync` makes GitHub follow the tree, and the pages' Status lines and
+# the index follow GitHub; `plan check` fails on anything sync would change,
+# and on what it can't; `plan init` sets a new project up.
 
 PLAN_LINE = re.compile(r"^\*\*Milestone:\*\*\s*(.+?)\s*·\s*\*\*Status:\*\*\s*(.*?)\s*$")
 MENTION = re.compile(r"(?<![\w&])#(\d+)\b|/issues/(\d+)\b")
 INDEX_NOTE = ("<!-- Written by `docs-kit plan index` from the milestones, issues and project board on "
               "GitHub: change those, then run it again. The text above the first ## heading is kept. -->")
-FIELD_TYPES = {"order": "NUMBER", "horizon": "SINGLE_SELECT", "start": "DATE", "target": "DATE"}
-
-PLAN_QUERY = """
-query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: String,
-      $order: String!, $horizon: String!) {
-  repository(owner: $owner, name: $name) {
-    milestones(first: 100, states: [OPEN, CLOSED]) {
-      nodes { number title state dueOn }
-    }
-    issues(states: OPEN, first: 100, after: $after) {
-      pageInfo { hasNextPage endCursor }
-      nodes {
-        number title
-        milestone { title }
-        parent { number state }
-        projectItems(first: 20) {
-          nodes {
-            project { number owner { ... on User { login } ... on Organization { login } } }
-            order: fieldValueByName(name: $order) { ... on ProjectV2ItemFieldNumberValue { number } }
-            horizon: fieldValueByName(name: $horizon) { ... on ProjectV2ItemFieldSingleSelectValue { name } }
-          }
-        }
-      }
-    }
-  }
-  repositoryOwner(login: $board) {
-    ... on ProjectV2Owner {
-      projectV2(number: $number) {
-        title
-        fields(first: 100) {
-          nodes {
-            ... on ProjectV2FieldCommon { name dataType }
-            ... on ProjectV2SingleSelectField { options { name } }
-          }
-        }
-      }
-    }
-  }
-}
-"""
+ROOT_NOTE = ("<!-- Written by `docs-kit plan sync` from the plan's pages, the milestones, the issues and "
+             "the project board: change those, then run it again, rather than editing this. -->")
+PHASE_NOTE = "<!-- Written by `docs-kit plan sync`. -->"
+LEVELS = ("Plan", "Phase", "Item", "Step")
+FIELD_TYPES = {"order": "NUMBER", "horizon": "SINGLE_SELECT", "level": "SINGLE_SELECT",
+               "start": "DATE", "target": "DATE", "status": "SINGLE_SELECT"}
+COLORS = {"Plan": "PURPLE", "Phase": "BLUE", "Item": "GREEN", "Step": "GRAY",
+          "Now": "GREEN", "Next": "YELLOW", "Later": "GRAY"}
+VALUE = ("... on ProjectV2ItemFieldSingleSelectValue { name } ... on ProjectV2ItemFieldNumberValue { number } "
+         "... on ProjectV2ItemFieldDateValue { date } ... on ProjectV2ItemFieldTextValue { text }")
 
 
-def gh_graphql(query: str, variables: dict) -> dict:
-    """A GraphQL query through `gh api graphql`, tried again when the network
-    fails. DOCS_KIT_GH names a command run instead of `gh`, with the same
-    arguments (tests give it a recorded answer); DOCS_KIT_RETRY_WAIT the
-    seconds before trying again (3, then 6, then 9)."""
-    args = ["api", "graphql", "-f", f"query={query}"]
-    for key, value in variables.items():
-        if value is not None:
-            args += ["-F" if isinstance(value, int) else "-f", f"{key}={value}"]
+def gh_call(args: list[str], stdin: str | None = None, retry: bool = True) -> dict:
+    """`gh` with these arguments, its answer as JSON. Tried again when the network
+    fails (when `retry`: a write that may already have happened isn't). DOCS_KIT_GH
+    names a command run instead of `gh`, with the same arguments (tests give it a
+    stand-in GitHub); DOCS_KIT_RETRY_WAIT the seconds before trying again (3, then
+    6, then 9; a minute when GitHub says to slow down)."""
     stand_in = os.environ.get("DOCS_KIT_GH")
     command = ["/bin/sh", "-c", stand_in + ' "$@"', "gh", *args] if stand_in else ["gh", *args]
     wait = float(os.environ.get("DOCS_KIT_RETRY_WAIT", "3"))
     problem = ""
     for attempt in range(1, 5):
         try:
-            out = subprocess.run(command, capture_output=True, text=True, timeout=90)
+            out = subprocess.run(command, input=stdin, capture_output=True, text=True, timeout=90)
         except FileNotFoundError:
             fail("`gh` isn't installed: the plan is read from GitHub with it (https://cli.github.com)")
         except subprocess.TimeoutExpired:
             problem = "GitHub didn't answer within 90 s"
         else:
             try:
-                answer = json.loads(out.stdout)
+                answer = json.loads(out.stdout) if out.stdout.strip() else {}
             except ValueError:
                 answer = None
-            if isinstance(answer, dict) and answer.get("errors"):
-                fail("GitHub said: " + "; ".join(e.get("message", "?") for e in answer["errors"]))
-            if out.returncode == 0 and isinstance(answer, dict) and "data" in answer:
-                return answer["data"]
             said = (out.stderr or out.stdout).strip()
+            slow = "rate limit" in said.lower() or "RATE_LIMITED" in said
+            if isinstance(answer, dict) and answer.get("errors") and not slow:
+                fail("GitHub said: " + "; ".join(e.get("message", "?") for e in answer["errors"]))
+            if out.returncode == 0 and answer is not None:
+                return answer
             if "gh auth login" in said or "GH_TOKEN" in said:
                 fail("`gh` isn't signed in to GitHub, so the plan can't be read (`gh auth login`)")
+            status = re.search(r"HTTP (\d{3})", said)
+            if status and status.group(1).startswith("4") and not slow:
+                message = answer.get("message") if isinstance(answer, dict) else None
+                fail(f"GitHub said: {message or said.splitlines()[-1]}")
             problem = (said.splitlines() or ["no answer"])[-1]
+            if slow:
+                time.sleep(20 * wait)
+            elif NEVER_SENT.search(said):
+                # The connection never opened, so nothing was written: safe to try again.
+                if attempt < 4:
+                    time.sleep(wait * attempt)
+                continue
+        if not retry:
+            fail(f"GitHub didn't confirm a change ({problem}). Look, then run it again: "
+                 "it picks up where it stopped")
         if attempt < 4:
             time.sleep(wait * attempt)
-    fail(f"couldn't read the plan from GitHub: {problem}")
+    fail(f"couldn't reach GitHub: {problem}")
     return {}
+
+
+# What gh says when it never reached GitHub: a write can be tried again.
+NEVER_SENT = re.compile(r"dial tcp|no such host|connection refused|TLS handshake timeout|network is unreachable")
+
+
+def gh_graphql(query: str, variables: dict | None = None, retry: bool = True) -> dict:
+    args = ["api", "graphql", "-f", f"query={query}"]
+    for key, value in (variables or {}).items():
+        if value is not None:
+            args += ["-F" if isinstance(value, int) else "-f", f"{key}={value}"]
+    return gh_call(args, retry=retry).get("data") or {}
+
+
+def gh_rest(method: str, path: str, body: dict | None = None, retry: bool = True) -> dict:
+    args = ["api", "-X", method, path, "-H", "Accept: application/vnd.github+json"]
+    if body is not None:
+        args += ["--input", "-"]
+    return gh_call(args, json.dumps(body) if body is not None else None, retry=retry)
 
 
 def natural(name: str) -> list:
@@ -799,24 +808,40 @@ def natural(name: str) -> list:
     return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", name)]
 
 
+def q(text) -> str:
+    """A GraphQL literal."""
+    return json.dumps(text, ensure_ascii=False)
+
+
 class Plan:
-    """The plan section of the config, the pages, and what GitHub has."""
+    """The plan section of the config, the pages, and the plan on GitHub."""
 
     def __init__(self, project: Project):
         c = project.config.get("plan")
         if not isinstance(c, dict):
             fail(f"{CONFIG} has no \"plan\" section (docs/docs-kit.md in product-kit says what goes in it)")
         self.p = project
+        self.c = c
         self.folder = c.get("pages", "docs/phases").strip("/")
         self.index = c.get("index", f"{self.folder}/README.md")
+        self.doc = c.get("doc", "docs/PLAN.md")
         board = c.get("project")
         if not isinstance(board, dict) or "number" not in board:
             fail(f"{CONFIG} needs plan.project: {{\"owner\": \"…\", \"number\": N}}, the project board")
         self.board_owner = board.get("owner", project.repo.split("/")[0])
         self.board_number = int(board["number"])
-        self.fields = {"order": "Order", "horizon": "Horizon", "start": None, "target": None}
+        self.fields = {"order": "Order", "horizon": "Horizon", "level": "Level", "start": None,
+                       "target": None, "status": "Status"}
         self.fields.update(c.get("fields", {}))
+        self.status_named = "status" in c.get("fields", {})
+        # Fields a step copies from its item, besides Order and Horizon (a Track, say).
+        self.inherit = list(c.get("inherit", []))
         self.no_page = set(c.get("no_page", []))
+        labels = c.get("labels", {})
+        self.plan_label = labels.get("plan", "plan")
+        self.phase_label = labels.get("phase", "phase")
+        self.done = c.get("done", "Done")
+        self.root_title = c.get("title", f"The plan: {project.name}")
 
     # What's on disk
 
@@ -842,52 +867,221 @@ class Plan:
             found[file] = page
         return found
 
+    def intro(self) -> str:
+        """The root issue's opening: plan.intro, or the plan's first paragraph."""
+        if self.c.get("intro"):
+            return self.c["intro"].strip()
+        path = self.p.root / self.doc
+        if not path.exists():
+            return ""
+        for block in re.split(r"\n\s*\n", path.read_text(encoding="utf-8")):
+            block = block.strip()
+            if block and block[0] not in "#|<>`![-*":
+                def link(target: str, image: bool) -> str:
+                    if is_external(target):
+                        return target
+                    file, anchor = resolve_path(target, self.doc)
+                    return self.blob(file) + (f"#{anchor}" if anchor else "")
+                return map_links(block, link)
+        return ""
+
+    def blob(self, file: str) -> str:
+        return f"{self.p.web}/blob/{self.p.branch}/{file}"
+
     # What's on GitHub
+
+    def read_fields(self) -> dict[str, str]:
+        names = {k: v for k, v in self.fields.items() if v}
+        for n, name in enumerate(self.inherit):
+            names[f"i{n}"] = name
+        return names
+
+    def issue_fields(self) -> str:
+        values = " ".join(f"v_{key}: fieldValueByName(name: {q(name)}) {{ {VALUE} }}"
+                          for key, name in self.read_fields().items())
+        return ("id number title state body isPinned milestone { number title } parent { number state } "
+                "labels(first: 20) { nodes { name } } projectItems(first: 20) { nodes { id project { number "
+                "owner { ... on User { login } ... on Organization { login } } } " + values + " } }")
 
     def load(self) -> None:
         owner, name = self.p.repo.split("/", 1)
+        labels = q([self.plan_label, self.phase_label])
+        query = f"""
+query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: String) {{
+  repository(owner: $owner, name: $name) {{
+    id
+    milestones(first: 100, states: [OPEN, CLOSED]) {{ nodes {{ id number title state dueOn }} }}
+    labels(first: 100) {{ nodes {{ id name }} }}
+    issues(states: OPEN, first: 100, after: $after) {{
+      pageInfo {{ hasNextPage endCursor }}
+      nodes {{ {self.issue_fields()} }}
+    }}
+    structure: issues(states: [OPEN, CLOSED], first: 100, labels: {labels}) {{ nodes {{ {self.issue_fields()} }} }}
+  }}
+  repositoryOwner(login: $board) {{
+    __typename
+    ... on ProjectV2Owner {{
+      projectV2(number: $number) {{
+        id title
+        fields(first: 100) {{
+          nodes {{
+            ... on ProjectV2FieldCommon {{ id databaseId name dataType }}
+            ... on ProjectV2SingleSelectField {{ options {{ id name }} }}
+          }}
+        }}
+        views(first: 50) {{ nodes {{ id number name filter }} }}
+      }}
+    }}
+  }}
+}}"""
         variables = {"owner": owner, "name": name, "board": self.board_owner, "number": self.board_number,
-                     "order": self.fields["order"], "horizon": self.fields["horizon"], "after": None}
-        milestones, issues, board = None, [], None
+                     "after": None}
+        raw, board, repo_first = [], None, None
         while True:
-            data = gh_graphql(PLAN_QUERY, variables)
+            data = gh_graphql(query, variables)
             repo = data.get("repository")
             if not repo:
                 fail(f"GitHub has no repository {self.p.repo}")
-            if milestones is None:
-                milestones = repo["milestones"]["nodes"]
-                board = (data.get("repositoryOwner") or {}).get("projectV2")
-            issues += repo["issues"]["nodes"]
+            if repo_first is None:
+                repo_first, owner_node = repo, data.get("repositoryOwner") or {}
+                board = owner_node.get("projectV2")
+                self.owner_kind = owner_node.get("__typename", "User")
+                raw += repo["structure"]["nodes"]
+            raw += repo["issues"]["nodes"]
             page = repo["issues"]["pageInfo"]
             if not page["hasNextPage"]:
                 break
             variables["after"] = page["endCursor"]
         if not board:
             fail(f"GitHub has no project board {self.board_owner} #{self.board_number} (plan.project in {CONFIG})")
+        self.repo_id = repo_first["id"]
+        self.board_id = board["id"]
         self.board_title = board.get("title", "")
         self.board_fields = {f["name"]: f for f in board["fields"]["nodes"] if f.get("name")}
+        self.views = board["views"]["nodes"]
+        self.milestones = {m["title"]: m for m in repo_first["milestones"]["nodes"]}
+        self.labels = {label["name"]: label["id"] for label in repo_first["labels"]["nodes"]}
+        self.issues: dict[int, dict] = {}
+        for node in raw:
+            self.add(node)
+        # The parents that aren't open or labelled (a closed item an open step is under), up the tree.
+        for _ in range(10):
+            missing = sorted({i["parent"] for i in self.issues.values()
+                              if i["parent"] and i["parent"] not in self.issues})
+            if not missing:
+                break
+            fetched = gh_graphql("query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { "
+                                 + " ".join(f"i{n}: issue(number: {n}) {{ {self.issue_fields()} }}" for n in missing)
+                                 + " } }", {"owner": owner, "name": name}).get("repository") or {}
+            for n in missing:
+                if fetched.get(f"i{n}"):
+                    self.add(fetched[f"i{n}"])
+                else:
+                    self.issues[n] = {"number": n, "title": "", "state": "CLOSED", "parent": None, "labels": set(),
+                                      "milestone": None, "values": {}, "item": None, "id": None, "body": ""}
         horizon = self.board_fields.get(self.fields["horizon"] or "", {})
         self.horizons = [o["name"] for o in horizon.get("options", [])]
-        self.milestones = {m["title"]: m for m in milestones}
-        self.issues = []
-        for issue in issues:
-            item = next((i for i in issue["projectItems"]["nodes"]
-                         if i["project"]["number"] == self.board_number
-                         and (i["project"].get("owner") or {}).get("login", "").lower() == self.board_owner.lower()),
-                        None)
-            parent = issue.get("parent")
-            self.issues.append({
-                "number": issue["number"],
-                "title": issue["title"].strip(),
-                "milestone": (issue.get("milestone") or {}).get("title"),
-                "plan": not (parent and parent.get("state") == "OPEN"),
-                "on_board": item is not None,
-                "order": ((item or {}).get("order") or {}).get("number"),
-                "horizon": ((item or {}).get("horizon") or {}).get("name"),
-            })
+
+    def add(self, node: dict) -> None:
+        item = next((i for i in node["projectItems"]["nodes"]
+                     if i["project"]["number"] == self.board_number
+                     and (i["project"].get("owner") or {}).get("login", "").lower() == self.board_owner.lower()),
+                    None)
+        values = {}
+        for key in self.read_fields():
+            v = (item or {}).get(f"v_{key}") or {}
+            values[key] = next((v[k] for k in ("name", "number", "date", "text") if v.get(k) is not None), None)
+        parent = node.get("parent") or {}
+        self.issues[node["number"]] = {
+            "id": node["id"], "number": node["number"], "title": node["title"].strip(), "state": node["state"],
+            "body": node.get("body") or "", "pinned": node.get("isPinned", False),
+            "milestone": (node.get("milestone") or {}).get("title"),
+            "parent": parent.get("number"), "labels": {label["name"] for label in node["labels"]["nodes"]},
+            "item": (item or {}).get("id"), "values": values,
+        }
+
+    def board_items(self) -> list[dict]:
+        """Every issue of this repository on the board, closed ones too, with its Status."""
+        if not self.fields.get("status"):
+            return []
+        query = ("query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: 100, after: $after) "
+                 "{ pageInfo { hasNextPage endCursor } nodes { id content { ... on Issue { number state "
+                 f"repository {{ nameWithOwner }} }} }} v_status: fieldValueByName(name: {q(self.fields['status'])}) "
+                 "{ ... on ProjectV2ItemFieldSingleSelectValue { name } } } } } } }")
+        found, after = [], None
+        while True:
+            items = (gh_graphql(query, {"id": self.board_id, "after": after}).get("node") or {}).get("items")
+            if not items:
+                return found
+            for node in items["nodes"]:
+                content = node.get("content") or {}
+                if (content.get("repository") or {}).get("nameWithOwner", "").lower() == self.p.repo.lower():
+                    found.append({"item": node["id"], "number": content["number"], "state": content["state"],
+                                  "status": (node.get("v_status") or {}).get("name")})
+            if not items["pageInfo"]["hasNextPage"]:
+                return found
+            after = items["pageInfo"]["endCursor"]
+
+    # The tree
+
+    def is_root(self, i: dict) -> bool:
+        return self.plan_label in i["labels"] and i["state"] == "OPEN"
+
+    def is_phase(self, i: dict) -> bool:
+        return self.phase_label in i["labels"]
+
+    def structural(self, i: dict) -> bool:
+        return self.plan_label in i["labels"] or self.is_phase(i)
+
+    def root(self) -> dict | None:
+        roots = sorted((i for i in self.issues.values() if self.is_root(i)), key=lambda i: i["number"])
+        return roots[0] if roots else None
+
+    def phase_issues(self) -> dict[str, dict]:
+        """Phase issues by title (the milestone's), the lowest number first."""
+        found: dict[str, dict] = {}
+        for i in sorted(self.issues.values(), key=lambda i: i["number"]):
+            if self.is_phase(i):
+                found.setdefault(i["title"], i)
+        return found
+
+    def ancestors(self, i: dict):
+        seen = set()
+        while i["parent"] and i["parent"] in self.issues and i["parent"] not in seen:
+            seen.add(i["parent"])
+            i = self.issues[i["parent"]]
+            yield i
+
+    def phase_of(self, i: dict) -> dict | None:
+        return next((a for a in self.ancestors(i) if self.is_phase(a)), None)
+
+    def level(self, i: dict) -> str | None:
+        if self.plan_label in i["labels"]:
+            return "Plan"
+        if self.is_phase(i):
+            return "Phase"
+        parent = self.issues.get(i["parent"]) if i["parent"] else None
+        if parent and self.is_phase(parent):
+            return "Item"
+        return "Step" if self.phase_of(i) else None
+
+    def item_of(self, i: dict) -> dict | None:
+        """The item a step is part of."""
+        for a in self.ancestors(i):
+            if self.level(a) == "Item":
+                return a
+        return None
+
+    def open_work(self) -> list[dict]:
+        return [i for i in self.issues.values() if i["state"] == "OPEN" and not self.structural(i)]
 
     def open_in(self, milestone: str) -> list[dict]:
-        return [i for i in self.issues if i["milestone"] == milestone]
+        return [i for i in self.open_work() if i["milestone"] == milestone]
+
+    def is_top(self, i: dict) -> bool:
+        """An item as the index lists it: open work whose parent isn't open work."""
+        parent = self.issues.get(i["parent"]) if i["parent"] else None
+        return not parent or parent["state"] != "OPEN" or self.structural(parent)
 
     def status(self, milestone: str) -> tuple[str | None, str]:
         """The Status a milestone's page should have, and why."""
@@ -896,27 +1090,46 @@ class Plan:
             return "Done", "its milestone is closed"
         issues = self.open_in(milestone)
         if not issues:
-            return "Done", "its milestone has no open issues"
-        placed = [i for i in issues if i["horizon"] in self.horizons]
+            return "Done", "its milestone has nothing open"
+        placed = [i for i in issues if i["values"].get("horizon") in self.horizons]
         if not placed:
-            return None, "none of its open issues has a Horizon"
-        first = min(placed, key=lambda i: (self.horizons.index(i["horizon"]), i["number"]))
-        return first["horizon"], f"#{first['number']} is {first['horizon']}"
+            return None, "nothing open in it has a Horizon"
+        first = min(placed, key=lambda i: (self.horizons.index(i["values"]["horizon"]), i["number"]))
+        return first["values"]["horizon"], f"#{first['number']} is {first['values']['horizon']}"
 
     def plans(self) -> list[dict]:
-        """The open plans, in the roadmap's order: by Order, then the milestone's
-        due date, then number."""
+        """The open items, in the roadmap's order: by Order, then the milestone's due date, then number."""
         def key(i: dict) -> tuple:
             due = (self.milestones.get(i["milestone"]) or {}).get("dueOn") or "9999"
-            order = i["order"] if i["order"] is not None else float("inf")
-            return (order, due, i["number"])
-        return sorted((i for i in self.issues if i["milestone"] and i["plan"]), key=key)
+            order = i["values"].get("order")
+            return (order if order is not None else float("inf"), due, i["number"])
+        return sorted((i for i in self.open_work() if i["milestone"] and self.is_top(i)), key=key)
 
     def line(self, milestone: str) -> str | None:
         status, _ = self.status(milestone)
         return f"**Milestone:** {milestone} · **Status:** {status}" if status else None
 
-    # The index
+    # What's written from GitHub
+
+    def table(self, phase) -> list[str]:
+        """A section per Horizon, each a table of its items in order."""
+        def number(n) -> str:
+            return "" if n is None else str(int(n)) if float(n).is_integer() else str(n)
+        out, plans = [], self.plans()
+        for horizon in self.horizons:
+            rows = [i for i in plans if i["values"].get("horizon") == horizon]
+            if not rows:
+                continue
+            out += [f"## {horizon}", "", "| Order | Plan | Phase |", "|---|---|---|"]
+            for i in rows:
+                title = i["title"].replace("|", "\\|")
+                out.append(f"| {number(i['values'].get('order'))} | #{i['number']} {title} | {phase(i['milestone'])} |")
+            out.append("")
+        return out
+
+    def done_phases(self, pages: dict[str, dict]) -> list[dict]:
+        return [p for p in pages.values() if p["milestone"] in self.milestones
+                and self.status(p["milestone"])[0] == "Done"]
 
     def render_index(self, pages: dict[str, dict]) -> str:
         path = self.p.root / self.index
@@ -935,41 +1148,81 @@ class Plan:
                 return milestone
             return f"[{page['title'] or milestone}]({os.path.relpath(page['file'], here)})"
 
-        def number(n) -> str:
-            return "" if n is None else str(int(n)) if float(n).is_integer() else str(n)
-
-        out = [INDEX_NOTE, head, ""]
-        plans = self.plans()
-        for horizon in self.horizons:
-            rows = [i for i in plans if i["horizon"] == horizon]
-            if not rows:
-                continue
-            out += [f"## {horizon}", "", "| Order | Plan | Phase |", "|---|---|---|"]
-            for i in rows:
-                title = i["title"].replace("|", "\\|")
-                out.append(f"| {number(i['order'])} | #{i['number']} {title} | {phase(i['milestone'])} |")
-            out.append("")
-        done = [p for p in pages.values() if p["milestone"] in self.milestones
-                and self.status(p["milestone"])[0] == "Done"]
+        out = [INDEX_NOTE, head, ""] + self.table(phase)
+        done = self.done_phases(pages)
         if done:
             out += ["## Done", "", " ·\n".join(phase(p["milestone"]) for p in done), ""]
         return "\n".join(out)
 
-    # The check
+    def render_root(self, pages: dict[str, dict]) -> str:
+        phases = self.phase_issues()
+        by_milestone = {p["milestone"]: p for p in pages.values() if p["milestone"] in self.milestones}
 
-    def problems(self, pages: dict[str, dict]) -> list[str]:
+        def phase(milestone: str) -> str:
+            page, issue = by_milestone.get(milestone), phases.get(milestone)
+            name = f"[{milestone}]({self.blob(page['file'])})" if page else milestone
+            return f"{name} #{issue['number']}" if issue else name
+
+        links = [f"[{self.doc}]({self.blob(self.doc)})"] if (self.p.root / self.doc).exists() else []
+        if (self.p.root / self.index).exists():
+            links.append(f"[the phases, in order]({self.blob(self.index)})")
+        out = [ROOT_NOTE]
+        if self.intro():
+            out += [self.intro(), ""]
+        if links:
+            out += ["**In the repository:** " + " · ".join(links), ""]
+        out += ["Each phase is a sub-issue of this one, and each item a sub-issue of its phase: their order is "
+                f"the [project board]({self.board_url()})'s.", ""]
+        out += self.table(phase)
+        done = self.done_phases(pages)
+        if done:
+            out += ["## Done", "", " ·\n".join(phase(p["milestone"]) for p in done), ""]
+        return "\n".join(out)
+
+    def render_phase(self, milestone: str, pages: dict[str, dict]) -> str:
+        page = next((p for p in pages.values() if p["milestone"] == milestone), None)
+        root = self.root()
+        m = self.milestones.get(milestone)
+        out = [PHASE_NOTE, f"A phase of {'#' + str(root['number']) if root else 'the plan'}: its items are its "
+               "sub-issues, and their order is the project board's.", ""]
+        facts = []
+        if page:
+            facts.append(f"**Page:** [{page['file']}]({self.blob(page['file'])})")
+        if m:
+            facts.append(f"**Milestone:** [{milestone}]({self.p.web}/milestone/{m['number']})")
+        if facts:
+            out += [" · ".join(facts), ""]
+        return "\n".join(out)
+
+    def board_url(self) -> str:
+        kind = "orgs" if self.owner_kind == "Organization" else "users"
+        return f"https://github.com/{kind}/{self.board_owner}/projects/{self.board_number}"
+
+    # The problems sync can't fix
+
+    def field_problems(self) -> list[str]:
+        """What stops sync: a field the plan needs that the board hasn't."""
         found: list[str] = []
         where = f"the board ({self.board_owner} #{self.board_number})"
-        for key, name in self.fields.items():
-            if not name:
-                continue
+        for key, name in self.read_fields().items():
+            key = key if not key.startswith("i") else "inherit"
             field = self.board_fields.get(name)
+            if not field and key == "status" and not self.status_named:
+                continue
             if not field:
-                found.append(f"{where} has no field \"{name}\" (plan.fields.{key} in {CONFIG})")
+                found.append(f"{where} has no field \"{name}\" (plan.fields.{key} in {CONFIG}; "
+                             "`docs-kit plan init` adds the plan's own)")
             elif key in FIELD_TYPES and field.get("dataType") != FIELD_TYPES[key]:
                 found.append(f"{where}'s field \"{name}\" is {field.get('dataType', '?').lower()}, "
                              f"not {FIELD_TYPES[key].lower().replace('_', ' ')}")
+        level = self.board_fields.get(self.fields["level"] or "", {})
+        missing = [name for name in LEVELS if name not in {o["name"] for o in level.get("options", [])}]
+        if level and missing:
+            found.append(f"{where}'s field \"{self.fields['level']}\" has no {', '.join(missing)}")
+        return found
 
+    def problems(self, pages: dict[str, dict]) -> list[str]:
+        found = self.field_problems()
         named: dict[str, str] = {}
         for page in pages.values():
             file, milestone = page["file"], page["milestone"]
@@ -978,20 +1231,17 @@ class Plan:
                              "(`docs-kit plan status --write` adds it when the title is the milestone's)")
                 continue
             if milestone not in self.milestones:
-                found.append(f"{file}: there's no milestone \"{milestone}\" on GitHub")
+                found.append(f"{file}: there's no milestone \"{milestone}\" on GitHub (`docs-kit plan init` makes it)")
                 continue
             if milestone in named:
                 found.append(f"{file}: {named[milestone]} is the page for \"{milestone}\" too")
                 continue
             named[milestone] = file
-            status, why = self.status(milestone)
-            if status and page["status"] != status:
-                found.append(f"{file}: Status is {page['status'] or 'empty'}, and should be {status} ({why})")
             mentioned = {int(a or b) for a, b in MENTION.findall(page["text"])}
-            for issue in self.open_in(milestone):
-                if issue["plan"] and issue["number"] not in mentioned:
+            for issue in self.plans():
+                if issue["milestone"] == milestone and issue["number"] not in mentioned:
                     found.append(f"{file}: doesn't mention #{issue['number']} {issue['title']}, "
-                                 f"a plan in \"{milestone}\"")
+                                 f"an item in \"{milestone}\"")
 
         for title, m in self.milestones.items():
             if m["state"] != "OPEN":
@@ -1000,28 +1250,472 @@ class Plan:
                 found.append(f"the milestone \"{title}\" has no page in {self.folder}/ "
                              f"(or list it in plan.no_page in {CONFIG})")
             if not self.open_in(title):
-                found.append(f"the milestone \"{title}\" is open with no open issues: close it on GitHub "
+                found.append(f"the milestone \"{title}\" is open with nothing open in it: close it on GitHub "
                              "(its page's Status is then Done)")
 
-        for issue in self.issues:
-            if not issue["milestone"]:
+        roots = [i for i in self.issues.values() if self.is_root(i)]
+        if len(roots) > 1:
+            found.append("more than one open issue is labelled \"" + self.plan_label + "\": "
+                         + ", ".join(f"#{i['number']}" for i in roots) + ". Keep one, the plan")
+        phases = self.phase_issues()
+        for i in self.issues.values():
+            if self.is_phase(i):
+                if phases.get(i["title"]) is not i:
+                    found.append(f"#{i['number']} and #{phases[i['title']]['number']} are both the phase issue "
+                                 f"for \"{i['title']}\": close one and take the label \"{self.phase_label}\" off it")
+                elif i["title"] not in self.milestones:
+                    found.append(f"#{i['number']} {i['title']} is a phase issue, and there's no milestone of "
+                                 "that name: rename one")
+                parent = self.issues.get(i["parent"]) if i["parent"] else None
+                if parent and not self.structural(parent):
+                    found.append(f"#{i['number']} {i['title']} is a phase issue under #{parent['number']}, "
+                                 "which isn't the plan or a phase")
+        for i in self.open_work():
+            if self.phase_of(i):
                 continue
-            if not issue["on_board"]:
-                found.append(f"#{issue['number']} {issue['title']} (in \"{issue['milestone']}\") isn't on {where}")
-            elif issue["horizon"] not in self.horizons and self.horizons:
-                found.append(f"#{issue['number']} {issue['title']} (in \"{issue['milestone']}\") has no "
+            chain = [i] + list(self.ancestors(i))
+            if any(self.plan_label in a["labels"] for a in chain):
+                found.append(f"#{i['number']} {i['title']} is under the plan but no phase: "
+                             "make it a sub-issue of a phase issue")
+            elif not (chain[-1]["milestone"] or i["milestone"]):
+                found.append(f"#{i['number']} {i['title']} isn't in the plan: give it a milestone (its phase), "
+                             "or make it a sub-issue of an item, then run `docs-kit plan sync`")
+            else:
+                found.append(f"#{i['number']} {i['title']} isn't in the plan: its milestone "
+                             f"\"{chain[-1]['milestone'] or i['milestone']}\" has no phase issue to go under")
+        for i in self.plans():
+            if self.horizons and i["values"].get("horizon") not in self.horizons and self.phase_of(i):
+                found.append(f"#{i['number']} {i['title']} (an item in \"{i['milestone']}\") has no "
                              f"{self.fields['horizon']} on the board")
-
-        index = self.p.root / self.index
-        if not index.exists() or index.read_text(encoding="utf-8") != self.render_index(pages):
-            found.append(f"{self.index} is out of date: run `docs-kit plan index`")
         return found
+
+
+class Changes:
+    """What sync changes, said in plain words; written to GitHub at the end,
+    in batches, unless it's a dry run. Creating something happens at once
+    (what comes after needs its number), and is said as it happens."""
+
+    def __init__(self, plan: Plan, dry: bool):
+        self.plan, self.dry = plan, dry
+        self.said: list[str] = []
+        self.issue_ops: list[str] = []
+        self.adds: list[int] = []
+        self.values: list[tuple[int, str, object]] = []
+        self.made = 0
+
+    def say(self, text: str) -> None:
+        self.said.append(text)
+
+    @staticmethod
+    def name(i: dict) -> str:
+        return f"#{i['number']} {i['title']}" if i["number"] > 0 else f"(new) {i['title']}"
+
+    def create_issue(self, title: str, body: str, label: str, milestone: str | None) -> dict:
+        p = self.plan
+        if self.dry:
+            self.made += 1
+            node = {"id": None, "number": -self.made, "title": title, "state": "OPEN", "body": body,
+                    "pinned": False, "milestone": milestone, "parent": None, "labels": {label},
+                    "item": None, "values": {}}
+        else:
+            ms = p.milestones.get(milestone) if milestone else None
+            made = gh_graphql(f"mutation {{ createIssue(input: {{ repositoryId: {q(p.repo_id)}, title: {q(title)}, "
+                              f"body: {q(body)}, labelIds: [{q(p.labels[label])}]"
+                              + (f", milestoneId: {q(ms['id'])}" if ms else "")
+                              + " }) { issue { id number } } }", retry=False)["createIssue"]["issue"]
+            node = {"id": made["id"], "number": made["number"], "title": title, "state": "OPEN", "body": body,
+                    "pinned": False, "milestone": milestone, "parent": None, "labels": {label},
+                    "item": None, "values": {}}
+        p.issues[node["number"]] = node
+        return node
+
+    def label(self, name: str, color: str, description: str) -> None:
+        p = self.plan
+        if name in p.labels:
+            return
+        self.say(f"label \"{name}\": made ({description})")
+        if self.dry:
+            p.labels[name] = None
+            return
+        made = gh_rest("POST", f"repos/{p.p.repo}/labels",
+                       {"name": name, "color": color, "description": description}, retry=False)
+        p.labels[name] = made.get("node_id")
+
+    def parent(self, child: dict, parent: dict) -> None:
+        if child["parent"] and child["parent"] in self.plan.issues:
+            was = self.plan.issues[child["parent"]]
+            self.say(f"{self.name(child)}: moved from under #{was['number']} to under {self.name(parent)}")
+        else:
+            self.say(f"{self.name(child)}: now under {self.name(parent)}")
+        child["parent"] = parent["number"]
+        self.issue_ops.append(("sub", parent, child))
+
+    def milestone(self, i: dict, milestone: str) -> None:
+        self.say(f"{self.name(i)}: milestone \"{milestone}\"" + (f" (was \"{i['milestone']}\")" if i["milestone"] else ""))
+        i["milestone"] = milestone
+        self.issue_ops.append(("milestone", i, milestone))
+
+    def body(self, i: dict, body: str, what: str) -> None:
+        self.say(f"{self.name(i)}: {what}")
+        i["body"] = body
+        self.issue_ops.append(("body", i, body))
+
+    def state(self, i: dict, open_: bool, why: str) -> None:
+        self.say(f"{self.name(i)}: {'reopened' if open_ else 'closed'}, {why}")
+        i["state"] = "OPEN" if open_ else "CLOSED"
+        self.issue_ops.append(("open" if open_ else "close", i, None))
+
+    def pin(self, i: dict) -> None:
+        self.say(f"{self.name(i)}: pinned to the repository's issues")
+        i["pinned"] = True
+        self.issue_ops.append(("pin", i, None))
+
+    def board(self, i: dict) -> None:
+        self.say(f"{self.name(i)}: added to the board")
+        i["item"] = i["item"] or "new"
+        self.adds.append(i["number"])
+
+    def value(self, i: dict, key: str, value, why: str = "") -> None:
+        name = self.plan.read_fields()[key]
+        shown = "none" if value is None else (int(value) if isinstance(value, float) and value.is_integer() else value)
+        self.say(f"{self.name(i)}: {name} {shown}" + (f" ({why})" if why else ""))
+        i["values"][key] = value
+        self.values.append((i["number"], key, value))
+
+    # Writing it
+
+    def write(self) -> None:
+        if self.dry:
+            return
+        p = self.plan
+        ops = []
+        for kind, i, extra in self.issue_ops:
+            iid = q(i["id"])
+            if kind == "sub":
+                ops.append(f"addSubIssue(input: {{ issueId: {iid}, subIssueId: {q(extra['id'])}, "
+                           "replaceParent: true }) { clientMutationId }")
+            elif kind == "milestone":
+                ops.append(f"updateIssue(input: {{ id: {iid}, milestoneId: {q(p.milestones[extra]['id'])} }}) "
+                           "{ clientMutationId }")
+            elif kind == "body":
+                ops.append(f"updateIssue(input: {{ id: {iid}, body: {q(extra)} }}) {{ clientMutationId }}")
+            elif kind == "close":
+                ops.append(f"closeIssue(input: {{ issueId: {iid}, stateReason: COMPLETED }}) {{ clientMutationId }}")
+            elif kind == "open":
+                ops.append(f"reopenIssue(input: {{ issueId: {iid} }}) {{ clientMutationId }}")
+        self.batch(ops)
+        for kind, i, _ in self.issue_ops:
+            if kind == "pin":
+                # A repository pins three issues at most: say so rather than stop.
+                try:
+                    gh_graphql(f"mutation {{ pinIssue(input: {{ issueId: {q(i['id'])} }}) {{ clientMutationId }} }}")
+                except SystemExit as e:
+                    print(f"docs-kit plan: couldn't pin #{i['number']} ({str(e).removeprefix('docs-kit: ')}); "
+                          "pin it on its page on GitHub")
+        self.add_to_board([p.issues[n] for n in self.adds])
+        ops = []
+        for number, key, value in self.values:
+            i = p.issues[number]
+            field = p.board_fields[p.read_fields()[key]]
+            head = f"projectId: {q(p.board_id)}, itemId: {q(i['item'])}, fieldId: {q(field['id'])}"
+            if value is None:
+                ops.append(f"clearProjectV2ItemFieldValue(input: {{ {head} }}) {{ clientMutationId }}")
+                continue
+            if field["dataType"] == "SINGLE_SELECT":
+                option = next(o["id"] for o in field["options"] if o["name"] == value)
+                literal = f"{{ singleSelectOptionId: {q(option)} }}"
+            elif field["dataType"] == "NUMBER":
+                literal = f"{{ number: {float(value)} }}"
+            elif field["dataType"] == "DATE":
+                literal = f"{{ date: {q(value)} }}"
+            else:
+                literal = f"{{ text: {q(str(value))} }}"
+            ops.append(f"updateProjectV2ItemFieldValue(input: {{ {head}, value: {literal} }}) {{ clientMutationId }}")
+        self.batch(ops)
+
+    def add_to_board(self, issues: list[dict]) -> None:
+        """Each issue on the board. A board may add new issues by itself (its auto-add
+        workflow) between reading and adding, and GitHub refuses an issue it already
+        has: find those first, and again after a refusal."""
+        p = self.plan
+        for _ in range(3):
+            for start in range(0, len(issues), 50):
+                chunk = issues[start:start + 50]
+                found = gh_graphql("query { nodes(ids: [" + ", ".join(q(i["id"]) for i in chunk) + "]) { ... on Issue "
+                                   "{ number projectItems(first: 20) { nodes { id project { number owner { ... on User "
+                                   "{ login } ... on Organization { login } } } } } } } }").get("nodes") or []
+                for node in found:
+                    item = next((x for x in (node or {}).get("projectItems", {}).get("nodes", [])
+                                 if x["project"]["number"] == p.board_number
+                                 and (x["project"].get("owner") or {}).get("login", "").lower()
+                                 == p.board_owner.lower()), None)
+                    if item:
+                        p.issues[node["number"]]["item"] = item["id"]
+            missing = [i for i in issues if not i["item"] or i["item"] == "new"]
+            if not missing:
+                return
+            try:
+                for start in range(0, len(missing), 20):
+                    chunk = missing[start:start + 20]
+                    done = gh_graphql("mutation { " + " ".join(
+                        f"a{k}: addProjectV2ItemById(input: {{ projectId: {q(p.board_id)}, contentId: {q(i['id'])} }}) "
+                        "{ item { id } }" for k, i in enumerate(chunk)) + " }")
+                    for k, i in enumerate(chunk):
+                        i["item"] = done[f"a{k}"]["item"]["id"]
+                return
+            except SystemExit as e:
+                if "already exists" not in str(e):
+                    raise
+        fail("couldn't put the plan's issues on the board: run it again")
+
+    @staticmethod
+    def batch(ops: list[str]) -> None:
+        for start in range(0, len(ops), 20):
+            chunk = ops[start:start + 20]
+            gh_graphql("mutation { " + " ".join(f"m{k}: {op}" for k, op in enumerate(chunk)) + " }")
+
+
+def sync(plan: Plan, pages: dict[str, dict], dry: bool, setup: bool = False) -> Changes:
+    """Make GitHub follow the plan's tree, and the generated files follow GitHub."""
+    p = plan
+    ch = Changes(p, dry)
+    level_field = p.board_fields.get(p.fields["level"] or "")
+    can_level = bool(level_field) and all(n in {o["name"] for o in level_field.get("options", [])} for n in LEVELS)
+
+    # The labels, the root, and a phase issue per phase.
+    ch.label(p.plan_label, "5319e7", "The project's plan: the root of its issues")
+    ch.label(p.phase_label, "1d76db", "A phase of the plan, in its milestone")
+    root = p.root()
+    if not root:
+        root = ch.create_issue(p.root_title, "", p.plan_label, None)
+        ch.say(f"{ch.name(root)}: made, the plan's issue")
+    if not root.get("pinned"):
+        ch.pin(root)
+    phases = p.phase_issues()
+    wanted = [m for m in p.milestones if any(pg["milestone"] == m for pg in pages.values())
+              or p.milestones[m]["state"] == "OPEN"]
+    for milestone in sorted(wanted, key=natural):
+        if milestone not in phases:
+            phase = ch.create_issue(milestone, p.render_phase(milestone, pages), p.phase_label, milestone)
+            ch.say(f"{ch.name(phase)}: made, the phase issue for the milestone \"{milestone}\"")
+            phases[milestone] = phase
+    for milestone, phase in phases.items():
+        if not phase["parent"]:
+            ch.parent(phase, root)
+        if milestone in p.milestones and phase["milestone"] != milestone:
+            ch.milestone(phase, milestone)
+
+    # Open work that isn't under a phase goes under its milestone's phase issue.
+    for i in sorted(p.open_work(), key=lambda i: i["number"]):
+        if p.phase_of(i):
+            continue
+        top = ([i] + list(p.ancestors(i)))[-1]
+        if top["parent"] and top["parent"] in p.issues and p.structural(p.issues[top["parent"]]):
+            continue
+        milestone = top["milestone"] or i["milestone"]
+        if milestone in phases and not top["parent"]:
+            ch.parent(top, phases[milestone])
+
+    # Everything under a phase is in its milestone, and on the board.
+    for i in sorted(p.open_work(), key=lambda i: i["number"]):
+        phase = p.phase_of(i)
+        if phase and phase["title"] in p.milestones and i["milestone"] != phase["title"]:
+            ch.milestone(i, phase["title"])
+    in_plan = [root] + sorted(phases.values(), key=lambda i: i["number"]) + \
+        sorted((i for i in p.open_work() if p.phase_of(i)), key=lambda i: i["number"])
+    for i in in_plan:
+        if not i["item"]:
+            ch.board(i)
+
+    # Levels, and what steps copy from their items.
+    if can_level:
+        for i in in_plan:
+            level = p.level(i)
+            if level and i["values"].get("level") != level:
+                ch.value(i, "level", level)
+    copied = [k for k in ("order", "horizon") if p.fields.get(k)] + [f"i{n}" for n in range(len(p.inherit))]
+    for i in in_plan:
+        if p.level(i) != "Step":
+            continue
+        item = p.item_of(i)
+        for key in copied:
+            mine, theirs = i["values"].get(key), (item or {}).get("values", {}).get(key)
+            if theirs is not None and mine != theirs:
+                ch.value(i, key, theirs, f"from #{item['number']}")
+
+    # Each phase's own values from its items, and open while it has work.
+    def items_under(phase: dict) -> list[dict]:
+        return [i for i in p.open_work() if p.level(i) == "Item" and phase in p.ancestors(i)]
+    for milestone, phase in sorted(phases.items(), key=lambda kv: kv[1]["number"]):
+        items = items_under(phase)
+        busy = items or [i for i in p.open_work() if phase in p.ancestors(i)] or \
+            (milestone in p.milestones and p.status(milestone)[0] != "Done")
+        if busy and phase["state"] != "OPEN":
+            ch.state(phase, True, "it has open work")
+        elif not busy and phase["state"] == "OPEN":
+            ch.state(phase, False, "everything in it is done")
+        if phase["state"] != "OPEN":
+            continue
+        horizons = [i["values"].get("horizon") for i in items if i["values"].get("horizon") in p.horizons]
+        sums = {"horizon": min(horizons, key=p.horizons.index) if horizons else None}
+        for key, pick in (("order", min), ("start", min), ("target", max)):
+            if p.fields.get(key):
+                got = [i["values"].get(key) for i in items if i["values"].get(key) is not None]
+                sums[key] = pick(got) if got else None
+        for key, value in sums.items():
+            if value is not None and phase["values"].get(key) != value:
+                ch.value(phase, key, value, "from its items")
+        body = p.render_phase(milestone, pages)
+        if phase["body"].replace("\r", "").strip() != body.strip():
+            ch.body(phase, body, "description written")
+
+    # Closed issues are Done on the board (an open one's Status is its own).
+    status = p.board_fields.get(p.fields.get("status") or "")
+    if status and p.done in {o["name"] for o in status.get("options", [])}:
+        for i in sorted(p.issues.values(), key=lambda i: i["number"]):
+            if i["state"] == "CLOSED" and i["item"] and i["values"].get("status") != p.done:
+                ch.value(i, "status", p.done, "it's closed")
+        for item in p.board_items():
+            if item["number"] in p.issues or item["state"] != "CLOSED" or item["status"] == p.done:
+                continue
+            i = {"id": None, "number": item["number"], "title": "", "state": "CLOSED", "body": "", "parent": None,
+                 "labels": set(), "milestone": None, "item": item["item"], "values": {"status": item["status"]}}
+            p.issues[item["number"]] = i
+            ch.value(i, "status", p.done, "it's closed")
+
+    # The root's description.
+    body = p.render_root(pages)
+    if root["body"].replace("\r", "").strip() != body.strip():
+        ch.body(root, body, "the plan's description written")
+    ch.write()
+    return ch
+
+
+def write_files(plan: Plan, pages: dict[str, dict], dry: bool) -> list[str]:
+    """The pages' Status lines and the index, from GitHub."""
+    said = []
+    for page in pages.values():
+        milestone = page["milestone"]
+        if milestone not in plan.milestones:
+            continue
+        status, why = plan.status(milestone)
+        if status and page["status"] != status:
+            said.append(f"{page['file']}: Status {status}, was {page['status'] or 'empty'} ({why})")
+            if not dry:
+                lines = page["text"].split("\n")
+                at = next((n for n, l in enumerate(lines) if PLAN_LINE.match(l)), None)
+                if at is None:
+                    continue
+                lines[at] = plan.line(milestone)
+                (plan.p.root / page["file"]).write_text("\n".join(lines), encoding="utf-8")
+    path = plan.p.root / plan.index
+    text = plan.render_index(pages)
+    if not path.exists() or path.read_text(encoding="utf-8") != text:
+        said.append(f"{plan.index}: written")
+        if not dry:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+    return said
+
+
+def setup(plan: Plan, pages: dict[str, dict], dry: bool) -> list[str]:
+    """A new project's board, milestones and pages' lines (plan init)."""
+    p, said = plan, []
+    # The board's fields.
+    wanted = {"level": ("SINGLE_SELECT", LEVELS), "order": ("NUMBER", None),
+              "horizon": ("SINGLE_SELECT", ("Now", "Next", "Later")), "start": ("DATE", None),
+              "target": ("DATE", None)}
+    for key, (kind, options) in wanted.items():
+        name = p.fields.get(key)
+        if not name or name in p.board_fields:
+            continue
+        said.append(f"the board: field \"{name}\" made" + (f" ({', '.join(options)})" if options else ""))
+        if dry:
+            p.board_fields[name] = {"id": None, "name": name, "dataType": kind,
+                                    "options": [{"id": None, "name": o} for o in options or ()]}
+            continue
+        choices = ""
+        if options:
+            choices = ", singleSelectOptions: [" + ", ".join(
+                f"{{ name: {q(o)}, color: {COLORS.get(o, 'GRAY')}, description: \"\" }}" for o in options) + "]"
+        made = gh_graphql(f"mutation {{ createProjectV2Field(input: {{ projectId: {q(p.board_id)}, dataType: {kind}, "
+                          f"name: {q(name)}{choices} }}) {{ projectV2Field {{ ... on ProjectV2FieldCommon "
+                          "{ id databaseId name dataType } ... on ProjectV2SingleSelectField { options { id name } } "
+                          "} } }", retry=False)
+        p.board_fields[name] = made["createProjectV2Field"]["projectV2Field"]
+    horizon = p.board_fields.get(p.fields["horizon"] or "", {})
+    p.horizons = [o["name"] for o in horizon.get("options", [])]
+    # A milestone for each page, and each page's line.
+    for page in pages.values():
+        milestone = page["milestone"] or page["title"]
+        if milestone and milestone not in p.milestones:
+            said.append(f"milestone \"{milestone}\": made, for {page['file']}")
+            if dry:
+                p.milestones[milestone] = {"id": None, "number": 0, "title": milestone, "state": "OPEN", "dueOn": None}
+            else:
+                made = gh_rest("POST", f"repos/{p.p.repo}/milestones", {"title": milestone}, retry=False)
+                p.milestones[milestone] = {"id": made["node_id"], "number": made["number"], "title": milestone,
+                                           "state": "OPEN", "dueOn": None}
+        if page["milestone"] is None and milestone:
+            said.append(f"{page['file']}: its Milestone line, \"{milestone}\"")
+            page["milestone"] = milestone
+            if not dry:
+                lines = page["text"].split("\n")
+                title = next((n for n, l in enumerate(lines) if l.startswith("# ")), -1)
+                status = "Now" if p.horizons else "Done"
+                lines[title + 1:title + 1] = ["", f"**Milestone:** {milestone} · **Status:** {status}"]
+                page["text"] = "\n".join(lines)
+                page["status"] = status
+                (p.p.root / page["file"]).write_text(page["text"], encoding="utf-8")
+    return said
+
+
+def views(plan: Plan, dry: bool) -> list[str]:
+    """The plan's three views of the board, made or their filters put right."""
+    p, said = plan, []
+    f = {key: p.board_fields.get(name) for key, name in p.read_fields().items()}
+    ms = p.board_fields.get("Milestone")
+    order = (f.get("order") or {}).get("databaseId")
+    title = (p.board_fields.get("Title") or {}).get("databaseId")
+    shown = [x for x in (title, order, (f.get("level") or {}).get("databaseId"),
+                         (ms or {}).get("databaseId")) if x]
+    wanted = [
+        {"name": "Now · Next · Later", "layout": "board", "filter": f"is:open {p.fields['level'].lower()}:Item",
+         "vertical_group_by": [(f.get("horizon") or {}).get("databaseId")]},
+        {"name": "Roadmap", "layout": "roadmap", "filter": f"is:open {p.fields['level'].lower()}:Phase,Item",
+         "group_by": [(ms or {}).get("databaseId")]},
+        {"name": "In order", "layout": "table", "filter": f"is:open {p.fields['level'].lower()}:Item,Step",
+         "group_by": [(f.get("horizon") or {}).get("databaseId")]},
+    ]
+    have = {v["name"]: v for v in p.views}
+    for view in wanted:
+        old = have.get(view["name"])
+        if old:
+            if old.get("filter") != view["filter"]:
+                said.append(f"the board's view \"{view['name']}\": filter \"{view['filter']}\" (was \"{old.get('filter')}\")")
+                if not dry:
+                    gh_graphql(f"mutation {{ updateProjectV2View(input: {{ viewId: {q(old['id'])}, "
+                               f"filter: {q(view['filter'])} }}) {{ clientMutationId }} }}")
+            continue
+        said.append(f"the board's view \"{view['name']}\": made ({view['filter']})")
+        if dry:
+            continue
+        body = {k: v for k, v in view.items() if not (isinstance(v, list) and not all(v))}
+        if order:
+            body["sort_by"] = [[order, "asc"]]
+        if shown:
+            body["visible_fields"] = shown
+        kind = "orgs" if p.owner_kind == "Organization" else "users"
+        gh_rest("POST", f"{kind}/{p.board_owner}/projectsV2/{p.board_number}/views", body, retry=False)
+    return said
 
 
 def plan(project: Project, rest: list[str]) -> int:
     what = rest[0] if rest else ""
-    if what not in ("check", "index", "status"):
-        fail("usage: docs-kit plan check | plan index [--check] | plan status [--write]")
+    commands = ("check", "sync", "init", "index", "status")
+    if what not in commands:
+        fail("usage: docs-kit plan init|sync [--dry-run] | plan check | plan index [--check] | plan status [--write]")
+    dry = "--dry-run" in rest
     p = Plan(project)
     pages = p.pages()
     p.load()
@@ -1069,17 +1763,45 @@ def plan(project: Project, rest: list[str]) -> int:
                 (project.root / page["file"]).write_text("\n".join(lines), encoding="utf-8")
         return 0
 
+    said: list[str] = []
+    if what == "init":
+        said += setup(p, pages, dry)
+        said += views(p, dry)
+    blocking = p.field_problems()
+    if what in ("sync", "init") and blocking:
+        print("docs-kit plan: can't sync until these are put right:")
+        print("\n".join(f"  - {x}" for x in blocking))
+        return 1
+    said += sync(p, pages, dry=dry or what == "check").said
+    said += write_files(p, pages, dry=dry or what == "check")
     problems = p.problems(pages)
-    if not problems:
-        plans = len(p.plans())
-        print(f"docs-kit plan: {len(pages)} pages, {len(p.milestones)} milestones, {plans} plans "
-              f"and {p.index} agree with GitHub")
-        return 0
-    print(f"docs-kit plan: the plan's pages and GitHub don't agree ({len(problems)}):")
-    print("\n".join(f"  - {problem}" for problem in problems))
-    print("Change whichever is wrong, GitHub or the pages, so they agree, in the same pull request or session. "
-          "`docs-kit plan status --write` sets the pages' Status lines; `docs-kit plan index` writes the index.")
-    return 1
+
+    if what == "check":
+        if not said and not problems:
+            print(f"docs-kit plan: {len(pages)} pages, {len(p.milestones)} milestones, {len(p.plans())} items, "
+                  f"the issues, the board and {p.index} agree")
+            return 0
+        if problems:
+            print(f"docs-kit plan: the plan's pages and GitHub don't agree ({len(problems)}):")
+            print("\n".join(f"  - {x}" for x in problems))
+        if said:
+            print(f"docs-kit plan: `docs-kit plan sync` would change ({len(said)}):")
+            print("\n".join(f"  - {x}" for x in said))
+        print("Put right what the plan says, on GitHub or in the pages, in this session; then "
+              "`docs-kit plan sync` makes the rest follow, and `docs-kit plan check` passes.")
+        return 1
+
+    verb = "would change" if dry else "changed"
+    if said:
+        print(f"docs-kit plan {what}: {verb} ({len(said)}):")
+        print("\n".join(f"  - {x}" for x in said))
+    else:
+        print(f"docs-kit plan {what}: nothing to change")
+    if problems:
+        print(f"Still to put right by hand ({len(problems)}):")
+        print("\n".join(f"  - {x}" for x in problems))
+        return 1
+    return 0
 
 
 # --------------------------------------------------------------------------
