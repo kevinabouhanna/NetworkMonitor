@@ -1,15 +1,12 @@
 import SwiftUI
 
 /// A list the keyboard moves through as one stop (#546), as Ads and
-/// Trackers' is (#536): Tab reaches the list, ↑ and ↓ move from row to row,
-/// → and ← open and close one (← from a row inside goes back up to the one
-/// it's in), and Space or Return does what a click on the row does.
-///
-/// Usage History's and Connections' lists, where a click narrows the window
-/// to the row, so moving can't choose as it does in Ads and Trackers: the
-/// list would narrow to the first row. The keyboard has a row of its own,
-/// marked while the list has focus, and VoiceOver reads it as the list's
-/// value.
+/// Trackers' is (#536): Tab reaches the list, ↑ and ↓ move a ring from row to
+/// row, → and ← open and close one (← from a row inside goes back up to the
+/// one it's in), Space does what a click on the row does (opens or closes
+/// it), and Return what its Filter button does (#593). Moving never filters:
+/// the keyboard has a row of its own, marked while the list has focus, and
+/// VoiceOver reads it as the list's value.
 struct KeyRow: Equatable {
     /// The row's `.id` in the list, which `ScrollViewReader` scrolls to.
     let id: String
@@ -19,6 +16,11 @@ struct KeyRow: Equatable {
     var parent: String? = nil
     /// nil for a row with nothing to open; otherwise whether it's open.
     var isOpen: Bool? = nil
+    /// Its name alone, for what VoiceOver hears as a filter goes on or off.
+    var name: String = ""
+    /// nil for a row that can't filter (a heading: System); otherwise
+    /// whether the window is filtered to it.
+    var isFiltered: Bool? = false
 }
 
 /// The row the keyboard is on, and whether the list has focus, which the
@@ -32,11 +34,12 @@ final class ListCursor: ObservableObject {
 
 extension View {
     /// Makes the list one stop the keys move through. `rows` are the rows
-    /// shown, in order; `name` is what VoiceOver calls the list.
+    /// shown, in order; `name` is what VoiceOver calls the list. `open` opens
+    /// or closes a row; `filter` filters the window to it, or lets go.
     func listKeys(_ rows: [KeyRow], cursor: ListCursor, name: String, proxy: ScrollViewProxy,
                   open: @escaping (KeyRow, Bool) -> Void,
-                  choose: @escaping (KeyRow) -> Void) -> some View {
-        modifier(ListKeys(rows: rows, cursor: cursor, name: name, proxy: proxy, open: open, choose: choose))
+                  filter: @escaping (KeyRow) -> Void) -> some View {
+        modifier(ListKeys(rows: rows, cursor: cursor, name: name, proxy: proxy, open: open, filter: filter))
     }
 }
 
@@ -46,7 +49,7 @@ private struct ListKeys: ViewModifier {
     let name: String
     let proxy: ScrollViewProxy
     let open: (KeyRow, Bool) -> Void
-    let choose: (KeyRow) -> Void
+    let filter: (KeyRow) -> Void
     /// A property wrapper, not a macro like `@State`, so it builds with
     /// Command Line Tools.
     @FocusState private var isFocused: Bool
@@ -60,9 +63,31 @@ private struct ListKeys: ViewModifier {
             .modifier(NoFocusRing())
             .onChange(of: isFocused) { cursor.hasFocus = $0 }
             .onMoveCommand(perform: move)
-            .modifier(ActivateKeys { if let index { choose(rows[index]) } else if let first = rows.first { go(first.id) } })
+            .modifier(RowKeys(space: { if let index { toggle(rows[index]) } else { goFirst() } },
+                              return: { if let index { filterRow(rows[index]) } else { goFirst() } }))
             .accessibilityLabel(name)
             .accessibilityValue(index.map { rows[$0].spoken } ?? "")
+            // The ring's row offers its Filter and its ▸ as actions too
+            // (VO-⌘-Space), as its buttons do under the pointer.
+            .modifier(RowActions(row: index.map { rows[$0] }, open: toggle, filter: filterRow))
+    }
+
+    private func goFirst() {
+        if let first = rows.first { go(first.id) }
+    }
+
+    /// Space: what a click on the row does. A row with nothing inside only
+    /// keeps the ring.
+    private func toggle(_ row: KeyRow) {
+        guard let isOpen = row.isOpen else { return }
+        withAnimation(.easeInOut(duration: 0.15)) { open(row, !isOpen) }
+    }
+
+    /// Return: what the row's Filter button does, said aloud.
+    private func filterRow(_ row: KeyRow) {
+        guard let isFiltered = row.isFiltered else { return }
+        filter(row)
+        ListAnnouncement.filter(row.name.isEmpty ? row.spoken : row.name, isOn: !isFiltered)
     }
 
     private func go(_ id: String) {
@@ -116,15 +141,39 @@ struct NoFocusRing: ViewModifier {
     }
 }
 
-/// Space and Return, where macOS has `onKeyPress` (14 on).
-struct ActivateKeys: ViewModifier {
-    let action: () -> Void
+/// Space and Return, each its own (#593), where macOS has `onKeyPress` (14
+/// on).
+struct RowKeys: ViewModifier {
+    let space: () -> Void
+    let `return`: () -> Void
 
     func body(content: Content) -> some View {
         if #available(macOS 14, *) {
-            content.onKeyPress(keys: [.space, .return]) { _ in
-                action()
-                return .handled
+            content
+                .onKeyPress(.space) { space(); return .handled }
+                .onKeyPress(.return) { self.return(); return .handled }
+        } else {
+            content
+        }
+    }
+}
+
+/// The ring's row's Filter and ▸, as VoiceOver actions on the list (macOS
+/// 14 on, where actions can come and go with the row).
+private struct RowActions: ViewModifier {
+    let row: KeyRow?
+    let open: (KeyRow) -> Void
+    let filter: (KeyRow) -> Void
+
+    func body(content: Content) -> some View {
+        if #available(macOS 14, *) {
+            content.accessibilityActions {
+                if let row, let isFiltered = row.isFiltered {
+                    Button(isFiltered ? L("Remove Filter") : L("Filter")) { filter(row) }
+                }
+                if let row, let isOpen = row.isOpen {
+                    Button(isOpen ? L("Collapse") : L("Expand")) { open(row) }
+                }
             }
         } else {
             content
