@@ -17,6 +17,8 @@
 #
 # Usage:
 #   docs-kit check [base]          docs changed with the feature? (base: origin/main)
+#   docs-kit todo [base] [--json]  the paragraphs a change asks for: each page and heading (and its
+#                                  copies) that says a text the change rewords, and the new text
 #   docs-kit site <site checkout>  the website's docs pages
 #   docs-kit wiki <wiki checkout> [commit]
 #   docs-kit anchors               every page's address and headings, as JSON
@@ -49,7 +51,7 @@ import sys
 import time
 import unicodedata
 
-VERSION = "2.3.0"
+VERSION = "2.9.0"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -364,6 +366,116 @@ def check(project: Project, base: str) -> int:
     print("If the docs really don't need it, add a line to the pull request's description, then run the check again:")
     print(f"  {phrase}: <why>")
     return 1
+
+
+# --------------------------------------------------------------------------
+# docs-kit todo: the paragraphs a change asks for, not whole pages (product-kit#39)
+
+LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
+
+
+def literals(line: str) -> list[str]:
+    """The text a changed line says: its quoted strings with a letter in them."""
+    out = []
+    for m in LITERAL.finditer(line):
+        text = m.group(1).replace('\\"', '"').replace("\\n", " ").replace("\\\\", "\\")
+        if len(text) >= 3 and re.search(r"[^\W\d_]", text) and not re.fullmatch(r"[\w.]+\.[a-z]{2,4}", text):
+            out.append(text)
+    return out
+
+
+def headings_of(lines: list[str]) -> list[tuple[int, str]]:
+    """(line number, heading) for each Markdown heading, outside code blocks."""
+    found, fenced = [], False
+    for n, line in enumerate(lines, 1):
+        if line.startswith("```"):
+            fenced = not fenced
+        elif not fenced and re.match(r"#{1,6} ", line):
+            found.append((n, line.strip()))
+    return found
+
+
+def todo(project: Project, base: str, as_json: bool) -> int:
+    rules = project.config.get("check", {}).get("needs_docs", [])
+    if not rules:
+        print(f"docs-kit todo: nothing in {CONFIG}'s check.needs_docs, so nothing to look for")
+        return 0
+    start, files = changes(project, base)
+    gone: dict[str, set[str]] = {}
+    new: dict[str, set[str]] = {}
+    for _, file in files:
+        rule = next((r for r in rules if matches(file, r.get("paths", [])) and not matches(file, r.get("except", []))), None)
+        if not rule:
+            continue
+        tracked = subprocess.run(["git", "cat-file", "-e", f"{start}:{file}"], cwd=project.root,
+                                 capture_output=True).returncode == 0
+        diff = git("diff", "--unified=0", start, "--", file, root=project.root) if tracked else ""
+        pattern = rule.get("lines")
+        for line in diff.splitlines():
+            if line.startswith(("+++", "---")) or line[:1] not in "+-":
+                continue
+            if pattern and not re.search(pattern, line[1:]):
+                continue
+            for text in literals(line[1:]):
+                (gone if line[0] == "-" else new).setdefault(text, set()).add(file)
+    both = set(gone) & set(new)
+    gone = {t: f for t, f in gone.items() if t not in both}
+    new = {t: f for t, f in new.items() if t not in both}
+
+    # The pages for users, in English, and where each heading is in each language's copy.
+    english = [f for f in project.tracked() if project.for_users(f) and project.language(f) is None]
+    if (project.root / "README.md").exists():
+        english.append("README.md")
+    found = []
+    for text, sources in sorted(gone.items()):
+        # A text with a value in it (`%@`, `{count}`) is found by its longest fixed part.
+        needle = max(re.split(r"%(?:\d+\$)?(?:@|l{0,2}[duf]|\.\d+f)|\{[^}]*\}", text), key=len).strip()
+        if len(needle) < 4:
+            found.append({"text": text, "in": sorted(sources), "said": []})
+            continue
+        places = []
+        for page in english:
+            lines = (project.root / page).read_text(encoding="utf-8", errors="replace").split("\n")
+            heads = headings_of(lines)
+            for n, line in enumerate(lines, 1):
+                if needle in line:
+                    index = sum(1 for h, _ in heads if h <= n) - 1
+                    heading = heads[index][1] if index >= 0 else "(before the first heading)"
+                    copies = []
+                    for code in project.languages:
+                        copy = f"README.{code}.md" if page == "README.md" else \
+                            f"{project.docs}/{code}/{pathlib.PurePosixPath(page).name}"
+                        if (project.root / copy).exists() and index >= 0:
+                            theirs = headings_of((project.root / copy).read_text(encoding="utf-8", errors="replace").split("\n"))
+                            if index < len(theirs):
+                                copies.append(f"{copy}:{theirs[index][0]} {theirs[index][1]}")
+                    places.append({"page": f"{page}:{n}", "heading": heading, "copies": copies})
+                    break
+        found.append({"text": text, "in": sorted(sources), "said": places})
+    added = [{"text": t, "in": sorted(f)} for t, f in sorted(new.items())]
+    if as_json:
+        print(json.dumps({"changed": found, "new": added}, indent=1, ensure_ascii=False))
+        return 0
+    if not found and not added:
+        print("docs-kit todo: no text the app shows changed")
+        return 0
+    if found:
+        print("docs-kit todo: the docs that say what changed; change these paragraphs, and their copies:")
+        for item in found:
+            print(f"  \"{item['text']}\" (gone or reworded, {', '.join(item['in'])})")
+            if not item["said"]:
+                print("    no page says it")
+            for place in item["said"]:
+                print(f"    {place['page']} › {place['heading']}")
+                for copy in place["copies"]:
+                    print(f"      {copy}")
+    if added:
+        print("New text the app shows; say it on the page for its window, if a user would look for it:")
+        for item in added[:30]:
+            print(f"  \"{item['text']}\" ({', '.join(item['in'])})")
+        if len(added) > 30:
+            print(f"  and {len(added) - 30} more")
+    return 0
 
 
 # --------------------------------------------------------------------------
@@ -2164,6 +2276,9 @@ def main(argv: list[str]) -> int:
     project = Project.find(config)
     if command == "check":
         return check(project, rest[0] if rest else "origin/main")
+    if command == "todo":
+        bases = [a for a in rest if not a.startswith("--")]
+        return todo(project, bases[0] if bases else "origin/main", "--json" in rest)
     if command == "site":
         if len(rest) not in (1, 2):
             fail("usage: docs-kit site <site checkout> [commit]")
@@ -2183,7 +2298,7 @@ def main(argv: list[str]) -> int:
         return vendor(project, "--check" in rest)
     if command == "plan":
         return plan(project, rest)
-    fail(f"no command {command!r}: check, site, wiki, anchors, plan, vendor, init, version")
+    fail(f"no command {command!r}: check, todo, site, wiki, anchors, plan, vendor, init, version")
     return 2
 
 

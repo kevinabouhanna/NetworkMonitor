@@ -39,10 +39,15 @@ through without asking. What's particular to NetworkMonitor:
   - Releases stay on GitHub's Release workflow: the signing, notary and Sparkle keys are
     GitHub secrets, not on this Mac.
 - **Release it and update the app on this Mac.**
+  - **`product-kit status --release` is the checklist** (product-kit#47): run it before tagging
+    and again once the release is published. It lists each step below that's still due (the
+    notes in every language, the site's docs, the facts, the pictures and their alt text, the
+    scripted videos, the native review), with the command for each, and fails on what's broken.
+    The rest of this list is what only a person, or this Mac's keys, can do.
   - Write its What's new in `ReleaseNotes/X.Y.Z.md`, merged with a pull
     request before tagging: short bullets, each a bold lead and the issue,
-    with no `]]>`. The Release workflow fails without it, and puts it both in
-    the update window and in the release notes.
+    with no `]]>` (`product-kit notes v<last tag>` lists what's new). The Release workflow
+    fails without it, and puts it both in the update window and in the release notes.
   - Before tagging, `gh-actions can-run` (seconds: the Actions billing, or the no-op
     `canary.yml`; kept an hour). If it says no, stop and tell Kevin: without the signing keys
     on this Mac there's no local release, and keys are never copied around.
