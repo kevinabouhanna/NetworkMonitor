@@ -11,7 +11,7 @@ lists everything open in order; it's written from GitHub, never by hand.
 
 ## Where we are
 
-Shipped, as of 1.30.2 (11 Nov 2026):
+Shipped, as of 1.31.0 (14 Nov 2026):
 
 - the menu bar readout (or a Dock icon instead) and its popover;
 - which apps used the data, on which networks, by day, week, month or year;
@@ -22,10 +22,10 @@ Shipped, as of 1.30.2 (11 Nov 2026):
 - signed with a Developer ID, notarized, and updating itself; a Homebrew tap; the website, with
   its docs pages and pictures kept current by tools.
 
-Merged since, not released yet: all of phase 1 (the popover's one height, the three lists that
-behave alike, the VoiceOver and keyboard checks), **Pause** ad blocking from the menu bar, and
-your own **Rules** beside Traffic and Blocked. Releases were on hold from 11 Nov 2026 (#559)
-until Kevin said release on 14 Nov: they go out in 1.31.0 (#643), first in the order.
+1.31.0 (#643) brought all of phase 1 (the popover's one height, the three lists that behave
+alike, the VoiceOver and keyboard checks), **Pause** ad blocking from the menu bar, and your own
+**Rules** beside Traffic and Blocked, with its notes in Chinese too in the update window (#640).
+Releases were on hold from 11 to 14 Nov 2026 (#559); releasing is routine again.
 
 ## Phases
 
@@ -61,8 +61,8 @@ promises; keep them current when the plan changes.
 
 Why this order (13 Nov 2026, #605; reviewed the same day, #644):
 
-1. **Finished work reaches people first**: 1.31.0 (#643) holds all of phase 1, Pause (#600)
-   and Rules (#592), merged and waiting. It goes when Kevin says (#559).
+1. **Finished work reaches people first**: 1.31.0 (#643) took all of phase 1, Pause (#600)
+   and Rules (#592) out on 14 Nov, the day Kevin said release (#559). Done.
 2. **Then the feature that makes ad blocking good**: Enhanced ad blocking (#256), because it's
    what a launch will be judged on. Alongside, in the tooling item (#606), the window tests that
    fail while the screen is locked (#626), which stop every push while Kevin is away.
