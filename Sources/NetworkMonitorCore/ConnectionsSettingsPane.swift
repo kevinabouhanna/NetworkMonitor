@@ -146,8 +146,9 @@ struct ConnectionsSettingsPane: View {
                 HStack(spacing: 8) {
                     Button(L("Show Rules…"), action: onShowRules)
                         .help(L("Your rules, in Connections, with what each did"))
-                    Button(L("Export…"), action: exportRules).disabled(firewall.rules.isEmpty)
+                    // In the same order as Ads and Trackers' (#592).
                     Button(L("Import…"), action: importRules)
+                    Button(L("Export…"), action: exportRules).disabled(firewall.rules.isEmpty)
                 }
             } label: {
                 Text(L("Your rules"))

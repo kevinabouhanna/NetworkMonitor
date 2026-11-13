@@ -186,7 +186,7 @@ anything:
   setting instead. What it stopped shows under Blocked.
 - **Never blocked:** the local network, looking up names (DNS), the clock, and getting an
   address. Without them nothing else works.
-- **Export… and Import…** in Connections' settings, beside **Show Rules…** (#201), save
+- **Import… and Export…** in Connections' settings, beside **Show Rules…** (#201), save
   every rule to a JSON file, for a backup or another Mac. Import adds the rules that aren't there yet,
   never replaces one that is, and says how many it added.
 - **Block Everything,** in the menu bar item's right-click menu (#198), stops every app's
@@ -290,7 +290,7 @@ and the toolbar's search (⌘F) covers both.
     bar's count for it. On a row inside one, it shows only that site in that app. Its
     button then reads **Filtered ✕**; that, its chip, or Escape (after a picked bar's)
     lets it go.
-  - **Right-click** a row, as in the Log: never or always block its site, in every app or
+  - **Right-click** a row, as in the Log: block or always allow its site, in every app or
     only its app, stop filtering its app, remove a rule you made about it, or copy its
     name.
   - **The keyboard**, as in Usage History and Connections: Tab reaches the list as one

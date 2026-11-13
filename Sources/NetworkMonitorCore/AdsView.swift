@@ -17,7 +17,7 @@ struct AdsView: View {
             scopeBar
                 .padding(.horizontal, ScopeMetrics.inset)
                 .padding(.top, ScopeMetrics.top)
-            if model.tab == .log { Spacer().frame(height: ScopeMetrics.below) }
+            if model.tab != .overview { Spacer().frame(height: ScopeMetrics.below) }
             page
         }
         .frame(minWidth: AdsMetrics.minWidth, minHeight: AdsMetrics.minHeight)
@@ -43,8 +43,9 @@ struct AdsView: View {
         HStack(spacing: 10) {
             LabelledControl(L("Show")) {
                 GlassSegmented(name: L("Show"), options: AdsViewModel.Tab.allCases, selection: $model.tab,
-                               label: { $0.label }, size: .small,
-                               help: L("What was blocked, and every connection as it's decided"))
+                               label: { $0 == .rules ? L("Rules (%@)", String(model.ruleCount)) : $0.label },
+                               size: .small,
+                               help: L("What was blocked, every connection as it's decided, and your rules"))
             }
             // The toolbar's search, as a filter like the others (#436).
             let query = model.logSearch.trimmingCharacters(in: .whitespaces)
@@ -64,6 +65,8 @@ struct AdsView: View {
             if model.tab == .log {
                 Divider().frame(height: 16)
                 AdsLogControls(model: model)
+            } else if model.tab == .rules {
+                Spacer(minLength: 12)
             } else {
                 Spacer(minLength: 12)
                 // Sites or Apps, where Connections and Usage History have All ·
@@ -82,6 +85,9 @@ struct AdsView: View {
         VStack(spacing: 0) {
             if model.tab == .log {
                 AdsLogView(model: model)
+            } else if model.tab == .rules {
+                // Your rules (#592), as Connections lists its own.
+                AdsRulesPage(model: model)
             } else if !model.isOn {
                 off
             } else {
@@ -506,15 +512,17 @@ private struct AdsRowMenu: View {
         // Never block wouldn't let it through past a malware list (#317).
         let neverBlocks = lists.isEmpty || !lists.allSatisfy(ListCatalogue.isThreat)
         if let site {
+            Button(L("Block “%@”", site)) { model.setSite(.alwaysBlock, site: site, app: nil) }
             if neverBlocks {
-                Button(L("Never Block %@", site)) { model.setSite(.neverBlock, site: site, app: nil) }
+                Button(L("Always Allow “%@”", site)) { model.setSite(.neverBlock, site: site, app: nil) }
             }
-            Button(L("Always Block %@", site)) { model.setSite(.alwaysBlock, site: site, app: nil) }
             if let app {
+                Button(L("Block “%@” in %@", site, app.name)) { model.setSite(.alwaysBlock, site: site, app: app) }
                 if neverBlocks {
-                    Button(L("Never Block %@ in %@", site, app.name)) { model.setSite(.neverBlock, site: site, app: app) }
+                    Button(L("Always Allow “%@” in %@", site, app.name)) {
+                        model.setSite(.neverBlock, site: site, app: app)
+                    }
                 }
-                Button(L("Always Block %@ in %@", site, app.name)) { model.setSite(.alwaysBlock, site: site, app: app) }
             }
         }
         if let app {
@@ -846,18 +854,18 @@ struct AdsLogView: View {
         if let name = entry.name {
             ForEach(FirewallRules.siteScopes(for: name), id: \.self) { site in
                 Section(site == name ? site : L("%@ and every name under it", site)) {
+                    Button(L("Block “%@”", site)) { model.setSite(.alwaysBlock, site: site, app: nil) }
                     if neverBlocks {
-                        Button(L("Never Block %@", site)) { model.setSite(.neverBlock, site: site, app: nil) }
+                        Button(L("Always Allow “%@”", site)) { model.setSite(.neverBlock, site: site, app: nil) }
                     }
-                    Button(L("Always Block %@", site)) { model.setSite(.alwaysBlock, site: site, app: nil) }
                     if let app {
+                        Button(L("Block “%@” in %@", site, app.name)) {
+                            model.setSite(.alwaysBlock, site: site, app: app)
+                        }
                         if neverBlocks {
-                            Button(L("Never Block %@ in %@", site, app.name)) {
+                            Button(L("Always Allow “%@” in %@", site, app.name)) {
                                 model.setSite(.neverBlock, site: site, app: app)
                             }
-                        }
-                        Button(L("Always Block %@ in %@", site, app.name)) {
-                            model.setSite(.alwaysBlock, site: site, app: app)
                         }
                     }
                 }

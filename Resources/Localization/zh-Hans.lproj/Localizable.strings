@@ -76,7 +76,6 @@
 "%@ of them %@" = "其中 %2$@ %1$@ 次";
 "View" = "视图";
 "Sites" = "网站";
-"Never Block %@" = "永不阻止 %@";
 "Apps" = "应用";
 "Don't Filter Ads in %@" = "不过滤 %@ 中的广告";
 "%@ blocked" = "已拦截 %@ 次";
@@ -111,9 +110,6 @@
 "Export…" = "导出…";
 "Save what's shown as a text file" = "将显示的内容存储为文本文件";
 "%@ and every name under it" = "%@ 及其下的所有名称";
-"Always Block %@" = "始终阻止 %@";
-"Never Block %@ in %@" = "在 %2$@ 中永不阻止 %1$@";
-"Always Block %@ in %@" = "在 %2$@ 中始终阻止 %1$@";
 "Remove Your Rule: %@" = "移除你的规则：%@";
 "Copy Name" = "拷贝名称";
 "Copy Address" = "拷贝地址";
@@ -372,7 +368,6 @@
 "Group by" = "分组方式";
 "Group the list by company, app or country. A row inside a group narrows the window to it." = "按公司、应用或国家或地区对列表分组。点按组内的一行，窗口将只显示该项。";
 "Traffic" = "流量";
-"What your apps sent and received, or the connections that were blocked" = "你的应用发送和接收的数据，或被阻止的连接";
 "Every connection, Wi-Fi only, or hotspots only" = "所有连接、仅 Wi-Fi 或仅热点";
 "to and from servers" = "与服务器往来";
 "connection blocked" = "个连接被阻止";
@@ -841,7 +836,6 @@
 "Update the lists weekly" = "每周更新列表";
 "Usage History never leaves this Mac. Clearing it can't be undone." = "流量历史不会离开这台 Mac。清除后无法撤销。";
 "What the Mac is connected to, and whether it's a hotspot" = "这台 Mac 连接的网络，以及它是否是热点";
-"What was blocked, and every connection as it's decided" = "拦截了什么，以及每个连接在作出决定时的情况";
 "Which companies, countries and servers your apps talk to, on a list and a world map" = "以列表和世界地图显示你的应用与哪些公司、国家或地区以及服务器通信";
 "Not tested yet" = "尚未测试";
 "Test Speed" = "测试网速";
@@ -1006,3 +1000,10 @@
 "Your rules, in Connections, with what each did" = "你的规则，在“连接”中，以及每条做了什么";
 "rule" = "条规则";
 "rules" = "条规则";
+
+/* Rules, in Connections and Ads and Trackers (#592) */
+"Rules (%@)" = "规则（%@）";
+"What your apps sent and received, the connections that were blocked, or your rules" = "你的应用发送和接收的数据、被阻止的连接，或你的规则";
+"What was blocked, every connection as it's decided, and your rules" = "拦截了什么、每个连接在作出决定时的情况，以及你的规则";
+"Block “%@” in %@" = "在 %2$@ 中阻止“%1$@”";
+"Always Allow “%@” in %@" = "在 %2$@ 中始终允许“%1$@”";

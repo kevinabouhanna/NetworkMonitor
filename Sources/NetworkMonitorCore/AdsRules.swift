@@ -45,6 +45,12 @@ struct AdsRulesPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // When, how many, and whether they apply now, as Connections'
+            // Rules say theirs.
+            PeriodHeading(title: model.title, figure: String(model.ruleCount),
+                          caption: model.ruleCount == 1 ? L("rule") : L("rules"), details: [stateLine])
+                .padding(.horizontal, 20)
+                .padding(.bottom, 4)
             Divider()
             AddRuleBar(site: $model.newSite, app: model.newSiteApp, knownApps: model.knownApps,
                        error: model.ruleError, explanation: Self.explanation,
@@ -76,6 +82,14 @@ struct AdsRulesPage: View {
         .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
             if model.period.contains(Date()) { model.loadRulesActivity(again: true) }
         }
+    }
+
+    /// "Blocking ads", "Paused until 10:51 AM": whether the rules apply now.
+    private var stateLine: String {
+        if !model.isOn { return L("Ad blocking is off") }
+        if let until = model.pausedUntil { return L("Paused until %@", until.formatted(date: .omitted, time: .shortened)) }
+        if let network = model.pausedHere { return L("Off on %@", network) }
+        return L("Blocking ads")
     }
 
     static var explanation: String { L("A rule covers the site and every name under it: example.com covers ads.example.com. Rules change only what the ad and tracker lists do. Block stops a site no list has, and Always Allow lets a listed site through. Malware and phishing lists still block whatever these rules say. A rule for one app wins over one for every app. Connections' own rules apply too: a block there still blocks, and Always Allow on a site there lets it through.") }

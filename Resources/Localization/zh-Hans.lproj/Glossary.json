@@ -41,8 +41,8 @@
 
     { "en": "Block", "text": "阻止", "note": "a firewall rule. Ad blocking's verb is 拦截" },
     { "en": "Allow", "text": "允许", "everywhere": true },
-    { "en": "Never Block", "text": "永不阻止", "everywhere": true },
-    { "en": "Always Block", "text": "始终阻止", "everywhere": true },
+    { "en": "Never Block", "where": "docs", "text": "永不阻止", "note": "ad blocking's former name for Always Allow (#592), which the docs still mention" },
+    { "en": "Always Block", "where": "docs", "text": "始终阻止", "note": "ad blocking's former name for Block (#592), which the docs still mention" },
     { "en": "Always Allow", "text": "始终允许", "everywhere": true },
     { "en": "Block Everything", "text": "全部阻止", "everywhere": true },
     { "en": "Only Where I Allow", "text": "仅允许已授权的连接", "everywhere": true },
