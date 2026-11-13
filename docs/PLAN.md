@@ -22,8 +22,11 @@ Shipped, as of 1.30.2 (11 Nov 2026):
 - signed with a Developer ID, notarized, and updating itself; a Homebrew tap; the website, with
   its docs pages and pictures kept current by tools.
 
-**Releases are on hold** since 11 Nov 2026 (#559): what's merged waits on `main` until Kevin
-says to release. The launch needs a fresh release, so the hold lifts before phase 7.
+Merged since, not released yet: all of phase 1 (the popover's one height, the three lists that
+behave alike, the VoiceOver and keyboard checks), **Pause** ad blocking from the menu bar, and
+your own **Rules** beside Traffic and Blocked. **Releases are on hold** since 11 Nov 2026
+(#559): what's merged waits on `main` until Kevin says to release. That release, 1.31.0
+(#643), is first in the order.
 
 ## Phases
 
@@ -33,43 +36,53 @@ Each phase ends with something people use. Phase numbers are names; the order is
 | Phase | What it brings | Page |
 |---|---|---|
 | **1. Everyday polish** | The popover and the main window behave the same everywhere, without jumps; VoiceOver and keyboard checks finished | [01-everyday-polish](phases/01-everyday-polish.md) |
-| **2. Ad blocking that holds up** | Pause from the menu bar, your own rules easy to find, and Enhanced ad blocking for ads inside pages and videos | [02-ad-blocking](phases/02-ad-blocking.md) |
+| **2. Ad blocking that holds up** | Enhanced ad blocking for ads inside pages and videos (Pause from the menu bar and your own rules are done) | [02-ad-blocking](phases/02-ad-blocking.md) |
 | **3. The Chrome extension** | NetworkMonitor's own extension: in-page ads, pop-ups and YouTube ads, with the app's rules | [03-chrome-extension](phases/03-chrome-extension.md) |
-| **4. Pictures, videos and docs** | Every picture and video shows today's app; each ⓘ opens its docs page; short videos on the docs | [04-pictures-and-docs](phases/04-pictures-and-docs.md) |
-| **5. Releases people check first** | A beta channel, so Kevin and beta users see a version before everyone; the tooling kept in order | [05-releases](phases/05-releases.md) |
+| **4. Pictures, videos and docs** | Each ⓘ opens its docs page; after the new name, short videos on the docs and the launch video remade | [04-pictures-and-docs](phases/04-pictures-and-docs.md) |
+| **5. Releases people check first** | 1.31.0 out; a beta channel, so Kevin and beta users see a version before everyone; the tooling kept in order | [05-releases](phases/05-releases.md) |
 | **6. First run, name and logo** | A first run that explains every permission; a distinctive name, a stronger logo and the app's own website address | [06-first-run-and-brand](phases/06-first-run-and-brand.md) |
 | **7. The launch** | The app polished, a launch video, posts where Mac users look, and a small ads experiment | [07-launch](phases/07-launch.md) |
 | **8. Your data outside the app** | Ideas to decide: widgets, a Terminal command, asking an AI about the network | [08-data-outside-the-app](phases/08-data-outside-the-app.md) |
 
 ## The roadmap
 
-The live roadmap is the project board, https://github.com/users/kevinabouhanna/projects/4.
-Its views:
+The live roadmap is the project board, https://github.com/users/kevinabouhanna/projects/4,
+with the same tabs as home-control's (#644):
 
 - **Now · Next · Later**: a board with a column for each, the items in order in each column.
+- **Now**, **Next** and **Later**: one list each, items and their steps, in order.
+- **Inbox**: what Kevin adds by hand between sessions (below).
 - **Roadmap**: a timeline of the phases and items.
 - **In order**: every open item and step in one list, grouped Now, Next, Later.
-- **Inbox**: what Kevin adds by hand between sessions (below).
 
 Each issue has a **Level** (Plan, Phase, Item or Step, from the tree), an **Order** (its place
 in the roadmap; a step has its item's), a **Horizon** (Now, Next or Later) and rough **Start
 date** and **Target date** on each item. The dates are guesses to put the work in order, not
 promises; keep them current when the plan changes.
 
-Why this order (13 Nov 2026, #605):
+Why this order (13 Nov 2026, #605; reviewed the same day, #644):
 
-1. **What's rough every day comes first**: the popover's jump (#599) and the three windows that
-   expand and filter differently (#593), then pausing ad blocking from the menu bar (#600) and
-   a user's own rules, which they couldn't find (#592).
-2. **Then the features that make ad blocking good** (Enhanced ad blocking, #256; the Chrome
-   extension, #257), because they're what a launch will be judged on.
-3. **Then everything people see from outside**: the pictures, videos and docs (#499, #230,
-   #539), and betas so Kevin checks a version before everyone gets it (#585).
-4. **The first run after the features**, because each feature adds a permission and the first
+1. **Finished work reaches people first**: 1.31.0 (#643) holds all of phase 1, Pause (#600)
+   and Rules (#592), merged and waiting. It goes when Kevin says (#559).
+2. **Then the feature that makes ad blocking good**: Enhanced ad blocking (#256), because it's
+   what a launch will be judged on. Alongside, in the tooling item (#606), the window tests that
+   fail while the screen is locked (#626), which stop every push while Kevin is away.
+3. **Betas before Enhanced ad blocking ships** (#585): it opens secure connections, so beta
+   users and Kevin see it before everyone.
+4. **Then the ⓘ links into the docs** (#230), small and independent, **and the Chrome
+   extension** (#257), the second half of ad blocking.
+5. **The first run after the features**, because each feature adds a permission and the first
    run would be built twice otherwise (#522).
-5. **The name, logo and website before the launch**, so the launch posts use the name people
-   will search for (#582, #577).
-6. **Ideas last**: widgets, a Terminal command and an AI, each decided before anything is built.
+6. **The name, logo and website before anything that shows them**: the short videos (#539),
+   the remade launch video (#458) and the launch itself (#577), so nothing is made twice and
+   the launch posts use the name people will search for (#582).
+7. **Ideas last**: widgets, a Terminal command and an AI, each decided before anything is built.
+
+**What makes a good item** (#644): something people get, or a release that's due, named for
+what it brings. Now and Next say exactly what's being built: when an item is an umbrella with
+one real piece left, that piece becomes the item and the umbrella closes, so the board never
+shows a name that only repeats its phase. Later items can be broad, and are split as they move
+up. Now always holds the work being done or waiting on Kevin, never only the tooling item.
 
 ## How the plan is kept
 

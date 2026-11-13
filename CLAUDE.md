@@ -98,6 +98,12 @@ through without asking. What's particular to NetworkMonitor:
   (https://github.com/users/kevinabouhanna/projects/4) has the **Level** (Plan, Phase, Item,
   Step, from the tree), **Order**, **Horizon** (Now, Next, Later) and rough **Start date** and
   **Target date** on each item; steps copy their item's Order and Horizon.
+- **Now and Next say what's being built** (Kevin, 13 Nov 2026, #644: "it's organized in a
+  very bad way"). `plan check` passing isn't enough: items are what people get (or a release
+  that's due), never an umbrella that repeats its phase's name; when an umbrella has one real
+  piece left, that piece becomes the item and the umbrella closes. When something finishes,
+  the next work moves into Now in the same session, so Now never holds only #606. The rule is
+  `docs/PLAN.md#the-roadmap` ("What makes a good item").
 - **Every open issue is in the plan**, or `make plan-check` fails every pull request. A new
   issue goes in as a step of its item, or as a new item under its phase issue with an Order,
   a Horizon and dates. Tooling chores (the vendored kits, local CI, the release workflow, the
