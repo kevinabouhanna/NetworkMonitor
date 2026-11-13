@@ -9,12 +9,9 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
-| 1 | #599 Bug: the popover jumps when opening Wi-Fi, Ethernet or Hotspot | [Phase 1: Everyday polish](01-everyday-polish.md) |
-| 2 | #593 Expand, collapse and filter the same way in Usage History, Connections and Ads and Trackers | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 3 | #600 Pause ad blocking from the menu bar | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 4 | #592 Find and check my own rules from the Connections window, not only in Settings | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 5 | #525 Kevin's checks after 1.29.0: VoiceOver and keyboard | [Phase 1: Everyday polish](01-everyday-polish.md) |
-| 6 | #527 Tests: check the main window's parts in one window again | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 7 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 
 ## Next
