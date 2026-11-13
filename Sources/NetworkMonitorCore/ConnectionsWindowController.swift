@@ -14,8 +14,8 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
 
     public let window: NSWindow
     private let model: ConnectionsViewModel
-    private let layoutControl = NSSegmentedControl()
-    private let scaleControl = NSSegmentedControl()
+    private let layoutControl = ToolbarSwitch()
+    private let scaleControl = ToolbarSwitch()
     private let stepControl = NSSegmentedControl()
     /// Search, in the toolbar: a magnifying glass until it's used (#436).
     public let search = ToolbarSearch(NSToolbarItem.Identifier("search"))

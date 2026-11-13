@@ -80,8 +80,9 @@ func runKeyboardTests() {
         let model = MonitorViewModel(store: store, metering: metering)
         let connections = ConnectionsViewModel(monitor: model, defaults: defaults)
         let historyModel = HistoryViewModel(monitor: model, defaults: defaults)
+        let adsModel = AdsViewModel(monitor: model, defaults: defaults)
         let main = MainWindowController(model: model, history: historyModel,
-                                        connections: connections, ads: AdsViewModel(monitor: model, defaults: defaults))
+                                        connections: connections, ads: adsModel)
         let window = main.window
         place(window)
         main.windowDidShow()
@@ -164,6 +165,44 @@ func runKeyboardTests() {
                               "VoiceOver doesn't hear the new choice")
             KeyboardTour.press(.left, in: window)
             Check.expectEqual(historyModel.tab, before, "← didn't change it back")
+        }
+
+        // The toolbar's View in Usage History and Ads and Trackers, and Ads'
+        // Sites · Apps (#524, checked for #525): one stop each, whose choice
+        // ← and → change, and VoiceOver hears the new one.
+        // Connections' View and each Period too, the same control.
+        let switches: [(section: MainSection, name: String, role: String, choice: () -> String)] = [
+            (.history, L("View"), "AXRadioGroup", { historyModel.layout.label }),
+            (.ads, L("View"), "AXRadioGroup", { adsModel.layout.label }),
+            (.ads, L("Group by"), "AXTabGroup", { adsModel.grouping.label }),
+            (.connections, L("View"), "AXRadioGroup", { connections.layout.label }),
+            (.history, L("Period"), "AXRadioGroup", { historyModel.scale.label }),
+        ]
+        for control in switches {
+            Check.test("\(control.section.rawValue) › \(control.name) is one stop whose choice ← and → change") {
+                historyModel.layout = .both
+                adsModel.layout = .both
+                connections.layout = .both
+                historyModel.scale = .day
+                main.show(control.section)
+                settle(0.8)
+                let stops = KeyboardTour.walk(window).stops
+                let matching = stops.indices.filter { stops[$0].name == control.name && stops[$0].role == control.role }
+                guard matching.count == 1, let index = matching.first else {
+                    Check.expectTrue(false, "not one \(control.name) stop among \(stops)")
+                    return
+                }
+                window.makeFirstResponder(nil)
+                for _ in 0...index { KeyboardTour.press(.tab, in: window, settle: 0.05) }
+                let before = control.choice()
+                Check.expectEqual(KeyboardTour.focused(in: window)?.value, before, "VoiceOver doesn't hear the choice")
+                KeyboardTour.press(.right, in: window)
+                Check.expectTrue(control.choice() != before, "→ didn't change the choice")
+                Check.expectEqual(KeyboardTour.focused(in: window)?.value, control.choice(),
+                                  "VoiceOver doesn't hear the new choice")
+                KeyboardTour.press(.left, in: window)
+                Check.expectEqual(control.choice(), before, "← didn't change it back")
+            }
         }
 
         Check.test("⌘F opens search, Escape clears it then closes it, and focus goes back where it was") {

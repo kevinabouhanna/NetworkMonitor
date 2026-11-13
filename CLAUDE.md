@@ -67,7 +67,7 @@ through without asking. What's particular to NetworkMonitor:
     - the pictures: `make site-shots` once the new version is installed. It
       retakes each picture whose window's interface changed, and About, and
       updates the page (`docs/development.md#website-pictures`; it's product-kit's
-      shots-kit, vendored as `Scripts/site-shots.swift`, the `shots-kit` skill). Rewrite the alt
+      shots-kit, vendored as `Scripts/site-shots.swift`, the `product-kit` skill). Rewrite the alt
       text of any picture it retook for an interface change, from the diff it
       prints, describing the interface, not its numbers. It runs in a VM, from
       the installed copy (#561): if the new version's filter asks to be allowed
@@ -105,7 +105,7 @@ through without asking. What's particular to NetworkMonitor:
   `docs/phases/README.md`; never by hand), then `Scripts/docs-kit plan check`, which must
   pass (`make plan-check`, in local CI). If it fails on something your change didn't touch (an
   item closed since), run `plan sync` and commit the pages with your change. It's
-  product-kit's docs-kit, stage 1 (`.product-kit.json`'s `plan`; the `docs-kit` skill).
+  product-kit's docs-kit, stage 1 (`.product-kit.json`'s `plan`; the `product-kit` skill).
 - **Kevin's Inbox:** what he adds between sessions (a bug, a feature, an idea, research) is a
   draft in the board's **Inbox** view, with an optional **Kind**: not an issue, not yet in the
   plan; `plan check` only mentions it. Never take an entry in unasked. When he says **"scan
@@ -130,7 +130,7 @@ through without asking. What's particular to NetworkMonitor:
 ## Accessibility
 
 Everything in the app must work with VoiceOver. A program catches the major
-problems; Kevin answers what it can't judge (#346).
+problems; the session judges the rest itself (#346, #525).
 
 - **Checked automatically.** `make test` (so CI and the pre-push hook) builds
   every window and fails on a control with no name, a control named only by
@@ -150,15 +150,19 @@ problems; Kevin answers what it can't judge (#346).
   with `.accessibilityLabel` in plain words (what it does: "Settings", "Next",
   "Expand"). Hide an icon beside its own name with `.accessibilityHidden(true)`.
   A new window or pane goes into `AccessibilityTests.swift`.
-- **Ask Kevin what a program can't judge.** When a change adds or reshapes
-  the interface, look at what VoiceOver will read (the accessibility tree,
-  `build/site-shots tree <name>`) and decide what you can yourself. Where you
-  can't tell (a name that might not make sense to someone who can't see the
-  screen, the order things are read in, whether it can all be reached and
-  used from the keyboard), ask Kevin before merging: specific questions, all
-  at once, each saying what to try and what you expect, e.g. "With VoiceOver
-  on, open the popover and press VO-→: does it read *Speed test, button* and
-  then *Connections, button*?"
+- **Judge the rest yourself, never with a checklist for Kevin.** Kevin
+  (13 Nov 2026, #525): "you do the test. I don't want to do it manually; I
+  don't even know how. And if there's something blocking you, postpone it
+  until later." When a change adds or reshapes the interface, check what
+  VoiceOver will read and what the keyboard does yourself: the accessibility
+  tree (`build/site-shots tree <name>`), the keyboard tour (`make design-shots
+  KEYBOARD=1`), and in a VM (`mac-vm`: Keyboard navigation on, the Dock, the
+  menu bar, real clicks and keys, read with Accessibility over `mac-vm ssh`).
+  Decide whether a name makes sense to someone who can't see the screen,
+  whether the order reads well, whether it can all be reached; fix what
+  doesn't, and hold it with a test where one can. What truly can't be checked
+  here goes to a later item in the plan with what was tried, never into a
+  question for him.
 
 ## Words in the app
 
@@ -174,13 +178,13 @@ problems; Kevin answers what it can't judge (#346).
   (`docs/development.md#languages`).
 - **The docs change with the feature** (#334). `docs/` is the one source: the
   website's docs pages and the wiki are built from it by docs-kit (the `product-kit`
-  plugin's `docs-kit` skill; `Scripts/docs-kit`, `.product-kit.json`), never edited. A pull
+  plugin's `product-kit` skill; `Scripts/docs-kit`, `.product-kit.json`), never edited. A pull
   request that changes the app's text changes the page in `docs/` that describes
   it, in every language; `make docs-check` (CI) fails it otherwise, unless the
   description says `No docs needed: <why>` (`docs/development.md#the-docs`).
 - **Each language's glossary** (`<code>.lproj/Glossary.json`) names features and
   settings; `make test` holds the app's table to it (lang-kit: the `product-kit`
-  plugin's `lang-kit` skill; `Scripts/lang-kit`, `lang` in `.product-kit.json`), and the docs and site use the
+  plugin's `product-kit` skill; `Scripts/lang-kit`, `lang` in `.product-kit.json`), and the docs and site use the
   same words. `make translation-check` (CI) fails a pull request that changes an
   English page but not its copy; when that's deliberate, the description says
   `No translation needed: <why>`. A new language follows

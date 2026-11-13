@@ -11,8 +11,8 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     public let window: NSWindow
     private let model: AdsViewModel
-    private let layoutControl = NSSegmentedControl()
-    private let scaleControl = NSSegmentedControl()
+    private let layoutControl = ToolbarSwitch()
+    private let scaleControl = ToolbarSwitch()
     private let stepControl = NSSegmentedControl()
     private var observation: AnyCancellable?
     private var languageObservation: AnyCancellable?

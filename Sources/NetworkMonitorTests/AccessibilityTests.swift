@@ -166,6 +166,39 @@ func runAccessibilityTests() {
             adsModel.select(.init(grouping: .sites, parent: "doubleclick.net", title: "doubleclick.net"))
             checkMain("Ads and Trackers › a row chosen")
             adsModel.clearSelection()
+            // VoiceOver on the total (#402, checked for #525): VO-→ reads the
+            // total, then its ⓘ, "Blocked by each list" with each list's
+            // count, which VO-Space opens.
+            Check.test("Ads and Trackers reads its total, then each list's share, which VO-Space opens\(language)") {
+                // On, so there's a total rather than "Ad blocking is off".
+                let lists = model.firewall.lists
+                model.firewall.lists = [.ads]
+                defer {
+                    model.firewall.lists = lists
+                    RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                }
+                main.ads.select(.overview)
+                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+                let order = AccessibilityAudit.readingOrderOwnWindow(titled: window.title)
+                let total = "AXStaticText: " + L("%@ blocked", adsModel.report.total.formatted())
+                guard let at = order.firstIndex(of: total) else {
+                    Check.expectTrue(false, "no \(total) in \(order)")
+                    return
+                }
+                let next = order.indices.contains(at + 1) ? order[at + 1] : "nothing"
+                Check.expectTrue(next.hasPrefix("AXButton: " + L("Blocked by each list")),
+                                 "after the total VoiceOver reads \(next)")
+                func popoverShown() -> Bool {
+                    NSApp.windows.contains { String(describing: type(of: $0)).contains("Popover") && $0.isVisible }
+                }
+                let name = L("Blocked by each list")
+                Check.expectTrue(AccessibilityAudit.pressOwnWindow(titled: window.title, named: name),
+                                 "VO-Space can't press \(name)")
+                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+                Check.expectTrue(popoverShown(), "VO-Space didn't open each list's share")
+                _ = AccessibilityAudit.pressOwnWindow(titled: window.title, named: name)
+                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+            }
             // The same View as Connections' (#524): named View, each segment
             // by its layout, in the language shown.
             Check.test("Usage History's and Ads and Trackers' View reads as Connections'\(language)") {
@@ -288,6 +321,15 @@ func runAccessibilityTests() {
                 let outline = AccessibilityAudit.outlineOwnWindow(titled: window.title)
                 Check.expectTrue(outline.contains { $0.hasPrefix("AXTextArea name=\(AboutPanel.creditsName) ") },
                                  "the credits aren't named \(AboutPanel.creditsName): \(outline)")
+                // VO-→ into them (checked for #525): the description, then
+                // the links, then the licence.
+                let credits = AccessibilityAudit.readingOrderOwnWindow(titled: window.title)
+                    .first { $0.hasPrefix("AXTextArea: \(AboutPanel.creditsName), ") } ?? ""
+                let parts = [L("Live network speed in your menu bar, and which app used your data."), L("Website"),
+                             L("What's new"), L("Source code"), L("Free and open source, under the Apache 2.0 licence.")]
+                let places = parts.map { credits.range(of: $0)?.lowerBound }
+                Check.expectTrue(!places.contains(nil) && places.map { $0! } == places.map { $0! }.sorted(),
+                                 "the credits don't read description, links, licence: \(credits)")
                 window.orderOut(nil)
             }
 
