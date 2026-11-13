@@ -88,7 +88,21 @@
         "call": "L"
       }
     },
-    "glossary": "Resources/Localization/{code}.lproj/Glossary.json"
+    "glossary": "Resources/Localization/{code}.lproj/Glossary.json",
+    "more": [
+      {
+        "format": "strings",
+        "path": "Resources/Localization/{code}.lproj/InfoPlist.strings",
+        "keys": {
+          "plist": "Resources/Info.plist",
+          "plist_keys": [
+            "NSLocationUsageDescription",
+            "NSLocationWhenInUseUsageDescription",
+            "NSLocationAlwaysAndWhenInUseUsageDescription"
+          ]
+        }
+      }
+    ]
   },
   "shots": {
     "site": "../NetworkMonitor-site",
