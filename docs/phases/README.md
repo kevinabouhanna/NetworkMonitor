@@ -9,7 +9,6 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
-| 4 | #592 Find and check my own rules from the Connections window, not only in Settings | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 7 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 
 ## Next
