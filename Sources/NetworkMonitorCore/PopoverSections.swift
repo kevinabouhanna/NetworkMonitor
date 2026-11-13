@@ -18,14 +18,39 @@ enum PopoverPalette {
 }
 
 extension PopoverMetrics {
-    /// Each of the Companies, Blocked and Connection views, one height for
-    /// all three, so the popover doesn't change size moving between them.
+    /// The least a view's list is given: a message in place of the rows, and
+    /// what Network's view needs under its grouping row's place.
     public static let sectionHeight: CGFloat = 220
     /// The row at the end of a view that opens its window, and the footer.
     public static let openRowHeight: CGFloat = 40
+    /// The row above a list that says what it groups by: its small switch
+    /// (22) with 10 above and 4 below. Its count's text is shorter than the
+    /// switch, so the switch sets it.
+    public static let groupingRowHeight: CGFloat = 36
+    /// A line above a list, such as Ads blocked's "paused until": its text
+    /// with 8 above and 2 below.
+    public static var captionHeight: CGFloat { 10 + lineHeight(10.5) }
+    /// What each view adds around its list: the grouping row, the line over
+    /// the Open row, and the Open row.
+    public static let sectionChrome: CGFloat = groupingRowHeight + 1 + openRowHeight
     /// The leading edge the header's switch, its buttons' raised backgrounds
     /// and a list's switch all start from (#436).
     public static let edge: CGFloat = 12
+
+    /// The height of every view under the popover's header (#599): Data,
+    /// Connections, Ads blocked and Network alike, from the tallest list any
+    /// of the first three would show (`rows`), so moving between them never
+    /// changes the popover's size. Sized to each, Network was about 100 points
+    /// shorter than a full list, and the popover jumped as `NSPopover`
+    /// re-anchored to the new size. The speed test's card, while shown, is the
+    /// least it can be.
+    public static func sectionAreaHeight(rows: Int, speedCard: Bool = false) -> CGFloat {
+        let list = max(listHeight(appRows: rows, expandedChildRows: 0, systemRowCount: 0,
+                                  systemExpanded: false),
+                       sectionHeight)
+        let area = sectionChrome + list
+        return speedCard ? max(area, speedCardHeight) : area
+    }
 }
 
 /// The four buttons across the header: the number that matters, and what it
@@ -220,18 +245,26 @@ private struct SummaryMessage: View {
     }
 }
 
-/// The list Companies and Ads blocked share with Today (#436): as tall as
-/// its rows up to the same cap, scrolling past it, with rows that open.
+/// The list Companies and Ads blocked share with Today (#436), in the
+/// height every view is given (#599), scrolling past it, with rows that open.
 struct PopoverList<Content: View>: View {
     /// The rows on screen, the open ones' children included.
     let rows: Int
-    var cap: CGFloat = PopoverMetrics.maxListHeight
+    /// The popover's, the same in every view: see `sectionAreaHeight`.
+    let height: CGFloat
     @ViewBuilder let content: Content
 
-    init(rows: Int, cap: CGFloat = PopoverMetrics.maxListHeight, @ViewBuilder content: () -> Content) {
+    init(rows: Int, height: CGFloat, @ViewBuilder content: () -> Content) {
         self.rows = rows
-        self.cap = cap
+        self.height = height
         self.content = content()
+    }
+
+    /// Only when the rows genuinely don't fit, rather than left to AppKit to
+    /// infer from a comparison that may be a rounding error either way.
+    private var scrolls: Bool {
+        PopoverMetrics.contentHeight(appRows: rows, expandedChildRows: 0, systemRowCount: 0,
+                                     systemExpanded: false) > height
     }
 
     var body: some View {
@@ -239,10 +272,8 @@ struct PopoverList<Content: View>: View {
             LazyVStack(alignment: .leading, spacing: 0) { content }
                 .padding(.vertical, PopoverMetrics.listVerticalPadding / 2)
         }
-        .frame(height: PopoverMetrics.listHeight(appRows: rows, expandedChildRows: 0, systemRowCount: 0,
-                                                 systemExpanded: false, cap: cap))
-        .scrollIndicators(PopoverMetrics.scrolls(appRows: rows, expandedChildRows: 0, systemRowCount: 0,
-                                                 systemExpanded: false, cap: cap) ? .automatic : .never)
+        .frame(height: height)
+        .scrollIndicators(scrolls ? .automatic : .never)
         // Tab goes through every row before the Open row under the list,
         // those scrolled out of sight too (#455).
         .focusSection()
@@ -254,6 +285,8 @@ struct PopoverList<Content: View>: View {
 /// parts; then Open Connections (#449).
 struct PopoverCompanies: View {
     @ObservedObject var glance: TodayGlance
+    /// The list's height, every view's (#599).
+    let listHeight: CGFloat
     let icon: (String, String, String?) -> NSImage
     let onOpen: () -> Void
 
@@ -271,9 +304,9 @@ struct PopoverCompanies: View {
                     if glance.groups.isEmpty {
                         SummaryMessage(title: glance.hasLoaded ? L("No connections yet") : L("Reading…"),
                                        detail: L("Connections are counted while NetworkMonitor is running."))
-                            .frame(height: PopoverMetrics.sectionHeight)
+                            .frame(height: listHeight)
                     } else {
-                        PopoverList(rows: max(rowCount, tallestGrouping)) {
+                        PopoverList(rows: Self.rowCount(glance), height: listHeight) {
                             ForEach(glance.groups) { group in
                                 let item = group.item
                                 let parts = self.parts(of: group)
@@ -308,6 +341,10 @@ struct PopoverCompanies: View {
     /// What a row opens into: a company's or a country's apps or companies,
     /// an app's companies, as the window's first section under it.
     private func parts(of group: ConnectionsGroup) -> [ConnectionsItem] {
+        Self.parts(of: group)
+    }
+
+    private static func parts(of group: ConnectionsGroup) -> [ConnectionsItem] {
         Array((group.sections.first?.items ?? []).prefix(TodayGlance.rows))
     }
 
@@ -335,17 +372,19 @@ struct PopoverCompanies: View {
         }
     }
 
-    private var rowCount: Int {
+    /// The rows on screen, the open ones' parts included.
+    static func rowCount(_ glance: TodayGlance) -> Int {
         glance.groups.reduce(0) { count, group in
             count + 1 + (glance.expanded.contains(group.item.id) ? parts(of: group).count : 0)
         }
     }
 
-    /// One height whichever grouping is shown (#436): the most rows any of
-    /// them has, so switching never shrinks the popover and grows it again.
-    private var tallestGrouping: Int {
+    /// The rows this view asks the popover's height for (#436, #599): those on
+    /// screen, or the most any grouping has, so switching grouping never
+    /// shrinks the popover and grows it again.
+    static func rows(_ glance: TodayGlance) -> Int {
         let summary = glance.summary
-        return min(max(summary.companies, summary.countries, summary.apps), TodayGlance.rows)
+        return max(rowCount(glance), min(max(summary.companies, summary.countries, summary.apps), TodayGlance.rows))
     }
 
     /// Each bar is a share of all the period's traffic to servers.
@@ -363,9 +402,17 @@ struct PopoverBlocked: View {
     @ObservedObject var firewall: FirewallRules
     @ObservedObject var filter: FilterController
     let pausedText: String?
+    /// The list's height, every view's (#599).
+    let listHeight: CGFloat
     let icon: (String, String, String?) -> NSImage
     let onTurnOn: () -> Void
     let onOpen: () -> Void
+
+    /// The list gives up the paused line's height, so the view stays as tall
+    /// as the others.
+    private var height: CGFloat {
+        listHeight - (pausedText == nil ? 0 : PopoverMetrics.captionHeight)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -373,7 +420,7 @@ struct PopoverBlocked: View {
                 SummaryMessage(title: L("Ad blocking is off"),
                                detail: L("Turn it on to stop ads, trackers and malware sites in every app."),
                                action: filter.state == .unavailable ? nil : (L("Turn On"), onTurnOn))
-                    .frame(height: PopoverMetrics.sectionHeight)
+                    .frame(height: PopoverMetrics.groupingRowHeight + listHeight)
             } else {
                 PopoverGroupingRow(options: PopoverAdsGrouping.allCases, selection: $glance.adsGrouping,
                                    label: { $0.label }, count: count)
@@ -385,9 +432,9 @@ struct PopoverBlocked: View {
                         if items.isEmpty {
                             SummaryMessage(title: L("Nothing blocked yet"),
                                            detail: L("Sites the lists stop show here, busiest first."))
-                                .frame(height: PopoverMetrics.sectionHeight)
+                                .frame(height: height)
                         } else {
-                            PopoverList(rows: max(rowCount, tallestGrouping)) {
+                            PopoverList(rows: rowCount, height: height) {
                                 ForEach(items) { item in
                                     let parts = self.parts(of: item)
                                     let open = glance.expanded.contains(rowID(item))
@@ -447,15 +494,25 @@ struct PopoverBlocked: View {
         return apps == 1 ? L("1 app") : L("%@ apps", String(apps))
     }
 
-    private var rowCount: Int {
-        items.reduce(0) { count, item in
-            count + 1 + (glance.expanded.contains(rowID(item)) ? parts(of: item).count : 0)
+    private var rowCount: Int { Self.rowCount(glance) }
+
+    /// The rows on screen, the open ones' parts included.
+    static func rowCount(_ glance: TodayGlance) -> Int {
+        let bySite = glance.adsGrouping == .sites
+        let items = (bySite ? glance.ads.sites : glance.ads.apps).prefix(TodayGlance.rows)
+        let parts = bySite ? glance.siteApps : glance.appSites
+        return items.reduce(0) { count, item in
+            let id = (bySite ? "site:" : "blockedApp:") + item.id
+            return count + 1 + (glance.expanded.contains(id) ? min((parts[item.id] ?? []).count, TodayGlance.rows) : 0)
         }
     }
 
-    /// One height for Sites and Apps (#436), as for Connections' groupings.
-    private var tallestGrouping: Int {
-        min(max(glance.ads.sites.count, glance.ads.apps.count), TodayGlance.rows)
+    /// The rows this view asks the popover's height for (#436, #599): those
+    /// on screen, or the most Sites or Apps has, as for Connections' groupings.
+    /// None while ad blocking is off: a message stands in for the list.
+    static func rows(_ glance: TodayGlance, isOn: Bool) -> Int {
+        guard isOn else { return 0 }
+        return max(rowCount(glance), min(max(glance.ads.sites.count, glance.ads.apps.count), TodayGlance.rows))
     }
 
     /// Each bar is a share of everything blocked in the period.
@@ -470,6 +527,10 @@ struct PopoverConnection: View {
     @ObservedObject var metering: MeteringController
     @ObservedObject var speedTest: SpeedTestController
     let status: ConnectionStatus
+    /// Above the Open row: what the other views give their grouping row,
+    /// their list and the line under it, so this view is as tall as they
+    /// are (#599).
+    let height: CGFloat
     let onHotspotSettings: () -> Void
 
     var body: some View {
@@ -513,7 +574,7 @@ struct PopoverConnection: View {
                 Spacer(minLength: 0)
             }
             .padding(12)
-            .frame(height: PopoverMetrics.sectionHeight)
+            .frame(height: height, alignment: .top)
             PopoverOpenRow(title: L("Open Network"), shortcut: "", action: onHotspotSettings)
         }
     }
