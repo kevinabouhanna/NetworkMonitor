@@ -151,6 +151,19 @@ let talkers: [Talker] = [
     ]),
 ]
 
+/// Usage History's rows that open (#593): commands run from Terminal, under
+/// it, and macOS's own daemons, under System. Only in Usage History: they
+/// reach no server in the dataset.
+let terminalPath = "/System/Applications/Utilities/Terminal.app"
+let terminalParent = ParentApp(key: terminalPath, displayName: "Terminal", bundlePath: terminalPath)
+let parts: [(app: AppIdentity, megabytesPerHour: Double)] = [
+    (AppIdentity(key: "/usr/bin/git", displayName: "git", bundlePath: nil, isSystem: false, parent: terminalParent), 7),
+    (AppIdentity(key: "/usr/bin/curl", displayName: "curl", bundlePath: nil, isSystem: false, parent: terminalParent), 3),
+    (AppIdentity(key: "/usr/libexec/nsurlsessiond", displayName: "nsurlsessiond", bundlePath: nil, isSystem: true), 4),
+    (AppIdentity(key: "/usr/sbin/mDNSResponder", displayName: "mDNSResponder", bundlePath: nil, isSystem: true), 1.5),
+    (AppIdentity(key: "/usr/libexec/softwareupdated", displayName: "softwareupdated", bundlePath: nil, isSystem: true), 1),
+]
+
 /// What the lists stopped, by app.
 let listed: [(app: AppIdentity, name: String, list: String, perHour: Int)] = [
     (chrome, "pagead2.googlesyndication.com", "ads", 40),
@@ -216,6 +229,10 @@ func makeHistory(_ scenario: Scenario, at url: URL) -> UsageHistory {
                     sightings.append(UsageHistory.NameSighting(identity: talker.app, address: server.address,
                                                                name: server.name, blocked: false))
                 }
+            }
+            for part in parts {
+                let bytes = part.megabytesPerHour * level * 1_000_000
+                if bytes >= 1 { entries.append((part.app, Int64(bytes * 0.9), Int64(bytes * 0.1))) }
             }
             let total = entries.reduce(Int64(0)) { $0 + $1.bytesIn + $1.bytesOut }
             history.recordInterface(bytesIn: Int64(Double(total) * 0.95), bytesOut: Int64(Double(total) * 0.08), now: at)
@@ -478,6 +495,26 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     world.historyModel.search = "Sa"
     shoot("history-search", settle: 1.0)
     world.historyModel.search = ""
+    // Opening and choosing rows, as each list does it (#593): an app with
+    // parts open and System open, then the first app chosen. Read first, so
+    // the rows are there to open.
+    if wanted(prefix + "lists-history-open") || wanted(prefix + "lists-history-chosen") {
+        show(main.window, appearance: appearance)
+        main.windowDidShow()
+        RunLoop.main.run(until: Date().addingTimeInterval(1.5))
+    }
+    if let app = world.historyModel.report.apps.first(where: \.hasChildren) {
+        world.historyModel.toggleExpanded(app.id)
+        world.historyModel.setExpanded(HistoryViewModel.systemID, true)
+        shoot("lists-history-open", settle: 1.5)
+        world.historyModel.toggleExpanded(app.id)
+        world.historyModel.setExpanded(HistoryViewModel.systemID, false)
+    }
+    if let first = world.historyModel.report.apps.first {
+        world.historyModel.toggleApp(first.id)
+        shoot("lists-history-chosen", settle: 1.5)
+        world.historyModel.toggleApp(first.id)
+    }
     main.show(.connections)
     for layout in ConnectionsViewModel.Layout.allCases {
         world.connections.layout = layout
@@ -487,6 +524,27 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     // Trackers', which share its split (#534).
     world.connections.layout = .both
     shootAtMinimum("connections-both-min", settle: 1.5)
+    // The first company opened by its arrow; then chosen, which leaves it
+    // alone and open; then a row inside it chosen (#593).
+    let connectionShots = ["lists-connections-open", "lists-connections-chosen", "lists-connections-narrowed"]
+    if connectionShots.contains(where: { wanted(prefix + $0) }) {
+        show(main.window, appearance: appearance)
+        main.windowDidShow()
+        RunLoop.main.run(until: Date().addingTimeInterval(1.5))
+    }
+    if connectionShots.contains(where: { wanted(prefix + $0) }), let group = world.connections.groups.first {
+        world.connections.setExpanded(group.id, true)
+        shoot("lists-connections-open", settle: 1.5)
+        world.connections.setExpanded(group.id, false)
+        world.connections.choose(group.item)
+        shoot("lists-connections-chosen", settle: 1.5)
+        if let item = group.sections.first(where: { !$0.items.isEmpty })?.items.first {
+            world.connections.narrow(to: item, in: group.item)
+            shoot("lists-connections-narrowed", settle: 1.5)
+            world.connections.clear(item.dimension)
+        }
+        world.connections.clear(group.item.dimension)
+    }
     main.show(.ads)
     for tab in AdsViewModel.Tab.allCases {
         main.ads.select(tab)
@@ -691,9 +749,19 @@ func tourKeyboard(_ world: World) -> Int32 {
         print("  " + (ok ? "✓ " : "✗ ") + what)
         if !ok { failed += 1 }
     }
+    func canGoBack(_ section: MainSection) -> Bool {
+        switch section {
+        case .history:     return world.historyModel.canGoBack
+        case .connections: return world.connections.canGoBack
+        case .ads:         return world.ads.canGoBack
+        default:           return false
+        }
+    }
     for (name, section, list, firstOpenable) in [
         ("history-keys", MainSection.history, L("Apps"), { world.historyModel.report.apps.first { $0.hasChildren }?.displayName }),
         ("connections-keys", .connections, world.connections.grouping.label, { world.connections.groups.first?.item.title }),
+        // The same keys in all three lists (#593).
+        ("ads-keys", .ads, world.ads.grouping.label, { world.ads.report.sites.first { !$0.children.isEmpty }?.title }),
     ] as [(String, MainSection, String, () -> String?)] where wanted(name) {
         main.show(section)
         settle(1.2)
@@ -735,6 +803,13 @@ func tourKeyboard(_ world: World) -> Int32 {
         KeyboardTour.press(.down, in: main.window)
         let next = KeyboardTour.focused(in: main.window)?.value ?? ""
         expect(next != inside, "← closes it: ↓ goes to the next row (\(next))")
+        // Space does what a click does, Escape lets go (#593): ↑ ↓ alone
+        // never choose.
+        let chosenBefore = canGoBack(section)
+        KeyboardTour.press(.space, in: main.window, settle: 0.8)
+        expect(!chosenBefore && canGoBack(section), "↑ ↓ choose nothing; Space chooses the row")
+        KeyboardTour.press(.escape, in: main.window, settle: 0.8)
+        expect(!canGoBack(section), "Escape lets go of it")
     }
     main.windowWillClose()
     main.window.orderOut(nil)

@@ -415,7 +415,7 @@
 "Right-click a company, app, country or server under Traffic to block it." = "在“流量”下右键点按公司、应用、国家或地区、服务器，即可阻止它。";
 "Connections are recorded from this version on, while NetworkMonitor is running." = "从这个版本开始，NetworkMonitor 运行时会记录连接。";
 "Click to close" = "点按以收起";
-"Click to see its %@" = "点按以查看其中的%@";
+"Click to open" = "点按以展开";
 "%@ · %@" = "%@ · %@";
 "Show all %@" = "显示全部 %@ 项";
 "Block “%@” on “%@”" = "在“%2$@”上阻止“%1$@”";

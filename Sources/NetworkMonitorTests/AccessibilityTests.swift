@@ -67,72 +67,61 @@ func runAccessibilityTests() {
         for code in Localization.shared.available {
             Localization.shared.showForThisRun(code)
             let language = code == Localization.source ? "" : " (\(code))"
-            // They're in Network's settings now, in the main window (#436).
-            if code == Localization.source { Check.test("Network's settings read each speed test style's picture as one button") {
-                let main = MainWindowController(model: model, history: HistoryViewModel(monitor: model),
-                                                connections: connections, ads: AdsViewModel(monitor: model))
-                let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 900),
-                                      styleMask: [.titled], backing: .buffered, defer: false)
-                window.title = "Network settings"
-                window.contentViewController = main.settingsPage(for: .network)
-                window.setContentSize(NSSize(width: 760, height: 900))
-                window.placeOutOfSight()
-                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
-                let outline = AccessibilityAudit.outlineOwnWindow(titled: window.title)
-                for style in ["Card", "Compact"] {
-                    Check.expectTrue(outline.contains { $0.hasPrefix("AXButton name=\(style) ") },
-                                     "no \(style) button in \(outline)")
-                }
-                // The pictures' sample card has a Test Again button; the page
-                // has none of its own, so finding one means the sample leaked.
-                Check.expectTrue(!outline.contains { $0.contains("name=Test Again ") },
-                                 "the picture's sample buttons reach VoiceOver: \(outline)")
-                window.orderOut(nil)
-            } }
-
-            // Where the map's lines start, as hovering its ring shows (#231).
-            if code == Localization.source { Check.test("VoiceOver reads where the map's lines start, and why") {
-                let located = ConnectionsViewModel(monitor: model, defaults: defaults, homeSources: .init(
-                    location: { $0("LB") }, internetAddress: { $0(nil) }, region: { "US" }))
-                located.layout = .map
-                let controller = ConnectionsWindowController(model: located)
-                let window = controller.window
-                window.title = "Connections, located"
-                window.placeOutOfSight()
-                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
-                let names = AccessibilityAudit.namesOwnWindow(titled: window.title)
-                Check.expectTrue(names.contains { $0.hasPrefix("World map of") && $0.hasSuffix(" Your Mac, in Lebanon (from Location): the lines start there.") },
-                                 "the map doesn't say where its lines start: \(names.filter { $0.contains("map") })")
-                window.orderOut(nil)
-                withExtendedLifetime(controller) {}
-            } }
-
-            // The main window (#436). Its split view can't be read through from
-            // this process (AppKit lays it out on the asking thread), so each
-            // part is checked in a window of its own: the sections, with their
-            // toolbars, as the windows they were; the sidebar; Network; and
-            // each section's settings page.
-            check(ConnectionsWindowController(model: connections).window, "Connections\(language)")
-            // Each of the View's layouts (#524), and Ads and Trackers' Sites and Apps.
+            // The main window as people see it (#436, #527): one window, the
+            // sidebar, the section's toolbar and the section together, each
+            // section and each section's settings shown in turn. Read on the
+            // main thread (#500), its split view reads through.
             let historyModel = HistoryViewModel(monitor: model, defaults: defaults)
-            let historyController = HistoryWindowController(model: historyModel)
+            let adsModel = AdsViewModel(monitor: model, defaults: defaults)
+            let main = MainWindowController(model: model, history: historyModel,
+                                            connections: connections, ads: adsModel)
+            let window = main.window
+            window.placeOutOfSight()
+            main.windowDidShow()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+            /// Audits the main window as it is now, under the title it has now.
+            func checkMain(_ name: String) {
+                Check.test("The main window › \(name)\(language) names everything VoiceOver reads") {
+                    RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                    guard let problems = AccessibilityAudit.auditOwnWindow(titled: window.title, symbols: symbols) else {
+                        Check.expectTrue(false, "couldn't read the main window's accessibility tree, titled \(window.title)")
+                        return
+                    }
+                    for problem in problems { Check.expectTrue(false, problem.description) }
+                }
+            }
+            func namesNow() -> [String] { AccessibilityAudit.namesOwnWindow(titled: window.title) }
+            func outlineNow() -> [String] { AccessibilityAudit.outlineOwnWindow(titled: window.title) }
+
+            main.show(.connections)
+            checkMain("Connections")
+            // What makes the checks above mean something: one read reaches the
+            // sidebar, the section's toolbar and the section's own controls,
+            // through the split view the parts were once checked apart for.
+            Check.test("The main window reads as one: sidebar, toolbar and section\(language)") {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                let names = namesNow()
+                for name in MainSection.allCases.map(\.title) + [L("View"), L("Period"), L("Group by")] {
+                    Check.expectTrue(names.contains(name), "the main window has no \(name) in \(names)")
+                }
+            }
+            // Each of the View's layouts (#524), and Ads and Trackers' Sites and Apps.
+            main.show(.history)
             for layout in ChartLayout.allCases {
                 historyModel.layout = layout
-                check(historyController.window, "Usage History › \(layout.label)\(language)")
+                checkMain("Usage History › \(layout.label)")
             }
-            let adsModel = AdsViewModel(monitor: model, defaults: defaults)
-            let adsController = AdsWindowController(model: adsModel)
+            main.show(.ads)
             for tab in AdsViewModel.Tab.allCases {
-                adsController.select(tab)
-                check(adsController.window, "Ads and Trackers › \(tab.label)\(language)")
+                main.ads.select(tab)
+                checkMain("Ads and Trackers › \(tab.label)")
             }
-            adsController.select(.overview)
+            main.ads.select(.overview)
             for layout in ChartLayout.allCases {
                 adsModel.layout = layout
                 for grouping in PopoverAdsGrouping.allCases where layout.showsList || grouping == .sites {
                     adsModel.grouping = grouping
-                    check(adsController.window,
-                          "Ads and Trackers › \(layout.label) › \(grouping.label)\(language)")
+                    checkMain("Ads and Trackers › \(layout.label) › \(grouping.label)")
                 }
             }
             adsModel.grouping = .sites
@@ -141,92 +130,111 @@ func runAccessibilityTests() {
             // `make design-shots ONLY=ads-audit`.
             adsModel.layout = .both
             adsModel.select(.init(grouping: .sites, parent: "doubleclick.net", title: "doubleclick.net"))
-            check(adsController.window, "Ads and Trackers › a row chosen\(language)")
+            checkMain("Ads and Trackers › a row chosen")
             adsModel.clearSelection()
             // The same View as Connections' (#524): named View, each segment
             // by its layout, in the language shown.
             Check.test("Usage History's and Ads and Trackers' View reads as Connections'\(language)") {
-                for window in [historyController.window, adsController.window] {
-                    window.placeOutOfSight()
+                for section in [MainSection.history, .ads] {
+                    main.show(section)
                     RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-                    let names = AccessibilityAudit.namesOwnWindow(titled: window.title)
+                    let names = namesNow()
                     for name in [L("View")] + ChartLayout.allCases.map(\.label) {
-                        Check.expectTrue(names.contains(name), "\(window.title) has no \(name) in \(names)")
+                        Check.expectTrue(names.contains(name), "\(section.title) has no \(name) in \(names)")
                     }
-                    window.orderOut(nil)
                 }
             }
             // Both is the list and the chart side by side, as in Connections
             // (#534): the list's Show and the chart are both there to read.
             historyModel.layout = .both
             Check.test("Usage History's Both has the list and the chart\(language)") {
-                let window = historyController.window
-                window.placeOutOfSight()
+                main.show(.history)
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-                let names = AccessibilityAudit.namesOwnWindow(titled: window.title)
+                let names = namesNow()
                 let chart = [L("Usage by hour"), L("Usage by day"), L("Usage by month")]
                 Check.expectTrue(names.contains(L("Show")) && names.contains { chart.contains($0) },
                                  "Both doesn't have the list's Show and the chart: \(names)")
-                window.orderOut(nil)
             }
-            adsModel.layout = .both
-            let main = MainWindowController(model: model, history: HistoryViewModel(monitor: model),
-                                            connections: connections, ads: AdsViewModel(monitor: model))
-            func part(_ controller: NSViewController, _ title: String, width: CGFloat = 760, height: CGFloat = 640) -> NSWindow {
-                let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: height),
-                                      styleMask: [.titled], backing: .buffered, defer: false)
-                window.title = title
-                window.contentViewController = controller
-                window.setContentSize(NSSize(width: width, height: height))
-                return window
-            }
-            check(part(main.sidebarController, "Main window sidebar", width: 220), "The main window's sidebar\(language)")
-            // A new version waiting on its card, above Settings (#520): the ✕
-            // says what it does, and each button reads as it's labelled.
+            main.show(.network)
+            checkMain("Network")
+            main.show(.settings)
+            checkMain("Settings")
+            // A new version waiting on its card in the sidebar, above Settings
+            // (#520): the ✕ says what it does, and each button reads as it's
+            // labelled.
             model.updates.previewCard(version: "9.9.9")
-            let updateSidebar = part(main.sidebarController, "Main window sidebar, update", width: 220)
-            check(updateSidebar, "The main window's sidebar with an update waiting\(language)")
+            checkMain("Settings, with an update waiting")
             Check.test("The update card's buttons are named\(language)") {
-                updateSidebar.placeOutOfSight()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-                let names = AccessibilityAudit.namesOwnWindow(titled: updateSidebar.title)
+                let names = namesNow()
                 for name in [L("Install & Restart"), L("What's New"), L("Remind Me Later")] {
                     Check.expectTrue(names.contains(name), "the update card has no \(name) in \(names)")
                 }
-                updateSidebar.orderOut(nil)
             }
             model.updates.previewCard(version: nil)
-            check(part(main.networkController, "Main window Network"), "The main window › Network\(language)")
-            check(part(main.generalController, "Main window Settings"), "The main window › Settings\(language)")
             // With Dock chosen, and so its Dock icon choice showing (#523).
             let placement = AppPlacementSetting.shared.placement
             AppPlacementSetting.shared.placement = .dock
-            let dockSettings = part(main.generalController, "Main window Settings, Dock")
-            check(dockSettings, "The main window › Settings with Dock chosen\(language)")
+            checkMain("Settings, with Dock chosen")
             if code == Localization.source { Check.test("Dock icon is there only while Dock or Both is chosen") {
-                dockSettings.orderFrontRegardless()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-                let shown = AccessibilityAudit.outlineOwnWindow(titled: dockSettings.title)
                 // Its two choices, as the segments the outline lists.
                 func choices(_ outline: [String]) -> [String] {
                     outline.filter { $0.hasPrefix("AXRadioButton name=Speeds ") || $0.hasPrefix("AXRadioButton name=App icon ") }
                 }
+                let shown = outlineNow()
                 Check.expectEqual(choices(shown).count, 2, "no Dock icon choice with Dock chosen: \(shown)")
                 AppPlacementSetting.shared.placement = .both
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-                let both = AccessibilityAudit.outlineOwnWindow(titled: dockSettings.title)
+                let both = outlineNow()
                 Check.expectEqual(choices(both).count, 2, "no Dock icon choice with Both chosen: \(both)")
                 AppPlacementSetting.shared.placement = .menuBar
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-                let hidden = AccessibilityAudit.outlineOwnWindow(titled: dockSettings.title)
-                Check.expectEqual(choices(hidden), [], "a Dock icon choice with Menu bar chosen")
-                dockSettings.orderOut(nil)
+                Check.expectEqual(choices(outlineNow()), [], "a Dock icon choice with Menu bar chosen")
             } }
             AppPlacementSetting.shared.placement = placement
             for section in MainSection.features {
-                check(part(main.settingsPage(for: section), "Main window \(section.rawValue) settings"),
-                      "The main window › \(section.rawValue) › settings\(language)")
+                main.show(section)
+                main.showSettings()
+                checkMain("\(section.title) › settings")
             }
+            // The speed test's styles are in Network's settings (#436).
+            if code == Localization.source { Check.test("Network's settings read each speed test style's picture as one button") {
+                main.show(.network)
+                main.showSettings()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+                let outline = outlineNow()
+                for style in ["Card", "Compact"] {
+                    Check.expectTrue(outline.contains { $0.hasPrefix("AXButton name=\(style) ") },
+                                     "no \(style) button in \(outline)")
+                }
+                // The pictures' sample card has a Test Again button; the page
+                // has none of its own, so finding one means the sample leaked.
+                Check.expectTrue(!outline.contains { $0.contains("name=Test Again ") },
+                                 "the picture's sample buttons reach VoiceOver: \(outline)")
+            } }
+            main.show(.history)
+            main.windowWillClose()
+            window.orderOut(nil)
+
+            // Where the map's lines start, as hovering its ring shows (#231),
+            // in a main window of its own with a Mac that knows its place.
+            if code == Localization.source { Check.test("VoiceOver reads where the map's lines start, and why") {
+                let located = ConnectionsViewModel(monitor: model, defaults: defaults, homeSources: .init(
+                    location: { $0("LB") }, internetAddress: { $0(nil) }, region: { "US" }))
+                located.layout = .map
+                let locatedMain = MainWindowController(model: model, history: HistoryViewModel(monitor: model),
+                                                       connections: located, ads: AdsViewModel(monitor: model))
+                locatedMain.window.placeOutOfSight()
+                locatedMain.windowDidShow()
+                locatedMain.show(.connections)
+                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+                let names = AccessibilityAudit.namesOwnWindow(titled: locatedMain.window.title)
+                Check.expectTrue(names.contains { $0.hasPrefix("World map of") && $0.hasSuffix(" Your Mac, in Lebanon (from Location): the lines start there.") },
+                                 "the map doesn't say where its lines start: \(names.filter { $0.contains("map") })")
+                locatedMain.windowWillClose()
+                locatedMain.window.orderOut(nil)
+            } }
             // The standard About panel (#494): AppKit leaves its credits text
             // unnamed, so the app names it once the panel is up.
             Check.test("About names everything VoiceOver reads\(language)") {

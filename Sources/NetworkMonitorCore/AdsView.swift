@@ -123,12 +123,22 @@ struct AdsView: View {
     private var lists: some View {
         ZStack(alignment: .top) {
             AdsList(model: model,
-                    items: searched(model.grouping == .sites ? model.report.sites : model.report.apps))
+                    items: chosen(searched(model.grouping == .sites ? model.report.sites : model.report.apps)))
                 // The other list fades in as the switch's pill slides, as Usage
                 // History's lists do (#436).
                 .id(model.grouping)
                 .transition(Motion.swap)
         }
+    }
+
+    /// A row chosen (#593): the list keeps only it, and only the row chosen
+    /// inside it, as Usage History and Connections keep theirs.
+    private func chosen(_ items: [AdsItem]) -> [AdsItem] {
+        guard let selection = model.selection, let parent = items.first(where: { $0.id == selection.parent }) else {
+            return items
+        }
+        guard let child = selection.child else { return [parent] }
+        return [parent.keeping(child)]
     }
 
     /// The toolbar's search, on Overview: a site, a name under it, or an app,
@@ -161,7 +171,9 @@ struct AdsView: View {
     private var total: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Text(L("%@ blocked", model.report.total.formatted()))
+                // The chosen row's, while there's one (#593), as Usage
+                // History's and Connections' totals follow theirs.
+                Text(L("%@ blocked", (model.chosenCount ?? model.report.total).formatted()))
                     .font(.system(size: 22, weight: .semibold))
                     .monospacedDigit()
                 RowInfoButton(help: breakdownHelp, state: info, accessibilityLabel: L("Blocked by each list")) {
@@ -301,9 +313,9 @@ struct AdsView: View {
 private struct AdsList: View {
     @ObservedObject var model: AdsViewModel
     let items: [AdsItem]
-    /// Not `@State`; see `SettingsPaneState`.
-    @StateObject private var state = AdsListState()
-    @FocusState private var isFocused: Bool
+    /// The row the keyboard is on (#546, #593). Not `@State`; see
+    /// `SettingsPaneState`.
+    @StateObject private var cursor = ListCursor()
 
     private var bySite: Bool { model.grouping == .sites }
 
@@ -322,12 +334,15 @@ private struct AdsList: View {
                 .padding(.horizontal, AdsMetrics.listInset)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .focusable()
-            .focused($isFocused)
-            .modifier(NoFocusRing())
-            .onMoveCommand { direction in move(direction, proxy) }
-            .modifier(ActivateKeys(action: chooseCurrent))
-            .accessibilityLabel(model.grouping.label)
+            // One stop, the arrow keys moving through it, as Usage History's
+            // and Connections' (#593): ↑ ↓ move the ring, Space chooses.
+            .listKeys(keyRows, cursor: cursor, name: model.grouping.label, proxy: proxy,
+                      open: { row, open in model.setExpanded(row.id, open) },
+                      choose: { row in
+                          if let shown = shownRows.first(where: { selection($0.item, parent: $0.parent).rowID == row.id }) {
+                              choose(selection(shown.item, parent: shown.parent))
+                          }
+                      })
         }
     }
 
@@ -380,6 +395,7 @@ private struct AdsList: View {
             indented: parent != nil,
             barColor: AppPalette.blocked,
             isSelected: model.selection == selection,
+            isCurrent: cursor.marks(selection.rowID),
             disclosure: open,
             onToggleDisclosure: { model.toggleExpanded(item.id) },
             disclosureTakesFocus: false,
@@ -441,8 +457,7 @@ private struct AdsList: View {
     }
 
     private func choose(_ selection: AdsViewModel.Selection) {
-        state.cursor = selection.rowID
-        isFocused = true
+        cursor.id = selection.rowID
         model.select(selection)
     }
 
@@ -456,53 +471,15 @@ private struct AdsList: View {
         }
     }
 
-    /// The row the keyboard is on: the one chosen, or the last one chosen.
-    private var currentIndex: Int? {
-        let id = model.selection?.rowID ?? state.cursor
-        return shownRows.firstIndex { selection($0.item, parent: $0.parent).rowID == id }
-    }
-
-    private func move(_ direction: MoveCommandDirection, _ proxy: ScrollViewProxy) {
-        let rows = shownRows
-        guard !rows.isEmpty else { return }
-        let index = currentIndex
-        switch direction {
-        case .up, .down:
-            let next = index.map { direction == .down ? min($0 + 1, rows.count - 1) : max($0 - 1, 0) } ?? 0
-            let target = selection(rows[next].item, parent: rows[next].parent)
-            state.cursor = target.rowID
-            if model.selection != target { model.select(target) }
-            proxy.scrollTo(rows[next].parent == nil ? rows[next].item.id : target.rowID)
-        case .right:
-            guard let index, rows[index].parent == nil, !rows[index].item.children.isEmpty else { return }
-            withAnimation(.easeInOut(duration: 0.15)) { model.setExpanded(rows[index].item.id, true) }
-        case .left:
-            guard let index else { return }
-            if let parent = rows[index].parent {
-                // Back up to the row it's inside.
-                let target = selection(parent, parent: nil)
-                state.cursor = target.rowID
-                model.select(target)
-                proxy.scrollTo(parent.id)
-            } else {
-                withAnimation(.easeInOut(duration: 0.15)) { model.setExpanded(rows[index].item.id, false) }
-            }
-        @unknown default:
-            break
+    /// The rows shown, as the arrow keys go through them.
+    private var keyRows: [KeyRow] {
+        shownRows.map { row in
+            KeyRow(id: selection(row.item, parent: row.parent).rowID,
+                   spoken: L("%@, %@", row.item.title, row.item.count.formatted()),
+                   parent: row.parent?.id,
+                   isOpen: row.parent == nil && !row.item.children.isEmpty ? model.isExpanded(row.item.id) : nil)
         }
     }
-
-    /// Space or Return: chooses the row the keyboard is on, or lets it go.
-    private func chooseCurrent() {
-        let rows = shownRows
-        guard let index = currentIndex ?? (rows.isEmpty ? nil : 0) else { return }
-        choose(selection(rows[index].item, parent: rows[index].parent))
-    }
-}
-
-final class AdsListState: ObservableObject {
-    /// The row last chosen, so Space chooses it again once it's let go.
-    @Published var cursor: String?
 }
 
 /// A row's right-click menu (#536), as the Log's: never or always block its
