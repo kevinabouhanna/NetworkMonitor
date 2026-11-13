@@ -35,7 +35,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
-VERSION = "2.0.0"
+VERSION = "2.3.0"
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 
 
@@ -235,6 +235,31 @@ def read_ts(text: str, code: str) -> dict[str, str]:
     return table
 
 
+def command_reader(argv: list[str], root: pathlib.Path):
+    """A reader of the project's own (product-kit#37): for a kind of table lang-kit doesn't
+    read, `lang.strings.read` names a command that does. `{file}` is a file holding the table
+    (the checkout's, or one from a commit), `{code}` the language's code; it prints the table
+    as JSON, {"key": "text"}, and exits 0."""
+    def read(text: str, code: str) -> dict[str, str]:
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".table", delete=False, encoding="utf-8") as f:
+            f.write(text)
+            held = f.name
+        try:
+            cmd = [a.replace("{file}", held).replace("{code}", code) for a in argv]
+            r = subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=120)
+        finally:
+            os.unlink(held)
+        if r.returncode != 0:
+            raise ValueError(f"lang.strings.read failed (exit {r.returncode}): {(r.stderr or r.stdout).strip()[-300:]}")
+        table = json.loads(r.stdout)
+        if not isinstance(table, dict) or not all(isinstance(k, str) and (v is None or isinstance(v, str))
+                                                  for k, v in table.items()):
+            raise ValueError("lang.strings.read must print a JSON object of texts: {\"key\": \"text\"}")
+        return table
+    return read
+
+
 FORMATS = {
     "strings": (read_strings, "printf"),
     "xcstrings": (read_xcstrings, "printf"),
@@ -269,9 +294,14 @@ class Project:
         self.tables = tables
         if tables:
             fmt = tables.get("format", "strings")
-            if fmt not in FORMATS:
-                fail(f"lang.strings.format {fmt!r}: one of {', '.join(FORMATS)}")
-            self.reader, style = FORMATS[fmt]
+            if fmt == "command":
+                if not isinstance(tables.get("read"), list) or not tables["read"]:
+                    fail("lang.strings.format \"command\" needs lang.strings.read: the command that prints a table as JSON")
+                self.reader, style = command_reader(tables["read"], root), "printf"
+            elif fmt not in FORMATS:
+                fail(f"lang.strings.format {fmt!r}: one of {', '.join(FORMATS)}, or \"command\" with lang.strings.read")
+            else:
+                self.reader, style = FORMATS[fmt]
             self.style = tables.get("placeholders", style)
             self.format = fmt
 
