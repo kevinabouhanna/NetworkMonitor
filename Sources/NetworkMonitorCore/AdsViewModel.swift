@@ -903,10 +903,7 @@ public final class AdsViewModel: ObservableObject {
 
     public func pause(for interval: TimeInterval) { firewall.pauseLists(until: Date().addingTimeInterval(interval)) }
 
-    public func pauseUntilTomorrow() {
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))
-        firewall.pauseLists(until: tomorrow)
-    }
+    public func pauseUntilTomorrow() { firewall.pauseListsUntilTomorrow(calendar: calendar) }
 
     public func resume() { firewall.pauseLists(until: nil) }
 

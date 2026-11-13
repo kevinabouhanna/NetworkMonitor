@@ -575,7 +575,7 @@
 "Everything is blocked" = "已全部阻止";
 "Turn Off" = "关闭";
 "Block Everything is on: every app's new connections stop, apart from looking up names, the clock and your own network" = "“全部阻止”已打开：所有应用的新连接都会被阻止，域名查询、时间同步和你自己的网络除外";
-"Open Ads and Trackers to resume" = "打开“广告与跟踪器”以继续";
+"Show Ads blocked, to resume" = "显示“已拦截”，在那里继续";
 "Per-app figures paused" = "按应用统计已暂停";
 "macOS's nettop isn't reporting per-app figures (%@). The total is still counted, and NetworkMonitor keeps trying." = "macOS 的 nettop 没有报告按应用的数据（%@）。总量仍在统计，NetworkMonitor 会继续尝试。";
 "Settings" = "设置";
@@ -955,3 +955,15 @@
 "Remove the rule for %@" = "移除“%@”的规则";
 /* What VoiceOver calls a paused network's ⊖ button (#455). */
 "Block ads on %@ again" = "在“%@”上重新拦截广告";
+
+/* Ads blocked's pause bar in the popover, and Pause in the right-click menu (#600). */
+"Blocking ads" = "正在拦截广告";
+"Not blocking now" = "目前未拦截";
+"Ads get through until then" = "在此之前，广告会被放行";
+"Ads get through here" = "在此网络上，广告会被放行";
+"In every app" = "在所有应用中";
+"This build can't block" = "此版本无法拦截";
+"The content filter isn't on" = "内容过滤器未打开";
+"Block ads and trackers again now" = "立即重新拦截广告和跟踪器";
+"Pause Ad Blocking" = "暂停广告拦截";
+"Resume Ad Blocking" = "继续广告拦截";

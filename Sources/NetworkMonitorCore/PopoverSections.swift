@@ -27,9 +27,8 @@ extension PopoverMetrics {
     /// (22) with 10 above and 4 below. Its count's text is shorter than the
     /// switch, so the switch sets it.
     public static let groupingRowHeight: CGFloat = 36
-    /// A line above a list, such as Ads blocked's "paused until": its text
-    /// with 8 above and 2 below.
-    public static var captionHeight: CGFloat { 10 + lineHeight(10.5) }
+    /// Ads blocked's pause bar (#600): its 40 pt card, 8 above it.
+    public static let pauseBarHeight: CGFloat = 48
     /// What each view adds around its list: the grouping row, the line over
     /// the Open row, and the Open row.
     public static let sectionChrome: CGFloat = groupingRowHeight + 1 + openRowHeight
@@ -210,18 +209,121 @@ private struct PopoverShortcut: ViewModifier {
     }
 }
 
-/// A short line above a view's rows, or a message in place of them.
-private struct SummaryCaption: View {
-    let text: String
-    var body: some View {
-        Text(text)
-            .font(.system(size: 10.5))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            .padding(.bottom, 2)
-            .frame(maxWidth: .infinity, alignment: .leading)
+/// Ads blocked's first line (#600): whether ad blocking is on now, and the
+/// one button that changes it, as AdGuard and uBlock Origin put theirs first.
+/// Pause stops for an hour at a click; its arrow has the window's other
+/// choices. One setting with the window's Pause and the right-click menu's,
+/// so the three always agree.
+public struct PopoverAdsPauseBar: View {
+    @ObservedObject var firewall: FirewallRules
+    @ObservedObject var filter: FilterController
+    let network: FirewallRules.CurrentNetwork?
+
+    public init(firewall: FirewallRules, filter: FilterController, network: FirewallRules.CurrentNetwork?) {
+        self.firewall = firewall
+        self.filter = filter
+        self.network = network
+    }
+
+    private var state: FirewallRules.ListsState { firewall.listsState(on: network) }
+
+    public var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(color)
+                .frame(width: 22)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(state == .blocking ? Color.primary : Color.orange)
+                    .lineLimit(1)
+                Text(detail)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 6)
+            button
+        }
+        .padding(.leading, 10)
+        .padding(.trailing, 6)
+        .frame(height: PopoverMetrics.pauseBarHeight - 8)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.primary.opacity(0.08)))
+        .padding(.horizontal, PopoverMetrics.edge)
+        .padding(.top, 8)
+        .frame(height: PopoverMetrics.pauseBarHeight)
+    }
+
+    @ViewBuilder private var button: some View {
+        switch state {
+        case .paused, .offHere:
+            Button(resumeTitle) { firewall.resumeLists(on: network) }
+                .buttonStyle(.borderedProminent)
+                .help(L("Block ads and trackers again now"))
+        case .blocking:
+            Menu {
+                Button(L("For 1 Hour")) { firewall.pauseListsForAnHour() }
+                Button(L("Until Tomorrow")) { firewall.pauseListsUntilTomorrow() }
+                if let network {
+                    Divider()
+                    Button(L("Whenever on %@", network.name)) { firewall.pauseLists(on: network, true) }
+                }
+            } label: {
+                Label(L("Pause"), systemImage: "pause.fill")
+            }
+            .menuStyle(.borderedButton)
+            .fixedSize()
+            // More than the symbol's own name, which is also "Pause".
+            .accessibilityLabel(L("Pause Ad Blocking"))
+            .help(L("Let ads through for a while, in every app"))
+        }
+    }
+
+    private var resumeTitle: String {
+        if case .offHere = state { return L("Turn On Here") }
+        return L("Resume")
+    }
+
+    /// Not running is said only while nothing else is: a pause is what you
+    /// chose, and says when it ends.
+    private var isRunning: Bool { filter.state == .on }
+
+    private var title: String {
+        switch state {
+        case .paused(let until): return L("Paused until %@", until.formatted(date: .omitted, time: .shortened))
+        case .offHere(let name): return L("Off on %@", name)
+        case .blocking: return isRunning ? L("Blocking ads") : L("Not blocking now")
+        }
+    }
+
+    private var detail: String {
+        switch state {
+        case .paused: return L("Ads get through until then")
+        case .offHere: return L("Ads get through here")
+        case .blocking:
+            if isRunning { return L("In every app") }
+            return filter.state == .unavailable ? L("This build can't block")
+                                                : L("The content filter isn't on")
+        }
+    }
+
+    private var symbol: String {
+        switch state {
+        case .blocking: return isRunning ? "shield.lefthalf.filled" : "exclamationmark.shield"
+        default: return "shield.slash"
+        }
+    }
+
+    private var color: Color {
+        switch state {
+        case .blocking: return isRunning ? PopoverPalette.blocked : .secondary
+        default: return .orange
+        }
     }
 }
 
@@ -401,18 +503,17 @@ struct PopoverBlocked: View {
     @ObservedObject var glance: TodayGlance
     @ObservedObject var firewall: FirewallRules
     @ObservedObject var filter: FilterController
-    let pausedText: String?
+    /// The network the Mac is on, for "Whenever on" and "Turn On Here".
+    let network: FirewallRules.CurrentNetwork?
     /// The list's height, every view's (#599).
     let listHeight: CGFloat
     let icon: (String, String, String?) -> NSImage
     let onTurnOn: () -> Void
     let onOpen: () -> Void
 
-    /// The list gives up the paused line's height, so the view stays as tall
+    /// The list gives up the pause bar's height, so the view stays as tall
     /// as the others.
-    private var height: CGFloat {
-        listHeight - (pausedText == nil ? 0 : PopoverMetrics.captionHeight)
-    }
+    private var height: CGFloat { listHeight - PopoverMetrics.pauseBarHeight }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -422,9 +523,11 @@ struct PopoverBlocked: View {
                                action: filter.state == .unavailable ? nil : (L("Turn On"), onTurnOn))
                     .frame(height: PopoverMetrics.groupingRowHeight + listHeight)
             } else {
+                // Pause or resume first, as other ad blockers put it (#600);
+                // the stats under it.
+                PopoverAdsPauseBar(firewall: firewall, filter: filter, network: network)
                 PopoverGroupingRow(options: PopoverAdsGrouping.allCases, selection: $glance.adsGrouping,
                                    label: { $0.label }, count: count)
-                if let pausedText { SummaryCaption(text: pausedText) }
                 // Overlapping while they cross (#436): stacked, the popover
                 // grew by the incoming view's height, then shrank again.
                 ZStack(alignment: .top) {

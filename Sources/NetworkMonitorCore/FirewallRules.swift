@@ -94,6 +94,37 @@ public final class FirewallRules: ObservableObject {
         scheduleResume()
     }
 
+    /// The Pause menus' choices (#251), the window's, the popover's and the
+    /// right-click menu's alike (#600), so all three pause the same way.
+    public func pauseListsForAnHour(now: Date = Date()) {
+        pauseLists(until: now.addingTimeInterval(3600))
+    }
+
+    /// Until the start of tomorrow.
+    public func pauseListsUntilTomorrow(calendar: Calendar = .current, now: Date = Date()) {
+        pauseLists(until: calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)))
+    }
+
+    /// Paused, or off on `network` (#253): the state the Pause menus and
+    /// the popover's bar show, in that order.
+    public enum ListsState: Equatable {
+        case blocking
+        case paused(until: Date)
+        case offHere(network: String)
+    }
+
+    public func listsState(on network: CurrentNetwork?) -> ListsState {
+        if let until = listsPausedUntil { return .paused(until: until) }
+        if let network, let name = listsPausedNetworks[network.id] { return .offHere(network: name) }
+        return .blocking
+    }
+
+    /// Ad blocking on again: until a time, or on `network`.
+    public func resumeLists(on network: CurrentNetwork?) {
+        if listsPausedUntil != nil { pauseLists(until: nil); return }
+        if let network { resumeLists(onNetwork: network.id) }
+    }
+
     private func scheduleResume() {
         resumeTimer?.invalidate()
         resumeTimer = nil

@@ -275,7 +275,9 @@ and the toolbar's search (⌘F) covers both.
     ← closes it or goes back up to the row it's in; Space or Return does what a click on
     the row does.
 - **Pause:** for an hour or until tomorrow, in every app. The lists stay chosen, the filter
-  is sent none until then, and the popover says it's paused. Kept across a relaunch.
+  is sent none until then, and the popover says it's paused. Kept across a relaunch. The
+  popover's **Ads blocked** and the menu bar's right-click menu pause and resume it too
+  (#600): one setting, so all three always agree.
   **Whenever on** *this network* (#253) turns ad blocking off on the network the Mac is on,
   by the router's identity as History knows it, every time it's there; Your Rules lists
   those networks, and **Turn On Here** undoes it.

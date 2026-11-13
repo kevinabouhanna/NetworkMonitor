@@ -105,7 +105,7 @@ public struct MenuBarPopoverView: View {
                         PopoverCompanies(glance: glance, listHeight: listHeight,
                                          icon: model.icon(forApp:name:bundlePath:), onOpen: onConnections)
                     case .blocked:
-                        PopoverBlocked(glance: glance, firewall: firewall, filter: filter, pausedText: adsPausedText,
+                        PopoverBlocked(glance: glance, firewall: firewall, filter: filter, network: model.currentNetwork,
                                        listHeight: listHeight, icon: model.icon(forApp:name:bundlePath:),
                                        onTurnOn: turnOnAdBlocking, onOpen: onAds)
                     case .connection:
@@ -265,6 +265,12 @@ public struct MenuBarPopoverView: View {
 
     // MARK: Header
 
+    /// One of the four views, from its button or the paused line.
+    private func show(_ section: PopoverSection) {
+        withAnimation(Motion.content) { model.popoverSection = section }
+        if section == .companies || section == .blocked { glance.refresh() }
+    }
+
     /// The window section for the view shown, from the button by the gear.
     private func openWindow() {
         switch model.popoverSection {
@@ -322,11 +328,7 @@ public struct MenuBarPopoverView: View {
             .padding(.trailing, 6)
             .padding(.top, 8)
             .padding(.bottom, 4)
-            PopoverButtons(selection: Binding(get: { model.popoverSection },
-                                              set: { section in
-                                                  withAnimation(Motion.content) { model.popoverSection = section }
-                                                  if section == .companies || section == .blocked { glance.refresh() }
-                                              }),
+            PopoverButtons(selection: Binding(get: { model.popoverSection }, set: show),
                            period: glance.period,
                            data: dataTotal,
                            connections: glance.hasLoaded ? glance.connections.formatted() : "–",
@@ -363,7 +365,8 @@ public struct MenuBarPopoverView: View {
                         .help(L("Block Everything is on: every app's new connections stop, apart from looking up names, the clock and your own network"))
                     }
                     if let paused = adsPausedText {
-                        Button(action: onAds) {
+                        // To Ads blocked, whose bar has Resume (#600).
+                        Button { show(.blocked) } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "shield.slash")
                                 Text(paused).lineLimit(1)
@@ -372,7 +375,7 @@ public struct MenuBarPopoverView: View {
                         .buttonStyle(.plain)
                         .font(.system(size: 10))
                         .foregroundStyle(.orange)
-                        .help(L("Open Ads and Trackers to resume"))
+                        .help(L("Show Ads blocked, to resume"))
                     }
                     if let failure = model.perAppFailure {
                         // Grey, not orange: the total above is still right. Only the

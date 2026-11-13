@@ -725,6 +725,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                                     action: #selector(toggleBlockEverything), keyEquivalent: "")
             item.state = model.firewall.blocksEverything ? .on : .off
             item.toolTip = L("Stops every app's new connections, apart from what's needed to turn this off")
+            if model.firewall.lists.isEmpty { menu.addItem(.separator()) }
+        }
+
+        // Pause from the menu bar (#600), as in the popover's Ads blocked and
+        // the window: the same choices, the same setting. Only while it's on.
+        if !model.firewall.lists.isEmpty {
+            let network = model.currentNetwork
+            switch model.firewall.listsState(on: network) {
+            case .paused(let until):
+                let item = menu.addItem(withTitle: L("Resume Ad Blocking"),
+                                        action: #selector(resumeAdBlocking), keyEquivalent: "")
+                item.toolTip = L("Paused until %@", until.formatted(date: .omitted, time: .shortened))
+            case .offHere(let name):
+                let item = menu.addItem(withTitle: L("Resume Ad Blocking"),
+                                        action: #selector(resumeAdBlocking), keyEquivalent: "")
+                item.toolTip = L("Off on %@", name)
+            case .blocking:
+                let pause = NSMenu()
+                pause.addItem(withTitle: L("For 1 Hour"), action: #selector(pauseAdBlockingForAnHour),
+                              keyEquivalent: "").target = self
+                pause.addItem(withTitle: L("Until Tomorrow"), action: #selector(pauseAdBlockingUntilTomorrow),
+                              keyEquivalent: "").target = self
+                if let network {
+                    pause.addItem(.separator())
+                    pause.addItem(withTitle: L("Whenever on %@", network.name),
+                                  action: #selector(pauseAdBlockingOnThisNetwork), keyEquivalent: "").target = self
+                }
+                let item = menu.addItem(withTitle: L("Pause Ad Blocking"), action: nil, keyEquivalent: "")
+                item.submenu = pause
+                item.toolTip = L("Let ads through for a while, in every app")
+            }
             menu.addItem(.separator())
         }
 
@@ -797,6 +828,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     @objc private func toggleBlockEverything() {
         model.setBlocksEverything(!model.firewall.blocksEverything)
     }
+
+    @objc private func pauseAdBlockingForAnHour() { model.firewall.pauseListsForAnHour() }
+
+    @objc private func pauseAdBlockingUntilTomorrow() { model.firewall.pauseListsUntilTomorrow() }
+
+    @objc private func pauseAdBlockingOnThisNetwork() {
+        guard let network = model.currentNetwork else { return }
+        model.firewall.pauseLists(on: network, true)
+    }
+
+    @objc private func resumeAdBlocking() { model.firewall.resumeLists(on: model.currentNetwork) }
 
     @objc private func toggleSpeedTest() {
         let speedTest = model.speedTest
