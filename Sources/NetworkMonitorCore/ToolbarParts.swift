@@ -240,6 +240,7 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
         item.label = L("Search")
         item.paletteLabel = L("Search")
         item.toolTip = help
+        AppKitToolbarNames.name(item)
     }
 
     // MARK: Opening and closing
@@ -319,6 +320,7 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
 
     /// Kept round as the toolbar lays out, while it's the glass.
     func fitGlass() {
+        AppKitToolbarNames.name(item)
         guard !isOpen, size.constant != glassWidth else { return }
         size.constant = glassWidth
     }
@@ -368,6 +370,47 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
             onChange("")
         }
         return true
+    }
+}
+
+/// AppKit's own toolbar buttons, named in the app's language (#621): the
+/// sidebar's button and the search's glass. AppKit names them from its own
+/// strings, in the language the app was launched in, so after the language
+/// changed in Settings, VoiceOver read "Sidebar" and "Search" in English in a
+/// Chinese window until the app was opened again. Named again whenever the
+/// toolbar is shown or the language changes. The sidebar button's tooltip
+/// ("Hide Sidebar", read as its hint after a pause) AppKit sets again each
+/// time it checks the button, so it stays in the launch language until then.
+enum AppKitToolbarNames {
+    static func name(_ toolbar: NSToolbar?) {
+        for item in toolbar?.items ?? [] {
+            if item.itemIdentifier == .toggleSidebar {
+                item.label = L("Sidebar")
+                item.paletteLabel = L("Sidebar")
+            } else if let search = item as? NSSearchToolbarItem {
+                name(search)
+            }
+        }
+    }
+
+    /// The glass is AppKit's button beside the field, and the field's ✕ its
+    /// clear button: neither takes the field's own name.
+    static func name(_ search: NSSearchToolbarItem) {
+        guard let holder = search.searchField.superview else { return }
+        func walk(_ view: NSView) {
+            for child in view.subviews {
+                if let button = child as? NSButton {
+                    if String(describing: type(of: button)).contains("Clear") {
+                        button.setAccessibilityLabel(L("Clear"))
+                    } else {
+                        button.setAccessibilityLabel(L("Search"))
+                        button.setAccessibilityHelp(search.toolTip)
+                    }
+                }
+                walk(child)
+            }
+        }
+        walk(holder)
     }
 }
 
