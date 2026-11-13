@@ -32,16 +32,13 @@ can't run `nettop`.
 
 ## Ideas
 
-- **A widget** (#108). A WidgetKit extension has to be signed with a provisioning profile
-  and share data with the app through an app group, which the Developer ID now makes
-  possible.
-- **A Homebrew cask.** A notarized disk image at a stable URL is what a cask needs, and
-  `releases/latest/download/NetworkMonitor.dmg` is one.
-- **A monthly data cap, with a warning as it nears** (#110). History has every figure it
-  would need; nothing sets a cap or warns yet.
-- **A command-line tool** (#77).
-- **A choice of menu bar readout or Dock icon** (#69): one or the other, never neither,
-  with the Dock icon still there while Settings is open.
+What comes next, in order, is [the plan](PLAN.md) (#605). The ideas that were listed here
+are in it or done: widgets (#108) and a Terminal command (#77) are in its phase 8, the
+Homebrew cask shipped as a tap (#203) and moves into Homebrew's own repository with the launch
+(#529), and the Dock icon shipped in 1.29 (#69). Two ideas have no issue yet:
+
+- **A monthly data cap, with a warning as it nears.** History has every figure it would
+  need; nothing sets a cap or warns yet.
 - **Move the tests to a real test target** once Xcode isn't a constraint. The harness
   mirrors XCTest's names so it's a rename.
 

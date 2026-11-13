@@ -83,6 +83,50 @@ through without asking. What's particular to NetworkMonitor:
     `make translation-review FROM=<last tag>` on the release's issue (it
     mentions the reviewer). Nothing waits on it; their changes follow there.
 
+## The plan
+
+- **The plan** is `docs/PLAN.md`, with one page per phase in `docs/phases/` (Kevin,
+  2026-11-13, #605). On GitHub it's one tree: the pinned root issue **#607 "The plan:
+  NetworkMonitor"** (label `plan`), a **phase issue** per phase (#608–#615, the milestone's
+  title, label `phase`, in its milestone, under #607; closed when the phase is done), each
+  **item** a sub-issue of its phase issue, each **step** a sub-issue of its item. The board
+  (https://github.com/users/kevinabouhanna/projects/4) has the **Level** (Plan, Phase, Item,
+  Step, from the tree), **Order**, **Horizon** (Now, Next, Later) and rough **Start date** and
+  **Target date** on each item; steps copy their item's Order and Horizon.
+- **Every open issue is in the plan**, or `make plan-check` fails every pull request. A new
+  issue goes in as a step of its item, or as a new item under its phase issue with an Order,
+  a Horizon and dates. Tooling chores (the vendored kits, local CI, the release workflow, the
+  VM image) are steps of the standing item **#606** "Keep the tooling and the plan in order".
+- **Every session that changes the plan** (a new issue, a new order, a phase finished)
+  changes the pages and GitHub together: the page for what was decided (each page mentions
+  every open item in its phase); the issue in its place on GitHub; then
+  `Scripts/docs-kit plan sync` (it makes the rest follow: sub-issues, milestones, Levels,
+  steps' values, the phases' own values, #607's description, the Status lines and
+  `docs/phases/README.md`; never by hand), then `Scripts/docs-kit plan check`, which must
+  pass (`make plan-check`, in local CI). If it fails on something your change didn't touch (an
+  item closed since), run `plan sync` and commit the pages with your change. It's
+  product-kit's docs-kit, stage 1 (`.product-kit.json`'s `plan`; the `docs-kit` skill).
+- **Kevin's Inbox:** what he adds between sessions (a bug, a feature, an idea, research) is a
+  draft in the board's **Inbox** view, with an optional **Kind**: not an issue, not yet in the
+  plan; `plan check` only mentions it. Never take an entry in unasked. When he says **"scan
+  the inbox"** (or "scan the ideas"): `Scripts/docs-kit plan inbox`; work out the Kind where
+  it's empty; a **Bug** starts from the app's logs (below), quoted in the issue, and is placed
+  by severity (one that breaks daily use goes ahead of features, Now); a **Feature** gets a
+  spec in plain words (Why, his words quoted; What; Done when); an **Idea** or **Research**
+  becomes a decision issue (what to find out, how we'll decide), not a build. Fit each where
+  it belongs (`--parent` for a step of an item), with what it waits for (`--blocked-by N`),
+  moving others' Order when it should come first (`Scripts/docs-kit plan set <N> Order=<N>`).
+  Take each in with `Scripts/docs-kit plan inbox --take <item id> --phase "<milestone>"
+  --horizon <Now|Next|Later> --order <N> --body-file <spec.md>`, mention it on its phase's
+  page, run `plan check`, then tell him where each went and what moved.
+- **The app's logs** are in the unified log, under the subsystems
+  `com.kevinabouhanna.NetworkMonitor` (the app) and `com.kevinabouhanna.NetworkMonitor.Filter`
+  (the content filter): `/usr/bin/log show --last 1h --info --debug --predicate 'subsystem
+  BEGINSWITH "com.kevinabouhanna.NetworkMonitor" OR process == "NetworkMonitor"'` (the full
+  path: in zsh, `log` is a builtin). The app writes little of its own (lookups, the filter,
+  updates, lists, history), so the process's lines from macOS (network paths, launch) often
+  say more.
+
 ## Accessibility
 
 Everything in the app must work with VoiceOver. A program catches the major

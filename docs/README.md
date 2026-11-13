@@ -26,6 +26,7 @@ feature works, and why it was built that way.
 | [Architecture](architecture.md) | How data flows (with a diagram), threads, the two measurement sources, files |
 | [Building, testing and releasing](development.md) | Make targets, signing and notarizing, the test harness, CI, launch arguments, the release and website workflow |
 | [Decisions](decisions.md) | Principles, a dated decision log, and approaches that were turned down |
+| [The plan](PLAN.md) | What comes next, in order: the phases, Now, Next and Later, and how the plan is kept on GitHub |
 | [Roadmap and known limits](roadmap.md) | What the Developer ID made possible, and what's done; ideas; known limits |
 
 Start with [Architecture](architecture.md) and [Decisions](decisions.md) before changing
