@@ -370,3 +370,23 @@ public final class ToolbarSearch: NSObject, NSSearchFieldDelegate {
         return true
     }
 }
+
+/// The toolbar's View and Period (#524, checked for #525): one Tab stop whose
+/// choice ← and → change, as the window's own switches (Show, Group by) do.
+/// AppKit's segmented control moved a ring from segment to segment instead,
+/// and only Space chose one, so ← and → seemed to do nothing. VoiceOver's own
+/// keys (VO-← →, VO-Space) are its own and unchanged.
+public final class ToolbarSwitch: NSSegmentedControl {
+    public override func keyDown(with event: NSEvent) {
+        let step = [123: -1, 124: 1][Int(event.keyCode)]
+        guard let step, event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty else {
+            return super.keyDown(with: event)
+        }
+        var segment = selectedSegment + step
+        while (0..<segmentCount).contains(segment), !isEnabled(forSegment: segment) { segment += step }
+        // At either end it stays, as the window's switches do.
+        guard (0..<segmentCount).contains(segment) else { return }
+        selectedSegment = segment
+        sendAction(action, to: target)
+    }
+}
