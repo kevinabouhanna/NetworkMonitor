@@ -22,7 +22,7 @@
 //                    `?v=` on every asset link
 //   tree <name>      prints the masked tree, for writing an entry
 //   audit [names]    checks each window for what VoiceOver can't name, on
-//                    real data: list rows, the popover with traffic
+//                    real data in its lists
 //   readme           copies the site's pictures the README uses into it, in
 //                    every language. Files only. `update` copies each one it
 //                    retakes
@@ -34,6 +34,10 @@
 //                    docs use is a shot's picture or listed with the windows
 //                    it shows. Files only, so it runs in CI
 //   coverage-test    where `coverage` looks for media, on made-up pages
+//   mask             prints each line it reads as a tree would show it: the
+//                    numbers, dates and the project's own values masked, in
+//                    every language the project shows. Files only
+//   mask-test        the masks on made-up labels in several languages
 //   version
 //
 // With --vm (or `vm.default` in the config, and not --here), check, update,
@@ -70,7 +74,7 @@ import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
 
-let shotsKitVersion = "1.3.0"
+let shotsKitVersion = "2.0.0"
 
 // MARK: - Config
 
@@ -78,7 +82,7 @@ let shotsKitVersion = "1.3.0"
 /// the site's address from `site.url`. Every key is optional.
 struct Config {
     /// The site's checkout, from the project's main checkout (so the same from
-    /// any worktree): `../NetworkMonitor-site`. `--site` overrides it.
+    /// any worktree), such as `../App-site`. `--site` overrides it.
     var site: String?
     /// The README's and the docs' list of their assets, in the repo.
     var repoAssets = "assets.json"
@@ -98,13 +102,35 @@ struct Config {
     var repoBranch = "main"
     /// Taking the pictures in a throwaway VM (product-kit#10): see `InVM`.
     var vm = VMConfig()
+    /// The languages the project shows, by code (`languages` in the config, and
+    /// the source language): their dates and times are masked (product-kit#32).
+    var languages: [String] = []
+    /// The project's own values that change by themselves, masked after the
+    /// numbers and dates: `shots.masks`, each a pattern and what it stands for.
+    var masks: [(pattern: String, token: String)] = []
+    /// Roles whose size is kept whole, numbers and all: one drawn at a fixed
+    /// width whatever it shows, such as a menu-bar readout (`shots.keep_width`).
+    var keepWidth: Set<String> = []
+    /// The site's folder of pictures, GIFs and videos (`shots.media`).
+    var media = "assets"
+    /// The site's page that shows the pictures and their clickable areas, in
+    /// the first language (`shots.page`); each other language names its own.
+    var page = "index.html"
 
     static func load(repo: URL) -> Config {
         var c = Config()
         guard let data = try? Data(contentsOf: repo.appendingPathComponent(".product-kit.json")),
               let top = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return c }
         c.siteURL = (top["site"] as? [String: Any])?["url"] as? String
+        let source = (top["lang"] as? [String: Any])?["source"] as? String
+        c.languages = (source.map { [$0] } ?? []) + ((top["languages"] as? [String: Any])?.keys.sorted() ?? [])
         guard let shots = top["shots"] as? [String: Any] else { return c }
+        for rule in shots["masks"] as? [[String: String]] ?? [] {
+            if let pattern = rule["pattern"], let token = rule["as"] { c.masks.append((pattern, token)) }
+        }
+        if let v = shots["keep_width"] as? [String] { c.keepWidth = Set(v) }
+        if let v = shots["media"] as? String { c.media = v.hasSuffix("/") ? String(v.dropLast()) : v }
+        if let v = shots["page"] as? String { c.page = v }
         c.site = shots["site"] as? String
         if let v = shots["repo_assets"] as? String { c.repoAssets = v }
         c.lane = shots["lane"] as? String
@@ -200,7 +226,9 @@ func loadManifest(_ site: URL) throws -> Manifest {
             ? "no shots/shots.json: put it in the project's checkout, or say where the site is (shots.site in .product-kit.json, or --site)"
             : "no shots/shots.json in \(site.path)")
     }
-    return try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: file))
+    let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: file))
+    masks = try Masks(languages: ["en"] + config.languages + (manifest.languages ?? []).map(\.code), project: config.masks)
+    return manifest
 }
 
 /// The project has no site: the manifest and its pictures are in its checkout,
@@ -228,7 +256,7 @@ struct Language: Decodable {
 
     /// Where it keeps its copy of an English picture.
     func file(_ english: String) -> String {
-        english.hasPrefix("assets/") ? assets + english.dropFirst("assets/".count) : english
+        english.hasPrefix(config.media + "/") ? assets + english.dropFirst(config.media.count + 1) : english
     }
 }
 
@@ -505,7 +533,7 @@ struct Crop: Decodable {
 }
 
 struct Area: Decodable {
-    /// Text that picks out the area's tag in index.html, e.g. `data-pane="ads"`.
+    /// Text that picks out the area's tag on the page (`shots.page`), e.g. `data-pane="ads"`.
     var match: String
     /// The element it covers.
     var element: String
@@ -589,21 +617,152 @@ func parent(of element: AXUIElement) -> AXUIElement? {
 let settingRoles: Set<String> = ["AXCheckBox", "AXRadioButton", "AXPopUpButton", "AXSlider", "AXTextField",
                                  "AXTextArea", "AXComboBox", "AXDisclosureTriangle", "AXIncrementor", "AXValueIndicator"]
 
-let months = "January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec"
-let weekdays = "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun"
+/// What changes by itself in a window's text, in every language the project
+/// shows, masked so that only the interface counts (product-kit#32): numbers,
+/// then month and weekday names and the parts of the day from macOS's own date
+/// formats for each language, then the project's own values (`shots.masks`).
+struct Masks {
+    var rules: [(NSRegularExpression, String)] = []
 
-func mask(_ s: String) -> String {
-    var s = s.replacingOccurrences(of: "\\d[\\d.,:\u{202F}\u{00A0}]*", with: "#", options: .regularExpression)
-    s = s.replacingOccurrences(of: "\\b(\(months))\\b", with: "‹month›", options: .regularExpression)
-    s = s.replacingOccurrences(of: "\\b(\(weekdays))\\b", with: "‹day›", options: .regularExpression)
-    s = s.replacingOccurrences(of: "#\\s?(AM|PM|am|pm)\\b", with: "‹time›", options: .regularExpression)
-    // Chinese times and days (NetworkMonitor#431): 早上5:51, 下午#, 星期一, 周一.
-    s = s.replacingOccurrences(of: "(凌晨|早上|上午|中午|下午|晚上)\\s?#", with: "‹time›", options: .regularExpression)
-    s = s.replacingOccurrences(of: "(星期|周)[一二三四五六日天]", with: "‹day›", options: .regularExpression)
-    // A total is in KB one day and GB the next.
-    s = s.replacingOccurrences(of: "#\\s?(bytes|[KMGT]?B/s|[KMGT]bps|bps|[KMGT]?B)(?![A-Za-z])", with: "# ‹unit›",
-                               options: .regularExpression)
-    return s.replacingOccurrences(of: "\n", with: " ")
+    /// English as it was always masked, `Sept` and lower-case `am` included.
+    static let englishMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
+                                "October", "November", "December", "Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug",
+                                "Sep", "Sept", "Oct", "Nov", "Dec"]
+    static let englishDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+                              "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    static let englishTimes = ["AM", "PM", "am", "pm"]
+    /// What a language says that its date formats don't: Chinese's 星期天.
+    static let spoken = ["zh": ["星期天", "周天"]]
+
+    init(languages: [String], project: [(pattern: String, token: String)] = []) throws {
+        var months = Set(Masks.englishMonths), days = Set(Masks.englishDays)
+        // The parts of the day said after a time (5:51 PM) and before one (下午5:51).
+        var after = Set(Masks.englishTimes), before = Set<String>()
+        for code in Set(languages) {
+            let locale = Locale(identifier: code)
+            let f = DateFormatter()
+            f.locale = locale
+            f.timeZone = TimeZone(identifier: "UTC")
+            for list in [f.monthSymbols, f.shortMonthSymbols, f.standaloneMonthSymbols, f.shortStandaloneMonthSymbols] {
+                months.formUnion((list ?? []).filter(Masks.nameable).flatMap(Masks.cases))
+            }
+            for list in [f.weekdaySymbols, f.shortWeekdaySymbols, f.standaloneWeekdaySymbols, f.shortStandaloneWeekdaySymbols] {
+                days.formUnion((list ?? []).filter(Masks.nameable).flatMap(Masks.cases))
+            }
+            days.formUnion(Masks.spoken[String(code.prefix(2))] ?? [])
+            // AM and PM (`a`), and the parts of the day a time is said with
+            // (`B`): 下午, in the morning, nachmittags; on the side of the time
+            // the language puts them.
+            for (mark, formats) in [("a", ["a"]), ("B", ["B", "BBBB"])] {
+                let order = DateFormatter.dateFormat(fromTemplate: "hmm" + mark, options: 0, locale: locale) ?? ""
+                guard let at = order.firstIndex(of: Character(mark)),
+                      let hour = order.firstIndex(where: { "hHkK".contains($0) }) else { continue }
+                for format in formats {
+                    f.dateFormat = format
+                    for minute in stride(from: 0, to: 24 * 60, by: 30) {
+                        let said = f.string(from: Date(timeIntervalSince1970: Double(minute * 60)))
+                        guard !said.isEmpty, said.rangeOfCharacter(from: .decimalDigits) == nil else { continue }
+                        if at < hour { before.formUnion(Masks.cases(said)) } else { after.formUnion(Masks.cases(said)) }
+                    }
+                }
+            }
+        }
+        var rules: [(String, String)] = [
+            ("\\d[\\d.,:\u{202F}\u{00A0}]*", "#"),
+            (Masks.alternation(months), "‹month›"),
+            (Masks.alternation(days), "‹day›"),
+            ("#\\s?(?:\(Masks.alternation(after, bounded: false)))(?![\\p{L}])", "‹time›"),
+        ]
+        if !before.isEmpty {
+            rules.append(("(?<![\\p{L}])(?:\(Masks.alternation(before, bounded: false)))\\s?#", "‹time›"))
+        }
+        rules += project.map { ($0.pattern, $0.token) }
+        self.rules = try rules.map { pattern, token in
+            do { return (try NSRegularExpression(pattern: pattern), token) }
+            catch { throw Failure("shots.masks: \(pattern) isn't a pattern this can read") }
+        }
+    }
+
+    /// A word as macOS writes it and, where it's written in small letters
+    /// (lundi, mars), with a capital, as at the start of a label.
+    static func cases(_ word: String) -> [String] {
+        guard let first = word.first, first.isLowercase else { return [word] }
+        return [word, first.uppercased() + word.dropFirst()]
+    }
+
+    /// A name worth masking on its own: not a number, and long enough not to
+    /// be part of other words (three letters, or two in a script without spaces).
+    static func nameable(_ word: String) -> Bool {
+        word.rangeOfCharacter(from: .decimalDigits) == nil && word.count >= (unspaced(word) ? 2 : 3)
+    }
+
+    /// Written without spaces between words (Chinese, Japanese, Thai): a name
+    /// can't be told from its neighbours by where a word ends.
+    static func unspaced(_ word: String) -> Bool {
+        word.range(of: "[\\p{Han}\\p{Hiragana}\\p{Katakana}\\p{Thai}\\p{Lao}\\p{Khmer}\\p{Myanmar}]",
+                   options: .regularExpression) != nil
+    }
+
+    /// The words as one pattern, the longest first; a word in a spaced script
+    /// only as a whole word.
+    static func alternation(_ words: Set<String>, bounded: Bool = true) -> String {
+        let sorted = words.sorted { $0.count != $1.count ? $0.count > $1.count : $0 < $1 }
+        let spaced = sorted.filter { !unspaced($0) }.map(NSRegularExpression.escapedPattern(for:))
+        let unspacedWords = sorted.filter(unspaced).map(NSRegularExpression.escapedPattern(for:))
+        var parts: [String] = []
+        if !spaced.isEmpty {
+            let words = spaced.joined(separator: "|")
+            parts.append(bounded ? "(?<![\\p{L}\\p{N}_])(?:\(words))(?![\\p{L}\\p{N}_])" : "(?:\(words))")
+        }
+        if !unspacedWords.isEmpty { parts.append("(?:\(unspacedWords.joined(separator: "|")))") }
+        return parts.joined(separator: "|")
+    }
+
+    func apply(_ s: String) -> String {
+        var s = s
+        for (regex, token) in rules {
+            s = regex.stringByReplacingMatches(in: s, range: NSRange(s.startIndex..., in: s),
+                                               withTemplate: NSRegularExpression.escapedTemplate(for: token))
+        }
+        return s.replacingOccurrences(of: "\n", with: " ")
+    }
+}
+
+/// The masks in use: the project's languages and its own, once its manifest
+/// is read; English alone before that.
+nonisolated(unsafe) var masks = try! Masks(languages: ["en"])
+
+func mask(_ s: String) -> String { masks.apply(s) }
+
+/// `mask-test`: labels in several languages, and what each must read as.
+enum MaskTests {
+    struct Case { let languages: [String]; let project: [(pattern: String, token: String)]; let label: String; let reads: String }
+    static let units = [(pattern: "#\\s?(bytes|[KMGT]?B/s|[KMGT]bps|bps|[KMGT]?B)(?![A-Za-z])", token: "# ‹unit›")]
+    static let cases: [Case] = [
+        Case(languages: ["en"], project: [], label: "Updated 5:51\u{202F}PM on Monday, March 3", reads: "Updated ‹time› on ‹day›, ‹month› #"),
+        Case(languages: ["en"], project: [], label: "Sun 2 Sept, 9:05 am", reads: "‹day› # ‹month›, ‹time›"),
+        Case(languages: ["en"], project: [], label: "Monitor the Marketing app, you may", reads: "Monitor the Marketing app, you may"),
+        Case(languages: ["en"], project: [], label: "12.3 MB/s", reads: "# MB/s"),
+        Case(languages: ["en"], project: units, label: "12.3 MB/s · 4 GB today", reads: "# ‹unit› · # ‹unit› today"),
+        Case(languages: ["en", "zh-Hans"], project: [], label: "下午5:51 · 早上6:02", reads: "‹time› · ‹time›"),
+        Case(languages: ["en", "zh-Hans"], project: [], label: "星期一 周三的流量 星期天", reads: "‹day› ‹day›的流量 ‹day›"),
+        Case(languages: ["en", "zh-Hans"], project: [], label: "十一月 · 11月13日", reads: "‹month› · #月#日"),
+        Case(languages: ["fr"], project: [], label: "Lundi 3 mars à 17:51", reads: "‹day› # ‹month› à #"),
+        Case(languages: ["fr"], project: [], label: "Marché de nuit", reads: "Marché de nuit"),
+        Case(languages: ["de"], project: [], label: "Montag, 3. März um 17:51", reads: "‹day›, # ‹month› um #"),
+        Case(languages: ["de"], project: [], label: "So geht's: am Mo.", reads: "So geht's: am ‹day›"),
+        Case(languages: ["ar"], project: [], label: "الاثنين ٣ مارس ٥:٥١ م", reads: "‹day› # ‹month› ‹time›"),
+        Case(languages: ["ja"], project: [], label: "月曜日 午後5:51 · 1月", reads: "‹day› ‹time› · #月"),
+        Case(languages: ["en"], project: [(pattern: "[$€£]#", token: "‹money›"), (pattern: "#%", token: "‹percent›")],
+             label: "$12.50 · 80%", reads: "‹money› · ‹percent›"),
+    ]
+
+    static func run() throws -> [String] {
+        try cases.compactMap { c in
+            let got = try Masks(languages: c.languages, project: c.project).apply(c.label)
+            return got == c.reads ? nil : "\(c.languages.joined(separator: ",")): \"\(c.label)\" reads \"\(got)\", not \"\(c.reads)\""
+        }
+    }
 }
 
 func rounded(_ v: CGFloat) -> Int { Int((v / 4).rounded()) * 4 }
@@ -623,9 +782,10 @@ func line(_ element: AXUIElement) -> String {
     if let f = frame(element) {
         let shown = settingRoles.contains(r) ? labels(element).dropLast(text(element, kAXValueAttribute) == nil ? 0 : 1) : labels(element)[...]
         let hasNumber = shown.contains { $0.rangeOfCharacter(from: .decimalDigits) != nil }
-        // The menu bar readout keeps its width, rates and all: it's drawn at
-        // one width in either unit, so a change in it is the readout's (NetworkMonitor#424).
-        let keepsWidth = r == "AXMenuBarItem"
+        // A role drawn at one width whatever it shows keeps its width, numbers
+        // and all, so a change in it is its own (`shots.keep_width`; a menu-bar
+        // readout, NetworkMonitor#424).
+        let keepsWidth = config.keepWidth.contains(r)
         parts.append(!keepsWidth && (r == "AXStaticText" || hasNumber || containerRoles.contains(r))
                      ? "h\(rounded(f.height))" : "\(rounded(f.width))x\(rounded(f.height))")
     }
@@ -1420,7 +1580,8 @@ struct Page {
     /// link to it, so a page never shows a picture the browser kept from an
     /// older version.
     mutating func stampAssets(site: URL) {
-        let regex = try! NSRegularExpression(pattern: "(assets/[A-Za-z0-9_./-]+\\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm))(\\?v=[0-9a-f]+)?")
+        let folder = NSRegularExpression.escapedPattern(for: config.media)
+        let regex = try! NSRegularExpression(pattern: "(\(folder)/[A-Za-z0-9_./-]+\\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm))(\\?v=[0-9a-f]+)?")
         let ns = html as NSString
         var result = "", last = 0
         for m in regex.matches(in: html, range: NSRange(location: 0, length: ns.length)) {
@@ -1481,7 +1642,8 @@ enum Coverage {
             return "|" + NSRegularExpression.escapedPattern(for: bare.hasSuffix("/") ? bare : bare + "/")
         } ?? ""
         let regex = try NSRegularExpression(
-            pattern: #"(?:^|["'`(=,\s]"# + own + #")(?:\.\./)*(assets/[A-Za-z0-9_./@-]+\.(?:"# + media + #"))"#,
+            pattern: #"(?:^|["'`(=,\s]"# + own + #")(?:\.\./)*("# + NSRegularExpression.escapedPattern(for: config.media)
+                + #"/[A-Za-z0-9_./@-]+\.(?:"# + media + #"))"#,
             options: [.caseInsensitive, .anchorsMatchLines])
         var uses: [String: Set<String>] = [:]
         // A page in a folder climbs out with ../; a script's paths are the
@@ -1901,7 +2063,7 @@ enum CoverageTests {
             try text.write(to: file, atomically: true, encoding: .utf8)
         }
         let manifest = try JSONDecoder().decode(Manifest.self, from: Data("""
-            {"app": "/Applications/NetworkMonitor.app", "bundle": "x",
+            {"app": "/Applications/Example.app", "bundle": "x",
              "shots": [{"name": "popover", "file": "assets/popover.png", "open": [], "window": "x"}]}
             """.utf8))
         let repoAssets = try JSONDecoder().decode(RepoAssets.self, from: Data("""
@@ -2453,8 +2615,35 @@ struct ShotsKit {
         var inVM: Bool?
         if let i = args.firstIndex(of: "--vm") { inVM = true; args.remove(at: i) }
         if let i = args.firstIndex(of: "--here") { inVM = false; args.remove(at: i) }
+        // What the masks make of text, files only (product-kit#32): `mask` reads
+        // lines and prints each as a tree would show it, with the project's
+        // languages and masks; `mask-test` runs the made-up cases.
+        if args.first == "mask-test" {
+            do {
+                let failures = try MaskTests.run()
+                print(failures.isEmpty ? "mask-test: \(MaskTests.cases.count) cases passed"
+                      : "mask-test: \(failures.count) of \(MaskTests.cases.count) cases failed:\n" + failures.map { "  " + $0 }.joined(separator: "\n"))
+                exit(failures.isEmpty ? 0 : 1)
+            } catch {
+                print("mask-test: \(error)")
+                exit(2)
+            }
+        }
+        if args.first == "mask" {
+            do {
+                let site = givenSite ?? repo
+                let listed = (try? JSONDecoder().decode(Manifest.self, from: Data(contentsOf: site.appendingPathComponent("shots/shots.json"))))?
+                    .languages?.map(\.code) ?? []
+                masks = try Masks(languages: ["en"] + config.languages + listed, project: config.masks)
+            } catch {
+                print("mask: \(error)")
+                exit(2)
+            }
+            while let line = readLine(strippingNewline: true) { print(mask(line)) }
+            exit(0)
+        }
         guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "coverage-test", "readme", "record"].contains(command) else {
-            print("usage: shots-kit check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE] [--vm|--here] [--wait-away MINUTES]|version")
+            print("usage: shots-kit check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|mask|mask-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE] [--vm|--here] [--wait-away MINUTES]|version")
             exit(2)
         }
         // No site: the manifest is the project's own (product-kit#8).
@@ -2612,7 +2801,7 @@ struct ShotsKit {
         // Each language's trees apart, as its labels differ.
         let trees = site.appendingPathComponent(language.map { "shots/trees/\($0.code)" } ?? "shots/trees")
         try FileManager.default.createDirectory(at: trees, withIntermediateDirectories: true)
-        var page = try Page(site: site, path: language?.page ?? "index.html", up: language?.up ?? "")
+        var page = try Page(site: site, path: language?.page ?? config.page, up: language?.up ?? "")
         var changed: [String] = [], flagged: [String] = [], failed: [String] = []
         /// Windows whose look differs from their picture's (NetworkMonitor#423).
         var looks: [String] = []
