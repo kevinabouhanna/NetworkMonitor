@@ -1,6 +1,6 @@
 # Phase 1: Everyday polish
 
-**Milestone:** Phase 1: Everyday polish · **Status:** Now
+**Milestone:** Phase 1: Everyday polish · **Status:** Done
 
 **Goal:** what people touch every day feels finished: the popover never jumps, the main
 window's three lists behave the same, and the VoiceOver and keyboard work of 1.29 is checked.
