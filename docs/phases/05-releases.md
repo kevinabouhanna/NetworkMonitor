@@ -8,9 +8,8 @@ builds, checks and releases the app stays in order.
 ## The plans
 
 - **Release 1.31.0** (#643), first in the order: the 36 changes merged since 1.30.2 (all of
-  phase 1, Pause, Rules), which nobody who uses the app has yet. It waits on Kevin's word, since
-  releases are on hold (#559). Its step: the release notes in Chinese too, in the update window
-  (#640).
+  phase 1, Pause, Rules), held since 11 Nov (#559) until Kevin said release on 14 Nov. Its
+  notes are the first in Chinese in the update window too (#640, done).
 - **Beta releases** (#585), Next: a beta channel in Sparkle, a setting to opt in, and a release
   promoted to everyone only once Kevin says it's good. Everything up to a release is automatic
   now; what a program can't judge is whether it looks and works right to a person. Built before

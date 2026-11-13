@@ -5,13 +5,8 @@
 `~/.claude/CLAUDE.md` has the workflow: issue → pull request → merge → install, carried
 through without asking. What's particular to NetworkMonitor:
 
-- **Releases are on hold (Kevin, 11 Nov 2026, #559).** Until Kevin says to release, a
-  change is done once it's merged into `main`: no tag, no release notes, no install, no
-  `make site-shots` or `make site-audit`. Merging takes no pictures (local CI builds windows
-  out of sight). When he says release, remove this bullet; the release takes everything
-  merged since 1.30.2.
-- **Releasing is routine here** (once the hold is lifted). Carry each change on to a
-  release, the installed app and the website without asking.
+- **Releasing is routine here.** Carry each change on to a release, the installed app and
+  the website without asking. (The hold of 11–14 Nov 2026, #559, ended with 1.31.0, #643.)
   - **Only when the app changes (#484).** A tag offers every installed copy an update, so
     tooling-only work (Scripts/, CI, the site's tooling, development docs) is done once
     merged into `main` or `gh-pages`, and rides along with the next release. Release when

@@ -24,9 +24,8 @@ Shipped, as of 1.30.2 (11 Nov 2026):
 
 Merged since, not released yet: all of phase 1 (the popover's one height, the three lists that
 behave alike, the VoiceOver and keyboard checks), **Pause** ad blocking from the menu bar, and
-your own **Rules** beside Traffic and Blocked. **Releases are on hold** since 11 Nov 2026
-(#559): what's merged waits on `main` until Kevin says to release. That release, 1.31.0
-(#643), is first in the order.
+your own **Rules** beside Traffic and Blocked. Releases were on hold from 11 Nov 2026 (#559)
+until Kevin said release on 14 Nov: they go out in 1.31.0 (#643), first in the order.
 
 ## Phases
 
