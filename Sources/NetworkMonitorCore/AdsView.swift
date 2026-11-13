@@ -306,10 +306,11 @@ struct AdsView: View {
 }
 
 /// Sites or apps, most blocked first, made of Usage History's rows (#536):
-/// a click chooses a row, and the chart shows its share of each bar; a
-/// chevron opens what's inside it, the apps that tried a site or the sites
-/// an app tried, each with when it was last blocked. ↑ and ↓ move through
-/// the rows, → and ← open and close one, Space or Return chooses it.
+/// a click on a row, or its chevron, opens what's inside it, the apps that
+/// tried a site or the sites an app tried, each with when it was last
+/// blocked; its Filter button keeps only it, and the chart and total show
+/// its share (#593). ↑ and ↓ move through the rows, → and ← or Space open
+/// and close one, Return filters to it.
 private struct AdsList: View {
     @ObservedObject var model: AdsViewModel
     let items: [AdsItem]
@@ -335,12 +336,13 @@ private struct AdsList: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             // One stop, the arrow keys moving through it, as Usage History's
-            // and Connections' (#593): ↑ ↓ move the ring, Space chooses.
+            // and Connections' (#593): ↑ ↓ move the ring, Space opens, Return
+            // filters.
             .listKeys(keyRows, cursor: cursor, name: model.grouping.label, proxy: proxy,
                       open: { row, open in model.setExpanded(row.id, open) },
-                      choose: { row in
+                      filter: { row in
                           if let shown = shownRows.first(where: { selection($0.item, parent: $0.parent).rowID == row.id }) {
-                              choose(selection(shown.item, parent: shown.parent))
+                              filter(selection(shown.item, parent: shown.parent))
                           }
                       })
         }
@@ -402,7 +404,11 @@ private struct AdsList: View {
             truncation: isApp ? .tail : .middle,
             barMost: AdsMetrics.rowBarWidth,
             figureWidth: AdsMetrics.figureWidth,
-            onSelect: { choose(selection) })
+            onFilter: { filter(selection) },
+            onClick: {
+                cursor.id = selection.rowID
+                if open != nil { withAnimation(.easeInOut(duration: 0.15)) { model.toggleExpanded(item.id) } }
+            })
             .id(selection.rowID)
             .contextMenu {
                 AdsRowMenu(model: model,
@@ -445,7 +451,7 @@ private struct AdsList: View {
         return L("Last blocked %@", L("%@, %@", HistoryFormat.binTitle(interval, scale: .week), hours))
     }
 
-    // MARK: Choosing
+    // MARK: Filtering
 
     private func selection(_ item: AdsItem, parent: AdsItem?) -> AdsViewModel.Selection {
         guard let parent else {
@@ -456,7 +462,8 @@ private struct AdsList: View {
         return .init(grouping: model.grouping, parent: parent.id, child: item.id, title: L("%@ in %@", site, app))
     }
 
-    private func choose(_ selection: AdsViewModel.Selection) {
+    /// A row's Filter button, or Return: the list keeps only it, or lets go.
+    private func filter(_ selection: AdsViewModel.Selection) {
         cursor.id = selection.rowID
         model.select(selection)
     }
@@ -474,10 +481,13 @@ private struct AdsList: View {
     /// The rows shown, as the arrow keys go through them.
     private var keyRows: [KeyRow] {
         shownRows.map { row in
-            KeyRow(id: selection(row.item, parent: row.parent).rowID,
-                   spoken: L("%@, %@", row.item.title, row.item.count.formatted()),
-                   parent: row.parent?.id,
-                   isOpen: row.parent == nil && !row.item.children.isEmpty ? model.isExpanded(row.item.id) : nil)
+            let selection = selection(row.item, parent: row.parent)
+            return KeyRow(id: selection.rowID,
+                          spoken: L("%@, %@", row.item.title, row.item.count.formatted()),
+                          parent: row.parent?.id,
+                          isOpen: row.parent == nil && !row.item.children.isEmpty ? model.isExpanded(row.item.id) : nil,
+                          name: row.item.title,
+                          isFiltered: model.selection == selection)
         }
     }
 }

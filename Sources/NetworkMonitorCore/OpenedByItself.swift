@@ -1,12 +1,11 @@
 import Foundation
 
-/// The rows a list opened by itself (#593), so it can close them again: the
-/// row left after choosing it, or a row shown only because what's inside it
-/// matched a search. A row the person opens or closes by hand is theirs from
-/// then on, and stays as they left it.
+/// The rows a list opened by itself (#593), so it can close them again: a
+/// row shown only because what's inside it matched a search. A row the
+/// person opens or closes by hand is theirs from then on, and stays as they
+/// left it; filtering opens and closes nothing.
 ///
-/// Usage History, Connections and Ads and Trackers each keep two: one for
-/// choosing, one for search.
+/// Usage History, Connections and Ads and Trackers each keep one, for search.
 public struct OpenedByItself: Equatable {
     public private(set) var ids: Set<String> = []
     /// Rows `openOnce` has opened since the last `close`, kept even after the

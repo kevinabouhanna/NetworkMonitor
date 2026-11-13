@@ -2,9 +2,10 @@ import Foundation
 import NetworkMonitorCore
 import ServerDirectory
 
-/// The main window's three lists open, close and filter alike (#593): a click
-/// shows only that row, the ▸ opens it, Escape lets go, and what a list opens
-/// by itself it closes again.
+/// The main window's three lists open, close and filter alike (#593, revised
+/// option B): a click on a row opens or closes it, its Filter button alone
+/// filters, filtering opens and closes nothing, Escape lets go, and what
+/// search opens it closes again.
 func runListBehaviourTests() {
     let reference = Date(timeIntervalSince1970: 1_792_573_800)
 
@@ -92,20 +93,31 @@ func runListBehaviourTests() {
             model.showConnections(sample)
         }
 
-        Check.test("a click on a company shows only it, open and marked; a second lets it go and closes it") {
+        Check.test("Filter on a company shows only it, marked and still closed; again lets it go") {
             reset()
             guard let microsoft = model.groups.first(where: { $0.item.title == "Microsoft" })?.item else {
                 return Check.expectTrue(false, "no Microsoft in \(model.groups.map(\.item.title))")
             }
-            model.choose(microsoft)
+            model.toggleFilter(microsoft)
             Check.expectEqual(model.groups.map(\.item.title), ["Microsoft"])
             Check.expectTrue(model.isChosen(microsoft))
-            Check.expectTrue(model.expanded.contains(microsoft.id), "the one left didn't open")
+            Check.expectFalse(model.expanded.contains(microsoft.id), "filtering opened it")
             Check.expectTrue(model.canGoBack)
-            model.choose(microsoft)
+            model.toggleFilter(microsoft)
             Check.expectEqual(model.groups.count, 2)
-            Check.expectFalse(model.expanded.contains(microsoft.id), "what choosing opened stayed open")
             Check.expectFalse(model.canGoBack)
+        }
+
+        Check.test("filtering leaves an open company open, on and off") {
+            reset()
+            guard let google = model.groups.first(where: { $0.item.title == "Google" })?.item else {
+                return Check.expectTrue(false, "no Google")
+            }
+            model.setExpanded(google.id, true)
+            model.toggleFilter(google)
+            Check.expectTrue(model.expanded.contains(google.id), "filtering closed it")
+            model.toggleFilter(google)
+            Check.expectTrue(model.expanded.contains(google.id), "letting go closed it")
         }
 
         Check.test("a row inside chosen twice lets go of it and keeps the company") {
@@ -136,15 +148,14 @@ func runListBehaviourTests() {
             Check.expectFalse(model.canGoBack, "Escape would be taken from search with nothing to let go")
         }
 
-        Check.test("a company closed by hand stays closed while it's chosen") {
+        Check.test("a company filtered to, alone in the list, doesn't open as the list is read again") {
             reset()
             guard let google = model.groups.first(where: { $0.item.title == "Google" })?.item else {
                 return Check.expectTrue(false, "no Google")
             }
-            model.choose(google)
-            model.setExpanded(google.id, false)
+            model.toggleFilter(google)
             model.showConnections(sample)      // read again, as every 30 s
-            Check.expectFalse(model.expanded.contains(google.id), "it opened again by itself")
+            Check.expectFalse(model.expanded.contains(google.id), "it opened by itself")
         }
 
         Check.test("what's open stays open across groupings") {
@@ -193,11 +204,53 @@ func runListBehaviourTests() {
             Check.expectFalse(model.canGoBack)
         }
 
+        Check.test("filtering to an app opens and closes nothing") {
+            model.setExpanded("/System/Applications/Utilities/Terminal.app", true)
+            model.toggleApp("/System/Applications/Utilities/Terminal.app")
+            Check.expectTrue(model.expandedApps.contains("/System/Applications/Utilities/Terminal.app"),
+                             "filtering closed it")
+            model.toggleApp("/System/Applications/Utilities/Terminal.app")
+            Check.expectTrue(model.expandedApps.contains("/System/Applications/Utilities/Terminal.app"),
+                             "letting go closed it")
+            model.toggleApp("/Applications/Safari.app")
+            Check.expectFalse(model.expandedApps.contains("/Applications/Safari.app"), "filtering opened it")
+            model.toggleApp("/Applications/Safari.app")
+            model.setExpanded("/System/Applications/Utilities/Terminal.app", false)
+        }
+
         Check.test("System opens and closes, by hand") {
             model.setExpanded(HistoryViewModel.systemID, true)
             Check.expectTrue(model.systemExpanded)
             model.toggleExpanded(HistoryViewModel.systemID)
             Check.expectFalse(model.systemExpanded)
+        }
+    }
+
+    Check.suite("Lists — Ads and Trackers (#593)") {
+        let defaults = Check.defaults("ads-lists")
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("ads-lists-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = UsageStore(storeURL: dir.appendingPathComponent("usage.json"))
+        let metering = MeteringController(store: store,
+                                          journal: SuppressionJournal(url: dir.appendingPathComponent("journal.json")),
+                                          suppressors: [], defaults: defaults)
+        let model = AdsViewModel(monitor: MonitorViewModel(store: store, metering: metering), defaults: defaults)
+
+        Check.test("Filter keeps a row and lets it go, opening and closing nothing") {
+            let open = AdsViewModel.Selection(grouping: model.grouping, parent: "doubleclick.net", title: "doubleclick.net")
+            let closed = AdsViewModel.Selection(grouping: model.grouping, parent: "bing.com", title: "bing.com")
+            model.setExpanded("doubleclick.net", true)
+            model.select(open)
+            Check.expectEqual(model.selection, open)
+            Check.expectTrue(model.isExpanded("doubleclick.net"), "filtering closed it")
+            Check.expectTrue(model.canGoBack)
+            model.select(open)
+            Check.expectNil(model.selection, "Filter again didn't let go")
+            Check.expectTrue(model.isExpanded("doubleclick.net"), "letting go closed it")
+            model.select(closed)
+            Check.expectFalse(model.isExpanded("bing.com"), "filtering opened it")
+            model.goBack()
+            Check.expectNil(model.selection, "Escape didn't let go")
         }
     }
 }
