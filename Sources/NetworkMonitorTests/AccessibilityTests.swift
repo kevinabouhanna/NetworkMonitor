@@ -88,6 +88,14 @@ func runAccessibilityTests() {
                         return
                     }
                     for problem in problems { Check.expectTrue(false, problem.description) }
+                    // Nothing left in English (#621): a name that has a
+                    // translation is read in it. AppKit's own buttons (the
+                    // sidebar's, the search's glass) kept the language the
+                    // app was launched in, as this test process always does.
+                    guard code != Localization.source else { return }
+                    for name in AccessibilityAudit.namesOwnWindow(titled: window.title) where L(name) != name {
+                        Check.expectTrue(false, "reads “\(name)” in English, not “\(L(name))”")
+                    }
                 }
             }
             func namesNow() -> [String] { AccessibilityAudit.namesOwnWindow(titled: window.title) }
@@ -102,6 +110,15 @@ func runAccessibilityTests() {
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
                 let names = namesNow()
                 for name in MainSection.allCases.map(\.title) + [L("View"), L("Period"), L("Group by")] {
+                    Check.expectTrue(names.contains(name), "the main window has no \(name) in \(names)")
+                }
+            }
+            // AppKit's own buttons, named by the app (#621): read in the
+            // language shown.
+            Check.test("The sidebar's button and the search's glass read in the language shown\(language)") {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                let names = namesNow()
+                for name in [L("Sidebar"), L("Search")] {
                     Check.expectTrue(names.contains(name), "the main window has no \(name) in \(names)")
                 }
             }
