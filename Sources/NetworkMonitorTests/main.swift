@@ -82,6 +82,7 @@ runWiFiNamesTests()
 runLocalizationTests()
 runAccessibilityTests()
 runKeyboardTests()
+runPopoverHeightTests()
 runAssetCheckTests()
 
 // Last: every test's own settings, gone, files and all (#557).
