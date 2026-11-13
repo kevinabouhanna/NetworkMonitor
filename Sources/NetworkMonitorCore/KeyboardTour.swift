@@ -109,7 +109,7 @@ public enum KeyboardTour {
     /// The key pressed with focus where it is. Tab moves as AppKit moves it.
     public static func press(_ key: Key, in window: NSWindow, settle: TimeInterval = 0.3) {
         if key == .tab {
-            window.selectNextKeyView(nil)
+            tab(in: window)
         } else {
             // Down, then up: a button is pressed as the key comes up.
             for type in [NSEvent.EventType.keyDown, .keyUp] {
@@ -149,10 +149,12 @@ public enum KeyboardTour {
         var stops: [Stop] = []
         var seen: [ObjectIdentifier] = []
         for _ in 0..<limit {
-            window.selectNextKeyView(nil)
+            tab(in: window)
             RunLoop.main.run(until: Date().addingTimeInterval(0.03))
             guard let responder = window.firstResponder, responder !== window else { break }
-            let id = ObjectIdentifier(responder)
+            // A text field is the stop, not the field editor every text
+            // field shares (#592).
+            let id = ObjectIdentifier(focusedView(in: window) ?? responder)
             if seen.first == id { return Tour(stops: stops, closes: true) }
             // Round a loop that leaves the first stop out.
             if seen.contains(id) { break }
@@ -180,6 +182,18 @@ public enum KeyboardTour {
 
     /// The view with focus: a text field's own field rather than the
     /// editor it lends it.
+    /// Tab, as the keyboard sends it. In a text field, focus is in its
+    /// field editor, which has no next key view of its own; a real Tab goes
+    /// on from the field (`insertTab`), so this does too (#592).
+    static func tab(in window: NSWindow) {
+        if let editor = window.firstResponder as? NSTextView, editor.isFieldEditor,
+           let field = editor.delegate as? NSView {
+            window.selectKeyView(following: field)
+        } else {
+            window.selectNextKeyView(nil)
+        }
+    }
+
     static func focusedView(in window: NSWindow) -> NSView? {
         if let editor = window.firstResponder as? NSTextView, editor.isFieldEditor,
            let field = editor.delegate as? NSView {

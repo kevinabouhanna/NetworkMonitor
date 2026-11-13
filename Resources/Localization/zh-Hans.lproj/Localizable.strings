@@ -1007,3 +1007,7 @@
 "What was blocked, every connection as it's decided, and your rules" = "拦截了什么、每个连接在作出决定时的情况，以及你的规则";
 "Block “%@” in %@" = "在 %2$@ 中阻止“%1$@”";
 "Always Allow “%@” in %@" = "在 %2$@ 中始终允许“%1$@”";
+
+/* Rules, in Connections and Ads and Trackers (#592) */
+"Block the site" = "阻止这个网站";
+"Always allow the site" = "始终允许这个网站";

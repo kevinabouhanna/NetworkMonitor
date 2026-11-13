@@ -232,8 +232,12 @@ struct AddRuleBar<Trailing: View>: View {
                 }
                 .fixedSize()
                 .accessibilityLabel(L("Which apps"))
+                // Named for what they do to the site: "Block" alone is also an
+                // SF Symbol's name, which says nothing of what it acts on.
                 Button(L("Block"), action: onBlock)
+                    .accessibilityLabel(L("Block the site"))
                 Button(L("Always Allow"), action: onAllow)
+                    .accessibilityLabel(L("Always allow the site"))
                 RowInfoButton(help: explanation, state: info) { Text(explanation) }
                 Spacer(minLength: 0)
                 trailing
