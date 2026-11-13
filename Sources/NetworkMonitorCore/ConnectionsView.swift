@@ -185,7 +185,7 @@ public struct ConnectionsView: View {
                 // One stop, the arrow keys moving through it (#546).
                 .listKeys(keyRows, cursor: cursor, name: model.grouping.label, proxy: proxy,
                           open: { row, open in model.setExpanded(row.id, open) },
-                          choose: choose)
+                          filter: filter)
             }
             .frame(maxHeight: .infinity)
         }
@@ -208,12 +208,13 @@ public struct ConnectionsView: View {
         model.groups.flatMap { group -> [KeyRow] in
             let open = model.expanded.contains(group.id)
             var rows = [KeyRow(id: group.id, spoken: L("%@, %@", group.item.title, model.format(group.item.total)),
-                               isOpen: open)]
+                               isOpen: open, name: group.item.title, isFiltered: model.isChosen(group.item))]
             if open {
                 for section in group.sections where !section.items.isEmpty {
                     rows += shownItems(section, in: group).map {
                         KeyRow(id: Self.rowID($0, in: group, section),
-                               spoken: L("%@, %@", $0.title, model.format($0.total)), parent: group.id)
+                               spoken: L("%@, %@", $0.title, model.format($0.total)), parent: group.id,
+                               name: $0.title, isFiltered: model.isChosen($0))
                     }
                 }
             }
@@ -221,11 +222,12 @@ public struct ConnectionsView: View {
         }
     }
 
-    /// Space or Return on a row: what a click on it does.
-    private func choose(_ row: KeyRow) {
+    /// Return on a row, or its Filter button: filters the window to it, or
+    /// lets go (#593).
+    private func filter(_ row: KeyRow) {
         cursor.id = row.id
         guard let parent = row.parent else {
-            if let group = model.groups.first(where: { $0.id == row.id }) { model.choose(group.item) }
+            if let group = model.groups.first(where: { $0.id == row.id }) { model.toggleFilter(group.item) }
             return
         }
         guard let group = model.groups.first(where: { $0.id == parent }) else { return }
@@ -255,18 +257,20 @@ public struct ConnectionsView: View {
     @ViewBuilder
     private func groupRows(_ group: ConnectionsGroup, largest: Int64) -> some View {
         let isOpen = model.expanded.contains(group.id)
-        let isChosen = model.isChosen(group.item)
-        // A click shows only it; the ▸ opens it (#593), as in every list of
-        // the window.
+        // A click anywhere opens or closes it, as its ▸ does; only its Filter
+        // filters (#593), as in every list of the window.
         ConnectionsRow(item: group.item, subtitle: subtitle(for: group.item),
                        icon: model.icon(for: group.item), fraction: fraction(group.item.total, of: largest),
                        indent: 0, disclosure: isOpen, rule: firewall.rule(for: group.item),
                        listed: model.listed(group.item),
-                       isSelected: isChosen,
+                       isSelected: model.isChosen(group.item),
                        isCurrent: cursor.marks(group.id),
                        onToggleDisclosure: { model.toggle(group.id) },
-                       onSelect: { cursor.id = group.id; model.choose(group.item) },
-                       help: isChosen ? L("Click to show everything again") : L("Click to see only %@", group.item.title),
+                       onFilter: { cursor.id = group.id; model.toggleFilter(group.item) },
+                       onClick: {
+                           cursor.id = group.id
+                           withAnimation(.easeInOut(duration: 0.15)) { model.toggle(group.id) }
+                       },
                        format: model.format)
             .contextMenu { ruleMenu(for: group.item) }
             .id(group.id)
@@ -290,15 +294,14 @@ public struct ConnectionsView: View {
             .padding(.bottom, 2)
         ForEach(shown) { item in
             let id = Self.rowID(item, in: group, section)
-            let isChosen = model.isChosen(item)
             ConnectionsRow(item: item, subtitle: subtitle(for: item), icon: model.icon(for: item),
                            fraction: fraction(item.total, of: largest), indent: 1, disclosure: nil,
                            rule: firewall.rule(for: item), listed: model.listed(item),
-                           isSelected: isChosen,
+                           isSelected: model.isChosen(item),
                            isCurrent: cursor.marks(id),
                            onToggleDisclosure: {},
-                           onSelect: { cursor.id = id; model.narrow(to: item, in: group.item) },
-                           help: isChosen ? L("Click to show everything again") : L("Click to see only %@", item.title),
+                           onFilter: { cursor.id = id; model.narrow(to: item, in: group.item) },
+                           onClick: { cursor.id = id },
                            format: model.format)
                 .contextMenu { ruleMenu(for: item) }
                 .id(id)
@@ -596,14 +599,17 @@ private struct ConnectionsRow: View {
     let rule: FirewallRule?
     /// A named server on an ad, tracker or malware list (#176).
     let listed: BlocklistTopic?
-    /// What the window is narrowed to, marked as Usage History marks its
-    /// chosen row (#593).
+    /// What the window is filtered to: marked, its Filter button on, as in
+    /// Usage History (#593).
     var isSelected = false
     /// The row the keyboard is on (#546).
     var isCurrent = false
     let onToggleDisclosure: () -> Void
-    let onSelect: () -> Void
-    let help: String
+    /// Its Filter button (#593).
+    let onFilter: () -> Void
+    /// A click anywhere on it: opens or closes a company, app or country,
+    /// and puts the ring on a row inside one.
+    let onClick: () -> Void
     /// Bytes, or blocked connections (#114).
     var format: (Int64) -> String = { ByteFormat.bytes($0) }
 
@@ -612,7 +618,8 @@ private struct ConnectionsRow: View {
     @Environment(\.splitListWidth) private var listWidth
     private var barWidth: CGFloat {
         SplitMetrics.bar(listWidth: listWidth,
-                         fixed: ConnectionsMetrics.rowFixed + (indent > 0 ? ConnectionsMetrics.rowIndent : 0),
+                         fixed: ConnectionsMetrics.rowFixed + RowFilterMetrics.rowWidth
+                             + (indent > 0 ? ConnectionsMetrics.rowIndent : 0),
                          most: ConnectionsMetrics.rowBarWidth)
     }
 
@@ -668,18 +675,13 @@ private struct ConnectionsRow: View {
                 .font(.system(size: 12, weight: .medium))
                 .monospacedDigit()
                 .frame(width: 76, alignment: .trailing)
+            RowFilterButton(name: item.title, isOn: isSelected, isLit: hover.isHovering || isCurrent,
+                            action: onFilter)
         }
         .padding(.horizontal, 8)
         .frame(height: (subtitle?.isEmpty ?? true) ? 30 : 38)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isSelected ? Color.accentColor.opacity(0.18)
-                      : hover.isHovering ? Color.secondary.opacity(0.08) : Color.clear))
-        .modifier(CursorMark(isOn: isCurrent))
-        .contentShape(Rectangle())
-        .onHover { hover.isHovering = $0 }
-        .onTapGesture(perform: onSelect)
-        .help(help)
+        .listRow(isFiltered: isSelected, isCurrent: isCurrent, hover: hover,
+                 help: ListRowHelp.click(opens: disclosure), onClick: onClick)
     }
 
     @ViewBuilder

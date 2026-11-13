@@ -488,7 +488,6 @@
 "Usage by month" = "每月流量";
 "Usage by day" = "每日流量";
 "METERED" = "按流量计费";
-"Click to show everything again" = "点按以重新显示全部";
 "Show everything again" = "重新显示全部";
 "%@, %@" = "%@，%@";
 "under a minute" = "不到 1 分钟";
@@ -531,6 +530,15 @@
 "It has no site names in it." = "它不包含任何网站名称。";
 "Couldn't keep a copy: %@" = "无法保留副本：%@";
 "The site answered %@." = "网站返回了 %@。";
+
+/* ListKeys.swift, ListRowParts.swift */
+"Filter" = "筛选";
+"Filtered" = "已筛选";
+"Filter to %@" = "按 %@ 筛选";
+"Remove filter, %@" = "移除筛选，%@";
+"Remove Filter" = "移除筛选";
+"Filtered to %@" = "已按 %@ 筛选";
+"Filter removed" = "已移除筛选";
 
 /* LoginItem.swift */
 "Launch at Login needs the app to live in a fixed location, but it is running from:\n\n%@\n\nMove NetworkMonitor.app to /Applications (or run 'make install') and try again." = "“登录时启动”需要应用位于固定位置，但它当前运行于：\n\n%@\n\n请将 NetworkMonitor.app 移到 /Applications（或运行 make install），然后再试一次。";

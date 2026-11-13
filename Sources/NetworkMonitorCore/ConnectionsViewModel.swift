@@ -81,8 +81,7 @@ public final class ConnectionsViewModel: ObservableObject {
     @Published public private(set) var recordingSince: Date?
     @Published public private(set) var hasLoaded = false
     @Published public private(set) var expanded: Set<String> = []
-    /// Rows opened by narrowing to one, and by search, to close again (#593).
-    private var openedByChoosing = OpenedByItself()
+    /// Rows opened by search, to close again once it changes (#593).
     private var openedBySearch = OpenedByItself()
     /// The search `openedBySearch` opened rows for.
     private var openedFor = ""
@@ -250,7 +249,6 @@ public final class ConnectionsViewModel: ObservableObject {
             dragging = nil
             search = ""
             expanded.removeAll()
-            openedByChoosing.reset()
             openedBySearch.reset()
             showingAll.removeAll()
             kind = HistoryFilter.opening(on: monitor.store.currentNetwork.kind).kind
@@ -359,9 +357,9 @@ public final class ConnectionsViewModel: ObservableObject {
 
     // MARK: Narrowing
 
-    /// A click on a row inside a group: narrows to it, and to the group it's in,
-    /// so Microsoft › Teams reads as it was chosen. A click on the one chosen
-    /// lets it go, and keeps the group (#593).
+    /// The Filter button of a row inside a group: narrows to it, and to the
+    /// group it's in, so Microsoft › Teams reads as it was chosen. On the one
+    /// filtered to, it lets it go and keeps the group (#593).
     public func narrow(to item: ConnectionsItem, in group: ConnectionsItem? = nil) {
         if isChosen(item) { return clear(item.dimension) }
         if let group { selected[group.dimension] = group }
@@ -370,10 +368,10 @@ public final class ConnectionsViewModel: ObservableObject {
         rebuild()
     }
 
-    /// A click on a group's row (#593): shows only it, which opens it as the
-    /// one left; a click on it again lets it go, as in Usage History and Ads
-    /// and Trackers.
-    public func choose(_ group: ConnectionsItem) {
+    /// A group's Filter button (#593): shows only it; on the one filtered
+    /// to, lets it go, as in Usage History and Ads and Trackers. What's open
+    /// stays as the person left it.
+    public func toggleFilter(_ group: ConnectionsItem) {
         narrow(to: group)
     }
 
@@ -398,9 +396,8 @@ public final class ConnectionsViewModel: ObservableObject {
     /// take Escape, so Escape still closes search the rest of the time.
     public var canGoBack: Bool { span != nil || !selected.isEmpty }
 
-    /// The ▸, or → and ←: the person's from then on.
+    /// A click on the row, its ▸, or → and ←: the person's from then on.
     public func setExpanded(_ groupID: String, _ open: Bool) {
-        openedByChoosing.handOver(groupID)
         openedBySearch.handOver(groupID)
         if open { expanded.insert(groupID) } else { expanded.remove(groupID) }
     }
@@ -475,11 +472,9 @@ public final class ConnectionsViewModel: ObservableObject {
         groups = ConnectionsReport.groups(connections, by: grouping, filter: filter, search: search)
         summary = ConnectionsReport.summary(connections, filter: filter, search: search)
         geography = ConnectionsReport.geography(connections, filter: filter, search: search)
-        // Narrowed to one, it opens by itself, and closes again once it isn't
-        // alone (#593).
-        if groups.count == 1, let only = groups.first { openedByChoosing.openOnce(only.id, in: &expanded) }
-        else { openedByChoosing.close(in: &expanded) }
-        // A group shown only for what's inside it opens to show it.
+        // Filtering opens and closes nothing (#593): what's open stays as the
+        // person left it. A group shown only for what's inside it opens to
+        // show it.
         let query = search.trimmingCharacters(in: .whitespaces)
         if query != openedFor {
             openedBySearch.close(in: &expanded)

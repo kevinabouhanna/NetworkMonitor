@@ -495,10 +495,10 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     world.historyModel.search = "Sa"
     shoot("history-search", settle: 1.0)
     world.historyModel.search = ""
-    // Opening and choosing rows, as each list does it (#593): an app with
-    // parts open and System open, then the first app chosen. Read first, so
-    // the rows are there to open.
-    if wanted(prefix + "lists-history-open") || wanted(prefix + "lists-history-chosen") {
+    // Opening and filtering rows, as each list does it (#593): an app with
+    // parts open and System open, then the first app filtered to with its
+    // Filter button. Read first, so the rows are there to open.
+    if wanted(prefix + "lists-history-open") || wanted(prefix + "lists-history-filtered") {
         show(main.window, appearance: appearance)
         main.windowDidShow()
         RunLoop.main.run(until: Date().addingTimeInterval(1.5))
@@ -512,7 +512,7 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     }
     if let first = world.historyModel.report.apps.first {
         world.historyModel.toggleApp(first.id)
-        shoot("lists-history-chosen", settle: 1.5)
+        shoot("lists-history-filtered", settle: 1.5)
         world.historyModel.toggleApp(first.id)
     }
     main.show(.connections)
@@ -524,9 +524,9 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     // Trackers', which share its split (#534).
     world.connections.layout = .both
     shootAtMinimum("connections-both-min", settle: 1.5)
-    // The first company opened by its arrow; then chosen, which leaves it
-    // alone and open; then a row inside it chosen (#593).
-    let connectionShots = ["lists-connections-open", "lists-connections-chosen", "lists-connections-narrowed"]
+    // The first company opened; then filtered to, which leaves it alone and
+    // still open; then a row inside it filtered to as well (#593).
+    let connectionShots = ["lists-connections-open", "lists-connections-filtered", "lists-connections-narrowed"]
     if connectionShots.contains(where: { wanted(prefix + $0) }) {
         show(main.window, appearance: appearance)
         main.windowDidShow()
@@ -535,15 +535,15 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     if connectionShots.contains(where: { wanted(prefix + $0) }), let group = world.connections.groups.first {
         world.connections.setExpanded(group.id, true)
         shoot("lists-connections-open", settle: 1.5)
-        world.connections.setExpanded(group.id, false)
-        world.connections.choose(group.item)
-        shoot("lists-connections-chosen", settle: 1.5)
+        world.connections.toggleFilter(group.item)
+        shoot("lists-connections-filtered", settle: 1.5)
         if let item = group.sections.first(where: { !$0.items.isEmpty })?.items.first {
             world.connections.narrow(to: item, in: group.item)
             shoot("lists-connections-narrowed", settle: 1.5)
             world.connections.clear(item.dimension)
         }
         world.connections.clear(group.item.dimension)
+        world.connections.setExpanded(group.id, false)
     }
     main.show(.ads)
     for tab in AdsViewModel.Tab.allCases {
@@ -806,11 +806,23 @@ func tourKeyboard(_ world: World) -> Int32 {
         KeyboardTour.press(.down, in: main.window)
         let next = KeyboardTour.focused(in: main.window)?.value ?? ""
         expect(next != inside, "← closes it: ↓ goes to the next row (\(next))")
-        // Space does what a click does, Escape lets go (#593): ↑ ↓ alone
-        // never choose.
-        let chosenBefore = canGoBack(section)
-        KeyboardTour.press(.space, in: main.window, settle: 0.8)
-        expect(!chosenBefore && canGoBack(section), "↑ ↓ choose nothing; Space chooses the row")
+        // Space does what a click does: opens and closes, never filters.
+        // Return does what Filter does; Escape lets go (#593). ↑ ↓ alone
+        // never filter.
+        let filteredBefore = canGoBack(section)
+        KeyboardTour.press(.up, in: main.window)
+        let opener = KeyboardTour.focused(in: main.window)?.value ?? ""
+        KeyboardTour.press(.space, in: main.window, settle: 0.6)
+        KeyboardTour.press(.down, in: main.window)
+        let opened = KeyboardTour.focused(in: main.window)?.value ?? ""
+        expect(opener.hasPrefix(target) && opened != next && !canGoBack(section),
+               "Space opens it, and filters nothing (\(opened))")
+        KeyboardTour.press(.up, in: main.window)
+        KeyboardTour.press(.space, in: main.window, settle: 0.6)
+        KeyboardTour.press(.down, in: main.window)
+        expect(KeyboardTour.focused(in: main.window)?.value == next, "Space closes it again")
+        KeyboardTour.press(.return, in: main.window, settle: 0.8)
+        expect(!filteredBefore && canGoBack(section), "↑ ↓ filter nothing; Return filters to the row")
         KeyboardTour.press(.escape, in: main.window, settle: 0.8)
         expect(!canGoBack(section), "Escape lets go of it")
     }

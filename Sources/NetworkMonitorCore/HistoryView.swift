@@ -217,7 +217,7 @@ public struct HistoryView: View {
             // One stop, the arrow keys moving through it (#546).
             .listKeys(keyRows, cursor: cursor, name: model.tab.label, proxy: proxy,
                       open: { row, open in model.setExpanded(row.id, open) },
-                      choose: choose)
+                      filter: filter)
         }
         .frame(minHeight: HistoryMetrics.listMinHeight, maxHeight: .infinity)
         .overlay {
@@ -236,56 +236,60 @@ public struct HistoryView: View {
         switch model.tab {
         case .apps:
             var rows: [KeyRow] = []
+            func appRow(_ app: UsageRow, parent: String? = nil, opens: Bool? = nil) -> KeyRow {
+                KeyRow(id: app.id, spoken: L("%@, %@", app.displayName, ByteFormat.bytes(app.total)),
+                       parent: parent, isOpen: opens, name: app.displayName,
+                       isFiltered: model.filter.appKey == app.id)
+            }
             for app in apps {
                 let open = model.expandedApps.contains(app.id)
-                rows.append(KeyRow(id: app.id, spoken: L("%@, %@", app.displayName, ByteFormat.bytes(app.total)),
-                                   isOpen: app.hasChildren ? open : nil))
-                if open {
-                    rows += app.children.map {
-                        KeyRow(id: $0.id, spoken: L("%@, %@", $0.displayName, ByteFormat.bytes($0.total)), parent: app.id)
-                    }
-                }
+                rows.append(appRow(app, opens: app.hasChildren ? open : nil))
+                if open { rows += app.children.map { appRow($0, parent: app.id) } }
             }
             if !systemRows.isEmpty {
+                // A heading over macOS's own processes: it opens, and has no
+                // Filter (#593).
                 rows.append(KeyRow(id: Self.systemID,
                                    spoken: L("%@, %@", L("System (%@)", String(systemRows.count)),
                                              ByteFormat.bytes(report.systemTotal)),
-                                   isOpen: model.systemExpanded))
-                if model.systemExpanded {
-                    rows += systemRows.map {
-                        KeyRow(id: $0.id, spoken: L("%@, %@", $0.displayName, ByteFormat.bytes($0.total)),
-                               parent: Self.systemID)
-                    }
-                }
+                                   isOpen: model.systemExpanded, isFiltered: nil))
+                if model.systemExpanded { rows += systemRows.map { appRow($0, parent: Self.systemID) } }
             }
             return rows
         case .networks:
             return networks.map {
-                KeyRow(id: $0.id, spoken: L("%@, %@", model.networkName($0.id, defaultLabel: $0.defaultLabel),
-                                            ByteFormat.bytes($0.bytes)))
+                let name = model.networkName($0.id, defaultLabel: $0.defaultLabel)
+                return KeyRow(id: $0.id, spoken: L("%@, %@", name, ByteFormat.bytes($0.bytes)), name: name,
+                              isFiltered: model.filter.networkID == $0.id)
             }
         case .sessions:
             return sessions.map {
-                KeyRow(id: String($0.session.id),
-                       spoken: L("%@, %@", model.networkName($0.session.networkID, defaultLabel: $0.session.defaultLabel),
-                                 ByteFormat.bytes($0.bytes)))
+                let name = model.networkName($0.session.networkID, defaultLabel: $0.session.defaultLabel)
+                return KeyRow(id: String($0.session.id), spoken: L("%@, %@", name, ByteFormat.bytes($0.bytes)),
+                              name: name, isFiltered: model.filter.sessionID == $0.session.id)
             }
         }
     }
 
-    /// Space or Return on a row, or a click: what a click on it does.
-    private func choose(_ row: KeyRow) {
+    /// Return on a row, or its Filter button: filters the window to it, or
+    /// lets go (#593).
+    private func filter(_ row: KeyRow) {
         cursor.id = row.id
         switch model.tab {
         case .apps:
-            // System is a heading over macOS's processes, not an app: a
-            // click opens it (#593).
-            if row.id == Self.systemID { model.toggleExpanded(Self.systemID) } else { model.toggleApp(row.id) }
+            if row.id != Self.systemID { model.toggleApp(row.id) }
         case .networks:
             model.toggleNetwork(row.id)
         case .sessions:
             if let id = Int64(row.id) { model.toggleSession(id) }
         }
+    }
+
+    /// A click on a row: opens or closes one with something inside, and
+    /// puts the ring on any other (#593).
+    private func click(_ id: String, opens: Bool) {
+        cursor.id = id
+        if opens { withAnimation(.easeInOut(duration: 0.15)) { model.toggleExpanded(id) } }
     }
 
     private var isListEmpty: Bool {
@@ -374,8 +378,7 @@ public struct HistoryView: View {
                 disclosure: model.systemExpanded,
                 onToggleDisclosure: { model.toggleExpanded(Self.systemID) },
                 disclosureTakesFocus: false,
-                help: model.systemExpanded ? L("Click to close") : L("Click to open"),
-                onSelect: { cursor.id = Self.systemID; model.toggleExpanded(Self.systemID) })
+                onClick: { click(Self.systemID, opens: true) })
             .id(Self.systemID)
             if model.systemExpanded {
                 ForEach(systemRows) { row in
@@ -402,10 +405,11 @@ public struct HistoryView: View {
             indented: indented,
             isSelected: model.filter.appKey == row.id,
             isCurrent: cursor.marks(row.id),
-            disclosure: row.hasChildren ? model.expandedApps.contains(row.id) : nil,
+            disclosure: row.hasChildren && !indented ? model.expandedApps.contains(row.id) : nil,
             onToggleDisclosure: { model.toggleExpanded(row.id) },
             disclosureTakesFocus: false,
-            onSelect: { cursor.id = row.id; model.toggleApp(row.id) })
+            onFilter: { cursor.id = row.id; model.toggleApp(row.id) },
+            onClick: { click(row.id, opens: row.hasChildren && !indented) })
             .id(row.id)
     }
 
@@ -423,7 +427,8 @@ public struct HistoryView: View {
                 barColor: HistoryPalette.color(for: network.kind),
                 isSelected: model.filter.networkID == network.id,
                 isCurrent: cursor.marks(network.id),
-                onSelect: { cursor.id = network.id; model.toggleNetwork(network.id) })
+                onFilter: { cursor.id = network.id; model.toggleNetwork(network.id) },
+                onClick: { click(network.id, opens: false) })
             .id(network.id)
             .contextMenu {
                 Button(L("Rename…")) {
@@ -452,7 +457,8 @@ public struct HistoryView: View {
                 barColor: HistoryPalette.color(for: session.kind),
                 isSelected: model.filter.sessionID == session.id,
                 isCurrent: cursor.marks(String(session.id)),
-                onSelect: { cursor.id = String(session.id); model.toggleSession(session.id) })
+                onFilter: { cursor.id = String(session.id); model.toggleSession(session.id) },
+                onClick: { click(String(session.id), opens: false) })
             .id(String(session.id))
             // Listed once the visit is chosen: what got through on it (#96).
             if model.filter.sessionID == session.id {
@@ -808,8 +814,9 @@ struct ChartTooltip: View {
 // MARK: - Rows
 
 /// One row of any of the three lists: something on the left, a name, a bar
-/// for its share, and its figure. Ads and Trackers' Sites and Apps are made
-/// of it too (#536), so a row looks and behaves the same in both.
+/// for its share, its figure, and its Filter button (#593). Ads and Trackers'
+/// Sites and Apps are made of it too (#536), so a row looks and behaves the
+/// same in both: a click opens or closes it, and only Filter filters.
 struct HistoryListRow: View {
     let leading: () -> AnyView
     let title: String
@@ -828,6 +835,7 @@ struct HistoryListRow: View {
     /// The network type's colour on the Networks and Sessions lists, so a row
     /// matches its part of the chart. Apps take theirs from `kinds`.
     var barColor: Color = AppPalette.data
+    /// Whether the window is filtered to it: marked, its button on.
     let isSelected: Bool
     /// The row the keyboard is on, in a list it moves through (#546).
     var isCurrent = false
@@ -844,16 +852,19 @@ struct HistoryListRow: View {
     var barMost: CGFloat = HistoryMetrics.rowBarWidth
     /// The figure's column: bytes need 76 pt, Ads and Trackers' counts 48.
     var figureWidth: CGFloat = 76
-    /// What a click does, for a row that opens rather than narrows (System).
-    var help: String? = nil
-    let onSelect: () -> Void
+    /// Its Filter button's action; nil for a row that can't filter (System,
+    /// a heading), which keeps the slot empty so the figures line up.
+    var onFilter: (() -> Void)? = nil
+    /// A click anywhere on it: opens or closes a row with something inside,
+    /// and puts the keyboard's ring on any other (#593).
+    let onClick: () -> Void
 
     /// Not `@State`, which needs Xcode from the macOS 27 SDK on.
     @StateObject private var hover = HistoryRowHover()
     @Environment(\.splitListWidth) private var listWidth
     private var barWidth: CGFloat {
         SplitMetrics.bar(listWidth: listWidth,
-                         fixed: HistoryMetrics.rowFixed - 76 + figureWidth
+                         fixed: HistoryMetrics.rowFixed - 76 + figureWidth + RowFilterMetrics.rowWidth
                              + (indented ? HistoryMetrics.rowIndent : 0),
                          most: barMost)
     }
@@ -892,18 +903,16 @@ struct HistoryListRow: View {
                 .font(.system(size: 12, weight: .medium))
                 .monospacedDigit()
                 .frame(width: figureWidth, alignment: .trailing)
+            if let onFilter {
+                RowFilterButton(name: title, isOn: isSelected, isLit: hover.isHovering || isCurrent, action: onFilter)
+            } else {
+                Spacer().frame(width: RowFilterMetrics.slot)
+            }
         }
         .padding(.horizontal, 8)
         .frame(height: subtitle == nil ? 30 : 38)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isSelected ? Color.accentColor.opacity(0.18)
-                      : hover.isHovering ? Color.secondary.opacity(0.08) : Color.clear))
-        .modifier(CursorMark(isOn: isCurrent))
-        .contentShape(Rectangle())
-        .onHover { hover.isHovering = $0 }
-        .onTapGesture(perform: onSelect)
-        .help(help ?? (isSelected ? L("Click to show everything again") : L("Click to see only %@", title)))
+        .listRow(isFiltered: isSelected, isCurrent: isCurrent, hover: hover,
+                 help: ListRowHelp.click(opens: disclosure), onClick: onClick)
     }
 
     /// The row's share of the biggest row. Split by network type, it reads as

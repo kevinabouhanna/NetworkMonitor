@@ -41,8 +41,7 @@ public final class HistoryViewModel: ObservableObject {
     }
     /// The row everything System does sits under, among `expandedApps`.
     public static let systemID = "\u{1}system"
-    /// Rows opened by choosing, and by search, to close again (#593).
-    private var openedByChoosing = OpenedByItself()
+    /// Rows opened by search, to close again once it's cleared (#593).
     private var openedBySearch = OpenedByItself()
     @Published public private(set) var retention: HistoryRetention
     /// Today's total, for the line heading Usage History's settings (#436).
@@ -87,7 +86,6 @@ public final class HistoryViewModel: ObservableObject {
         if reset {
             hoveredBin = nil
             expandedApps.removeAll()
-            openedByChoosing.reset()
             openedBySearch.reset()
             show(HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar),
                  filter: .opening(on: monitor.store.currentNetwork.kind))
@@ -167,27 +165,12 @@ public final class HistoryViewModel: ObservableObject {
 
     // MARK: Filters
 
-    /// A click on an app's row (#593): shows only it, opened when it has
-    /// parts, as the one row left; a click on the one chosen lets it go, and
-    /// closes what choosing opened.
+    /// An app's Filter button (#593): shows only it; on the one filtered to,
+    /// lets it go. What's open stays as the person left it.
     public func toggleApp(_ key: String) {
         var next = filter
         next.appKey = next.appKey == key ? nil : key
-        openedByChoosing.close(in: &expandedApps)
-        if let chosen = next.appKey, let row = openedRow(choosing: chosen) {
-            openedByChoosing.open(row, in: &expandedApps)
-        }
         show(period, filter: next)
-    }
-
-    /// The row that holds what's chosen open: an app with parts, the app a
-    /// part is in, or System for one of its processes.
-    private func openedRow(choosing key: String) -> String? {
-        for app in report.apps {
-            if app.id == key { return app.hasChildren ? key : nil }
-            if app.children.contains(where: { $0.id == key }) { return app.id }
-        }
-        return report.systemRows.contains { $0.id == key } ? Self.systemID : nil
     }
 
     public func toggleNetwork(_ id: String) {
@@ -214,12 +197,7 @@ public final class HistoryViewModel: ObservableObject {
         }
     }
 
-    public func clearApp() {
-        var next = filter
-        next.appKey = nil
-        openedByChoosing.close(in: &expandedApps)
-        show(period, filter: next)
-    }
+    public func clearApp() { var next = filter; next.appKey = nil; show(period, filter: next) }
     public func clearNetwork() { var next = filter; next.networkID = nil; show(period, filter: next) }
     public func clearSession() { var next = filter; next.sessionID = nil; show(period, filter: next) }
 
@@ -297,9 +275,9 @@ public final class HistoryViewModel: ObservableObject {
         if hoveredBin != binStart { hoveredBin = binStart }
     }
 
-    /// The ▸, or → and ←, on an app or System: the person's from then on.
+    /// A click on the row, its ▸, or → and ←, on an app or System: the
+    /// person's from then on.
     public func setExpanded(_ id: String, _ open: Bool) {
-        openedByChoosing.handOver(id)
         openedBySearch.handOver(id)
         if open { expandedApps.insert(id) } else { expandedApps.remove(id) }
     }

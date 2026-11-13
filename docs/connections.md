@@ -21,19 +21,21 @@ networks it covers. Then the period's name, its total, and the counts.
 
 - **Group by Companies, Apps or Countries.** Companies is the default, because that's the
   question: who gets your data.
-- **Open a group with its arrow** to see what's inside it. A company opens into the apps
-  that talk to it, the countries its servers are in, and the servers themselves. An app
-  opens into its companies, countries and servers. A country opens into its companies,
-  apps and servers. What's open stays open while the window is, whichever grouping you
-  switch to and back.
-- **Click a row to narrow everything to it**, as in every list of the main window (#593):
-  a company, app or country, which then opens as the one left, or a row inside one.
-  Choosing Teams inside Microsoft reads *Microsoft › Teams*. The rows chosen are
-  highlighted; click one again, its chip's ✕, or press Escape (the last chip first) to
-  undo its part.
+- **Click a group, or its arrow,** to see what's inside it, and again to close it. A
+  company opens into the apps that talk to it, the countries its servers are in, and the
+  servers themselves. An app opens into its companies, countries and servers. A country
+  opens into its companies, apps and servers. What's open stays open while the window is,
+  whichever grouping you switch to and back.
+- **Filter**, the funnel at the end of each row, narrows everything to it, as in every
+  list of the main window (#593): a company, app or country, or a row inside one. It
+  shows its word when you point at the row. Filtering Teams inside Microsoft reads
+  *Microsoft › Teams*. A row filtered to is highlighted and its button reads
+  **Filtered ✕**; click that, its chip's ✕, or press Escape (the last chip first) to undo
+  its part. Filtering opens and closes nothing: the list stays as you left it.
 - **The keyboard** (#546): Tab reaches the list as one stop, or click a row. ↑ and ↓ move
   from row to row, marked with a ring; → opens a group, ← closes it or goes back up to the
-  group a row is in; Space or Return does what a click on the row does.
+  group a row is in; Space does what a click on the row does, and Return what its Filter
+  button does.
 - **Drag across the timeline**, or click a bar, to see one part of the day: what your
   apps contacted in the hour after a call, say. Click the same bar again, or the chip's
   ✕, for the whole period.
@@ -279,22 +281,22 @@ and the toolbar's search (⌘F) covers both.
   call the site (`doubleclick.net`), with the names under it that were blocked; or
   **Apps**, with the sites each tried most. One at a time, each list has the window's
   width (#524). The rows are Usage History's (#536):
-  - **Click a row** to see only it, as in every list of the main window (#593): the list
-    keeps just that row, opened to show what's inside it, the total is its own, and the
-    chart shows its share of each bar, the bar's own colour under the rest, with the
-    hovered bar's count for it. Its chip, a click on it again, or Escape (after a picked
-    bar's) lets it go.
-  - **The chevron** opens a site's apps, the apps that tried to reach it, or an app's
-    sites, each with its count and the hour it was last blocked; the first eight, then
-    **Show all**. Click one inside to see only that site in that app. Search opens a row
-    found by what's inside it.
+  - **Click a row, or its chevron,** to open a site's apps, the apps that tried to reach
+    it, or an app's sites, each with its count and the hour it was last blocked; the
+    first eight, then **Show all**. Search opens a row found by what's inside it.
+  - **Filter**, the funnel at the end of each row, shows only it, as in every list of the
+    main window (#593): the list keeps just that row, the total is its own, and the chart
+    shows its share of each bar, the bar's own colour under the rest, with the hovered
+    bar's count for it. On a row inside one, it shows only that site in that app. Its
+    button then reads **Filtered ✕**; that, its chip, or Escape (after a picked bar's)
+    lets it go.
   - **Right-click** a row, as in the Log: never or always block its site, in every app or
     only its app, stop filtering its app, remove a rule you made about it, or copy its
     name.
   - **The keyboard**, as in Usage History and Connections: Tab reaches the list as one
     stop, or click a row. ↑ and ↓ move from row to row, marked with a ring; → opens a row,
-    ← closes it or goes back up to the row it's in; Space or Return does what a click on
-    the row does.
+    ← closes it or goes back up to the row it's in; Space does what a click on the row
+    does, and Return what its Filter button does.
 - **Pause:** for an hour or until tomorrow, in every app. The lists stay chosen, the filter
   is sent none until then, and the popover says it's paused. Kept across a relaunch. The
   popover's **Ads blocked** and the menu bar's right-click menu pause and resume it too

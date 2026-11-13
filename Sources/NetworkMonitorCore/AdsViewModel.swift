@@ -627,7 +627,6 @@ public final class AdsViewModel: ObservableObject {
             selection = nil
             selectedCounts = [:]
             expanded.removeAll()
-            openedByChoosing.reset()
             openedBySearch.reset()
             showingAll.removeAll()
         }
@@ -733,8 +732,7 @@ public final class AdsViewModel: ObservableObject {
     @Published public private(set) var selectedCounts: [Date: Int64] = [:]
     /// Rows open, by `grouping` and row id, so Sites and Apps keep their own.
     @Published public private(set) var expanded: Set<String> = []
-    /// Rows opened by choosing, and by search, to close again (#593).
-    private var openedByChoosing = OpenedByItself()
+    /// Rows opened by search, to close again once it changes (#593).
     private var openedBySearch = OpenedByItself()
     /// Rows whose whole inside is shown, past the first few.
     @Published public var showingAll: Set<String> = []
@@ -769,15 +767,11 @@ public final class AdsViewModel: ObservableObject {
         spanInterval.map { HistoryFormat.binTitle($0, scale: period.scale) }
     }
 
-    /// Chooses a row, or lets go of the one chosen (#593): the list keeps
-    /// only it, opened when there's something inside, and the total is its
-    /// own, as choosing a row does in Usage History and Connections.
+    /// A row's Filter button (#593): the list keeps only it and the total is
+    /// its own, as filtering does in Usage History and Connections; on the
+    /// one filtered to, it lets go. What's open stays as the person left it.
     public func select(_ next: Selection) {
         selection = selection == next ? nil : next
-        openedByChoosing.close(in: &expanded)
-        if let selection, !(item(selection.parent)?.children.isEmpty ?? true) {
-            openedByChoosing.open(expansionKey(selection.parent), in: &expanded)
-        }
         reloadSelection()
     }
 
@@ -785,7 +779,6 @@ public final class AdsViewModel: ObservableObject {
         guard selection != nil else { return }
         selection = nil
         selectedCounts = [:]
-        openedByChoosing.close(in: &expanded)
     }
 
     /// A row of the list shown, by its id.
@@ -812,10 +805,9 @@ public final class AdsViewModel: ObservableObject {
 
     public func isExpanded(_ id: String) -> Bool { expanded.contains(expansionKey(id)) }
 
-    /// The ▸, or → and ←: the person's from then on.
+    /// A click on the row, its ▸, or → and ←: the person's from then on.
     public func setExpanded(_ id: String, _ open: Bool) {
         let key = expansionKey(id)
-        openedByChoosing.handOver(key)
         openedBySearch.handOver(key)
         if open { expanded.insert(key) } else { expanded.remove(key) }
     }
