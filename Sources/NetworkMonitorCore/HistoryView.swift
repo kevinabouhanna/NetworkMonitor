@@ -59,6 +59,7 @@ public struct HistoryView: View {
         .padding(.top, ScopeMetrics.top)
         .padding(.bottom, 14)
         .background(periodShortcuts)
+        .background(escape)
         .frame(minWidth: HistoryMetrics.windowMinWidth, minHeight: HistoryMetrics.windowMinHeight)
     }
 
@@ -116,6 +117,19 @@ public struct HistoryView: View {
         .opacity(0)
         .frame(width: 0, height: 0)
         .accessibilityHidden(true)
+    }
+
+    /// Escape lets go of the latest choice (#593), as a click on its row or
+    /// its chip does, in every list of the window. Only while there's one,
+    /// so Escape still closes search the rest of the time.
+    @ViewBuilder private var escape: some View {
+        if model.canGoBack {
+            Button(L("Show Everything Again")) { model.goBack() }
+                .keyboardShortcut(.cancelAction)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+        }
     }
 
     // MARK: Filters
@@ -202,10 +216,7 @@ public struct HistoryView: View {
             }
             // One stop, the arrow keys moving through it (#546).
             .listKeys(keyRows, cursor: cursor, name: model.tab.label, proxy: proxy,
-                      open: { row, open in
-                          if row.id == Self.systemID { model.systemExpanded = open }
-                          else if model.expandedApps.contains(row.id) != open { model.toggleExpanded(row.id) }
-                      },
+                      open: { row, open in model.setExpanded(row.id, open) },
                       choose: choose)
         }
         .frame(minHeight: HistoryMetrics.listMinHeight, maxHeight: .infinity)
@@ -218,7 +229,7 @@ public struct HistoryView: View {
     }
 
     /// The row everything System does sits under.
-    static let systemID = "\u{1}system"
+    static let systemID = HistoryViewModel.systemID
 
     /// The rows shown, in order, as the arrow keys go through them.
     private var keyRows: [KeyRow] {
@@ -267,7 +278,9 @@ public struct HistoryView: View {
         cursor.id = row.id
         switch model.tab {
         case .apps:
-            if row.id == Self.systemID { model.systemExpanded.toggle() } else { model.toggleApp(row.id) }
+            // System is a heading over macOS's processes, not an app: a
+            // click opens it (#593).
+            if row.id == Self.systemID { model.toggleExpanded(Self.systemID) } else { model.toggleApp(row.id) }
         case .networks:
             model.toggleNetwork(row.id)
         case .sessions:
@@ -359,9 +372,10 @@ public struct HistoryView: View {
                 isSelected: false,
                 isCurrent: cursor.marks(Self.systemID),
                 disclosure: model.systemExpanded,
-                onToggleDisclosure: { model.systemExpanded.toggle() },
+                onToggleDisclosure: { model.toggleExpanded(Self.systemID) },
                 disclosureTakesFocus: false,
-                onSelect: { cursor.id = Self.systemID; model.systemExpanded.toggle() })
+                help: model.systemExpanded ? L("Click to close") : L("Click to open"),
+                onSelect: { cursor.id = Self.systemID; model.toggleExpanded(Self.systemID) })
             .id(Self.systemID)
             if model.systemExpanded {
                 ForEach(systemRows) { row in
@@ -830,6 +844,8 @@ struct HistoryListRow: View {
     var barMost: CGFloat = HistoryMetrics.rowBarWidth
     /// The figure's column: bytes need 76 pt, Ads and Trackers' counts 48.
     var figureWidth: CGFloat = 76
+    /// What a click does, for a row that opens rather than narrows (System).
+    var help: String? = nil
     let onSelect: () -> Void
 
     /// Not `@State`, which needs Xcode from the macOS 27 SDK on.
@@ -887,7 +903,7 @@ struct HistoryListRow: View {
         .contentShape(Rectangle())
         .onHover { hover.isHovering = $0 }
         .onTapGesture(perform: onSelect)
-        .help(isSelected ? L("Click to show everything again") : L("Click to see only %@", title))
+        .help(help ?? (isSelected ? L("Click to show everything again") : L("Click to see only %@", title)))
     }
 
     /// The row's share of the biggest row. Split by network type, it reads as

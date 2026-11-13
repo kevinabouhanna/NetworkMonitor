@@ -47,6 +47,20 @@ public struct ConnectionsView: View {
         }
         .frame(minWidth: ConnectionsMetrics.minWidth, minHeight: ConnectionsMetrics.minHeight)
         .background(periodShortcuts)
+        .background(escape)
+    }
+
+    /// Escape lets go of the bar picked, then of the narrowest chip (#593),
+    /// as in Usage History and Ads and Trackers. Only while there's one, so
+    /// Escape still closes search the rest of the time.
+    @ViewBuilder private var escape: some View {
+        if model.canGoBack {
+            Button(L("Show Everything Again")) { model.goBack() }
+                .keyboardShortcut(.cancelAction)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+        }
     }
 
     /// Both needs room for the list and a map worth reading; narrower, it's the
@@ -170,9 +184,7 @@ public struct ConnectionsView: View {
                 }
                 // One stop, the arrow keys moving through it (#546).
                 .listKeys(keyRows, cursor: cursor, name: model.grouping.label, proxy: proxy,
-                          open: { row, open in
-                              if model.expanded.contains(row.id) != open { model.toggle(row.id) }
-                          },
+                          open: { row, open in model.setExpanded(row.id, open) },
                           choose: choose)
             }
             .frame(maxHeight: .infinity)
@@ -212,7 +224,10 @@ public struct ConnectionsView: View {
     /// Space or Return on a row: what a click on it does.
     private func choose(_ row: KeyRow) {
         cursor.id = row.id
-        guard let parent = row.parent else { return model.toggle(row.id) }
+        guard let parent = row.parent else {
+            if let group = model.groups.first(where: { $0.id == row.id }) { model.choose(group.item) }
+            return
+        }
         guard let group = model.groups.first(where: { $0.id == parent }) else { return }
         for section in group.sections {
             if let item = section.items.first(where: { Self.rowID($0, in: group, section) == row.id }) {
@@ -240,14 +255,18 @@ public struct ConnectionsView: View {
     @ViewBuilder
     private func groupRows(_ group: ConnectionsGroup, largest: Int64) -> some View {
         let isOpen = model.expanded.contains(group.id)
+        let isChosen = model.isChosen(group.item)
+        // A click shows only it; the ▸ opens it (#593), as in every list of
+        // the window.
         ConnectionsRow(item: group.item, subtitle: subtitle(for: group.item),
                        icon: model.icon(for: group.item), fraction: fraction(group.item.total, of: largest),
                        indent: 0, disclosure: isOpen, rule: firewall.rule(for: group.item),
                        listed: model.listed(group.item),
+                       isSelected: isChosen,
                        isCurrent: cursor.marks(group.id),
                        onToggleDisclosure: { model.toggle(group.id) },
-                       onSelect: { cursor.id = group.id; model.toggle(group.id) },
-                       help: isOpen ? L("Click to close") : L("Click to see its %@", sectionNames(group)),
+                       onSelect: { cursor.id = group.id; model.choose(group.item) },
+                       help: isChosen ? L("Click to show everything again") : L("Click to see only %@", group.item.title),
                        format: model.format)
             .contextMenu { ruleMenu(for: group.item) }
             .id(group.id)
@@ -271,13 +290,16 @@ public struct ConnectionsView: View {
             .padding(.bottom, 2)
         ForEach(shown) { item in
             let id = Self.rowID(item, in: group, section)
+            let isChosen = model.isChosen(item)
             ConnectionsRow(item: item, subtitle: subtitle(for: item), icon: model.icon(for: item),
                            fraction: fraction(item.total, of: largest), indent: 1, disclosure: nil,
                            rule: firewall.rule(for: item), listed: model.listed(item),
+                           isSelected: isChosen,
                            isCurrent: cursor.marks(id),
                            onToggleDisclosure: {},
                            onSelect: { cursor.id = id; model.narrow(to: item, in: group.item) },
-                           help: L("Click to see only %@", item.title), format: model.format)
+                           help: isChosen ? L("Click to show everything again") : L("Click to see only %@", item.title),
+                           format: model.format)
                 .contextMenu { ruleMenu(for: item) }
                 .id(id)
         }
@@ -401,10 +423,6 @@ public struct ConnectionsView: View {
 
     private func subtitle(for item: ConnectionsItem) -> String? {
         item.dimension == .app ? model.subtitle(forApp: item) : item.subtitle
-    }
-
-    private func sectionNames(_ group: ConnectionsGroup) -> String {
-        group.sections.map { $0.dimension.plural.lowercased() }.joined(separator: L(", "))
     }
 
     private func fraction(_ bytes: Int64, of largest: Int64) -> Double {
@@ -578,6 +596,9 @@ private struct ConnectionsRow: View {
     let rule: FirewallRule?
     /// A named server on an ad, tracker or malware list (#176).
     let listed: BlocklistTopic?
+    /// What the window is narrowed to, marked as Usage History marks its
+    /// chosen row (#593).
+    var isSelected = false
     /// The row the keyboard is on (#546).
     var isCurrent = false
     let onToggleDisclosure: () -> Void
@@ -652,7 +673,8 @@ private struct ConnectionsRow: View {
         .frame(height: (subtitle?.isEmpty ?? true) ? 30 : 38)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(hover.isHovering ? Color.secondary.opacity(0.08) : Color.clear))
+                .fill(isSelected ? Color.accentColor.opacity(0.18)
+                      : hover.isHovering ? Color.secondary.opacity(0.08) : Color.clear))
         .modifier(CursorMark(isOn: isCurrent))
         .contentShape(Rectangle())
         .onHover { hover.isHovering = $0 }
