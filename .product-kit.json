@@ -118,6 +118,16 @@
       ],
       "prepare": "Scripts/shots-vm-prepare.sh",
       "setup": "Scripts/shots-vm-setup.sh"
-    }
-  }
+    },
+    "masks": [
+      {
+        "pattern": "#\\s?(bytes|[KMGT]?B/s|[KMGT]bps|bps|[KMGT]?B)(?![A-Za-z])",
+        "as": "# ‹unit›"
+      }
+    ],
+    "keep_width": [
+      "AXMenuBarItem"
+    ]
+  },
+  "upkeep": 606
 }

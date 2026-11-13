@@ -35,7 +35,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
-VERSION = "1.0.0"
+VERSION = "2.0.0"
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 
 
