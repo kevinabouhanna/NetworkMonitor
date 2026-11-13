@@ -22,7 +22,8 @@ second, upload 30 kilobytes per second*, or *Speed test: download …* while a t
 
 - **Click** it for the popover.
 - **Right-click** (or Control-click) it for **Test Internet Speed**, the last result,
-  **Block Everything** (#198), **Usage History…** (⌘Y), **Connections…** (⌘K), **Ads and
+  **Block Everything** (#198), **Pause Ad Blocking** for an hour, until tomorrow or whenever
+  on this network, or **Resume Ad Blocking** while it's paused (#600), **Usage History…** (⌘Y), **Connections…** (⌘K), **Ads and
   Trackers…** (⌘B), **Network…**, **Settings…** (⌘,), **About NetworkMonitor**, **Check for
   Updates…**, **Uninstall NetworkMonitor…** and **Quit**.
 
@@ -72,9 +73,12 @@ There's no choice of neither: there'd be no way back to the app.
 - **Connections** groups who your apps talked to by **Companies**, **Countries** or
   **Apps**. Each app talking to a server counts once. A company or country opens into its
   apps, an app into its companies.
-- **Ads blocked** lists the **Sites** or the **Apps**, busiest first. A site opens into the
-  apps that tried it, an app into the sites it tried. While ad blocking is off, it offers
-  **Turn On**.
+- **Ads blocked** opens on a bar that says whether ad blocking is on now, with **Pause**:
+  **For 1 Hour**, **Until Tomorrow** or **Whenever on** *this network*, as in the window. While
+  it's paused the bar says until when, with **Resume**; while it's off on this network,
+  **Turn On Here** (#600). Under it, the **Sites** or the **Apps**, busiest first. A site
+  opens into the apps that tried it, an app into the sites it tried. While ad blocking is
+  off, it offers **Turn On**.
 - **Network** shows the connection the Mac is on, a **This is a hotspot** switch, on every
   network because some phones aren't recognised, and the [speed test](speed-test.md): the
   last result and **Test Speed**.
@@ -86,7 +90,8 @@ There's no choice of neither: there'd be no way back to the app.
   - a hotspot you've joined that the Mac isn't using, with how to switch behind an ⓘ;
   - on a hotspot with [Hotspot mode](hotspot-mode.md) on, an update that downloaded anyway;
   - **Everything is blocked**, with **Turn Off**, while Block Everything is on;
-  - ad blocking paused, or off on this network;
+  - ad blocking paused, or off on this network: click it for Ads blocked and its
+    **Resume**;
   - **Per-app figures paused**, in grey, if macOS's `nettop` can't be started.
     NetworkMonitor keeps retrying, and the total keeps counting regardless.
 

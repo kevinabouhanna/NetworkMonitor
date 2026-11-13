@@ -13,7 +13,7 @@ NetworkMonitor 能做的一切，以及在哪里找到它们。
 VoiceOver 用文字读出读数，先读下载：<em>NetworkMonitor，下载 1.2 兆字节每秒，上传 30 千字节每秒</em>；显示测试结果时读作 <em>网速测试：下载 …</em>（#497）。
 
 - <strong>点按</strong>它可打开弹出窗口。
-- <strong>右键点按</strong>（或按住 Control 键点按）它，可使用 <strong>测试网速</strong>、上一次的结果、<strong>全部阻止</strong>（#198）、<strong>流量历史…</strong>（⌘Y）、<strong>连接…</strong>（⌘K）、<strong>广告与跟踪器…</strong>（⌘B）、<strong>网络…</strong>、<strong>设置…</strong>（⌘,）、<strong>关于 NetworkMonitor</strong>、<strong>检查更新…</strong>、<strong>卸载 NetworkMonitor…</strong> 和 <strong>退出</strong>。
+- <strong>右键点按</strong>（或按住 Control 键点按）它，可使用 <strong>测试网速</strong>、上一次的结果、<strong>全部阻止</strong>（#198）、<strong>暂停广告拦截</strong>（1 小时、直到明天，或每当连接此网络时），暂停期间则为 <strong>继续广告拦截</strong>（#600）、<strong>流量历史…</strong>（⌘Y）、<strong>连接…</strong>（⌘K）、<strong>广告与跟踪器…</strong>（⌘B）、<strong>网络…</strong>、<strong>设置…</strong>（⌘,）、<strong>关于 NetworkMonitor</strong>、<strong>检查更新…</strong>、<strong>卸载 NetworkMonitor…</strong> 和 <strong>退出</strong>。
 
 ## 改为显示在程序坞中
 
@@ -38,14 +38,14 @@ VoiceOver 用文字读出读数，先读下载：<em>NetworkMonitor，下载 1.2
   - <strong>命令显示在启动它们的应用下方。</strong>展开 iTerm2 或 VS Code，可以看到它启动的 `node`、`git` 或 `curl`，每个都有自己的数字。超过四个时会合并为 *其他（n）*。
   - <strong>系统</strong>：macOS 自己的守护进程合并为底部的一行。好奇的话可以展开它。
 - <strong>连接</strong> 按 <strong>公司</strong>、<strong>国家或地区</strong> 或 <strong>应用</strong> 对你的应用通信的对象分组。一个应用与一台服务器通信计为一次。公司或国家或地区可以展开为它的应用，应用可以展开为它的公司。
-- <strong>已拦截</strong> 列出 <strong>网站</strong> 或 <strong>应用</strong>，次数最多的在前。网站可以展开为尝试访问它的应用，应用可以展开为它尝试访问的网站。广告拦截关闭时，这里会提供 <strong>打开</strong>。
+- <strong>已拦截</strong> 最上面是一栏，说明广告拦截现在是否在拦截，并提供 <strong>暂停</strong>：<strong>1 小时</strong>、<strong>直到明天</strong> 或 <strong>每当连接</strong> *此网络* <strong>时</strong>，与窗口中相同。暂停期间，这一栏会显示暂停到什么时候，并提供 <strong>继续</strong>；在此网络上关闭时，提供 <strong>在此处打开</strong>（#600）。下面列出 <strong>网站</strong> 或 <strong>应用</strong>，次数最多的在前。网站可以展开为尝试访问它的应用，应用可以展开为它尝试访问的网站。广告拦截关闭时，这里会提供 <strong>打开</strong>。
 - <strong>网络</strong> 显示 Mac 正在使用的连接、一个 <strong>这是热点</strong> 开关（在每个网络上都有，因为有些手机无法被识别），以及[网速测试](speed-test.md)：上一次的结果和 <strong>测试网速</strong>。
 - 每个视图底部的 <strong>打开…</strong> 会在主窗口中打开对应的部分，统计周期保持不变：<strong>打开流量历史</strong>（⌘Y）、<strong>打开“连接”</strong>（⌘K）、<strong>打开广告与跟踪器</strong>（⌘B）或 <strong>打开“网络”</strong>。齿轮图标旁边的 <strong>四个方块</strong> 也一样，<strong>齿轮图标</strong> 则打开“设置”。
 - <strong>按钮下方的提示行</strong> 会说明需要注意的情况：
   - 你加入了热点，但 Mac 没有在使用它，ⓘ 中会说明如何切换；
   - 使用热点且打开了[热点模式](hotspot-mode.md)时，仍被下载的更新；
   - 打开“全部阻止”时，显示 <strong>已全部阻止</strong> 和 <strong>关闭</strong>；
-  - 广告拦截已暂停，或在此网络上已关闭；
+  - 广告拦截已暂停，或在此网络上已关闭：点按它可前往“已拦截”，在那里 <strong>继续</strong>；
   - <strong>按应用统计已暂停</strong>：如果无法启动 macOS 的 `nettop`，会以灰色显示。NetworkMonitor 会继续重试，总计不受影响，照常统计。
 
 列表可显示六行，外加第七行的一部分，所以被截断的那一行说明下面还有更多。无论你选择哪种分组，列表的高度都保持不变。按 Esc 或点按其他地方即可关闭。
