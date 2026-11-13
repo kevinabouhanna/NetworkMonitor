@@ -46,8 +46,11 @@ through without asking. What's particular to NetworkMonitor:
     The rest of this list is what only a person, or this Mac's keys, can do.
   - Write its What's new in `ReleaseNotes/X.Y.Z.md`, merged with a pull
     request before tagging: short bullets, each a bold lead and the issue,
-    with no `]]>` (`product-kit notes v<last tag>` lists what's new). The Release workflow
-    fails without it, and puts it both in the update window and in the release notes.
+    with no `]]>` (`product-kit notes v<last tag>` lists what's new). Its Chinese copy goes
+    in `ReleaseNotes/zh-Hans/X.Y.Z.md` in the same pull request, point for point, never
+    mixed into the English file; `product-kit notes --check X.Y.Z` says when both are there
+    (#640). The Release workflow fails without either, and puts each in the update window
+    (Sparkle shows the one in the app's language) and in the release notes.
   - Before tagging, `gh-actions can-run` (seconds: the Actions billing, or the no-op
     `canary.yml`; kept an hour). If it says no, stop and tell Kevin: without the signing keys
     on this Mac there's no local release, and keys are never copied around.

@@ -158,5 +158,9 @@
       "en": "macOS 13 or later",
       "zh-Hans": "macOS 13 或更高版本"
     }
+  },
+  "notes": {
+    "path": "ReleaseNotes/{version}.md",
+    "translated": "ReleaseNotes/{code}/{version}.md"
   }
 }
