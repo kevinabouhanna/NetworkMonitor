@@ -280,19 +280,6 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         refreshSettings(for: section)
     }
 
-    /// A section's settings page, built if it isn't yet: for the
-    /// accessibility tests, which read each page in a window of its own (the
-    /// split view can't be read from the app's own process).
-    public func settingsPage(for section: MainSection) -> NSViewController {
-        if settingsPages[section] == nil { settingsPages[section] = makeSettingsPage(section) }
-        return settingsPages[section]!
-    }
-
-    /// The sidebar and Network's view, for the same tests.
-    public var sidebarController: NSViewController { split.splitViewItems[0].viewController }
-    public var networkController: NSViewController { network }
-    public var generalController: NSViewController { general }
-
     /// Back from the settings to where they were opened from: the section,
     /// or Settings.
     public func closeSettings() {
