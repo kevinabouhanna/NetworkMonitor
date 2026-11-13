@@ -23,9 +23,11 @@
 #   docs-kit plan init [--dry-run] set a new project's plan up on GitHub (then sync)
 #   docs-kit plan sync [--dry-run] GitHub follows the plan's tree; the pages follow GitHub
 #   docs-kit plan check            the plan's pages, issues, milestones and board agree?
-#   docs-kit plan ideas [--json]   the ideas waiting in the board's Ideas view
-#   docs-kit plan ideas --take <item> --phase <milestone> [--parent N] [--horizon H]
-#                    [--order N] [--set Field=value] [--body-file spec.md] [--title T]
+#   docs-kit plan inbox [--json]   what's waiting in the board's Inbox (also: plan ideas)
+#   docs-kit plan inbox --take <item> --phase <milestone> [--parent N] [--horizon H]
+#                    [--order N] [--kind K] [--set Field=value] [--blocked-by N]
+#                    [--body-file spec.md] [--title T]
+#   docs-kit plan set <issue> [Field=value …] [--blocked-by N …]
 #   docs-kit plan index [--check]  write the plan's index from GitHub
 #   docs-kit plan status [--write] each phase page's Milestone and Status line, from GitHub
 #   docs-kit vendor [--check]      copy this file into the project
@@ -47,7 +49,7 @@ import sys
 import time
 import unicodedata
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -720,9 +722,9 @@ class Wiki:
 # the index follow GitHub; `plan check` fails on anything sync would change,
 # and on what it can't; `plan init` sets a new project up.
 #
-# Ideas are draft items on the board, which the project's owner adds by hand
-# in its Ideas view. `plan ideas` lists them; `plan ideas --take` turns one
-# into an issue in the plan, with the spec a session wrote for it.
+# The Inbox is the owner's: draft items on the board they add by hand (a bug,
+# a feature, an idea, research: its Kind). `plan inbox` lists them; `plan inbox
+# --take` turns one into an issue in the plan, with the spec a session wrote.
 
 PLAN_LINE = re.compile(r"^\*\*Milestone:\*\*\s*(.+?)\s*·\s*\*\*Status:\*\*\s*(.*?)\s*$")
 MENTION = re.compile(r"(?<![\w&])#(\d+)\b|/issues/(\d+)\b")
@@ -733,7 +735,11 @@ ROOT_NOTE = ("<!-- Written by `docs-kit plan sync` from the plan's pages, the mi
 PHASE_NOTE = "<!-- Written by `docs-kit plan sync`. -->"
 LEVELS = ("Plan", "Phase", "Item", "Step")
 FIELD_TYPES = {"order": "NUMBER", "horizon": "SINGLE_SELECT", "level": "SINGLE_SELECT",
-               "start": "DATE", "target": "DATE", "status": "SINGLE_SELECT"}
+               "start": "DATE", "target": "DATE", "status": "SINGLE_SELECT", "kind": "SINGLE_SELECT"}
+KINDS = (("Bug", "RED", "Something broken or wrong"),
+         ("Feature", "GREEN", "Something new the app should do"),
+         ("Idea", "YELLOW", "A thought to explore, not decided yet"),
+         ("Research", "BLUE", "Something to find out before deciding"))
 COLORS = {"Plan": "PURPLE", "Phase": "BLUE", "Item": "GREEN", "Step": "GRAY",
           "Now": "GREEN", "Next": "YELLOW", "Later": "GRAY"}
 VALUE = ("... on ProjectV2ItemFieldSingleSelectValue { name } ... on ProjectV2ItemFieldNumberValue { number } "
@@ -838,7 +844,7 @@ class Plan:
         self.board_owner = board.get("owner", project.repo.split("/")[0])
         self.board_number = int(board["number"])
         self.fields = {"order": "Order", "horizon": "Horizon", "level": "Level", "start": None,
-                       "target": None, "status": "Status"}
+                       "target": None, "status": "Status", "kind": "Kind"}
         self.fields.update(c.get("fields", {}))
         self.status_named = "status" in c.get("fields", {})
         # Fields a step copies from its item, besides Order and Horizon (a Track, say).
@@ -936,7 +942,8 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
             ... on ProjectV2SingleSelectField {{ options {{ id name }} }}
           }}
         }}
-        views(first: 50) {{ nodes {{ id number name filter layout }} }}
+        views(first: 50) {{ nodes {{ id number name filter layout
+          fields(first: 50) {{ nodes {{ ... on ProjectV2FieldCommon {{ id }} }} }} }} }}
       }}
     }}
   }}
@@ -1014,10 +1021,13 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
             return
         status = (f"v_status: fieldValueByName(name: {q(self.fields['status'])}) "
                   "{ ... on ProjectV2ItemFieldSingleSelectValue { name } }") if self.fields.get("status") else ""
+        kind = (f" v_kind: fieldValueByName(name: {q(self.fields['kind'])}) "
+                "{ ... on ProjectV2ItemFieldSingleSelectValue { name } }") \
+            if self.fields.get("kind") and self.fields["kind"] in self.board_fields else ""
         query = ("query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: 100, after: $after) "
                  "{ pageInfo { hasNextPage endCursor } nodes { id type content { ... on Issue { number state "
                  "repository { nameWithOwner } } ... on DraftIssue { title body createdAt creator { login } } } "
-                 + status + " } } } } }")
+                 + status + kind + " } } } } }")
         self.scanned, self.drafts, after = [], [], None
         while True:
             items = (gh_graphql(query, {"id": self.board_id, "after": after}).get("node") or {}).get("items")
@@ -1029,7 +1039,8 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
                     self.drafts.append({"item": node["id"], "title": (content.get("title") or "").strip(),
                                         "note": (content.get("body") or "").strip(),
                                         "added": content.get("createdAt") or "",
-                                        "by": (content.get("creator") or {}).get("login", "")})
+                                        "by": (content.get("creator") or {}).get("login", ""),
+                                        "kind": (node.get("v_kind") or {}).get("name")})
                 elif (content.get("repository") or {}).get("nameWithOwner", "").lower() == self.p.repo.lower():
                     self.scanned.append({"item": node["id"], "number": content["number"], "state": content["state"],
                                          "status": (node.get("v_status") or {}).get("name")})
@@ -1045,8 +1056,12 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
         self.scan()
         return self.scanned
 
-    def ideas_url(self) -> str:
-        view = next((v for v in self.views if v["name"] == "Ideas"), None)
+    def inbox_view(self) -> dict | None:
+        return next((v for v in self.views if v["name"] == "Inbox"), None) or \
+            next((v for v in self.views if v["name"] == "Ideas"), None)
+
+    def inbox_url(self) -> str:
+        view = self.inbox_view()
         return f"{self.board_url()}/views/{view['number']}" if view else self.board_url()
 
     # The tree
@@ -1697,9 +1712,9 @@ def setup(plan: Plan, pages: dict[str, dict], dry: bool) -> list[str]:
     return said
 
 
-def views(plan: Plan, dry: bool, only: str | None = None) -> list[str]:
-    """The plan's views of the board, made or their filters put right; the Ideas
-    view (drafts: the owner's inbox) is only made, never changed."""
+def views(plan: Plan, dry: bool) -> list[str]:
+    """The plan's three views of the board, made or their filters put right (the
+    Inbox is inbox_board's)."""
     p, said = plan, []
     f = {key: p.board_fields.get(name) for key, name in p.read_fields().items()}
     ms = p.board_fields.get("Milestone")
@@ -1714,15 +1729,12 @@ def views(plan: Plan, dry: bool, only: str | None = None) -> list[str]:
          "group_by": [(ms or {}).get("databaseId")]},
         {"name": "In order", "layout": "table", "filter": f"is:open {p.fields['level'].lower()}:Item,Step",
          "group_by": [(f.get("horizon") or {}).get("databaseId")]},
-        {"name": "Ideas", "layout": "table", "filter": "is:draft", "visible_fields": [title] if title else []},
     ]
     have = {v["name"]: v for v in p.views}
     for view in wanted:
-        if only and view["name"] != only:
-            continue
         old = have.get(view["name"])
         if old:
-            if old.get("filter") != view["filter"] and view["name"] != "Ideas":
+            if old.get("filter") != view["filter"]:
                 said.append(f"the board's view \"{view['name']}\": filter \"{view['filter']}\" (was \"{old.get('filter')}\")")
                 if not dry:
                     # With its layout: a filter alone can turn a table into a board.
@@ -1734,9 +1746,9 @@ def views(plan: Plan, dry: bool, only: str | None = None) -> list[str]:
         if dry:
             continue
         body = {k: v for k, v in view.items() if not (isinstance(v, list) and not all(v))}
-        if order and view["name"] != "Ideas":
+        if order:
             body["sort_by"] = [[order, "asc"]]
-        if shown and "visible_fields" not in view:
+        if shown:
             body["visible_fields"] = shown
         kind = "orgs" if p.owner_kind == "Organization" else "users"
         made = gh_rest("POST", f"{kind}/{p.board_owner}/projectsV2/{p.board_number}/views", body, retry=False)
@@ -1745,34 +1757,129 @@ def views(plan: Plan, dry: bool, only: str | None = None) -> list[str]:
     return said
 
 
-def ideas(project: Project, p: Plan, pages: dict[str, dict], rest: list[str]) -> int:
-    """The Ideas inbox: list the drafts, or take one into the plan."""
+def inbox_board(p: Plan, dry: bool) -> list[str]:
+    """The Inbox on the board: its Kind field, and its view (a table of the drafts:
+    an Ideas view from before renamed in place, its layout and filter kept), with
+    the Kind shown. Never changes any other view."""
+    said, name = [], p.fields.get("kind")
+    if name and name not in p.board_fields:
+        said.append(f"the board: field \"{name}\" made ({', '.join(k for k, _, _ in KINDS)})")
+        if dry:
+            p.board_fields[name] = {"id": None, "databaseId": None, "name": name, "dataType": "SINGLE_SELECT",
+                                    "options": [{"id": None, "name": k} for k, _, _ in KINDS]}
+        else:
+            choices = ", ".join(f"{{ name: {q(k)}, color: {c}, description: {q(d)} }}" for k, c, d in KINDS)
+            made = gh_graphql(f"mutation {{ createProjectV2Field(input: {{ projectId: {q(p.board_id)}, "
+                              f"dataType: SINGLE_SELECT, name: {q(name)}, singleSelectOptions: [{choices}] }}) "
+                              "{ projectV2Field { ... on ProjectV2FieldCommon { id databaseId name dataType } "
+                              "... on ProjectV2SingleSelectField { options { id name } } } } }",
+                              retry=False)["createProjectV2Field"]["projectV2Field"]
+            p.board_fields[name] = made
+    kind = p.board_fields.get(name or "") or {}
+    view = p.inbox_view()
+    if not view:
+        said.append("the board's view \"Inbox\": made (is:draft, a table of what the owner adds by hand)")
+        if not dry:
+            title = (p.board_fields.get("Title") or {}).get("databaseId")
+            shown = [x for x in (title, kind.get("databaseId")) if x]
+            kind_path = "orgs" if p.owner_kind == "Organization" else "users"
+            body = {"name": "Inbox", "layout": "table", "filter": "is:draft"}
+            if shown:
+                body["visible_fields"] = shown
+            made = gh_rest("POST", f"{kind_path}/{p.board_owner}/projectsV2/{p.board_number}/views", body,
+                           retry=False)
+            p.views.append({"id": made.get("node_id") or made.get("id"), "number": made.get("number"),
+                            "name": "Inbox", "filter": "is:draft", "layout": "TABLE_LAYOUT",
+                            "fields": {"nodes": [{"id": kind.get("id")}]}})
+        return said
+    layout = f", layout: {view['layout']}" if view.get("layout") else ""
+    if view["name"] != "Inbox":
+        said.append(f"the board's view \"{view['name']}\": renamed \"Inbox\" (its layout and filter kept)")
+        if not dry:
+            gh_graphql(f"mutation {{ updateProjectV2View(input: {{ viewId: {q(view['id'])}, name: \"Inbox\"{layout} }}) "
+                       "{ clientMutationId } }")
+        view["name"] = "Inbox"
+    visible = [f["id"] for f in (view.get("fields") or {}).get("nodes", []) if f and f.get("id")]
+    if kind and kind.get("id") not in visible:
+        said.append(f"the board's view \"Inbox\": shows \"{name}\"")
+        if not dry and kind.get("id"):
+            gh_graphql(f"mutation {{ updateProjectV2View(input: {{ viewId: {q(view['id'])}{layout}, configuration: "
+                       f"{{ visibleFieldIds: [{', '.join(q(x) for x in visible + [kind['id']])}] }} }}) "
+                       "{ clientMutationId } }")
+        view.setdefault("fields", {"nodes": []})["nodes"].append({"id": kind.get("id")})
+    return said
+
+
+def field_value(p: Plan, text: str) -> tuple[str, object]:
+    """`Field=value` for a board field, checked."""
+    name, _, value = text.partition("=")
+    field = p.board_fields.get(name)
+    if not field:
+        fail(f"the board has no field \"{name}\"")
+    if field["dataType"] == "SINGLE_SELECT" and value not in {o["name"] for o in field["options"]}:
+        fail(f"\"{name}\" is one of {', '.join(o['name'] for o in field['options'])}")
+    return name, float(value) if field["dataType"] == "NUMBER" else value
+
+
+def options_of(rest: list[str], name: str) -> list[str]:
+    return [rest[k + 1] for k, arg in enumerate(rest) if arg == name and k + 1 < len(rest)]
+
+
+def blockers(p: Plan, rest: list[str]) -> list[dict]:
+    found = []
+    for n in options_of(rest, "--blocked-by"):
+        other = p.issues.get(int(n.lstrip("#")))
+        if not other or other["state"] != "OPEN":
+            fail(f"--blocked-by {n}: not an open issue of the plan")
+        found.append(other)
+    return found
+
+
+def resync(project: Project) -> Plan:
+    """After a change to the plan, the rest follows: sync, and the files."""
+    after = Plan(project)
+    pages = after.pages()
+    after.load()
+    said = sync(after, pages, dry=False).said + write_files(after, pages, dry=False)
+    if said:
+        print(f"docs-kit plan sync: changed ({len(said)}):")
+        print("\n".join(f"  - {x}" for x in said))
+    return after
+
+
+def show(values: dict) -> str:
+    return "".join(f", {name} {int(v) if isinstance(v, float) and v.is_integer() else v}" for name, v in values.items())
+
+
+def inbox(project: Project, p: Plan, pages: dict[str, dict], rest: list[str]) -> int:
+    """The Inbox: list what the owner added, or take one entry into the plan."""
     p.scan()
     if "--take" not in rest:
         if "--json" in rest:
             print(json.dumps(p.drafts, ensure_ascii=False, indent=1))
             return 0
         if not p.drafts:
-            print(f"docs-kit plan: no ideas waiting in the Ideas view ({p.ideas_url()})")
+            print(f"docs-kit plan: nothing waiting in the Inbox ({p.inbox_url()})")
             return 0
         n = len(p.drafts)
-        print(f"docs-kit plan: {n} idea{'s' if n != 1 else ''} waiting in the Ideas view ({p.ideas_url()}), "
+        print(f"docs-kit plan: {n} entr{'ies' if n != 1 else 'y'} waiting in the Inbox ({p.inbox_url()}), "
               "oldest first:")
         for k, d in enumerate(p.drafts, 1):
-            print(f"\n{k}. {d['title']}")
+            print(f"\n{k}. " + (f"[{d['kind']}] {d['title']}" if d.get("kind") else f"{d['title']} (kind not set)"))
             print(f"   added {d['added'][:10]}" + (f" by {d['by']}" if d["by"] else "") + f" · item {d['item']}")
             for line in d["note"].splitlines():
                 print(f"   > {line}".rstrip())
-        print("\nTake each into the plan with its spec: docs-kit plan ideas --take <item> --phase \"<milestone>\" "
-              "--horizon <Now|Next|Later> --order <N> --body-file <spec.md>")
+        print("\nTake each into the plan with its spec: docs-kit plan inbox --take <item> --phase \"<milestone>\" "
+              "--horizon <Now|Next|Later> --order <N> [--kind <Kind>] [--blocked-by <N>] --body-file <spec.md>")
         return 0
 
     def option(name: str) -> str | None:
-        return rest[rest.index(name) + 1] if name in rest and rest.index(name) + 1 < len(rest) else None
+        found = options_of(rest, name)
+        return found[0] if found else None
     item, phase_name = option("--take"), option("--phase")
     draft = next((d for d in p.drafts if d["item"] == item), None)
     if not draft:
-        fail(f"there's no idea with the item id {item!r} on the board: `docs-kit plan ideas` lists them")
+        fail(f"there's nothing in the Inbox with the item id {item!r}: `docs-kit plan inbox` lists it")
     if not phase_name or phase_name not in p.milestones:
         fail(f"--phase needs a milestone's title: {', '.join(sorted(p.milestones, key=natural))}")
     phase = p.phase_issues().get(phase_name)
@@ -1794,15 +1901,14 @@ def ideas(project: Project, p: Plan, pages: dict[str, dict], rest: list[str]) ->
         fail(f"an item needs --horizon ({', '.join(p.horizons)}); a step (--parent) takes its item's")
     if order:
         values[p.fields["order"]] = float(order)
-    for k, arg in enumerate(rest):
-        if arg == "--set" and k + 1 < len(rest):
-            name, _, value = rest[k + 1].partition("=")
-            field = p.board_fields.get(name)
-            if not field:
-                fail(f"the board has no field \"{name}\"")
-            if field["dataType"] == "SINGLE_SELECT" and value not in {o["name"] for o in field["options"]}:
-                fail(f"\"{name}\" is one of {', '.join(o['name'] for o in field['options'])}")
-            values[name] = float(value) if field["dataType"] == "NUMBER" else value
+    kind = draft.get("kind")
+    if option("--kind"):
+        name, kind = field_value(p, f"{p.fields['kind']}={option('--kind')}")
+        values[name] = kind
+    for text in options_of(rest, "--set"):
+        name, value = field_value(p, text)
+        values[name] = value
+    waits = blockers(p, rest)
     body_file = option("--body-file")
     body = pathlib.Path(body_file).read_text(encoding="utf-8") if body_file else draft["note"]
     title = option("--title") or draft["title"]
@@ -1811,24 +1917,23 @@ def ideas(project: Project, p: Plan, pages: dict[str, dict], rest: list[str]) ->
                       f"repositoryId: {q(p.repo_id)} }}) {{ item {{ id content {{ ... on Issue {{ id number }} }} }} }} }}",
                       retry=False)["convertProjectV2DraftIssueItemToIssue"]["item"]
     issue, item = made["content"], made["id"]
-    Changes.batch([
-        f"updateIssue(input: {{ id: {q(issue['id'])}, title: {q(title)}, body: {q(body)}, "
-        f"milestoneId: {q(p.milestones[phase_name]['id'])} }}) {{ clientMutationId }}",
-        f"addSubIssue(input: {{ issueId: {q(parent['id'])}, subIssueId: {q(issue['id'])}, replaceParent: true }}) "
-        "{ clientMutationId }",
-    ] + [value_op(p, item, p.board_fields[name], value) for name, value in values.items()])
-    print(f"docs-kit plan: the idea \"{draft['title']}\" is now #{issue['number']} {title}, "
+    ops = [f"updateIssue(input: {{ id: {q(issue['id'])}, title: {q(title)}, body: {q(body)}, "
+           f"milestoneId: {q(p.milestones[phase_name]['id'])} }}) {{ clientMutationId }}",
+           f"addSubIssue(input: {{ issueId: {q(parent['id'])}, subIssueId: {q(issue['id'])}, replaceParent: true }}) "
+           "{ clientMutationId }"]
+    # A Bug carries the repository's own bug label, where it has one.
+    label = p.labels.get("bug") if kind == "Bug" else None
+    if label:
+        ops.append(f"addLabelsToLabelable(input: {{ labelableId: {q(issue['id'])}, labelIds: [{q(label)}] }}) "
+                   "{ clientMutationId }")
+    ops += [f"addBlockedBy(input: {{ issueId: {q(issue['id'])}, blockingIssueId: {q(w['id'])} }}) "
+            "{ clientMutationId }" for w in waits]
+    Changes.batch(ops + [value_op(p, item, p.board_fields[name], value) for name, value in values.items()])
+    print(f"docs-kit plan: \"{draft['title']}\" is now #{issue['number']} {title}, "
           f"{'an item of' if is_item else 'a step of'} #{parent['number']} {parent['title']}"
-          + "".join(f", {name} {int(v) if isinstance(v, float) and v.is_integer() else v}" for name, v in values.items()))
-
-    # Then the rest follows, as after any change to the plan.
-    after = Plan(project)
-    pages = after.pages()
-    after.load()
-    said = sync(after, pages, dry=False).said + write_files(after, pages, dry=False)
-    if said:
-        print(f"docs-kit plan sync: changed ({len(said)}):")
-        print("\n".join(f"  - {x}" for x in said))
+          + (f", a {kind}" if kind else "") + show(values)
+          + ("".join(f", blocked by #{w['number']}" for w in waits)))
+    resync(project)
     page = next((pg for pg in pages.values() if pg["milestone"] == phase_name), None)
     if is_item and page:
         print(f"Now say on {page['file']} what #{issue['number']} is (plan check asks for it), "
@@ -1836,12 +1941,35 @@ def ideas(project: Project, p: Plan, pages: dict[str, dict], rest: list[str]) ->
     return 0
 
 
+def set_issue(project: Project, p: Plan, rest: list[str]) -> int:
+    """docs-kit plan set <issue> Field=value … --blocked-by N: move an issue in the
+    plan (its Order, say), or say what it waits for; then the rest follows."""
+    if len(rest) < 2 or not rest[1].lstrip("#").isdigit():
+        fail("usage: docs-kit plan set <issue> [Field=value …] [--blocked-by <issue> …]")
+    issue = p.issues.get(int(rest[1].lstrip("#")))
+    if not issue or not issue.get("item"):
+        fail(f"#{rest[1].lstrip('#')} isn't an open issue on the board")
+    skip = {k + 1 for k, arg in enumerate(rest) if arg == "--blocked-by"}
+    values = dict(field_value(p, text) for k, text in enumerate(rest[2:], 2)
+                  if k not in skip and not text.startswith("--"))
+    waits = blockers(p, rest)
+    if not values and not waits:
+        fail("nothing to set: give Field=value or --blocked-by <issue>")
+    Changes.batch([value_op(p, issue["item"], p.board_fields[name], value) for name, value in values.items()]
+                  + [f"addBlockedBy(input: {{ issueId: {q(issue['id'])}, blockingIssueId: {q(w['id'])} }}) "
+                     "{ clientMutationId }" for w in waits])
+    print(f"docs-kit plan: #{issue['number']} {issue['title']}" + show(values)
+          + "".join(f", blocked by #{w['number']}" for w in waits))
+    resync(project)
+    return 0
+
+
 def plan(project: Project, rest: list[str]) -> int:
     what = rest[0] if rest else ""
-    commands = ("check", "sync", "init", "index", "status", "ideas")
+    commands = ("check", "sync", "init", "index", "status", "inbox", "ideas", "set")
     if what not in commands:
-        fail("usage: docs-kit plan init|sync [--dry-run] | plan check | plan ideas [--json | --take …] | "
-             "plan index [--check] | plan status [--write]")
+        fail("usage: docs-kit plan init|sync [--dry-run] | plan check | plan inbox [--json | --take …] | "
+             "plan set <issue> … | plan index [--check] | plan status [--write]")
     dry = "--dry-run" in rest
     p = Plan(project)
     pages = p.pages()
@@ -1890,15 +2018,16 @@ def plan(project: Project, rest: list[str]) -> int:
                 (project.root / page["file"]).write_text("\n".join(lines), encoding="utf-8")
         return 0
 
-    if what == "ideas":
-        return ideas(project, p, pages, rest)
+    if what in ("inbox", "ideas"):
+        return inbox(project, p, pages, rest)
+    if what == "set":
+        return set_issue(project, p, rest)
 
     said: list[str] = []
     if what == "init":
         said += setup(p, pages, dry)
         said += views(p, dry)
-    else:
-        said += views(p, dry or what == "check", only="Ideas")
+    said += inbox_board(p, dry or what == "check")
     blocking = p.field_problems()
     if what in ("sync", "init") and blocking:
         print("docs-kit plan: can't sync until these are put right:")
@@ -1909,8 +2038,8 @@ def plan(project: Project, rest: list[str]) -> int:
     problems = p.problems(pages)
 
     p.scan()
-    waiting = (f"{len(p.drafts)} idea{'s' if len(p.drafts) != 1 else ''} waiting in the Ideas view: "
-               "`docs-kit plan ideas`") if p.drafts else ""
+    waiting = (f"{len(p.drafts)} entr{'ies' if len(p.drafts) != 1 else 'y'} waiting in the Inbox: "
+               "`docs-kit plan inbox`") if p.drafts else ""
     if what == "check":
         if not said and not problems:
             print(f"docs-kit plan: {len(pages)} pages, {len(p.milestones)} milestones, {len(p.plans())} items, "
