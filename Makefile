@@ -1,4 +1,4 @@
-.PHONY: all build test hooks design-shots review app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check translation-check docs-check docs-site docs-anchors translation-review site-shots site-trees site-audit clean
+.PHONY: all build test hooks design-shots review app universal dmg run install install-only update helper helper-no-daemon metering-report uninstall icon geodata public-suffixes dmg-background site-check asset-check translation-check docs-check plan-check docs-site docs-anchors translation-review site-shots site-trees site-audit clean
 
 all: test app
 
@@ -153,6 +153,13 @@ translation-check:
 # other projects through the product-kit plugin) reads .product-kit.json.
 docs-check:
 	@$(if $(PR),PR=$(PR) )python3 -I Scripts/docs-kit check $(BASE)
+
+# The plan's pages (docs/phases/) agree with GitHub's milestones, issues and
+# project board (#605). It reads GitHub, so local CI runs it (GitHub's runners
+# can't read the board); it skips where gh isn't signed in.
+plan-check:
+	@if gh auth status --hostname github.com --active >/dev/null 2>&1; then python3 -I Scripts/docs-kit plan check; \
+	else echo "plan-check: skipped, because gh isn't signed in to GitHub here, so the plan can't be read"; fi
 
 # The website's docs pages, built from docs/ into a gh-pages checkout (SITE):
 # with each release, in its site pull request. Rendered by GitHub, so gh must

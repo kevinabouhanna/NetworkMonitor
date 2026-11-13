@@ -27,6 +27,7 @@
 | [Architecture](../architecture.md) | 数据如何流动（附示意图）、线程、两种测量来源、文件 |
 | [Building, testing and releasing](../development.md) | Make 目标、签名和公证、测试工具、CI、启动参数、发布和网站流程 |
 | [Decisions](../decisions.md) | 原则、按日期记录的决策日志，以及被否决的方案 |
+| [The plan](../PLAN.md) | 接下来要做什么、按什么顺序：各个阶段，现在、接下来和以后，以及计划如何在 GitHub 上保持一致 |
 | [Roadmap and known limits](../roadmap.md) | Developer ID 带来了哪些可能、已经完成了什么；想法；已知限制 |
 
 在更改任何测量方式之前，请先阅读 [Architecture](../architecture.md)（英文）和 [Decisions](../decisions.md)（英文）。

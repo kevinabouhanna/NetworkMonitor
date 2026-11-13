@@ -33,6 +33,9 @@ ci_job_build_and_test() {
   # …and that it needs no docs (#334).
   if [[ -n "$CI_PR" ]]; then PR="$CI_PR" make translation-check docs-check BASE=origin/main
   else PR_BODY="" make translation-check docs-check BASE=origin/main; fi
+  # The plan's pages agree with the issues and the board (#605): this Mac's gh can read the
+  # board; GitHub's runners can't, so ci.yml leaves it out.
+  make plan-check
   swift build
   CI=true make test # as on GitHub: skips the tests that need live traffic
   GITHUB_BASE_REF=main GITHUB_HEAD_REF="$CI_HEAD" make asset-check SITE="$nm_site"

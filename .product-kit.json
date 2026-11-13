@@ -9,11 +9,26 @@
     }
   },
   "developer_pages": [
+    "docs/PLAN.md",
     "docs/architecture.md",
     "docs/decisions.md",
     "docs/development.md",
     "docs/roadmap.md"
   ],
+  "plan": {
+    "pages": "docs/phases",
+    "index": "docs/phases/README.md",
+    "project": {
+      "owner": "kevinabouhanna",
+      "number": 4
+    },
+    "fields": {
+      "order": "Order",
+      "horizon": "Horizon",
+      "start": "Start date",
+      "target": "Target date"
+    }
+  },
   "languages": {
     "zh-Hans": {
       "name": "简体中文",
