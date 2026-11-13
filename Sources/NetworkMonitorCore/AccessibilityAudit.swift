@@ -153,6 +153,37 @@ public enum AccessibilityAudit {
         } ?? []
     }
 
+    /// What VoiceOver reads, in the order VO-→ goes: each element with a
+    /// name or a value, as "role: name, value" (#525). A text's words are
+    /// its value.
+    public static func readingOrderOwnWindow(titled title: String) -> [String] {
+        onOwnWindow(titled: title) { window in
+            var out: [String] = []
+            func walk(_ e: AXUIElement) {
+                let role = string(e, kAXRoleAttribute) ?? "?"
+                let words = [name(of: e), string(e, kAXValueAttribute)].compactMap { $0 }.filter { !$0.isEmpty }
+                if !words.isEmpty { out.append("\(role): " + words.joined(separator: ", ")) }
+                children(e).forEach(walk)
+            }
+            walk(window)
+            return out
+        } ?? []
+    }
+
+    /// Presses the first control named `name`, as VO-Space does (#525). False
+    /// when there's none, or it won't be pressed.
+    public static func pressOwnWindow(titled title: String, named name: String) -> Bool {
+        onOwnWindow(titled: title) { window -> Bool in
+            func find(_ e: AXUIElement) -> AXUIElement? {
+                if Self.name(of: e) == name, controls.contains(string(e, kAXRoleAttribute) ?? "") { return e }
+                for child in children(e) { if let found = find(child) { return found } }
+                return nil
+            }
+            guard let control = find(window) else { return false }
+            return AXUIElementPerformAction(control, kAXPressAction as CFString) == .success
+        } ?? false
+    }
+
     static func onOwnWindow<T>(titled title: String, _ body: (AXUIElement) -> T) -> T? {
         precondition(Thread.isMainThread, "read this process's windows on the main thread (#488)")
         let app = AXUIElementCreateApplication(getpid())
