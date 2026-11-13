@@ -1,12 +1,15 @@
 # Phase 2: Ad blocking that holds up
 
-**Milestone:** Phase 2: Ad blocking that holds up · **Status:** Next
+**Milestone:** Phase 2: Ad blocking that holds up · **Status:** Now
 
 **Goal:** the best ad blocking a Mac app can do in every app, with the controls people know
 from other ad blockers.
 
 ## The plans
 
+- **Connections shows Traffic · Blocked · Rules in every build** (#638, a bug Kevin met
+  reviewing #592): in a build without the Developer ID it hid the switch, so a review build
+  opened on Rules had no way back to Traffic; Ads and Trackers always shows its own.
 - **Ad blocking that holds up** (#246), what's left of it: **Enhanced ad blocking** (#256), an
   opt-in switch that removes ads inside pages and videos in every app, by opening secure
   connections on this Mac, never banking or health sites. Off by default.

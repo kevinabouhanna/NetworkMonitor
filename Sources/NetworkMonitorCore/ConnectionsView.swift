@@ -90,21 +90,19 @@ public struct ConnectionsView: View {
                                    help: L("Group the list by company, app or country. A row inside a group narrows the window to it."))
                 }
             }
-            // What was blocked (#114), once there's a filter to block anything,
-            // and your rules, with how many (#592).
-            if model.filter.state != .unavailable {
-                LabelledControl(L("Show")) {
-                    GlassSegmented(name: L("Show"), options: [ConnectionsShow.traffic, .blocked, .rules],
-                                   selection: Binding(get: { model.show }, set: { model.show = $0 }),
-                                   label: { show in
-                                       switch show {
-                                       case .traffic: return L("Traffic")
-                                       case .blocked: return L("Blocked")
-                                       case .rules:   return L("Rules (%@)", String(firewall.rules.count))
-                                       }
-                                   }, size: .small,
-                                   help: L("What your apps sent and received, the connections that were blocked, or your rules"))
-                }
+            // What was blocked (#114), and your rules, with how many (#592): in
+            // every build, as Ads and Trackers' Overview · Log · Rules is (#638).
+            LabelledControl(L("Show")) {
+                GlassSegmented(name: L("Show"), options: [ConnectionsShow.traffic, .blocked, .rules],
+                               selection: Binding(get: { model.show }, set: { model.show = $0 }),
+                               label: { show in
+                                   switch show {
+                                   case .traffic: return L("Traffic")
+                                   case .blocked: return L("Blocked")
+                                   case .rules:   return L("Rules (%@)", String(firewall.rules.count))
+                                   }
+                               }, size: .small,
+                               help: L("What your apps sent and received, the connections that were blocked, or your rules"))
             }
             if model.showsRules {
                 if !query.isEmpty {
@@ -338,14 +336,14 @@ public struct ConnectionsView: View {
     // MARK: Rules
 
     /// Right-click a row (#114): block it, block it on hotspots, or always
-    /// allow it. The one it has is ticked. Not in a build without the filter,
-    /// where nothing could enforce it.
+    /// allow it. The one it has is ticked. In every build, as Ads and
+    /// Trackers' menus are (#638): the rule is saved in the shared settings,
+    /// which the installed filter follows.
     @ViewBuilder
     private func ruleMenu(for item: ConnectionsItem) -> some View {
-        if FirewallRules.canHaveRule(item), model.filter.state != .unavailable,
-           let name = FirewallRules.serverName(of: item) {
+        if FirewallRules.canHaveRule(item), let name = FirewallRules.serverName(of: item) {
             siteRuleMenu(for: item, name: name)
-        } else if FirewallRules.canHaveRule(item), model.filter.state != .unavailable {
+        } else if FirewallRules.canHaveRule(item) {
             let current = firewall.rule(for: item)
             ForEach(RuleAction.allCases, id: \.self) { action in
                 Toggle(Self.menuTitle(action, item.title), isOn: Binding(

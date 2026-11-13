@@ -130,14 +130,13 @@ struct ConnectionsRulesView: View {
                           details: [modeLine])
                 .padding(.bottom, 4)
             Divider()
-            if model.filter.state != .unavailable {
-                AddRuleBar(site: $form.site, app: form.app, knownApps: model.ruleApps, error: form.error,
-                           explanation: Self.explanation, onApp: { form.app = $0 },
-                           onBlock: { add(.block) }, onAllow: { add(.allow) }, onEdit: { form.error = nil }) {
-                    EmptyView()
-                }
-                Divider()
+            // In every build, as Ads and Trackers' add bar is (#638).
+            AddRuleBar(site: $form.site, app: form.app, knownApps: model.ruleApps, error: form.error,
+                       explanation: Self.explanation, onApp: { form.app = $0 },
+                       onBlock: { add(.block) }, onAllow: { add(.allow) }, onEdit: { form.error = nil }) {
+                EmptyView()
             }
+            Divider()
             RulesList(sections: sections, inset: 0) { empty }
             Divider()
             OtherRulesLine(text: model.adRuleCount == 1 ? L("Ads and Trackers has 1 rule of its own.")
