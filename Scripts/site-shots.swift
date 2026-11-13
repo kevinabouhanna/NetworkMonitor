@@ -71,11 +71,12 @@
 // own AccessibilityAudit.swift when it has one (`shots.audit`).
 
 import AppKit
+import AVFoundation
 import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
 
-let shotsKitVersion = "2.3.0"
+let shotsKitVersion = "2.9.0"
 
 // MARK: - Config
 
@@ -377,8 +378,12 @@ enum Versions {
 
     /// The version of the app at `path`, from its Info.plist.
     static func app(_ path: String) -> String? {
-        let plist = URL(fileURLWithPath: path).appendingPathComponent("Contents/Info.plist")
-        return (NSDictionary(contentsOf: plist)?["CFBundleShortVersionString"] as? String)
+        // A Mac app's is in Contents/; an iPhone app's at its top (product-kit#44).
+        for inside in ["Contents/Info.plist", "Info.plist"] {
+            let plist = URL(fileURLWithPath: path).appendingPathComponent(inside)
+            if let version = NSDictionary(contentsOf: plist)?["CFBundleShortVersionString"] as? String { return version }
+        }
+        return nil
     }
 
     /// `1.26.7`, `1.28`: numbers and dots only.
@@ -1436,10 +1441,82 @@ func diff(_ old: [String], _ new: [String]) -> [String] {
     return old.filter { !n.contains($0) }.map { "  - " + $0.trimmingCharacters(in: .whitespaces) }
         + new.filter { !o.contains($0) }.map { "  + " + $0.trimmingCharacters(in: .whitespaces) }
 }
+
+// MARK: - Alt text, as a packet (product-kit#39)
+
+/// For each picture: what changed in its window (its recorded tree, since a commit) and its
+/// alt text wherever it's shown, in every language: the one packet a session needs to rewrite
+/// the alt text after a retake, rather than every page.
+enum AltPacket {
+    static func run(names: Set<String>, manifest: Manifest, site: URL, repo: URL, since: String?) -> Int32 {
+        let shots = manifest.shots.filter { $0.file != nil && (names.isEmpty || names.contains($0.name)) }
+        if shots.isEmpty {
+            print("alt: no shot with a picture" + (names.isEmpty ? "" : " named \(names.sorted().joined(separator: ", "))"))
+            return 2
+        }
+        // Every page that could show a picture, with its text.
+        var pages: [(path: String, text: String, markdown: Bool)] = []
+        for file in Coverage.siteFiles(site) where file.hasSuffix(".html") || file.hasSuffix(".htm") {
+            if let text = try? String(contentsOf: site.appendingPathComponent(file), encoding: .utf8) { pages.append((file, text, false)) }
+        }
+        let markdownRoot = manifestInRepo ? site : repo
+        for file in Coverage.repoPages(markdownRoot) {
+            if let text = try? String(contentsOf: markdownRoot.appendingPathComponent(file), encoding: .utf8) { pages.append((file, text, true)) }
+        }
+        let img = try! NSRegularExpression(pattern: #"<img\b[^>]*>"#, options: [.caseInsensitive])
+        let alt = try! NSRegularExpression(pattern: #"\balt\s*=\s*"([^"]*)""#, options: [.caseInsensitive])
+        let md = try! NSRegularExpression(pattern: #"!\[([^\]]*)\]\(\s*<?([^)\s>]+)"#)
+
+        func alts(of file: String) -> [String] {
+            // The picture itself, from any page's folder: `../assets/x.png`, `assets/x.png?v=…`.
+            let path = try! NSRegularExpression(pattern: #"\b(?:src|srcset)\s*=\s*["'](?:\.\./)*"#
+                                                + NSRegularExpression.escapedPattern(for: file) + #"(?:["'?#\s])"#)
+            var found: [String] = []
+            for page in pages {
+                let ns = page.text as NSString
+                for m in img.matches(in: page.text, range: NSRange(location: 0, length: ns.length)) {
+                    let tag = ns.substring(with: m.range)
+                    guard path.firstMatch(in: tag, range: NSRange(location: 0, length: (tag as NSString).length)) != nil else { continue }
+                    let tns = tag as NSString
+                    let said = alt.firstMatch(in: tag, range: NSRange(location: 0, length: tns.length)).map { tns.substring(with: $0.range(at: 1)) }
+                    found.append("\(page.path): \"\(said ?? "")\"" + (said == nil ? " (no alt text)" : ""))
+                }
+                if page.markdown {
+                    for m in md.matches(in: page.text, range: NSRange(location: 0, length: ns.length)) {
+                        let linked = ns.substring(with: m.range(at: 2)).replacingOccurrences(of: #"^(\./|\.\./)+"#, with: "", options: .regularExpression)
+                        guard linked == file || linked.hasPrefix(file + "?") else { continue }
+                        found.append("\(page.path): \"\(ns.substring(with: m.range(at: 1)))\"")
+                    }
+                }
+            }
+            var seen = Set<String>()
+            return found.filter { seen.insert($0).inserted }
+        }
+
+        for shot in shots {
+            guard let file = shot.file else { continue }
+            print("\(shot.name) (\(file)):")
+            if let since {
+                let tree = "shots/trees/\(shot.name).txt"
+                let diffed = runTool("/usr/bin/git", ["-C", site.path, "diff", "--unified=0", since, "--", tree])
+                let lines = diffed.output.split(separator: "\n").filter { ($0.hasPrefix("+") || $0.hasPrefix("-")) && !$0.hasPrefix("+++") && !$0.hasPrefix("---") }
+                print(lines.isEmpty ? "  what changed: nothing in its tree since \(since)"
+                                    : "  what changed since \(since):\n" + lines.prefix(30).map { "    " + $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n"))
+            }
+            var files = [file]
+            for language in manifest.languages ?? [] { files.append(language.file(file)) }
+            let said = files.flatMap(alts(of:))
+            print(said.isEmpty ? "  alt text: no page shows it" : "  alt text:\n" + said.map { "    " + $0 }.joined(separator: "\n"))
+        }
+        print("Rewrite each alt text that names what changed, in every language: the interface, never its numbers.")
+        return 0
+    }
+}
 // shots-kit, the masked tree: what a window says, as text, whatever drew it (product-kit#35). The files are one program: `shots-kit` builds
 // them together, and `shots-kit vendor` writes them into one file for a project's CI.
 
 import AppKit
+import AVFoundation
 import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
@@ -1483,7 +1560,11 @@ func labels<E: UIElement>(_ element: E) -> [String] {
 /// inside an Outer.
 func matches<E: UIElement>(_ element: E, _ spec: String) -> Bool {
     let parts = spec.split(separator: ":", maxSplits: 1).map(String.init)
-    guard role(element) == parts[0] else { return false }
+    // `Role#identifier`: the element's accessibility identifier, the same in every language
+    // (an iPhone app's usual way to name what tests find, product-kit#43).
+    let head = parts[0].split(separator: "#", maxSplits: 1).map(String.init)
+    guard role(element) == head[0] else { return false }
+    if head.count == 2, text(element, kAXIdentifierAttribute) != head[1] { return false }
     guard parts.count == 2 else { return true }
     // `Role:~text` matches text anywhere in the label, for a line that starts
     // with a number.
@@ -1674,6 +1755,7 @@ func showsData<E: UIElement>(_ element: E) -> Bool {
 // them together, and `shots-kit vendor` writes them into one file for a project's CI.
 
 import AppKit
+import AVFoundation
 import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
@@ -1924,6 +2006,59 @@ struct NeedsAway: Error { let what: String }
 /// Before taking focus or moving the pointer.
 func needAway(_ what: String) throws {
     if !isAway() { throw NeedsAway(what: what) }
+}
+
+// MARK: - Recording a window (product-kit#65)
+
+/// Writes what a ScreenCaptureKit stream shows to an MP4, frame by frame, as they come.
+final class WindowRecording: NSObject, SCStreamOutput, @unchecked Sendable {
+    let writer: AVAssetWriter
+    let input: AVAssetWriterInput
+    private var started = false
+    private var frames = 0
+
+    init(to url: URL, width: Int, height: Int) throws {
+        try? FileManager.default.removeItem(at: url)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+        input = AVAssetWriterInput(mediaType: .video, outputSettings: [
+            AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: width, AVVideoHeightKey: height])
+        input.expectsMediaDataInRealTime = true
+        writer.add(input)
+    }
+
+    func stream(_ stream: SCStream, didOutputSampleBuffer buffer: CMSampleBuffer, of type: SCStreamOutputType) {
+        guard type == .screen, buffer.isValid,
+              let info = (CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]])?.first,
+              let raw = info[.status] as? Int, SCFrameStatus(rawValue: raw) == .complete else { return }
+        if !started {
+            writer.startWriting()
+            writer.startSession(atSourceTime: buffer.presentationTimeStamp)
+            started = true
+        }
+        if input.isReadyForMoreMediaData, input.append(buffer) { frames += 1 }
+    }
+
+    func finish() async throws {
+        guard started, frames > 0 else { throw Failure("the recording caught no frames of the window") }
+        input.markAsFinished()
+        await writer.finishWriting()
+        if writer.status != .completed { throw Failure("the video wasn't written: \(writer.error?.localizedDescription ?? "?")") }
+    }
+}
+
+/// A still from a video, as a JPEG or PNG by its name (product-kit#65): a video's poster.
+func poster(of video: URL, at seconds: Double, to url: URL) async throws {
+    let generator = AVAssetImageGenerator(asset: AVURLAsset(url: video))
+    generator.appliesPreferredTrackTransform = true
+    generator.requestedTimeToleranceBefore = .zero
+    generator.requestedTimeToleranceAfter = .zero
+    let (image, _) = try await generator.image(at: CMTime(seconds: seconds, preferredTimescale: 600))
+    let kind = url.pathExtension.lowercased() == "png" ? "public.png" : "public.jpeg"
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    guard let dest = CGImageDestinationCreateWithURL(url as CFURL, kind as CFString, 1, nil) else { throw Failure("can't write \(url.path)") }
+    CGImageDestinationAddImage(dest, image, [kCGImageDestinationLossyCompressionQuality: 0.88] as CFDictionary)
+    guard CGImageDestinationFinalize(dest) else { throw Failure("can't write \(url.path)") }
 }
 
 // MARK: - Launching
@@ -2264,16 +2399,47 @@ struct Session {
 
     /// A capture, with where its top left is on screen and its points to
     /// pixels: to place the masks of the look check on it (NetworkMonitor#423).
-    func picture(_ window: AXUIElement, crop: Crop?) async throws -> (image: CGImage, origin: CGPoint, scale: CGFloat) {
+    /// The window as ScreenCaptureKit has it: a window by its frame; a popover by the smallest
+    /// window around it, which is larger for the arrow and the shadow.
+    func capturable(_ window: AXUIElement) async throws -> SCWindow {
         guard let app = running, let f = frame(window) else { throw Failure("no window to capture") }
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         let candidates = content.windows.filter { $0.owningApplication?.processID == app.processIdentifier }
-        // A window by its frame; a popover by the smallest window around it,
-        // which is larger for the arrow and the shadow.
         let exact = candidates.min(by: { distance($0.frame, f) < distance($1.frame, f) }).flatMap { distance($0.frame, f) < 4 ? $0 : nil }
         let around = candidates.filter { $0.frame.insetBy(dx: -1, dy: -1).contains(f) }
             .min(by: { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height })
         guard let target = exact ?? around else { throw Failure("can't find the window on screen") }
+        return target
+    }
+
+    /// A video of the window (product-kit#65): `seconds` of it, recorded with ScreenCaptureKit,
+    /// while `actions` (the shot's clicks) run, written as an H.264 MP4.
+    func record(_ window: AXUIElement, to url: URL, seconds: Double, during actions: () throws -> Void) async throws {
+        let target = try await capturable(window)
+        let width = Int(target.frame.width * 2) & ~1, height = Int(target.frame.height * 2) & ~1
+        let config = SCStreamConfiguration()
+        config.width = width
+        config.height = height
+        config.minimumFrameInterval = CMTime(value: 1, timescale: 30)
+        config.showsCursor = false
+        config.ignoreShadowsSingleWindow = true
+        let recording = try WindowRecording(to: url, width: width, height: height)
+        let stream = SCStream(filter: SCContentFilter(desktopIndependentWindow: target), configuration: config, delegate: nil)
+        try stream.addStreamOutput(recording, type: .screen, sampleHandlerQueue: DispatchQueue(label: "shots-kit.recording"))
+        try await stream.startCapture()
+        let start = Date()
+        do { try actions() } catch {
+            try? await stream.stopCapture()
+            throw error
+        }
+        let left = seconds - Date().timeIntervalSince(start)
+        if left > 0 { try await Task.sleep(nanoseconds: UInt64(left * 1_000_000_000)) }
+        try await stream.stopCapture()
+        try await recording.finish()
+    }
+
+    func picture(_ window: AXUIElement, crop: Crop?) async throws -> (image: CGImage, origin: CGPoint, scale: CGFloat) {
+        let target = try await capturable(window)
         let config = SCStreamConfiguration()
         config.width = Int(target.frame.width * 2)
         config.height = Int(target.frame.height * 2)
@@ -2329,6 +2495,7 @@ func isActive(_ image: CGImage, window: AXUIElement) -> Bool {
 // them together, and `shots-kit vendor` writes them into one file for a project's CI.
 
 import AppKit
+import AVFoundation
 import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
@@ -2509,6 +2676,7 @@ enum Rendered {
 // project's CI.
 
 import AppKit
+import AVFoundation
 import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
@@ -2535,7 +2703,80 @@ struct DriverConfig: Decodable {
     var command: [String]
     /// Builds what it drives, once per run, before the first shot. Optional.
     var build: [String]?
+    /// Serves what it drives for the whole run, such as a web app's development server
+    /// (product-kit#46): `{port}` is a free port. Stopped when the run ends.
+    var serve: [String]?
+    /// The address that answers once it's served, `{port}` its port: the driver gets it as
+    /// `PRODUCT_KIT_BASE`, for the shots' `url`s.
+    var ready: String?
 }
+
+/// A driver's server, for the whole run (product-kit#46).
+final class Served {
+    let process: Process
+    let base: String
+
+    init(_ serve: [String], ready: String?, in dir: URL) throws {
+        let port = Served.freePort()
+        process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = serve.map { $0.replacingOccurrences(of: "{port}", with: "\(port)") }
+        process.currentDirectoryURL = dir
+        process.environment = ProcessInfo.processInfo.environment.merging(["PORT": "\(port)"]) { $1 }
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        base = (ready ?? "http://localhost:{port}/").replacingOccurrences(of: "{port}", with: "\(port)")
+        // Ready once it answers, within 90 seconds.
+        let deadline = Date().addingTimeInterval(90)
+        while Date() < deadline {
+            if !process.isRunning { throw Failure("`serve` stopped before it answered: \(serve.joined(separator: " "))") }
+            if Served.answers(base) { return }
+            usleep(500_000)
+        }
+        stop()
+        throw Failure("`serve` didn't answer at \(base) within 90 seconds")
+    }
+
+    func stop() {
+        guard process.isRunning else { return }
+        process.terminate()
+        let deadline = Date().addingTimeInterval(10)
+        while process.isRunning && Date() < deadline { usleep(200_000) }
+        if process.isRunning { kill(process.processIdentifier, SIGKILL) }
+    }
+
+    static func answers(_ address: String) -> Bool {
+        guard let url = URL(string: address) else { return false }
+        let done = DispatchSemaphore(value: 0)
+        nonisolated(unsafe) var ok = false
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 2
+        URLSession.shared.dataTask(with: request) { _, response, _ in
+            ok = (response as? HTTPURLResponse) != nil
+            done.signal()
+        }.resume()
+        _ = done.wait(timeout: .now() + 3)
+        return ok
+    }
+
+    /// A port nothing listens on now.
+    static func freePort() -> Int {
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        defer { close(fd) }
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = 0
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+        var size = socklen_t(MemoryLayout<sockaddr_in>.size)
+        _ = withUnsafePointer(to: &address) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, size) } }
+        _ = withUnsafeMutablePointer(to: &address) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &size) } }
+        return Int(UInt16(bigEndian: address.sin_port))
+    }
+}
+
+/// What a driver's calls carry in their environment: the served address, when there is one.
+nonisolated(unsafe) var driverEnvironment: [String: String] = [:]
 
 enum Commanded {
     /// How long a build, and each request, may take before it's stopped.
@@ -2546,8 +2787,12 @@ enum Commanded {
         var skipped: String?
     }
 
+    /// The server `serve` started, stopped when the run ends.
+    nonisolated(unsafe) static var servedNow: Served?
+
     static func run(_ command: String, names: Set<String>, manifest: Manifest, driver: DriverConfig, site: URL, repo: URL,
                     repoAssets: RepoAssets?, only: String?) -> Int32 {
+        defer { servedNow?.stop() }
         guard ["check", "update", "tree", "record"].contains(command) else {
             print("\(command): not for a manifest with a `driver`; check, update, tree and record are")
             return 2
@@ -2570,6 +2815,12 @@ enum Commanded {
             if let build = driver.build, !build.isEmpty {
                 print("building: \(build.joined(separator: " "))")
                 try Rendered.runCommand(build, in: repo, limit: buildLimit, what: "the build")
+            }
+            if let serve = driver.serve, !serve.isEmpty {
+                print("serving: \(serve.joined(separator: " "))")
+                let served = try Served(serve, ready: driver.ready, in: repo)
+                servedNow = served
+                driverEnvironment["PRODUCT_KIT_BASE"] = served.base
             }
         } catch {
             print("\(command): \(error)")
@@ -2724,6 +2975,7 @@ enum Commanded {
         p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         p.arguments = argv
         p.currentDirectoryURL = dir
+        p.environment = ProcessInfo.processInfo.environment.merging(driverEnvironment) { $1 }
         let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
         p.standardInput = stdin
         p.standardOutput = stdout
@@ -2756,6 +3008,7 @@ enum Commanded {
 // them together, and `shots-kit vendor` writes them into one file for a project's CI.
 
 import AppKit
+import AVFoundation
 import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
@@ -2776,7 +3029,7 @@ import ScreenCaptureKit
 /// something changed here meanwhile stays.
 enum InVM {
     /// The commands that open the app; the rest read files only, here.
-    static let commands: Set<String> = ["check", "update", "record", "tree", "audit"]
+    static let commands: Set<String> = ["check", "update", "record", "tree", "audit", "video"]
 
     /// This is the run inside the VM.
     static var inside: Bool { ProcessInfo.processInfo.environment["SHOTS_KIT_IN_VM"] == "1" }
@@ -3008,6 +3261,7 @@ enum InVM {
 // them together, and `shots-kit vendor` writes them into one file for a project's CI.
 
 import AppKit
+import AVFoundation
 import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
@@ -3093,8 +3347,33 @@ struct ShotsKit {
             while let line = readLine(strippingNewline: true) { print(mask(line)) }
             exit(0)
         }
-        guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "coverage-test", "readme", "record"].contains(command) else {
-            print("usage: shots-kit check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|mask|mask-test|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE] [--vm|--here] [--wait-away MINUTES]|version")
+        // A video of a shot (product-kit#65): `video <shot> --out <file from the site> --seconds N`.
+        var videoArgs: [String] = []
+        var videoOut: String?, videoSeconds = 8.0
+        if let i = args.firstIndex(of: "--out"), i + 1 < args.count {
+            videoOut = args[i + 1]; videoArgs += ["--out", args[i + 1]]; args.removeSubrange(i...(i + 1))
+        }
+        if let i = args.firstIndex(of: "--seconds"), i + 1 < args.count {
+            videoSeconds = Double(args[i + 1]) ?? 8; videoArgs += ["--seconds", args[i + 1]]; args.removeSubrange(i...(i + 1))
+        }
+        if args.first == "poster" {
+            guard args.count >= 3 else { print("usage: shots-kit poster <video> <image> [--at SECONDS]"); exit(2) }
+            let at = args.firstIndex(of: "--at").flatMap { $0 + 1 < args.count ? Double(args[$0 + 1]) : nil } ?? 0.5
+            do {
+                try await poster(of: URL(fileURLWithPath: args[1]), at: at, to: URL(fileURLWithPath: args[2]))
+                print("poster: \(args[2])")
+                exit(0)
+            } catch {
+                print("poster: \(error)")
+                exit(2)
+            }
+        }
+        var altSince: String?
+        if let i = args.firstIndex(of: "--since"), i + 1 < args.count {
+            altSince = args[i + 1]; args.removeSubrange(i...(i + 1))
+        }
+        guard let command = args.first, ["check", "update", "tree", "audit", "coverage", "coverage-test", "readme", "record", "alt", "video"].contains(command) else {
+            print("usage: shots-kit check [--look]|update|audit [names…]|tree <name>|record <names…>|coverage|coverage-test|mask|mask-test|alt [names…] [--since REF]|readme [--site DIR] [--repo DIR] [--app APP] [--language CODE] [--vm|--here] [--wait-away MINUTES]|version")
             exit(2)
         }
         // No site: the manifest is the project's own (product-kit#8).
@@ -3155,6 +3434,15 @@ struct ShotsKit {
                 exit(2)
             }
         }
+        // Files only: each picture's alt text and what changed in its window (product-kit#39).
+        if command == "alt" {
+            do {
+                exit(AltPacket.run(names: names, manifest: try loadManifest(site), site: site, repo: repo, since: altSince))
+            } catch {
+                print("alt: \(error)")
+                exit(2)
+            }
+        }
         // Files only too: the README's copies of the site's pictures.
         if command == "readme" {
             do {
@@ -3186,7 +3474,7 @@ struct ShotsKit {
         if InVM.commands.contains(command), !InVM.inside, inVM ?? config.vm.byDefault {
             do {
                 let manifest = try loadManifest(site)
-                exit(InVM.run(args + (compareLooks ? ["--look"] : []) + (only.map { ["--language", $0] } ?? []),
+                exit(InVM.run(args + (compareLooks ? ["--look"] : []) + (only.map { ["--language", $0] } ?? []) + videoArgs,
                               manifest: manifest, site: site, repo: repo, app: app))
             } catch {
                 print("shots-kit: \(error)")
@@ -3232,6 +3520,27 @@ struct ShotsKit {
                 if let language { print("\n\(language.code), for \(language.page):") }
                 do {
                     let translator = try language.map { try Translator(app: manifest.app, language: $0) }
+                    if command == "video" {
+                        guard let name = names.first, names.count == 1, var shot = manifest.shots.first(where: { $0.name == name }),
+                              let out = videoOut else {
+                            throw Failure("usage: shots-kit video <shot> --out <file, from the site> [--seconds N] [--language CODE]")
+                        }
+                        if let language, let translator { shot = shot.localized(language, translator) }
+                        try mac.hold("recording a window")
+                        try session.launch(shot.open)
+                        let window = try session.window(shot.window)
+                        session.place(window)
+                        try session.bringForward(window)
+                        let url = site.appendingPathComponent(out)
+                        try await session.record(window, to: url, seconds: videoSeconds) {
+                            for spec in shot.click ?? [] {
+                                usleep(900_000)
+                                try session.click(spec, in: window)
+                            }
+                        }
+                        print("video: recorded \(out) (\(Int(videoSeconds)) s)")
+                        continue
+                    }
                     let s = try await run(command, names: names, manifest: manifest, session: session, mac: mac, site: site,
                                           repo: repo, repoAssets: RepoAssets.of(repoAssets, manifest), language: language,
                                           translator: translator)

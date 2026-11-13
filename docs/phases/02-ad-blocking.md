@@ -1,6 +1,6 @@
 # Phase 2: Ad blocking that holds up
 
-**Milestone:** Phase 2: Ad blocking that holds up · **Status:** Now
+**Milestone:** Phase 2: Ad blocking that holds up · **Status:** Next
 
 **Goal:** the best ad blocking a Mac app can do in every app, with the controls people know
 from other ad blockers.

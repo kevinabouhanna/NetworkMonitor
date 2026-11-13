@@ -9,7 +9,6 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
-| 6 | #638 Bug: Connections hides Traffic · Blocked · Rules in a build without the filter; Ads and Trackers always shows its switch | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 7 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 
 ## Next
