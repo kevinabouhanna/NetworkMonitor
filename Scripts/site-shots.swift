@@ -65,7 +65,8 @@
 // lanes go, however the run ends, puts the installed copy back running if it
 // was.
 //
-// Build: swiftc -O -parse-as-library shots-kit.swift AccessibilityAudit.swift
+// Build: swiftc -O -parse-as-library <its files, in shots/SOURCES' order, or the one
+// file `shots-kit vendor` writes> AccessibilityAudit.swift
 // (`shots-kit` in product-kit does it, and keeps the build), with the project's
 // own AccessibilityAudit.swift when it has one (`shots.audit`).
 
@@ -74,7 +75,7 @@ import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
 
-let shotsKitVersion = "2.0.0"
+let shotsKitVersion = "2.3.0"
 
 // MARK: - Config
 
@@ -195,15 +196,25 @@ struct Manifest: Decodable {
     /// Pictures the project draws itself (product-kit#8): no app or window to
     /// open, so its shots name only their `file` and their `render`.
     var render: Render?
+    /// A program that opens each screen and says what it shows (product-kit#35): an
+    /// iPhone app in the simulator, a web page. `app` and `bundle` are then optional.
+    var driver: DriverConfig?
+    /// The README's and the docs' files in `assets` (`"in": "repo"`), apart (product-kit#36).
+    var repoListed: [HandMade] = []
 
-    enum CodingKeys: String, CodingKey { case app, bundle, shots, assets, languages, render }
+    enum CodingKeys: String, CodingKey { case app, bundle, shots, assets, languages, render, driver }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         assets = try c.decodeIfPresent([HandMade].self, forKey: .assets)
         languages = try c.decodeIfPresent([Language].self, forKey: .languages)
         render = try c.decodeIfPresent(Render.self, forKey: .render)
-        if render != nil {
+        driver = try c.decodeIfPresent(DriverConfig.self, forKey: .driver)
+        if driver != nil {
+            app = try c.decodeIfPresent(String.self, forKey: .app) ?? ""
+            bundle = try c.decodeIfPresent(String.self, forKey: .bundle) ?? ""
+            shots = try c.decode([Shot].self, forKey: .shots)
+        } else if render != nil {
             app = try c.decodeIfPresent(String.self, forKey: .app) ?? ""
             bundle = try c.decodeIfPresent(String.self, forKey: .bundle) ?? ""
             shots = try c.decode([Rendered.Shot].self, forKey: .shots).map {
@@ -226,7 +237,13 @@ func loadManifest(_ site: URL) throws -> Manifest {
             ? "no shots/shots.json: put it in the project's checkout, or say where the site is (shots.site in .product-kit.json, or --site)"
             : "no shots/shots.json in \(site.path)")
     }
-    let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: file))
+    var manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: file))
+    // The README's and the docs' files it lists (`"in": "repo"`) are the README's list,
+    // when the manifest is on a site; with no site they're in the same checkout anyway.
+    if !manifestInRepo, let all = manifest.assets {
+        manifest.repoListed = all.filter { $0.place == "repo" }
+        manifest.assets = all.filter { $0.place != "repo" }
+    }
     masks = try Masks(languages: ["en"] + config.languages + (manifest.languages ?? []).map(\.code), project: config.masks)
     return manifest
 }
@@ -324,6 +341,17 @@ struct HandMade: Decodable {
     /// and can't be remade yet: the check names it without failing. It fails
     /// again once the asset is as new as its windows, until this comes out.
     var stale: String?
+    /// `repo`: a file of the README's or the docs', in the project's checkout, listed in a
+    /// manifest that's on the site, when the site is on the same branch (product-kit#36).
+    var place: String?
+    /// How it's made: `taken` (a driver's picture), `drawn` (by the app), `recorded`,
+    /// `built` (a video made from the pictures), or `hand`, the default for one that `shows`
+    /// windows (product-kit#36). Scripted videos and store pictures go by it.
+    var how: String?
+
+    static let hows: Set<String> = ["taken", "drawn", "recorded", "built", "hand"]
+
+    enum CodingKeys: String, CodingKey { case file, shows, none, copy, made, stale, place = "in", how }
 }
 
 /// The app version each window's record was taken from (NetworkMonitor#421), in
@@ -373,6 +401,20 @@ enum Versions {
 /// `main`, listed the same way.
 struct RepoAssets: Decodable {
     var assets: [HandMade]
+
+    /// The README's and the docs' list: `shots.repo_assets`'s file, and the manifest's
+    /// entries for them (`"in": "repo"`, product-kit#36), as one.
+    static func of(_ file: RepoAssets?, _ manifest: Manifest) -> RepoAssets? {
+        if manifest.repoListed.isEmpty { return file }
+        return RepoAssets(assets: (file?.assets ?? []) + manifest.repoListed)
+    }
+}
+
+/// What the README's list is called in a report: its file, or the manifest's entries.
+func repoListName(_ repo: URL, _ manifest: Manifest) -> String {
+    if manifest.repoListed.isEmpty { return repoAssetsPath }
+    return FileManager.default.fileExists(atPath: repo.appendingPathComponent(repoAssetsPath).path)
+        ? repoAssetsPath : "shots/shots.json (\"in\": \"repo\")"
 }
 
 /// Where the repo's list lives, relative to its checkout.
@@ -494,6 +536,34 @@ struct Shot: Decodable {
     }
 }
 
+extension Shot {
+    enum CodingKeys: String, CodingKey {
+        case name, file, open, window, click, scroll, waitFor, when, skipIf, ignore, data, crop, areas, always, flags, render
+    }
+
+    /// `open` and `window` are the macOS driver's; a driver of the project's choosing
+    /// may need neither (product-kit#35).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        file = try c.decodeIfPresent(String.self, forKey: .file)
+        open = try c.decodeIfPresent([String].self, forKey: .open) ?? []
+        window = try c.decodeIfPresent(String.self, forKey: .window) ?? ""
+        click = try c.decodeIfPresent([String].self, forKey: .click)
+        scroll = try c.decodeIfPresent(String.self, forKey: .scroll)
+        waitFor = try c.decodeIfPresent(Wait.self, forKey: .waitFor)
+        when = try c.decodeIfPresent(String.self, forKey: .when)
+        skipIf = try c.decodeIfPresent(String.self, forKey: .skipIf)
+        ignore = try c.decodeIfPresent([String].self, forKey: .ignore)
+        data = try c.decodeIfPresent([DataRegion].self, forKey: .data)
+        crop = try c.decodeIfPresent(Crop.self, forKey: .crop)
+        areas = try c.decodeIfPresent([Area].self, forKey: .areas)
+        always = try c.decodeIfPresent(Bool.self, forKey: .always)
+        flags = try c.decodeIfPresent([String].self, forKey: .flags)
+        render = try c.decodeIfPresent(String.self, forKey: .render)
+    }
+}
+
 struct Wait: Decodable {
     var element: String
     var seconds: Double
@@ -544,78 +614,6 @@ struct Area: Decodable {
     /// A fixed height, in points.
     var h: Double?
 }
-
-// MARK: - Accessibility
-
-func attribute(_ element: AXUIElement, _ name: String) -> AnyObject? {
-    var value: AnyObject?
-    return AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success ? value : nil
-}
-
-func text(_ element: AXUIElement, _ name: String) -> String? {
-    switch attribute(element, name) {
-    case let s as String: return s.isEmpty ? nil : s
-    case let n as NSNumber: return n.stringValue
-    default: return nil
-    }
-}
-
-func children(_ element: AXUIElement) -> [AXUIElement] {
-    attribute(element, kAXChildrenAttribute) as? [AXUIElement] ?? []
-}
-
-func frame(_ element: AXUIElement) -> CGRect? {
-    guard let p = attribute(element, kAXPositionAttribute), let s = attribute(element, kAXSizeAttribute) else { return nil }
-    var origin = CGPoint.zero, size = CGSize.zero
-    AXValueGetValue(p as! AXValue, .cgPoint, &origin)
-    AXValueGetValue(s as! AXValue, .cgSize, &size)
-    return CGRect(origin: origin, size: size)
-}
-
-func role(_ element: AXUIElement) -> String { text(element, kAXRoleAttribute) ?? "?" }
-
-func labels(_ element: AXUIElement) -> [String] {
-    [kAXTitleAttribute, kAXDescriptionAttribute, kAXValueAttribute].compactMap { text(element, $0) }
-}
-
-/// `Role` or `Role:label`, where the label is the start of the element's
-/// title, description or value. `find` also takes `Outer>Inner`: an Inner
-/// inside an Outer.
-func matches(_ element: AXUIElement, _ spec: String) -> Bool {
-    let parts = spec.split(separator: ":", maxSplits: 1).map(String.init)
-    guard role(element) == parts[0] else { return false }
-    guard parts.count == 2 else { return true }
-    // `Role:~text` matches text anywhere in the label, for a line that starts
-    // with a number.
-    if parts[1].hasPrefix("~") { return labels(element).contains { $0.contains(parts[1].dropFirst()) } }
-    return labels(element).contains { $0.hasPrefix(parts[1]) }
-}
-
-func find(_ spec: String, in element: AXUIElement) -> AXUIElement? {
-    if let split = spec.range(of: ">") {
-        guard let outer = find(String(spec[..<split.lowerBound]), in: element) else { return nil }
-        return children(outer).lazy.compactMap { find(String(spec[split.upperBound...]), in: $0) }.first
-    }
-    if matches(element, spec) { return element }
-    for child in children(element) {
-        if let found = find(spec, in: child) { return found }
-    }
-    return nil
-}
-
-func find(_ role: String, in element: AXUIElement, subrole: String) -> AXUIElement? {
-    children(element).first { text($0, kAXRoleAttribute) == role && text($0, kAXSubroleAttribute) == subrole }
-}
-
-func parent(of element: AXUIElement) -> AXUIElement? {
-    attribute(element, kAXParentAttribute).map { $0 as! AXUIElement }
-}
-
-// MARK: - The masked tree
-
-/// Roles whose value is the user's setting rather than interface.
-let settingRoles: Set<String> = ["AXCheckBox", "AXRadioButton", "AXPopUpButton", "AXSlider", "AXTextField",
-                                 "AXTextArea", "AXComboBox", "AXDisclosureTriangle", "AXIncrementor", "AXValueIndicator"]
 
 /// What changes by itself in a window's text, in every language the project
 /// shows, masked so that only the interface counts (product-kit#32): numbers,
@@ -765,13 +763,805 @@ enum MaskTests {
     }
 }
 
+// MARK: - Running a tool
+
+/// Runs a tool to its end: its exit status, and what it printed.
+@discardableResult
+func runTool(_ path: String, _ arguments: [String]) -> (status: Int32, output: String) {
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: path)
+    p.arguments = arguments
+    let out = Pipe()
+    p.standardOutput = out
+    p.standardError = out
+    guard (try? p.run()) != nil else { return (-1, "couldn't run \(path)") }
+    let data = out.fileHandleForReading.readDataToEndOfFile()
+    p.waitUntilExit()
+    return (p.terminationStatus, String(decoding: data, as: UTF8.self))
+}
+
+func writePNG(_ image: CGImage, to url: URL) throws {
+    // A language's first pictures go in folders that don't exist yet.
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    guard let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else { throw Failure("can't write \(url.path)") }
+    CGImageDestinationAddImage(dest, image, nil)
+    guard CGImageDestinationFinalize(dest) else { throw Failure("can't write \(url.path)") }
+}
+
+// MARK: - The page
+
+struct Page {
+    let url: URL
+    var html: String
+    /// From the page's folder back to the site's root, before each asset's
+    /// path in its links: `../` for a language's page in a folder.
+    let up: String
+
+    init(site: URL, path: String = "index.html", up: String = "") throws {
+        url = site.appendingPathComponent(path)
+        html = try String(contentsOf: url, encoding: .utf8)
+        self.up = up
+    }
+
+    func save() throws { try html.write(to: url, atomically: true, encoding: .utf8) }
+
+    /// The whole tag containing `needle`.
+    func tagRange(containing needle: String) -> Range<String.Index>? {
+        guard let hit = html.range(of: needle),
+              let start = html[..<hit.lowerBound].range(of: "<", options: .backwards),
+              let end = html[hit.upperBound...].range(of: ">") else { return nil }
+        return start.lowerBound..<end.upperBound
+    }
+
+    mutating func edit(tagContaining needle: String, _ change: (String) -> String) {
+        guard let range = tagRange(containing: needle) else { return }
+        html.replaceSubrange(range, with: change(String(html[range])))
+    }
+
+    static func set(_ attribute: String, _ value: String, in tag: String) -> String {
+        let pattern = "\\b\(NSRegularExpression.escapedPattern(for: attribute))=\"[^\"]*\""
+        return tag.range(of: pattern, options: .regularExpression) == nil ? tag
+            : tag.replacingOccurrences(of: pattern, with: "\(attribute)=\"\(value)\"", options: .regularExpression)
+    }
+
+    /// `width` and `height` in pixels, and `data-w` and `data-h` in points
+    /// where the tag has them.
+    /// Every tag containing `needle`, last first so the ranges stay good.
+    mutating func editAll(tagsContaining needle: String, _ change: (String) -> String) {
+        var ranges: [Range<String.Index>] = []
+        var from = html.startIndex
+        while let hit = html.range(of: needle, range: from..<html.endIndex) {
+            if let start = html[..<hit.lowerBound].range(of: "<", options: .backwards),
+               let end = html[hit.upperBound...].range(of: ">") {
+                ranges.append(start.lowerBound..<end.upperBound)
+            }
+            from = hit.upperBound
+        }
+        for range in ranges.reversed() { html.replaceSubrange(range, with: change(String(html[range]))) }
+    }
+
+    /// The picture's size, on every `<img>` that shows it: one picture can
+    /// be in two sections.
+    mutating func setSize(of file: String, pixels: CGSize) {
+        editAll(tagsContaining: "\"\(up)\(file)") { tag in
+            var tag = Page.set("width", "\(Int(pixels.width))", in: tag)
+            tag = Page.set("height", "\(Int(pixels.height))", in: tag)
+            tag = Page.set("data-w", "\(Int(pixels.width / 2))", in: tag)
+            return Page.set("data-h", "\(Int(pixels.height / 2))", in: tag)
+        }
+    }
+
+    /// An area's `--x` (from the window's centre), `--y`, `--w` and `--h`.
+    mutating func place(_ area: Area, at r: CGRect, windowWidth: CGFloat) {
+        let padX = area.pad?.first ?? 0, padY = area.pad?.last ?? 0
+        let values = ["--x": r.minX - padX - windowWidth / 2, "--y": r.minY - padY,
+                      "--w": r.width + 2 * padX, "--h": area.h ?? (r.height + 2 * padY)]
+        edit(tagContaining: area.match) { tag in
+            var tag = tag
+            for (name, v) in values {
+                tag = tag.replacingOccurrences(of: "\(name):-?[\\d.]+", with: "\(name):\(Int(v.rounded()))", options: .regularExpression)
+            }
+            return tag
+        }
+    }
+
+    /// `?v=` and the first eight hex digits of each asset's contents, on every
+    /// link to it, so a page never shows a picture the browser kept from an
+    /// older version.
+    mutating func stampAssets(site: URL) {
+        let folder = NSRegularExpression.escapedPattern(for: config.media)
+        let regex = try! NSRegularExpression(pattern: "(\(folder)/[A-Za-z0-9_./-]+\\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm))(\\?v=[0-9a-f]+)?")
+        let ns = html as NSString
+        var result = "", last = 0
+        for m in regex.matches(in: html, range: NSRange(location: 0, length: ns.length)) {
+            let path = ns.substring(with: m.range(at: 1))
+            result += ns.substring(with: NSRange(location: last, length: m.range.location - last))
+            if let data = try? Data(contentsOf: site.appendingPathComponent(path)) {
+                let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined().prefix(8)
+                result += "\(path)?v=\(hash)"
+            } else {
+                result += ns.substring(with: m.range)
+            }
+            last = m.range.location + m.range.length
+        }
+        html = result + ns.substring(from: last)
+    }
+}
+
+// MARK: - Coverage
+
+/// Every image, GIF and video the pages use, each with the pages using it,
+/// checked against the lists (NetworkMonitor#413). Reads files only: no app, no
+/// Accessibility, so it runs in CI.
+enum Coverage {
+    static let media = "png|jpe?g|gif|webp|svg|mp4|webm|mov"
+
+    /// The site's files a browser reads for media (NetworkMonitor#425): its pages, at the
+    /// top and in folders (each language's, zh/index.html, NetworkMonitor#430), their
+    /// stylesheets and their scripts. Not the folders that aren't the site:
+    /// hidden ones (.github), shots/ (this tool's), and another checkout
+    /// inside it (the app's, which the site's workflow puts in app/).
+    static func siteFiles(_ site: URL) -> [String] {
+        let fm = FileManager.default
+        guard let walk = fm.enumerator(atPath: site.path) else { return [] }
+        var files: [String] = []
+        while let path = walk.nextObject() as? String {
+            let name = (path as NSString).lastPathComponent
+            if walk.fileAttributes?[.type] as? FileAttributeType == .typeDirectory {
+                if name.hasPrefix(".") || path == "shots"
+                    || fm.fileExists(atPath: site.appendingPathComponent(path).appendingPathComponent(".git").path) {
+                    walk.skipDescendants()
+                }
+            } else if !name.hasPrefix("."),
+                      ["html", "htm", "css", "js", "mjs"].contains((name as NSString).pathExtension.lowercased()) {
+                files.append(path)
+            }
+        }
+        return files.sorted()
+    }
+
+    /// The site's own assets: `assets/…`, as a relative link or on the site's
+    /// own address (the social preview's `<meta>` tags), wherever it's
+    /// written: an attribute, a `srcset`'s list, a stylesheet's `url(…)`, a
+    /// string in a script that adds it. Another site's `/assets/` isn't ours.
+    static func siteUses(_ site: URL) throws -> [String: Set<String>] {
+        // The site's own address, without its scheme: `example.github.io/App/`.
+        let own = config.siteURL.map { url -> String in
+            let bare = url.replacingOccurrences(of: #"^[a-z]+://"#, with: "", options: .regularExpression)
+            return "|" + NSRegularExpression.escapedPattern(for: bare.hasSuffix("/") ? bare : bare + "/")
+        } ?? ""
+        let regex = try NSRegularExpression(
+            pattern: #"(?:^|["'`(=,\s]"# + own + #")(?:\.\./)*("# + NSRegularExpression.escapedPattern(for: config.media)
+                + #"/[A-Za-z0-9_./@-]+\.(?:"# + media + #"))"#,
+            options: [.caseInsensitive, .anchorsMatchLines])
+        var uses: [String: Set<String>] = [:]
+        // A page in a folder climbs out with ../; a script's paths are the
+        // page's that runs it, so each is the site's assets/ either way.
+        for file in siteFiles(site) {
+            guard let text = try? String(contentsOf: site.appendingPathComponent(file), encoding: .utf8) else { continue }
+            let ns = text as NSString
+            for m in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+                uses[ns.substring(with: m.range(at: 1)), default: []].insert(file)
+            }
+        }
+        return uses
+    }
+
+    /// The README's, SECURITY's and the docs' Markdown pages: README.<code>.md
+    /// for each language (NetworkMonitor#430), and every page under docs/, however deep
+    /// (docs/<code>/, the design log's docs/design-overhaul, NetworkMonitor#437).
+    static func repoPages(_ repo: URL) -> [String] {
+        let fm = FileManager.default
+        var pages = ["README.md", "SECURITY.md"]
+        let files = (try? fm.contentsOfDirectory(atPath: repo.path)) ?? []
+        pages += files.filter { $0.hasPrefix("README.") && $0.hasSuffix(".md") && $0 != "README.md" }.sorted()
+        var docs: [String] = []
+        if let walk = fm.enumerator(atPath: repo.appendingPathComponent("docs").path) {
+            while let path = walk.nextObject() as? String {
+                let name = (path as NSString).lastPathComponent
+                if name.hasPrefix(".") {
+                    walk.skipDescendants()
+                } else if name.lowercased().hasSuffix(".md") {
+                    docs.append("docs/" + path)
+                }
+            }
+        }
+        return pages + docs.sorted()
+    }
+
+    /// A Markdown page with its code blanked out, fenced and inline, which
+    /// GitHub shows as text: an example there isn't a picture on the page.
+    static func withoutCode(_ text: String) -> String {
+        var fence: String?
+        var lines: [String] = []
+        for line in text.components(separatedBy: "\n") {
+            // At any depth: a list item's code is indented with it.
+            let trimmed = line.drop { $0 == " " || $0 == "\t" }
+            let marker = String(trimmed.prefix { $0 == "`" || $0 == "~" })
+            if let open = fence {
+                if marker.first == open.first, marker.count >= open.count,
+                   trimmed.dropFirst(marker.count).allSatisfy(\.isWhitespace) {
+                    fence = nil
+                }
+                lines.append("")
+            } else if marker.count >= 3, Set(marker).count == 1,
+                      marker.first == "~" || !trimmed.dropFirst(marker.count).contains("`") {
+                fence = marker
+                lines.append("")
+            } else {
+                lines.append(line)
+            }
+        }
+        let inline = try! NSRegularExpression(pattern: "(`+).*?\\1")
+        let joined = lines.joined(separator: "\n")
+        return inline.stringByReplacingMatches(in: joined, range: NSRange(location: 0, length: (joined as NSString).length),
+                                               withTemplate: "")
+    }
+
+    /// The links to pictures in one Markdown page, as written: HTML's `src`,
+    /// `poster` and `srcset` (a `<picture>`'s `<source>` too), and Markdown's
+    /// images, inline `![alt](path)` or by reference, `![alt][ref]`,
+    /// `![ref][]` or `![ref]`, with `[ref]: path` anywhere on the page.
+    static func pictureLinks(_ markdown: String) throws -> [String] {
+        let text = withoutCode(markdown)
+        let ns = text as NSString
+        let all = NSRange(location: 0, length: ns.length)
+        func group(_ m: NSTextCheckingResult, _ i: Int) -> String? {
+            m.range(at: i).location == NSNotFound ? nil : ns.substring(with: m.range(at: i))
+        }
+        var links: [String] = []
+        let html = try NSRegularExpression(pattern: #"\b(src|poster|srcset)\s*=\s*["']([^"']+)["']"#, options: .caseInsensitive)
+        for m in html.matches(in: text, range: all) {
+            guard let attribute = group(m, 1), let value = group(m, 2) else { continue }
+            if attribute.lowercased() == "srcset" {
+                // `a.png 1x, a@2x.png 2x`: each candidate's address.
+                links += value.components(separatedBy: ",").compactMap {
+                    $0.split(whereSeparator: \.isWhitespace).first.map(String.init)
+                }
+            } else {
+                links.append(value)
+            }
+        }
+        let inline = try NSRegularExpression(pattern: #"!\[[^\]]*\]\(\s*<?([^)\s>]+)"#)
+        links += inline.matches(in: text, range: all).compactMap { group($0, 1) }
+        // References: labels match without regard to case or spacing, and
+        // the first definition of one wins.
+        func label(_ s: String) -> String {
+            s.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        }
+        var definitions: [String: String] = [:]
+        let definition = try NSRegularExpression(pattern: #"^ {0,3}\[([^\]]+)\]:[ \t]*<?([^\s>]+)>?"#, options: .anchorsMatchLines)
+        for m in definition.matches(in: text, range: all) {
+            guard let name = group(m, 1), let link = group(m, 2), definitions[label(name)] == nil else { continue }
+            definitions[label(name)] = link
+        }
+        let reference = try NSRegularExpression(pattern: #"!\[([^\]]*)\](?:\[([^\]]*)\])?(?![(\[])"#)
+        for m in reference.matches(in: text, range: all) {
+            let ref = group(m, 2).flatMap { $0.isEmpty ? nil : $0 } ?? group(m, 1) ?? ""
+            if let link = definitions[label(ref)] { links.append(link) }
+        }
+        return links
+    }
+
+    /// The README's, SECURITY's and the docs' local media, as paths from the
+    /// checkout's root.
+    static func repoUses(_ repo: URL) throws -> [String: Set<String>] {
+        let mediaRegex = try NSRegularExpression(pattern: #"\.(?:"# + media + #")$"#, options: .caseInsensitive)
+        let root = repo.standardizedFileURL.path + "/"
+        var uses: [String: Set<String>] = [:]
+        for page in repoPages(repo) {
+            guard let text = try? String(contentsOf: repo.appendingPathComponent(page), encoding: .utf8) else { continue }
+            for written in try pictureLinks(text) {
+                if written.contains("://") || written.hasPrefix("#") || written.hasPrefix("data:") { continue }
+                let link = written.components(separatedBy: CharacterSet(charactersIn: "?#"))[0]
+                guard mediaRegex.firstMatch(in: link, range: NSRange(location: 0, length: (link as NSString).length)) != nil
+                else { continue }
+                // Relative to the page, as GitHub reads it.
+                let base = repo.appendingPathComponent(page).deletingLastPathComponent()
+                let full = URL(fileURLWithPath: link, relativeTo: base).standardizedFileURL.path
+                guard full.hasPrefix(root) else { continue }
+                uses[String(full.dropFirst(root.count)), default: []].insert(page)
+            }
+        }
+        return uses
+    }
+
+    /// What's wrong, one line each; empty when every asset is accounted for.
+    /// The site's come first, fixed on `gh-pages`; from `onMain` on, the
+    /// README's and the docs', fixed on `main` (NetworkMonitor#426). And what's known to be
+    /// out of date, waiting on an issue (`stale`), which doesn't fail it.
+    static func problems(manifest: Manifest, site: URL, repoAssets: RepoAssets?, repo: URL?) throws
+        -> (problems: [String], onMain: Int, summary: String, stale: [String]) {
+        var problems: [String] = [], stale: [String] = []
+        let shotNames = Set(manifest.shots.map(\.name))
+        // Each window's record, as the version it was taken from (NetworkMonitor#421): the
+        // tree what's made by hand was last remade from, or the window's own.
+        let trees = site.appendingPathComponent("shots/trees")
+        let versions = Versions.read(trees)
+        func recorded(_ name: String) -> String? {
+            let made = "\(name).made.txt"
+            return FileManager.default.fileExists(atPath: trees.appendingPathComponent(made).path) ? versions[made] : versions["\(name).txt"]
+        }
+
+        func checkList(_ list: [HandMade], root: URL, listName: String, uses: [String: Set<String>], taken: Set<String>) {
+            var seen = Set<String>()
+            for asset in list {
+                let file = asset.file
+                if !seen.insert(file).inserted { problems.append("\(file) is listed twice in \(listName)") }
+                if taken.contains(file) { problems.append("\(file) is a shot's picture; take it out of \(listName)'s assets") }
+                let shows = asset.shows ?? []
+                if let how = asset.how, !HandMade.hows.contains(how) {
+                    problems.append("\(file) in \(listName) says it's made \"\(how)\": that's one of "
+                                    + HandMade.hows.sorted().joined(separator: ", "))
+                }
+                if asset.copy == nil, shows.isEmpty == (asset.none == nil) {
+                    problems.append("\(file) in \(listName) needs either `shows` (the windows it shows) or `none` (why it shows none), not both")
+                }
+                for name in shows where !shotNames.contains(name) {
+                    problems.append("\(file) in \(listName) shows \"\(name)\", which isn't a shot in shots/shots.json"
+                                    + (listName == repoAssetsPath ? renamedOnSite : ""))
+                }
+                // Made from a window older than its record: out of date on
+                // the day it was listed, or since a remake of its window (NetworkMonitor#421).
+                if !shows.isEmpty, !(asset.made.map(Versions.valid) ?? false) {
+                    problems.append("\(file) in \(listName) needs `made`: the app version it was made from, such as \"1.28.1\"")
+                } else if !shows.isEmpty, let made = asset.made {
+                    let newer = shows.compactMap { name in recorded(name).flatMap { Versions.older(made, than: $0) ? "\(name) (\($0))" : nil } }
+                    if newer.isEmpty, let issue = asset.stale {
+                        problems.append("\(file) in \(listName) is as new as the windows it shows; take out `stale` (\(issue))")
+                    } else if !newer.isEmpty, let issue = asset.stale {
+                        stale.append("\(file), made from \(made), waits on \(issue): \(newer.joined(separator: ", ")) changed since")
+                    } else if !newer.isEmpty {
+                        problems.append("\(file) in \(listName) was made from \(made), but these windows' records are newer: "
+                                        + newer.joined(separator: ", ") + ". Remake it and set `made`, or set `stale` to the issue its remake waits on")
+                    }
+                }
+                if !FileManager.default.fileExists(atPath: root.appendingPathComponent(file).path) {
+                    problems.append("\(file) is listed in \(listName) but doesn't exist")
+                } else if uses[file] == nil {
+                    problems.append("\(file) is listed in \(listName) but no page uses it; take it out")
+                }
+            }
+            for (file, pages) in uses.sorted(by: { $0.key < $1.key }) where !taken.contains(file) && !seen.contains(file) {
+                problems.append("\(file) (\(pages.sorted().joined(separator: ", "))) isn't listed. Add it to \(listName)'s "
+                                + "`assets` with the shots whose windows it `shows`, or `none` and why it shows none")
+            }
+        }
+
+        // The site: each asset is a shot's picture, a flag, or listed. Without
+        // a site, the README's and the docs' are, against the one list (product-kit#8).
+        let inRepo = manifestInRepo && repo != nil
+        var siteUses = try siteUses(site)
+        if inRepo, let repo { siteUses.merge(try repoUses(repo)) { $0.union($1) } }
+        // Each shot's picture, and its copy in each language (NetworkMonitor#431).
+        var pictures: [(file: String, shot: String)] = manifest.shots.compactMap { s in s.file.map { ($0, s.name) } }
+        var translated: [(file: String, shot: String)] = []
+        for language in manifest.languages ?? [] {
+            translated += manifest.shots.compactMap { s in s.file.map { (language.file($0), "\(s.name) (\(language.code))") } }
+        }
+        let shotFiles = Set((pictures + translated).map(\.file))
+        // A language's copy is needed once its page shows it: until the first
+        // run takes it, the page can show the English one.
+        pictures += translated.filter { siteUses[$0.file] != nil }
+        for (file, shot) in pictures where !FileManager.default.fileExists(atPath: site.appendingPathComponent(file).path) {
+            problems.append("\(file), \(shot)'s picture, doesn't exist")
+        }
+        let flagged = manifest.shots.flatMap { shot in (shot.flags ?? []).map { HandMade(file: $0, shows: [shot.name]) } }
+        checkList((manifest.assets ?? []) + flagged.filter { f in !(manifest.assets ?? []).contains { $0.file == f.file } },
+                  root: site, listName: "shots/shots.json", uses: siteUses, taken: shotFiles)
+        var summary = inRepo ? "\(siteUses.count) assets in the README and docs" : "\(siteUses.count) assets on the site"
+
+        // The README and the docs.
+        let onMain = inRepo ? 0 : problems.count
+        if let repo, !inRepo {
+            let uses = try repoUses(repo)
+            // A copy of a shot's picture is listed once, in English; each
+            // language's copy of it comes with it (NetworkMonitor#434).
+            var copies = Set<String>()
+            for asset in repoAssets?.assets ?? [] {
+                guard let name = asset.copy else { continue }
+                if manifest.shots.first(where: { $0.name == name })?.file == nil {
+                    problems.append("\(asset.file) in \(repoAssetsPath) is a copy of \"\(name)\", which isn't a shot with a picture in shots/shots.json"
+                                    + renamedOnSite)
+                }
+                for language in manifest.languages ?? [] {
+                    let file = repoFile(asset.file, in: language)
+                    copies.insert(file)
+                    if uses[file] != nil, !FileManager.default.fileExists(atPath: repo.appendingPathComponent(file).path) {
+                        problems.append("\(file), the \(language.code) copy of \(asset.file), doesn't exist; `update` makes it")
+                    }
+                }
+            }
+            checkList(repoAssets?.assets ?? [], root: repo, listName: repoListName(repo, manifest), uses: uses, taken: copies)
+            summary += " and \(uses.count) in the README and docs"
+        }
+        return (problems, onMain, summary, stale)
+    }
+
+    /// A shot `main` names, gone from `gh-pages`: the usual cause is a change
+    /// there, so say where to follow it (NetworkMonitor#426).
+    static var renamedOnSite: String {
+        " on \(config.siteBranch). If a change there renamed or removed it, change \(repoAssetsPath) on \(config.repoBranch) to match"
+    }
+
+    /// Each branch's problems under its name, so a failure says which branch to
+    /// fix. `checking` is the branch the check runs for, from GitHub's
+    /// variables; where it's the other one, a note says the problems come from
+    /// across the branches (NetworkMonitor#426).
+    static func report(_ problems: [String], onMain: Int, checking: String?, head: String?) -> [String] {
+        let groups: [(branch: String, what: String, problems: ArraySlice<String>)] = [
+            (config.siteBranch, "the site's pages and shots/shots.json", problems[..<onMain]),
+            (config.repoBranch, "the README, the docs and \(manifestInRepo ? "shots/shots.json" : repoAssetsPath)", problems[onMain...]),
+        ]
+        var lines: [String] = []
+        for group in groups where !group.problems.isEmpty {
+            lines.append("On \(group.branch) (\(group.what)), fixed in a pull request into \(group.branch):")
+            if let checking, checking != group.branch {
+                let this = head == nil ? "this push" : "this pull request"
+                let pair = group.branch == config.siteBranch
+                    ? "name that branch \(head ?? "<main's branch>")-site"
+                    : "name this branch after that one, with -site"
+                lines.append("  Not in \(this)'s files: \(group.branch) changed, or \(this) changes what \(group.branch) has to match. "
+                             + "Fix them in a pull request into \(group.branch). To land both at once, \(pair), and each is "
+                             + "checked against the other.")
+            }
+            lines += group.problems.map { "  " + $0 }
+        }
+        return lines
+    }
+}
+
+// MARK: - Coverage tests
+
+/// Where the check looks for media, each place a case (NetworkMonitor#425): made-up pages in
+/// a folder of their own, scanned like the real ones. `make test` runs them,
+/// with `site-shots coverage-test`, so a page that hides a picture from the
+/// check can't come back unnoticed.
+enum CoverageTests {
+    struct Case {
+        var name: String
+        /// Files, by path, and what's in them.
+        var files: [String: String]
+        /// What the scan should find: each asset, and the pages using it.
+        var expect: [String: Set<String>]
+    }
+
+    static let site: [Case] = [
+        Case(name: "a page at the top", files: ["index.html": #"<img src="assets/top.png">"#],
+             expect: ["assets/top.png": ["index.html"]]),
+        Case(name: "a language's page in a folder", files: ["zh/index.html": #"<img src="../assets/zh-Hans/a.png">"#],
+             expect: ["assets/zh-Hans/a.png": ["zh/index.html"]]),
+        Case(name: "pages deeper in folders, not only index.html",
+             files: ["guide/setup/index.html": #"<img src="../../assets/deep.png">"#,
+                     "guide/faq.html": #"<video poster="../assets/faq.jpg" src="../assets/faq.mp4">"#],
+             expect: ["assets/deep.png": ["guide/setup/index.html"],
+                      "assets/faq.jpg": ["guide/faq.html"], "assets/faq.mp4": ["guide/faq.html"]]),
+        Case(name: "srcset, and a picture's sources",
+             files: ["index.html": """
+                 <img srcset="assets/s.png 1x, assets/s@2x.png 2x">
+                 <picture><source srcset="assets/p.webp" type="image/webp"><img src="assets/p.png"></picture>
+                 """],
+             expect: ["assets/s.png": ["index.html"], "assets/s@2x.png": ["index.html"],
+                      "assets/p.webp": ["index.html"], "assets/p.png": ["index.html"]]),
+        Case(name: "stylesheets, inline and separate",
+             files: ["index.html": #"<style>.hero { background: url(assets/inline.png) }</style>"#,
+                     "style.css": #".a { background-image: url("assets/top.jpg") }"#,
+                     "css/site.css": ".b { background: url('../assets/nested.webp') }"],
+             expect: ["assets/inline.png": ["index.html"], "assets/top.jpg": ["style.css"],
+                      "assets/nested.webp": ["css/site.css"]]),
+        Case(name: "images that scripts add, inline and separate",
+             files: ["index.html": "<script>video.poster = 'assets/inline.gif'</script>",
+                     "app.js": "img.src = \"assets/script.png\"; el.style.backgroundImage = `url(assets/tick.svg)`",
+                     "js/more.mjs": "const clip = `assets/clip.mp4`"],
+             expect: ["assets/inline.gif": ["index.html"], "assets/script.png": ["app.js"],
+                      "assets/tick.svg": ["app.js"], "assets/clip.mp4": ["js/more.mjs"]]),
+        Case(name: "the site's own address, in a social preview",
+             files: ["index.html": #"<meta property="og:image" content="https://example.github.io/App/assets/card.png?v=1">"#],
+             expect: ["assets/card.png": ["index.html"]]),
+        Case(name: "not the site: other sites, this tool's folder, hidden folders, another checkout",
+             files: ["index.html": #"<img src="https://example.com/assets/theirs.png"><img src="/assets/root.png">"#,
+                     "shots/notes.html": #"<img src="assets/tool.png">"#,
+                     ".github/page.html": #"<img src="assets/hidden.png">"#,
+                     "app/.git/HEAD": "ref: refs/heads/main",
+                     "app/Resources/Social/card.html": #"<img src="assets/app.png">"#],
+             expect: [:]),
+    ]
+
+    static let repo: [Case] = [
+        Case(name: "an inline Markdown image and an <img>",
+             files: ["README.md": #"![Demo](Resources/README/demo.gif) <img src="Resources/README/logo.png" width="64">"#],
+             expect: ["Resources/README/demo.gif": ["README.md"], "Resources/README/logo.png": ["README.md"]]),
+        Case(name: "srcset, and a picture's sources",
+             files: ["README.md": """
+                 <img srcset="Resources/README/s.png 1x, Resources/README/s@2x.png 2x" src="Resources/README/s.png">
+                 <picture>
+                   <source media="(prefers-color-scheme: dark)" srcset="Resources/README/dark.png">
+                   <img src="Resources/README/light.png">
+                 </picture>
+                 """],
+             expect: ["Resources/README/s.png": ["README.md"], "Resources/README/s@2x.png": ["README.md"],
+                      "Resources/README/dark.png": ["README.md"], "Resources/README/light.png": ["README.md"]]),
+        Case(name: "reference-style images: full, collapsed and shortcut",
+             files: ["README.md": """
+                 ![The popover][pop] and ![Speed test][] and ![diagram].
+                 A link isn't a picture: [the logo][logo]. Nor is an unused definition.
+
+                 [pop]: Resources/README/popover.png "The popover"
+                 [speed TEST]: <Resources/README/speed-test.png>
+                 [Diagram]: docs/diagram.svg
+                 [logo]: Resources/README/logo.png
+                 [unused]: Resources/README/unused.png
+                 """],
+             expect: ["Resources/README/popover.png": ["README.md"], "Resources/README/speed-test.png": ["README.md"],
+                      "docs/diagram.svg": ["README.md"]]),
+        Case(name: "the docs' pages in folders, however deep, in every language",
+             files: ["docs/guide.md": "![a](../Resources/README/a.png)",
+                     "docs/design/notes/LOG.md": "![b](before/b.png)",
+                     "docs/zh-Hans/guide.md": "![a](../../Resources/README/zh-Hans/a.png)",
+                     "docs/zh-Hans/more/page.md": #"<img src="../../../Resources/README/zh-Hans/c.png">"#,
+                     "README.zh-Hans.md": "![d](Resources/README/zh-Hans/d.png)"],
+             expect: ["Resources/README/a.png": ["docs/guide.md"], "docs/design/notes/before/b.png": ["docs/design/notes/LOG.md"],
+                      "Resources/README/zh-Hans/a.png": ["docs/zh-Hans/guide.md"],
+                      "Resources/README/zh-Hans/c.png": ["docs/zh-Hans/more/page.md"],
+                      "Resources/README/zh-Hans/d.png": ["README.zh-Hans.md"]]),
+        Case(name: "not a picture on the page: code, other sites, outside the checkout",
+             files: ["docs/development.md": """
+                 Write `![alt](Resources/README/inline-code.png)` for one.
+
+                 ```html
+                 <img src="Resources/README/fenced.png">
+                 ```
+
+                 1. In a list:
+                     ~~~
+                     ![x](Resources/README/indented-fence.png)
+                     ~~~
+
+                 ![remote](https://example.com/x.png) ![outside](../../elsewhere.png)
+                 """],
+             expect: [:]),
+    ]
+
+    /// A change on one branch that fails the other's check says which branch
+    /// to fix, and that the problem came from there (NetworkMonitor#426). Each case is the
+    /// branch the check runs for, the pull request's branch, and what each
+    /// group must say, or must not.
+    static let branches: [(name: String, checking: String?, head: String?, site: [String], main: [String], notSite: [String], notMain: [String])] = [
+        ("a pull request into main", "main", "scanner-425",
+         ["Not in this pull request's files: gh-pages changed", "name that branch scanner-425-site"], [],
+         [], ["Not in this"]),
+        ("a pull request into gh-pages", "gh-pages", "rename-12-site",
+         [], ["Not in this pull request's files: main changed", "name this branch after that one, with -site"],
+         ["Not in this"], []),
+        ("a push to main", "main", nil, ["Not in this push's files"], [], [], ["Not in this"]),
+        ("this Mac", nil, nil, [], [], ["Not in this"], ["Not in this"]),
+    ]
+
+    /// gh-pages renamed two shots main's list names, and added a picture it
+    /// didn't list: what each branch's check says.
+    static func runBranches() throws -> [String] {
+        var failures: [String] = []
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("coverage-test-" + UUID().uuidString)
+        defer { try? fm.removeItem(at: root) }
+        let site = root.appendingPathComponent("site"), repo = root.appendingPathComponent("app")
+        for (path, text) in [
+            "site/index.html": #"<img src="assets/popover.png"><img src="assets/extra.png">"#,
+            "site/assets/popover.png": "", "site/assets/extra.png": "",
+            "app/README.md": #"![Demo](Resources/README/demo.gif) ![Speed](Resources/README/speed.png)"#,
+            "app/Resources/README/demo.gif": "", "app/Resources/README/speed.png": "",
+        ] {
+            let file = root.appendingPathComponent(path)
+            try fm.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try text.write(to: file, atomically: true, encoding: .utf8)
+        }
+        let manifest = try JSONDecoder().decode(Manifest.self, from: Data("""
+            {"app": "/Applications/Example.app", "bundle": "x",
+             "shots": [{"name": "popover", "file": "assets/popover.png", "open": [], "window": "x"}]}
+            """.utf8))
+        let repoAssets = try JSONDecoder().decode(RepoAssets.self, from: Data("""
+            {"assets": [{"file": "Resources/README/demo.gif", "shows": ["popover-subprocesses"], "made": "1.28.1"},
+                        {"file": "Resources/README/speed.png", "copy": "speed-test-result"}]}
+            """.utf8))
+        let found = try Coverage.problems(manifest: manifest, site: site, repoAssets: repoAssets, repo: repo)
+        let renamed = "in shots/shots.json on gh-pages. If a change there renamed or removed it, "
+            + "change \(repoAssetsPath) on main to match"
+        if !(found.problems[..<found.onMain].count == 1 && found.problems[0].hasPrefix("assets/extra.png (index.html) isn't listed")) {
+            failures.append("branches: gh-pages' problems are \(found.problems[..<found.onMain]); expected assets/extra.png isn't listed")
+        }
+        if !(found.problems[found.onMain...].count == 2 && found.problems[found.onMain...].allSatisfy { $0.contains(renamed) }) {
+            failures.append("branches: main's problems are \(found.problems[found.onMain...]); expected two saying \"\(renamed)\"")
+        }
+        for test in branches {
+            let lines = Coverage.report(found.problems, onMain: found.onMain, checking: test.checking, head: test.head)
+            guard let siteAt = lines.firstIndex(where: { $0.hasPrefix("On gh-pages ") }),
+                  let mainAt = lines.firstIndex(where: { $0.hasPrefix("On main ") }), siteAt < mainAt else {
+                failures.append("branches, \(test.name): no group for each branch, gh-pages first: \(lines)")
+                continue
+            }
+            let groups = [("gh-pages", lines[siteAt..<mainAt].joined(separator: "\n"), test.site, test.notSite),
+                          ("main", lines[mainAt...].joined(separator: "\n"), test.main, test.notMain)]
+            for (branch, text, says, never) in groups {
+                for line in says where !text.contains(line) {
+                    failures.append("branches, \(test.name): \(branch)'s group doesn't say \"\(line)\": \(text)")
+                }
+                for line in never where text.contains(line) {
+                    failures.append("branches, \(test.name): \(branch)'s group says \"\(line)\": \(text)")
+                }
+            }
+        }
+        return failures
+    }
+
+    /// What failed, one line each.
+    static func run() throws -> [String] {
+        // The config these cases are written for, whatever the project's.
+        config = Config()
+        config.siteURL = "https://example.github.io/App/"
+        config.repoAssets = "Resources/README/assets.json"
+        var failures = try runBranches()
+        let fm = FileManager.default
+        for (kind, cases) in [("site", site), ("README and docs", repo)] {
+            for test in cases {
+                let root = fm.temporaryDirectory.appendingPathComponent("coverage-test-" + UUID().uuidString)
+                defer { try? fm.removeItem(at: root) }
+                for (path, text) in test.files {
+                    let file = root.appendingPathComponent(path)
+                    try fm.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try text.write(to: file, atomically: true, encoding: .utf8)
+                }
+                let found = kind == "site" ? try Coverage.siteUses(root) : try Coverage.repoUses(root)
+                if found != test.expect {
+                    func show(_ u: [String: Set<String>]) -> String {
+                        u.isEmpty ? "nothing" : u.sorted { $0.key < $1.key }
+                            .map { "\($0.key) (\($0.value.sorted().joined(separator: ", ")))" }.joined(separator: ", ")
+                    }
+                    failures.append("\(kind), \(test.name): found \(show(found)); expected \(show(test.expect))")
+                }
+            }
+        }
+        return failures
+    }
+}
+
+// MARK: - Running
+
+struct Failure: Error, CustomStringConvertible {
+    let description: String
+    init(_ d: String) { description = d }
+}
+
+func diff(_ old: [String], _ new: [String]) -> [String] {
+    let o = Set(old), n = Set(new)
+    return old.filter { !n.contains($0) }.map { "  - " + $0.trimmingCharacters(in: .whitespaces) }
+        + new.filter { !o.contains($0) }.map { "  + " + $0.trimmingCharacters(in: .whitespaces) }
+}
+// shots-kit, the masked tree: what a window says, as text, whatever drew it (product-kit#35). The files are one program: `shots-kit` builds
+// them together, and `shots-kit vendor` writes them into one file for a project's CI.
+
+import AppKit
+import ApplicationServices
+import CryptoKit
+import ScreenCaptureKit
+
+// MARK: - The masked tree
+
+/// Roles whose value is the user's setting rather than interface.
+let settingRoles: Set<String> = ["AXCheckBox", "AXRadioButton", "AXPopUpButton", "AXSlider", "AXTextField",
+                                 "AXTextArea", "AXComboBox", "AXDisclosureTriangle", "AXIncrementor", "AXValueIndicator"]
+
+// MARK: - Elements, whatever drew them
+
+/// An element of a window, whatever drew it (product-kit#35): an app's accessibility
+/// element on the Mac (`AXUIElement`, the macOS driver), or one a driver describes as JSON
+/// (`Described`: an iPhone app's, a web page's). Roles and attributes use the Mac's
+/// accessibility names (`AXButton`, `AXStaticText`, `AXTitle`), so every driver's windows
+/// read alike, and the manifest's specs (`Role:label`) mean the same for each.
+protocol UIElement {
+    /// An attribute's text, nil when there's none or it's empty: `AXRole`, `AXSubrole`,
+    /// `AXTitle`, `AXDescription`, `AXValue`, `AXIdentifier`, `AXHelp`.
+    func text(_ name: String) -> String?
+    /// Where it is on the screen, in points.
+    var frame: CGRect? { get }
+    var children: [Self] { get }
+}
+
+func text<E: UIElement>(_ element: E, _ name: String) -> String? { element.text(name) }
+
+func children<E: UIElement>(_ element: E) -> [E] { element.children }
+
+func frame<E: UIElement>(_ element: E) -> CGRect? { element.frame }
+
+func role<E: UIElement>(_ element: E) -> String { text(element, kAXRoleAttribute) ?? "?" }
+
+func labels<E: UIElement>(_ element: E) -> [String] {
+    [kAXTitleAttribute, kAXDescriptionAttribute, kAXValueAttribute].compactMap { text(element, $0) }
+}
+
+/// `Role` or `Role:label`, where the label is the start of the element's
+/// title, description or value. `find` also takes `Outer>Inner`: an Inner
+/// inside an Outer.
+func matches<E: UIElement>(_ element: E, _ spec: String) -> Bool {
+    let parts = spec.split(separator: ":", maxSplits: 1).map(String.init)
+    guard role(element) == parts[0] else { return false }
+    guard parts.count == 2 else { return true }
+    // `Role:~text` matches text anywhere in the label, for a line that starts
+    // with a number.
+    if parts[1].hasPrefix("~") { return labels(element).contains { $0.contains(parts[1].dropFirst()) } }
+    return labels(element).contains { $0.hasPrefix(parts[1]) }
+}
+
+func find<E: UIElement>(_ spec: String, in element: E) -> E? {
+    if let split = spec.range(of: ">") {
+        guard let outer = find(String(spec[..<split.lowerBound]), in: element) else { return nil }
+        return children(outer).lazy.compactMap { find(String(spec[split.upperBound...]), in: $0) }.first
+    }
+    if matches(element, spec) { return element }
+    for child in children(element) {
+        if let found = find(spec, in: child) { return found }
+    }
+    return nil
+}
+
+/// An element a driver describes, as JSON (product-kit#35): `role`, and any of `subrole`,
+/// `title`, `description`, `value`, `identifier`, `help`, `frame` (`[x, y, width, height]`
+/// in points) and `children`.
+final class Described: UIElement, Decodable {
+    let role: String
+    let subrole, title, label, value, identifier, help: String?
+    let rect: [Double]?
+    let children: [Described]
+
+    enum CodingKeys: String, CodingKey {
+        case role, subrole, title, label = "description", value, identifier, help, rect = "frame", children
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        role = try c.decode(String.self, forKey: .role)
+        subrole = try c.decodeIfPresent(String.self, forKey: .subrole)
+        title = try c.decodeIfPresent(String.self, forKey: .title)
+        label = try c.decodeIfPresent(String.self, forKey: .label)
+        // A value may be a number or a switch's state as well as text.
+        if let s = try? c.decodeIfPresent(String.self, forKey: .value) { value = s }
+        else if let n = try? c.decodeIfPresent(Double.self, forKey: .value) {
+            value = n == n.rounded() && abs(n) < 1e15 ? String(Int(n)) : String(n)
+        } else if let b = try? c.decodeIfPresent(Bool.self, forKey: .value) { value = b ? "1" : "0" }
+        else { value = nil }
+        identifier = try c.decodeIfPresent(String.self, forKey: .identifier)
+        help = try c.decodeIfPresent(String.self, forKey: .help)
+        rect = try c.decodeIfPresent([Double].self, forKey: .rect)
+        children = try c.decodeIfPresent([Described].self, forKey: .children) ?? []
+    }
+
+    func text(_ name: String) -> String? {
+        let found: String?
+        switch name {
+        case kAXRoleAttribute: found = role
+        case kAXSubroleAttribute: found = subrole
+        case kAXTitleAttribute: found = title
+        case kAXDescriptionAttribute: found = label
+        case kAXValueAttribute: found = value
+        case kAXIdentifierAttribute: found = identifier
+        case kAXHelpAttribute: found = help
+        default: found = nil
+        }
+        return found?.isEmpty == true ? nil : found
+    }
+
+    var frame: CGRect? {
+        guard let r = rect, r.count == 4 else { return nil }
+        return CGRect(x: r[0], y: r[1], width: r[2], height: r[3])
+    }
+}
+
 func rounded(_ v: CGFloat) -> Int { Int((v / 4).rounded()) * 4 }
 
 /// One line per element: its role, its labels with numbers and dates masked,
 /// and its size to the nearest 4 points. Positions are left out, since a list
 /// above can push everything down; a text's width too, since a number's digits
 /// change it.
-func line(_ element: AXUIElement) -> String {
+func line<E: UIElement>(_ element: E) -> String {
     let r = role(element)
     var parts = [r]
     if let sub = text(element, kAXSubroleAttribute) { parts.append("(\(sub))") }
@@ -793,9 +1583,9 @@ func line(_ element: AXUIElement) -> String {
 }
 
 /// The distinct roles in a region, however many rows it has.
-func roles(in elements: [AXUIElement]) -> [String] {
+func roles<E: UIElement>(in elements: [E]) -> [String] {
     var found = Set<String>()
-    func walk(_ e: AXUIElement) {
+    func walk(_ e: E) {
         found.insert(role(e) + (text(e, kAXSubroleAttribute).map { "(\($0))" } ?? ""))
         children(e).forEach(walk)
     }
@@ -813,12 +1603,12 @@ let ignoredRoles: Set<String> = ["AXScrollBar"]
 /// `masked` is told of each element whose looks the tree doesn't keep: data,
 /// what's left out, a number or a date, a setting's value. The look check
 /// leaves them out of the picture too (NetworkMonitor#423).
-func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = [],
-          masked: ((AXUIElement) -> Void)? = nil) -> [String] {
+func tree<E: UIElement>(_ window: E, data: [DataRegion], ignore: [String] = [],
+                         masked: ((E) -> Void)? = nil) -> [String] {
     var out: [String] = []
     /// Whether the element's subtree held a data region.
     @discardableResult
-    func walk(_ element: AXUIElement, _ depth: Int) -> Bool {
+    func walk(_ element: E, _ depth: Int) -> Bool {
         let pad = String(repeating: "  ", count: depth)
         let index = out.count
         out.append(pad + line(element))
@@ -872,13 +1662,73 @@ func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = [],
 
 /// Whether an element shows what the tree masks in its labels: a number, a
 /// date, a setting's value. A container's labels say nothing of its looks.
-func showsData(_ element: AXUIElement) -> Bool {
+func showsData<E: UIElement>(_ element: E) -> Bool {
     let r = role(element)
     if containerRoles.contains(r) { return false }
     // A text area is the user's in Settings, but About's credits too: by
     // what it shows, as text is.
     if settingRoles.contains(r), r != "AXTextArea", text(element, kAXValueAttribute) != nil { return true }
     return labels(element).contains { mask($0) != $0.replacingOccurrences(of: "\n", with: " ") }
+}
+// shots-kit, the macOS driver: an app's windows through Accessibility and ScreenCaptureKit (product-kit#35). The files are one program: `shots-kit` builds
+// them together, and `shots-kit vendor` writes them into one file for a project's CI.
+
+import AppKit
+import ApplicationServices
+import CryptoKit
+import ScreenCaptureKit
+
+// MARK: - Accessibility
+
+func attribute(_ element: AXUIElement, _ name: String) -> AnyObject? {
+    var value: AnyObject?
+    return AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success ? value : nil
+}
+
+/// An app's accessibility element, read as any other element (product-kit#35).
+struct AXNode: UIElement {
+    let ax: AXUIElement
+
+    func text(_ name: String) -> String? {
+        switch attribute(ax, name) {
+        case let s as String: return s.isEmpty ? nil : s
+        case let n as NSNumber: return n.stringValue
+        default: return nil
+        }
+    }
+
+    var frame: CGRect? {
+        guard let p = attribute(ax, kAXPositionAttribute), let s = attribute(ax, kAXSizeAttribute) else { return nil }
+        var origin = CGPoint.zero, size = CGSize.zero
+        AXValueGetValue(p as! AXValue, .cgPoint, &origin)
+        AXValueGetValue(s as! AXValue, .cgSize, &size)
+        return CGRect(origin: origin, size: size)
+    }
+
+    var children: [AXNode] { (attribute(ax, kAXChildrenAttribute) as? [AXUIElement] ?? []).map(AXNode.init) }
+}
+
+// The masked tree's functions, on an app's accessibility elements as they are.
+func text(_ element: AXUIElement, _ name: String) -> String? { AXNode(ax: element).text(name) }
+func children(_ element: AXUIElement) -> [AXUIElement] { AXNode(ax: element).children.map(\.ax) }
+func frame(_ element: AXUIElement) -> CGRect? { AXNode(ax: element).frame }
+func role(_ element: AXUIElement) -> String { role(AXNode(ax: element)) }
+func labels(_ element: AXUIElement) -> [String] { labels(AXNode(ax: element)) }
+func matches(_ element: AXUIElement, _ spec: String) -> Bool { matches(AXNode(ax: element), spec) }
+func find(_ spec: String, in element: AXUIElement) -> AXUIElement? { find(spec, in: AXNode(ax: element))?.ax }
+func line(_ element: AXUIElement) -> String { line(AXNode(ax: element)) }
+func showsData(_ element: AXUIElement) -> Bool { showsData(AXNode(ax: element)) }
+func tree(_ window: AXUIElement, data: [DataRegion], ignore: [String] = [],
+          masked: ((AXUIElement) -> Void)? = nil) -> [String] {
+    tree(AXNode(ax: window), data: data, ignore: ignore, masked: masked.map { told in { told($0.ax) } })
+}
+
+func find(_ role: String, in element: AXUIElement, subrole: String) -> AXUIElement? {
+    children(element).first { text($0, kAXRoleAttribute) == role && text($0, kAXSubroleAttribute) == subrole }
+}
+
+func parent(of element: AXUIElement) -> AXUIElement? {
+    attribute(element, kAXParentAttribute).map { $0 as! AXUIElement }
 }
 
 // MARK: - The look (NetworkMonitor#423)
@@ -1077,21 +1927,6 @@ func needAway(_ what: String) throws {
 }
 
 // MARK: - Launching
-
-/// Runs a tool to its end: its exit status, and what it printed.
-@discardableResult
-func runTool(_ path: String, _ arguments: [String]) -> (status: Int32, output: String) {
-    let p = Process()
-    p.executableURL = URL(fileURLWithPath: path)
-    p.arguments = arguments
-    let out = Pipe()
-    p.standardOutput = out
-    p.standardError = out
-    guard (try? p.run()) != nil else { return (-1, "couldn't run \(path)") }
-    let data = out.fileHandleForReading.readDataToEndOfFile()
-    p.waitUntilExit()
-    return (p.terminationStatus, String(decoding: data, as: UTF8.self))
-}
 
 /// The app's launch jobs in launchd (`application.<bundle>.<n>.<n>`), with
 /// each one's process, or nil for a job left with none (NetworkMonitor#508).
@@ -1490,646 +2325,13 @@ func isActive(_ image: CGImage, window: AXUIElement) -> Bool {
     let blue = image.bitmapInfo.contains(.byteOrder32Little) ? first : third
     return red > 180 && blue < 120
 }
+// shots-kit, pictures the project draws itself (product-kit#35). The files are one program: `shots-kit` builds
+// them together, and `shots-kit vendor` writes them into one file for a project's CI.
 
-func writePNG(_ image: CGImage, to url: URL) throws {
-    // A language's first pictures go in folders that don't exist yet.
-    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-    guard let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else { throw Failure("can't write \(url.path)") }
-    CGImageDestinationAddImage(dest, image, nil)
-    guard CGImageDestinationFinalize(dest) else { throw Failure("can't write \(url.path)") }
-}
-
-// MARK: - The page
-
-struct Page {
-    let url: URL
-    var html: String
-    /// From the page's folder back to the site's root, before each asset's
-    /// path in its links: `../` for a language's page in a folder.
-    let up: String
-
-    init(site: URL, path: String = "index.html", up: String = "") throws {
-        url = site.appendingPathComponent(path)
-        html = try String(contentsOf: url, encoding: .utf8)
-        self.up = up
-    }
-
-    func save() throws { try html.write(to: url, atomically: true, encoding: .utf8) }
-
-    /// The whole tag containing `needle`.
-    func tagRange(containing needle: String) -> Range<String.Index>? {
-        guard let hit = html.range(of: needle),
-              let start = html[..<hit.lowerBound].range(of: "<", options: .backwards),
-              let end = html[hit.upperBound...].range(of: ">") else { return nil }
-        return start.lowerBound..<end.upperBound
-    }
-
-    mutating func edit(tagContaining needle: String, _ change: (String) -> String) {
-        guard let range = tagRange(containing: needle) else { return }
-        html.replaceSubrange(range, with: change(String(html[range])))
-    }
-
-    static func set(_ attribute: String, _ value: String, in tag: String) -> String {
-        let pattern = "\\b\(NSRegularExpression.escapedPattern(for: attribute))=\"[^\"]*\""
-        return tag.range(of: pattern, options: .regularExpression) == nil ? tag
-            : tag.replacingOccurrences(of: pattern, with: "\(attribute)=\"\(value)\"", options: .regularExpression)
-    }
-
-    /// `width` and `height` in pixels, and `data-w` and `data-h` in points
-    /// where the tag has them.
-    /// Every tag containing `needle`, last first so the ranges stay good.
-    mutating func editAll(tagsContaining needle: String, _ change: (String) -> String) {
-        var ranges: [Range<String.Index>] = []
-        var from = html.startIndex
-        while let hit = html.range(of: needle, range: from..<html.endIndex) {
-            if let start = html[..<hit.lowerBound].range(of: "<", options: .backwards),
-               let end = html[hit.upperBound...].range(of: ">") {
-                ranges.append(start.lowerBound..<end.upperBound)
-            }
-            from = hit.upperBound
-        }
-        for range in ranges.reversed() { html.replaceSubrange(range, with: change(String(html[range]))) }
-    }
-
-    /// The picture's size, on every `<img>` that shows it: one picture can
-    /// be in two sections.
-    mutating func setSize(of file: String, pixels: CGSize) {
-        editAll(tagsContaining: "\"\(up)\(file)") { tag in
-            var tag = Page.set("width", "\(Int(pixels.width))", in: tag)
-            tag = Page.set("height", "\(Int(pixels.height))", in: tag)
-            tag = Page.set("data-w", "\(Int(pixels.width / 2))", in: tag)
-            return Page.set("data-h", "\(Int(pixels.height / 2))", in: tag)
-        }
-    }
-
-    /// An area's `--x` (from the window's centre), `--y`, `--w` and `--h`.
-    mutating func place(_ area: Area, at r: CGRect, windowWidth: CGFloat) {
-        let padX = area.pad?.first ?? 0, padY = area.pad?.last ?? 0
-        let values = ["--x": r.minX - padX - windowWidth / 2, "--y": r.minY - padY,
-                      "--w": r.width + 2 * padX, "--h": area.h ?? (r.height + 2 * padY)]
-        edit(tagContaining: area.match) { tag in
-            var tag = tag
-            for (name, v) in values {
-                tag = tag.replacingOccurrences(of: "\(name):-?[\\d.]+", with: "\(name):\(Int(v.rounded()))", options: .regularExpression)
-            }
-            return tag
-        }
-    }
-
-    /// `?v=` and the first eight hex digits of each asset's contents, on every
-    /// link to it, so a page never shows a picture the browser kept from an
-    /// older version.
-    mutating func stampAssets(site: URL) {
-        let folder = NSRegularExpression.escapedPattern(for: config.media)
-        let regex = try! NSRegularExpression(pattern: "(\(folder)/[A-Za-z0-9_./-]+\\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm))(\\?v=[0-9a-f]+)?")
-        let ns = html as NSString
-        var result = "", last = 0
-        for m in regex.matches(in: html, range: NSRange(location: 0, length: ns.length)) {
-            let path = ns.substring(with: m.range(at: 1))
-            result += ns.substring(with: NSRange(location: last, length: m.range.location - last))
-            if let data = try? Data(contentsOf: site.appendingPathComponent(path)) {
-                let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined().prefix(8)
-                result += "\(path)?v=\(hash)"
-            } else {
-                result += ns.substring(with: m.range)
-            }
-            last = m.range.location + m.range.length
-        }
-        html = result + ns.substring(from: last)
-    }
-}
-
-// MARK: - Coverage
-
-/// Every image, GIF and video the pages use, each with the pages using it,
-/// checked against the lists (NetworkMonitor#413). Reads files only: no app, no
-/// Accessibility, so it runs in CI.
-enum Coverage {
-    static let media = "png|jpe?g|gif|webp|svg|mp4|webm|mov"
-
-    /// The site's files a browser reads for media (NetworkMonitor#425): its pages, at the
-    /// top and in folders (each language's, zh/index.html, NetworkMonitor#430), their
-    /// stylesheets and their scripts. Not the folders that aren't the site:
-    /// hidden ones (.github), shots/ (this tool's), and another checkout
-    /// inside it (the app's, which the site's workflow puts in app/).
-    static func siteFiles(_ site: URL) -> [String] {
-        let fm = FileManager.default
-        guard let walk = fm.enumerator(atPath: site.path) else { return [] }
-        var files: [String] = []
-        while let path = walk.nextObject() as? String {
-            let name = (path as NSString).lastPathComponent
-            if walk.fileAttributes?[.type] as? FileAttributeType == .typeDirectory {
-                if name.hasPrefix(".") || path == "shots"
-                    || fm.fileExists(atPath: site.appendingPathComponent(path).appendingPathComponent(".git").path) {
-                    walk.skipDescendants()
-                }
-            } else if !name.hasPrefix("."),
-                      ["html", "htm", "css", "js", "mjs"].contains((name as NSString).pathExtension.lowercased()) {
-                files.append(path)
-            }
-        }
-        return files.sorted()
-    }
-
-    /// The site's own assets: `assets/…`, as a relative link or on the site's
-    /// own address (the social preview's `<meta>` tags), wherever it's
-    /// written: an attribute, a `srcset`'s list, a stylesheet's `url(…)`, a
-    /// string in a script that adds it. Another site's `/assets/` isn't ours.
-    static func siteUses(_ site: URL) throws -> [String: Set<String>] {
-        // The site's own address, without its scheme: `example.github.io/App/`.
-        let own = config.siteURL.map { url -> String in
-            let bare = url.replacingOccurrences(of: #"^[a-z]+://"#, with: "", options: .regularExpression)
-            return "|" + NSRegularExpression.escapedPattern(for: bare.hasSuffix("/") ? bare : bare + "/")
-        } ?? ""
-        let regex = try NSRegularExpression(
-            pattern: #"(?:^|["'`(=,\s]"# + own + #")(?:\.\./)*("# + NSRegularExpression.escapedPattern(for: config.media)
-                + #"/[A-Za-z0-9_./@-]+\.(?:"# + media + #"))"#,
-            options: [.caseInsensitive, .anchorsMatchLines])
-        var uses: [String: Set<String>] = [:]
-        // A page in a folder climbs out with ../; a script's paths are the
-        // page's that runs it, so each is the site's assets/ either way.
-        for file in siteFiles(site) {
-            guard let text = try? String(contentsOf: site.appendingPathComponent(file), encoding: .utf8) else { continue }
-            let ns = text as NSString
-            for m in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
-                uses[ns.substring(with: m.range(at: 1)), default: []].insert(file)
-            }
-        }
-        return uses
-    }
-
-    /// The README's, SECURITY's and the docs' Markdown pages: README.<code>.md
-    /// for each language (NetworkMonitor#430), and every page under docs/, however deep
-    /// (docs/<code>/, the design log's docs/design-overhaul, NetworkMonitor#437).
-    static func repoPages(_ repo: URL) -> [String] {
-        let fm = FileManager.default
-        var pages = ["README.md", "SECURITY.md"]
-        let files = (try? fm.contentsOfDirectory(atPath: repo.path)) ?? []
-        pages += files.filter { $0.hasPrefix("README.") && $0.hasSuffix(".md") && $0 != "README.md" }.sorted()
-        var docs: [String] = []
-        if let walk = fm.enumerator(atPath: repo.appendingPathComponent("docs").path) {
-            while let path = walk.nextObject() as? String {
-                let name = (path as NSString).lastPathComponent
-                if name.hasPrefix(".") {
-                    walk.skipDescendants()
-                } else if name.lowercased().hasSuffix(".md") {
-                    docs.append("docs/" + path)
-                }
-            }
-        }
-        return pages + docs.sorted()
-    }
-
-    /// A Markdown page with its code blanked out, fenced and inline, which
-    /// GitHub shows as text: an example there isn't a picture on the page.
-    static func withoutCode(_ text: String) -> String {
-        var fence: String?
-        var lines: [String] = []
-        for line in text.components(separatedBy: "\n") {
-            // At any depth: a list item's code is indented with it.
-            let trimmed = line.drop { $0 == " " || $0 == "\t" }
-            let marker = String(trimmed.prefix { $0 == "`" || $0 == "~" })
-            if let open = fence {
-                if marker.first == open.first, marker.count >= open.count,
-                   trimmed.dropFirst(marker.count).allSatisfy(\.isWhitespace) {
-                    fence = nil
-                }
-                lines.append("")
-            } else if marker.count >= 3, Set(marker).count == 1,
-                      marker.first == "~" || !trimmed.dropFirst(marker.count).contains("`") {
-                fence = marker
-                lines.append("")
-            } else {
-                lines.append(line)
-            }
-        }
-        let inline = try! NSRegularExpression(pattern: "(`+).*?\\1")
-        let joined = lines.joined(separator: "\n")
-        return inline.stringByReplacingMatches(in: joined, range: NSRange(location: 0, length: (joined as NSString).length),
-                                               withTemplate: "")
-    }
-
-    /// The links to pictures in one Markdown page, as written: HTML's `src`,
-    /// `poster` and `srcset` (a `<picture>`'s `<source>` too), and Markdown's
-    /// images, inline `![alt](path)` or by reference, `![alt][ref]`,
-    /// `![ref][]` or `![ref]`, with `[ref]: path` anywhere on the page.
-    static func pictureLinks(_ markdown: String) throws -> [String] {
-        let text = withoutCode(markdown)
-        let ns = text as NSString
-        let all = NSRange(location: 0, length: ns.length)
-        func group(_ m: NSTextCheckingResult, _ i: Int) -> String? {
-            m.range(at: i).location == NSNotFound ? nil : ns.substring(with: m.range(at: i))
-        }
-        var links: [String] = []
-        let html = try NSRegularExpression(pattern: #"\b(src|poster|srcset)\s*=\s*["']([^"']+)["']"#, options: .caseInsensitive)
-        for m in html.matches(in: text, range: all) {
-            guard let attribute = group(m, 1), let value = group(m, 2) else { continue }
-            if attribute.lowercased() == "srcset" {
-                // `a.png 1x, a@2x.png 2x`: each candidate's address.
-                links += value.components(separatedBy: ",").compactMap {
-                    $0.split(whereSeparator: \.isWhitespace).first.map(String.init)
-                }
-            } else {
-                links.append(value)
-            }
-        }
-        let inline = try NSRegularExpression(pattern: #"!\[[^\]]*\]\(\s*<?([^)\s>]+)"#)
-        links += inline.matches(in: text, range: all).compactMap { group($0, 1) }
-        // References: labels match without regard to case or spacing, and
-        // the first definition of one wins.
-        func label(_ s: String) -> String {
-            s.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        }
-        var definitions: [String: String] = [:]
-        let definition = try NSRegularExpression(pattern: #"^ {0,3}\[([^\]]+)\]:[ \t]*<?([^\s>]+)>?"#, options: .anchorsMatchLines)
-        for m in definition.matches(in: text, range: all) {
-            guard let name = group(m, 1), let link = group(m, 2), definitions[label(name)] == nil else { continue }
-            definitions[label(name)] = link
-        }
-        let reference = try NSRegularExpression(pattern: #"!\[([^\]]*)\](?:\[([^\]]*)\])?(?![(\[])"#)
-        for m in reference.matches(in: text, range: all) {
-            let ref = group(m, 2).flatMap { $0.isEmpty ? nil : $0 } ?? group(m, 1) ?? ""
-            if let link = definitions[label(ref)] { links.append(link) }
-        }
-        return links
-    }
-
-    /// The README's, SECURITY's and the docs' local media, as paths from the
-    /// checkout's root.
-    static func repoUses(_ repo: URL) throws -> [String: Set<String>] {
-        let mediaRegex = try NSRegularExpression(pattern: #"\.(?:"# + media + #")$"#, options: .caseInsensitive)
-        let root = repo.standardizedFileURL.path + "/"
-        var uses: [String: Set<String>] = [:]
-        for page in repoPages(repo) {
-            guard let text = try? String(contentsOf: repo.appendingPathComponent(page), encoding: .utf8) else { continue }
-            for written in try pictureLinks(text) {
-                if written.contains("://") || written.hasPrefix("#") || written.hasPrefix("data:") { continue }
-                let link = written.components(separatedBy: CharacterSet(charactersIn: "?#"))[0]
-                guard mediaRegex.firstMatch(in: link, range: NSRange(location: 0, length: (link as NSString).length)) != nil
-                else { continue }
-                // Relative to the page, as GitHub reads it.
-                let base = repo.appendingPathComponent(page).deletingLastPathComponent()
-                let full = URL(fileURLWithPath: link, relativeTo: base).standardizedFileURL.path
-                guard full.hasPrefix(root) else { continue }
-                uses[String(full.dropFirst(root.count)), default: []].insert(page)
-            }
-        }
-        return uses
-    }
-
-    /// What's wrong, one line each; empty when every asset is accounted for.
-    /// The site's come first, fixed on `gh-pages`; from `onMain` on, the
-    /// README's and the docs', fixed on `main` (NetworkMonitor#426). And what's known to be
-    /// out of date, waiting on an issue (`stale`), which doesn't fail it.
-    static func problems(manifest: Manifest, site: URL, repoAssets: RepoAssets?, repo: URL?) throws
-        -> (problems: [String], onMain: Int, summary: String, stale: [String]) {
-        var problems: [String] = [], stale: [String] = []
-        let shotNames = Set(manifest.shots.map(\.name))
-        // Each window's record, as the version it was taken from (NetworkMonitor#421): the
-        // tree what's made by hand was last remade from, or the window's own.
-        let trees = site.appendingPathComponent("shots/trees")
-        let versions = Versions.read(trees)
-        func recorded(_ name: String) -> String? {
-            let made = "\(name).made.txt"
-            return FileManager.default.fileExists(atPath: trees.appendingPathComponent(made).path) ? versions[made] : versions["\(name).txt"]
-        }
-
-        func checkList(_ list: [HandMade], root: URL, listName: String, uses: [String: Set<String>], taken: Set<String>) {
-            var seen = Set<String>()
-            for asset in list {
-                let file = asset.file
-                if !seen.insert(file).inserted { problems.append("\(file) is listed twice in \(listName)") }
-                if taken.contains(file) { problems.append("\(file) is a shot's picture; take it out of \(listName)'s assets") }
-                let shows = asset.shows ?? []
-                if asset.copy == nil, shows.isEmpty == (asset.none == nil) {
-                    problems.append("\(file) in \(listName) needs either `shows` (the windows it shows) or `none` (why it shows none), not both")
-                }
-                for name in shows where !shotNames.contains(name) {
-                    problems.append("\(file) in \(listName) shows \"\(name)\", which isn't a shot in shots/shots.json"
-                                    + (listName == repoAssetsPath ? renamedOnSite : ""))
-                }
-                // Made from a window older than its record: out of date on
-                // the day it was listed, or since a remake of its window (NetworkMonitor#421).
-                if !shows.isEmpty, !(asset.made.map(Versions.valid) ?? false) {
-                    problems.append("\(file) in \(listName) needs `made`: the app version it was made from, such as \"1.28.1\"")
-                } else if !shows.isEmpty, let made = asset.made {
-                    let newer = shows.compactMap { name in recorded(name).flatMap { Versions.older(made, than: $0) ? "\(name) (\($0))" : nil } }
-                    if newer.isEmpty, let issue = asset.stale {
-                        problems.append("\(file) in \(listName) is as new as the windows it shows; take out `stale` (\(issue))")
-                    } else if !newer.isEmpty, let issue = asset.stale {
-                        stale.append("\(file), made from \(made), waits on \(issue): \(newer.joined(separator: ", ")) changed since")
-                    } else if !newer.isEmpty {
-                        problems.append("\(file) in \(listName) was made from \(made), but these windows' records are newer: "
-                                        + newer.joined(separator: ", ") + ". Remake it and set `made`, or set `stale` to the issue its remake waits on")
-                    }
-                }
-                if !FileManager.default.fileExists(atPath: root.appendingPathComponent(file).path) {
-                    problems.append("\(file) is listed in \(listName) but doesn't exist")
-                } else if uses[file] == nil {
-                    problems.append("\(file) is listed in \(listName) but no page uses it; take it out")
-                }
-            }
-            for (file, pages) in uses.sorted(by: { $0.key < $1.key }) where !taken.contains(file) && !seen.contains(file) {
-                problems.append("\(file) (\(pages.sorted().joined(separator: ", "))) isn't listed. Add it to \(listName)'s "
-                                + "`assets` with the shots whose windows it `shows`, or `none` and why it shows none")
-            }
-        }
-
-        // The site: each asset is a shot's picture, a flag, or listed. Without
-        // a site, the README's and the docs' are, against the one list (product-kit#8).
-        let inRepo = manifestInRepo && repo != nil
-        var siteUses = try siteUses(site)
-        if inRepo, let repo { siteUses.merge(try repoUses(repo)) { $0.union($1) } }
-        // Each shot's picture, and its copy in each language (NetworkMonitor#431).
-        var pictures: [(file: String, shot: String)] = manifest.shots.compactMap { s in s.file.map { ($0, s.name) } }
-        var translated: [(file: String, shot: String)] = []
-        for language in manifest.languages ?? [] {
-            translated += manifest.shots.compactMap { s in s.file.map { (language.file($0), "\(s.name) (\(language.code))") } }
-        }
-        let shotFiles = Set((pictures + translated).map(\.file))
-        // A language's copy is needed once its page shows it: until the first
-        // run takes it, the page can show the English one.
-        pictures += translated.filter { siteUses[$0.file] != nil }
-        for (file, shot) in pictures where !FileManager.default.fileExists(atPath: site.appendingPathComponent(file).path) {
-            problems.append("\(file), \(shot)'s picture, doesn't exist")
-        }
-        let flagged = manifest.shots.flatMap { shot in (shot.flags ?? []).map { HandMade(file: $0, shows: [shot.name]) } }
-        checkList((manifest.assets ?? []) + flagged.filter { f in !(manifest.assets ?? []).contains { $0.file == f.file } },
-                  root: site, listName: "shots/shots.json", uses: siteUses, taken: shotFiles)
-        var summary = inRepo ? "\(siteUses.count) assets in the README and docs" : "\(siteUses.count) assets on the site"
-
-        // The README and the docs.
-        let onMain = inRepo ? 0 : problems.count
-        if let repo, !inRepo {
-            let uses = try repoUses(repo)
-            // A copy of a shot's picture is listed once, in English; each
-            // language's copy of it comes with it (NetworkMonitor#434).
-            var copies = Set<String>()
-            for asset in repoAssets?.assets ?? [] {
-                guard let name = asset.copy else { continue }
-                if manifest.shots.first(where: { $0.name == name })?.file == nil {
-                    problems.append("\(asset.file) in \(repoAssetsPath) is a copy of \"\(name)\", which isn't a shot with a picture in shots/shots.json"
-                                    + renamedOnSite)
-                }
-                for language in manifest.languages ?? [] {
-                    let file = repoFile(asset.file, in: language)
-                    copies.insert(file)
-                    if uses[file] != nil, !FileManager.default.fileExists(atPath: repo.appendingPathComponent(file).path) {
-                        problems.append("\(file), the \(language.code) copy of \(asset.file), doesn't exist; `update` makes it")
-                    }
-                }
-            }
-            checkList(repoAssets?.assets ?? [], root: repo, listName: repoAssetsPath, uses: uses, taken: copies)
-            summary += " and \(uses.count) in the README and docs"
-        }
-        return (problems, onMain, summary, stale)
-    }
-
-    /// A shot `main` names, gone from `gh-pages`: the usual cause is a change
-    /// there, so say where to follow it (NetworkMonitor#426).
-    static var renamedOnSite: String {
-        " on \(config.siteBranch). If a change there renamed or removed it, change \(repoAssetsPath) on \(config.repoBranch) to match"
-    }
-
-    /// Each branch's problems under its name, so a failure says which branch to
-    /// fix. `checking` is the branch the check runs for, from GitHub's
-    /// variables; where it's the other one, a note says the problems come from
-    /// across the branches (NetworkMonitor#426).
-    static func report(_ problems: [String], onMain: Int, checking: String?, head: String?) -> [String] {
-        let groups: [(branch: String, what: String, problems: ArraySlice<String>)] = [
-            (config.siteBranch, "the site's pages and shots/shots.json", problems[..<onMain]),
-            (config.repoBranch, "the README, the docs and \(manifestInRepo ? "shots/shots.json" : repoAssetsPath)", problems[onMain...]),
-        ]
-        var lines: [String] = []
-        for group in groups where !group.problems.isEmpty {
-            lines.append("On \(group.branch) (\(group.what)), fixed in a pull request into \(group.branch):")
-            if let checking, checking != group.branch {
-                let this = head == nil ? "this push" : "this pull request"
-                let pair = group.branch == config.siteBranch
-                    ? "name that branch \(head ?? "<main's branch>")-site"
-                    : "name this branch after that one, with -site"
-                lines.append("  Not in \(this)'s files: \(group.branch) changed, or \(this) changes what \(group.branch) has to match. "
-                             + "Fix them in a pull request into \(group.branch). To land both at once, \(pair), and each is "
-                             + "checked against the other.")
-            }
-            lines += group.problems.map { "  " + $0 }
-        }
-        return lines
-    }
-}
-
-// MARK: - Coverage tests
-
-/// Where the check looks for media, each place a case (NetworkMonitor#425): made-up pages in
-/// a folder of their own, scanned like the real ones. `make test` runs them,
-/// with `site-shots coverage-test`, so a page that hides a picture from the
-/// check can't come back unnoticed.
-enum CoverageTests {
-    struct Case {
-        var name: String
-        /// Files, by path, and what's in them.
-        var files: [String: String]
-        /// What the scan should find: each asset, and the pages using it.
-        var expect: [String: Set<String>]
-    }
-
-    static let site: [Case] = [
-        Case(name: "a page at the top", files: ["index.html": #"<img src="assets/top.png">"#],
-             expect: ["assets/top.png": ["index.html"]]),
-        Case(name: "a language's page in a folder", files: ["zh/index.html": #"<img src="../assets/zh-Hans/a.png">"#],
-             expect: ["assets/zh-Hans/a.png": ["zh/index.html"]]),
-        Case(name: "pages deeper in folders, not only index.html",
-             files: ["guide/setup/index.html": #"<img src="../../assets/deep.png">"#,
-                     "guide/faq.html": #"<video poster="../assets/faq.jpg" src="../assets/faq.mp4">"#],
-             expect: ["assets/deep.png": ["guide/setup/index.html"],
-                      "assets/faq.jpg": ["guide/faq.html"], "assets/faq.mp4": ["guide/faq.html"]]),
-        Case(name: "srcset, and a picture's sources",
-             files: ["index.html": """
-                 <img srcset="assets/s.png 1x, assets/s@2x.png 2x">
-                 <picture><source srcset="assets/p.webp" type="image/webp"><img src="assets/p.png"></picture>
-                 """],
-             expect: ["assets/s.png": ["index.html"], "assets/s@2x.png": ["index.html"],
-                      "assets/p.webp": ["index.html"], "assets/p.png": ["index.html"]]),
-        Case(name: "stylesheets, inline and separate",
-             files: ["index.html": #"<style>.hero { background: url(assets/inline.png) }</style>"#,
-                     "style.css": #".a { background-image: url("assets/top.jpg") }"#,
-                     "css/site.css": ".b { background: url('../assets/nested.webp') }"],
-             expect: ["assets/inline.png": ["index.html"], "assets/top.jpg": ["style.css"],
-                      "assets/nested.webp": ["css/site.css"]]),
-        Case(name: "images that scripts add, inline and separate",
-             files: ["index.html": "<script>video.poster = 'assets/inline.gif'</script>",
-                     "app.js": "img.src = \"assets/script.png\"; el.style.backgroundImage = `url(assets/tick.svg)`",
-                     "js/more.mjs": "const clip = `assets/clip.mp4`"],
-             expect: ["assets/inline.gif": ["index.html"], "assets/script.png": ["app.js"],
-                      "assets/tick.svg": ["app.js"], "assets/clip.mp4": ["js/more.mjs"]]),
-        Case(name: "the site's own address, in a social preview",
-             files: ["index.html": #"<meta property="og:image" content="https://example.github.io/App/assets/card.png?v=1">"#],
-             expect: ["assets/card.png": ["index.html"]]),
-        Case(name: "not the site: other sites, this tool's folder, hidden folders, another checkout",
-             files: ["index.html": #"<img src="https://example.com/assets/theirs.png"><img src="/assets/root.png">"#,
-                     "shots/notes.html": #"<img src="assets/tool.png">"#,
-                     ".github/page.html": #"<img src="assets/hidden.png">"#,
-                     "app/.git/HEAD": "ref: refs/heads/main",
-                     "app/Resources/Social/card.html": #"<img src="assets/app.png">"#],
-             expect: [:]),
-    ]
-
-    static let repo: [Case] = [
-        Case(name: "an inline Markdown image and an <img>",
-             files: ["README.md": #"![Demo](Resources/README/demo.gif) <img src="Resources/README/logo.png" width="64">"#],
-             expect: ["Resources/README/demo.gif": ["README.md"], "Resources/README/logo.png": ["README.md"]]),
-        Case(name: "srcset, and a picture's sources",
-             files: ["README.md": """
-                 <img srcset="Resources/README/s.png 1x, Resources/README/s@2x.png 2x" src="Resources/README/s.png">
-                 <picture>
-                   <source media="(prefers-color-scheme: dark)" srcset="Resources/README/dark.png">
-                   <img src="Resources/README/light.png">
-                 </picture>
-                 """],
-             expect: ["Resources/README/s.png": ["README.md"], "Resources/README/s@2x.png": ["README.md"],
-                      "Resources/README/dark.png": ["README.md"], "Resources/README/light.png": ["README.md"]]),
-        Case(name: "reference-style images: full, collapsed and shortcut",
-             files: ["README.md": """
-                 ![The popover][pop] and ![Speed test][] and ![diagram].
-                 A link isn't a picture: [the logo][logo]. Nor is an unused definition.
-
-                 [pop]: Resources/README/popover.png "The popover"
-                 [speed TEST]: <Resources/README/speed-test.png>
-                 [Diagram]: docs/diagram.svg
-                 [logo]: Resources/README/logo.png
-                 [unused]: Resources/README/unused.png
-                 """],
-             expect: ["Resources/README/popover.png": ["README.md"], "Resources/README/speed-test.png": ["README.md"],
-                      "docs/diagram.svg": ["README.md"]]),
-        Case(name: "the docs' pages in folders, however deep, in every language",
-             files: ["docs/guide.md": "![a](../Resources/README/a.png)",
-                     "docs/design/notes/LOG.md": "![b](before/b.png)",
-                     "docs/zh-Hans/guide.md": "![a](../../Resources/README/zh-Hans/a.png)",
-                     "docs/zh-Hans/more/page.md": #"<img src="../../../Resources/README/zh-Hans/c.png">"#,
-                     "README.zh-Hans.md": "![d](Resources/README/zh-Hans/d.png)"],
-             expect: ["Resources/README/a.png": ["docs/guide.md"], "docs/design/notes/before/b.png": ["docs/design/notes/LOG.md"],
-                      "Resources/README/zh-Hans/a.png": ["docs/zh-Hans/guide.md"],
-                      "Resources/README/zh-Hans/c.png": ["docs/zh-Hans/more/page.md"],
-                      "Resources/README/zh-Hans/d.png": ["README.zh-Hans.md"]]),
-        Case(name: "not a picture on the page: code, other sites, outside the checkout",
-             files: ["docs/development.md": """
-                 Write `![alt](Resources/README/inline-code.png)` for one.
-
-                 ```html
-                 <img src="Resources/README/fenced.png">
-                 ```
-
-                 1. In a list:
-                     ~~~
-                     ![x](Resources/README/indented-fence.png)
-                     ~~~
-
-                 ![remote](https://example.com/x.png) ![outside](../../elsewhere.png)
-                 """],
-             expect: [:]),
-    ]
-
-    /// A change on one branch that fails the other's check says which branch
-    /// to fix, and that the problem came from there (NetworkMonitor#426). Each case is the
-    /// branch the check runs for, the pull request's branch, and what each
-    /// group must say, or must not.
-    static let branches: [(name: String, checking: String?, head: String?, site: [String], main: [String], notSite: [String], notMain: [String])] = [
-        ("a pull request into main", "main", "scanner-425",
-         ["Not in this pull request's files: gh-pages changed", "name that branch scanner-425-site"], [],
-         [], ["Not in this"]),
-        ("a pull request into gh-pages", "gh-pages", "rename-12-site",
-         [], ["Not in this pull request's files: main changed", "name this branch after that one, with -site"],
-         ["Not in this"], []),
-        ("a push to main", "main", nil, ["Not in this push's files"], [], [], ["Not in this"]),
-        ("this Mac", nil, nil, [], [], ["Not in this"], ["Not in this"]),
-    ]
-
-    /// gh-pages renamed two shots main's list names, and added a picture it
-    /// didn't list: what each branch's check says.
-    static func runBranches() throws -> [String] {
-        var failures: [String] = []
-        let fm = FileManager.default
-        let root = fm.temporaryDirectory.appendingPathComponent("coverage-test-" + UUID().uuidString)
-        defer { try? fm.removeItem(at: root) }
-        let site = root.appendingPathComponent("site"), repo = root.appendingPathComponent("app")
-        for (path, text) in [
-            "site/index.html": #"<img src="assets/popover.png"><img src="assets/extra.png">"#,
-            "site/assets/popover.png": "", "site/assets/extra.png": "",
-            "app/README.md": #"![Demo](Resources/README/demo.gif) ![Speed](Resources/README/speed.png)"#,
-            "app/Resources/README/demo.gif": "", "app/Resources/README/speed.png": "",
-        ] {
-            let file = root.appendingPathComponent(path)
-            try fm.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try text.write(to: file, atomically: true, encoding: .utf8)
-        }
-        let manifest = try JSONDecoder().decode(Manifest.self, from: Data("""
-            {"app": "/Applications/Example.app", "bundle": "x",
-             "shots": [{"name": "popover", "file": "assets/popover.png", "open": [], "window": "x"}]}
-            """.utf8))
-        let repoAssets = try JSONDecoder().decode(RepoAssets.self, from: Data("""
-            {"assets": [{"file": "Resources/README/demo.gif", "shows": ["popover-subprocesses"], "made": "1.28.1"},
-                        {"file": "Resources/README/speed.png", "copy": "speed-test-result"}]}
-            """.utf8))
-        let found = try Coverage.problems(manifest: manifest, site: site, repoAssets: repoAssets, repo: repo)
-        let renamed = "in shots/shots.json on gh-pages. If a change there renamed or removed it, "
-            + "change \(repoAssetsPath) on main to match"
-        if !(found.problems[..<found.onMain].count == 1 && found.problems[0].hasPrefix("assets/extra.png (index.html) isn't listed")) {
-            failures.append("branches: gh-pages' problems are \(found.problems[..<found.onMain]); expected assets/extra.png isn't listed")
-        }
-        if !(found.problems[found.onMain...].count == 2 && found.problems[found.onMain...].allSatisfy { $0.contains(renamed) }) {
-            failures.append("branches: main's problems are \(found.problems[found.onMain...]); expected two saying \"\(renamed)\"")
-        }
-        for test in branches {
-            let lines = Coverage.report(found.problems, onMain: found.onMain, checking: test.checking, head: test.head)
-            guard let siteAt = lines.firstIndex(where: { $0.hasPrefix("On gh-pages ") }),
-                  let mainAt = lines.firstIndex(where: { $0.hasPrefix("On main ") }), siteAt < mainAt else {
-                failures.append("branches, \(test.name): no group for each branch, gh-pages first: \(lines)")
-                continue
-            }
-            let groups = [("gh-pages", lines[siteAt..<mainAt].joined(separator: "\n"), test.site, test.notSite),
-                          ("main", lines[mainAt...].joined(separator: "\n"), test.main, test.notMain)]
-            for (branch, text, says, never) in groups {
-                for line in says where !text.contains(line) {
-                    failures.append("branches, \(test.name): \(branch)'s group doesn't say \"\(line)\": \(text)")
-                }
-                for line in never where text.contains(line) {
-                    failures.append("branches, \(test.name): \(branch)'s group says \"\(line)\": \(text)")
-                }
-            }
-        }
-        return failures
-    }
-
-    /// What failed, one line each.
-    static func run() throws -> [String] {
-        // The config these cases are written for, whatever the project's.
-        config = Config()
-        config.siteURL = "https://example.github.io/App/"
-        config.repoAssets = "Resources/README/assets.json"
-        var failures = try runBranches()
-        let fm = FileManager.default
-        for (kind, cases) in [("site", site), ("README and docs", repo)] {
-            for test in cases {
-                let root = fm.temporaryDirectory.appendingPathComponent("coverage-test-" + UUID().uuidString)
-                defer { try? fm.removeItem(at: root) }
-                for (path, text) in test.files {
-                    let file = root.appendingPathComponent(path)
-                    try fm.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    try text.write(to: file, atomically: true, encoding: .utf8)
-                }
-                let found = kind == "site" ? try Coverage.siteUses(root) : try Coverage.repoUses(root)
-                if found != test.expect {
-                    func show(_ u: [String: Set<String>]) -> String {
-                        u.isEmpty ? "nothing" : u.sorted { $0.key < $1.key }
-                            .map { "\($0.key) (\($0.value.sorted().joined(separator: ", ")))" }.joined(separator: ", ")
-                    }
-                    failures.append("\(kind), \(test.name): found \(show(found)); expected \(show(test.expect))")
-                }
-            }
-        }
-        return failures
-    }
-}
+import AppKit
+import ApplicationServices
+import CryptoKit
+import ScreenCaptureKit
 
 // MARK: - Drawn by the project
 
@@ -2302,6 +2504,261 @@ enum Rendered {
         return drawn ? (w, h, bytes) : nil
     }
 }
+// shots-kit, a driver of the project's choosing (product-kit#35). The files are one program:
+// `shots-kit` builds them together, and `shots-kit vendor` writes them into one file for a
+// project's CI.
+
+import AppKit
+import ApplicationServices
+import CryptoKit
+import ScreenCaptureKit
+
+// MARK: - A driver of the project's choosing
+
+/// The manifest's `driver` (product-kit#35): a program that opens each picture's screen
+/// in an app shots-kit can't drive itself (an iPhone app in the simulator, a web page),
+/// and says what it shows. It runs in the project's checkout, once per shot and language,
+/// with a request as JSON on its input:
+///
+///     {"action": "read" | "take", "shot": <the manifest's entry>, "language": "en",
+///      "picture": "/abs/path.png" (take only), "repo": "/abs/project"}
+///
+/// and answers with JSON on its output: `{"window": <element>}` (an element is
+/// `Described`'s: `role`, `title`, `description`, `value`, `identifier`, `frame`,
+/// `children`, with the Mac's accessibility names), after writing the picture for a take,
+/// or `{"skipped": "why"}`. Anything it prints on its error output is shown when it fails.
+/// The core does the rest as for any app: masks the screen, leaves out `ignore` and
+/// `data`, compares with the recorded tree, and records the tree, the picture's size on the
+/// page and the README's copy when it's taken.
+struct DriverConfig: Decodable {
+    /// The program, from the project's checkout: `["drivers/ios-simulator", "--scheme", "App"]`.
+    var command: [String]
+    /// Builds what it drives, once per run, before the first shot. Optional.
+    var build: [String]?
+}
+
+enum Commanded {
+    /// How long a build, and each request, may take before it's stopped.
+    static let buildLimit: TimeInterval = 20 * 60, requestLimit: TimeInterval = 5 * 60
+
+    struct Answer: Decodable {
+        var window: Described?
+        var skipped: String?
+    }
+
+    static func run(_ command: String, names: Set<String>, manifest: Manifest, driver: DriverConfig, site: URL, repo: URL,
+                    repoAssets: RepoAssets?, only: String?) -> Int32 {
+        guard ["check", "update", "tree", "record"].contains(command) else {
+            print("\(command): not for a manifest with a `driver`; check, update, tree and record are")
+            return 2
+        }
+        let unknown = names.subtracting(manifest.shots.map(\.name))
+        if !unknown.isEmpty {
+            print("\(command): no shot named \(unknown.sorted().joined(separator: ", "))")
+            return 2
+        }
+        if command == "record", names.isEmpty {
+            print("record: name the screens whose marks changed; recording every tree would hide a real change")
+            return 2
+        }
+        // Each shot's entry as the manifest writes it, for the driver.
+        let entries: [String: Any]
+        do {
+            let raw = try JSONSerialization.jsonObject(with: Data(contentsOf: site.appendingPathComponent("shots/shots.json")))
+            let list = (raw as? [String: Any])?["shots"] as? [[String: Any]] ?? []
+            entries = Dictionary(list.compactMap { e in (e["name"] as? String).map { ($0, e as Any) } }, uniquingKeysWith: { a, _ in a })
+            if let build = driver.build, !build.isEmpty {
+                print("building: \(build.joined(separator: " "))")
+                try Rendered.runCommand(build, in: repo, limit: buildLimit, what: "the build")
+            }
+        } catch {
+            print("\(command): \(error)")
+            return 2
+        }
+
+        var status: Int32 = 0
+        var changedEnglish: [String] = []
+        let languages: [Language?] = [nil] + (manifest.languages ?? []).map { $0 }
+        for language in languages where only == nil || only == (language?.code ?? "en") {
+            if let language { print("\n\(language.code), for \(language.page):") }
+            // Element specs in the language, from the app's own table, where there is one.
+            let translator = language.flatMap { try? Translator(app: manifest.app, language: $0) }
+            do {
+                let s = try runLanguage(command, names: names, manifest: manifest, driver: driver, entries: entries, site: site,
+                                        repo: repo, repoAssets: repoAssets, language: language, translator: translator,
+                                        changed: &changedEnglish)
+                status = max(status, s)
+            } catch {
+                print("\(command): \(error)")
+                status = 2
+            }
+        }
+        // What's made by hand from a screen that changed: remade by hand, when asked.
+        let handMade = ((manifest.assets ?? []) + (repoAssets?.assets ?? [])).compactMap { asset -> String? in
+            let shows = (asset.shows ?? []).filter(changedEnglish.contains)
+            return shows.isEmpty ? nil : "\(asset.file) (shows \(shows.joined(separator: ", ")))"
+        }
+        if !handMade.isEmpty, command != "tree" {
+            print("Made by hand, and showing what changed; remake by hand when asked:")
+            handMade.forEach { print("  " + $0) }
+        }
+        return status
+    }
+
+    static func runLanguage(_ command: String, names: Set<String>, manifest: Manifest, driver: DriverConfig,
+                            entries: [String: Any], site: URL, repo: URL, repoAssets: RepoAssets?, language: Language?,
+                            translator: Translator?, changed changedEnglish: inout [String]) throws -> Int32 {
+        var shots = manifest.shots.filter { names.isEmpty || names.contains($0.name) }
+        // In another language: its specs from the app's table, where there is one, and
+        // always its pictures in the language's own folder.
+        if let language {
+            shots = shots.map { shot in
+                if let translator { return shot.localized(language, translator) }
+                var shot = shot
+                shot.file = shot.file.map(language.file)
+                return shot
+            }
+        }
+        let trees = site.appendingPathComponent(language.map { "shots/trees/\($0.code)" } ?? "shots/trees")
+        try FileManager.default.createDirectory(at: trees, withIntermediateDirectories: true)
+        let pagePath = language?.page ?? config.page
+        var page = FileManager.default.fileExists(atPath: site.appendingPathComponent(pagePath).path)
+            ? try Page(site: site, path: pagePath, up: language?.up ?? "") : nil
+        var versions = language == nil ? Versions.read(trees) : [:]
+        var changed: [String] = [], failed: [String] = [], taken: [String] = []
+
+        for shot in shots {
+            do {
+                guard let answer = try ask(driver, action: "read", entry: entries[shot.name], language: language, picture: nil, repo: repo) else {
+                    continue
+                }
+                if let why = answer.skipped { print("\(shot.name): skipped, \(why)"); continue }
+                guard let window = answer.window else { throw Failure("the driver said nothing of the screen") }
+                let now = tree(window, data: shot.data ?? [], ignore: shot.ignore ?? [])
+                if command == "tree" { print(now.joined(separator: "\n")); continue }
+                let treeFile = trees.appendingPathComponent("\(shot.name).txt")
+                let before = (try? String(contentsOf: treeFile, encoding: .utf8))?.split(separator: "\n").map(String.init)
+                let differs = before != now
+                if command == "record" {
+                    try (now.joined(separator: "\n") + "\n").write(to: treeFile, atomically: true, encoding: .utf8)
+                    print("\(shot.name): recorded" + (differs ? "" : ", as it was"))
+                    if let before, differs { diff(before, now).prefix(40).forEach { print($0) } }
+                    continue
+                }
+                if let before, differs {
+                    print("\(shot.name): the interface changed")
+                    diff(before, now).prefix(40).forEach { print($0) }
+                    changed.append(shot.name)
+                    if language == nil { changedEnglish.append(shot.name) }
+                } else {
+                    print(differs ? "\(shot.name): no tree recorded yet" : "\(shot.name): unchanged")
+                }
+                guard command == "update", differs || names.contains(shot.name) || shot.always == true else { continue }
+                if let file = shot.file {
+                    let picture = site.appendingPathComponent(file)
+                    try FileManager.default.createDirectory(at: picture.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    guard let answer = try ask(driver, action: "take", entry: entries[shot.name], language: language,
+                                               picture: picture, repo: repo) else { continue }
+                    if let why = answer.skipped { print("\(shot.name): not taken, \(why)"); continue }
+                    guard let image = NSImage(contentsOf: picture)?.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+                        throw Failure("the driver wrote no picture at \(file)")
+                    }
+                    page?.setSize(of: file, pixels: CGSize(width: image.width, height: image.height))
+                    print("  retook \(file) (\(image.width)×\(image.height))")
+                    for copy in try copyToRepo(manifest: manifest, site: site, repo: repo, repoAssets: repoAssets,
+                                               language: language, shots: [shot.name]) {
+                        print("  copied it to \(copy)")
+                    }
+                    taken.append(shot.name)
+                }
+                try (now.joined(separator: "\n") + "\n").write(to: treeFile, atomically: true, encoding: .utf8)
+                if language == nil, let version = versionOfApp(manifest) {
+                    versions[treeFile.lastPathComponent] = (before == now ? versions[treeFile.lastPathComponent] : nil) ?? version
+                    try Versions.write(versions, to: trees)
+                }
+                if let page { try page.save() }
+            } catch {
+                print("\(shot.name): \(error)")
+                failed.append(shot.name)
+            }
+        }
+        if command == "update", var p = page {
+            p.stampAssets(site: site)
+            try p.save()
+        }
+        switch command {
+        case "check":
+            print(changed.isEmpty ? "check: no interface changed" : "check: \(changed.count) changed; `shots-kit update` retakes them")
+            return failed.isEmpty ? (changed.isEmpty ? 0 : 1) : 2
+        case "update":
+            print(taken.isEmpty ? "update: nothing to retake" : "update: retook \(taken.count)")
+            return failed.isEmpty ? 0 : 2
+        default:
+            return failed.isEmpty ? 0 : 2
+        }
+    }
+
+    /// The app's version, when the manifest names an app bundle that has one.
+    static func versionOfApp(_ manifest: Manifest) -> String? {
+        manifest.app.isEmpty ? nil : Versions.app(manifest.app)
+    }
+
+    /// One request to the driver, and its answer.
+    static func ask(_ driver: DriverConfig, action: String, entry: Any?, language: Language?, picture: URL?, repo: URL) throws -> Answer? {
+        var request: [String: Any] = ["action": action, "shot": entry ?? [:], "language": language?.code ?? "en", "repo": repo.path]
+        if let picture { request["picture"] = picture.path }
+        let input = try JSONSerialization.data(withJSONObject: request, options: [.sortedKeys])
+        let output = try call(driver.command, input: input, in: repo, limit: requestLimit)
+        do {
+            return try JSONDecoder().decode(Answer.self, from: output)
+        } catch {
+            let said = String(decoding: output.prefix(400), as: UTF8.self)
+            throw Failure("the driver's answer isn't the JSON shots-kit reads (\(error.localizedDescription)): \(said)")
+        }
+    }
+
+    /// Runs the driver with `input`, stopped after `limit` seconds: what it printed on its
+    /// output, or a failure with the end of its error output.
+    static func call(_ argv: [String], input: Data, in dir: URL, limit: TimeInterval) throws -> Data {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        p.arguments = argv
+        p.currentDirectoryURL = dir
+        let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
+        p.standardInput = stdin
+        p.standardOutput = stdout
+        p.standardError = stderr
+        try p.run()
+        stdin.fileHandleForWriting.write(input)
+        try? stdin.fileHandleForWriting.close()
+        let timer = DispatchWorkItem { if p.isRunning { p.terminate() } }
+        DispatchQueue.global().asyncAfter(deadline: .now() + limit, execute: timer)
+        // Both read at once, so a driver that says a lot on either never blocks.
+        var errors = Data()
+        let group = DispatchGroup()
+        group.enter()
+        DispatchQueue.global().async { errors = stderr.fileHandleForReading.readDataToEndOfFile(); group.leave() }
+        let output = stdout.fileHandleForReading.readDataToEndOfFile()
+        group.wait()
+        p.waitUntilExit()
+        timer.cancel()
+        if p.terminationReason == .uncaughtSignal, p.terminationStatus == SIGTERM {
+            throw Failure("the driver took more than \(Int(limit / 60)) minutes, so it was stopped")
+        }
+        guard p.terminationStatus == 0 else {
+            let tail = String(decoding: errors, as: UTF8.self).split(separator: "\n").suffix(15).joined(separator: "\n")
+            throw Failure("the driver failed (exit \(p.terminationStatus))" + (tail.isEmpty ? "" : ":\n\(tail)"))
+        }
+        return output
+    }
+}
+// shots-kit, in a throwaway macOS VM (product-kit#35). The files are one program: `shots-kit` builds
+// them together, and `shots-kit vendor` writes them into one file for a project's CI.
+
+import AppKit
+import ApplicationServices
+import CryptoKit
+import ScreenCaptureKit
 
 // MARK: - In a VM (product-kit#10)
 
@@ -2547,19 +3004,13 @@ enum InVM {
         }
     }
 }
+// shots-kit, the commands (product-kit#35). The files are one program: `shots-kit` builds
+// them together, and `shots-kit vendor` writes them into one file for a project's CI.
 
-// MARK: - Running
-
-struct Failure: Error, CustomStringConvertible {
-    let description: String
-    init(_ d: String) { description = d }
-}
-
-func diff(_ old: [String], _ new: [String]) -> [String] {
-    let o = Set(old), n = Set(new)
-    return old.filter { !n.contains($0) }.map { "  - " + $0.trimmingCharacters(in: .whitespaces) }
-        + new.filter { !o.contains($0) }.map { "  + " + $0.trimmingCharacters(in: .whitespaces) }
-}
+import AppKit
+import ApplicationServices
+import CryptoKit
+import ScreenCaptureKit
 
 @main
 struct ShotsKit {
@@ -2682,7 +3133,7 @@ struct ShotsKit {
                 if !manifestInRepo, repoAssets == nil, FileManager.default.fileExists(atPath: repo.appendingPathComponent(repoAssetsPath).path) {
                     throw Failure("\(repoAssetsPath) doesn't read as a list of assets")
                 }
-                let found = try Coverage.problems(manifest: manifest, site: site, repoAssets: repoAssets, repo: repo)
+                let found = try Coverage.problems(manifest: manifest, site: site, repoAssets: RepoAssets.of(repoAssets, manifest), repo: repo)
                 if found.problems.isEmpty {
                     print("coverage: \(found.summary), all accounted for")
                 } else {
@@ -2711,7 +3162,8 @@ struct ShotsKit {
                 let languages: [Language?] = [nil] + (manifest.languages ?? []).map { $0 }
                 var copied: [String] = []
                 for language in languages where only == nil || only == (language?.code ?? "en") {
-                    copied += try copyToRepo(manifest: manifest, site: site, repo: repo, repoAssets: repoAssets, language: language)
+                    copied += try copyToRepo(manifest: manifest, site: site, repo: repo, repoAssets: RepoAssets.of(repoAssets, manifest),
+                                             language: language)
                 }
                 print(copied.isEmpty ? "readme: the README's pictures are the site's already"
                                      : "readme: copied the site's pictures to " + copied.joined(separator: ", "))
@@ -2724,6 +3176,11 @@ struct ShotsKit {
         // Drawn by the project: no app, no screen, no lanes (product-kit#8).
         if let manifest = try? loadManifest(site), let render = manifest.render {
             exit(Rendered.run(command, names: names, manifest: manifest, render: render, site: site, repo: repo))
+        }
+        // A driver of the project's choosing: the screens it opens, the core does the rest (product-kit#35).
+        if let manifest = try? loadManifest(site), let driver = manifest.driver {
+            exit(Commanded.run(command, names: names, manifest: manifest, driver: driver, site: site, repo: repo,
+                               repoAssets: RepoAssets.of(repoAssets, manifest), only: only))
         }
         // In a VM: the app, the site and the project go in, what changed comes back.
         if InVM.commands.contains(command), !InVM.inside, inVM ?? config.vm.byDefault {
@@ -2776,7 +3233,8 @@ struct ShotsKit {
                 do {
                     let translator = try language.map { try Translator(app: manifest.app, language: $0) }
                     let s = try await run(command, names: names, manifest: manifest, session: session, mac: mac, site: site,
-                                          repo: repo, repoAssets: repoAssets, language: language, translator: translator)
+                                          repo: repo, repoAssets: RepoAssets.of(repoAssets, manifest), language: language,
+                                          translator: translator)
                     status = max(status, s)
                     if let missing = translator?.missing, !missing.isEmpty {
                         print("  kept in English, as the app's \(language!.code) table doesn't have them "
