@@ -11,7 +11,7 @@ AXWindow (AXStandardWindow) title="Ads and Trackers Settings" 1300
     AXSplitter value="#" h748
     AXGroup (AXHostingView)
       AXScrollArea
-        AXScrollArea h272
+        AXScrollArea h280
           AXGroup h52
             AXStaticText value="# blocked today, Ads, trackers and malware sites stopped in every app" h32
             AXButton description="Open Ads and Trackers…" help="Also ⌘B" 176x24
@@ -21,10 +21,13 @@ AXWindow (AXStandardWindow) title="Ads and Trackers Settings" 1300
             AXStaticText value="Update the lists weekly" h16
             AXCheckBox (AXToggle) description="Update the lists weekly" help="Once a week, NetworkMonitor downloads the lists from GitHub, the same signed file for everyone, never on a hotspot." 36x16
           AXStaticText value="Lists from # ‹month› # StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC#)." h16
-          AXGroup h44
-            AXRadioGroup description="Show" 176x24
-              AXRadioButton (AXSegment) description="Lists" 88x24
-              AXRadioButton (AXSegment) description="Your Rules" 88x24
+          AXGroup h52
+            AXStaticText value="Your rules" h16
+            AXStaticText value="# rules" h16
+            AXButton description="Show Rules…" help="Your rules, in Ads and Trackers, with what each did" 104x24
+            AXButton description="Import…" help="Bring rules over from uBlock Origin, AdGuard, or a list of rules" 76x24
+            AXButton description="Export…" help="Save your rules in the format uBlock Origin and AdGuard read" 76x24
+        AXHeading description="Lists" 32x16
         AXScrollArea
           data: AXButton AXCheckBox(AXToggle) AXStaticText
   AXToolbar 1300x52

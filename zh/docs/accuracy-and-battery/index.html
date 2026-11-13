@@ -75,6 +75,10 @@ document.addEventListener('click', function (e) {
 <div class="markdown-heading"><h2 id="统计的是互联网流量不是你自己的网络" class="heading-element">统计的是互联网流量，不是你自己的网络</h2><a id="统计的是互联网流量不是你自己的网络" class="anchor" aria-label="Permalink: 统计的是互联网流量，不是你自己的网络" href="#统计的是互联网流量不是你自己的网络"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>将屏幕镜像到 Apple TV、用 Time Machine 备份到 NAS、从你自己的服务器播放 Plex：这些都经过你的 Wi-Fi，但不消耗互联网流量，因此不计算在内。仅通过路由器的隔空播放每小时就可能传输 4 到 13 GB，否则会淹没一整天的数据。</p>
 <p>每个连接的另一端都会被检查：私有地址（<code>10/8</code>、<code>172.16/12</code>、<code>192.168/16</code>、链路本地地址）属于你自己的网络；其他所有地址，以及任何无法读取的地址，都算作互联网。少算是应用最不能犯的错误，因此有歧义时一律算作互联网。 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/architecture.md#internet-not-your-own-network">架构</a>（英文）中有详细说明，包括为什么从不减去组播，以及为什么累计值被限制在各应用行之和与内核计数之间。</p>
+<div class="markdown-heading"><h2 id="经过代理或-vpn-的流量" class="heading-element">经过代理或 VPN 的流量</h2><a id="经过代理或-vpn-的流量" class="anchor" aria-label="Permalink: 经过代理或 VPN 的流量" href="#经过代理或-vpn-的流量"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Clash Verge（Mihomo）、sing-box 等代理，无论是在 TUN 模式下，还是被设为系统代理，都会承载所有应用的流量，VPN 也是如此。这时 macOS 在互联网上只看到一个应用，也就是代理，并且只会显示它（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/356">#356</a>）。</p>
+<p>NetworkMonitor 能看出每个连接是哪个应用发进代理的（通过它的隧道，或它在你 Mac 上的端口），并把这些流量计入该应用。代理只保留它自己额外产生的流量：它自己的连接和开销。这时<strong>网络</strong>页面会显示 <em>经过 Clash Verge 的流量：计入各个应用</em>。你的累计值不会改变：它来自网络接口，每个字节只计算一次。</p>
+<p>计入应用的流量永远不会超过代理实际传输的流量，所以各应用加起来不会比以前多。代理开始承载流量后一两秒内开始计入，代理安静两分钟后停止；在此期间会多运行一个 <code>nettop</code>，CPU 占用与第一个大致相同。使用记录中的服务器，属于代理那部分仍记在代理名下。</p>
 <div class="markdown-heading"><h2 id="为什么与活动监视器对不上" class="heading-element">为什么与活动监视器对不上</h2><a id="为什么与活动监视器对不上" class="anchor" aria-label="Permalink: 为什么与活动监视器对不上" href="#为什么与活动监视器对不上"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>活动监视器的“网络”标签页统计的是每个进程自<strong>启动</strong>以来的字节数，而进程往往是几天前启动的。 NetworkMonitor 报告的是它在今天、本周或本月看到的流量，从这段时间开始时统计；“网络”页面上则是它在你当前所用连接上看到的流量，从你加入该网络起，或者从午夜起统计。两者都没有错；它们回答的是不同的问题。</p>
 <div class="markdown-heading"><h2 id="电池" class="heading-element">电池</h2><a id="电池" class="anchor" aria-label="Permalink: 电池" href="#电池"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
@@ -144,7 +148,7 @@ document.addEventListener('click', function (e) {
 <p>这次修复还表明，在使用电池时关闭统计是本末倒置：它恰恰在最需要的地方关闭了按应用统计，也就是在手机热点上。有一次热点会话显示，网络接口上有 25.4 MB，而归属到应用的只有 1.1 MB。所以现在按应用统计始终运行，在任何网络上、使用电池时都是如此。</p>
 <p><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/development.md#measuring-power">开发</a>（英文）中介绍了如何在不拔掉电源的情况下测量某个电源配置。</p>
 
-    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/accuracy-and-battery.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/645a8daf031376b7f9ed08794d37638665028c96"><code>645a8da</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/accuracy-and-battery.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/c9fb337b971ad0b92662c68b5d5a717d584428a7"><code>c9fb337</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
   </main>
 </div>
 <script>

@@ -11,19 +11,19 @@ AXWindow (AXStandardWindow) title="Ads and Trackers" 1300
     AXSplitter value="#" h748
     AXGroup (AXHostingView)
       AXStaticText value="Show" h16
-      AXTabGroup description="Show" 124x24
+      AXTabGroup description="Show" 192x24
         AXRadioButton (AXTabButton) description="Overview" 12x16
         AXRadioButton (AXTabButton) description="Log" 12x16
+        AXRadioButton (AXTabButton) description="Rules (#)" h16
       AXTabGroup description="Group by" 100x24
         AXRadioButton (AXTabButton) description="Sites" 12x16
         AXRadioButton (AXTabButton) description="Apps" 12x16
       data: AXButton AXStaticText
       AXMenuButton title="Pause" help="Let ads through for a while, in every app" 56x16
       AXStaticText value="Today" h16
-      data: AXButton AXButton(AXDecrementArrow) AXButton(AXDecrementPage) AXButton(AXIncrementArrow) AXButton(AXIncrementPage) AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXScrollBar AXStaticText AXValueIndicator
+      data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXStaticText
       AXGroup description="Blocked by hour" h580
-        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h492
-        AXUnknown description="# – ‹time›" h184
+        AXUnknown description="# – ‹time›" h608
   AXToolbar 1300x52
     AXButton description="Sidebar" help="Hide Sidebar" 44x52
     AXGroup help="The list, both side by side, or the chart" h52
@@ -43,7 +43,7 @@ AXWindow (AXStandardWindow) title="Ads and Trackers" 1300
         AXButton (AXSegment) description="Today" help="Back to the present" 60x36
         AXButton (AXSegment) description="Next" help="Next" 36x36
     AXGroup help="Search sites and apps (⌘F)" h52
-      AXButton (AXSearchField) description="Search" 40x40
+      AXButton (AXSearchField) description="Search" help="Search sites and apps (⌘F)" 40x40
     AXButton description="Settings" help="Settings for ads and trackers: the lists and your rules" 40x52
   AXButton (AXCloseButton) 16x16
   AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16

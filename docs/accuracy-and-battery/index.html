@@ -92,6 +92,19 @@ read, is internet. Under-reporting is the one error the app can't afford, so amb
 as internet. <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/architecture.md#internet-not-your-own-network">Architecture</a> has the details,
 including why multicast is never subtracted and why the total is clamped between the app
 rows and the kernel's count.</p>
+<div class="markdown-heading"><h2 id="through-a-proxy-or-a-vpn" class="heading-element">Through a proxy or a VPN</h2><a id="through-a-proxy-or-a-vpn" class="anchor" aria-label="Permalink: Through a proxy or a VPN" href="#through-a-proxy-or-a-vpn"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>A proxy such as Clash Verge (Mihomo) or sing-box, in its TUN mode or set as the system's
+proxy, carries every app's traffic, and so does a VPN. macOS then sees one app on the
+internet, the proxy, and that's all it would show (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/356">#356</a>).</p>
+<p>NetworkMonitor sees which app sent each connection into the proxy, through its tunnel or its
+port on your Mac, and counts those bytes for that app. The proxy keeps only what it adds
+itself: its own connections and its overhead. While it does, <strong>Network</strong> says <em>Traffic through
+Clash Verge: Counted for each app</em>. Your total doesn't change: it comes from the network
+interface, which counts every byte once.</p>
+<p>It's never more than the proxy moved, so the apps can't add up to more than before. It
+starts a second or two after the proxy starts carrying traffic, and stops two minutes after
+it goes quiet; meanwhile a second copy of <code>nettop</code> runs, about as much CPU again as the first.
+The servers in Usage History stay the proxy's for its share.</p>
 <div class="markdown-heading"><h2 id="why-it-wont-match-activity-monitor" class="heading-element">Why it won't match Activity Monitor</h2><a id="why-it-wont-match-activity-monitor" class="anchor" aria-label="Permalink: Why it won't match Activity Monitor" href="#why-it-wont-match-activity-monitor"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>Activity Monitor's Network tab counts bytes since each process <strong>started</strong>, often days ago.
 NetworkMonitor reports what it saw today, this week or this month, from the period's start,
@@ -179,7 +192,7 @@ runs, on every network and on battery.</p>
 <p><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/development.md#measuring-power">Development</a> shows how to measure a profile without
 unplugging.</p>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/accuracy-and-battery.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/645a8daf031376b7f9ed08794d37638665028c96"><code>645a8da</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/accuracy-and-battery.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/c9fb337b971ad0b92662c68b5d5a717d584428a7"><code>c9fb337</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>

@@ -22,7 +22,7 @@ AXWindow (AXStandardWindow) title="流量历史" 1300
       AXStaticText value="今天" h24
       AXStaticText value="# ‹unit›" h16
       AXStaticText value="已使用" h16
-      AXScrollArea
+      AXScrollArea description="应用"
         data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
       data: AXButton AXGroup AXStaticText AXUnknown
   AXToolbar 1300x52
@@ -44,7 +44,7 @@ AXWindow (AXStandardWindow) title="流量历史" 1300
         AXButton (AXSegment) description="今天" help="回到当前" 48x36
         AXButton (AXSegment) description="下一个" help="下一个（⌘→）" 36x36
     AXGroup help="搜索应用和网络（⌘F）" h52
-      AXButton (AXSearchField) description="搜索" 40x40
+      AXButton (AXSearchField) description="搜索" help="搜索应用和网络（⌘F）" 40x40
     AXButton description="设置" help="流量历史的设置" 40x52
   AXButton (AXCloseButton) 16x16
   AXButton (AXFullScreenButton) help="此按钮也可以执行缩放窗口的操作" 16x16

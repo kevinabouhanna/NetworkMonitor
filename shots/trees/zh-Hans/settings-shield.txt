@@ -11,7 +11,7 @@ AXWindow (AXStandardWindow) title="广告与跟踪器设置" 1300
     AXSplitter value="#" h748
     AXGroup (AXHostingView)
       AXScrollArea
-        AXScrollArea h272
+        AXScrollArea h280
           AXGroup h52
             AXStaticText value="今天已拦截 # 次、在所有应用中拦截广告、跟踪器和恶意软件网站" h32
             AXButton description="打开广告与跟踪器…" help="也可按 ⌘B" 140x24
@@ -21,10 +21,13 @@ AXWindow (AXStandardWindow) title="广告与跟踪器设置" 1300
             AXStaticText value="每周更新列表" h16
             AXCheckBox (AXToggle) description="每周更新列表" help="NetworkMonitor 每周从 GitHub 下载一次列表，每个人下载的都是同一个已签名的文件，在热点上从不下载。" 36x16
           AXStaticText value="列表更新于 #年#月#日：StevenBlack 的 hosts（MIT）和 malware-filter 的 URLhaus（CC#）。" h16
-          AXGroup h44
-            AXRadioGroup description="显示" 152x24
-              AXRadioButton (AXSegment) description="列表" 76x24
-              AXRadioButton (AXSegment) description="你的规则" 76x24
+          AXGroup h52
+            AXStaticText value="你的规则" h16
+            AXStaticText value="# 条规则" h16
+            AXButton description="显示规则…" help="你的规则，在“广告与跟踪器”中，以及每条做了什么" 88x24
+            AXButton description="导入…" help="从 uBlock Origin、AdGuard 或规则列表导入规则" 60x24
+            AXButton description="导出…" help="以 uBlock Origin 和 AdGuard 能读取的格式存储你的规则" 60x24
+        AXHeading description="列表" 28x16
         AXScrollArea
           data: AXButton AXCheckBox(AXToggle) AXStaticText
   AXToolbar 1300x52
