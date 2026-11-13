@@ -1,4 +1,5 @@
 import AppKit
+import FirewallPolicy
 import SwiftUI
 import NetworkMonitorCore
 
@@ -95,6 +96,20 @@ func runAccessibilityTests() {
 
             main.show(.connections)
             checkMain("Connections")
+            // Rules, beside Traffic and Blocked (#592), with a rule of each
+            // kind, and Ads and Trackers' own (checked with its tabs below).
+            let made: [FirewallRule] = [
+                FirewallRule(subject: .company, key: "Meta", title: "Meta", action: .block),
+                FirewallRule(subject: .site, key: "example.com", title: "example.com", action: .allow,
+                             network: "router-office", networkTitle: "Office"),
+            ]
+            let madeAds = [AdRule(kind: .alwaysBlock, site: "tracker.example"),
+                           AdRule(kind: .neverBlock, site: nil, appKey: "/Applications/Bank.app", appTitle: "Bank")]
+            for rule in made { model.firewall.add(rule) }
+            model.firewall.add(madeAds)
+            connections.showsRules = true
+            checkMain("Connections › Rules")
+            connections.showsRules = false
             // What makes the checks above mean something: one read reaches the
             // sidebar, the section's toolbar and the section's own controls,
             // through the split view the parts were once checked apart for.
@@ -117,6 +132,8 @@ func runAccessibilityTests() {
                 checkMain("Ads and Trackers › \(tab.label)")
             }
             main.ads.select(.overview)
+            for rule in made { model.firewall.remove(rule) }
+            for rule in madeAds { model.firewall.remove(rule) }
             for layout in ChartLayout.allCases {
                 adsModel.layout = layout
                 for grouping in PopoverAdsGrouping.allCases where layout.showsList || grouping == .sites {

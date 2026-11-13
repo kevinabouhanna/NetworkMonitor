@@ -1,4 +1,5 @@
 import AppKit
+import FirewallPolicy
 import SwiftUI
 import NetworkMonitorCore
 
@@ -100,6 +101,30 @@ func runKeyboardTests() {
                 settle(0.8)
                 expectNoProblems(window, "\(section.rawValue) settings")
             }
+        }
+
+        // Rules (#592), with rules in them: each rule's menu, Show and −
+        // are stops of their own, named after the rule, and the bar above
+        // and the line below are reached.
+        Check.test("the main window › connections and ads › rules: each stop named, once, every control reached") {
+            let rule = FirewallRule(subject: .company, key: "Meta", title: "Meta", action: .block)
+            let adRule = AdRule(kind: .alwaysBlock, site: "tracker.example")
+            model.firewall.add(rule)
+            model.firewall.add(adRule)
+            defer {
+                model.firewall.remove(rule)
+                model.firewall.remove(adRule)
+                connections.showsRules = false
+                main.ads.select(.overview)
+            }
+            main.show(.connections)
+            connections.showsRules = true
+            settle(0.8)
+            expectNoProblems(window, "connections rules")
+            main.show(.ads)
+            main.ads.select(.rules)
+            settle(0.8)
+            expectNoProblems(window, "ads rules")
         }
 
         Check.test("the sidebar is one stop, named, that ↑ and ↓ move through") {
