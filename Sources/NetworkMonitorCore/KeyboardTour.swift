@@ -77,7 +77,7 @@ public enum KeyboardTour {
     // MARK: Moving
 
     public enum Key {
-        case tab, up, down, left, right, escape, space
+        case tab, up, down, left, right, escape, space, `return`
 
         var characters: String {
             switch self {
@@ -88,6 +88,7 @@ public enum KeyboardTour {
             case .right:  return String(UnicodeScalar(NSRightArrowFunctionKey)!)
             case .escape: return "\u{1B}"
             case .space:  return " "
+            case .return: return "\r"
             }
         }
 
@@ -100,6 +101,7 @@ public enum KeyboardTour {
             case .right: return 124
             case .escape: return 53
             case .space: return 49
+            case .return: return 36
             }
         }
     }
@@ -116,10 +118,10 @@ public enum KeyboardTour {
                                              windowNumber: window.windowNumber, context: nil,
                                              characters: key.characters, charactersIgnoringModifiers: key.characters,
                                              isARepeat: false, keyCode: key.code)!
-                // Space through the window, as a real key comes: SwiftUI's
-                // `onKeyPress`, which the lists take Space with (#593), sees
-                // nothing handed straight to the responder.
-                if key == .space { window.sendEvent(event); continue }
+                // Space and Return through the window, as a real key comes:
+                // SwiftUI's `onKeyPress`, which the lists take them with
+                // (#593), sees nothing handed straight to the responder.
+                if key == .space || key == .return { window.sendEvent(event); continue }
                 let responder = window.firstResponder ?? window
                 if type == .keyDown { responder.keyDown(with: event) } else { responder.keyUp(with: event) }
             }

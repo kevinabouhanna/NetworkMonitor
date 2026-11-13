@@ -38,17 +38,19 @@ History in the main window's sidebar.
   under All, and only when something went over a metered connection.
 - **Show: Apps, Networks or Sessions**, at the start of that row. Apps are grouped
   exactly as in the popover. A session is one visit to a network.
-- **The lists are the filters**, as in every list of the main window (#593). Click a row
-  to see only that app, network or session: it's highlighted, the chart and totals
-  follow, and an app with parts opens to show them. Click it again, its chip at the end of
-  the lists' row (#192), or press Escape to undo. Filters combine, with each other and
-  with the switch; Escape lets go of the last one first.
-- **The arrow** beside an app with parts, or beside **System**, opens and closes it without
-  filtering. System is macOS's own processes under one heading rather than an app, so a
-  click on it opens it too.
+- **Filter**, the funnel at the end of each row, shows only that app, network or session,
+  as in every list of the main window (#593). It shows its word when you point at the
+  row. The row is highlighted, its button reads **Filtered ✕**, and the chart and totals
+  follow. Click **Filtered ✕**, its chip at the end of the lists' row (#192), or press
+  Escape to undo. Filters combine, with each other and with the switch; Escape lets go of
+  the last one first.
+- **Click an app with parts**, or its arrow, to open and close it; filtering opens and
+  closes nothing. **System** is macOS's own processes under one heading rather than an
+  app, so it opens and has no Filter.
 - **The keyboard** (#546): Tab reaches the list as one stop, or click a row. ↑ and ↓ move
   from row to row, marked with a ring; → opens an app's parts or System, ← closes them or
-  goes back up; Space or Return does what a click on the row does.
+  goes back up; Space does what a click on the row does, and Return what its Filter
+  button does.
 - **Search** (⌘F), the magnifying glass in the toolbar, finds apps and networks, and
   shows as a chip like the other filters. An app found by one of its parts opens to show
   it, and closes again when the search is cleared.
