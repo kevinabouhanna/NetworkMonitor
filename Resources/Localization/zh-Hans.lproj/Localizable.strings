@@ -18,10 +18,6 @@
 "%@ rules" = "%@ 条规则";
 "Don't filter %@" = "不过滤 %@";
 "Don't filter this app" = "不过滤此应用";
-"1 site never blocked" = "1 个网站永不阻止";
-"%@ sites never blocked" = "%@ 个网站永不阻止";
-"1 site always blocked" = "1 个网站始终阻止";
-"%@ sites always blocked" = "%@ 个网站始终阻止";
 "1 app not filtered" = "1 个应用不过滤";
 "%@ apps not filtered" = "%@ 个应用不过滤";
 "Switch on %@ and %@" = "打开 %@ 和 %@";
@@ -159,10 +155,7 @@
 "Remove" = "移除";
 "%@ blocked today" = "今天已拦截 %@ 次";
 "No rules yet" = "还没有规则";
-"Add a site above, or right-click one in the Overview or the Log." = "在上方添加网站，或在“概览”或“日志”中右键点按一个网站。";
-"Never blocked" = "永不阻止";
 "Let through even when a list has them." = "即使在列表中也放行。";
-"Always blocked" = "始终阻止";
 "Blocked even when no list has them." = "即使不在任何列表中也拦截。";
 "Apps not filtered" = "不过滤的应用";
 "The lists leave these apps' connections alone." = "列表不处理这些应用的连接。";
@@ -177,18 +170,10 @@
 "In Every App" = "在所有应用中";
 "Every App" = "所有应用";
 "Choose an App…" = "选择应用…";
-"Never Block" = "永不阻止";
-"Always Block" = "始终阻止";
-"A rule covers the site and every name under it: example.com covers ads.example.com. Rules change only what the ad and tracker lists do. Never block lets a listed site through, and always block stops one no list has. Malware and phishing lists still block whatever these rules say. A rule for one app wins over one for every app. In Connections, a block still blocks and Always Allow on a site lets it through; allowing a whole app or company doesn't let its ads through." = "规则涵盖该网站及其下的所有名称：example.com 涵盖 ads.example.com。规则只改变广告和跟踪器列表的作用。“永不阻止”会放行列表中的网站，“始终阻止”会拦截任何列表中都没有的网站。无论这些规则怎么设置，恶意软件和网络钓鱼列表仍会照常拦截。针对单个应用的规则优先于针对所有应用的规则。在“连接”中，阻止仍然有效，对网站设为“始终允许”会放行它；允许整个应用或公司并不会放行它的广告。";
 "Networks" = "网络";
 "Ad blocking is off whenever the Mac is on these." = "Mac 连接这些网络时，广告拦截会关闭。";
-"the network you're on" = "当前网络";
 "Block ads on this network again" = "在此网络上重新拦截广告";
-"in %@" = "在 %@ 中";
-"in every app" = "在所有应用中";
 "Remove this rule" = "移除此规则";
-"Always Block Instead" = "改为始终阻止";
-"Never Block Instead" = "改为永不阻止";
 "NetworkMonitor ad rules.txt" = "NetworkMonitor 广告规则.txt";
 "Choose" = "选择";
 "Bring Rules Over" = "导入规则";
@@ -197,7 +182,6 @@
 "Continue" = "继续";
 "From %@" = "来自 %@";
 "Nothing new to bring over." = "没有可导入的新内容。";
-"Trusted sites become never blocked: connections to the site itself go through. Ads its pages load from other sites are still blocked, since the filter can't tell which page asked." = "受信任的网站会变为永不阻止：连接该网站本身的连接会被放行。但它的网页从其他网站加载的广告仍会被拦截，因为过滤器无法分辨是哪个网页发出的请求。";
 "Left out" = "未导入";
 "Back" = "返回";
 "Import" = "导入";
@@ -207,10 +191,6 @@
 "Your Rules" = "你的规则";
 "Ads and trackers" = "广告和跟踪器";
 "Malware and phishing" = "恶意软件和网络钓鱼";
-"Never block %@ in %@" = "在 %2$@ 中永不阻止 %1$@";
-"Always block %@ in %@" = "在 %2$@ 中始终阻止 %1$@";
-"Never block %@" = "永不阻止 %@";
-"Always block %@" = "始终阻止 %@";
 "Overview" = "概览";
 "Log" = "日志";
 "Rules" = "规则";
@@ -372,7 +352,6 @@
 "Let apps connect" = "允许应用连接";
 "Anywhere" = "任何地方";
 "Only Where I Allow" = "仅允许已授权的连接";
-"Right-click a company, app, country or server in Connections to block it, or to always allow it." = "在“连接”中右键点按公司、应用、国家或地区、服务器，即可阻止或始终允许它。";
 "Blocking" = "阻止";
 "That file has no NetworkMonitor rules in it." = "该文件中没有 NetworkMonitor 规则。";
 "Choose a file made with Export… in Connections' settings." = "请选择用“连接”设置中的“导出…”生成的文件。";
