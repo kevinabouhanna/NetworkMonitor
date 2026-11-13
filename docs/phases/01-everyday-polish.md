@@ -8,13 +8,15 @@ by a person.
 
 ## The plans
 
-- **The popover jumps when opening Wi-Fi, Ethernet or Hotspot** (#599, a bug). Data and
-  Connections keep the popover's height; the network sections don't, so it twitches. They
-  should keep the same height.
 - **Expand, collapse and filter the same way everywhere** (#593). Usage History, Connections
-  and Ads and Trackers each do it differently in the main window (the popover is fine). First
-  two options, shown as a design page for Kevin, then the one he picks.
+  and Ads and Trackers each did it differently in the main window (the popover is fine).
+  Option A (a click on a row filters to it) is on `main`; Kevin found it misleading
+  (13 Nov 2026), so a revised option B waits for his second review: a click anywhere on a row
+  opens or closes it, the arrows stay, and filtering is its own **Filter** button on the row.
 - **Kevin's checks after 1.29.0** (#525): what only a person can judge, with VoiceOver and the
   keyboard: Dock mode, the map's starting point, the Ads total, ⓘ with the keyboard.
-- **Tests check the main window as one window again** (#527), now that the audit reads on the
-  main thread (#500), so the tests check what people see.
+- **In Chinese, VoiceOver reads the toolbar's Search and Sidebar buttons in English** (#621,
+  a bug found by #527): their names come from AppKit, not the app's table.
+
+Done (13 Nov 2026, not released yet): the popover keeps one height in all four views (#599),
+and the accessibility tests read the real main window, sidebar and all (#527).
