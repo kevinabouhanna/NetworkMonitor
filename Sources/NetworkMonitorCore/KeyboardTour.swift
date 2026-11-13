@@ -116,6 +116,10 @@ public enum KeyboardTour {
                                              windowNumber: window.windowNumber, context: nil,
                                              characters: key.characters, charactersIgnoringModifiers: key.characters,
                                              isARepeat: false, keyCode: key.code)!
+                // Space through the window, as a real key comes: SwiftUI's
+                // `onKeyPress`, which the lists take Space with (#593), sees
+                // nothing handed straight to the responder.
+                if key == .space { window.sendEvent(event); continue }
                 let responder = window.firstResponder ?? window
                 if type == .keyDown { responder.keyDown(with: event) } else { responder.keyUp(with: event) }
             }

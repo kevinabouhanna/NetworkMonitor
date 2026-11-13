@@ -29,11 +29,21 @@ public final class HistoryViewModel: ObservableObject {
     @Published public var tab: Tab = .apps
     /// The bar under the pointer, by its start.
     @Published public var hoveredBin: Date?
-    @Published public var expandedApps: Set<String> = []
-    @Published public var systemExpanded = false
+    /// Apps whose parts show, and System (its id, `systemID`), which is a
+    /// heading over macOS's own processes rather than an app (#593).
+    @Published public private(set) var expandedApps: Set<String> = []
+    public var systemExpanded: Bool { expandedApps.contains(Self.systemID) }
     /// The toolbar's search (#436): narrows the list, not the chart or the
-    /// totals, by an app's or a network's name.
-    @Published public var search = ""
+    /// totals, by an app's or a network's name. An app shown only for one of
+    /// its parts opens to show it (#593).
+    @Published public var search = "" {
+        didSet { if search != oldValue { openForSearch() } }
+    }
+    /// The row everything System does sits under, among `expandedApps`.
+    public static let systemID = "\u{1}system"
+    /// Rows opened by choosing, and by search, to close again (#593).
+    private var openedByChoosing = OpenedByItself()
+    private var openedBySearch = OpenedByItself()
     @Published public private(set) var retention: HistoryRetention
     /// Today's total, for the line heading Usage History's settings (#436).
     @Published public private(set) var todayTotal: Int64 = 0
@@ -77,7 +87,8 @@ public final class HistoryViewModel: ObservableObject {
         if reset {
             hoveredBin = nil
             expandedApps.removeAll()
-            systemExpanded = false
+            openedByChoosing.reset()
+            openedBySearch.reset()
             show(HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar),
                  filter: .opening(on: monitor.store.currentNetwork.kind))
         } else {
@@ -156,10 +167,27 @@ public final class HistoryViewModel: ObservableObject {
 
     // MARK: Filters
 
+    /// A click on an app's row (#593): shows only it, opened when it has
+    /// parts, as the one row left; a click on the one chosen lets it go, and
+    /// closes what choosing opened.
     public func toggleApp(_ key: String) {
         var next = filter
         next.appKey = next.appKey == key ? nil : key
+        openedByChoosing.close(in: &expandedApps)
+        if let chosen = next.appKey, let row = openedRow(choosing: chosen) {
+            openedByChoosing.open(row, in: &expandedApps)
+        }
         show(period, filter: next)
+    }
+
+    /// The row that holds what's chosen open: an app with parts, the app a
+    /// part is in, or System for one of its processes.
+    private func openedRow(choosing key: String) -> String? {
+        for app in report.apps {
+            if app.id == key { return app.hasChildren ? key : nil }
+            if app.children.contains(where: { $0.id == key }) { return app.id }
+        }
+        return report.systemRows.contains { $0.id == key } ? Self.systemID : nil
     }
 
     public func toggleNetwork(_ id: String) {
@@ -186,9 +214,26 @@ public final class HistoryViewModel: ObservableObject {
         }
     }
 
-    public func clearApp() { var next = filter; next.appKey = nil; show(period, filter: next) }
+    public func clearApp() {
+        var next = filter
+        next.appKey = nil
+        openedByChoosing.close(in: &expandedApps)
+        show(period, filter: next)
+    }
     public func clearNetwork() { var next = filter; next.networkID = nil; show(period, filter: next) }
     public func clearSession() { var next = filter; next.sessionID = nil; show(period, filter: next) }
+
+    /// Escape (#593): lets go of the narrowest choice first, a visit, then a
+    /// network, then an app, as the chips read from the right.
+    public func goBack() {
+        if filter.sessionID != nil { clearSession() }
+        else if filter.networkID != nil { clearNetwork() }
+        else if filter.appKey != nil { clearApp() }
+    }
+
+    /// Whether there's a choice for Escape to let go of. Only then does it
+    /// take Escape, so Escape still closes search the rest of the time.
+    public var canGoBack: Bool { filter.sessionID != nil || filter.networkID != nil || filter.appKey != nil }
 
     /// The name a chip shows for the app filter. Looked up in the report, which
     /// holds the app whenever the filter does.
@@ -252,8 +297,29 @@ public final class HistoryViewModel: ObservableObject {
         if hoveredBin != binStart { hoveredBin = binStart }
     }
 
-    public func toggleExpanded(_ id: String) {
-        if expandedApps.contains(id) { expandedApps.remove(id) } else { expandedApps.insert(id) }
+    /// The ▸, or → and ←, on an app or System: the person's from then on.
+    public func setExpanded(_ id: String, _ open: Bool) {
+        openedByChoosing.handOver(id)
+        openedBySearch.handOver(id)
+        if open { expandedApps.insert(id) } else { expandedApps.remove(id) }
+    }
+
+    public func toggleExpanded(_ id: String) { setExpanded(id, !expandedApps.contains(id)) }
+
+    /// Opens the apps shown only for one of their parts, and System for one
+    /// of its processes; closes what the last search opened.
+    /// `fresh`: a new search, so what the last one opened closes first; a
+    /// period read again only opens what it hasn't opened before.
+    private func openForSearch(fresh: Bool = true) {
+        if fresh { openedBySearch.close(in: &expandedApps) }
+        for app in report.apps
+        where OpenedByItself.matchesInside(app.displayName, parts: app.children.map(\.displayName), query: search) {
+            openedBySearch.openOnce(app.id, in: &expandedApps)
+        }
+        if OpenedByItself.matchesInside(L("System (%@)", String(report.systemRows.count)),
+                                        parts: report.systemRows.map(\.displayName), query: search) {
+            openedBySearch.openOnce(Self.systemID, in: &expandedApps)
+        }
     }
 
     public func icon(for row: UsageRow) -> NSImage { monitor.icon(for: row) }
@@ -354,6 +420,8 @@ public final class HistoryViewModel: ObservableObject {
         history.loadReport(for: period, filter: filter) { [weak self] report in
             guard let self, request == self.generation else { return }
             self.report = report
+            // Another period's apps: open the ones the search finds inside.
+            if !self.search.trimmingCharacters(in: .whitespaces).isEmpty { self.openForSearch(fresh: false) }
         }
     }
 }

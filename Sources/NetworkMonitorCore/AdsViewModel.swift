@@ -37,6 +37,13 @@ public struct AdsItem: Equatable, Identifiable {
         self.children = children
         self.last = last
     }
+
+    /// The same row with only one of what's inside it: the list's row while
+    /// that one is chosen (#593).
+    public func keeping(_ childID: String) -> AdsItem {
+        AdsItem(id: id, title: title, detail: detail, count: count, lists: lists, bundlePath: bundlePath,
+                children: children.filter { $0.id == childID }, last: last)
+    }
 }
 
 /// The chart's gridlines: from zero to just past the busiest bar, in round
@@ -238,7 +245,11 @@ public final class AdsViewModel: ObservableObject {
     public static let layoutKey = "adsLayout"
     @Published public var setupTab: SetupTab = .lists
     @Published public var logShow: AdsLog.Show = .all
-    @Published public var logSearch = ""
+    /// The toolbar's search, on Overview and the Log. On Overview, a row
+    /// shown only for what's inside it opens to show it (#593).
+    @Published public var logSearch = "" {
+        didSet { if logSearch != oldValue { openForSearch() } }
+    }
     /// What the log showed when it was paused; nil while it's live.
     @Published public private(set) var frozenLog: [AdsLogEntry]?
 
@@ -623,6 +634,8 @@ public final class AdsViewModel: ObservableObject {
             selection = nil
             selectedCounts = [:]
             expanded.removeAll()
+            openedByChoosing.reset()
+            openedBySearch.reset()
             showingAll.removeAll()
         }
         reload()
@@ -678,6 +691,7 @@ public final class AdsViewModel: ObservableObject {
         let shown = spanInterval ?? DateInterval(start: period.start, end: period.end)
         let blocks = history.listBlocks(from: shown.start, to: shown.end)
         report = AdsReport(blocks) { key in AppIdentityResolver.identity(forKey: key).bundlePath }
+        if !logSearch.trimmingCharacters(in: .whitespaces).isEmpty { openForSearch(fresh: false) }
         recordingSince = history.listBlocksSince()
         reloadSelection()
         reloadToday()
@@ -725,7 +739,10 @@ public final class AdsViewModel: ObservableObject {
     /// The chosen row's blocks in each bar, by the bar's start.
     @Published public private(set) var selectedCounts: [Date: Int64] = [:]
     /// Rows open, by `grouping` and row id, so Sites and Apps keep their own.
-    @Published public var expanded: Set<String> = []
+    @Published public private(set) var expanded: Set<String> = []
+    /// Rows opened by choosing, and by search, to close again (#593).
+    private var openedByChoosing = OpenedByItself()
+    private var openedBySearch = OpenedByItself()
     /// Rows whose whole inside is shown, past the first few.
     @Published public var showingAll: Set<String> = []
     /// How many of a row's inside show before "Show all", as in Connections.
@@ -759,9 +776,15 @@ public final class AdsViewModel: ObservableObject {
         spanInterval.map { HistoryFormat.binTitle($0, scale: period.scale) }
     }
 
-    /// Chooses a row, or lets go of the one chosen.
+    /// Chooses a row, or lets go of the one chosen (#593): the list keeps
+    /// only it, opened when there's something inside, and the total is its
+    /// own, as choosing a row does in Usage History and Connections.
     public func select(_ next: Selection) {
         selection = selection == next ? nil : next
+        openedByChoosing.close(in: &expanded)
+        if let selection, !(item(selection.parent)?.children.isEmpty ?? true) {
+            openedByChoosing.open(expansionKey(selection.parent), in: &expanded)
+        }
         reloadSelection()
     }
 
@@ -769,6 +792,20 @@ public final class AdsViewModel: ObservableObject {
         guard selection != nil else { return }
         selection = nil
         selectedCounts = [:]
+        openedByChoosing.close(in: &expanded)
+    }
+
+    /// A row of the list shown, by its id.
+    private func item(_ id: String) -> AdsItem? {
+        (grouping == .sites ? report.sites : report.apps).first { $0.id == id }
+    }
+
+    /// The chosen row's count in the period, or the bar picked: the header's
+    /// total while a row is chosen.
+    public var chosenCount: Int64? {
+        guard let selection, let parent = item(selection.parent) else { return nil }
+        guard let child = selection.child else { return parent.count }
+        return parent.children.first { $0.id == child }?.count
     }
 
     /// Escape: the bar first, then the row, as each was added.
@@ -782,9 +819,36 @@ public final class AdsViewModel: ObservableObject {
 
     public func isExpanded(_ id: String) -> Bool { expanded.contains(expansionKey(id)) }
 
+    /// The ▸, or → and ←: the person's from then on.
     public func setExpanded(_ id: String, _ open: Bool) {
         let key = expansionKey(id)
+        openedByChoosing.handOver(key)
+        openedBySearch.handOver(key)
         if open { expanded.insert(key) } else { expanded.remove(key) }
+    }
+
+    /// Opens the rows of both lists shown only for what's inside them: a site
+    /// for an app that tried it, an app for a site. `fresh`: a new search, so
+    /// what the last one opened closes first.
+    private func openForSearch(fresh: Bool = true) {
+        if fresh { openedBySearch.close(in: &expanded) }
+        for (list, items) in [(PopoverAdsGrouping.sites, report.sites), (.apps, report.apps)] {
+            for item in items where Self.matchesInside(item, logSearch) {
+                openedBySearch.openOnce(list.rawValue + ":" + item.id, in: &expanded)
+            }
+        }
+    }
+
+    /// A row search finds by what's inside it, not by its own name, the names
+    /// under it, or its key.
+    public static func matchesInside(_ item: AdsItem, _ query: String) -> Bool {
+        let query = query.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return false }
+        func matches(_ item: AdsItem) -> Bool {
+            item.title.localizedCaseInsensitiveContains(query) || item.id.localizedCaseInsensitiveContains(query)
+                || (item.detail?.localizedCaseInsensitiveContains(query) ?? false)
+        }
+        return !matches(item) && item.children.contains(where: matches)
     }
 
     public func toggleExpanded(_ id: String) { setExpanded(id, !isExpanded(id)) }

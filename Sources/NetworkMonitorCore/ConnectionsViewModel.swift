@@ -50,8 +50,10 @@ public final class ConnectionsViewModel: ObservableObject {
     @Published public private(set) var period: HistoryPeriod {
         didSet { refreshLive() }
     }
+    /// What's open stays open while the window is (#593): each grouping's
+    /// rows have their own ids, so Companies, Apps and Countries keep theirs.
     @Published public var grouping: ConnectionsGrouping = .companies {
-        didSet { if grouping != oldValue { expanded.removeAll(); rebuild() } }
+        didSet { if grouping != oldValue { rebuild() } }
     }
     /// Traffic, or the connections the filter blocked (#114). The map's
     /// pulses are traffic as it happens, so they stop while Blocked is shown.
@@ -59,7 +61,6 @@ public final class ConnectionsViewModel: ObservableObject {
         didSet {
             guard measure != oldValue else { return }
             refreshLive()
-            expanded.removeAll()
             reload()
         }
     }
@@ -79,7 +80,12 @@ public final class ConnectionsViewModel: ObservableObject {
     @Published public private(set) var appDetails: [String: AppDetail] = [:]
     @Published public private(set) var recordingSince: Date?
     @Published public private(set) var hasLoaded = false
-    @Published public var expanded: Set<String> = []
+    @Published public private(set) var expanded: Set<String> = []
+    /// Rows opened by narrowing to one, and by search, to close again (#593).
+    private var openedByChoosing = OpenedByItself()
+    private var openedBySearch = OpenedByItself()
+    /// The search `openedBySearch` opened rows for.
+    private var openedFor = ""
     /// Sections showing every item rather than the first few.
     @Published public var showingAll: Set<String> = []
 
@@ -235,6 +241,8 @@ public final class ConnectionsViewModel: ObservableObject {
             dragging = nil
             search = ""
             expanded.removeAll()
+            openedByChoosing.reset()
+            openedBySearch.reset()
             showingAll.removeAll()
             kind = HistoryFilter.opening(on: monitor.store.currentNetwork.kind).kind
             period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar)
@@ -342,12 +350,26 @@ public final class ConnectionsViewModel: ObservableObject {
     // MARK: Narrowing
 
     /// A click on a row inside a group: narrows to it, and to the group it's in,
-    /// so Microsoft › Teams reads as it was chosen.
+    /// so Microsoft › Teams reads as it was chosen. A click on the one chosen
+    /// lets it go, and keeps the group (#593).
     public func narrow(to item: ConnectionsItem, in group: ConnectionsItem? = nil) {
+        if isChosen(item) { return clear(item.dimension) }
         if let group { selected[group.dimension] = group }
         selected[item.dimension] = item
         showingAll.removeAll()
         rebuild()
+    }
+
+    /// A click on a group's row (#593): shows only it, which opens it as the
+    /// one left; a click on it again lets it go, as in Usage History and Ads
+    /// and Trackers.
+    public func choose(_ group: ConnectionsItem) {
+        narrow(to: group)
+    }
+
+    /// Whether the window is narrowed to it: its row is marked.
+    public func isChosen(_ item: ConnectionsItem) -> Bool {
+        selected[item.dimension]?.key == item.key
     }
 
     public func clear(_ dimension: ConnectionsDimension) {
@@ -355,9 +377,25 @@ public final class ConnectionsViewModel: ObservableObject {
         rebuild()
     }
 
-    public func toggle(_ groupID: String) {
-        if expanded.contains(groupID) { expanded.remove(groupID) } else { expanded.insert(groupID) }
+    /// Escape (#593): lets go of the bar picked on the timeline first, then
+    /// the narrowest chip, as they read from the right.
+    public func goBack() {
+        if span != nil { return clearSpan() }
+        if let last = chips.last { clear(last.dimension) }
     }
+
+    /// Whether there's a choice for Escape to let go of. Only then does it
+    /// take Escape, so Escape still closes search the rest of the time.
+    public var canGoBack: Bool { span != nil || !selected.isEmpty }
+
+    /// The ▸, or → and ←: the person's from then on.
+    public func setExpanded(_ groupID: String, _ open: Bool) {
+        openedByChoosing.handOver(groupID)
+        openedBySearch.handOver(groupID)
+        if open { expanded.insert(groupID) } else { expanded.remove(groupID) }
+    }
+
+    public func toggle(_ groupID: String) { setExpanded(groupID, !expanded.contains(groupID)) }
 
     /// The chips, in the order the dimensions read.
     public var chips: [ConnectionsItem] {
@@ -427,8 +465,34 @@ public final class ConnectionsViewModel: ObservableObject {
         groups = ConnectionsReport.groups(connections, by: grouping, filter: filter, search: search)
         summary = ConnectionsReport.summary(connections, filter: filter, search: search)
         geography = ConnectionsReport.geography(connections, filter: filter, search: search)
-        // Narrowed to one, it may as well be open.
-        if groups.count == 1, let only = groups.first { expanded.insert(only.id) }
+        // Narrowed to one, it opens by itself, and closes again once it isn't
+        // alone (#593).
+        if groups.count == 1, let only = groups.first { openedByChoosing.openOnce(only.id, in: &expanded) }
+        else { openedByChoosing.close(in: &expanded) }
+        // A group shown only for what's inside it opens to show it.
+        let query = search.trimmingCharacters(in: .whitespaces)
+        if query != openedFor {
+            openedBySearch.close(in: &expanded)
+            openedFor = query
+        }
+        for group in groups where !query.isEmpty && !Self.matches(group.item, query) {
+            openedBySearch.openOnce(group.id, in: &expanded)
+        }
+    }
+
+    /// Whether search finds a group by its own name (or its maker's, under
+    /// an app), rather than by something inside it.
+    private static func matches(_ item: ConnectionsItem, _ query: String) -> Bool {
+        item.title.localizedCaseInsensitiveContains(query) || item.key.localizedCaseInsensitiveContains(query)
+            || (item.subtitle?.localizedCaseInsensitiveContains(query) ?? false)
+    }
+
+    /// The servers to read, in place of the record: for the tests and the
+    /// pictures, which have no history to read them from.
+    public func showConnections(_ connections: [Connection]) {
+        self.connections = connections
+        hasLoaded = true
+        rebuild()
     }
 
     // MARK: Map

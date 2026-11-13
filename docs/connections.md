@@ -21,12 +21,16 @@ networks it covers. Then the period's name, its total, and the counts.
 
 - **Group by Companies, Apps or Countries.** Companies is the default, because that's the
   question: who gets your data.
-- **Open a group** to see what's inside it. A company opens into the apps that talk to
-  it, the countries its servers are in, and the servers themselves. An app opens into
-  its companies, countries and servers. A country opens into its companies, apps and
-  servers.
-- **Click a row inside a group** to narrow everything to it. Choosing Teams inside
-  Microsoft reads *Microsoft › Teams*, and each chip's ✕ undoes its part.
+- **Open a group with its arrow** to see what's inside it. A company opens into the apps
+  that talk to it, the countries its servers are in, and the servers themselves. An app
+  opens into its companies, countries and servers. A country opens into its companies,
+  apps and servers. What's open stays open while the window is, whichever grouping you
+  switch to and back.
+- **Click a row to narrow everything to it**, as in every list of the main window (#593):
+  a company, app or country, which then opens as the one left, or a row inside one.
+  Choosing Teams inside Microsoft reads *Microsoft › Teams*. The rows chosen are
+  highlighted; click one again, its chip's ✕, or press Escape (the last chip first) to
+  undo its part.
 - **The keyboard** (#546): Tab reaches the list as one stop, or click a row. ↑ and ↓ move
   from row to row, marked with a ring; → opens a group, ← closes it or goes back up to the
   group a row is in; Space or Return does what a click on the row does.
@@ -34,7 +38,8 @@ networks it covers. Then the period's name, its total, and the counts.
   apps contacted in the hour after a call, say. Click the same bar again, or the chip's
   ✕, for the whole period.
 - **Search**, the magnifying glass in the toolbar, finds a company, a network's
-  registered name, an app, a country or an address.
+  registered name, an app, a country or an address. A group found by something inside it
+  opens to show it, and closes again when the search is cleared.
 - **Day, Week, Month, Year**, the arrows and ⌘← ⌘→ move through time, as in every
   section, and **Networks: All / Wi-Fi / Hotspot** narrows it to one kind of network.
 - **Under each app is who made it**, read from its code signature, and the companies it
@@ -54,7 +59,7 @@ becomes its icon before the name is cut short; hover it, or ask VoiceOver, for i
 - **Countries are shaded by how much data went there**, on a logarithmic scale, so a
   country with a few kilobytes still shows beside one with gigabytes.
 - **Hover a country** for a card with its top companies. **Click it** to narrow
-  everything to it.
+  everything to it, and again to see everything.
 - **Narrow to a company, app or server**, and lines run from your country to where its
   data went. Your country is the first of these that knows (#231): **Location**, when
   NetworkMonitor already has it for Wi-Fi names (it never asks for it just for this);
@@ -253,18 +258,22 @@ and the toolbar's search (⌘F) covers both.
   call the site (`doubleclick.net`), with the names under it that were blocked; or
   **Apps**, with the sites each tried most. One at a time, each list has the window's
   width (#524). The rows are Usage History's (#536):
-  - **Click a row** to choose it: the chart shows its share of each bar, the bar's own
-    colour under the rest, and the hovered bar's count for it. Its chip, a click on it
-    again, or Escape (after a picked bar's) lets it go.
+  - **Click a row** to see only it, as in every list of the main window (#593): the list
+    keeps just that row, opened to show what's inside it, the total is its own, and the
+    chart shows its share of each bar, the bar's own colour under the rest, with the
+    hovered bar's count for it. Its chip, a click on it again, or Escape (after a picked
+    bar's) lets it go.
   - **The chevron** opens a site's apps, the apps that tried to reach it, or an app's
     sites, each with its count and the hour it was last blocked; the first eight, then
-    **Show all**. Click one inside to see that site in that app on the chart.
+    **Show all**. Click one inside to see only that site in that app. Search opens a row
+    found by what's inside it.
   - **Right-click** a row, as in the Log: never or always block its site, in every app or
     only its app, stop filtering its app, remove a rule you made about it, or copy its
     name.
-  - **The keyboard**, once a row is clicked (or the list is reached with Tab): ↑ and ↓
-    choose the row above or below, → opens a row, ← closes it or goes back up to the row
-    it's in, and Space or Return chooses the row again once it's let go.
+  - **The keyboard**, as in Usage History and Connections: Tab reaches the list as one
+    stop, or click a row. ↑ and ↓ move from row to row, marked with a ring; → opens a row,
+    ← closes it or goes back up to the row it's in; Space or Return does what a click on
+    the row does.
 - **Pause:** for an hour or until tomorrow, in every app. The lists stay chosen, the filter
   is sent none until then, and the popover says it's paused. Kept across a relaunch.
   **Whenever on** *this network* (#253) turns ad blocking off on the network the Mac is on,
