@@ -37,7 +37,10 @@ struct ConnectionsSettingsPane: View {
                         WebsiteNamesRow(filter: filter)
                     }
                 }
-                rulesSection
+            }
+            // Your rules in every build, as in Ads and Trackers' settings (#638).
+            rulesSection
+            if filter.state != .unavailable {
                 lookupsSection
             }
 
