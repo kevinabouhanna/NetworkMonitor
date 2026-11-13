@@ -59,8 +59,8 @@ promises; keep them current when the plan changes.
 Why this order (13 Nov 2026, #605):
 
 1. **What's rough every day comes first**: the popover's jump (#599) and the three windows that
-   expand and filter differently (#593), then the ad-blocking requests from Kevin and a user
-   (#600, #592).
+   expand and filter differently (#593), then pausing ad blocking from the menu bar (#600) and
+   a user's own rules, which they couldn't find (#592).
 2. **Then the features that make ad blocking good** (Enhanced ad blocking, #256; the Chrome
    extension, #257), because they're what a launch will be judged on.
 3. **Then everything people see from outside**: the pictures, videos and docs (#499, #230,
