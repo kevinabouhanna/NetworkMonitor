@@ -44,7 +44,7 @@
 
 ## 📦 安装
 
-适用于 macOS 13 或更高版本，支持 Apple 芯片和 Intel 芯片的 Mac。
+适用于 <!-- product-kit: requires -->macOS 13 或更高版本<!-- /product-kit -->，支持 Apple 芯片和 Intel 芯片的 Mac。
 
 1. [<strong>下载 NetworkMonitor.dmg</strong>](https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg)，打开它，然后将 NetworkMonitor 拖到 <strong>应用程序</strong> 文件夹中。
 2. 从“应用程序”文件夹中打开 NetworkMonitor。

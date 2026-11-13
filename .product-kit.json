@@ -129,5 +129,20 @@
       "AXMenuBarItem"
     ]
   },
-  "upkeep": 606
+  "upkeep": 606,
+  "facts": {
+    "version": {
+      "from": "tag"
+    },
+    "size": {
+      "from": "command",
+      "run": [
+        "Scripts/dmg-size.sh"
+      ]
+    },
+    "requires": {
+      "en": "macOS 13 or later",
+      "zh-Hans": "macOS 13 或更高版本"
+    }
+  }
 }

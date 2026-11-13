@@ -60,9 +60,9 @@ through without asking. What's particular to NetworkMonitor:
   - Bring the website (`gh-pages` branch) up to date:
     - the docs pages: `make docs-site SITE=<site worktree>` from the tag, so they
       describe the version people can download (#334)
-    - the hero's version
-    - the download line's version and DMG size, in 1024-based MB
-    - the "What's in version" link
+    - the version, the DMG's size and what macOS it needs, in both languages:
+      `product-kit facts --write --site <site worktree>` once the release is published
+      (`facts` in `.product-kit.json`, the marked spots on the site and in the READMEs, #633)
     - any copy the change affects
     - the pictures: `make site-shots` once the new version is installed. It
       retakes each picture whose window's interface changed, and About, and
