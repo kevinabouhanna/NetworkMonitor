@@ -154,6 +154,6 @@ public final class AdsLog: ObservableObject {
 }
 
 extension String {
-    /// "Never block x" as it reads mid-sentence: "never block x".
+    /// "Always allow x" as it reads mid-sentence: "always allow x".
     var lowercasedFirst: String { prefix(1).lowercased() + dropFirst() }
 }

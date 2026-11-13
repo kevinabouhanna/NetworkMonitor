@@ -17,6 +17,8 @@ struct ConnectionsSettingsPane: View {
     @ObservedObject var lookups: EncryptedLookups
     @ObservedObject var glance: TodayGlance
     let onOpen: () -> Void
+    /// Connections, on Rules (#592): the rules are listed there, not here.
+    var onShowRules: () -> Void = {}
 
     var body: some View {
         Form {
@@ -124,8 +126,9 @@ struct ConnectionsSettingsPane: View {
         }
     }
 
-    /// What's blocked and what's always allowed (#114), made by right-clicking
-    /// a row in Connections, and taken back here.
+    /// What everything without a rule does (#114), and your rules: listed
+    /// in Connections, beside Traffic and Blocked (#592), and taken to
+    /// another Mac from here.
     private var rulesSection: some View {
         Section {
             LabeledContent(L("Let apps connect")) {
@@ -138,39 +141,17 @@ struct ConnectionsSettingsPane: View {
                 .labelsHidden()
                 .fixedSize()
             }
-            if firewall.rules.isEmpty {
-                Text(L("Right-click a company, app, country or server in Connections to block it, or to always allow it."))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                ForEach(firewall.rules) { rule in
-                    LabeledContent {
-                        HStack(spacing: 10) {
-                            RuleBadge(action: rule.action, networkTitle: rule.networkTitle)
-                            Button { firewall.remove(rule) } label: {
-                                Image(systemName: "minus.circle")
-                            }
-                            .buttonStyle(.borderless)
-                            .help(L("Remove this rule"))
-                            // Which rule, as Tab goes down them (#455).
-                            .accessibilityLabel(L("Remove the rule for %@", rule.shownTitle))
-                        }
-                    } label: {
-                        Label {
-                            Text(rule.shownTitle)
-                            Text(Self.detail(rule))
-                        } icon: {
-                            Image(systemName: Self.symbol(rule.subject)).foregroundStyle(.secondary)
-                        }
-                    }
-                }
-            }
             // To another Mac, or a backup (#201).
-            LabeledContent(L("Rules")) {
+            LabeledContent {
                 HStack(spacing: 8) {
+                    Button(L("Show Rules…"), action: onShowRules)
+                        .help(L("Your rules, in Connections, with what each did"))
                     Button(L("Export…"), action: exportRules).disabled(firewall.rules.isEmpty)
                     Button(L("Import…"), action: importRules)
                 }
+            } label: {
+                Text(L("Your rules"))
+                Text(firewall.rules.count == 1 ? L("1 rule") : L("%@ rules", String(firewall.rules.count)))
             }
         } header: {
             Text(L("Blocking"))

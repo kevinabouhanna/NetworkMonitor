@@ -127,6 +127,15 @@ public final class ConnectionsViewModel: ObservableObject {
     public var filter: FilterController { monitor.filter }
     public var firewall: FirewallRules { monitor.firewall }
 
+    /// Rules in place of Traffic and Blocked (#592): every rule, with what
+    /// each did in the period. Read from `rulesActivity`.
+    @Published public var showsRules = false
+    public let rulesActivity = RulesActivity()
+    /// Ads and Trackers' own Rules, from the line under these (#592).
+    public var onShowAdRules: () -> Void = {}
+    /// How many rules Ads and Trackers has, for that line.
+    public var adRuleCount: Int { firewall.adRules.count + firewall.listsPausedNetworks.count }
+
     /// A figure as the window shows it: bytes, or a count of blocked
     /// connections.
     public func format(_ value: Int64) -> String {
@@ -226,7 +235,7 @@ public final class ConnectionsViewModel: ObservableObject {
         homeSubscription = homeFinder.$home.sink { [weak self] in self?.home = $0 }
     }
 
-    private var history: UsageHistory? { monitor.store.history }
+    var history: UsageHistory? { monitor.store.history }
 
     // MARK: Window lifecycle
 
@@ -249,6 +258,7 @@ public final class ConnectionsViewModel: ObservableObject {
             // Traffic, unless only what's allowed may connect: then what was
             // blocked is where someone looks to allow it.
             measure = firewall.mode == .onlyAllowed ? .blocked : .bytes
+            showsRules = false
         }
         reload()
         refreshTimer?.invalidate()

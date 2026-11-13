@@ -210,13 +210,13 @@ func runAdRuleTests() {
             }
             Check.expectEqual(AdsLog.reason(for: entry("ad.doubleclick.net", blockedBy: nil, lists: ["ads"]),
                                             rules: [], adRules: [never]),
-                              "Your rule: never block doubleclick.net")
+                              "Your rule: always allow doubleclick.net")
             Check.expectEqual(AdsLog.reason(for: entry("ad.doubleclick.net", blockedBy: nil, lists: ["ads"]),
                                             rules: [], adRules: []),
                               "Let through, though it's on a list")
             Check.expectEqual(AdsLog.reason(for: entry("example.com", blockedBy: BlockReason.adRule(always).id, lists: []),
                                             rules: [], adRules: [always]),
-                              "Your rule: always block example.com in Chrome")
+                              "Your rule: block example.com in Chrome")
             Check.expectEqual(AdsReport.title(ofList: "mine"), "Your Rules")
         }
     }
@@ -284,7 +284,7 @@ func runAdRuleTests() {
             Check.expectEqual(result.forExtension.count, 4)
             Check.expectEqual(result.skipped, [AdImport.Skipped(line: "||tracker.example.net^$app=Missing",
                                                                 why: "Missing isn't on this Mac")])
-            Check.expectEqual(result.summary, ["2 sites never blocked", "3 sites always blocked", "1 app not filtered"])
+            Check.expectEqual(result.summary, ["2 sites always allowed", "3 sites blocked", "1 app not filtered"])
         }
 
         Check.test("what's here already is counted, and nothing is read from what isn't rules") {

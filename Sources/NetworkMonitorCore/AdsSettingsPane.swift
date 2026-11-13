@@ -2,10 +2,10 @@ import AppKit
 import FirewallPolicy
 import SwiftUI
 
-/// Ads and Trackers' settings: every switch, list and rule for ad blocking, in one place
-/// (#436). Today's number and a way to the Ads and Trackers window head it;
-/// below are the switch, the weekly update, and the lists and your rules that
-/// were tabs in the window, so nothing about ad blocking lives in two places.
+/// Ads and Trackers' settings: the switch, the weekly update and the lists
+/// (#436). Today's number and a way to the Ads and Trackers window head it.
+/// Your rules are listed in the window, beside Overview and the Log, as
+/// Connections lists its own (#592); here they're brought over and saved.
 struct AdsSettingsPane: View {
     @ObservedObject var ads: AdsViewModel
     @ObservedObject var connections: ConnectionsViewModel
@@ -14,6 +14,8 @@ struct AdsSettingsPane: View {
     @ObservedObject var blocklists: BlocklistUpdater
     @ObservedObject var listBlocks: ListBlockCount
     let onOpenAds: () -> Void
+    /// Ads and Trackers, on Rules (#592).
+    var onShowRules: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 0) {
@@ -47,13 +49,23 @@ struct AdsSettingsPane: View {
                     } footer: {
                         SettingsFootnote(listsFootnote)
                     }
+                    // Bringing rules over from uBlock Origin or AdGuard, and
+                    // saving yours (#253).
                     Section {
-                        Picker(L("Show"), selection: $ads.setupTab) {
-                            ForEach(AdsViewModel.SetupTab.allCases) { Text($0.label).tag($0) }
+                        LabeledContent {
+                            HStack(spacing: 8) {
+                                Button(L("Show Rules…"), action: onShowRules)
+                                    .help(L("Your rules, in Ads and Trackers, with what each did"))
+                                Button(L("Import…")) { ads.beginImport() }
+                                    .help(L("Bring rules over from uBlock Origin, AdGuard, or a list of rules"))
+                                Button(L("Export…"), action: exportRules)
+                                    .disabled(ads.adRules.isEmpty)
+                                    .help(L("Save your rules in the format uBlock Origin and AdGuard read"))
+                            }
+                        } label: {
+                            Text(L("Your rules"))
+                            Text(ads.ruleCount == 1 ? L("1 rule") : L("%@ rules", String(ads.ruleCount)))
                         }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .frame(maxWidth: .infinity)
                     }
             }
             .formStyle(.grouped)
@@ -61,11 +73,15 @@ struct AdsSettingsPane: View {
             .fixedSize(horizontal: false, vertical: true)
 
             do {
-                // The window's own views, as they were: they scroll inside a
-                // fixed height, so the pane is the same size every time.
-                Group {
-                    if ads.setupTab == .lists { AdsListsView(model: ads) } else { AdsRulesView(model: ads) }
-                }
+                // Which lists block: they scroll inside a fixed height, so
+                // the pane is the same size every time.
+                Text(L("Lists"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 30)
+                    .padding(.bottom, 6)
+                    .accessibilityAddTraits(.isHeader)
+                AdsListsView(model: ads)
                 .frame(height: SettingsMetrics.adsSetupHeight)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor).opacity(0.5)))
                 .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor)))
@@ -73,6 +89,16 @@ struct AdsSettingsPane: View {
                 .padding(.bottom, 20)
             }
         }
+        .sheet(isPresented: $ads.isImporting) { AdsImportSheet(model: ads) }
+    }
+
+    private func exportRules() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = L("NetworkMonitor ad rules.txt")
+        panel.allowedContentTypes = [.plainText]
+        let text = ads.exportText()
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? Data(text.utf8).write(to: url, options: .atomic)
     }
 
     private var status: String {

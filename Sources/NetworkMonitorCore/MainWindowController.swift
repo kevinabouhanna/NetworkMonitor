@@ -127,11 +127,13 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                 view = AnyView(ConnectionsSettingsPane(model: connectionsModel, filter: model.filter,
                                                        firewall: model.firewall, geoData: model.geoData,
                                                        lookups: model.lookups, glance: model.todayGlance,
-                                                       onOpen: { go(.connections) }))
+                                                       onOpen: { go(.connections) },
+                                                       onShowRules: { go(.connections); connectionsModel.show = .rules }))
             case .ads:
                 view = AnyView(AdsSettingsPane(ads: adsModel, connections: connectionsModel, filter: model.filter,
                                                firewall: model.firewall, blocklists: model.blocklists,
-                                               listBlocks: model.listBlocks, onOpenAds: { go(.ads) }))
+                                               listBlocks: model.listBlocks, onOpenAds: { go(.ads) },
+                                               onShowRules: { go(.ads); adsModel.tab = .rules }))
             case .network, .settings:
                 // Hotspots are on the Network page itself (#436): what's
                 // left to set is how the popover shows the speed test.
@@ -143,6 +145,9 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         }
         super.init()
         go = { [weak self] section in self?.show(section) }
+        // Each window's Rules points at the other's (#592).
+        connectionsModel.onShowAdRules = { go(.ads); adsModel.tab = .rules }
+        adsModel.onShowConnectionRules = { go(.connections); connectionsModel.show = .rules }
         // Settings: General, then a row to each section's settings.
         let generalHost = NSHostingController(rootView: MainSettingsPage(
             content: AnyView(GeneralSettingsPane(model: model, state: state, onOpenSection: { [weak self] section in

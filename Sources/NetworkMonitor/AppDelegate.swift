@@ -131,8 +131,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         present(controller.window, reposition: !controller.window.isVisible)
     }
 
-    /// `open NetworkMonitor.app --args -open connections`, `-open welcome`,
-    /// `-open popover`, `-open ads` with `-tab rules` (any tab), `-open history`,
+    /// `open NetworkMonitor.app --args -open connections` (with `-tab rules`
+    /// for its Rules), `-open welcome`, `-open popover`, `-open ads` with
+    /// `-tab rules` (any tab, or `lists` for its settings), `-open history`,
     /// `-open network`, `-open about`, or `-open settings` with `-pane history`
     /// (a section's settings), for a screenshot or a
     /// check of a development build without clicking the menu bar. Only the
@@ -140,11 +141,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private func openWindowFromLaunchArgument() {
         let arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
         switch arguments["open"] as? String {
-        case "connections": showConnections()
+        case "connections":
+            showConnections()
+            if arguments["tab"] as? String == "rules" { connectionsModel.showsRules = true }
         case "ads":
-            // The lists and your rules are in Ads and Trackers' settings now (#436).
-            if let setup = (arguments["tab"] as? String).flatMap(AdsViewModel.SetupTab.init) {
-                adsModel.setupTab = setup
+            // The lists are in Ads and Trackers' settings (#436); your rules
+            // are in the window, beside Overview and the Log (#592).
+            if arguments["tab"] as? String == "lists" {
                 showSectionSettings(.ads, from: nil)
             } else {
                 if let tab = (arguments["tab"] as? String).flatMap(AdsViewModel.Tab.init) { main.ads.select(tab) }

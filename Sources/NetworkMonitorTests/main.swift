@@ -84,6 +84,7 @@ runAccessibilityTests()
 runKeyboardTests()
 runPopoverHeightTests()
 runPauseAdsTests()
+runRulesTests()
 runAssetCheckTests()
 
 // Last: every test's own settings, gone, files and all (#557).

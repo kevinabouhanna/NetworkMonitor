@@ -350,9 +350,9 @@ public struct AdImport: Identifiable, Equatable {
         let never = rules.filter { $0.kind == .neverBlock && !$0.skipsApp }.count
         let always = rules.filter { $0.kind == .alwaysBlock }.count
         let apps = rules.filter(\.skipsApp).count
-        if never > 0 { lines.append(never == 1 ? L("1 site never blocked") : L("%@ sites never blocked", String(never))) }
+        if never > 0 { lines.append(never == 1 ? L("1 site always allowed") : L("%@ sites always allowed", String(never))) }
         if always > 0 {
-            lines.append(always == 1 ? L("1 site always blocked") : L("%@ sites always blocked", String(always)))
+            lines.append(always == 1 ? L("1 site blocked") : L("%@ sites blocked", String(always)))
         }
         if apps > 0 { lines.append(apps == 1 ? L("1 app not filtered") : L("%@ apps not filtered", String(apps))) }
         let titles = lists.sorted { $0.rawValue < $1.rawValue }.map(\.shownTitle)

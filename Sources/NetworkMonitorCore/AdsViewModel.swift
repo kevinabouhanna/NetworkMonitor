@@ -170,9 +170,10 @@ extension AdRule {
         if skipsApp { return app.map { L("Don't filter %@", $0) } ?? L("Don't filter this app") }
         let site = site ?? ""
         if let app {
-            return kind == .neverBlock ? L("Never block %@ in %@", site, app) : L("Always block %@ in %@", site, app)
+            return kind == .neverBlock ? L("Always allow %@ in %@", site, app) : L("Block %@ in %@", site, app)
         }
-        return kind == .neverBlock ? L("Never block %@", site) : L("Always block %@", site)
+        // The words Connections uses for the same thing (#592).
+        return kind == .neverBlock ? L("Always allow %@", site) : L("Block %@", site)
     }
 }
 
@@ -187,35 +188,24 @@ public final class AdsViewModel: ObservableObject {
         public var id: Date { interval.start }
     }
 
-    /// Overview or the log (#252), at the top of the window. The lists (#254)
-    /// and your rules (#253) are setup, so they're in Ads and Trackers' settings (#436).
+    /// Overview, the log (#252), or your rules (#592), at the top of the
+    /// window. The lists (#254) are setup, so they're in Ads and Trackers'
+    /// settings (#436); your rules are here, as Connections has its own.
     public enum Tab: String, CaseIterable, Identifiable {
-        case overview, log
+        case overview, log, rules
 
         public var id: String { rawValue }
         public var label: String {
             switch self {
             case .overview: return L("Overview")
             case .log:      return L("Log")
+            case .rules:    return L("Rules")
             }
         }
 
-        /// Whether the toolbar shows the period (#311). Only Overview has one:
-        /// the log is the present.
-        public var hasPeriod: Bool { self == .overview }
-    }
-
-    /// The lists or your rules, in Ads and Trackers' settings (#436).
-    public enum SetupTab: String, CaseIterable, Identifiable {
-        case lists, rules
-
-        public var id: String { rawValue }
-        public var label: String {
-            switch self {
-            case .lists: return L("Lists")
-            case .rules: return L("Your Rules")
-            }
-        }
+        /// Whether the toolbar shows the period (#311). The log is the
+        /// present; Overview and Rules, what happened in the period.
+        public var hasPeriod: Bool { self != .log }
     }
 
     /// An app a rule can be for: its key and its name.
@@ -243,7 +233,10 @@ public final class AdsViewModel: ObservableObject {
         didSet { if grouping != oldValue { clearSelection() } }
     }
     public static let layoutKey = "adsLayout"
-    @Published public var setupTab: SetupTab = .lists
+    /// What each of your rules did in the period, for Rules (#592).
+    public let rulesActivity = RulesActivity()
+    /// Connections' own Rules, from the line under these (#592).
+    public var onShowConnectionRules: () -> Void = {}
     @Published public var logShow: AdsLog.Show = .all
     /// The toolbar's search, on Overview and the Log. On Overview, a row
     /// shown only for what's inside it opens to show it (#593).

@@ -496,9 +496,10 @@ func runFilterTests() {
             Check.expectTrue(!ads.isListOn("not-a-list-\(UUID().uuidString)"), "a list that isn't chosen is off")
         }
 
-        // #311: only Overview has a period; Lists counts today's blocks.
-        Check.test("only the Ads window's Overview shows the period") {
-            Check.expectEqual(AdsViewModel.Tab.allCases.filter(\.hasPeriod), [.overview])
+        // #311: the log has no period; Lists counts today's blocks. Rules
+        // says what each did in the period, as Overview does (#592).
+        Check.test("the Ads window's Overview and Rules show the period, not the log") {
+            Check.expectEqual(AdsViewModel.Tab.allCases.filter(\.hasPeriod), [.overview, .rules])
             let today = AdsViewModel.byList([
                 ListBlock(appKey: "a", appName: "A", name: "x.example", list: "ads", count: 4),
                 ListBlock(appKey: "b", appName: "B", name: "y.example", list: "ads", count: 2),

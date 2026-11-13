@@ -615,6 +615,15 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     main.show(.connections)
     shoot("connections-search", settle: 1.5)
     world.connections.search = ""
+    // Your rules, beside Traffic and Blocked, and beside Overview and the
+    // Log, made of the same parts (#592).
+    world.connections.showsRules = true
+    shoot("connections-rules", settle: 2)
+    world.connections.showsRules = false
+    main.show(.ads)
+    world.ads.tab = .rules
+    shoot("ads-rules", settle: 2)
+    world.ads.tab = .overview
     main.show(.network)
     shoot("network")
     main.show(.settings)
@@ -628,13 +637,7 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     for section in MainSection.features {
         main.show(section)
         main.showSettings()
-        world.ads.setupTab = .lists
         shoot("main-\(section.rawValue)-settings")
-        if section == .ads {
-            world.ads.setupTab = .rules
-            shoot("main-ads-settings-rules")
-            world.ads.setupTab = .lists
-        }
     }
     main.windowWillClose()
     main.window.orderOut(nil)
