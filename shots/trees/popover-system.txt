@@ -6,7 +6,7 @@ AXPopover 348
       AXRadioButton (AXTabButton) description="Month" 12x16
     AXButton description="Open Usage History (⌘Y)" identifier="square.grid.#x#" help="Open Usage History (⌘Y)" 28x28
     AXButton description="Settings" identifier="gearshape" help="Settings (⌘,)" 28x28
-    AXButton description="Data, Today, # ‹unit›" help="Data your apps used, on every network · Today" h44
+    AXButton description="Data, Today, # ‹unit›" help="Data your apps used, on every network · Today" h40
     AXButton description="Connections, Today, #" help="Connections: each app talking to a server counts once · Today" h44
     AXButton description="Ads blocked, Today, #" help="Ads, trackers and malware sites blocked · Today" h44
     data: optional

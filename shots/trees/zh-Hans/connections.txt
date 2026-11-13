@@ -16,9 +16,10 @@ AXWindow (AXStandardWindow) title="连接" 1300
         AXRadioButton (AXTabButton) description="应用" 12x16
         AXRadioButton (AXTabButton) description="国家或地区" 12x16
       AXStaticText value="显示" h16
-      AXTabGroup description="显示" 104x24
+      AXTabGroup description="显示" 168x24
         AXRadioButton (AXTabButton) description="流量" 12x16
         AXRadioButton (AXTabButton) description="已阻止" 12x16
+        AXRadioButton (AXTabButton) description="规则（#）" h16
       AXTabGroup description="网络" 148x24
         AXRadioButton (AXTabButton) description="全部" 12x16
         AXRadioButton (AXTabButton) description="Wi-Fi" 12x16
@@ -29,10 +30,10 @@ AXWindow (AXStandardWindow) title="连接" 1300
       AXStaticText value="·" h16
       AXStaticText value="# 个公司 · # 个国家或地区 · # 个应用 · # 个服务器" h16
       data: AXUnknown
-      AXStaticText value="‹time›时" h12
-      AXStaticText value="‹time›时" h12
-      AXStaticText value="‹time›时" h12
-      AXScrollArea
+      AXStaticText value="#时" h12
+      AXStaticText value="#时" h12
+      AXStaticText value="#时" h12
+      AXScrollArea description="公司"
         data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
       AXButton description="缩小" help="缩小" 12x12
       AXButton description="放大" help="放大" 12x12
@@ -61,7 +62,7 @@ AXWindow (AXStandardWindow) title="连接" 1300
         AXButton (AXSegment) description="今天" help="回到当前" 48x36
         AXButton (AXSegment) description="下一个" help="下一个（⌘→）" 36x36
     AXGroup help="搜索公司、应用、国家或地区和地址（⌘F）" h52
-      AXButton (AXSearchField) description="搜索" 40x40
+      AXButton (AXSearchField) description="搜索" help="搜索公司、应用、国家或地区和地址（⌘F）" 40x40
     AXButton description="设置" help="“连接”的设置" 40x52
   AXButton (AXCloseButton) 16x16
   AXButton (AXFullScreenButton) help="此按钮也可以执行缩放窗口的操作" 16x16

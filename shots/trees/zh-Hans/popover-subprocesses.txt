@@ -6,7 +6,7 @@ AXPopover 348
       AXRadioButton (AXTabButton) description="月" 12x16
     AXButton description="打开流量历史（⌘Y）" identifier="square.grid.#x#" help="打开流量历史（⌘Y）" 28x28
     AXButton description="设置" identifier="gearshape" help="设置（⌘,）" 28x28
-    AXButton description="数据，今天，# ‹unit›" help="你的应用在所有网络上使用的数据量 · 今天" h44
+    AXButton description="数据，今天，# ‹unit›" help="你的应用在所有网络上使用的数据量 · 今天" h40
     AXButton description="连接，今天，#" help="连接：一个应用与一台服务器通信计为一次 · 今天" h44
     AXButton description="已拦截，今天，#" help="已拦截的广告、跟踪器和恶意网站 · 今天" h44
     data: optional

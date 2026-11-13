@@ -16,9 +16,10 @@ AXWindow (AXStandardWindow) title="Connections" 1300
         AXRadioButton (AXTabButton) description="Apps" 12x16
         AXRadioButton (AXTabButton) description="Countries" 12x16
       AXStaticText value="Show" h16
-      AXTabGroup description="Show" 124x24
+      AXTabGroup description="Show" 192x24
         AXRadioButton (AXTabButton) description="Traffic" 12x16
         AXRadioButton (AXTabButton) description="Blocked" 12x16
+        AXRadioButton (AXTabButton) description="Rules (#)" h16
       AXTabGroup description="Networks" 164x24
         AXRadioButton (AXTabButton) description="All" 12x16
         AXRadioButton (AXTabButton) description="Wi-Fi" 12x16
@@ -32,8 +33,8 @@ AXWindow (AXStandardWindow) title="Connections" 1300
       AXStaticText value="‹time›" h12
       AXStaticText value="‹time›" h12
       AXStaticText value="‹time›" h12
-      AXScrollArea
-        data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+      AXScrollArea description="Companies"
+        data: AXButton AXImage AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
       AXButton description="Zoom out" help="Zoom out" 12x12
       AXButton description="Zoom in" help="Zoom in" 12x12
       AXButton description="The whole world" help="The whole world" 12x12
@@ -61,7 +62,7 @@ AXWindow (AXStandardWindow) title="Connections" 1300
         AXButton (AXSegment) description="Today" help="Back to the present" 60x36
         AXButton (AXSegment) description="Next" help="Next (⌘→)" 36x36
     AXGroup help="Search companies, apps, countries and addresses (⌘F)" h52
-      AXButton (AXSearchField) description="Search" 36x40
+      AXButton (AXSearchField) description="Search" help="Search companies, apps, countries and addresses (⌘F)" 40x40
     AXButton description="Settings" help="Settings for Connections" 40x52
   AXButton (AXCloseButton) 16x16
   AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16

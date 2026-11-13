@@ -11,21 +11,22 @@ AXWindow (AXStandardWindow) title="Connections Settings" 1300x800
     AXSplitter value="#" h748
     AXGroup (AXHostingView) h748
       AXScrollArea h748
-        AXScrollArea h692
+        AXScrollArea h664
           AXGroup h52
             AXStaticText value="# companies today, Which companies, countries and servers your apps talk to, on a list and a world map" h32
             AXButton description="Open Connections…" help="Also ⌘K, and Companies in the popover" 148x24
           AXHeading description="Blocking" 56x16
-          AXGroup h120
+          AXGroup h92
             AXStaticText value="Let apps connect" h16
             AXRadioGroup description="Let apps connect" 416x24
               AXRadioButton (AXSegment) description="Anywhere" 140x24
               AXRadioButton (AXSegment) description="Ask Me" 140x24
               AXRadioButton (AXSegment) description="Only Where I Allow" 140x24
-            AXStaticText value="Right-click a company, app, country or server in Connections to block it, or to always allow it." h16
-            AXStaticText value="Rules" h16
-            AXButton description="Export…" 76x24
+            AXStaticText value="Your rules" h16
+            AXStaticText value="# rules" h16
+            AXButton description="Show Rules…" help="Your rules, in Connections, with what each did" 104x24
             AXButton description="Import…" 76x24
+            AXButton description="Export…" 76x24
           AXStaticText value="Everything connects except what you block. A rule applies from an app's next connection: one already open carries on until it closes." h28
           AXHeading description="Lookups" 52x16
           AXGroup h76

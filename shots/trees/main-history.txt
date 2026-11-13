@@ -22,7 +22,7 @@ AXWindow (AXStandardWindow) title="Usage History" 1300
       AXStaticText value="Today" h24
       AXStaticText value="# ‹unit›" h16
       AXStaticText value="used" h16
-      AXScrollArea
+      AXScrollArea description="Apps"
         data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
       data: AXButton AXGroup AXStaticText AXUnknown
   AXToolbar 1300x52
@@ -44,7 +44,7 @@ AXWindow (AXStandardWindow) title="Usage History" 1300
         AXButton (AXSegment) description="Today" help="Back to the present" 60x36
         AXButton (AXSegment) description="Next" help="Next (⌘→)" 36x36
     AXGroup help="Search apps and networks (⌘F)" h52
-      AXButton (AXSearchField) description="Search" 40x40
+      AXButton (AXSearchField) description="Search" help="Search apps and networks (⌘F)" 40x40
     AXButton description="Settings" help="Settings for Usage History" 40x52
   AXButton (AXCloseButton) 16x16
   AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16

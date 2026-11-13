@@ -56,12 +56,15 @@ the numbers change. It updates up to twice a second, less often on battery and i
 Mode (see <a href="../../docs/accuracy-and-battery/#battery">battery</a>). While a speed test runs, the readout
 shows it in cyan, or in another pair of colours if yours come close to cyan, so a test never
 looks like the live rates.</p>
+<p>VoiceOver reads it in words, download first: <em>NetworkMonitor, Download 1.2 megabytes per
+second, upload 30 kilobytes per second</em>, or <em>Speed test: download …</em> while a test shows (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/497">#497</a>).</p>
 <ul>
 <li>
 <strong>Click</strong> it for the popover.</li>
 <li>
 <strong>Right-click</strong> (or Control-click) it for <strong>Test Internet Speed</strong>, the last result,
-<strong>Block Everything</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/198">#198</a>), <strong>Usage History…</strong> (⌘Y), <strong>Connections…</strong> (⌘K), <strong>Ads and
+<strong>Block Everything</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/198">#198</a>), <strong>Pause Ad Blocking</strong> for an hour, until tomorrow or whenever
+on this network, or <strong>Resume Ad Blocking</strong> while it's paused (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/600">#600</a>), <strong>Usage History…</strong> (⌘Y), <strong>Connections…</strong> (⌘K), <strong>Ads and
 Trackers…</strong> (⌘B), <strong>Network…</strong>, <strong>Settings…</strong> (⌘,), <strong>About NetworkMonitor</strong>, <strong>Check for
 Updates…</strong>, <strong>Uninstall NetworkMonitor…</strong> and <strong>Quit</strong>.</li>
 </ul>
@@ -129,9 +132,12 @@ you're curious.</li>
 <strong>Apps</strong>. Each app talking to a server counts once. A company or country opens into its
 apps, an app into its companies.</li>
 <li>
-<strong>Ads blocked</strong> lists the <strong>Sites</strong> or the <strong>Apps</strong>, busiest first. A site opens into the
-apps that tried it, an app into the sites it tried. While ad blocking is off, it offers
-<strong>Turn On</strong>.</li>
+<strong>Ads blocked</strong> opens on a bar that says whether ad blocking is on now, with <strong>Pause</strong>:
+<strong>For 1 Hour</strong>, <strong>Until Tomorrow</strong> or <strong>Whenever on</strong> <em>this network</em>, as in the window. While
+it's paused the bar says until when, with <strong>Resume</strong>; while it's off on this network,
+<strong>Turn On Here</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/600">#600</a>). Under it, the <strong>Sites</strong> or the <strong>Apps</strong>, busiest first. A site
+opens into the apps that tried it, an app into the sites it tried. While ad blocking is
+off, it offers <strong>Turn On</strong>.</li>
 <li>
 <strong>Network</strong> shows the connection the Mac is on, a <strong>This is a hotspot</strong> switch, on every
 network because some phones aren't recognised, and the <a href="../../docs/speed-test/">speed test</a>: the
@@ -148,7 +154,8 @@ period: <strong>Open Usage History</strong> (⌘Y), <strong>Open Connections</st
 <li>on a hotspot with <a href="../../docs/hotspot-mode/">Hotspot mode</a> on, an update that downloaded anyway;</li>
 <li>
 <strong>Everything is blocked</strong>, with <strong>Turn Off</strong>, while Block Everything is on;</li>
-<li>ad blocking paused, or off on this network;</li>
+<li>ad blocking paused, or off on this network: click it for Ads blocked and its
+<strong>Resume</strong>;</li>
 <li>
 <strong>Per-app figures paused</strong>, in grey, if macOS's <code>nettop</code> can't be started.
 NetworkMonitor keeps retrying, and the total keeps counting regardless.</li>
@@ -193,13 +200,14 @@ network or every hotspot at once; export it as CSV. See <a href="../../docs/usag
 servers: grouped by company, app or country, narrowed by clicking, searched, read hour by
 hour on a timeline, and shaded on a world map that pulses to where your apps reach right now. Nothing is looked up
 online. Block a company, app, country, site or server, or have it ask the first time an app
-connects. See <a href="../../docs/connections/">Connections</a>.</p>
+connects; <strong>Rules</strong>, beside Traffic and Blocked, lists every rule with what it did. See
+<a href="../../docs/connections/">Connections</a>.</p>
 <div class="markdown-heading"><h2 id="ads-and-trackers" class="heading-element">Ads and Trackers</h2><a id="ads-and-trackers" class="anchor" aria-label="Permalink: Ads and Trackers" href="#ads-and-trackers"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>One switch blocks ads, trackers and malware sites in every app. <strong>Overview</strong> shows what was
 blocked in the period, on a chart and by site and app, both used as Usage History's are:
 hover or click a bar, choose or open a row (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/536">#536</a>); <strong>Log</strong> shows each connection live,
-as the filter decides it. The lists and your own rules are in its settings. See
-<a href="../../docs/connections/#ads-and-trackers">Ads and Trackers</a>.</p>
+as the filter decides it; <strong>Rules</strong> lists your own, as Connections lists its (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/592">#592</a>). The
+lists are in its settings. See <a href="../../docs/connections/#ads-and-trackers">Ads and Trackers</a>.</p>
 <div class="markdown-heading"><h2 id="speed-test" class="heading-element">Speed test</h2><a id="speed-test" class="anchor" aria-label="Permalink: Speed test" href="#speed-test"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>One click runs a fresh test with the tool built into macOS: download, then upload, then
 ping, jitter, and ping under load, in Mbps or MB/s. If another app was competing for the
@@ -236,17 +244,17 @@ only the gear.</p>
 </tr>
 <tr>
 <td><strong>Connections</strong></td>
-<td>Who your apps talked to, on a list and a map, or what was blocked</td>
-<td>Website names, Turn On… while they're off · Let apps connect, every rule you've made, Export… and Import… · Encrypt lookups · Opens with List, Both or Map · Where the names come from, and Update them monthly</td>
+<td>Who your apps talked to, on a list and a map, or what was blocked · Rules: every rule you've made, with what each did</td>
+<td>Website names, Turn On… while they're off · Let apps connect · Your rules: Show Rules…, Import… and Export… · Encrypt lookups · Opens with List, Both or Map · Where the names come from, and Update them monthly</td>
 </tr>
 <tr>
 <td><strong>Ads and Trackers</strong></td>
-<td>Overview: the period, a chart, sites or apps · Log: each connection as the filter decides it</td>
-<td>Block ads and trackers · Update the lists weekly · Lists · Your Rules</td>
+<td>Overview: the period, a chart, sites or apps · Log: each connection as the filter decides it · Rules: your own, with what each did</td>
+<td>Block ads and trackers · Update the lists weekly · Your rules: Show Rules…, Import… and Export… · Lists</td>
 </tr>
 <tr>
 <td><strong>Network</strong></td>
-<td>The connection you're on · This is a hotspot, and what it's detected as Right now · Stop apps updating on hotspots, what's paused and what can't be paused · the speed test</td>
+<td>The connection you're on · This is a hotspot, and what it's detected as Right now · Traffic through a proxy or VPN, counted for each app (<a href="../../docs/accuracy-and-battery/#through-a-proxy-or-a-vpn">how</a>) · Stop apps updating on hotspots, what's paused and what can't be paused · the speed test</td>
 <td>Show the test in the popover as Card or Compact</td>
 </tr>
 </tbody>
@@ -294,7 +302,7 @@ login, and turning that off doesn't quit the running app.</li>
 hides, and the main window stays in front.</li>
 </ul>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/features.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/645a8daf031376b7f9ed08794d37638665028c96"><code>645a8da</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/features.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/c9fb337b971ad0b92662c68b5d5a717d584428a7"><code>c9fb337</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>
