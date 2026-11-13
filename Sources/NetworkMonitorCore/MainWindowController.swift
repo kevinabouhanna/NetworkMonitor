@@ -228,6 +228,14 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
     private func use(_ toolbar: NSToolbar) {
         // The same toolbar set again would be laid out again, a flicker (#399).
         if window.toolbar !== toolbar { window.toolbar = toolbar }
+        nameAppKitItems()
+        // Once the toolbar is laid out: the search's glass is made then.
+        DispatchQueue.main.async { [weak self] in self?.nameAppKitItems() }
+    }
+
+    /// The sidebar's button and the search's glass, in the language shown (#621).
+    private func nameAppKitItems() {
+        AppKitToolbarNames.name(window.toolbar)
     }
 
     /// Hides or shows the sidebar, sliding as AppKit slides it: the
@@ -385,6 +393,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
             item.label = target
             item.toolTip = L("Back to %@", target)
         }
+        nameAppKitItems()
     }
 
     @objc private func goBack() { closeSettings() }

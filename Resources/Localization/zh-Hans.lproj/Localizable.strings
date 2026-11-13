@@ -892,6 +892,7 @@
 "“%@”" = "“%@”";
 "Hide Sidebar" = "隐藏边栏";
 "Show Sidebar" = "显示边栏";
+"Sidebar" = "边栏";
 "Network…" = "网络…";
 "Open Usage History (⌘Y)" = "打开流量历史（⌘Y）";
 "Open Connections (⌘K)" = "打开“连接”（⌘K）";
