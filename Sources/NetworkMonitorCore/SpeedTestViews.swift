@@ -80,6 +80,9 @@ enum SpeedTestPalette {
 /// at the moment the user is reading it.
 struct SpeedTestCard: View {
     @ObservedObject var speedTest: SpeedTestController
+    /// The popover's views' height (#599), at least `speedCardHeight`: the
+    /// buttons stay at the bottom, the space above them is the dial's.
+    var height: CGFloat = PopoverMetrics.speedCardHeight
 
     var body: some View {
         VStack(spacing: 0) {
@@ -113,7 +116,7 @@ struct SpeedTestCard: View {
         .padding(.top, 10)
         .padding(.bottom, 12)
         .padding(.horizontal, 14)
-        .frame(height: PopoverMetrics.speedCardHeight)
+        .frame(height: height)
     }
 
     private func confirming(_ estimate: Int64?) -> some View {
