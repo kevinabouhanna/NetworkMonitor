@@ -44,7 +44,7 @@ import sys
 import time
 import unicodedata
 
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -770,6 +770,11 @@ def gh_call(args: list[str], stdin: str | None = None, retry: bool = True) -> di
             problem = (said.splitlines() or ["no answer"])[-1]
             if slow:
                 time.sleep(20 * wait)
+            elif NEVER_SENT.search(said):
+                # The connection never opened, so nothing was written: safe to try again.
+                if attempt < 4:
+                    time.sleep(wait * attempt)
+                continue
         if not retry:
             fail(f"GitHub didn't confirm a change ({problem}). Look, then run it again: "
                  "it picks up where it stopped")
@@ -777,6 +782,10 @@ def gh_call(args: list[str], stdin: str | None = None, retry: bool = True) -> di
             time.sleep(wait * attempt)
     fail(f"couldn't reach GitHub: {problem}")
     return {}
+
+
+# What gh says when it never reached GitHub: a write can be tried again.
+NEVER_SENT = re.compile(r"dial tcp|no such host|connection refused|TLS handshake timeout|network is unreachable")
 
 
 def gh_graphql(query: str, variables: dict | None = None, retry: bool = True) -> dict:
@@ -1403,14 +1412,7 @@ class Changes:
                 except SystemExit as e:
                     print(f"docs-kit plan: couldn't pin #{i['number']} ({str(e).removeprefix('docs-kit: ')}); "
                           "pin it on its page on GitHub")
-        adds = [p.issues[n] for n in self.adds]
-        for start in range(0, len(adds), 20):
-            chunk = adds[start:start + 20]
-            done = gh_graphql("mutation { " + " ".join(
-                f"a{k}: addProjectV2ItemById(input: {{ projectId: {q(p.board_id)}, contentId: {q(i['id'])} }}) "
-                "{ item { id } }" for k, i in enumerate(chunk)) + " }")
-            for k, i in enumerate(chunk):
-                i["item"] = done[f"a{k}"]["item"]["id"]
+        self.add_to_board([p.issues[n] for n in self.adds])
         ops = []
         for number, key, value in self.values:
             i = p.issues[number]
@@ -1430,6 +1432,41 @@ class Changes:
                 literal = f"{{ text: {q(str(value))} }}"
             ops.append(f"updateProjectV2ItemFieldValue(input: {{ {head}, value: {literal} }}) {{ clientMutationId }}")
         self.batch(ops)
+
+    def add_to_board(self, issues: list[dict]) -> None:
+        """Each issue on the board. A board may add new issues by itself (its auto-add
+        workflow) between reading and adding, and GitHub refuses an issue it already
+        has: find those first, and again after a refusal."""
+        p = self.plan
+        for _ in range(3):
+            for start in range(0, len(issues), 50):
+                chunk = issues[start:start + 50]
+                found = gh_graphql("query { nodes(ids: [" + ", ".join(q(i["id"]) for i in chunk) + "]) { ... on Issue "
+                                   "{ number projectItems(first: 20) { nodes { id project { number owner { ... on User "
+                                   "{ login } ... on Organization { login } } } } } } } }").get("nodes") or []
+                for node in found:
+                    item = next((x for x in (node or {}).get("projectItems", {}).get("nodes", [])
+                                 if x["project"]["number"] == p.board_number
+                                 and (x["project"].get("owner") or {}).get("login", "").lower()
+                                 == p.board_owner.lower()), None)
+                    if item:
+                        p.issues[node["number"]]["item"] = item["id"]
+            missing = [i for i in issues if not i["item"] or i["item"] == "new"]
+            if not missing:
+                return
+            try:
+                for start in range(0, len(missing), 20):
+                    chunk = missing[start:start + 20]
+                    done = gh_graphql("mutation { " + " ".join(
+                        f"a{k}: addProjectV2ItemById(input: {{ projectId: {q(p.board_id)}, contentId: {q(i['id'])} }}) "
+                        "{ item { id } }" for k, i in enumerate(chunk)) + " }")
+                    for k, i in enumerate(chunk):
+                        i["item"] = done[f"a{k}"]["item"]["id"]
+                return
+            except SystemExit as e:
+                if "already exists" not in str(e):
+                    raise
+        fail("couldn't put the plan's issues on the board: run it again")
 
     @staticmethod
     def batch(ops: list[str]) -> None:
