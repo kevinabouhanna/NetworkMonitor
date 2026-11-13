@@ -32,6 +32,12 @@ jobs:
         run: |
           notes="ReleaseNotes/${{ steps.version.outputs.value }}.md"
           test -s "$notes" || { echo "$notes is missing: write the What's new before tagging" >&2; exit 1; }
+          # Each language's copy too (#640): ReleaseNotes/<code>/X.Y.Z.md.
+          for folder in ReleaseNotes/*/; do
+            [ -d "$folder" ] || continue
+            copy="${folder}${{ steps.version.outputs.value }}.md"
+            test -s "$copy" || { echo "$copy is missing: write the What's new in $(basename "$folder") too" >&2; exit 1; }
+          done
 
       # A tagged commit that fails its tests should not become a release.
       - name: Test
@@ -156,6 +162,14 @@ jobs:
           NOTE
           { echo; echo "### What's new in ${{ steps.version.outputs.value }}"; echo
             cat "ReleaseNotes/${{ steps.version.outputs.value }}.md"; echo; } >> release-notes.md
+          # Then each language's copy, under the language's own name (#640).
+          for folder in ReleaseNotes/*/; do
+            [ -d "$folder" ] || continue
+            code="$(basename "$folder")"
+            name="$(python3 -c 'import json, sys; print(json.load(open(".product-kit.json"))["languages"][sys.argv[1]]["name"])' "$code")"
+            { echo "### ${name}"; echo
+              cat "${folder}${{ steps.version.outputs.value }}.md"; echo; } >> release-notes.md
+          done
 
       - name: Publish the release
         env:

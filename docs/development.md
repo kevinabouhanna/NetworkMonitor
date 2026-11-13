@@ -362,6 +362,14 @@ are kept apart differently:
    everything older, so a reader several versions behind sees each version they missed
    (#163). The workflow puts this version's file alone in the release notes, under
    **What's new in X.Y.Z**. A tag without it fails in the first seconds.
+
+   Each language has its own copy, `ReleaseNotes/zh-Hans/X.Y.Z.md`, written in the same pull
+   request, a point for each English point (`product-kit notes --check X.Y.Z` checks). The
+   appcast carries one `<description>` per language, each with its `xml:lang`, and Sparkle
+   shows the one in the app's language, the Mac's or the one chosen in Settings (#640). In
+   the Chinese one, an older version with no Chinese copy shows in English. The release
+   notes put the Chinese under the English, headed **简体中文**. A tag without the copy fails
+   with the English.
 2. Check GitHub can run it: `gh-actions can-run` (seconds; the shared-mac plugin). It reads the
    account's Actions billing, or dispatches `.github/workflows/canary.yml`, a no-op job a billing
    block stops within seconds; the answer is kept an hour. If it says no, stop and tell Kevin:

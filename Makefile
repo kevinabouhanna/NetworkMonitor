@@ -12,11 +12,13 @@ build:
 # through the product-kit plugin, reads .product-kit.json).
 # Then the asset check's own cases, on made-up pages: where it finds media (#425).
 # Then that .claude/ci.conf.sh, the CI `local-ci` runs, names and defines both jobs (#490).
+# Then the appcast's notes in every language, on made-up notes (#640).
 test: build/site-shots
 	@./Scripts/swiftpm.sh run NetworkMonitorTests
 	@python3 -I Scripts/lang-kit strings
 	@build/site-shots coverage-test
 	@./Scripts/tests/ci-conf-test.sh
+	@./Scripts/tests/appcast-test.sh
 
 # Points git at Scripts/hooks, so pre-push runs the suite before anything
 # reaches the remote. Run once per clone. Hooks are version-controlled this way

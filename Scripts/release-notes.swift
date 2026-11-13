@@ -7,19 +7,31 @@
 // That runs in the copy already installed, so it works from 1.15 on, which
 // Markdown notes, trimmed by the app's own code, wouldn't.
 //
-// Usage: swift Scripts/release-notes.swift <version> <build>
+// Usage: swift Scripts/release-notes.swift <version> <build> [<language>]
 //
 // Reads ReleaseNotes/<version>.md for each version up to <version>. An earlier
 // version's build is its tag's commit count, which is what bundle.sh stamps.
+//
+// With a language (#640), its copy instead: ReleaseNotes/<language>/<version>.md,
+// which this version must have. An older version without one shows in English,
+// as everyone saw it then. The appcast carries one of these per language, and
+// Sparkle shows the one in the app's language.
 
 import Foundation
 
 let arguments = CommandLine.arguments
-guard arguments.count == 3, let currentBuild = Int(arguments[2]) else {
-    FileHandle.standardError.write(Data("usage: release-notes.swift <version> <build>\n".utf8))
+guard (3...4).contains(arguments.count), let currentBuild = Int(arguments[2]) else {
+    FileHandle.standardError.write(Data("usage: release-notes.swift <version> <build> [<language>]\n".utf8))
     exit(64)
 }
 let current = arguments[1]
+let language = arguments.count == 4 ? arguments[3] : nil
+/// Each language's word for the versions' headings.
+let versionWord = ["zh-Hans": "版本"]
+if let language, versionWord[language] == nil {
+    FileHandle.standardError.write(Data("error: no heading for \(language): add its word for Version to versionWord\n".utf8))
+    exit(1)
+}
 let repository = "https://github.com/kevinabouhanna/NetworkMonitor"
 /// Enough for anyone who updates now and then; older readers see these ten.
 let shown = 10
@@ -129,16 +141,31 @@ guard versions.first == current else {
     exit(1)
 }
 
+/// The version's notes in the language asked for, or in English when an older
+/// version has no copy in it, and the language they're in.
+func notes(for version: String) -> (text: String, language: String)? {
+    if let language,
+       let text = try? String(contentsOf: directory.appendingPathComponent("\(language)/\(version).md"), encoding: .utf8) {
+        return (text, language)
+    }
+    if let language, version == current {
+        FileHandle.standardError.write(Data("error: ReleaseNotes/\(language)/\(current).md is missing\n".utf8))
+        exit(1)
+    }
+    return (try? String(contentsOf: directory.appendingPathComponent("\(version).md"), encoding: .utf8)).map { ($0, "en") }
+}
+
 var sections: [String] = []
 for version in versions {
     guard sections.count < shown else { break }
     // A file for a version that was never tagged has no build to match.
     guard let build = version == current ? currentBuild : commitCount(atTag: "v\(version)") else { continue }
-    let notes = (try? String(contentsOf: directory.appendingPathComponent("\(version).md"), encoding: .utf8)) ?? ""
+    let (text, written) = notes(for: version) ?? ("", "en")
+    // Its language on each version, so a Chinese copy's English versions are read as English.
     sections.append("""
-        <div data-sparkle-version="\(build)">
-        <h3>Version \(version)</h3>
-        \(html(notes))
+        <div data-sparkle-version="\(build)" lang="\(written)">
+        <h3>\(language.flatMap { versionWord[$0] } ?? "Version") \(version)</h3>
+        \(html(text))
         </div>
         """)
 }
