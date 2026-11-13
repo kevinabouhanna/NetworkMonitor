@@ -9,7 +9,6 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
-| 1 | #643 Release 1.31.0: everything merged since 1.30.2 | [Phase 5: Releases people check first](05-releases.md) |
 | 2 | #256 Enhanced ad blocking: an opt-in switch that removes ads inside pages and videos in every app | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 
