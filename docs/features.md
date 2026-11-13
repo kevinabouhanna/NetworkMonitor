@@ -137,15 +137,16 @@ Which companies your apps send data to, from which apps, in which countries, and
 servers: grouped by company, app or country, narrowed by clicking, searched, read hour by
 hour on a timeline, and shaded on a world map that pulses to where your apps reach right now. Nothing is looked up
 online. Block a company, app, country, site or server, or have it ask the first time an app
-connects. See [Connections](connections.md).
+connects; **Rules**, beside Traffic and Blocked, lists every rule with what it did. See
+[Connections](connections.md).
 
 ## Ads and Trackers
 
 One switch blocks ads, trackers and malware sites in every app. **Overview** shows what was
 blocked in the period, on a chart and by site and app, both used as Usage History's are:
 hover or click a bar, choose or open a row (#536); **Log** shows each connection live,
-as the filter decides it. The lists and your own rules are in its settings. See
-[Ads and Trackers](connections.md#ads-and-trackers).
+as the filter decides it; **Rules** lists your own, as Connections lists its (#592). The
+lists are in its settings. See [Ads and Trackers](connections.md#ads-and-trackers).
 
 ## Speed test
 
@@ -177,8 +178,8 @@ only the gear.
 | Section | What's in it | Behind its gear |
 |---|---|---|
 | **Usage History** | The period's use by network type, then its apps, networks or sessions · Export CSV… | Keep history for · Clear History… |
-| **Connections** | Who your apps talked to, on a list and a map, or what was blocked | Website names, Turn On… while they're off · Let apps connect, every rule you've made, Export… and Import… · Encrypt lookups · Opens with List, Both or Map · Where the names come from, and Update them monthly |
-| **Ads and Trackers** | Overview: the period, a chart, sites or apps · Log: each connection as the filter decides it | Block ads and trackers · Update the lists weekly · Lists · Your Rules |
+| **Connections** | Who your apps talked to, on a list and a map, or what was blocked · Rules: every rule you've made, with what each did | Website names, Turn On… while they're off · Let apps connect · Your rules: Show Rules…, Import… and Export… · Encrypt lookups · Opens with List, Both or Map · Where the names come from, and Update them monthly |
+| **Ads and Trackers** | Overview: the period, a chart, sites or apps · Log: each connection as the filter decides it · Rules: your own, with what each did | Block ads and trackers · Update the lists weekly · Your rules: Show Rules…, Import… and Export… · Lists |
 | **Network** | The connection you're on · This is a hotspot, and what it's detected as Right now · Traffic through a proxy or VPN, counted for each app ([how](accuracy-and-battery.md#through-a-proxy-or-a-vpn)) · Stop apps updating on hotspots, what's paused and what can't be paused · the speed test | Show the test in the popover as Card or Compact |
 
 ## Settings

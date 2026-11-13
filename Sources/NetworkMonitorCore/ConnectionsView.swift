@@ -28,18 +28,23 @@ public struct ConnectionsView: View {
                     WebsiteNamesOffer(filter: model.filter) { model.offersWebsiteNames = false }
                 }
                 scopeBar
-                header
-                ConnectionsTimeline(model: model)
-                switch shownLayout(width: geometry.size.width) {
-                case .list:
-                    list
-                case .map:
-                    ConnectionsMap(model: model)
-                case .both:
-                    SideBySide { list } detail: { ConnectionsMap(model: model) }
+                if model.showsRules {
+                    // Your rules (#592), in place of what was recorded.
+                    ConnectionsRulesView(model: model)
+                } else {
+                    header
+                    ConnectionsTimeline(model: model)
+                    switch shownLayout(width: geometry.size.width) {
+                    case .list:
+                        list
+                    case .map:
+                        ConnectionsMap(model: model)
+                    case .both:
+                        SideBySide { list } detail: { ConnectionsMap(model: model) }
+                    }
+                    Divider()
+                    footer
                 }
-                Divider()
-                footer
             }
             .padding(.horizontal, ScopeMetrics.inset)
             .padding(.top, ScopeMetrics.top)
@@ -76,22 +81,37 @@ public struct ConnectionsView: View {
     /// (`ConnectionsWindowController`).
     private var scopeBar: some View {
         HStack(spacing: 10) {
-            LabelledControl(L("Group by")) {
-                GlassSegmented(name: L("Group by"), options: ConnectionsGrouping.allCases,
-                               selection: Binding(get: { model.grouping }, set: { model.grouping = $0 }),
-                               label: { $0.label }, size: .small,
-                               help: L("Group the list by company, app or country. A row inside a group narrows the window to it."))
-            }
-            // What was blocked (#114), once there's a filter to block anything.
-            if model.filter.state != .unavailable {
-                LabelledControl(L("Show")) {
-                    GlassSegmented(name: L("Show"), options: [ServerMeasure.bytes, .blocked],
-                                   selection: Binding(get: { model.measure }, set: { model.measure = $0 }),
-                                   label: { $0 == .bytes ? L("Traffic") : L("Blocked") }, size: .small,
-                                   help: L("What your apps sent and received, or the connections that were blocked"))
+            // Rules aren't grouped (#592).
+            if !model.showsRules {
+                LabelledControl(L("Group by")) {
+                    GlassSegmented(name: L("Group by"), options: ConnectionsGrouping.allCases,
+                                   selection: Binding(get: { model.grouping }, set: { model.grouping = $0 }),
+                                   label: { $0.label }, size: .small,
+                                   help: L("Group the list by company, app or country. A row inside a group narrows the window to it."))
                 }
             }
-            if model.spanTitle != nil || !model.chips.isEmpty || !query.isEmpty {
+            // What was blocked (#114), once there's a filter to block anything,
+            // and your rules, with how many (#592).
+            if model.filter.state != .unavailable {
+                LabelledControl(L("Show")) {
+                    GlassSegmented(name: L("Show"), options: [ConnectionsShow.traffic, .blocked, .rules],
+                                   selection: Binding(get: { model.show }, set: { model.show = $0 }),
+                                   label: { show in
+                                       switch show {
+                                       case .traffic: return L("Traffic")
+                                       case .blocked: return L("Blocked")
+                                       case .rules:   return L("Rules (%@)", String(firewall.rules.count))
+                                       }
+                                   }, size: .small,
+                                   help: L("What your apps sent and received, the connections that were blocked, or your rules"))
+                }
+            }
+            if model.showsRules {
+                if !query.isEmpty {
+                    Divider().frame(height: 16)
+                    FilterChip(label: L("“%@”", query), onClear: { model.search = "" })
+                }
+            } else if model.spanTitle != nil || !model.chips.isEmpty || !query.isEmpty {
                 Divider().frame(height: 16)
                 HStack(spacing: 6) {
                     // The toolbar's search, as a filter like the others (#436).

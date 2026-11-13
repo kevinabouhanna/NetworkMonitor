@@ -154,6 +154,15 @@ public final class ConnectionsWindowController: NSObject, NSToolbarDelegate {
         stepControl.setEnabled(model.canStepForward, forSegment: 2)
         search.show(model.search)
         search.fitGlass()
+        // The View chooses the list or the map, which Rules has neither of
+        // (#592).
+        for item in toolbar.items where item.itemIdentifier == Self.layoutItem {
+            if #available(macOS 15, *) {
+                item.isHidden = model.showsRules
+            } else {
+                item.view?.isHidden = model.showsRules
+            }
+        }
     }
 
     @objc private func layoutChosen(_ sender: NSSegmentedControl) {

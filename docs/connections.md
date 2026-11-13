@@ -138,8 +138,29 @@ Servers list shows names, with the address underneath.
 ## Blocking
 
 Right-click a company, app, country or server in Connections and choose
-**Block**, **Block on Hotspots** or **Always Allow** (#114). The row says so beside its name,
-and Connections' settings list every rule, each with a button to take it back.
+**Block**, **Block on Hotspots** or **Always Allow** (#114). The row says so beside its name.
+
+**Rules** (#592), beside Traffic and Blocked under **Show**, with how many there are, lists
+every rule you've made, whatever the list is grouped by and whether or not the rule caught
+anything:
+
+- **Grouped by what each does:** Blocked, Blocked on hotspots, Always allowed. Each rule
+  says what it's about (a company, an app, a country, a server or a site), the one app or
+  network it's for when it's for one, and what it did in the period: *Stopped 52 times*,
+  *94.9 MB let through*, or *Not used*. A block counts every connection stopped to what it
+  covers, as Blocked does; an allow, what went through to it.
+- **Three controls on each, and nothing hidden behind a click on the row:** what the rule
+  does, as a menu that changes it (Block, Block on Hotspots, Always Allow); **Show**, which
+  goes to Traffic, or to Blocked for a block, narrowed to what the rule covers; and **−**,
+  which removes it.
+- **Add a site** in the bar above: type it, or paste an address (`https://ads.example.com/x`,
+  `*.example.com`), choose every app or one, and **Block** or **Always Allow**. A rule for a
+  site covers every name under it.
+- The period and All, Wi-Fi or Hotspot still apply, since they set what each rule did; the
+  toolbar's search finds a rule by what it's about, its app or its network. Group by, the
+  timeline and the map are for Traffic and Blocked, so they hide.
+- Under the list, Ads and Trackers' own rules are a click away, as Connections' are from
+  there.
 
 - **A server with a name is ruled by name** (#197), since a CDN moves a name from address to
   address. Each choice opens onto the name itself or its whole site: *stats.wp.com*, or
@@ -165,8 +186,8 @@ and Connections' settings list every rule, each with a button to take it back.
   setting instead. What it stopped shows under Blocked.
 - **Never blocked:** the local network, looking up names (DNS), the clock, and getting an
   address. Without them nothing else works.
-- **Export… and Import…** beside the rules in Connections' settings (#201) save every rule
-  to a JSON file, for a backup or another Mac. Import adds the rules that aren't there yet,
+- **Import… and Export…** in Connections' settings, beside **Show Rules…** (#201), save
+  every rule to a JSON file, for a backup or another Mac. Import adds the rules that aren't there yet,
   never replaces one that is, and says how many it added.
 - **Block Everything,** in the menu bar item's right-click menu (#198), stops every app's
   new connections at once, Apple's included and whatever your rules allow, until you
@@ -190,9 +211,9 @@ and Connections' settings list every rule, each with a button to take it back.
 ## Ads and trackers
 
 **Block ads and trackers** (#176) blocks, in every app, the sites on two lists. Ad blocking
-is a section of its own in the main window, **Ads and Trackers**, and its settings, behind
-the gear in its toolbar, hold the switch, **Update the lists weekly**, and **Lists** and
-**Your Rules**.
+is a section of its own in the main window, **Ads and Trackers**, with **Overview**, **Log**
+and **Rules**; its settings, behind the gear in its toolbar, hold the switch, **Update the
+lists weekly**, bringing rules over and saving them, and **Lists**.
 
 | List | What it holds | From | Licence |
 |---|---|---|---|
@@ -215,7 +236,7 @@ the gear in its toolbar, hold the switch, **Update the lists weekly**, and **Lis
   an alias of a listed tracker, as the answer to the Mac's lookup says, is blocked as that
   tracker. The answers are read, never changed, over UDP or TCP, and an alias is kept as
   long as its answer says, up to a day. Your rules meet an alias as they meet the name
-  (#321): *always block* `omtrdc.net` stops `metrics.example.com` too, and *never block*
+  (#321): *block* `omtrdc.net` stops `metrics.example.com` too, and *always allow*
   for every app or one keeps an alias from counting for the ad lists. Lookups an app
   encrypts itself, such as Chrome's Secure DNS, can't be read.
 - **Connections tags each listed server** ADS or MALWARE, whether the lists are on or
@@ -269,7 +290,7 @@ and the toolbar's search (⌘F) covers both.
     bar's count for it. On a row inside one, it shows only that site in that app. Its
     button then reads **Filtered ✕**; that, its chip, or Escape (after a picked bar's)
     lets it go.
-  - **Right-click** a row, as in the Log: never or always block its site, in every app or
+  - **Right-click** a row, as in the Log: block or always allow its site, in every app or
     only its app, stop filtering its app, remove a rule you made about it, or copy its
     name.
   - **The keyboard**, as in Usage History and Connections: Tab reaches the list as one
@@ -281,14 +302,14 @@ and the toolbar's search (⌘F) covers both.
   popover's **Ads blocked** and the menu bar's right-click menu pause and resume it too
   (#600): one setting, so all three always agree.
   **Whenever on** *this network* (#253) turns ad blocking off on the network the Mac is on,
-  by the router's identity as History knows it, every time it's there; Your Rules lists
+  by the router's identity as History knows it, every time it's there; Rules lists
   those networks, and **Turn On Here** undoes it.
 
 **Log** (#252), beside Overview: every connection the filter decides, live,
 newest first, with the time, the app, the site (or its address, marked **No Name** when
 nothing named it), Blocked or Let through, and why in plain words (*On the ads and trackers
-list*, *Your rule: never block example.com*, *Let through, though it's on a list*). Show
-All, Blocked, On a List or No Name, and search. Right-click a row to never or always block
+list*, *Your rule: always allow example.com*, *Let through, though it's on a list*). Show
+All, Blocked, On a List or No Name, and search. Right-click a row to block or always allow
 its name or its whole site, in every app or only that one, to stop filtering its app, or to
 remove a rule you made. **Pause**
 holds the list still, **Clear** empties it, and **Export…** saves what's shown as text. It
@@ -334,35 +355,46 @@ today (#311).
 - **They block only alongside a built-in list**, after it: a site on StevenBlack's list counts
   as *Ads and trackers*. The Overview and the Log name the list that blocked each connection,
   so one that blocks too much can be found and switched off.
-- **Import…** under Your Rules switches on the lists a uBlock Origin backup or AdGuard's
+- **Import…** in Ads and Trackers' settings switches on the lists a uBlock Origin backup or AdGuard's
   settings had that are here (Peter Lowe's, EasyPrivacy, AdGuard DNS filter), and adds the
   ones they had by address.
 
-**Your Rules** (#253), beside Lists in Ads and Trackers' settings: your own say over what the lists do.
+**Rules** (#253, #592), beside Overview and the Log: your own say over what the lists do,
+laid out as Connections' Rules are, with the same words for the same thing.
 
-- **Never block** a site, and every name under it: it goes through though a list has it.
-- **Always block** a site that no list has.
+- **Always Allow** a site, and every name under it: it goes through though a list has it.
+  (It was called *Never Block* before.)
+- **Block** a site that no list has. (It was *Always Block*.)
 - Either for **every app** or **one app**, from the menu beside the site. One app's rule
   follows its signature, as firewall rules do (#320): a program at that path signed by
   another team isn't the app, so it doesn't inherit *don't filter*.
-- **Don't filter an app**: the ad and tracker lists leave all its connections alone, for an
+- **Don't Filter an App…**: the ad and tracker lists leave all its connections alone, for an
   app that breaks.
-- **Malware lists still apply** (#317): *never block* and *don't filter* change what the ad,
+- **Grouped by what each does:** Blocked, Always allowed, Apps not filtered, and the
+  Networks where ad blocking is off. Each says what it did in the period: *Stopped 7 times*
+  for a block, what went through for a site always allowed or an app not filtered, or *Not
+  used*. Each has the same three controls as Connections' rules: what it does, as a menu
+  (Block or Always Allow); **Show**, which goes to the Overview for a site it blocks and to
+  the Log for one it lets through; and **−**.
+- **Malware lists still apply** (#317): *Always Allow* and *don't filter* change what the ad,
   tracker and pop-up lists do, and the built-in malware list and the downloaded ones in
   *Malware and phishing* block whatever they say. To let such a site through anyway, Always
-  Allow it in Connections. The Overview doesn't offer *Never Block* for a site only they
+  Allow it in Connections. The Overview doesn't offer *Always Allow* for a site only they
   blocked.
-- Type a site, or paste an address or a rule (`https://ads.example.com/x`, `*.example.com`,
-  `||example.com^`): the name is read out of it. Return makes it *never block*.
-- Right-click a site in the Overview to never block it, or an app to stop filtering it.
-- **Import…** brings rules over from **uBlock Origin** (its backup file: trusted sites, My
+- Type a site in the bar above the list, or paste an address or a rule
+  (`https://ads.example.com/x`, `*.example.com`, `||example.com^`): the name is read out of
+  it. Return blocks it.
+- Right-click a site in the Overview to block it or always allow it, or an app to stop
+  filtering it.
+- Under the list, Connections' own rules are a click away.
+- **Import…**, in Ads and Trackers' settings, brings rules over from **uBlock Origin** (its backup file: trusted sites, My
   filters, and the lists it had on), **AdGuard** (its exported settings: the allowlist, user
   rules and its filters), or rules in Adblock syntax, chosen as a file or pasted. A summary
   comes first, and nothing changes until you accept it:
-  - `||site^` is *always block*, `@@||site^` *never block*, `$app=` (a bundle ID, an app's name
+  - `||site^` is *block*, `@@||site^` *always allow*, `$app=` (a bundle ID, an app's name
     or path) makes it one app's, and `@@*$app=…` is *don't filter*. Hosts-file lines and bare
-    names are *always block*.
-  - Trusted sites and the allowlist become *never block*. There they mean "block nothing on this
+    names are *block*.
+  - Trusted sites and the allowlist become *always allow*. There they mean "block nothing on this
     site's pages"; here, connections to the site itself go through, since the filter can't tell
     which page asked.
   - The lists it had on switch on the ones NetworkMonitor has (ads and trackers, malware, and
@@ -371,14 +403,15 @@ today (#311).
   - Rules that hide parts of a page (`##`, scriptlets) are counted as waiting for the browser
     extension (#257); rules about part of a site (a path, `$third-party`, `$domain=`) as waiting
     for Enhanced ad blocking (#256); anything else is listed with why it can't be used.
-- **Export…** saves your rules in the same syntax, which uBlock Origin's My filters and
+- **Export…**, beside it, saves your rules in the same syntax, which uBlock Origin's My filters and
   AdGuard's user rules take, and Import reads back.
 
 They change only what the lists do, and only while ad blocking is on: a firewall rule in
-Connections still comes first, and *never block* lets nothing through that your rules or
-mode would stop. Decided in this order: one app's *never block*, one app's *always block*,
-every app's *never block*, every app's *always block*, then the lists, with the longer name
-first within each. What *always block* stops counts with the lists, as **Your Rules**.
+Connections still comes first, and *always allow* lets nothing through that your rules or
+mode would stop. Decided in this order: one app's *always allow*, one app's *block*,
+every app's *always allow*, every app's *block*, then the lists, with the longer name
+first within each. What a *block* stops counts with the lists, as **Your Rules**, and
+under its rule in Rules.
 
 The overview reads `list_blocks` in History (#250), so it starts from when that was added, is kept as
 long as History, and Clear History clears it.
@@ -399,7 +432,7 @@ allow it.
   - **For:** the site (`segment.io` and every name under it) or the whole company.
   - **Allow:** **Once** lets it go and asks again in an hour; **Until It Quits** lasts until
     that app quits; **Always** makes a rule. **Block** makes a rule. Rules from answers are
-    for that app only and listed in Connections' settings ("\*.segment.io · for Figma, until it quits").
+    for that app only and listed under Rules in Connections ("\*.segment.io · for Figma, until it quits").
     The Allow button's menu also offers the app anywhere.
   - Every connection between the same app and company or site waits on the one question,
     and with no answer in 30 seconds they go ahead, and the panel says so. Nothing is asked

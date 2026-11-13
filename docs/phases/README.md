@@ -10,7 +10,6 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | Order | Plan | Phase |
 |---|---|---|
 | 4 | #592 Find and check my own rules from the Connections window, not only in Settings | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
-| 5 | #525 Kevin's checks after 1.29.0: VoiceOver and keyboard | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 7 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 
 ## Next
@@ -34,3 +33,7 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | 17 | #108 Idea: widgets for today's data and speed | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 | 18 | #77 Idea: a networkmonitor command for Terminal | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 | 19 | #308 Idea: ask an AI about what the network is doing | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
+
+## Done
+
+[Phase 1: Everyday polish](01-everyday-polish.md)

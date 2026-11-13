@@ -18,10 +18,6 @@
 "%@ rules" = "%@ 条规则";
 "Don't filter %@" = "不过滤 %@";
 "Don't filter this app" = "不过滤此应用";
-"1 site never blocked" = "1 个网站永不阻止";
-"%@ sites never blocked" = "%@ 个网站永不阻止";
-"1 site always blocked" = "1 个网站始终阻止";
-"%@ sites always blocked" = "%@ 个网站始终阻止";
 "1 app not filtered" = "1 个应用不过滤";
 "%@ apps not filtered" = "%@ 个应用不过滤";
 "Switch on %@ and %@" = "打开 %@ 和 %@";
@@ -80,7 +76,6 @@
 "%@ of them %@" = "其中 %2$@ %1$@ 次";
 "View" = "视图";
 "Sites" = "网站";
-"Never Block %@" = "永不阻止 %@";
 "Apps" = "应用";
 "Don't Filter Ads in %@" = "不过滤 %@ 中的广告";
 "%@ blocked" = "已拦截 %@ 次";
@@ -115,9 +110,6 @@
 "Export…" = "导出…";
 "Save what's shown as a text file" = "将显示的内容存储为文本文件";
 "%@ and every name under it" = "%@ 及其下的所有名称";
-"Always Block %@" = "始终阻止 %@";
-"Never Block %@ in %@" = "在 %2$@ 中永不阻止 %1$@";
-"Always Block %@ in %@" = "在 %2$@ 中始终阻止 %1$@";
 "Remove Your Rule: %@" = "移除你的规则：%@";
 "Copy Name" = "拷贝名称";
 "Copy Address" = "拷贝地址";
@@ -159,10 +151,7 @@
 "Remove" = "移除";
 "%@ blocked today" = "今天已拦截 %@ 次";
 "No rules yet" = "还没有规则";
-"Add a site above, or right-click one in the Overview or the Log." = "在上方添加网站，或在“概览”或“日志”中右键点按一个网站。";
-"Never blocked" = "永不阻止";
 "Let through even when a list has them." = "即使在列表中也放行。";
-"Always blocked" = "始终阻止";
 "Blocked even when no list has them." = "即使不在任何列表中也拦截。";
 "Apps not filtered" = "不过滤的应用";
 "The lists leave these apps' connections alone." = "列表不处理这些应用的连接。";
@@ -177,18 +166,10 @@
 "In Every App" = "在所有应用中";
 "Every App" = "所有应用";
 "Choose an App…" = "选择应用…";
-"Never Block" = "永不阻止";
-"Always Block" = "始终阻止";
-"A rule covers the site and every name under it: example.com covers ads.example.com. Rules change only what the ad and tracker lists do. Never block lets a listed site through, and always block stops one no list has. Malware and phishing lists still block whatever these rules say. A rule for one app wins over one for every app. In Connections, a block still blocks and Always Allow on a site lets it through; allowing a whole app or company doesn't let its ads through." = "规则涵盖该网站及其下的所有名称：example.com 涵盖 ads.example.com。规则只改变广告和跟踪器列表的作用。“永不阻止”会放行列表中的网站，“始终阻止”会拦截任何列表中都没有的网站。无论这些规则怎么设置，恶意软件和网络钓鱼列表仍会照常拦截。针对单个应用的规则优先于针对所有应用的规则。在“连接”中，阻止仍然有效，对网站设为“始终允许”会放行它；允许整个应用或公司并不会放行它的广告。";
 "Networks" = "网络";
 "Ad blocking is off whenever the Mac is on these." = "Mac 连接这些网络时，广告拦截会关闭。";
-"the network you're on" = "当前网络";
 "Block ads on this network again" = "在此网络上重新拦截广告";
-"in %@" = "在 %@ 中";
-"in every app" = "在所有应用中";
 "Remove this rule" = "移除此规则";
-"Always Block Instead" = "改为始终阻止";
-"Never Block Instead" = "改为永不阻止";
 "NetworkMonitor ad rules.txt" = "NetworkMonitor 广告规则.txt";
 "Choose" = "选择";
 "Bring Rules Over" = "导入规则";
@@ -197,7 +178,6 @@
 "Continue" = "继续";
 "From %@" = "来自 %@";
 "Nothing new to bring over." = "没有可导入的新内容。";
-"Trusted sites become never blocked: connections to the site itself go through. Ads its pages load from other sites are still blocked, since the filter can't tell which page asked." = "受信任的网站会变为永不阻止：连接该网站本身的连接会被放行。但它的网页从其他网站加载的广告仍会被拦截，因为过滤器无法分辨是哪个网页发出的请求。";
 "Left out" = "未导入";
 "Back" = "返回";
 "Import" = "导入";
@@ -207,10 +187,6 @@
 "Your Rules" = "你的规则";
 "Ads and trackers" = "广告和跟踪器";
 "Malware and phishing" = "恶意软件和网络钓鱼";
-"Never block %@ in %@" = "在 %2$@ 中永不阻止 %1$@";
-"Always block %@ in %@" = "在 %2$@ 中始终阻止 %1$@";
-"Never block %@" = "永不阻止 %@";
-"Always block %@" = "始终阻止 %@";
 "Overview" = "概览";
 "Log" = "日志";
 "Rules" = "规则";
@@ -372,7 +348,6 @@
 "Let apps connect" = "允许应用连接";
 "Anywhere" = "任何地方";
 "Only Where I Allow" = "仅允许已授权的连接";
-"Right-click a company, app, country or server in Connections to block it, or to always allow it." = "在“连接”中右键点按公司、应用、国家或地区、服务器，即可阻止或始终允许它。";
 "Blocking" = "阻止";
 "That file has no NetworkMonitor rules in it." = "该文件中没有 NetworkMonitor 规则。";
 "Choose a file made with Export… in Connections' settings." = "请选择用“连接”设置中的“导出…”生成的文件。";
@@ -393,7 +368,6 @@
 "Group by" = "分组方式";
 "Group the list by company, app or country. A row inside a group narrows the window to it." = "按公司、应用或国家或地区对列表分组。点按组内的一行，窗口将只显示该项。";
 "Traffic" = "流量";
-"What your apps sent and received, or the connections that were blocked" = "你的应用发送和接收的数据，或被阻止的连接";
 "Every connection, Wi-Fi only, or hotspots only" = "所有连接、仅 Wi-Fi 或仅热点";
 "to and from servers" = "与服务器往来";
 "connection blocked" = "个连接被阻止";
@@ -862,7 +836,6 @@
 "Update the lists weekly" = "每周更新列表";
 "Usage History never leaves this Mac. Clearing it can't be undone." = "流量历史不会离开这台 Mac。清除后无法撤销。";
 "What the Mac is connected to, and whether it's a hotspot" = "这台 Mac 连接的网络，以及它是否是热点";
-"What was blocked, and every connection as it's decided" = "拦截了什么，以及每个连接在作出决定时的情况";
 "Which companies, countries and servers your apps talk to, on a list and a world map" = "以列表和世界地图显示你的应用与哪些公司、国家或地区以及服务器通信";
 "Not tested yet" = "尚未测试";
 "Test Speed" = "测试网速";
@@ -976,3 +949,65 @@
 "Block ads and trackers again now" = "立即重新拦截广告和跟踪器";
 "Pause Ad Blocking" = "暂停广告拦截";
 "Resume Ad Blocking" = "继续广告拦截";
+
+/* Rules, in Connections and Ads and Trackers (#592) */
+"%@ let through" = "已放行 %@";
+"%@ sites always allowed" = "%@ 个网站始终允许";
+"%@ sites blocked" = "%@ 个网站阻止";
+"%@ · only on %@" = "%1$@ · 仅在 %2$@ 上";
+"1 site always allowed" = "1 个网站始终允许";
+"1 site blocked" = "1 个网站阻止";
+"A rule covers the site and every name under it: example.com covers ads.example.com. Rules change only what the ad and tracker lists do. Block stops a site no list has, and Always Allow lets a listed site through. Malware and phishing lists still block whatever these rules say. A rule for one app wins over one for every app. Connections' own rules apply too: a block there still blocks, and Always Allow on a site there lets it through." = "一条规则涵盖这个网站及其下的所有名称：example.com 涵盖 ads.example.com。这些规则只改变广告和跟踪器列表的作用。阻止会拦截任何列表中都没有的网站，始终允许会放行列表中的网站。恶意软件和网络钓鱼列表照常拦截，无论这些规则怎么说。针对某个应用的规则优先于针对所有应用的规则。“连接”自己的规则同样有效：那里的阻止仍然会阻止，对网站设为始终允许也会放行它。";
+"A rule for a site covers it and every name under it: example.com covers ads.example.com. Block stops every connection to it; Always Allow lets it through, even past the ad and tracker lists and Only Where I Allow. Rules for a company, an app, a country or a server are made by right-clicking one under Traffic or Blocked. A rule for one app wins over one for every app." = "针对网站的规则涵盖它及其下的所有名称：example.com 涵盖 ads.example.com。阻止会阻止连接到它的每一个连接；始终允许会放行它，即使广告和跟踪器列表或“仅允许已授权的连接”会拦住它。针对公司、应用、国家或地区或者服务器的规则，在“流量”或“已阻止”下右键点按它来创建。针对某个应用的规则优先于针对所有应用的规则。";
+"Ad blocking off" = "广告拦截已关闭";
+"Add a site above, or right-click a company, app, country or server under Traffic or Blocked to block it or always allow it." = "在上方添加网站，或在“流量”或“已阻止”下右键点按某个公司、应用、国家或地区或者服务器，将它阻止或始终允许。";
+"Add a site above, or right-click one in the Overview or the Log to block it or always allow it." = "在上方添加网站，或在“概览”或“日志”中右键点按一个网站，将它阻止或始终允许。";
+"Ads and Trackers has %@ rules of its own." = "“广告与跟踪器”有自己的 %@ 条规则。";
+"Ads and Trackers has 1 rule of its own." = "“广告与跟踪器”有自己的 1 条规则。";
+"Always allow %@" = "始终允许 %@";
+"Always allow %@ in %@" = "在 %2$@ 中始终允许 %1$@";
+"Block %@" = "阻止 %@";
+"Block %@ in %@" = "在 %2$@ 中阻止 %1$@";
+"Change the rule for %@" = "更改“%@”的规则";
+"Change what this rule does" = "更改这条规则的作用";
+"Connections has %@ rules of its own." = "“连接”有自己的 %@ 条规则。";
+"Connections has 1 rule of its own." = "“连接”有自己的 1 条规则。";
+"Let apps connect: %@" = "允许应用连接：%@";
+"Let through, even past the lists and Only Where I Allow." = "放行，即使列表或“仅允许已授权的连接”会拦住它。";
+"Never let through." = "始终不放行。";
+"Not filtered" = "不过滤";
+"Not used" = "未使用";
+"Rules to bring over" = "要导入的规则";
+"Search your rules" = "搜索你的规则";
+"Search your rules (⌘F)" = "搜索你的规则（⌘F）";
+"Show Rules…" = "显示规则…";
+"Show Them" = "显示";
+"Show in Blocked" = "在“已阻止”中显示";
+"Show in Log" = "在“日志”中显示";
+"Show in Overview" = "在“概览”中显示";
+"Show in Traffic" = "在“流量”中显示";
+"Show them: %@" = "显示：%@";
+"Site · in %@" = "网站 · 在 %@ 中";
+"Site · in every app" = "网站 · 在所有应用中";
+"Stopped %@ times" = "已阻止 %@ 次";
+"Stopped 1 time" = "已阻止 1 次";
+"Stopped only while the Mac is on a hotspot." = "只在 Mac 连接热点时阻止。";
+"The network you're on" = "当前网络";
+"Trusted sites become always allowed: connections to the site itself go through. Ads its pages load from other sites are still blocked, since the filter can't tell which page asked." = "受信任的网站会变为始终允许：连接该网站本身的连接会被放行。但它的网页从其他网站加载的广告仍会被拦截，因为过滤器无法分辨是哪个网页发出的请求。";
+"Which apps" = "哪些应用";
+"Your rules" = "你的规则";
+"Your rules, in Ads and Trackers, with what each did" = "你的规则，在“广告与跟踪器”中，以及每条做了什么";
+"Your rules, in Connections, with what each did" = "你的规则，在“连接”中，以及每条做了什么";
+"rule" = "条规则";
+"rules" = "条规则";
+
+/* Rules, in Connections and Ads and Trackers (#592) */
+"Rules (%@)" = "规则（%@）";
+"What your apps sent and received, the connections that were blocked, or your rules" = "你的应用发送和接收的数据、被阻止的连接，或你的规则";
+"What was blocked, every connection as it's decided, and your rules" = "拦截了什么、每个连接在作出决定时的情况，以及你的规则";
+"Block “%@” in %@" = "在 %2$@ 中阻止“%1$@”";
+"Always Allow “%@” in %@" = "在 %2$@ 中始终允许“%1$@”";
+
+/* Rules, in Connections and Ads and Trackers (#592) */
+"Block the site" = "阻止这个网站";
+"Always allow the site" = "始终允许这个网站";

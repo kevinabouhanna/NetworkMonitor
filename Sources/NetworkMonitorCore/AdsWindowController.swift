@@ -138,7 +138,7 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
         scaleControl.selectedSegment = HistoryScale.allCases.firstIndex(of: model.scale) ?? 0
         stepControl.setEnabled(model.canStepBack, forSegment: 0)
         stepControl.setEnabled(model.canStepForward, forSegment: 2)
-        showPeriod(model.tab.hasPeriod)
+        showPeriod(model.tab.hasPeriod, layout: model.tab == .overview)
         search.show(model.logSearch)
         search.fitGlass()
         if model.tab != shownTab {
@@ -149,26 +149,31 @@ public final class AdsWindowController: NSObject, NSToolbarDelegate {
 
     private var shownTab: AdsViewModel.Tab?
 
-    /// One search for both tabs: sites and apps on Overview, the log on Log.
+    /// One search for every tab: sites and apps on Overview, the log on
+    /// Log, your rules on Rules.
     private func nameSearch() {
         if model.tab == .log {
             search.name(placeholder: L("Search apps, sites and addresses"),
                         help: L("Search the log (⌘F)"))
+        } else if model.tab == .rules {
+            search.name(placeholder: L("Search your rules"), help: L("Search your rules (⌘F)"))
         } else {
             search.name(placeholder: L("Search sites and apps"), help: L("Search sites and apps (⌘F)"))
         }
     }
 
-    /// The View, the period and ‹ Today › are in the toolbar only on
-    /// Overview (#311, #524): the log is the present and has no chart, so
-    /// there they'd only sit there doing nothing.
-    private func showPeriod(_ show: Bool) {
+    /// The period and ‹ Today › are in the toolbar on Overview and Rules
+    /// (#311, #592), the View only on Overview (#524): the log is the
+    /// present, and neither the log nor Rules has a chart, so there they'd
+    /// only sit there doing nothing.
+    private func showPeriod(_ show: Bool, layout: Bool) {
         for item in toolbar.items
         where [Self.layoutItem, Self.scaleItem, Self.stepItem].contains(item.itemIdentifier) {
+            let shown = item.itemIdentifier == Self.layoutItem ? layout : show
             if #available(macOS 15, *) {
-                item.isHidden = !show
+                item.isHidden = !shown
             } else {
-                item.view?.isHidden = !show
+                item.view?.isHidden = !shown
             }
         }
     }
