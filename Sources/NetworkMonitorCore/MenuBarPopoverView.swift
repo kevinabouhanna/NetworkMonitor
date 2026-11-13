@@ -102,10 +102,11 @@ public struct MenuBarPopoverView: View {
                     case .today:
                         today
                     case .companies:
-                        PopoverCompanies(glance: glance, icon: model.icon(forApp:name:bundlePath:), onOpen: onConnections)
+                        PopoverCompanies(glance: glance, listHeight: listHeight,
+                                         icon: model.icon(forApp:name:bundlePath:), onOpen: onConnections)
                     case .blocked:
                         PopoverBlocked(glance: glance, firewall: firewall, filter: filter, pausedText: adsPausedText,
-                                       icon: model.icon(forApp:name:bundlePath:),
+                                       listHeight: listHeight, icon: model.icon(forApp:name:bundlePath:),
                                        onTurnOn: turnOnAdBlocking, onOpen: onAds)
                     case .connection:
                         connection
@@ -114,9 +115,26 @@ public struct MenuBarPopoverView: View {
                 .id(model.popoverSection)
                 .transition(Motion.swap)
             }
+            // One height for the four (#599): sized to each, the popover
+            // jumped as it moved to Network and back.
+            .frame(height: sectionHeight, alignment: .top)
         }
         .frame(width: 320)
     }
+
+    /// Every view's height under the header (#599), from the tallest list
+    /// Data, Connections or Ads blocked would show. See
+    /// `PopoverMetrics.sectionAreaHeight`.
+    private var sectionHeight: CGFloat {
+        let rows = max(max(dataRowCount, networksRowCount),
+                       PopoverCompanies.rows(glance),
+                       PopoverBlocked.rows(glance, isOn: !firewall.lists.isEmpty))
+        return PopoverMetrics.sectionAreaHeight(rows: rows, speedCard: showsCard)
+    }
+
+    /// The list's height in each view: the section's, less its grouping row,
+    /// the line and the Open row.
+    private var listHeight: CGFloat { sectionHeight - PopoverMetrics.sectionChrome }
 
     // MARK: Data
 
@@ -159,6 +177,7 @@ public struct MenuBarPopoverView: View {
                 .id(glance.dataGrouping)
                 .transition(Motion.swap)
             }
+            .frame(height: listHeight, alignment: .top)
             Divider()
             PopoverOpenRow(title: L("Open Usage History"), shortcut: "⌘Y", action: onHistory)
         }
@@ -170,14 +189,18 @@ public struct MenuBarPopoverView: View {
     @ViewBuilder
     private var connection: some View {
         if showsCard {
-            SpeedTestCard(speedTest: speedTest)
+            SpeedTestCard(speedTest: speedTest, height: sectionHeight)
         } else {
             VStack(spacing: 0) {
                 if showsStrip {
                     SpeedTestStrip(speedTest: speedTest)
                     Divider()
                 }
+                // As tall as the other views' grouping row, list and line,
+                // less the strip's share while it's shown.
                 PopoverConnection(metering: metering, speedTest: speedTest, status: model.connection,
+                                  height: PopoverMetrics.groupingRowHeight + listHeight + 1
+                                      - (showsStrip ? PopoverMetrics.speedStripHeight + 1 : 0),
                                   onHotspotSettings: onHotspotSettings)
             }
         }
@@ -210,7 +233,7 @@ public struct MenuBarPopoverView: View {
             emptyState
         } else {
             let total = max(rows.reduce(0) { $0 + $1.bytes }, 1)
-            PopoverList(rows: max(rows.count, appsRowCount)) {
+            PopoverList(rows: rows.count, height: listHeight) {
                 ForEach(rows) { network in
                     PopoverRow(title: model.store.displayLabel(for: network.id, defaultLabel: network.defaultLabel),
                                value: ByteFormat.bytes(network.bytes),
@@ -379,7 +402,7 @@ public struct MenuBarPopoverView: View {
     /// never the frame, which sets the popover's size; see
     /// `PopoverMetrics.maxListHeight`.
     private var list: some View {
-        PopoverList(rows: max(dataRowCount, networksRowCount)) {
+        PopoverList(rows: dataRowCount, height: listHeight) {
             ForEach(appRows) { row in
                 appRow(row)
             }
@@ -387,14 +410,12 @@ public struct MenuBarPopoverView: View {
         }
     }
 
-    /// The list keeps one height across Apps and Networks (#436): the taller
-    /// of the two, up to the cap. Sized to each, the popover shrank to a
-    /// couple of networks and grew back for the apps at every switch. It
-    /// still grows with the data, from a first launch's few rows.
+    /// The list keeps one height across Apps and Networks (#436), and across
+    /// the popover's four views (#599): the tallest, up to the cap. Sized to
+    /// each, the popover shrank to a couple of networks and grew back for the
+    /// apps at every switch. It still grows with the data, from a first
+    /// launch's few rows.
     private var networksRowCount: Int { glance.report?.networks.count ?? 0 }
-
-    /// The apps, closed, and the System group: Networks' share of the height.
-    private var appsRowCount: Int { appRows.count + (systemRows.isEmpty ? 0 : 1) }
 
     /// Every row on screen: the apps, those opened, and the System group.
     ///
@@ -491,8 +512,8 @@ public struct MenuBarPopoverView: View {
         }
     }
 
-    /// Sized to its own text now that the list is sized to its content: a short
-    /// message in a 320 pt window was mostly empty space.
+    /// In the middle of the list's place, which is as tall as every other
+    /// view's (#599).
     private var emptyState: some View {
         VStack(spacing: 4) {
             Text(L("No network activity yet"))
@@ -500,8 +521,7 @@ public struct MenuBarPopoverView: View {
             Text(L("Counted while NetworkMonitor is running, on every network"))
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
