@@ -406,8 +406,9 @@ beside the main checkout. Changes to it get an issue and a pull request against
 - `Closes #N` only closes issues for pull requests into `main`, so close the issue by hand.
 - Don't merge with `gh pr merge --delete-branch` while the branch is checked out in the
   worktree: `gh` removes the worktree along with it.
-- After each release, update the hero's version, the download line's version and DMG
-  size (in 1024-based MB), and the "What's in version" link, rebuild the docs pages with
+- After each release, write the site's version, DMG size and requirement with
+  `product-kit facts --write --site <site worktree>` (#633: `facts` in `.product-kit.json`
+  fills every spot marked `<!-- product-kit: … -->`, in both languages), rebuild the docs pages with
   `make docs-site SITE=<site worktree>` ([The docs](#the-docs)), and run `make site-shots`
   (below).
 - **Every image is a real capture of the app**, never a mock-up. The Settings section

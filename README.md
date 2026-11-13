@@ -44,7 +44,7 @@
 
 ## 📦 Install
 
-For macOS 13 or later, on Apple silicon or Intel.
+For <!-- product-kit: requires -->macOS 13 or later<!-- /product-kit -->, on Apple silicon or Intel.
 
 1. [**Download NetworkMonitor.dmg**](https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/NetworkMonitor.dmg), open it, and drag NetworkMonitor into **Applications**.
 2. Open NetworkMonitor from Applications.
