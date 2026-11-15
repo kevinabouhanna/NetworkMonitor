@@ -53,3 +53,14 @@ ci_job_universal() {
   echo "built: $archs"
   [[ "$archs" == *arm64* && "$archs" == *x86_64* ]]
 }
+
+# The finish gate's quick check (claude-parallel-sessions#146): before a session may stop its turn
+# with changes, the build (the app and its test runner, so a change that doesn't compile is
+# caught), the languages' tables and the CI and appcast checks, about 2 s warm. `make test` (two
+# and a half minutes) stays with the pre-push hook and CI.
+ci_quick() {
+  ./Scripts/swiftpm.sh build
+  python3 -I Scripts/lang-kit strings
+  ./Scripts/tests/ci-conf-test.sh
+  ./Scripts/tests/appcast-test.sh
+}
