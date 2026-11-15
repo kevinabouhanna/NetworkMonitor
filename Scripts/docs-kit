@@ -53,7 +53,7 @@ import sys
 import time
 import unicodedata
 
-VERSION = "2.11.0"
+VERSION = "2.11.2"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -853,6 +853,9 @@ MENTION_HERE = re.compile(r"(?<![\w&/])#(\d+)\b")
 # with one, or a list item struck through, ticked or saying so in brackets.
 DONE_WORDS = re.compile(r"\b(done|shipped|finished|closed|merged|released|built)\b", re.I)
 DONE_START = re.compile(r"[*_]*(done|shipped|finished|closed|merged|released|built|what shipped)\b", re.I)
+# A heading over a list of what's planned or left, and a table of plans by its columns (#80).
+LEFT_WORDS = re.compile(r"\b(plans?|items?|issues|steps|left|next|now|roadmap|open|to ?do|coming)\b", re.I)
+PLAN_COLUMNS = re.compile(r"\|\s*(order|horizon|plan|issue|item|step)\s*(?=\|)", re.I)
 DONE_MARK = re.compile(r"~~|✓|✅|\b(done|shipped|finished|merged|released|built)\b|\((closed|fixed)\b", re.I)
 # The filters of GitHub's starting views (a new board's template): none, or "no:parent-issue",
 # which shows nothing once every item has a parent, or "assignee:@me".
@@ -1407,7 +1410,8 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
         names = {self.who().lower(), "you", "owner", "the owner"}
         lines = i["body"].replace("\r", "").split("\n")
         for k, line in enumerate(lines):
-            bare = re.sub(r"^\s*#{1,6}\s*", "", line)
+            # A heading, a line of its own, or a step of a list (#83).
+            bare = re.sub(r"^\s*(#{1,6}\s*|([-*+]|\d+[.)])\s+)", "", line)
             m = re.match(r"[*_]*([\w' ]+?)[*_]*\s*:[*_]*\s*(.*)$", bare)
             if not m or m.group(1).strip().lower() not in names:
                 continue
@@ -1543,22 +1547,30 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
 
     @staticmethod
     def listed_as_open(text: str) -> list[int]:
-        """The issue each list item or table row of a page names first, outside what's said to be
-        done: under a heading such as "What shipped", after a paragraph starting "Done", or in an
-        item that says so ("done 14 Nov", "(fixed", struck through, ticked)."""
-        found, done = [], False
+        """The issue each line of a page's lists of what's left names first: a list item under a
+        heading about what's planned or left ("The plans", "What's left", "Next"), or a row of a
+        table with an Order, Horizon, Plan or Issue column. Not what's said to be done: under a
+        heading such as "What shipped", after a paragraph starting "Done", or in an item that
+        says so ("done 14 Nov", "(fixed", struck through, ticked) (#73, #80)."""
+        found, done, about_left, table = [], False, False, None
         for line in text.split("\n"):
             bare = line.strip()
             if re.match(r"#{1,6}\s", bare):
                 done = bool(DONE_WORDS.search(bare))
+                about_left = not done and bool(LEFT_WORDS.search(bare))
+                table = None
                 continue
-            listed = re.match(r"([-*+]|\d+[.)])\s", bare) or (bare.startswith("|")
-                                                             and not re.fullmatch(r"[\s:|-]*", bare))
-            if not listed:
-                if DONE_START.match(bare):
+            if bare.startswith("|"):
+                if table is None:
+                    table = bool(PLAN_COLUMNS.search(bare))  # a table's first row names its columns
+                    continue
+                listed = table and not re.fullmatch(r"[\s:|-]*", bare)
+            else:
+                table = None
+                listed = about_left and re.match(r"([-*+]|\d+[.)])\s", bare)
+                if not re.match(r"([-*+]|\d+[.)])\s", bare) and DONE_START.match(bare):
                     done = True
-                continue
-            m = MENTION_HERE.search(bare)
+            m = MENTION_HERE.search(bare) if listed else None
             if m and not done and not DONE_MARK.search(bare):
                 found.append(int(m.group(1)))
         return found
