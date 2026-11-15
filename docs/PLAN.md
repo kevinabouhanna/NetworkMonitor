@@ -45,14 +45,14 @@ Each phase ends with something people use. Phase numbers are names; the order is
 
 ## The roadmap
 
-The live roadmap is the project board, https://github.com/users/kevinabouhanna/projects/4,
-with the same tabs as home-control's (#644):
+The live roadmap is the project board, https://github.com/users/kevinabouhanna/projects/4. It
+has three views, the same on every project (Kevin, 2026-11-15, product-kit#88):
 
-- **Now · Next · Later**: a board with a column for each, the items in order in each column.
-- **Now**, **Next** and **Later**: one list each, items and their steps, in order.
 - **Inbox**: what Kevin adds by hand between sessions (below).
-- **Roadmap**: a timeline of the phases and items.
-- **In order**: every open item and step in one list, grouped Now, Next, Later.
+- **Needs you**: what only Kevin can do or check (`needs-you`), in order.
+- **Roadmap**: the whole plan, a column each for Now, Next and Later, the items in order.
+
+A request Kevin makes in a session goes straight into the plan, with no Inbox entry.
 
 Each issue has a **Level** (Plan, Phase, Item or Step, from the tree), an **Order** (its place
 in the roadmap; a step has its item's), a **Horizon** (Now, Next or Later) and rough **Start

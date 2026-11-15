@@ -24,7 +24,7 @@
 #   docs-kit anchors               every page's address and headings, as JSON
 #   docs-kit plan init [--dry-run] set a new project's plan up on GitHub (then sync)
 #   docs-kit plan sync [--dry-run] GitHub follows the plan's tree; the pages follow GitHub
-#     [--views [--yes]]            and the board's views are the plan's (--yes: GitHub's starting ones go)
+#     [--views [--yes]]            and the board's views: Inbox, Needs you, Roadmap (--yes: no others)
 #   docs-kit plan check            the plan's pages, issues, milestones and board agree? (and
 #                                  what to look at so it says what's next, never a failure)
 #   docs-kit plan inbox [--json]   what's waiting in the board's Inbox (also: plan ideas)
@@ -53,7 +53,7 @@ import sys
 import time
 import unicodedata
 
-VERSION = "2.11.2"
+VERSION = "2.13.0"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -857,9 +857,33 @@ DONE_START = re.compile(r"[*_]*(done|shipped|finished|closed|merged|released|bui
 LEFT_WORDS = re.compile(r"\b(plans?|items?|issues|steps|left|next|now|roadmap|open|to ?do|coming)\b", re.I)
 PLAN_COLUMNS = re.compile(r"\|\s*(order|horizon|plan|issue|item|step)\s*(?=\|)", re.I)
 DONE_MARK = re.compile(r"~~|✓|✅|\b(done|shipped|finished|merged|released|built)\b|\((closed|fixed)\b", re.I)
-# The filters of GitHub's starting views (a new board's template): none, or "no:parent-issue",
-# which shows nothing once every item has a parent, or "assignee:@me".
-STARTING_FILTERS = {"", "no:parent-issue", "assignee:@me"}
+# An item's "Done when" (#90): a heading, a label or a line of its own that starts with it, once
+# what may come before the words is taken off (quote marks, a heading's #, a list's marker, a
+# checkbox, bold, a tag such as <summary>, an emoji), and with something said after it.
+DONE_WHEN = re.compile(r"done[\s*_-]+when\b[\s*_:]*(.*)$", re.I)
+LINE_LEAD = re.compile(r"^(\s|>|#|[-*+](?=\s)|\d+[.)](?=\s)|\[[ xX]?\]|<[^>]*>|[*_~`]|[^\w\s])*")
+FENCED = re.compile(r"^\s*(```|~~~).*?^\s*\1[^\n]*$", re.S | re.M)
+
+
+def says_done_when(body: str) -> bool:
+    """Whether an item's description says when it's done: a "Done when" line, outside code, with
+    its points on the same line or the lines under it (before the next heading)."""
+    lines = FENCED.sub("", body.lstrip("﻿")).split("\n")
+    for k, line in enumerate(lines):
+        m = DONE_WHEN.match(LINE_LEAD.sub("", line, count=1))
+        if not m:
+            continue
+        if re.search(r"\w", m.group(1)):
+            return True
+        for after in lines[k + 1:]:
+            if re.match(r"\s*#{1,6}\s", after):
+                break
+            if re.search(r"\w", after):
+                return True
+    return False
+# A board's views, the same on every project, in this order (Kevin, 2026-11-15, #88): what the
+# owner adds, what waits on them, and the plan.
+PLAN_VIEWS = ("Inbox", "Needs you", "Roadmap")
 # Where a needs-you issue was before it went to Later, kept in its description, out of sight (#74).
 NEEDS_MARK = re.compile(r"\n*<!-- docs-kit: before needs-you, (\w[^>]*?) -->\n*")
 LEVELS = ("Plan", "Phase", "Item", "Step")
@@ -1518,14 +1542,12 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
     # What to look at (#73): a plan whose pages and GitHub agree can still not say what's next.
     # These are warnings, never failures.
 
-    def view_names(self) -> set[str]:
-        """The views docs-kit makes."""
-        return {"Now · Next · Later", "Roadmap", "In order", "Inbox", "Ideas", "Needs you"} | set(self.horizons)
-
-    def starting_views(self) -> list[dict]:
-        """GitHub's starting views: not the plan's, and with a starting filter."""
-        return [v for v in self.views if v["name"] not in self.view_names()
-                and " ".join((v.get("filter") or "").split()) in STARTING_FILTERS]
+    def other_views(self) -> list[dict]:
+        """The board's views besides the plan's three (#88), and a Roadmap that isn't a board
+        (a timeline, from before), which is made again."""
+        inbox = self.inbox_view()  # an Ideas view from before is the Inbox, renamed by sync
+        return [v for v in self.views if (v["name"] not in PLAN_VIEWS and v is not inbox)
+                or (v["name"] == "Roadmap" and v.get("layout") not in (None, "BOARD_LAYOUT"))]
 
     def states(self, numbers: set[int]) -> dict[int, dict]:
         """Each issue's state, title and milestone, read from GitHub where the plan hasn't it."""
@@ -1605,6 +1627,12 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
                     found.append(f"#{i['number']} {i['title']} repeats its phase's title (\"{i['milestone']}\"), "
                                  "so the board shows the phase again, not the work: name the piece of work it "
                                  "is, or make its steps the phase's items")
+            for i in plans:  # Now and Next, however many choices Horizon has
+                if (i["values"].get("horizon") in self.horizons[:2] and i["number"] != upkeep
+                        and not says_done_when(i["body"])):
+                    found.append(f"#{i['number']} {i['title']} doesn't say when it's done: add a numbered "
+                                 "\"**Done when:**\" list to its description, each point something a test or a "
+                                 "check can show (#90)")
         listed = {}
         for page in pages.values():
             milestone = page["milestone"]
@@ -1621,12 +1649,18 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
                 found.append(f"{file}: lists {len(closed)} closed issues with what's still to do ("
                              + ", ".join(f"#{i['number']}" for i in closed)
                              + "): move them to what's done, or take them off")
-        starting = self.starting_views()
-        if starting and self.views[0] in starting:
-            names = ", ".join(f"\"{v['name']}\"" for v in starting)
-            found.append(f"the board opens on GitHub's starting view \"{self.views[0]['name']}\", not the plan's: "
-                         "`docs-kit plan sync --views` makes the plan's views, and with `--yes` deletes GitHub's "
-                         f"starting ones ({names}). Then drag Now · Next · Later to the first tab, if it isn't")
+        others = self.other_views()
+        missing = [n for n in PLAN_VIEWS if not any(v["name"] == n and v not in others for v in self.views)
+                   and not (n == "Inbox" and self.inbox_view())]
+        if others or missing:
+            what = []
+            if others:
+                what.append("views besides Inbox, Needs you and Roadmap ("
+                            + ", ".join(f"\"{v['name']}\"" for v in others) + ")")
+            if missing:
+                what.append("no " + " or ".join(f"\"{n}\"" for n in missing))
+            found.append(f"the board has {' and '.join(what)}: `docs-kit plan sync --views --yes` leaves it with "
+                         "just those three, the same on every project")
         for i in self.waiting():
             if not self.asks(i):
                 found.append(f"#{i['number']} {i['title']} waits on {self.who()} ({self.needs_label}) and doesn't "
@@ -2049,64 +2083,55 @@ def setup(plan: Plan, pages: dict[str, dict], dry: bool) -> list[str]:
 
 
 def views(plan: Plan, dry: bool, delete: bool = False) -> list[str]:
-    """The plan's views of the board, made or their filters put right (the Inbox is
-    inbox_board's): a board of Now, Next and Later, the roadmap, every item in order, and a
-    table per Horizon. With `delete`, GitHub's starting views go (#73); without, it says
-    which would."""
+    """The board's Roadmap (#88): a board of the open items, a column per Horizon, in Order;
+    made, or its filter put right. With `delete`, every view but the plan's three (Inbox, Needs
+    you, Roadmap) goes, and a Roadmap that isn't a board is made again; without, it says what
+    would. The Inbox is inbox_board's, Needs you needs_view's, and they're made first, so a
+    board's tabs read Inbox, Needs you, Roadmap."""
     p, said = plan, []
-    starting = p.starting_views()
-    for view in starting:
+    others = p.other_views()
+    for view in others:
         if not delete:
-            said.append(f"the board's view \"{view['name']}\" is one of GitHub's starting views: "
+            said.append(f"the board's view \"{view['name']}\" isn't one of the plan's three: "
                         "`--views --yes` deletes it")
             continue
-        said.append(f"the board's view \"{view['name']}\": deleted (one of GitHub's starting views, filter "
-                    f"\"{view.get('filter') or 'none'}\")")
+        said.append(f"the board's view \"{view['name']}\": deleted (the plan's are Inbox, Needs you and Roadmap)")
         if not dry:
             gh_graphql(f"mutation {{ deleteProjectV2View(input: {{ viewId: {q(view['id'])} }}) "
                        "{ clientMutationId } }", retry=False)
         p.views.remove(view)
     f = {key: p.board_fields.get(name) for key, name in p.read_fields().items()}
-    ms = p.board_fields.get("Milestone")
     order = (f.get("order") or {}).get("databaseId")
-    title = (p.board_fields.get("Title") or {}).get("databaseId")
-    shown = [x for x in (title, order, (f.get("level") or {}).get("databaseId"),
-                         (ms or {}).get("databaseId")) if x]
-    wanted = [
-        {"name": "Now · Next · Later", "layout": "board", "filter": f"is:open {p.fields['level'].lower()}:Item",
-         "vertical_group_by": [(f.get("horizon") or {}).get("databaseId")]},
-        {"name": "Roadmap", "layout": "roadmap", "filter": f"is:open {p.fields['level'].lower()}:Phase,Item",
-         "group_by": [(ms or {}).get("databaseId")]},
-        {"name": "In order", "layout": "table", "filter": f"is:open {p.fields['level'].lower()}:Item,Step",
-         "group_by": [(f.get("horizon") or {}).get("databaseId")]},
-    ] + [{"name": h, "layout": "table",
-          "filter": f"is:open {p.fields['horizon'].lower()}:{h} {p.fields['level'].lower()}:Item,Step"}
-         for h in p.horizons]
-    have = {v["name"]: v for v in p.views}
-    for view in wanted:
-        old = have.get(view["name"])
-        if old:
-            # The same filter in another order is the same filter.
-            if sorted((old.get("filter") or "").split()) != sorted(view["filter"].split()):
-                said.append(f"the board's view \"{view['name']}\": filter \"{view['filter']}\" (was \"{old.get('filter')}\")")
-                if not dry:
-                    # With its layout: a filter alone can turn a table into a board.
-                    layout = f", layout: {old['layout']}" if old.get("layout") else ""
-                    gh_graphql(f"mutation {{ updateProjectV2View(input: {{ viewId: {q(old['id'])}, "
-                               f"filter: {q(view['filter'])}{layout} }}) {{ clientMutationId }} }}")
-            continue
-        said.append(f"the board's view \"{view['name']}\": made ({view['filter']})")
-        if dry:
-            continue
-        body = {k: v for k, v in view.items() if not (isinstance(v, list) and not all(v))}
-        if order:
-            body["sort_by"] = [[order, "asc"]]
-        if shown:
-            body["visible_fields"] = shown
-        kind = "orgs" if p.owner_kind == "Organization" else "users"
-        made = gh_rest("POST", f"{kind}/{p.board_owner}/projectsV2/{p.board_number}/views", body, retry=False)
-        p.views.append({"id": made.get("node_id") or made.get("id"), "number": made.get("number"),
-                        "name": view["name"], "filter": view["filter"]})
+    shown = [x for x in ((p.board_fields.get("Title") or {}).get("databaseId"), order,
+                         (p.board_fields.get("Milestone") or {}).get("databaseId")) if x]
+    view = {"name": "Roadmap", "layout": "board", "filter": f"is:open {p.fields['level'].lower()}:Item",
+            "vertical_group_by": [(f.get("horizon") or {}).get("databaseId")]}
+    old = next((v for v in p.views if v["name"] == "Roadmap"), None)
+    if old in others:
+        return said  # a timeline from before, kept until --yes
+    if old:
+        # The same filter in another order is the same filter.
+        if sorted((old.get("filter") or "").split()) != sorted(view["filter"].split()):
+            said.append(f"the board's view \"Roadmap\": filter \"{view['filter']}\" (was \"{old.get('filter')}\")")
+            if not dry:
+                # With its layout: a filter alone can turn a table into a board.
+                layout = f", layout: {old['layout']}" if old.get("layout") else ""
+                gh_graphql(f"mutation {{ updateProjectV2View(input: {{ viewId: {q(old['id'])}, "
+                           f"filter: {q(view['filter'])}{layout} }}) {{ clientMutationId }} }}")
+        return said
+    said.append("the board's view \"Roadmap\": made (a column each for "
+                f"{', '.join(p.horizons) or 'the Horizons'}, the open items in Order)")
+    if dry:
+        return said
+    body = {k: v for k, v in view.items() if not (isinstance(v, list) and not all(v))}
+    if order:
+        body["sort_by"] = [[order, "asc"]]
+    if shown:
+        body["visible_fields"] = shown
+    kind = "orgs" if p.owner_kind == "Organization" else "users"
+    made = gh_rest("POST", f"{kind}/{p.board_owner}/projectsV2/{p.board_number}/views", body, retry=False)
+    p.views.append({"id": made.get("node_id") or made.get("id"), "number": made.get("number"),
+                    "name": "Roadmap", "filter": view["filter"], "layout": "BOARD_LAYOUT"})
     return said
 
 
@@ -2403,11 +2428,11 @@ def plan(project: Project, rest: list[str]) -> int:
     said: list[str] = []
     if what == "init":
         said += setup(p, pages, dry)
-        said += views(p, dry, delete="--yes" in rest)
-    elif what == "sync" and "--views" in rest:
-        said += views(p, dry, delete="--yes" in rest)
+    # The board's three views, in this order: the Inbox, Needs you, then the Roadmap (#88).
     said += inbox_board(p, dry or what == "check")
     said += needs_view(p, dry or what == "check")
+    if what == "init" or (what == "sync" and "--views" in rest):
+        said += views(p, dry, delete="--yes" in rest)
     blocking = p.field_problems()
     if what in ("sync", "init") and blocking:
         print("docs-kit plan: can't sync until these are put right:")
