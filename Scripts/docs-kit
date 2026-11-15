@@ -24,7 +24,9 @@
 #   docs-kit anchors               every page's address and headings, as JSON
 #   docs-kit plan init [--dry-run] set a new project's plan up on GitHub (then sync)
 #   docs-kit plan sync [--dry-run] GitHub follows the plan's tree; the pages follow GitHub
-#   docs-kit plan check            the plan's pages, issues, milestones and board agree?
+#     [--views [--yes]]            and the board's views are the plan's (--yes: GitHub's starting ones go)
+#   docs-kit plan check            the plan's pages, issues, milestones and board agree? (and
+#                                  what to look at so it says what's next, never a failure)
 #   docs-kit plan inbox [--json]   what's waiting in the board's Inbox (also: plan ideas)
 #   docs-kit plan inbox --take <item> --phase <milestone> [--parent N] [--horizon H]
 #                    [--order N] [--kind K] [--set Field=value] [--blocked-by N]
@@ -51,7 +53,7 @@ import sys
 import time
 import unicodedata
 
-VERSION = "2.9.0"
+VERSION = "2.11.2"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -845,6 +847,21 @@ INDEX_NOTE = ("<!-- Written by `docs-kit plan index` from the milestones, issues
 ROOT_NOTE = ("<!-- Written by `docs-kit plan sync` from the plan's pages, the milestones, the issues and "
              "the project board: change those, then run it again, rather than editing this. -->")
 PHASE_NOTE = "<!-- Written by `docs-kit plan sync`. -->"
+# A bare #N, this repository's (not owner/repo#N, not &#N;).
+MENTION_HERE = re.compile(r"(?<![\w&/])#(\d+)\b")
+# What marks a page's finished work: a heading with one of these words, a paragraph that starts
+# with one, or a list item struck through, ticked or saying so in brackets.
+DONE_WORDS = re.compile(r"\b(done|shipped|finished|closed|merged|released|built)\b", re.I)
+DONE_START = re.compile(r"[*_]*(done|shipped|finished|closed|merged|released|built|what shipped)\b", re.I)
+# A heading over a list of what's planned or left, and a table of plans by its columns (#80).
+LEFT_WORDS = re.compile(r"\b(plans?|items?|issues|steps|left|next|now|roadmap|open|to ?do|coming)\b", re.I)
+PLAN_COLUMNS = re.compile(r"\|\s*(order|horizon|plan|issue|item|step)\s*(?=\|)", re.I)
+DONE_MARK = re.compile(r"~~|✓|✅|\b(done|shipped|finished|merged|released|built)\b|\((closed|fixed)\b", re.I)
+# The filters of GitHub's starting views (a new board's template): none, or "no:parent-issue",
+# which shows nothing once every item has a parent, or "assignee:@me".
+STARTING_FILTERS = {"", "no:parent-issue", "assignee:@me"}
+# Where a needs-you issue was before it went to Later, kept in its description, out of sight (#74).
+NEEDS_MARK = re.compile(r"\n*<!-- docs-kit: before needs-you, (\w[^>]*?) -->\n*")
 LEVELS = ("Plan", "Phase", "Item", "Step")
 FIELD_TYPES = {"order": "NUMBER", "horizon": "SINGLE_SELECT", "level": "SINGLE_SELECT",
                "start": "DATE", "target": "DATE", "status": "SINGLE_SELECT", "kind": "SINGLE_SELECT"}
@@ -928,6 +945,15 @@ def gh_rest(method: str, path: str, body: dict | None = None, retry: bool = True
     return gh_call(args, json.dumps(body) if body is not None else None, retry=retry)
 
 
+def same_words(a: str, b: str) -> bool:
+    """Two titles that say the same once "Phase 2:" or "Later:" is taken off: an item that
+    repeats its phase."""
+    def bare(t: str) -> str:
+        t = re.sub(r"^\s*(phase\s*[\w.]*|now|next|later)\s*:\s*", "", t, flags=re.I)
+        return re.sub(r"\W+", " ", t.lower()).strip()
+    return bool(bare(a)) and bare(a) == bare(b)
+
+
 def natural(name: str) -> list:
     """2-two before 10-ten."""
     return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", name)]
@@ -965,6 +991,9 @@ class Plan:
         labels = c.get("labels", {})
         self.plan_label = labels.get("plan", "plan")
         self.phase_label = labels.get("phase", "phase")
+        # What only the owner can do or check (#74): kept in Later, listed, with a view.
+        self.needs_label = labels.get("needs_you", "needs-you")
+        self.owner_name = c.get("owner")
         self.done = c.get("done", "Done")
         self.root_title = c.get("title", f"The plan: {project.name}")
 
@@ -1025,8 +1054,8 @@ class Plan:
         values = " ".join(f"v_{key}: fieldValueByName(name: {q(name)}) {{ {VALUE} }}"
                           for key, name in self.read_fields().items())
         return ("id number title state body isPinned milestone { number title } parent { number state } "
-                "labels(first: 20) { nodes { name } } projectItems(first: 20) { nodes { id project { number "
-                "owner { ... on User { login } ... on Organization { login } } } " + values + " } }")
+                "subIssuesSummary { total completed } labels(first: 20) { nodes { name } } "
+                "projectItems(first: 20) { nodes { id project { number owner { ... on User { login } ... on Organization { login } } } " + values + " } }")
 
     def load(self) -> None:
         owner, name = self.p.repo.split("/", 1)
@@ -1054,7 +1083,7 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
             ... on ProjectV2SingleSelectField {{ options {{ id name }} }}
           }}
         }}
-        views(first: 50) {{ nodes {{ id number name filter layout
+        views(first: 50, orderBy: {{ field: POSITION, direction: ASC }}) {{ nodes {{ id number name filter layout
           fields(first: 50) {{ nodes {{ ... on ProjectV2FieldCommon {{ id }} }} }} }} }}
       }}
     }}
@@ -1124,6 +1153,8 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
             "milestone": (node.get("milestone") or {}).get("title"),
             "parent": parent.get("number"), "labels": {label["name"] for label in node["labels"]["nodes"]},
             "item": (item or {}).get("id"), "values": values,
+            "steps": ((node.get("subIssuesSummary") or {}).get("total", 0),
+                      (node.get("subIssuesSummary") or {}).get("completed", 0)),
         }
 
     def scan(self) -> None:
@@ -1328,6 +1359,12 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
         out += ["Each phase is a sub-issue of this one, and each item a sub-issue of its phase: their order is "
                 f"the [project board]({self.board_url()})'s.", ""]
         out += self.table(phase)
+        waiting = self.waiting()
+        if waiting:
+            later = f", so they wait in {self.horizons[-1]}" if self.horizons else ""
+            out += [f"## Waiting on {self.who()}", "",
+                    f"Only {self.who()} can do or check these (`{self.needs_label}`){later}:", ""]
+            out += [f"- #{i['number']} {i['title']}" for i in waiting] + [""]
         done = self.done_phases(pages)
         if done:
             out += ["## Done", "", " ·\n".join(phase(p["milestone"]) for p in done), ""]
@@ -1347,6 +1384,41 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
         if facts:
             out += [" · ".join(facts), ""]
         return "\n".join(out)
+
+    # What waits on the owner (#74)
+
+    def who(self) -> str:
+        """The owner's name, for "Waits on Kevin" and the "**Kevin:**" section: plan.owner, or the
+        first name on the board owner's GitHub profile, or "the owner"."""
+        if self.owner_name is None:
+            name = ""
+            if getattr(self, "owner_kind", "User") == "User":
+                name = (gh_rest("GET", f"users/{self.board_owner}").get("name") or "").strip()
+            self.owner_name = name.split()[0] if name else "the owner"
+        return self.owner_name
+
+    def waiting(self) -> list[dict]:
+        """The open issues with the needs-you label, in the order of the plan."""
+        def key(i: dict) -> tuple:
+            order = i["values"].get("order")
+            return (order if order is not None else float("inf"), i["number"])
+        return sorted((i for i in self.issues.values()
+                       if i["state"] == "OPEN" and self.needs_label in i["labels"]), key=key)
+
+    def asks(self, i: dict) -> str | None:
+        """What the issue's "**Kevin:**" section (the owner's name) asks: its first words."""
+        names = {self.who().lower(), "you", "owner", "the owner"}
+        lines = i["body"].replace("\r", "").split("\n")
+        for k, line in enumerate(lines):
+            # A heading, a line of its own, or a step of a list (#83).
+            bare = re.sub(r"^\s*(#{1,6}\s*|([-*+]|\d+[.)])\s+)", "", line)
+            m = re.match(r"[*_]*([\w' ]+?)[*_]*\s*:[*_]*\s*(.*)$", bare)
+            if not m or m.group(1).strip().lower() not in names:
+                continue
+            said = m.group(2).strip() or next((l.strip() for l in lines[k + 1:] if l.strip()), "")
+            said = re.sub(r"^([-*+]|\d+[.)])\s+", "", said)
+            return said if len(said) <= 140 else said[:139].rstrip() + "…"
+        return None
 
     def board_url(self) -> str:
         kind = "orgs" if self.owner_kind == "Organization" else "users"
@@ -1441,6 +1513,125 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
             if self.horizons and i["values"].get("horizon") not in self.horizons and self.phase_of(i):
                 found.append(f"#{i['number']} {i['title']} (an item in \"{i['milestone']}\") has no "
                              f"{self.fields['horizon']} on the board")
+        return found
+
+    # What to look at (#73): a plan whose pages and GitHub agree can still not say what's next.
+    # These are warnings, never failures.
+
+    def view_names(self) -> set[str]:
+        """The views docs-kit makes."""
+        return {"Now · Next · Later", "Roadmap", "In order", "Inbox", "Ideas", "Needs you"} | set(self.horizons)
+
+    def starting_views(self) -> list[dict]:
+        """GitHub's starting views: not the plan's, and with a starting filter."""
+        return [v for v in self.views if v["name"] not in self.view_names()
+                and " ".join((v.get("filter") or "").split()) in STARTING_FILTERS]
+
+    def states(self, numbers: set[int]) -> dict[int, dict]:
+        """Each issue's state, title and milestone, read from GitHub where the plan hasn't it."""
+        known = {n: self.issues[n] for n in numbers if n in self.issues}
+        missing = sorted(n for n in numbers if n not in self.issues)
+        owner, name = self.p.repo.split("/", 1)
+        for start in range(0, len(missing), 50):
+            chunk = missing[start:start + 50]
+            got = gh_graphql("query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { "
+                             + " ".join(f"i{n}: issue(number: {n}) {{ number title state milestone {{ title }} }}"
+                                        for n in chunk)
+                             + " } }", {"owner": owner, "name": name}).get("repository") or {}
+            for n in chunk:
+                node = got.get(f"i{n}")
+                if node:
+                    known[n] = {"number": n, "title": node["title"].strip(), "state": node["state"],
+                                "milestone": (node.get("milestone") or {}).get("title")}
+        return known
+
+    @staticmethod
+    def listed_as_open(text: str) -> list[int]:
+        """The issue each line of a page's lists of what's left names first: a list item under a
+        heading about what's planned or left ("The plans", "What's left", "Next"), or a row of a
+        table with an Order, Horizon, Plan or Issue column. Not what's said to be done: under a
+        heading such as "What shipped", after a paragraph starting "Done", or in an item that
+        says so ("done 14 Nov", "(fixed", struck through, ticked) (#73, #80)."""
+        found, done, about_left, table = [], False, False, None
+        for line in text.split("\n"):
+            bare = line.strip()
+            if re.match(r"#{1,6}\s", bare):
+                done = bool(DONE_WORDS.search(bare))
+                about_left = not done and bool(LEFT_WORDS.search(bare))
+                table = None
+                continue
+            if bare.startswith("|"):
+                if table is None:
+                    table = bool(PLAN_COLUMNS.search(bare))  # a table's first row names its columns
+                    continue
+                listed = table and not re.fullmatch(r"[\s:|-]*", bare)
+            else:
+                table = None
+                listed = about_left and re.match(r"([-*+]|\d+[.)])\s", bare)
+                if not re.match(r"([-*+]|\d+[.)])\s", bare) and DONE_START.match(bare):
+                    done = True
+            m = MENTION_HERE.search(bare) if listed else None
+            if m and not done and not DONE_MARK.search(bare):
+                found.append(int(m.group(1)))
+        return found
+
+    def warnings(self, pages: dict[str, dict]) -> list[str]:
+        found: list[str] = []
+        plans = self.plans()
+        if self.horizons:
+            first = self.horizons[0]
+            soon = self.horizons[:2] if len(self.horizons) > 2 else self.horizons[:1]
+            upkeep = self.p.config.get("upkeep")
+            now = [i for i in plans if i["values"].get("horizon") == first]
+            after = [i for i in plans if i["values"].get("horizon") in self.horizons[1:]]
+            if after and not [i for i in now if i["number"] != upkeep]:
+                up = min(after, key=lambda i: (self.horizons.index(i["values"]["horizon"]), plans.index(i)))
+                what = f"holds only the upkeep item, #{upkeep}," if now else "is empty,"
+                found.append(f"{first} {what} so the plan doesn't say what's next: move the next piece of work up "
+                             f"(#{up['number']} {up['title']}, say: `docs-kit plan set {up['number']} "
+                             f"{self.fields['horizon']}={first}`)")
+            for i in plans:
+                if i["values"].get("horizon") not in soon:
+                    continue
+                total, done = i.get("steps", (0, 0))
+                left = sorted((s for s in self.open_work() if i in self.ancestors(s)), key=lambda s: s["number"])
+                if total >= 2 and total - done == 1 and left:
+                    step = left[0]
+                    found.append(f"#{i['number']} {i['title']} is an umbrella: {done} of its {total} steps are done, "
+                                 f"so the board shows it instead of the work left, #{step['number']} "
+                                 f"{step['title']}. Make #{step['number']} an item of its phase, and close "
+                                 f"#{i['number']}")
+                elif i["milestone"] and same_words(i["title"], i["milestone"]):
+                    found.append(f"#{i['number']} {i['title']} repeats its phase's title (\"{i['milestone']}\"), "
+                                 "so the board shows the phase again, not the work: name the piece of work it "
+                                 "is, or make its steps the phase's items")
+        listed = {}
+        for page in pages.values():
+            milestone = page["milestone"]
+            if milestone in self.milestones and self.status(milestone)[0] != "Done":
+                listed[page["file"]] = (milestone, self.listed_as_open(page["text"]))
+        states = self.states({n for _, numbers in listed.values() for n in numbers})
+        for file, (milestone, numbers) in listed.items():
+            closed = [states[n] for n in dict.fromkeys(numbers)
+                      if n in states and states[n]["state"] == "CLOSED" and states[n]["milestone"] == milestone]
+            if len(closed) == 1:
+                found.append(f"{file}: lists #{closed[0]['number']} {closed[0]['title']} with what's still to do, "
+                             "and it's closed: move it to what's done, or take it off")
+            elif closed:
+                found.append(f"{file}: lists {len(closed)} closed issues with what's still to do ("
+                             + ", ".join(f"#{i['number']}" for i in closed)
+                             + "): move them to what's done, or take them off")
+        starting = self.starting_views()
+        if starting and self.views[0] in starting:
+            names = ", ".join(f"\"{v['name']}\"" for v in starting)
+            found.append(f"the board opens on GitHub's starting view \"{self.views[0]['name']}\", not the plan's: "
+                         "`docs-kit plan sync --views` makes the plan's views, and with `--yes` deletes GitHub's "
+                         f"starting ones ({names}). Then drag Now · Next · Later to the first tab, if it isn't")
+        for i in self.waiting():
+            if not self.asks(i):
+                found.append(f"#{i['number']} {i['title']} waits on {self.who()} ({self.needs_label}) and doesn't "
+                             f"say what {self.who()} should do: add a short \"**{self.who()}:**\" section, in plain "
+                             "words")
         return found
 
 
@@ -1639,6 +1830,9 @@ def sync(plan: Plan, pages: dict[str, dict], dry: bool, setup: bool = False) -> 
     # The labels, the root, and a phase issue per phase.
     ch.label(p.plan_label, "5319e7", "The project's plan: the root of its issues")
     ch.label(p.phase_label, "1d76db", "A phase of the plan, in its milestone")
+    if p.needs_label not in p.labels:
+        said = f"Waits on {p.who()}: only {p.who()} can do or check this. Kept in Later until then."
+        ch.label(p.needs_label, "d93f0b", said[:100])
     root = p.root()
     if not root:
         root = ch.create_issue(p.root_title, "", p.plan_label, None)
@@ -1687,17 +1881,43 @@ def sync(plan: Plan, pages: dict[str, dict], dry: bool, setup: bool = False) -> 
             level = p.level(i)
             if level and i["values"].get("level") != level:
                 ch.value(i, "level", level)
+    # What waits on the owner goes to Later, remembering where it was in its description, and
+    # goes back when the label comes off, unless someone has moved it since (#74).
+    later = p.horizons[-1] if p.horizons and p.fields.get("horizon") else None
+    for i in in_plan:
+        if not later or p.structural(i):
+            continue
+        mark = NEEDS_MARK.search(i["body"])
+        if p.needs_label in i["labels"]:
+            was = i["values"].get("horizon")
+            if was == later:
+                continue
+            if not mark:
+                note = f"<!-- docs-kit: before needs-you, {p.fields['horizon']} {was or 'none'} -->"
+                ch.body(i, i["body"].rstrip() + "\n\n" + note, f"remembers it was {was or 'without a Horizon'}")
+            ch.value(i, "horizon", later, f"it waits on {p.who()}: {p.needs_label}")
+        elif mark:
+            was = mark.group(1).split()[-1]
+            if p.level(i) == "Item" and i["values"].get("horizon") == later and was in p.horizons:
+                ch.value(i, "horizon", was, f"back where it was: the {p.needs_label} label came off")
+            ch.body(i, NEEDS_MARK.sub("\n\n", i["body"]).strip(), f"no longer {p.needs_label}")
     copied = [k for k in ("order", "horizon") if p.fields.get(k)] + [f"i{n}" for n in range(len(p.inherit))]
     for i in in_plan:
         if p.level(i) != "Step":
             continue
         item = p.item_of(i)
         for key in copied:
+            if key == "horizon" and p.needs_label in i["labels"]:
+                continue
             mine, theirs = i["values"].get(key), (item or {}).get("values", {}).get(key)
             if theirs is not None and mine != theirs:
                 ch.value(i, key, theirs, f"from #{item['number']}")
 
-    # Each phase's own values from its items, and open while it has work.
+    # Each phase's own values from its items, and open while it has work, with a Status that
+    # isn't Done (the board's first other one, Todo).
+    status_field = p.board_fields.get(p.fields.get("status") or "") or {}
+    open_status = next((o["name"] for o in status_field.get("options", []) if o["name"] != p.done), None) \
+        if p.done in {o["name"] for o in status_field.get("options", [])} else None
     def items_under(phase: dict) -> list[dict]:
         return [i for i in p.open_work() if p.level(i) == "Item" and phase in p.ancestors(i)]
     for milestone, phase in sorted(phases.items(), key=lambda kv: kv[1]["number"]):
@@ -1710,6 +1930,10 @@ def sync(plan: Plan, pages: dict[str, dict], dry: bool, setup: bool = False) -> 
             ch.state(phase, False, "everything in it is done")
         if phase["state"] != "OPEN":
             continue
+        # An open phase isn't Done: the board's own workflow closes a Done issue again at its
+        # next change (#78).
+        if open_status and phase["item"] and phase["values"].get("status") == p.done:
+            ch.value(phase, "status", open_status, "it's open again, and the board closes what's Done")
         horizons = [i["values"].get("horizon") for i in items if i["values"].get("horizon") in p.horizons]
         sums = {"horizon": min(horizons, key=p.horizons.index) if horizons else None}
         for key, pick in (("order", min), ("start", min), ("target", max)):
@@ -1824,10 +2048,24 @@ def setup(plan: Plan, pages: dict[str, dict], dry: bool) -> list[str]:
     return said
 
 
-def views(plan: Plan, dry: bool) -> list[str]:
-    """The plan's three views of the board, made or their filters put right (the
-    Inbox is inbox_board's)."""
+def views(plan: Plan, dry: bool, delete: bool = False) -> list[str]:
+    """The plan's views of the board, made or their filters put right (the Inbox is
+    inbox_board's): a board of Now, Next and Later, the roadmap, every item in order, and a
+    table per Horizon. With `delete`, GitHub's starting views go (#73); without, it says
+    which would."""
     p, said = plan, []
+    starting = p.starting_views()
+    for view in starting:
+        if not delete:
+            said.append(f"the board's view \"{view['name']}\" is one of GitHub's starting views: "
+                        "`--views --yes` deletes it")
+            continue
+        said.append(f"the board's view \"{view['name']}\": deleted (one of GitHub's starting views, filter "
+                    f"\"{view.get('filter') or 'none'}\")")
+        if not dry:
+            gh_graphql(f"mutation {{ deleteProjectV2View(input: {{ viewId: {q(view['id'])} }}) "
+                       "{ clientMutationId } }", retry=False)
+        p.views.remove(view)
     f = {key: p.board_fields.get(name) for key, name in p.read_fields().items()}
     ms = p.board_fields.get("Milestone")
     order = (f.get("order") or {}).get("databaseId")
@@ -1841,12 +2079,15 @@ def views(plan: Plan, dry: bool) -> list[str]:
          "group_by": [(ms or {}).get("databaseId")]},
         {"name": "In order", "layout": "table", "filter": f"is:open {p.fields['level'].lower()}:Item,Step",
          "group_by": [(f.get("horizon") or {}).get("databaseId")]},
-    ]
+    ] + [{"name": h, "layout": "table",
+          "filter": f"is:open {p.fields['horizon'].lower()}:{h} {p.fields['level'].lower()}:Item,Step"}
+         for h in p.horizons]
     have = {v["name"]: v for v in p.views}
     for view in wanted:
         old = have.get(view["name"])
         if old:
-            if old.get("filter") != view["filter"]:
+            # The same filter in another order is the same filter.
+            if sorted((old.get("filter") or "").split()) != sorted(view["filter"].split()):
                 said.append(f"the board's view \"{view['name']}\": filter \"{view['filter']}\" (was \"{old.get('filter')}\")")
                 if not dry:
                     # With its layout: a filter alone can turn a table into a board.
@@ -1866,6 +2107,29 @@ def views(plan: Plan, dry: bool) -> list[str]:
         made = gh_rest("POST", f"{kind}/{p.board_owner}/projectsV2/{p.board_number}/views", body, retry=False)
         p.views.append({"id": made.get("node_id") or made.get("id"), "number": made.get("number"),
                         "name": view["name"], "filter": view["filter"]})
+    return said
+
+
+def needs_view(p: Plan, dry: bool) -> list[str]:
+    """The board's Needs you view (#74): a table of the open issues that wait on the owner, made
+    when it's missing; one of that name is never changed."""
+    if any(v["name"] == "Needs you" for v in p.views):
+        return []
+    view = {"name": "Needs you", "layout": "table", "filter": f"is:open label:{p.needs_label}"}
+    said = [f"the board's view \"Needs you\": made ({view['filter']}, what only the owner can do or check)"]
+    if not dry:
+        f = {key: p.board_fields.get(name) for key, name in p.read_fields().items()}
+        shown = [x for x in ((p.board_fields.get("Title") or {}).get("databaseId"),
+                             (f.get("order") or {}).get("databaseId"), (f.get("horizon") or {}).get("databaseId"),
+                             (p.board_fields.get("Milestone") or {}).get("databaseId")) if x]
+        if shown:
+            view["visible_fields"] = shown
+        if (f.get("order") or {}).get("databaseId"):
+            view["sort_by"] = [[f["order"]["databaseId"], "asc"]]
+        kind = "orgs" if p.owner_kind == "Organization" else "users"
+        made = gh_rest("POST", f"{kind}/{p.board_owner}/projectsV2/{p.board_number}/views", view, retry=False)
+        p.views.append({"id": made.get("node_id") or made.get("id"), "number": made.get("number"),
+                        "name": "Needs you", "filter": view["filter"], "layout": "TABLE_LAYOUT"})
     return said
 
 
@@ -2080,7 +2344,7 @@ def plan(project: Project, rest: list[str]) -> int:
     what = rest[0] if rest else ""
     commands = ("check", "sync", "init", "index", "status", "inbox", "ideas", "set")
     if what not in commands:
-        fail("usage: docs-kit plan init|sync [--dry-run] | plan check | plan inbox [--json | --take …] | "
+        fail("usage: docs-kit plan init|sync [--dry-run] [--views [--yes]] | plan check | plan inbox [--json | --take …] | "
              "plan set <issue> … | plan index [--check] | plan status [--write]")
     dry = "--dry-run" in rest
     p = Plan(project)
@@ -2128,6 +2392,7 @@ def plan(project: Project, rest: list[str]) -> int:
                     title = next((n for n, l in enumerate(lines) if l.startswith("# ")), -1)
                     lines[title + 1:title + 1] = ["", line] if title >= 0 else [line, ""]
                 (project.root / page["file"]).write_text("\n".join(lines), encoding="utf-8")
+        look_at(p.warnings(pages))
         return 0
 
     if what in ("inbox", "ideas"):
@@ -2138,8 +2403,11 @@ def plan(project: Project, rest: list[str]) -> int:
     said: list[str] = []
     if what == "init":
         said += setup(p, pages, dry)
-        said += views(p, dry)
+        said += views(p, dry, delete="--yes" in rest)
+    elif what == "sync" and "--views" in rest:
+        said += views(p, dry, delete="--yes" in rest)
     said += inbox_board(p, dry or what == "check")
+    said += needs_view(p, dry or what == "check")
     blocking = p.field_problems()
     if what in ("sync", "init") and blocking:
         print("docs-kit plan: can't sync until these are put right:")
@@ -2152,15 +2420,20 @@ def plan(project: Project, rest: list[str]) -> int:
     p.scan()
     waiting = (f"{len(p.drafts)} entr{'ies' if len(p.drafts) != 1 else 'y'} waiting in the Inbox: "
                "`docs-kit plan inbox`") if p.drafts else ""
+    notes = p.warnings(pages)
     if what == "check":
         if not said and not problems:
             print(f"docs-kit plan: {len(pages)} pages, {len(p.milestones)} milestones, {len(p.plans())} items, "
                   f"the issues, the board and {p.index} agree")
             if waiting:
                 print(f"docs-kit plan: {waiting}")
+            waits_on(p)
+            look_at(notes)
             return 0
         if waiting:
             print(f"docs-kit plan: {waiting}")
+        waits_on(p)
+        look_at(notes)
         if problems:
             print(f"docs-kit plan: the plan's pages and GitHub don't agree ({len(problems)}):")
             print("\n".join(f"  - {x}" for x in problems))
@@ -2177,11 +2450,31 @@ def plan(project: Project, rest: list[str]) -> int:
         print("\n".join(f"  - {x}" for x in said))
     else:
         print(f"docs-kit plan {what}: nothing to change")
+    look_at(notes)
     if problems:
         print(f"Still to put right by hand ({len(problems)}):")
         print("\n".join(f"  - {x}" for x in problems))
         return 1
     return 0
+
+
+def waits_on(p: Plan) -> None:
+    """What waits on the owner (#74), each with what it asks of them. Never a failure."""
+    waiting = p.waiting()
+    if waiting:
+        print(f"docs-kit plan: {len(waiting)} waiting on {p.who()} ({p.needs_label}), kept in "
+              f"{p.horizons[-1] if p.horizons else 'Later'}:")
+        for i in waiting:
+            asks = p.asks(i)
+            print(f"  - #{i['number']} {i['title']}" + (f". {p.who()}: {asks}" if asks else ""))
+
+
+def look_at(notes: list[str]) -> None:
+    """The warnings (#73): what to look at so the plan says what's next. Never a failure."""
+    if notes:
+        print(f"docs-kit plan: {len(notes)} thing{'s' if len(notes) != 1 else ''} to look at, so the plan says "
+              "what's next (never a failure):")
+        print("\n".join(f"  - {x}" for x in notes))
 
 
 # --------------------------------------------------------------------------
