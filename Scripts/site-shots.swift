@@ -76,7 +76,7 @@ import ApplicationServices
 import CryptoKit
 import ScreenCaptureKit
 
-let shotsKitVersion = "2.11.2"
+let shotsKitVersion = "2.13.0"
 
 // MARK: - Config
 
