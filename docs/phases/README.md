@@ -33,7 +33,3 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | 12 | #108 Idea: widgets for today's data and speed | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 | 13 | #77 Idea: a networkmonitor command for Terminal | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 | 14 | #308 Idea: ask an AI about what the network is doing | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
-
-## Done
-
-[Phase 1: Everyday polish](01-everyday-polish.md)
