@@ -112,7 +112,11 @@ through without asking. What's particular to NetworkMonitor:
   `Scripts/docs-kit plan sync` (it makes the rest follow: sub-issues, milestones, Levels,
   steps' values, the phases' own values, #607's description, the Status lines and
   `docs/phases/README.md`; never by hand), then `Scripts/docs-kit plan check`, which must
-  pass (`make plan-check`, in local CI). If it fails on something your change didn't touch (an
+  pass (`make plan-check`, in local CI). In a pull request's CI it's `plan check --pr` (#661):
+  a pull request that changes no plan page (`docs/phases/`, `docs/PLAN.md`, `.product-kit.json`)
+  only warns about what other sessions changed on GitHub after its branch was taken, naming each
+  issue and when; one that changes a plan page is checked in full, as by hand and on `main`.
+  If it fails on something your change didn't touch (an
   item closed since), run `plan sync` and commit the pages with your change. It's
   product-kit's docs-kit, stage 1 (`.product-kit.json`'s `plan`; the `product-kit` skill).
 - **Kevin's Inbox:** what he adds between sessions (a bug, a feature, an idea, research) is a

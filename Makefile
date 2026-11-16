@@ -158,9 +158,12 @@ docs-check:
 
 # The plan's pages (docs/phases/) agree with GitHub's milestones, issues and
 # project board (#605). It reads GitHub, so local CI runs it (GitHub's runners
-# can't read the board); it skips where gh isn't signed in.
+# can't read the board); it skips where gh isn't signed in. In a pull request's
+# CI (local-ci sets CI_PR), one that changes no plan page only warns about what
+# other sessions changed on GitHub after its branch was taken (#661,
+# product-kit#101).
 plan-check:
-	@if gh auth status --hostname github.com --active >/dev/null 2>&1; then python3 -I Scripts/docs-kit plan check; \
+	@if gh auth status --hostname github.com --active >/dev/null 2>&1; then python3 -I Scripts/docs-kit plan check $${CI_PR:+--pr}; \
 	else echo "plan-check: skipped, because gh isn't signed in to GitHub here, so the plan can't be read"; fi
 
 # The website's docs pages, built from docs/ into a gh-pages checkout (SITE):
