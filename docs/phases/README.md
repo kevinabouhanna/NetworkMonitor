@@ -9,6 +9,7 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
+| 1 | #660 The popover's scroll bar grows and shrinks when the list scrolls past an opened entry | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 2 | #256 Enhanced ad blocking: an opt-in switch that removes ads inside pages and videos in every app | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 
@@ -32,7 +33,3 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | 12 | #108 Idea: widgets for today's data and speed | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 | 13 | #77 Idea: a networkmonitor command for Terminal | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 | 14 | #308 Idea: ask an AI about what the network is doing | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
-
-## Done
-
-[Phase 1: Everyday polish](01-everyday-polish.md)
