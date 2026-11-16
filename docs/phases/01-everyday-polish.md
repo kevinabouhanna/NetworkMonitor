@@ -7,7 +7,14 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
 
 ## The plans
 
-Everything in this phase is done (13 Nov 2026), on `main`, not released yet:
+Open again (17 Nov 2026) for one bug Kevin found in the popover:
+
+- **#660** The popover's scroll bar grows and shrinks when the list scrolls past an opened
+  entry. Its lists only draw the rows on screen and guess the height of the rest, and an opened
+  entry changes the guess; the fix measures every row once, and a test holds the list's height
+  steady while it scrolls. First in Now: the popover is what people use every day.
+
+Done on 13 Nov 2026, and shipped since:
 
 - the popover keeps one height in all four views (#599);
 - the main window's three lists expand, collapse and filter the same way (#593): a click
