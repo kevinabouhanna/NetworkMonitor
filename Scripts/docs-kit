@@ -27,6 +27,8 @@
 #     [--views [--yes]]            and the board's views: Inbox, Needs you, Roadmap (--yes: no others)
 #   docs-kit plan check            the plan's pages, issues, milestones and board agree? (and
 #                                  what to look at so it says what's next, never a failure)
+#     [--pr [<base>]]              in a pull request's CI: unless it changes the plan's files, what
+#                                  GitHub changed after its branch was taken only warns (#101)
 #   docs-kit plan inbox [--json]   what's waiting in the board's Inbox (also: plan ideas)
 #   docs-kit plan inbox --take <item> --phase <milestone> [--parent N] [--horizon H]
 #                    [--order N] [--kind K] [--set Field=value] [--blocked-by N]
@@ -42,6 +44,7 @@
 #
 # The full reference is docs/docs-kit.md in kevinabouhanna/product-kit.
 
+import datetime
 import fnmatch
 import html
 import json
@@ -53,7 +56,7 @@ import sys
 import time
 import unicodedata
 
-VERSION = "2.14.0"
+VERSION = "2.15.0"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -974,6 +977,25 @@ def gh_rest(method: str, path: str, body: dict | None = None, retry: bool = True
     return gh_call(args, json.dumps(body) if body is not None else None, retry=retry)
 
 
+def when(text) -> datetime.datetime | None:
+    """A time GitHub or git gives (ISO 8601, "Z" or an offset), or None."""
+    if not text:
+        return None
+    try:
+        at = datetime.datetime.fromisoformat(str(text).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return at if at.tzinfo else at.replace(tzinfo=datetime.timezone.utc)
+
+
+def shown(at: datetime.datetime | None) -> str:
+    """A time as people read it, in this Mac's time zone: 15 Nov 10:12."""
+    if not at:
+        return "at a time GitHub didn't say"
+    at = at.astimezone()
+    return f"{at.day} {at:%b %H:%M}"
+
+
 def same_words(a: str, b: str) -> bool:
     """Two titles that say the same once "Phase 2:" or "Later:" is taken off: an item that
     repeats its phase."""
@@ -1085,7 +1107,7 @@ class Plan:
         return ("id number title state body isPinned createdAt author { login } milestone { number title } "
                 "parent { number state } "
                 "subIssuesSummary { total completed } labels(first: 20) { nodes { name } } "
-                "projectItems(first: 20) { nodes { id project { number owner { ... on User { login } ... on Organization { login } } } " + values + " } }")
+                "projectItems(first: 20) { nodes { id updatedAt project { number owner { ... on User { login } ... on Organization { login } } } " + values + " } }")
 
     def load(self) -> None:
         owner, name = self.p.repo.split("/", 1)
@@ -1094,7 +1116,7 @@ class Plan:
 query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: String) {{
   repository(owner: $owner, name: $name) {{
     id
-    milestones(first: 100, states: [OPEN, CLOSED]) {{ nodes {{ id number title state dueOn }} }}
+    milestones(first: 100, states: [OPEN, CLOSED]) {{ nodes {{ id number title state dueOn updatedAt }} }}
     labels(first: 100) {{ nodes {{ id name }} }}
     issues(states: OPEN, first: 100, after: $after) {{
       pageInfo {{ hasNextPage endCursor }}
@@ -1185,7 +1207,7 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
             "created": node.get("createdAt") or "", "by": (node.get("author") or {}).get("login", ""),
             "milestone": (node.get("milestone") or {}).get("title"),
             "parent": parent.get("number"), "labels": {label["name"] for label in node["labels"]["nodes"]},
-            "item": (item or {}).get("id"), "values": values,
+            "item": (item or {}).get("id"), "values": values, "touched": (item or {}).get("updatedAt") or "",
             "steps": ((node.get("subIssuesSummary") or {}).get("total", 0),
                       (node.get("subIssuesSummary") or {}).get("completed", 0)),
         }
@@ -1606,6 +1628,36 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
                     known[n] = {"number": n, "title": node["title"].strip(), "state": node["state"],
                                 "milestone": (node.get("milestone") or {}).get("title")}
         return known
+
+    def changed_since(self, since: datetime.datetime) -> tuple[dict[int, str], list[str]]:
+        """What changed on GitHub after `since` (#101): each issue made, closed or changed since
+        (the first that applies, with when), or moved on the board; and each milestone changed."""
+        owner, name = self.p.repo.split("/", 1)
+        query = ("query($owner: String!, $name: String!, $since: DateTime!, $after: String) { "
+                 "repository(owner: $owner, name: $name) { issues(first: 100, after: $after, states: [OPEN, CLOSED], "
+                 "filterBy: { since: $since }, orderBy: { field: UPDATED_AT, direction: DESC }) { "
+                 "pageInfo { hasNextPage endCursor } nodes { number createdAt closedAt updatedAt } } } }")
+        issues: dict[int, str] = {}
+        after = None
+        for _ in range(20):  # 2,000 issues changed since: more than any branch waits for
+            got = (gh_graphql(query, {"owner": owner, "name": name, "since": since.isoformat(), "after": after})
+                   .get("repository") or {}).get("issues") or {}
+            for node in got.get("nodes") or []:
+                for what, key in (("made", "createdAt"), ("closed", "closedAt"), ("changed", "updatedAt")):
+                    at = when(node.get(key))
+                    if at and at > since:
+                        issues.setdefault(node["number"], f"{what} {shown(at)}")
+                        break
+            if not (got.get("pageInfo") or {}).get("hasNextPage"):
+                break
+            after = got["pageInfo"]["endCursor"]
+        for i in self.issues.values():
+            at = when(i.get("touched"))
+            if at and at > since:
+                issues.setdefault(i["number"], f"moved on the board {shown(at)}")
+        milestones = [f"the milestone \"{title}\" changed {shown(at)}" for title, m in self.milestones.items()
+                      if (at := when(m.get("updatedAt"))) and at > since]
+        return issues, milestones
 
     @staticmethod
     def listed_as_open(text: str) -> list[int]:
@@ -2455,12 +2507,75 @@ def set_issue(project: Project, p: Plan, rest: list[str]) -> int:
     return 0
 
 
+def pull_request(project: Project, p: Plan, rest: list[str]) -> dict | None:
+    """`plan check --pr [<base>]` (#101): a pull request's CI. Its branch was taken from the base
+    branch (CI_BASE, or the config's branch: main) at a commit, the fork; what it changes is
+    what's between the fork and its head (CI_SHA, which local-ci sets, or HEAD). A pull request
+    that changes a plan file (a page, the index, the plan, the config) is the plan's own, and
+    is checked in full; so is a run where nothing is changed (on main). Otherwise this says when
+    the fork was made, and the check only warns about what GitHub changed after it."""
+    at = rest.index("--pr")
+    base = rest[at + 1] if at + 1 < len(rest) and not rest[at + 1].startswith("-") else None
+    base = base or os.environ.get("CI_BASE") or project.branch
+
+    def run(*args: str) -> str | None:
+        out = subprocess.run(["git", *args], cwd=project.root, capture_output=True, text=True)
+        return out.stdout.strip() if out.returncode == 0 else None
+
+    ref = next((r for r in (f"origin/{base}", base) if run("rev-parse", "--verify", "-q", f"{r}^{{commit}}")), None)
+    sha = os.environ.get("CI_SHA", "")
+    head = sha if sha and run("rev-parse", "--verify", "-q", f"{sha}^{{commit}}") else "HEAD"
+    fork = run("merge-base", head, ref) if ref else None
+    if not fork:
+        print(f"docs-kit plan: can't tell what the pull request changes (no {base} to compare it with): "
+              "checked in full")
+        return None
+    files = (run("diff", "--name-only", fork, head) or "").split("\n")
+    files = [f for f in files if f]
+    if not files:
+        print(f"docs-kit plan: nothing here that isn't on {base} already: checked in full")
+        return None
+    config = pathlib.Path(CONFIG)
+    config = str(config.relative_to(project.root)) if config.is_absolute() and config.is_relative_to(project.root) \
+        else CONFIG
+    plan_files = [f for f in files if f in (p.index, p.doc, config) or f.startswith(p.folder + "/")]
+    if plan_files:
+        print(f"docs-kit plan: the pull request changes the plan ({', '.join(plan_files)}): checked in full")
+        return None
+    since = when(run("show", "-s", "--format=%cI", fork))
+    if not since:
+        print(f"docs-kit plan: can't tell when the pull request's {base} was taken: checked in full")
+        return None
+    return {"base": base, "fork": fork[:7], "since": since}
+
+
+def leave_to_others(p: Plan, lines: list[str], issues: dict[int, str], others: list[str]) -> tuple[list[str], list[str]]:
+    """A pull request's own failures, and what came from GitHub changing after its branch was
+    taken (#101). A line about issues (its #N, not the plan's or a phase's own) is GitHub's when
+    every one of them changed since; a line about none (the index, a phase's description, a milestone)
+    is GitHub's when anything did."""
+    own, theirs = [], []
+    changes = [f"#{n} {what}" for n, what in sorted(issues.items())] + others
+    lately = "; ".join(changes[:3]) + (f"; and {len(changes) - 3} more" if len(changes) > 3 else "")
+    for line in lines:
+        about = [n for n in dict.fromkeys(int(m) for m in MENTION_HERE.findall(line))
+                 if not (n in p.issues and p.structural(p.issues[n]))]
+        changed = [n for n in about if n in issues]
+        if about and len(changed) == len(about):
+            theirs.append(f"{line} (#" + "; #".join(f"{n} {issues[n]}" for n in changed) + ")")
+        elif not about and changes:
+            theirs.append(f"{line} (since then: {lately})")
+        else:
+            own.append(line)
+    return own, theirs
+
+
 def plan(project: Project, rest: list[str]) -> int:
     what = rest[0] if rest else ""
     commands = ("check", "sync", "init", "index", "status", "inbox", "ideas", "set")
     if what not in commands:
-        fail("usage: docs-kit plan init|sync [--dry-run] [--views [--yes]] | plan check | plan inbox [--json | --take …] | "
-             "plan set <issue> … | plan index [--check] | plan status [--write]")
+        fail("usage: docs-kit plan init|sync [--dry-run] [--views [--yes]] | plan check [--pr [<base>]] | "
+             "plan inbox [--json | --take …] | plan set <issue> … | plan index [--check] | plan status [--write]")
     dry = "--dry-run" in rest
     p = Plan(project)
     pages = p.pages()
@@ -2537,18 +2652,33 @@ def plan(project: Project, rest: list[str]) -> int:
                "`docs-kit plan inbox`") if p.entries else ""
     notes = p.warnings(pages)
     if what == "check":
+        # A pull request's CI (#101): what GitHub changed after its branch was taken is for the
+        # session that changed it to put right, in its own plan pull request; here it's a warning.
+        pr = pull_request(project, p, rest) if "--pr" in rest else None
+        theirs: list[str] = []
+        if pr:
+            issues, others = p.changed_since(pr["since"])
+            problems, late = leave_to_others(p, problems, issues, others)
+            said, later = leave_to_others(p, said, issues, others)
+            theirs = late + later
+            print(f"docs-kit plan: a pull request that changes no plan page, checked against GitHub as it was "
+                  f"when its branch's {pr['base']} was taken ({pr['fork']}, {shown(pr['since'])})")
         if not said and not problems:
             print(f"docs-kit plan: {len(pages)} pages, {len(p.milestones)} milestones, {len(p.plans())} items, "
-                  f"the issues, the board and {p.index} agree")
+                  f"the issues, the board and {p.index} agree" + (", but for what GitHub changed since" if theirs else ""))
             if waiting:
                 print(f"docs-kit plan: {waiting}")
             waits_on(p)
             look_at(notes)
+            since_then(theirs)
             return 0
         if waiting:
             print(f"docs-kit plan: {waiting}")
         waits_on(p)
         look_at(notes)
+        since_then(theirs)
+        if pr:
+            print(f"docs-kit plan: these were already so when the branch's {pr['base']} was taken:")
         if problems:
             print(f"docs-kit plan: the plan's pages and GitHub don't agree ({len(problems)}):")
             print("\n".join(f"  - {x}" for x in problems))
@@ -2582,6 +2712,16 @@ def waits_on(p: Plan) -> None:
         for i in waiting:
             asks = p.asks(i)
             print(f"  - #{i['number']} {i['title']}" + (f". {p.who()}: {asks}" if asks else ""))
+
+
+def since_then(lines: list[str]) -> None:
+    """In a pull request's CI (#101): what GitHub changed after its branch was taken. Never a
+    failure there: the session that made the change puts the plan right in its own pull request."""
+    if lines:
+        print(f"docs-kit plan: {len(lines)} thing{'s' if len(lines) != 1 else ''} from GitHub changing since the "
+              "branch was taken, for the session that changed it to put right in its plan pull request "
+              "(never a failure here):")
+        print("\n".join(f"  - {x}" for x in lines))
 
 
 def look_at(notes: list[str]) -> None:
