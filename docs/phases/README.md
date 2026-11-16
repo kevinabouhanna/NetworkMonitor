@@ -10,6 +10,7 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | Order | Plan | Phase |
 |---|---|---|
 | 1 | #660 The popover's scroll bar grows and shrinks when the list scrolls past an opened entry | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 1.5 | #663 Copies of one app are one row: simulator installs and builds in other folders | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 2 | #256 Enhanced ad blocking: an opt-in switch that removes ads inside pages and videos in every app | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 
