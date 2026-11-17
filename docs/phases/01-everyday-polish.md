@@ -16,8 +16,9 @@ Open again (17 Nov 2026) for a bug Kevin found in what he uses every day:
 
 Done on 17 Nov 2026, on `main`, not released yet (releases are on hold until Kevin says, #667):
 
-- the popover's scroll bar keeps one size when the list scrolls past an opened entry (#660,
-  #666): its lists lay out every row instead of guessing the height of those not drawn yet.
+- the popover's scroll bar keeps one size when the list scrolls past an opened entry (#660):
+  its lists lay out every row rather than guessing the height of those off screen, checked in
+  a VM in Today, Connections and Ads blocked, and held by a test.
 
 Done on 13 Nov 2026, and shipped since:
 
