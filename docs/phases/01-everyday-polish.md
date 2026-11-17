@@ -14,7 +14,7 @@ Open again (17 Nov 2026) for a bug Kevin found in what he uses every day:
   row. Copies of one app (same bundle id and name) become one row, and a rule on it covers
   every copy. First in Now.
 
-Done on 17 Nov 2026, in the next release:
+Done on 17 Nov 2026, on `main`, not released yet (releases are on hold until Kevin says, #667):
 
 - the popover's scroll bar keeps one size when the list scrolls past an opened entry (#660):
   its lists lay out every row rather than guessing the height of those off screen, checked in
