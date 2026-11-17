@@ -375,8 +375,10 @@ struct PopoverList<Content: View>: View {
             // guesses the height of the rows it hasn't drawn from those it
             // has, and an opened entry's rows changed the guess as the list
             // scrolled past it, so the scroll bar's knob grew, shrank and
-            // jumped. The lists are short: at most `TodayGlance.rows` entries
-            // and what's opened under them.
+            // jumped. The lists are short enough to lay out whole: Today's
+            // apps and System's daemons were 105 rows with every entry open
+            // on a busy Mac; Connections and Ads blocked show 25 entries and
+            // up to 25 parts under each one opened.
             VStack(alignment: .leading, spacing: 0) { content }
                 .padding(.vertical, PopoverMetrics.listVerticalPadding / 2)
         }

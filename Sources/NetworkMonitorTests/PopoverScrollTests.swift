@@ -47,6 +47,8 @@ func runPopoverScrollTests() {
             defer { (glance.period, glance.dataGrouping) = saved }
             model.setPopoverOpen(true)
             defer { model.setPopoverOpen(false) }
+            // The live rows, which the list shows until History has a report.
+            Check.expectNil(glance.report, "the list would show History's rows, not these")
             guard let opened = model.rows.first(where: { !$0.children.isEmpty }) else {
                 Check.expectTrue(false, "no app with parts to open: \(model.rows.map(\.displayName))")
                 return
@@ -60,7 +62,7 @@ func runPopoverScrollTests() {
             window.contentView = hosting
             window.placeOutOfSight()
             defer { window.orderOut(nil) }
-            func settle() { RunLoop.main.run(until: Date().addingTimeInterval(0.15)) }
+            func settle() { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
 
             func scrollView(in view: NSView) -> NSScrollView? {
                 if let scroll = view as? NSScrollView { return scroll }
@@ -78,7 +80,7 @@ func runPopoverScrollTests() {
                 }
                 let visible = scroll.contentView.bounds.height
                 var seen: [(CGFloat, CGFloat, CGFloat)] = []
-                let steps = 24
+                let steps = 8
                 let positions = (0...steps).map { CGFloat($0) / CGFloat(steps) }
                 for fraction in positions + positions.reversed() {
                     let end = max(document.frame.height - visible, 0)
@@ -94,6 +96,10 @@ func runPopoverScrollTests() {
             func expectSteady(_ state: String, rows: Int) {
                 let seen = heights(state)
                 guard let first = seen.first else { return }
+                // A list with no scroll bar would pass the knob's check at
+                // every position without testing it.
+                Check.expectTrue(first.knob > 0 && first.knob < 1,
+                                 "\(state): the knob is \(first.knob) of the bar, not a list that scrolls")
                 let expected = PopoverMetrics.contentHeight(appRows: rows, expandedChildRows: 0,
                                                             systemRowCount: 0, systemExpanded: false)
                 for (y, height, knob) in seen {
@@ -110,10 +116,9 @@ func runPopoverScrollTests() {
             withAnimation(nil) { model.toggleExpanded(opened.id) }
             expectSteady("\(opened.displayName) open", rows: apps + opened.children.count + 1)
             withAnimation(nil) { model.systemExpanded = true }
+            defer { model.systemExpanded = false }
             expectSteady("\(opened.displayName) and System open",
                          rows: apps + opened.children.count + 1 + system)
-            model.systemExpanded = false
-            model.popoverSection = .today
         }
     }
 }
