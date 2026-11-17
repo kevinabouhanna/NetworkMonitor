@@ -56,7 +56,7 @@ import sys
 import time
 import unicodedata
 
-VERSION = "2.15.0"
+VERSION = "2.16.0"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -866,24 +866,62 @@ DONE_MARK = re.compile(r"~~|✓|✅|\b(done|shipped|finished|merged|released|bui
 DONE_WHEN = re.compile(r"done[\s*_-]+when\b[\s*_:]*(.*)$", re.I)
 LINE_LEAD = re.compile(r"^(\s|>|#|[-*+](?=\s)|\d+[.)](?=\s)|\[[ xX]?\]|<[^>]*>|[*_~`]|[^\w\s])*")
 FENCED = re.compile(r"^\s*(```|~~~).*?^\s*\1[^\n]*$", re.S | re.M)
+# An item's Analysis and Design (claude-parallel-sessions#181, #105). Analysis: a heading or a label
+# ("Analysis:"), not a sentence that starts with the word, with something under it. Design: a
+# "Design:" label, or a Design heading with the line under it, saying "needed: artifact", "needed:
+# live demo" or "not needed: <why>".
+ANALYSIS = re.compile(r"analysis[\s*_]*(?::|$)[\s*_:]*(.*)$", re.I)
+DESIGN_SAID = r"(?:needed[\s*_]*:[\s*_]*(?:an?\s+)?(?:artifact|live\s+demo)\b|not\s+needed[\s*_]*:[\s*_]*\w)"
+DESIGN = re.compile(rf"design[\s*_]*:[\s*_]*{DESIGN_SAID}", re.I)
+DESIGN_HEAD = re.compile(r"design[\s*_:]*$", re.I)
+DESIGN_UNDER = re.compile(DESIGN_SAID, re.I)
+# What ends a section a label opened: a heading (in a quote too), or another bold label ("**Why:**").
+SECTION_END = re.compile(r"^\s*(>\s*)*(#{1,6}\s|[-*+]?\s*\*\*[^*\n]+?(:\*\*|\*\*\s*:))")
 
 
-def says_done_when(body: str) -> bool:
-    """Whether an item's description says when it's done: a "Done when" line, outside code, with
-    its points on the same line or the lines under it (before the next heading)."""
-    lines = FENCED.sub("", body.lstrip("﻿")).split("\n")
+def _says(body: str, label: re.Pattern) -> bool:
+    """Whether a line of the description, outside code, starts with the label (once its lead is taken
+    off) and has something said after it, on that line or under it before the section ends."""
+    lines = FENCED.sub("", body.lstrip("\ufeff")).split("\n")
     for k, line in enumerate(lines):
-        m = DONE_WHEN.match(LINE_LEAD.sub("", line, count=1))
+        m = label.match(LINE_LEAD.sub("", line, count=1))
         if not m:
             continue
         if re.search(r"\w", m.group(1)):
             return True
         for after in lines[k + 1:]:
-            if re.match(r"\s*#{1,6}\s", after):
+            if SECTION_END.match(after):
                 break
             if re.search(r"\w", after):
                 return True
     return False
+
+
+def says_analysis(body: str) -> bool:
+    """Whether an item shows its analysis (#105): an Analysis heading or label with something under it."""
+    return _says(body, ANALYSIS)
+
+
+def says_design(body: str) -> bool:
+    """Whether an item says if it needs a design, and which (#105): a "Design:" line, or a Design
+    heading whose next line says it."""
+    lines = [LINE_LEAD.sub("", line, count=1) for line in FENCED.sub("", body.lstrip("\ufeff")).split("\n")]
+    for k, line in enumerate(lines):
+        if DESIGN.match(line):
+            return True
+        if DESIGN_HEAD.match(line):
+            nxt = next((x for x in lines[k + 1:] if x.strip()), "")
+            if DESIGN_UNDER.match(nxt):
+                return True
+    return False
+
+
+def says_done_when(body: str) -> bool:
+    """Whether an item's description says when it's done: a "Done when" line, outside code, with
+    its points on the same line or the lines under it (before the section ends)."""
+    return _says(body, DONE_WHEN)
+
+
 # A board's views, the same on every project, in this order (Kevin, 2026-11-15, #88): what the
 # owner adds, what waits on them, and the plan.
 PLAN_VIEWS = ("Inbox", "Needs you", "Roadmap")
@@ -1719,12 +1757,20 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
                     found.append(f"#{i['number']} {i['title']} repeats its phase's title (\"{i['milestone']}\"), "
                                  "so the board shows the phase again, not the work: name the piece of work it "
                                  "is, or make its steps the phase's items")
-            for i in plans:  # Now and Next, however many choices Horizon has
-                if (i["values"].get("horizon") in self.horizons[:2] and i["number"] != upkeep
-                        and not says_done_when(i["body"])):
+            for i in plans:  # Now and Next, however many choices Horizon has (#90, #105)
+                if i["values"].get("horizon") not in self.horizons[:2] or i["number"] == upkeep:
+                    continue
+                if not says_done_when(i["body"]):
                     found.append(f"#{i['number']} {i['title']} doesn't say when it's done: add a numbered "
                                  "\"**Done when:**\" list to its description, each point something a test or a "
                                  "check can show (#90)")
+                if not says_analysis(i["body"]):
+                    found.append(f"#{i['number']} {i['title']} doesn't show its analysis: add an \"## Analysis\" "
+                                 "section (what it touches, the options and the one chosen, the risks, and "
+                                 "Questions: none, or each one, waiting on the owner) (#105)")
+                if not says_design(i["body"]):
+                    found.append(f"#{i['number']} {i['title']} doesn't say whether it needs a design: add a line "
+                                 "\"**Design:** needed: artifact\", \"needed: live demo\" or \"not needed: <why>\" (#105)")
         listed = {}
         for page in pages.values():
             milestone = page["milestone"]
