@@ -396,9 +396,6 @@ public struct MenuBarPopoverView: View {
 
     // MARK: List
 
-    /// `LazyVStack` is safe again now that the height no longer comes from
-    /// measuring this content: laziness cannot influence a number derived from
-    /// the row count.
     /// The same list as every other view's (#436), so Apps and Networks
     /// cross as Connections' and Ads blocked's groupings do. Rows sliding past
     /// each other as figures arrive animate with the figures (`TodayGlance`),

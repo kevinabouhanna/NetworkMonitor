@@ -371,7 +371,13 @@ struct PopoverList<Content: View>: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) { content }
+            // Every row laid out, not a `LazyVStack` (#660): a lazy stack
+            // guesses the height of the rows it hasn't drawn from those it
+            // has, and an opened entry's rows changed the guess as the list
+            // scrolled past it, so the scroll bar's knob grew, shrank and
+            // jumped. The lists are short: at most `TodayGlance.rows` entries
+            // and what's opened under them.
+            VStack(alignment: .leading, spacing: 0) { content }
                 .padding(.vertical, PopoverMetrics.listVerticalPadding / 2)
         }
         .frame(height: height)
