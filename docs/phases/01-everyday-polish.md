@@ -13,6 +13,11 @@ Open again (17 Nov 2026) for a bug Kevin found in what he uses every day:
   of its iPhone build in the Simulator goes into a new folder, and every folder was its own
   row. Copies of one app (same bundle id and name) become one row, and a rule on it covers
   every copy. First in Now.
+- **#672** The menu bar readout reads on a light wallpaper too (from Kevin's Inbox, 19 Nov
+  2026). Its two colours are fixed and made for a dark menu bar, so on a light wallpaper they
+  nearly vanish. It follows the bar as macOS's own icons do: unchanged on a dark bar; on a
+  light one each colour keeps its hue, darkened just enough to read, the colours chosen in
+  Settings, Block Everything's and the speed test's included. Second in Now, after #663.
 
 Done on 17 Nov 2026, on `main`, not released yet (releases are on hold until Kevin says, #667):
 
