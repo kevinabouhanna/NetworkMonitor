@@ -1,3 +1,4 @@
+import FirewallPolicy
 import Foundation
 
 // MARK: - Persisted model
@@ -567,7 +568,41 @@ public final class UsageStore {
         for key in decoded.buckets.keys where decoded.buckets[key]!.countingSince == .distantPast {
             decoded.buckets[key]!.countingSince = decoded.dayStart
         }
+        for key in decoded.buckets.keys { decoded.buckets[key]!.apps = foldingCopies(decoded.buckets[key]!.apps) }
         return decoded
+    }
+
+    /// Today's rows of copies of one app, stored apart before #663, as one.
+    public static func foldingCopies(_ apps: [String: AppTotals],
+                              installedFolder: String = "/Applications") -> [String: AppTotals] {
+        var folded: [String: AppTotals] = [:]
+        for (key, totals) in apps {
+            let current = AppIdentityResolver.currentKey(forStored: key, installedFolder: installedFolder)
+            var moved = totals
+            if current != key {
+                // Named, and nested, as the row is now.
+                if AppKey.isSimulatorApp(current), !moved.displayName.hasSuffix(L("%@ (Simulator)", "")) {
+                    moved.displayName = L("%@ (Simulator)", moved.displayName)
+                } else if AppKey.installedApp(ofCopiesKey: current) != nil {
+                    moved.displayName = AppIdentityResolver.identity(forKey: current).displayName
+                }
+                if current.contains(AppKey.separator) {
+                    moved.parent = AppIdentityResolver.identity(forKey: current).parent ?? moved.parent
+                }
+            }
+            guard var existing = folded[current] else {
+                folded[current] = moved
+                continue
+            }
+            existing.bytesIn += moved.bytesIn
+            existing.bytesOut += moved.bytesOut
+            existing.lastActive = max(existing.lastActive, moved.lastActive)
+            if current == key {
+                (existing.displayName, existing.bundlePath, existing.parent) = (moved.displayName, moved.bundlePath, moved.parent)
+            }
+            folded[current] = existing
+        }
+        return folded
     }
 
     /// Writes via a temporary file so a crash mid-write can't corrupt the store.
