@@ -12,6 +12,9 @@ let package = Package(
         // Updating itself (#132). An exact release, a few weeks old when
         // chosen: what ships in the app is a decision, not whatever is newest.
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
+        // Enhanced ad blocking's certificates (#682): Apple's X.509, so none is
+        // built by hand. Apache 2.0.
+        .package(url: "https://github.com/apple/swift-certificates", exact: "1.21.1"),
     ],
     targets: [
         // Everything testable lives in NetworkMonitorCore. The executable is a
@@ -74,6 +77,14 @@ let package = Package(
             dependencies: ["HostsFile"],
             path: "Sources/FirewallPolicy"
         ),
+        // Enhanced ad blocking's certificates (#682): the one made on this Mac,
+        // and one per site made from it. No system parts, for the filter and
+        // the tests.
+        .target(
+            name: "SiteCertificates",
+            dependencies: [.product(name: "X509", package: "swift-certificates")],
+            path: "Sources/SiteCertificates"
+        ),
         // The site a connection is for, read from its opening handshake (#196):
         // TLS's server_name, and QUIC's, from Initial packets anyone can
         // decrypt. Pure Foundation and the system's crypto, for the filter
@@ -126,7 +137,7 @@ let package = Package(
         .executableTarget(
             name: "NetworkMonitorTests",
             dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory", "FilterProtocol",
-                           "FirewallPolicy", "HandshakeName"],
+                           "FirewallPolicy", "HandshakeName", "SiteCertificates"],
             path: "Sources/NetworkMonitorTests"
         ),
     ]
