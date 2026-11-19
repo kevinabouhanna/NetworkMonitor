@@ -66,8 +66,9 @@ There's no choice of neither: there'd be no way back to the app.
   - **Helpers fold into their app**: Chrome's dozen helper processes are one *Google
     Chrome* row.
   - **Copies of one app are one row**: a build of an app you have installed counts as
-    that app, and an iPhone or iPad app in Xcode's Simulator is one row, *Home Control
-    (Simulator)*, however often it's reinstalled.
+    that app when its maker signed it; every other copy of it is one row of its own,
+    *Home Control (other copies)*. An iPhone or iPad app in Xcode's Simulator is one row,
+    *Home Control (Simulator)*, however often it's reinstalled.
   - **Commands break out beneath the app that started them.** Open iTerm2 or VS Code to
     see the `node`, `git` or `curl` it launched, each with its own figure. More than four
     become *Other (n)*.
