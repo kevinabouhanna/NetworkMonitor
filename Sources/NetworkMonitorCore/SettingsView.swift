@@ -127,13 +127,15 @@ struct GeneralSettingsPane: View {
             Section {
                 SpeedColorPresets(colors: colors)
                 let custom = state.customColorsShown || colors.preset == nil
-                HStack {
-                    Spacer()
-                    Button(custom ? L("Hide Custom Colors") : L("Custom…")) {
-                        state.customColorsShown = !custom
+                // Your own colors stay in view while they're in use: no
+                // button to hide them then.
+                if colors.preset != nil {
+                    HStack {
+                        Spacer()
+                        Button(custom ? L("Hide Custom Colors") : L("Custom…")) {
+                            state.customColorsShown = !custom
+                        }
                     }
-                    // Your own colors stay in view while they're in use.
-                    .disabled(colors.preset == nil)
                 }
                 if custom {
                     // How the bar's light or dark changes them (#672), behind an ⓘ.
@@ -145,6 +147,10 @@ struct GeneralSettingsPane: View {
                         ColorPicker(L("Upload"), selection: binding(\.upload), supportsOpacity: false)
                             .labelsHidden()
                     }
+                    // Once shown, kept until hidden or the pane closes: a pair
+                    // chosen with the color panel open mustn't take its well
+                    // away, or change the pane's height under it.
+                    .onAppear { state.customColorsShown = true }
                 }
                 ExplainedRow(L("During a speed test"),
                              L("A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates.")) {
@@ -240,6 +246,8 @@ struct GeneralSettingsPane: View {
             }
         }
         .settingsForm()
+        // Custom… starts folded again next time, unless your own colors are in use.
+        .onDisappear { state.customColorsShown = false }
     }
 
     /// A colour well's binding. Whatever space the colour panel hands back, the
@@ -267,8 +275,6 @@ struct GeneralSettingsPane: View {
     }
 }
 
-/// A colour shown, not offered: shaped like a colour well, smaller, with
-/// nothing to press.
 /// The ready-made speed color pairs (#688), each shown as the readout looks
 /// on a dark and on a light menu bar, the one in use ringed. A button each,
 /// named for VoiceOver by its color, and said to be chosen when it is.
@@ -314,6 +320,8 @@ private struct SpeedColorPresets: View {
     }
 }
 
+/// A colour shown, not offered: shaped like a colour well, smaller, with
+/// nothing to press.
 private struct ColorSwatch: View {
     let color: NSColor
 

@@ -256,6 +256,12 @@ func runMenuBarColorsTests() {
                 }
                 // Its two lines still tell apart.
                 Check.expectTrue(MenuBarColors.distance(preset.tints.down, preset.tints.up) > 0.1, preset.id)
+                // And Block Everything's red still stands out against it (#198).
+                let red = MenuBarTints.blockingEverything
+                Check.expectTrue(MenuBarColors.distance(preset.tints.down, red.down) >= MenuBarTints.clearDown,
+                                 "\(preset.id) ↓ beside Block Everything's red")
+                Check.expectTrue(MenuBarColors.distance(preset.tints.up, red.up) >= MenuBarTints.clearUp,
+                                 "\(preset.id) ↑ beside Block Everything's red")
             }
         }
     }
@@ -277,7 +283,7 @@ func runMenuBarColorsTests() {
             let teal = MenuBarColors.presets.first { $0.id == "teal" }!
             colors.choose(teal)
             Check.expectEqual(colors.preset?.id, "teal")
-            Check.expectTrue(redraws > 0, "the menu bar redrawn")
+            Check.expectEqual(redraws, 1, "the menu bar redrawn once, never with half a pair")
             Check.expectEqual(MenuBarColors(defaults: defaults).preset?.id, "teal", "kept")
             colors.choose(MenuBarColors.presets[0])
             Check.expectTrue(colors.isDefault, "Green is the default, saved as nothing")
