@@ -124,7 +124,12 @@ struct GeneralSettingsPane: View {
             // The live rates only (#45). A speed test's colours follow from
             // these, so the two never look alike; they're shown, not offered.
             Section {
-                ColorPicker(L("Download"), selection: binding(\.download), supportsOpacity: false)
+                // How the bar's light or dark changes them (#672), behind an ⓘ.
+                ExplainedRow(L("Download"),
+                             L("Both colors are drawn as picked on a dark menu bar. On a light one, as over a light wallpaper, they're drawn darker, in the same hue, so they stay readable.")) {
+                    ColorPicker(L("Download"), selection: binding(\.download), supportsOpacity: false)
+                        .labelsHidden()
+                }
                 ColorPicker(L("Upload"), selection: binding(\.upload), supportsOpacity: false)
                 ExplainedRow(L("During a speed test"),
                              L("A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates.")) {

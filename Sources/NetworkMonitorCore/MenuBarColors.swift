@@ -55,6 +55,16 @@ public struct MenuBarTints: Equatable {
         }
         return testChoices.first { margin($0) >= 0 } ?? testChoices.max { margin($0) < margin($1) }!
     }
+
+    /// The colours as drawn on a menu bar that's dark or light (#672). Every
+    /// colour the readout takes is made for a dark bar, as it is by default:
+    /// on a light one (a light wallpaper behind the see-through bar) each is
+    /// darkened until it reads, keeping its hue. On a dark bar, unchanged.
+    public func onBar(dark: Bool) -> MenuBarTints {
+        guard !dark else { return self }
+        return MenuBarTints(down: MenuBarColors.readable(down, onDark: false, lightest: MenuBarColors.lightestOnLightBar),
+                            up: MenuBarColors.readable(up, onDark: false, lightest: MenuBarColors.lightestOnLightBar))
+    }
 }
 
 /// The colours of the menu bar's live rates, chosen in Settings
@@ -154,7 +164,11 @@ public final class MenuBarColors: ObservableObject {
     /// The darkest a colour is drawn on dark, and the lightest on light, in
     /// OKLab lightness.
     static let darkestOnDark = 0.72
-    static let lightestOnLight = 0.5
+    public static let lightestOnLight = 0.5
+    /// Darker on a light menu bar than on the Dock (#672): the bar is
+    /// see-through, so over a mid-grey wallpaper macOS can make it a light
+    /// bar that's only mid-grey, and 0.4 still reads there at 3 : 1.
+    public static let lightestOnLightBar = 0.4
 
     /// `color` made to read on a dark or a light background, keeping its hue:
     /// the Dock icon follows light and dark (#523), while the speed colors
@@ -162,9 +176,9 @@ public final class MenuBarColors: ObservableObject {
     /// and only as far as it must, so the default green and grey are drawn
     /// as chosen on dark, and as a deep green and a dark grey on light. Its
     /// colourfulness gives way where the lightness has no room for it.
-    public static func readable(_ color: NSColor, onDark: Bool) -> NSColor {
+    public static func readable(_ color: NSColor, onDark: Bool, lightest: Double = lightestOnLight) -> NSColor {
         let (l, a, b) = oklab(color)
-        let lightness = onDark ? max(l, darkestOnDark) : min(l, lightestOnLight)
+        let lightness = onDark ? max(l, darkestOnDark) : min(l, lightest)
         guard lightness != l else { return color }
         var chroma = 1.0
         while chroma > 0 {
@@ -194,7 +208,7 @@ public final class MenuBarColors: ObservableObject {
     }
 
     /// Björn Ottosson's sRGB to OKLab conversion.
-    private static func oklab(_ color: NSColor) -> (Double, Double, Double) {
+    public static func oklab(_ color: NSColor) -> (Double, Double, Double) {
         let srgb = color.usingColorSpace(.sRGB) ?? color
         func linear(_ c: CGFloat) -> Double {
             let c = Double(min(max(c, 0), 1))
