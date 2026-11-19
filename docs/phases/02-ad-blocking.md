@@ -10,7 +10,12 @@ from other ad blockers.
 - **Enhanced ad blocking** (#256), Now, second in the order after the release: an opt-in
   switch that removes ads inside pages and videos in every app, by opening secure connections
   on this Mac, never banking or health sites. Off by default. It reaches people as a beta first
-  (#585, phase 5), since it's the one feature that opens secure connections.
+  (#585, phase 5), since it's the one feature that opens secure connections. Planned on 19 Nov
+  2026 as six steps, in order: the rules for inside pages (#681), a certificate made on this
+  Mac and trusted only with your approval (#682), the page rewriter, which fails open (#683),
+  the transparent proxy in the system extension (#684, which needs the App Proxy capability in
+  the provisioning profiles, Kevin's call), the switch in Settings with its approval and docs
+  (#685, designed first), and its own security review and battery cost (#686).
 
 Done:
 
