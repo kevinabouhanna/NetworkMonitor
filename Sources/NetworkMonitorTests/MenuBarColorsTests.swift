@@ -242,5 +242,56 @@ func runMenuBarColorsTests() {
             Check.expectTrue(onDark.g > 200, "on dark, the bright green: \(onDark)")
             Check.expectTrue(onLight.g < 140, "on light, a deep green: \(onLight)")
         }
+
+        // Ready-made pairs (#688): each reads on either bar.
+        Check.test("every ready-made pair reads on a dark bar and, darkened, on a light one") {
+            let darkBar = hex("#1E1E1E")
+            Check.expectEqual(MenuBarColors.presets.count, 6)
+            for preset in MenuBarColors.presets {
+                let light = preset.tints.onBar(dark: false)
+                for (line, color, onLight) in [("↓", preset.tints.down, light.down), ("↑", preset.tints.up, light.up)] {
+                    Check.expectTrue(contrast(color, darkBar) >= 4.5, "\(preset.id) \(line) on a dark bar")
+                    Check.expectTrue(contrast(onLight, white) >= 4.5, "\(preset.id) \(line) on white")
+                    Check.expectTrue(contrast(onLight, lightGrey) >= 3, "\(preset.id) \(line) on #C8C8C8")
+                }
+                // Its two lines still tell apart.
+                Check.expectTrue(MenuBarColors.distance(preset.tints.down, preset.tints.up) > 0.1, preset.id)
+            }
+        }
+    }
+
+    Check.suite("MenuBarColors — ready-made pairs (#688)") {
+        func hex(_ value: String) -> NSColor { MenuBarColors.color(hex: value)! }
+
+        Check.test("the default colors are the first pair, Green") {
+            let colors = MenuBarColors(defaults: Check.defaults("presets-688-default"))
+            Check.expectEqual(colors.preset?.id, "green")
+            Check.expectEqual(MenuBarColors.presets.first?.tints, MenuBarTints.live)
+        }
+
+        Check.test("choosing a pair changes the colors at once, and keeps them") {
+            let defaults = Check.defaults("presets-688-choose")
+            let colors = MenuBarColors(defaults: defaults)
+            var redraws = 0
+            colors.didChange = { redraws += 1 }
+            let teal = MenuBarColors.presets.first { $0.id == "teal" }!
+            colors.choose(teal)
+            Check.expectEqual(colors.preset?.id, "teal")
+            Check.expectTrue(redraws > 0, "the menu bar redrawn")
+            Check.expectEqual(MenuBarColors(defaults: defaults).preset?.id, "teal", "kept")
+            colors.choose(MenuBarColors.presets[0])
+            Check.expectTrue(colors.isDefault, "Green is the default, saved as nothing")
+        }
+
+        Check.test("colors chosen before stay as they were, as one's own") {
+            let defaults = Check.defaults("presets-688-own")
+            let colors = MenuBarColors(defaults: defaults)
+            colors.download = hex("#FF3B30")
+            colors.upload = hex("#0A84FF")
+            let reopened = MenuBarColors(defaults: defaults)
+            Check.expectNil(reopened.preset)
+            Check.expectEqual(MenuBarColors.hex(reopened.download), "#FF3B30")
+            Check.expectEqual(MenuBarColors.hex(reopened.upload), "#0A84FF")
+        }
     }
 }

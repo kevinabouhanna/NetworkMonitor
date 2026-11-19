@@ -133,6 +133,41 @@ public final class MenuBarColors: ObservableObject {
         upload = MenuBarTints.live.up
     }
 
+    // MARK: Ready-made pairs (#688)
+
+    /// A pair of speed colors ready to pick: each reads on a dark menu bar as
+    /// it is, and on a light one darkened as every color is there (#672).
+    public struct Preset: Identifiable, Equatable {
+        public let id: String
+        public let name: String
+        public let tints: MenuBarTints
+    }
+
+    /// Green first, the default; then the others around the wheel.
+    public static var presets: [Preset] {
+        func pair(_ down: String, _ up: String) -> MenuBarTints {
+            MenuBarTints(down: color(hex: down)!, up: color(hex: up)!)
+        }
+        return [
+            Preset(id: "green", name: L("Green"), tints: .live),
+            Preset(id: "teal", name: L("Teal"), tints: pair("#3FE6C8", "#C9F4EC")),
+            Preset(id: "blue", name: L("Blue"), tints: pair("#6FB1FF", "#D4E6FF")),
+            Preset(id: "gold", name: L("Gold"), tints: pair("#FFD84D", "#FFF0BF")),
+            Preset(id: "coral", name: L("Coral"), tints: pair("#FF8A78", "#FFD6CF")),
+            Preset(id: "violet", name: L("Violet"), tints: pair("#A78BFA", "#DCD0FF")),
+        ]
+    }
+
+    /// The pair the colors are now, or nil for colors of one's own.
+    public var preset: Preset? {
+        Self.presets.first { $0.tints.hex == live.hex }
+    }
+
+    public func choose(_ preset: Preset) {
+        download = preset.tints.down
+        upload = preset.tints.up
+    }
+
     private func colorsDidChange(_ color: NSColor, key: String, default: NSColor) {
         if Self.hex(color) == Self.hex(`default`) {
             defaults.removeObject(forKey: key)
