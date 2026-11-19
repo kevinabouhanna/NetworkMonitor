@@ -14,6 +14,9 @@ Open again (17 Nov 2026) for a bug Kevin found in what he uses every day:
   nearly vanish. It follows the bar as macOS's own icons do: unchanged on a dark bar; on a
   light one each colour keeps its hue, darkened just enough to read, the colours chosen in
   Settings, Block Everything's and the speed test's included. First in Now.
+- **#688** Ready-made speed colors, with your own as an advanced option (Kevin, 19 Nov
+  2026, after #672's design): six pairs that read on dark and light menu bars, and Custom…
+  for your own. Later, until Kevin says go on its design.
 
 Done on 19 Nov 2026, on `main`, not released yet (releases are on hold until Kevin says):
 
