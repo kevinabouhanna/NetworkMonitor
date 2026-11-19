@@ -171,10 +171,11 @@ func runPageRulesTests() {
             // work on the Mac (CI runs jobs side by side) took from it.
             var each = Double.infinity
             for _ in 0..<5 {
-                let start = Date()
+                let start = DispatchTime.now().uptimeNanoseconds
                 let rounds = 100
                 for round in 0..<rounds { _ = shipped.forPage(on: hosts[round % hosts.count]) }
-                each = min(each, Date().timeIntervalSince(start) / Double(rounds))
+                let took = Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000_000
+                each = min(each, took / Double(rounds))
             }
             // On this Mac; a shared GitHub runner gets ten times the room.
             let limit = ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] == nil ? 0.001 : 0.01

@@ -208,7 +208,7 @@ public struct PageRules: Codable, Equatable {
     public private(set) var ruleCount = 0
     /// Where each generic selector is, so a site's few exceptions are taken
     /// out without looking at the thirteen thousand others.
-    private var genericIndex: [String: Int] = [:]
+    private var genericIndex: [String: [Int]] = [:]
 
     private enum CodingKeys: String, CodingKey { case generic, bySite, ruleCount }
 
@@ -220,8 +220,8 @@ public struct PageRules: Codable, Equatable {
         genericIndex = Self.index(generic)
     }
 
-    private static func index(_ selectors: [String]) -> [String: Int] {
-        Dictionary(selectors.enumerated().map { ($0.element, $0.offset) }, uniquingKeysWith: { first, _ in first })
+    private static func index(_ selectors: [String]) -> [String: [Int]] {
+        Dictionary(grouping: selectors.indices, by: { selectors[$0] })
     }
 
     public init(rules: [PageRule]) {
@@ -314,9 +314,9 @@ public struct PageRules: Codable, Equatable {
         var selectors: [String] = []
         if !noHiding {
             if !noGeneric {
-                selectors = generic
-                let gone = unhide.compactMap { genericIndex[$0] }.sorted(by: >)
-                for index in gone { selectors.remove(at: index) }
+                let gone = Set(unhide.flatMap { genericIndex[$0] ?? [] })
+                selectors = gone.isEmpty ? generic
+                    : generic.indices.compactMap { gone.contains($0) ? nil : generic[$0] }
             }
             selectors += unhide.isEmpty ? hide : hide.filter { !unhide.contains($0) }
         }
