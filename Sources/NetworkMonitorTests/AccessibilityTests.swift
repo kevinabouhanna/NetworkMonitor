@@ -20,7 +20,7 @@ func runAccessibilityTests() {
         }
     }
 
-    Check.suite("Accessibility") {
+    Check.windowSuite("Accessibility") {
         OutOfSight.startApp()
 
         let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("a11y-\(UUID().uuidString)")

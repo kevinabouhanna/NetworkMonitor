@@ -117,6 +117,14 @@ and exits non-zero if anything fails.
   domain keeps its file, and one deleted while open comes back when the process quits.
   `Scripts/sweep-test-settings.sh` counts what earlier runs left there; `--delete` deletes
   those files, and only those.
+- **While the screen is locked** (#675). macOS serves no window's accessibility tree then,
+  so the tests that read windows (`Check.windowSuite`, `Check.windowTest`) can't run here.
+  The runner leaves them out and names them at the end, and `Scripts/test.sh` runs them
+  in a throwaway VM (`Scripts/window-tests-vm.sh`, `mac-vm`), so a push or `local-ci`
+  while Kevin is away takes a few minutes more, never 400 failures. The keyboard tour
+  doesn't run in the VM yet (#678): while locked, it's left for the next unlocked run.
+  `NETMON_WINDOWS=skip` or `only` picks them by hand. A new test that reads a window
+  goes in a window suite, or is a `Check.windowTest`.
 - **The asset check's cases.** `make test` also runs `build/site-shots coverage-test`:
   made-up pages that put a picture in each place [the asset check](#every-asset-is-listed)
   must find it (#425).

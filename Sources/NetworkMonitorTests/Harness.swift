@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// Minimal assertion harness.
@@ -31,11 +32,78 @@ public enum Check {
 
     public static func suite(_ name: String, _ body: () -> Void) {
         currentSuite = name
-        print("\n\u{1B}[1m\(name)\u{1B}[0m")
+        // With only the window tests, a suite's heading waits for its first.
+        if windows == .only { pendingHeading = name } else { print("\n\u{1B}[1m\(name)\u{1B}[0m") }
         body()
+        pendingHeading = nil
+    }
+
+    // MARK: Tests that read windows (#675)
+
+    /// Which of the tests that read a window's accessibility tree run.
+    /// macOS serves no window's tree while the screen is locked, so then they
+    /// can't run on this Mac, and `Scripts/test.sh` runs them in a VM instead.
+    public enum Windows: String {
+        case all, skip, only
+    }
+
+    /// `NETMON_WINDOWS` (`all`, `skip`, `only`), or else `skip` while the
+    /// screen is locked and `all` while it isn't.
+    public static let windows: Windows = {
+        if let asked = ProcessInfo.processInfo.environment["NETMON_WINDOWS"].flatMap(Windows.init) { return asked }
+        return screenIsLocked ? .skip : .all
+    }()
+
+    public static var screenIsLocked: Bool {
+        let session = CGSessionCopyCurrentDictionary() as? [String: Any]
+        return session?["CGSSessionScreenIsLocked"] as? Bool ?? false
+    }
+
+    /// The window tests left out here, named at the end.
+    nonisolated(unsafe) public private(set) static var windowSkips: [String] = []
+    /// And those the VM can't run, named at the end there.
+    nonisolated(unsafe) private static var vmSkips: [String] = []
+    nonisolated(unsafe) private static var inWindowTest = false
+    nonisolated(unsafe) private static var pendingHeading: String?
+
+    private static var windowSkipReason: String {
+        screenIsLocked ? "the screen is locked" : "NETMON_WINDOWS=skip"
+    }
+
+    /// A suite whose every test reads a window. `notInVM` names why it can't
+    /// run in the VM either, when it can't: it's then left for an unlocked Mac.
+    public static func windowSuite(_ name: String, notInVM: String? = nil, _ body: () -> Void) {
+        if windows == .only, let notInVM {
+            print("\n\u{1B}[1m\(name)\u{1B}[0m")
+            print("  \u{1B}[33m–\u{1B}[0m its tests \u{1B}[2m— skipped: \(notInVM)\u{1B}[0m")
+            vmSkips.append("\(name): \(notInVM)")
+            return
+        }
+        guard windows == .skip else {
+            suite(name) { inWindowTest = true; body(); inWindowTest = false }
+            return
+        }
+        currentSuite = name
+        print("\n\u{1B}[1m\(name)\u{1B}[0m")
+        windowSkips.append(name)
+        print("  \u{1B}[33m–\u{1B}[0m its tests \u{1B}[2m— skipped: \(windowSkipReason)\u{1B}[0m")
+    }
+
+    /// One test that reads a window, in a suite that otherwise doesn't.
+    public static func windowTest(_ name: String, _ body: () -> Void) {
+        guard windows == .skip else {
+            inWindowTest = true; test(name, body); inWindowTest = false
+            return
+        }
+        windowSkips.append("\(currentSuite) › \(name)")
+        skip(name, windowSkipReason)
     }
 
     public static func test(_ name: String, _ body: () -> Void) {
+        if windows == .only {
+            guard inWindowTest else { return }
+            if let heading = pendingHeading { print("\n\u{1B}[1m\(heading)\u{1B}[0m"); pendingHeading = nil }
+        }
         currentTest = name
         testCount += 1
         let before = failures.count
@@ -154,6 +222,17 @@ public enum Check {
     public static func summarize() -> Int32 {
         print(String(repeating: "─", count: 62))
         let skipped = skippedCount == 0 ? "" : ", \(skippedCount) skipped"
+        if !windowSkips.isEmpty {
+            print("\u{1B}[33mNot run here, as \(windowSkipReason):\u{1B}[0m the tests that read windows, in "
+                  + windowSkips.joined(separator: "; ") + ". `make test` runs them in a VM (#675).")
+            // Tells Scripts/test.sh to run them there.
+            if let marker = ProcessInfo.processInfo.environment["NETMON_WINDOWS_SKIPPED"] {
+                FileManager.default.createFile(atPath: marker, contents: Data(windowSkipReason.utf8))
+            }
+        }
+        for skip in vmSkips {
+            print("\u{1B}[33mNot run in the VM:\u{1B}[0m \(skip). They run whenever this Mac is unlocked.")
+        }
         if failures.isEmpty {
             print("\u{1B}[32mAll \(testCount) tests passed\u{1B}[0m "
                   + "(\(assertions) assertions\(skipped))")

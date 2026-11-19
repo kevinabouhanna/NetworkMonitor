@@ -55,7 +55,7 @@ func runPauseAdsTests() {
             firewall.pauseLists(until: nil)
         }
 
-        Check.test("the bar names everything VoiceOver reads, and Tab reaches its button") {
+        Check.windowTest("the bar names everything VoiceOver reads, and Tab reaches its button") {
             OutOfSight.startApp()
             KeyboardTour.start()
             defer { KeyboardTour.stop() }
