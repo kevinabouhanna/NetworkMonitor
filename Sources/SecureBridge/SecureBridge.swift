@@ -26,7 +26,8 @@ import X509
 public enum BridgeEvent: Equatable {
     /// The browser refused our certificate: the app pins its own, and is to
     /// be left alone from now on (#684's `pinnedApps`).
-    case clientRefused(host: String)
+    /// `clientPort` is the browser side's port, to tell whose connection it was.
+    case clientRefused(host: String, clientPort: UInt16?)
     /// The site's certificate isn't one macOS trusts: refused.
     case serverRefused(host: String)
     /// A reply went on untouched, and why.
@@ -138,7 +139,11 @@ public final class SecureBridge: @unchecked Sendable {
             case .failed(let error):
                 // Before it was ready, a browser that turned our certificate
                 // down: it pins its own. Any other failure says nothing of that.
-                if !ready, Self.refusedCertificate(error) { self.events(.clientRefused(host: host)) }
+                if !ready, Self.refusedCertificate(error) {
+                    var clientPort: UInt16?
+                    if case .hostPort(_, let port) = client.endpoint { clientPort = port.rawValue }
+                    self.events(.clientRefused(host: host, clientPort: clientPort))
+                }
                 exchange.close()
             case .waiting, .cancelled:
                 exchange.close()

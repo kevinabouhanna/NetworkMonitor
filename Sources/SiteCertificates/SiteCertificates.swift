@@ -187,7 +187,14 @@ public enum AuthorityKey {
         if let keychain { query[kSecMatchSearchList as String] = [keychain] }
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return [] }
-        return (result as? [SecKey]) ?? []
+        // Once each: a search list naming the System keychain twice (the
+        // filter's) finds every item twice.
+        var seen = Set<Data>()
+        return ((result as? [SecKey]) ?? []).filter { key in
+            guard let publicKey = SecKeyCopyPublicKey(key),
+                  let data = SecKeyCopyExternalRepresentation(publicKey, nil) as Data? else { return true }
+            return seen.insert(data).inserted
+        }
     }
 
     /// Takes every one of the root's keys out of `keychain`, for good, one
@@ -212,4 +219,96 @@ public enum CertificateError: Error {
     case keyNotMade
     /// Not a name a certificate can hold.
     case badName(String)
+    /// The keychain refused, with this status.
+    case keychain(OSStatus)
+}
+
+/// The root as kept in a keychain (#702): its key and its certificate, found
+/// again each time the filter starts, so the root the person trusted stays
+/// the one in use until it ends. Made afresh, the old ones taken out, only
+/// when either is missing, they don't belong together, or it has ended: a
+/// new root isn't trusted until the person approves it (#685), so the proxy
+/// opens nothing meanwhile.
+public enum AuthorityStore {
+
+    /// The root in `keychain` (the System keychain for the filter), and
+    /// whether it was just made.
+    public static func load(in keychain: SecKeychain? = nil, machine: String,
+                            now: Date = Date()) throws -> (authority: CertificateAuthority, made: Bool) {
+        if let kept = find(in: keychain, now: now) { return (kept, false) }
+        // Never a second root beside one that can't be taken out.
+        guard remove(from: keychain) else { throw CertificateError.keychain(errSecDuplicateItem) }
+        let key = try Certificate.PrivateKey(AuthorityKey.make(in: keychain))
+        let authority = try CertificateAuthority.make(key: key, machine: machine, now: now)
+        guard let certificate = SecCertificateCreateWithData(nil, try authority.der() as CFData) else {
+            throw CertificateError.keyNotMade
+        }
+        var add: [String: Any] = [kSecClass as String: kSecClassCertificate, kSecValueRef as String: certificate]
+        if let keychain { add[kSecUseKeychain as String] = keychain }
+        let status = SecItemAdd(add as CFDictionary, nil)
+        guard status == errSecSuccess || status == errSecDuplicateItem else { throw CertificateError.keychain(status) }
+        return (authority, true)
+    }
+
+    /// The kept root, if its one key and one certificate belong together and
+    /// it hasn't ended.
+    static func find(in keychain: SecKeychain?, now: Date) -> CertificateAuthority? {
+        if case .found(let authority) = lookUp(in: keychain, now: now) { return authority }
+        return nil
+    }
+
+    /// The kept root, or why there's none to use, for the log.
+    public enum Lookup {
+        case found(CertificateAuthority)
+        case missing(String)
+    }
+
+    public static func lookUp(in keychain: SecKeychain? = nil, now: Date = Date()) -> Lookup {
+        let keys = AuthorityKey.find(in: keychain)
+        let certificates = certificates(in: keychain)
+        guard keys.count == 1, certificates.count == 1 else {
+            return .missing("\(keys.count) keys and \(certificates.count) certificates")
+        }
+        let key: Certificate.PrivateKey
+        do { key = try Certificate.PrivateKey(keys[0]) } catch { return .missing("the key: \(error)") }
+        let certificate: Certificate
+        do {
+            certificate = try Certificate(derEncoded: Array(SecCertificateCopyData(certificates[0]) as Data))
+        } catch {
+            return .missing("the certificate: \(error)")
+        }
+        guard certificate.publicKey == key.publicKey else { return .missing("the key isn't the certificate's") }
+        guard certificate.notValidAfter > now else { return .missing("it ended") }
+        return .found(CertificateAuthority(certificate: certificate, key: key))
+    }
+
+    /// The roots in `keychain`, by their name, "NetworkMonitor Enhanced Ad
+    /// Blocking (this Mac)": a certificate's label is its name, whatever is
+    /// asked when it's added.
+    public static func certificates(in keychain: SecKeychain? = nil) -> [SecCertificate] {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassCertificate,
+            kSecReturnRef as String: true,
+            kSecMatchLimit as String: kSecMatchLimitAll,
+        ]
+        if let keychain { query[kSecMatchSearchList as String] = [keychain] }
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return [] }
+        let prefix = CertificateAuthority.commonName + " ("
+        var seen = Set<Data>()
+        return ((result as? [SecCertificate]) ?? []).filter {
+            (SecCertificateCopySubjectSummary($0) as String?)?.hasPrefix(prefix) == true
+                && seen.insert(SecCertificateCopyData($0) as Data).inserted
+        }
+    }
+
+    /// Takes the root's key and certificate out of `keychain`, and says
+    /// whether none is left.
+    @discardableResult
+    public static func remove(from keychain: SecKeychain? = nil) -> Bool {
+        for certificate in certificates(in: keychain) {
+            SecItemDelete([kSecClass as String: kSecClassCertificate, kSecValueRef as String: certificate] as CFDictionary)
+        }
+        return AuthorityKey.remove(from: keychain) && certificates(in: keychain).isEmpty
+    }
 }

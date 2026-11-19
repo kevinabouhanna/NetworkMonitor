@@ -148,6 +148,8 @@ final class Firewall {
 
     /// The encrypted lookups' resolver (#291), by id.
     var lookupResolver: String? { current.lookupResolver }
+    /// Enhanced ad blocking's settings, for the transparent proxy (#702).
+    var enhancedBlocking: EnhancedBlocking { current.enhancedBlocking }
 
     /// Whether lookups' answers are worth reading: only while a list is on.
     var readsLookups: Bool { !current.lists.isEmpty }

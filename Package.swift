@@ -118,7 +118,8 @@ let package = Package(
         // puts it in the app only for Developer ID builds, with its profile.
         .executableTarget(
             name: "NetworkMonitorFilter",
-            dependencies: ["FilterProtocol", "FirewallPolicy", "ServerDirectory", "HandshakeName"],
+            dependencies: ["FilterProtocol", "FirewallPolicy", "ServerDirectory", "HandshakeName",
+                           "SecureBridge", "SiteCertificates", "PageRewriter"],
             path: "Sources/NetworkMonitorFilter",
             linkerSettings: [.linkedFramework("NetworkExtension")]
         ),

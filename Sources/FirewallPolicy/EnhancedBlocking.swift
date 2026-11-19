@@ -106,9 +106,32 @@ public struct EnhancedBlocking: Codable, Equatable {
         return name == nil ? .leave(.noName) : .open
     }
 
+    /// The port the transparent proxy takes connections to (#702): HTTPS's,
+    /// over TCP and, to refuse it, QUIC.
+    public static let proxiedPort = 443
+
+    /// What the transparent proxy does as a TCP connection opens, before a
+    /// byte is read (#702): leave it, or take it and read the name its
+    /// handshake asks for, then `decide` with that name. A browser that
+    /// connects by address (Chrome looks names up itself) has no name yet,
+    /// so it's taken; with the name, it may still be left, its bytes passed
+    /// on unchanged.
+    public enum Start: Equatable {
+        case leave(Reason)
+        case readName
+    }
+
+    public func start(app: String?, host: String?, port: Int) -> Start {
+        switch decide(app: app, host: host, port: port, isUDP: false) {
+        case .open, .leave(.noName): return .readName
+        case .leave(let reason): return .leave(reason)
+        case .refuseQUIC: return .leave(.notWeb)
+        }
+    }
+
     /// The app, or a helper of one: its identifier, or one it starts with
     /// (`com.google.Chrome.helper.renderer` is Chrome's).
-    static func matches(_ app: String, in apps: Set<String>) -> Bool {
+    public static func matches(_ app: String, in apps: Set<String>) -> Bool {
         apps.contains(app) || apps.contains { app.hasPrefix($0 + ".") }
     }
 
@@ -152,7 +175,7 @@ public struct EnhancedBlocking: Codable, Equatable {
     public static let neverOpenedSites: Set<String> = [
         // Payment
         "paypal.com", "paypal.me", "stripe.com", "squareup.com", "wise.com", "revolut.com", "klarna.com",
-        "venmo.com", "cash.app", "zellepay.com", "adyen.com", "braintreegateway.com", "checkout.com",
+        "paypalobjects.com", "venmo.com", "cash.app", "zellepay.com", "adyen.com", "braintreegateway.com", "checkout.com",
         "apple.com", "icloud.com", "pay.google.com", "payments.google.com", "accounts.google.com",
         "login.microsoftonline.com", "login.live.com", "appleid.apple.com",
         // Banks

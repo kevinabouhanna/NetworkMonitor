@@ -4,7 +4,8 @@
 <!--
   The app's entitlements when it carries the content filter (#128): everything
   in NetworkMonitor.entitlements, plus installing a system extension and
-  configuring a content filter and a DNS proxy (#291), granted by
+  configuring a content filter, a DNS proxy (#291) and Enhanced ad blocking's
+  transparent proxy (#702), granted by
   Resources/Profiles/NetworkMonitor.provisionprofile. A build without the
   Developer ID uses NetworkMonitor.entitlements and leaves the filter out.
 -->
@@ -17,6 +18,7 @@
     <array>
         <string>content-filter-provider-systemextension</string>
         <string>dns-proxy-systemextension</string>
+        <string>app-proxy-provider-systemextension</string>
     </array>
     <key>com.apple.developer.system-extension.install</key>
     <true/>
