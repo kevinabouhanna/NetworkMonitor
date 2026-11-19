@@ -282,6 +282,15 @@ How it runs here:
 Releases stay on GitHub, the one thing it runs: the keys they're signed with are repository
 secrets. Check that GitHub can take one first ([Releasing](#releasing)).
 
+**Signed test builds** (#704). What only a Developer ID build carries (the content filter,
+the helper, Enhanced ad blocking's proxy) can't be checked from a development build, and the
+signing keys aren't on this Mac. `Scripts/test-build.sh <branch>` starts GitHub's *Test build*
+workflow on a pushed branch: it builds, signs and notarizes as a release does, with the same
+secrets, keeps the disk image as the run's artifact for 14 days, and never makes a release or
+an appcast, so no installed copy is offered it. The script waits (90 minutes at most), downloads
+it to `~/Library/Caches/networkmonitor-dev/test-builds/<commit>/`, and prints its path, for a VM
+(`mac-vm`).
+
 ## Contributing
 
 Every change follows the same path:
