@@ -15,6 +15,9 @@ let package = Package(
         // Enhanced ad blocking's certificates (#682): Apple's X.509, so none is
         // built by hand. Apache 2.0.
         .package(url: "https://github.com/apple/swift-certificates", exact: "1.21.1"),
+        // …and what it's built on, pinned too, as Package.resolved isn't kept.
+        .package(url: "https://github.com/apple/swift-crypto", exact: "5.0.3"),
+        .package(url: "https://github.com/apple/swift-asn1", exact: "1.7.3"),
     ],
     targets: [
         // Everything testable lives in NetworkMonitorCore. The executable is a
@@ -78,8 +81,8 @@ let package = Package(
             path: "Sources/FirewallPolicy"
         ),
         // Enhanced ad blocking's certificates (#682): the one made on this Mac,
-        // and one per site made from it. No system parts, for the filter and
-        // the tests.
+        // and one per site made from it. Security, CryptoKit and Network, no
+        // AppKit, for the filter, the app and the tests.
         .target(
             name: "SiteCertificates",
             dependencies: [.product(name: "X509", package: "swift-certificates")],

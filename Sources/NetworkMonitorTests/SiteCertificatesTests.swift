@@ -93,13 +93,37 @@ func runSiteCertificatesTests() {
             }
         }
 
+        Check.test("a long name, a trailing dot, and a name not in ASCII") {
+            do {
+                let authority = try CertificateAuthority.make(key: Certificate.PrivateKey(P256.Signing.PrivateKey()),
+                                                              machine: "Test Mac")
+                let sites = SiteCertificateCache(authority: authority)
+                let long = String(repeating: "a1b2c3d4e5", count: 6) + ".cdn.some-provider.example.com"
+                Check.expectTrue(long.count > 64)
+                let site = try sites.certificate(for: long)
+                Check.expectTrue(trusts(site, root: authority.certificate, host: long), "a long name")
+                let dotted = try sites.certificate(for: "example.com.")
+                Check.expectTrue(trusts(dotted, root: authority.certificate, host: "example.com"), "a trailing dot")
+                Check.expectNil(try? sites.certificate(for: "bücher.example"), "refused, not mis-named")
+                // Never past the root's own end.
+                let late = Date() + CertificateAuthority.lifetime - 3 * 24 * 3600
+                Check.expectTrue(try sites.certificate(for: "late.example", now: late).notValidAfter
+                                 <= authority.certificate.notValidAfter)
+                Check.expectFalse(try authority.der().isEmpty)
+            } catch {
+                Check.expectTrue(false, "\(error)")
+            }
+        }
+
         Check.test("removed, the key is gone from the keychain") {
             guard let (keychain, done) = testKeychain() else { return Check.expectTrue(false, "no test keychain") }
             defer { done() }
             do {
+                // Two, as a crash between making one and using it could leave.
                 _ = try AuthorityKey.make(in: keychain)
-                Check.expectEqual(AuthorityKey.find(in: keychain).count, 1)
-                AuthorityKey.remove(from: keychain)
+                _ = try AuthorityKey.make(in: keychain)
+                Check.expectEqual(AuthorityKey.find(in: keychain).count, 2)
+                Check.expectTrue(AuthorityKey.remove(from: keychain), "one left")
                 Check.expectEqual(AuthorityKey.find(in: keychain).count, 0)
             } catch {
                 Check.expectTrue(false, "\(error)")

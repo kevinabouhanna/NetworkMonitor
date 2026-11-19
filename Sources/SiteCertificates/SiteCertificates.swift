@@ -12,8 +12,8 @@ import X509
 // and from it a short-lived certificate per site, on demand, in memory.
 //
 // The root's private key never leaves the keychain it's made in: it signs
-// through its `SecKey`, and is made unexportable. No system parts beyond
-// Security, so the filter, the app and the tests share it.
+// through its `SecKey`, and is made unexportable. Security, CryptoKit and
+// Network, no AppKit, so the filter, the app and the tests share it.
 
 /// The root certificate made on this Mac, and what it signs with.
 public struct CertificateAuthority {
@@ -60,7 +60,15 @@ public struct CertificateAuthority {
     /// A certificate for `host` (a name, or an address), for `key`, signed by
     /// this root: what a browser checks the site's identity against.
     public func issue(for host: String, key: Certificate.PublicKey, now: Date = Date()) throws -> Certificate {
-        let subject = try DistinguishedName { CommonName(host) }
+        // A name as a certificate holds it: ASCII (one in another script
+        // reaches us as punycode already), without a trailing dot.
+        var host = host.lowercased()
+        while host.hasSuffix(".") { host.removeLast() }
+        guard !host.isEmpty, host.allSatisfy({ $0.isASCII }) else { throw CertificateError.badName(host) }
+        // The subject's common name holds 64 characters at most; browsers go
+        // by the alternative name anyway, which is then the only one, and
+        // marked critical as RFC 5280 asks of a certificate with no subject.
+        let subject = host.count <= 64 ? try DistinguishedName { CommonName(host) } : DistinguishedName()
         let name: GeneralName
         if let address = IPv4Address(host) {
             name = .ipAddress(ASN1OctetString(contentBytes: ArraySlice(address.rawValue)))
@@ -74,20 +82,26 @@ public struct CertificateAuthority {
             Critical(BasicConstraints.notCertificateAuthority)
             Critical(KeyUsage(digitalSignature: true))
             try ExtendedKeyUsage([.serverAuth])
-            SubjectAlternativeNames([name])
-            AuthorityKeyIdentifier(keyIdentifier: authorityKey)
+            if subject.isEmpty {
+                Critical(SubjectAlternativeNames([name]))
+            } else {
+                SubjectAlternativeNames([name])
+            }
+            if let authorityKey { AuthorityKeyIdentifier(keyIdentifier: authorityKey) }
         }
+        // Never past the root's own end, when no chain to it holds.
+        let end = min(now + Self.siteLifetime, certificate.notValidAfter)
         return try Certificate(
             version: .v3, serialNumber: Certificate.SerialNumber(),
-            publicKey: key, notValidBefore: now - 3600, notValidAfter: now + Self.siteLifetime,
+            publicKey: key, notValidBefore: now - 3600, notValidAfter: end,
             issuer: certificate.subject, subject: subject, signatureAlgorithm: .ecdsaWithSHA256,
             extensions: extensions, issuerPrivateKey: signer)
     }
 
     /// As DER, for the keychain and the trust settings.
-    public var der: Data {
+    public func der() throws -> Data {
         var serializer = DER.Serializer()
-        try? serializer.serialize(certificate)
+        try serializer.serialize(certificate)
         return Data(serializer.serializedBytes)
     }
 }
@@ -100,7 +114,8 @@ public final class SiteCertificateCache: @unchecked Sendable {
     public let siteKey: P256.Signing.PrivateKey
     private var issued: [String: Certificate] = [:]
     private let lock = NSLock()
-    /// Enough for a day's browsing; past it, the oldest are made again.
+    /// Enough for a day's browsing; past it, the half nearest their end are
+    /// let go, to be made again when next asked for.
     public static let limit = 2_000
 
     public init(authority: CertificateAuthority, siteKey: P256.Signing.PrivateKey = P256.Signing.PrivateKey()) {
@@ -109,13 +124,18 @@ public final class SiteCertificateCache: @unchecked Sendable {
     }
 
     public func certificate(for host: String, now: Date = Date()) throws -> Certificate {
-        let host = host.lowercased()
+        var host = host.lowercased()
+        while host.hasSuffix(".") { host.removeLast() }
         lock.lock()
+        // Kept until a day before it, or the root, lapses.
         if let kept = issued[host], kept.notValidAfter > now + 24 * 3600 { lock.unlock(); return kept }
         lock.unlock()
         let made = try authority.issue(for: host, key: Certificate.PublicKey(siteKey.publicKey), now: now)
         lock.lock()
-        if issued.count >= Self.limit { issued.removeAll() }
+        if issued.count >= Self.limit {
+            let nearest = issued.sorted { $0.value.notValidAfter < $1.value.notValidAfter }.prefix(Self.limit / 2)
+            for (name, _) in nearest { issued.removeValue(forKey: name) }
+        }
         issued[host] = made
         lock.unlock()
         return made
@@ -168,11 +188,16 @@ public enum AuthorityKey {
         return (result as? [SecKey]) ?? []
     }
 
-    /// Takes every one of the root's keys out of `keychain`, for good.
-    public static func remove(from keychain: SecKeychain? = nil) {
-        var query: [String: Any] = [kSecClass as String: kSecClassKey, kSecAttrLabel as String: label]
-        if let keychain { query[kSecMatchSearchList as String] = [keychain] }
-        SecItemDelete(query as CFDictionary)
+    /// Takes every one of the root's keys out of `keychain`, for good, one
+    /// by one (a file keychain's delete can stop at the first), and says
+    /// whether any is left.
+    @discardableResult
+    public static func remove(from keychain: SecKeychain? = nil) -> Bool {
+        for key in find(in: keychain) {
+            let query: [String: Any] = [kSecClass as String: kSecClassKey, kSecValueRef as String: key]
+            SecItemDelete(query as CFDictionary)
+        }
+        return find(in: keychain).isEmpty
     }
 
     /// Whether the key's private half can be read out: never, for ours.
@@ -183,4 +208,6 @@ public enum AuthorityKey {
 
 public enum CertificateError: Error {
     case keyNotMade
+    /// Not a name a certificate can hold.
+    case badName(String)
 }
