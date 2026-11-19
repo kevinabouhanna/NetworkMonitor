@@ -125,12 +125,14 @@ struct GeneralSettingsPane: View {
             // these, so the two never look alike; they're shown, not offered.
             Section {
                 // How the bar's light or dark changes them (#672), behind an ⓘ.
-                ExplainedRow(L("Download"),
-                             L("Both colors are drawn as picked on a dark menu bar. On a light one, as over a light wallpaper, they're drawn darker, in the same hue, so they stay readable.")) {
+                ExplainedRow(L("Download"), L("Drawn as picked on a dark menu bar. On a light one, as over a light wallpaper, it's drawn darker, in the same hue, so it stays readable.")) {
                     ColorPicker(L("Download"), selection: binding(\.download), supportsOpacity: false)
                         .labelsHidden()
                 }
-                ColorPicker(L("Upload"), selection: binding(\.upload), supportsOpacity: false)
+                ExplainedRow(L("Upload"), L("Drawn as picked on a dark menu bar. On a light one, as over a light wallpaper, it's drawn darker, in the same hue, so it stays readable.")) {
+                    ColorPicker(L("Upload"), selection: binding(\.upload), supportsOpacity: false)
+                        .labelsHidden()
+                }
                 ExplainedRow(L("During a speed test"),
                              L("A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates.")) {
                     HStack(spacing: 6) {

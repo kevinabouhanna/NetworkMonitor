@@ -228,8 +228,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         button.imagePosition = .imageOnly
         // The readout picks its colours as it's drawn, for the bar's
         // appearance; a new appearance needs a new draw.
-        barAppearanceObserver = button.observe(\.effectiveAppearance) { button, _ in
-            DispatchQueue.main.async { button.needsDisplay = true }
+        barAppearanceObserver = button.observe(\.effectiveAppearance) { [weak self] _, _ in
+            // A new picture, not only a redraw, so the colours change while
+            // the rates hold still too.
+            DispatchQueue.main.async { self?.applyTitle() }
         }
         applyTitle()
     }

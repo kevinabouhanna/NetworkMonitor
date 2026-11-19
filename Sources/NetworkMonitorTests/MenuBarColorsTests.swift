@@ -184,6 +184,26 @@ func runMenuBarColorsTests() {
             }
         }
 
+        // Darkened to one lightness, colours come closer: a test's must still
+        // look unlike the live rates there (#45).
+        Check.test("on a light bar, a speed test's colours stay clear of the live ones") {
+            // The defaults and the test's own cyan clear it in full; a live
+            // pink leaves no choice that does, and gets the nearest, as on dark.
+            for (live, least) in [(MenuBarTints.live, MenuBarTints.clearDown),
+                                  (MenuBarTints(down: hex("#64D2FF"), up: hex("#B4E9FF")), MenuBarTints.clearDown),
+                                  (MenuBarTints(down: hex("#FF6FD8"), up: hex("#FFC2EF")), 0.12)] {
+                let test = MenuBarTints.test(clearOf: live).onBar(dark: false)
+                let lightLive = live.onBar(dark: false)
+                let down = [lightLive.down, lightLive.up].map { MenuBarColors.distance(test.down, $0) }.min()!
+                let up = [lightLive.down, lightLive.up].map { MenuBarColors.distance(test.up, $0) }.min()!
+                Check.expectTrue(down >= least, "\(MenuBarColors.hex(live.down)): ↓ \(down)")
+                Check.expectTrue(up >= MenuBarTints.clearUp, "\(MenuBarColors.hex(live.down)): ↑ \(up)")
+                // Before #672's fix, the default test was 0.076 from the live green here.
+            }
+            // On a dark bar the default test is still cyan.
+            Check.expectEqual(MenuBarColors.hex(MenuBarTints.test(clearOf: .live).down), "#64D2FF")
+        }
+
         // Drawn as shown, so it follows the bar when the wallpaper changes.
         Check.test("the same readout draws in other colours under the light and the dark appearance") {
             let image = MenuBarTitle.image(down: 1_234_567, up: 4_321)

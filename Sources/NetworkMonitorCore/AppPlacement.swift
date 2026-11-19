@@ -234,7 +234,10 @@ public final class DockSpeedView: NSView {
         // Pixels per point in the picture being drawn, for whole-pixel edges.
         let scale = context.userSpaceToDeviceSpaceTransform.a
         let layout = Self.layout(for: readout, in: bounds, pixelsPerPoint: scale)
-        let tints = [readout.tints.down, readout.tints.up].map { MenuBarColors.readable($0, onDark: dark) }
+        // A speed test's colours chosen for light, when on light (#672).
+        let given = dark ? readout.tints : MenuBarTints(down: readout.tints.onLight?.first ?? readout.tints.down,
+                                                        up: readout.tints.onLight?.last ?? readout.tints.up)
+        let tints = [given.down, given.up].map { MenuBarColors.readable($0, onDark: dark) }
         for (index, (line, tint)) in zip(layout.lines, tints).enumerated() {
             context.setFillColor(tint.cgColor)
             context.addPath(Self.arrow(in: line.arrowFrame, pointingDown: index == 0))

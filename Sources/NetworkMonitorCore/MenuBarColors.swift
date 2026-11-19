@@ -5,10 +5,15 @@ import Combine
 public struct MenuBarTints: Equatable {
     public let down: NSColor
     public let up: NSColor
+    /// Down and up on a light bar, when they're chosen for it rather than
+    /// darkened from these: a speed test's, kept clear of the live colours
+    /// as they're drawn there (#672).
+    public let onLight: [NSColor]?
 
-    public init(down: NSColor, up: NSColor) {
+    public init(down: NSColor, up: NSColor, onLight: [NSColor]? = nil) {
         self.down = down
         self.up = up
+        self.onLight = onLight
     }
 
     /// The live rates' colours until someone changes them.
@@ -47,13 +52,22 @@ public struct MenuBarTints: Equatable {
     /// combinations, a few hundred of 133,225 tried. Then it's the choice that
     /// comes nearest, which still falls short by less than 0.005.
     public static func test(clearOf live: MenuBarTints) -> MenuBarTints {
+        let dark = choice(clearOf: live, among: testChoices)
+        // On a light bar every colour comes down to one lightness, which
+        // brings them closer: the test's there are chosen again, clear of the
+        // live colours as they're drawn there (#672).
+        let light = choice(clearOf: live.onBar(dark: false), among: testChoices.map { $0.onBar(dark: false) })
+        return MenuBarTints(down: dark.down, up: dark.up, onLight: [light.down, light.up])
+    }
+
+    static func choice(clearOf live: MenuBarTints, among choices: [MenuBarTints]) -> MenuBarTints {
         func margin(_ test: MenuBarTints) -> Double {
             let liveColors = [live.down, live.up]
             let down = liveColors.map { MenuBarColors.distance(test.down, $0) - clearDown }.min()!
             let up = liveColors.map { MenuBarColors.distance(test.up, $0) - clearUp }.min()!
             return min(down, up)
         }
-        return testChoices.first { margin($0) >= 0 } ?? testChoices.max { margin($0) < margin($1) }!
+        return choices.first { margin($0) >= 0 } ?? choices.max { margin($0) < margin($1) }!
     }
 
     /// The colours as drawn on a menu bar that's dark or light (#672). Every
@@ -62,6 +76,7 @@ public struct MenuBarTints: Equatable {
     /// darkened until it reads, keeping its hue. On a dark bar, unchanged.
     public func onBar(dark: Bool) -> MenuBarTints {
         guard !dark else { return self }
+        if let onLight, onLight.count == 2 { return MenuBarTints(down: onLight[0], up: onLight[1]) }
         return MenuBarTints(down: MenuBarColors.readable(down, onDark: false, lightest: MenuBarColors.lightestOnLightBar),
                             up: MenuBarColors.readable(up, onDark: false, lightest: MenuBarColors.lightestOnLightBar))
     }
