@@ -6,6 +6,7 @@ import Foundation
 // and packages them for the weekly refresh:
 //
 //   BlocklistBuilder build <output directory> [version] [--previous <manifest.json>]
+//   BlocklistBuilder pages <output directory>
 //   BlocklistBuilder package <built directory> <output directory>
 //
 // `build` writes each topic's table, a VERSION (the date, UTC) and SOURCES.md.
@@ -55,7 +56,7 @@ func today() -> String {
 let arguments = CommandLine.arguments
 guard arguments.count >= 3 else {
     fail("usage: BlocklistBuilder build <output directory> [version] [--previous <manifest.json>] | "
-         + "package <built directory> <output directory>")
+         + "pages <output directory> | package <built directory> <output directory>")
 }
 
 switch arguments[1] {
@@ -95,6 +96,28 @@ case "build":
     try Data((version + "\n").utf8).write(to: output.appendingPathComponent(Blocklists.versionFile), options: .atomic)
     try Data(sources.utf8).write(to: output.appendingPathComponent("SOURCES.md"), options: .atomic)
     guard Blocklists(directory: output) != nil else { fail("the lists written don't read back") }
+
+case "pages":
+    // The rules for inside pages, for Enhanced ad blocking (#681, #256): their
+    // own command, so the weekly refresh of the names never waits on them.
+    // They ship with the app: `BlocklistBuilder pages Resources/Blocklists`.
+    let output = URL(fileURLWithPath: arguments[2], isDirectory: true)
+    var pageText = ""
+    for (name, url) in PageRules.sources {
+        let text = download(url)
+        pageText += text + "\n"
+        print("\(name): \(text.split(whereSeparator: \.isNewline).count) lines")
+    }
+    let pages = PageRules(listText: pageText)
+    guard pages.generic.count >= PageRules.minimumGeneric else {
+        fail("pages: only \(pages.generic.count) rules for every page; refusing to publish")
+    }
+    try pages.encoded().write(to: output.appendingPathComponent(PageRules.fileName), options: .atomic)
+    let credit = "| Every page, and \(pages.siteCount) sites | "
+        + PageRules.sources.map { "[\($0.name)](\($0.url))" }.joined(separator: ", ")
+        + " | [CC BY-SA 3.0](https://easylist.to/pages/licence.html) | \(pages.ruleCount) |"
+    print("pages: \(pages.generic.count) for every page, \(pages.siteCount) sites, \(pages.ruleCount) rules")
+    print("SOURCES.md's line for them:\n\(credit)")
 
 case "package":
     guard arguments.count == 4 else { fail("usage: BlocklistBuilder package <built directory> <output directory>") }

@@ -9,15 +9,18 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
 
 Open again (17 Nov 2026) for a bug Kevin found in what he uses every day:
 
-- **#663** Copies of one app are one row. Today listed Home Control 83 times: every install
-  of its iPhone build in the Simulator goes into a new folder, and every folder was its own
-  row. Copies of one app (same bundle id and name) become one row, and a rule on it covers
-  every copy. First in Now.
 - **#672** The menu bar readout reads on a light wallpaper too (from Kevin's Inbox, 19 Nov
   2026). Its two colours are fixed and made for a dark menu bar, so on a light wallpaper they
   nearly vanish. It follows the bar as macOS's own icons do: unchanged on a dark bar; on a
   light one each colour keeps its hue, darkened just enough to read, the colours chosen in
-  Settings, Block Everything's and the speed test's included. Second in Now, after #663.
+  Settings, Block Everything's and the speed test's included. First in Now.
+
+Done on 19 Nov 2026, on `main`, not released yet (releases are on hold until Kevin says):
+
+- copies of one app are one row (#663): every iPhone Simulator install of an app is one row,
+  *(Simulator)*; a build signed by the installed app's team is that app, and other builds of
+  it are one row of their own, *(other copies)*. History already recorded is folded the same
+  way, every byte kept.
 
 Done on 17 Nov 2026, on `main`, not released yet (releases are on hold until Kevin says, #667):
 
