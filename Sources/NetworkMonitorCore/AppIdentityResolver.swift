@@ -210,6 +210,26 @@ public final class AppIdentityResolver {
                        by: ParentApp(key: parent.key, displayName: parent.displayName, bundlePath: bundlePath))
     }
 
+    /// The key a row stored by an earlier version is filed under now (#663):
+    /// copies of one app in other folders under one key. A copy that's gone
+    /// since (a build in a worktree that was removed) can't show its bundle
+    /// id any more; it's taken as the installed app of the same folder name,
+    /// as it was named the same. Only history is folded so, never a rule.
+    public static func currentKey(forStored key: String, installedFolder: String = "/Applications") -> String {
+        if let index = key.lastIndex(of: keySeparator) {
+            let parent = currentKey(forStored: String(key[..<index]), installedFolder: installedFolder)
+            let child = AppKey.stablePath(String(key[key.index(after: index)...]))
+            return AppKey.key(adopting: child, by: parent)
+        }
+        guard (key as NSString).lastPathComponent.hasSuffix(".app") else { return AppKey.stablePath(key) }
+        var bundleID: String?
+        if !AppKey.isInstalledPlace(key), !FileManager.default.fileExists(atPath: key) {
+            let installed = (installedFolder as NSString).appendingPathComponent((key as NSString).lastPathComponent)
+            bundleID = AppKey.bundleID(atBundlePath: installed)
+        }
+        return AppKey.key(forBundlePath: key, bundleID: bundleID, installedFolder: installedFolder)
+    }
+
     /// Joins a parent key to a child key. A control character, so it cannot occur
     /// in either half — both are filesystem paths.
     static let keySeparator = AppKey.separator
@@ -283,17 +303,21 @@ public final class AppIdentityResolver {
     public static func identity(forExecutablePath path: String, fallbackName: String) -> AppIdentity {
         // The folding is `AppKey`'s, which the content filter shares, so a
         // rule made on a row means that row (#114).
+        // Copies of one app in other folders are one row, under one key; the
+        // bundle path stays this copy's, for its icon and name (#663).
         if let bundlePath = AppKey.bundlePath(forExecutablePath: path) {
-            return AppIdentity(key: bundlePath,
-                               displayName: displayName(forBundle: bundlePath,
-                                                        (bundlePath as NSString).lastPathComponent),
+            var name = displayName(forBundle: bundlePath, (bundlePath as NSString).lastPathComponent)
+            if AppKey.isSimulatorApp(bundlePath) { name = L("%@ (Simulator)", name) }
+            return AppIdentity(key: AppKey.key(forBundlePath: bundlePath),
+                               displayName: name,
                                bundlePath: bundlePath,
                                isSystem: false)
         }
 
         // No bundle: an OS daemon such as /usr/sbin/mDNSResponder. Keyed by
-        // path so each daemon stays distinct inside the System group.
-        return AppIdentity(key: path,
+        // path so each daemon stays distinct inside the System group, without
+        // the random part of a folder that changes (#663).
+        return AppIdentity(key: AppKey.stablePath(path),
                            displayName: friendlyNames[path] ?? toolName(forExecutablePath: path) ?? fallbackName,
                            bundlePath: nil,
                            isSystem: true)

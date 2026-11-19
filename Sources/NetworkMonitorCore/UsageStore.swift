@@ -1,3 +1,4 @@
+import FirewallPolicy
 import Foundation
 
 // MARK: - Persisted model
@@ -567,7 +568,31 @@ public final class UsageStore {
         for key in decoded.buckets.keys where decoded.buckets[key]!.countingSince == .distantPast {
             decoded.buckets[key]!.countingSince = decoded.dayStart
         }
+        for key in decoded.buckets.keys { decoded.buckets[key]!.apps = foldingCopies(decoded.buckets[key]!.apps) }
         return decoded
+    }
+
+    /// Today's rows of copies of one app, stored apart before #663, as one.
+    public static func foldingCopies(_ apps: [String: AppTotals],
+                              installedFolder: String = "/Applications") -> [String: AppTotals] {
+        var folded: [String: AppTotals] = [:]
+        for (key, totals) in apps {
+            let current = AppIdentityResolver.currentKey(forStored: key, installedFolder: installedFolder)
+            guard var existing = folded[current] else {
+                var moved = totals
+                if current != key, AppKey.isSimulatorApp(current), !moved.displayName.hasSuffix(L("%@ (Simulator)", "")) {
+                    moved.displayName = L("%@ (Simulator)", moved.displayName)
+                }
+                folded[current] = moved
+                continue
+            }
+            existing.bytesIn += totals.bytesIn
+            existing.bytesOut += totals.bytesOut
+            existing.lastActive = max(existing.lastActive, totals.lastActive)
+            if current == key { (existing.displayName, existing.bundlePath) = (totals.displayName, totals.bundlePath) }
+            folded[current] = existing
+        }
+        return folded
     }
 
     /// Writes via a temporary file so a crash mid-write can't corrupt the store.

@@ -504,7 +504,126 @@ public enum AppKey {
     }
 
     public static func key(forExecutablePath path: String) -> String {
-        bundlePath(forExecutablePath: path) ?? path
+        if let bundle = bundlePath(forExecutablePath: path) { return key(forBundlePath: bundle) }
+        return stablePath(path)
+    }
+
+    // MARK: Copies of one app (#663)
+
+    /// The key for the app at `bundlePath`: the path itself, unless it's a
+    /// copy of an app in a folder that changes, which is filed under one path
+    /// for every copy.
+    ///
+    /// - An iOS simulator install, whose folder is new on every install and
+    ///   differs per simulator: `…/CoreSimulator/<name>.app`.
+    /// - A copy of an app installed in `installedFolder` (a build in a
+    ///   worktree, a cache, `/tmp`): that app, when its bundle id and folder
+    ///   name are the same. `bundleID` is the copy's, when the caller knows it
+    ///   (the content filter reads it from the signature, as its sandbox may
+    ///   not let it read the copy's Info.plist); otherwise it's read here.
+    /// - An app macOS moved aside before opening it (`AppTranslocation`),
+    ///   without its random folder.
+    ///
+    /// Still a path, so whatever reads a key as one (an icon, Ask Me, a rule's
+    /// row) still can, and an app's rules mean every copy of it. Whether a
+    /// copy is really that app is the signature's to say (#202): the filter
+    /// reads each copy's team from the copy itself, never from the app it's
+    /// filed under.
+    public static func key(forBundlePath bundlePath: String, bundleID: String? = nil,
+                           installedFolder: String = "/Applications") -> String {
+        if let simulator = simulatorInstallKey(bundlePath) { return simulator }
+        if let installed = installedCopy(of: bundlePath, bundleID: bundleID, in: installedFolder) { return installed }
+        return stablePath(bundlePath)
+    }
+
+    /// An iOS simulator install, keyed without its device's and its
+    /// install's folders; nil for anything else.
+    public static func simulatorInstallKey(_ path: String) -> String? {
+        guard path.contains("/Containers/Bundle/Application/") else { return nil }
+        let pattern = #"^(.*/CoreSimulator)/Devices/[^/]+/data/Containers/Bundle/Application/[^/]+/([^/]+\.app)$"#
+        guard path.range(of: pattern, options: .regularExpression) != nil else { return nil }
+        return path.replacingOccurrences(of: pattern, with: "$1/$2", options: .regularExpression)
+    }
+
+    /// An app in an iOS simulator, by its path or by its key.
+    public static func isSimulatorApp(_ pathOrKey: String) -> Bool {
+        simulatorInstallKey(pathOrKey) != nil
+            || pathOrKey.range(of: #"/Library/Developer/CoreSimulator/[^/]+\.app$"#, options: .regularExpression) != nil
+    }
+
+    /// A path without the random parts macOS gives a folder that holds the
+    /// same thing each time: an app moved aside before opening
+    /// (`…/AppTranslocation/<id>/d/X.app`), and the mount of a simulator's
+    /// runtime (`…/cryptexd/mnt/<runtime>.<6 random>/…`), whose daemons are
+    /// the same programs on every mount.
+    public static func stablePath(_ path: String) -> String {
+        var path = path
+        if path.contains("/AppTranslocation/") {
+            path = path.replacingOccurrences(of: #"/AppTranslocation/[0-9A-Fa-f-]{36}/d/"#, with: "/AppTranslocation/",
+                                             options: .regularExpression)
+        }
+        if path.contains("/com.apple.security.cryptexd/mnt/") {
+            path = path.replacingOccurrences(of: #"(/com\.apple\.security\.cryptexd/mnt/[^/]+)\.[A-Za-z0-9]{6}/"#,
+                                             with: "$1/", options: .regularExpression)
+        }
+        return path
+    }
+
+    /// Where apps are installed: never a copy of another.
+    public static func isInstalledPlace(_ path: String) -> Bool {
+        ["/Applications/", "/System/", "/Library/"].contains { path.hasPrefix($0) }
+            || path.range(of: #"^/Users/[^/]+/Applications/"#, options: .regularExpression) != nil
+    }
+
+    /// The installed app `bundlePath` is a copy of: `<folder>/<same name>.app`
+    /// with the same bundle id.
+    static func installedCopy(of bundlePath: String, bundleID: String?, in folder: String) -> String? {
+        guard !isInstalledPlace(bundlePath) else { return nil }
+        let installed = (folder as NSString).appendingPathComponent((bundlePath as NSString).lastPathComponent)
+        guard installed != bundlePath, !bundlePath.hasPrefix(installed + "/") else { return nil }
+        let cacheKey = [bundlePath, bundleID ?? "", folder].joined(separator: "\u{0}")
+        if let cached = copies.answer(cacheKey) { return cached.installed }
+        var answer: String?
+        if let id = bundleID ?? Self.bundleID(atBundlePath: bundlePath), Self.bundleID(atBundlePath: installed) == id {
+            answer = installed
+        }
+        copies.keep(answer, for: cacheKey)
+        return answer
+    }
+
+    private static let copies = CopyCache()
+
+    /// What `installedCopy` found, for five minutes: the app may be installed,
+    /// or the copy rebuilt, since. The filter asks from many threads.
+    private final class CopyCache: @unchecked Sendable {
+        private var answers: [String: (installed: String?, until: Date)] = [:]
+        private let lock = NSLock()
+
+        func answer(_ key: String) -> (installed: String?, until: Date)? {
+            lock.lock(); defer { lock.unlock() }
+            guard let answer = answers[key], answer.until > Date() else { return nil }
+            return answer
+        }
+
+        func keep(_ installed: String?, for key: String) {
+            lock.lock(); defer { lock.unlock() }
+            if answers.count > 512 { answers.removeAll() }
+            answers[key] = (installed, Date() + 300)
+        }
+    }
+
+    /// The bundle id in an app's Info.plist: a Mac app's, in `Contents`, or
+    /// an iOS app's, at its top.
+    public static func bundleID(atBundlePath path: String) -> String? {
+        for plist in ["Contents/Info.plist", "Info.plist"] {
+            let url = URL(fileURLWithPath: path).appendingPathComponent(plist)
+            guard let data = try? Data(contentsOf: url),
+                  let info = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+                  let id = info["CFBundleIdentifier"] as? String, !id.isEmpty
+            else { continue }
+            return id
+        }
+        return nil
     }
 
     /// A program outside any app, started from one, is listed under it: its

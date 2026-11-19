@@ -467,13 +467,50 @@ final class Firewall {
     /// program outside any app, itself under the app that started it, then
     /// that app.
     private func appKeys(_ token: Data) -> [String] {
+        Self.placement(token).keys
+    }
+
+    /// A token's app keys, and the app above it that adopted it, if one did:
+    /// its key and the bundle it really is, which may be a copy filed under
+    /// another path (#663).
+    private struct Placement {
+        var keys: [String]
+        var parent: (key: String, bundle: String)?
+    }
+
+    private static func placement(_ token: Data) -> Placement {
         let pid = FlowReport.pid(fromAuditToken: token)
-        guard let path = Self.path(token) else { return [] }
-        if let bundle = AppKey.bundlePath(forExecutablePath: path) { return [bundle] }
-        if let parent = Self.nearestApp(above: pid) {
-            return [AppKey.key(adopting: path, by: parent), path, parent]
+        guard let path = path(token) else { return Placement(keys: []) }
+        if let bundle = AppKey.bundlePath(forExecutablePath: path) {
+            return Placement(keys: [AppKey.key(forBundlePath: bundle, bundleID: bundleID(token, path: path, bundle: bundle))])
         }
-        return [path]
+        let program = AppKey.stablePath(path)
+        if let parentBundle = nearestApp(above: pid) {
+            let parent = AppKey.key(forBundlePath: parentBundle)
+            return Placement(keys: [AppKey.key(adopting: program, by: parent), program, parent],
+                             parent: (parent, parentBundle))
+        }
+        return Placement(keys: [program])
+    }
+
+    /// A copy's bundle id, to tell whether it's an installed app's copy: from
+    /// its Info.plist, or when the sandbox keeps that closed, from its
+    /// signature, which names the bundle when the program is the bundle's
+    /// own (not a helper inside it).
+    private static func bundleID(_ token: Data, path: String, bundle: String) -> String? {
+        guard !AppKey.isInstalledPlace(bundle) else { return nil }
+        if let id = AppKey.bundleID(atBundlePath: bundle) { return id }
+        let inside = path.dropFirst(bundle.count)
+        guard !inside.contains(".app/"), !inside.contains(".xpc/"), !inside.contains(".framework/"),
+              let code = guestCode(token) else { return nil }
+        var staticCode: SecStaticCode?
+        var information: CFDictionary?
+        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode,
+              SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation),
+                                            &information) == errSecSuccess,
+              let dictionary = information as? [String: Any]
+        else { return nil }
+        return dictionary[kSecCodeInfoIdentifier as String] as? String
     }
 
     /// The program behind a token: from the process table, or failing that,
@@ -522,14 +559,17 @@ final class Firewall {
     // MARK: Who signed it (#202)
 
     /// The team behind each of a token's app keys: the program's own for the
-    /// keys that are it, and for the app above it that adopted it, that app's.
+    /// keys that are it, and for the app above it that adopted it, that app's,
+    /// read from the bundle it really is. Never from the path a copy is filed
+    /// under (#663): a copy signed by someone else isn't the installed app,
+    /// and its rules mustn't cover it.
     private func teams(of token: Data) -> [String: String] {
         let own = Self.team(token)
-        let path = Self.path(token)
+        let placement = Self.placement(token)
         var teams: [String: String] = [:]
-        for key in appKeys(token) {
-            let isAbove = key.hasSuffix(".app") && !(path.map { $0 == key || $0.hasPrefix(key + "/") } ?? false)
-            if let team = isAbove ? Self.team(atPath: key) : own { teams[key] = team }
+        for key in placement.keys {
+            let isAbove = placement.parent.map { $0.key == key } ?? false
+            if let team = isAbove ? placement.parent.flatMap({ Self.team(atPath: $0.bundle) }) : own { teams[key] = team }
         }
         return teams
     }
