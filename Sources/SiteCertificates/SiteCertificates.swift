@@ -111,14 +111,16 @@ public struct CertificateAuthority {
 /// is only as private as the process that holds it.
 public final class SiteCertificateCache: @unchecked Sendable {
     public let authority: CertificateAuthority
-    public let siteKey: P256.Signing.PrivateKey
+    /// The public half of the one key every site's certificate is for.
+    public let siteKey: Certificate.PublicKey
     private var issued: [String: Certificate] = [:]
     private let lock = NSLock()
     /// Enough for a day's browsing; past it, the half nearest their end are
     /// let go, to be made again when next asked for.
     public static let limit = 2_000
 
-    public init(authority: CertificateAuthority, siteKey: P256.Signing.PrivateKey = P256.Signing.PrivateKey()) {
+    public init(authority: CertificateAuthority,
+                siteKey: Certificate.PublicKey = Certificate.PublicKey(P256.Signing.PrivateKey().publicKey)) {
         self.authority = authority
         self.siteKey = siteKey
     }
@@ -130,7 +132,7 @@ public final class SiteCertificateCache: @unchecked Sendable {
         // Kept until a day before it, or the root, lapses.
         if let kept = issued[host], kept.notValidAfter > now + 24 * 3600 { lock.unlock(); return kept }
         lock.unlock()
-        let made = try authority.issue(for: host, key: Certificate.PublicKey(siteKey.publicKey), now: now)
+        let made = try authority.issue(for: host, key: siteKey, now: now)
         lock.lock()
         if issued.count >= Self.limit {
             let nearest = issued.sorted { $0.value.notValidAfter < $1.value.notValidAfter }.prefix(Self.limit / 2)
