@@ -1,5 +1,6 @@
 import FirewallPolicy
 import Foundation
+import os
 
 // MARK: - Model
 
@@ -1671,9 +1672,16 @@ public final class UsageHistory {
         }
         try renameTools(database)
         // Once: rows of copies of one app, stored apart before #663.
+        // A fold that fails leaves the history as it was, to try again next
+        // time: never a reason to set the file aside as unreadable.
         if (try? database.scalar("PRAGMA user_version")) ?? 0 < 2 {
-            try foldCopies(database)
-            try database.execute("PRAGMA user_version = 2")
+            do {
+                try foldCopies(database)
+                try database.execute("PRAGMA user_version = 2")
+            } catch {
+                Logger(subsystem: "com.kevinabouhanna.NetworkMonitor", category: "history")
+                    .error("Couldn't fold copies of one app together (#663): \(String(describing: error), privacy: .public)")
+            }
         }
         return database
     }
@@ -1702,12 +1710,23 @@ public final class UsageHistory {
         if try database.prepare("SELECT 1 FROM apps WHERE key = ?1").bind([.text(new)]).step() {
             try database.prepare("DELETE FROM apps WHERE key = ?1").run([.text(old)])
         } else {
+            // Named, and nested, as the row is now: "(Simulator)", "(other
+            // copies)", under the app that started it as that app is now filed.
             var newName = name
             if AppKey.isSimulatorApp(new), !name.hasSuffix(L("%@ (Simulator)", "")) {
                 newName = L("%@ (Simulator)", name)
+            } else if AppKey.installedApp(ofCopiesKey: new) != nil {
+                newName = AppIdentityResolver.identity(forKey: new).displayName
             }
-            try database.prepare("UPDATE apps SET key = ?2, name = ?3 WHERE key = ?1")
-                .run(keys + [.text(newName)])
+            let parent = new.contains(AppKey.separator) ? AppIdentityResolver.identity(forKey: new).parent : nil
+            try database.prepare("""
+                UPDATE apps SET key = ?2, name = ?3,
+                    parent_key = COALESCE(?4, parent_key), parent_name = COALESCE(?5, parent_name),
+                    parent_bundle_path = COALESCE(?6, parent_bundle_path)
+                WHERE key = ?1
+                """).run(keys + [.text(newName), parent.map { .text($0.key) } ?? .null,
+                                 parent.map { .text($0.displayName) } ?? .null,
+                                 parent.map { .text($0.bundlePath) } ?? .null])
         }
         try database.prepare("UPDATE apps SET parent_key = ?2 WHERE parent_key = ?1").run(keys)
 

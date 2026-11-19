@@ -57,6 +57,14 @@ func runAppCopiesTests() {
             Check.expectFalse(AppKey.isSimulatorApp("/Applications/Home Control.app"))
         }
 
+        Check.test("so are its installs in SwiftUI's previews and in test runs") {
+            let developer = "/Users/k/Library/Developer"
+            for device in ["Xcode/UserData/Previews/Simulator Devices/6F0E1B52", "XCTestDevices/9A8B7C6D"] {
+                let path = "\(developer)/\(device)/data/Containers/Bundle/Application/0B7A3C1D/Home Control.app"
+                Check.expectEqual(AppKey.simulatorInstallKey(path), "\(simulator)/Home Control.app", device)
+            }
+        }
+
         Check.test("a key read back is the same app, still named for the simulator") {
             let identity = AppIdentityResolver.identity(forKey: "\(simulator)/Home Control.app")
             Check.expectEqual(identity.key, "\(simulator)/Home Control.app")
@@ -74,36 +82,86 @@ func runAppCopiesTests() {
 
     Check.suite("App copies — builds of an installed app (#663)") {
 
-        Check.test("the same app in two folders is one row, the installed one") {
+        /// Teams as made-up apps can't have them: the installed app's, and
+        /// each copy's by the folder it's in.
+        func teams(installed: String?, copies: [String: String]) -> (String) -> String? {
+            { path in
+                if path.contains("/Applications/") { return installed }
+                return copies.first { path.contains("/\($0.key)/") }?.value
+            }
+        }
+
+        Check.test("the same app in two folders, signed by its team, is one row: the installed one") {
             let made = apps(installed: "com.example.home", copies: ["com.example.home", "com.example.home"])
             defer { made.cleanup() }
             let installed = made.folder + "/Home Control.app"
+            let teamOf = teams(installed: "TEAM", copies: ["build-0": "TEAM", "build-1": "TEAM"])
             for copy in made.copies {
-                Check.expectEqual(AppKey.key(forBundlePath: copy, installedFolder: made.folder), installed, copy)
+                Check.expectEqual(AppKey.key(forBundlePath: copy, installedFolder: made.folder, teamOf: teamOf),
+                                  installed, copy)
             }
-            Check.expectEqual(AppKey.key(forBundlePath: installed, installedFolder: made.folder), installed)
+            Check.expectEqual(AppKey.key(forBundlePath: installed, installedFolder: made.folder, teamOf: teamOf),
+                              installed)
         }
 
-        Check.test("a rule on the row holds for every copy") {
+        Check.test("a rule on the row holds for every copy its team signed") {
             let made = apps(installed: "com.example.home", copies: ["com.example.home"])
             defer { made.cleanup() }
             let installed = made.folder + "/Home Control.app"
-            let block = FirewallRule(subject: .app, key: installed, title: "Home Control", action: .block)
+            let teamOf = teams(installed: "TEAM", copies: ["build-0": "TEAM"])
+            let block = FirewallRule(subject: .app, key: installed, title: "Home Control", action: .block, team: "TEAM")
             for path in [installed, made.copies[0]] {
-                let flow = FlowFacts(appKeys: [AppKey.key(forBundlePath: path, installedFolder: made.folder)],
-                                     companyKey: "Amazon", country: "US", address: "52.1.2.3", port: 443, isApple: false)
+                let key = AppKey.key(forBundlePath: path, installedFolder: made.folder, teamOf: teamOf)
+                let flow = FlowFacts(appKeys: [key], companyKey: "Amazon", country: "US", address: "52.1.2.3",
+                                     port: 443, isApple: false, teams: [key: "TEAM"])
                 Check.expectEqual(FirewallPolicy(rules: [block]).decide(flow), .block(.rule(block)), path)
             }
         }
 
+        // Builds are signed ad hoc, and a bundle id is anyone's to write:
+        // such a copy isn't the app, and the app's rules aren't its (#202).
+        Check.test("copies signed otherwise are one row of their own, and a rule on it holds for them all") {
+            let made = apps(installed: "com.example.home", copies: ["com.example.home", "com.example.home"])
+            defer { made.cleanup() }
+            let installed = made.folder + "/Home Control.app"
+            let teamOf = teams(installed: "TEAM", copies: ["build-1": "OTHER"])
+            let keys = made.copies.map { AppKey.key(forBundlePath: $0, installedFolder: made.folder, teamOf: teamOf) }
+            Check.expectEqual(keys, [AppKey.copiesKey(of: installed), AppKey.copiesKey(of: installed)])
+            Check.expectEqual(AppKey.installedApp(ofCopiesKey: keys[0]), installed)
+            let identity = AppIdentityResolver.identity(forKey: keys[0])
+            Check.expectEqual(identity.displayName, L("%@ (other copies)", "Home Control"))
+            Check.expectEqual(identity.bundlePath, installed, "its icon")
+            let block = FirewallRule(subject: .app, key: keys[0], title: identity.displayName, action: .block)
+            let flow = FlowFacts(appKeys: [keys[0]], companyKey: "Amazon", country: "US", address: "52.1.2.3",
+                                 port: 443, isApple: false)
+            Check.expectEqual(FirewallPolicy(rules: [block]).decide(flow), .block(.rule(block)))
+            // The installed app's own rule isn't theirs.
+            let appRule = FirewallRule(subject: .app, key: installed, title: "Home Control", action: .allow, team: "TEAM")
+            Check.expectEqual(FirewallPolicy(mode: .onlyAllowed, rules: [appRule]).decide(flow), .block(.mode))
+        }
+
+        Check.test("an installed app with no team has no copies of its own team") {
+            let made = apps(installed: "com.apple.Safari", copies: ["com.apple.Safari"])
+            defer { made.cleanup() }
+            let key = AppKey.key(forBundlePath: made.copies[0], installedFolder: made.folder,
+                                 teamOf: teams(installed: nil, copies: [:]))
+            Check.expectEqual(key, AppKey.copiesKey(of: made.folder + "/Home Control.app"))
+        }
+
         // The filter's sandbox may keep the copy's Info.plist closed: it
-        // passes the id from the signature instead.
-        Check.test("a bundle id given is used in place of the copy's Info.plist") {
+        // passes what the copy's signature says instead.
+        Check.test("what the signature says is used in place of the copy's files") {
             let made = apps(installed: "com.example.home", copies: ["com.example.other"])
             defer { made.cleanup() }
-            Check.expectEqual(AppKey.key(forBundlePath: made.copies[0], bundleID: "com.example.home",
-                                         installedFolder: made.folder),
+            let teamOf = teams(installed: "TEAM", copies: [:])
+            Check.expectEqual(AppKey.key(forBundlePath: made.copies[0],
+                                         signed: AppKey.Signed(bundleID: "com.example.home", team: "TEAM"),
+                                         installedFolder: made.folder, teamOf: teamOf),
                               made.folder + "/Home Control.app")
+            Check.expectEqual(AppKey.key(forBundlePath: made.copies[0],
+                                         signed: AppKey.Signed(bundleID: "com.example.home", team: nil),
+                                         installedFolder: made.folder, teamOf: teamOf),
+                              AppKey.copiesKey(of: made.folder + "/Home Control.app"))
         }
 
         Check.test("another app of the same name stays apart") {
@@ -152,15 +210,44 @@ func runAppCopiesTests() {
             defer { made.cleanup() }
             Check.expectEqual(AppIdentityResolver.currentKey(forStored: firstInstall, installedFolder: made.folder),
                               "\(simulator)/Home Control.app")
-            // Deleted since, so its id can't be read: the installed app's name says it.
+            // Deleted since, so who signed it can't be read: among the
+            // installed app's other copies, never the app itself.
+            let copies = AppKey.copiesKey(of: made.folder + "/Home Control.app")
             let gone = "/private/tmp/home-control-152/target/release/bundle/macos/Home Control.app"
-            Check.expectEqual(AppIdentityResolver.currentKey(forStored: gone, installedFolder: made.folder),
-                              made.folder + "/Home Control.app")
+            Check.expectEqual(AppIdentityResolver.currentKey(forStored: gone, installedFolder: made.folder), copies)
             let child = AppKey.key(adopting: "/usr/bin/curl", by: gone)
             Check.expectEqual(AppIdentityResolver.currentKey(forStored: child, installedFolder: made.folder),
-                              AppKey.key(adopting: "/usr/bin/curl", by: made.folder + "/Home Control.app"))
+                              AppKey.key(adopting: "/usr/bin/curl", by: copies))
             Check.expectEqual(AppIdentityResolver.currentKey(forStored: "/Applications/Slack.app"),
                               "/Applications/Slack.app")
+        }
+
+        // Older versions, sharing the database, can make it fold again, and
+        // today's totals fold at every launch.
+        Check.test("a key already current stays as it is, with the app installed") {
+            let made = apps(installed: "com.example.home", copies: [])
+            defer { made.cleanup() }
+            let copies = AppKey.copiesKey(of: made.folder + "/Home Control.app")
+            for key in ["\(simulator)/Home Control.app", copies, made.folder + "/Home Control.app",
+                        "/private/var/folders/j7/abc/T/AppTranslocation/Home Control.app",
+                        AppKey.key(adopting: "/usr/bin/curl", by: copies)] {
+                Check.expectEqual(AppIdentityResolver.currentKey(forStored: key, installedFolder: made.folder), key)
+            }
+        }
+
+        Check.test("a command's row moves with the app that started it, parent and all") {
+            let made = apps(installed: "com.example.home", copies: [])
+            defer { made.cleanup() }
+            let gone = "/private/tmp/home-control-152/target/release/bundle/macos/Home Control.app"
+            let parent = ParentApp(key: gone, displayName: "Home Control", bundlePath: gone)
+            let curl = AppKey.key(adopting: "/usr/bin/curl", by: gone)
+            let folded = UsageStore.foldingCopies(
+                [curl: AppTotals(displayName: "curl", parent: parent, bytesIn: 10, bytesOut: 1)],
+                installedFolder: made.folder)
+            let copies = AppKey.copiesKey(of: made.folder + "/Home Control.app")
+            let row = folded[AppKey.key(adopting: "/usr/bin/curl", by: copies)]
+            Check.expectEqual(row?.parent?.key, copies)
+            Check.expectEqual(row?.parent?.displayName, L("%@ (other copies)", "Home Control"))
         }
 
         Check.test("today's totals fold into one row, bytes added") {

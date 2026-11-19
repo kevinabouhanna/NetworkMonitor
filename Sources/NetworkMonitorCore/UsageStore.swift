@@ -578,18 +578,28 @@ public final class UsageStore {
         var folded: [String: AppTotals] = [:]
         for (key, totals) in apps {
             let current = AppIdentityResolver.currentKey(forStored: key, installedFolder: installedFolder)
-            guard var existing = folded[current] else {
-                var moved = totals
-                if current != key, AppKey.isSimulatorApp(current), !moved.displayName.hasSuffix(L("%@ (Simulator)", "")) {
+            var moved = totals
+            if current != key {
+                // Named, and nested, as the row is now.
+                if AppKey.isSimulatorApp(current), !moved.displayName.hasSuffix(L("%@ (Simulator)", "")) {
                     moved.displayName = L("%@ (Simulator)", moved.displayName)
+                } else if AppKey.installedApp(ofCopiesKey: current) != nil {
+                    moved.displayName = AppIdentityResolver.identity(forKey: current).displayName
                 }
+                if current.contains(AppKey.separator) {
+                    moved.parent = AppIdentityResolver.identity(forKey: current).parent ?? moved.parent
+                }
+            }
+            guard var existing = folded[current] else {
                 folded[current] = moved
                 continue
             }
-            existing.bytesIn += totals.bytesIn
-            existing.bytesOut += totals.bytesOut
-            existing.lastActive = max(existing.lastActive, totals.lastActive)
-            if current == key { (existing.displayName, existing.bundlePath) = (totals.displayName, totals.bundlePath) }
+            existing.bytesIn += moved.bytesIn
+            existing.bytesOut += moved.bytesOut
+            existing.lastActive = max(existing.lastActive, moved.lastActive)
+            if current == key {
+                (existing.displayName, existing.bundlePath, existing.parent) = (moved.displayName, moved.bundlePath, moved.parent)
+            }
             folded[current] = existing
         }
         return folded

@@ -198,11 +198,9 @@ public final class AppIdentityResolver {
     /// by the time the app hears of it. A bundle path, an executable's path,
     /// or a parent's key and a child's path.
     public static func identity(forKey key: String) -> AppIdentity {
-        guard let index = key.lastIndex(of: keySeparator) else {
-            return identity(forExecutablePath: key, fallbackName: (key as NSString).lastPathComponent)
-        }
+        guard let index = key.lastIndex(of: keySeparator) else { return identity(forAppKey: key) }
         let child = String(key[key.index(after: index)...])
-        let parent = identity(forExecutablePath: String(key[..<index]), fallbackName: "")
+        let parent = identity(forAppKey: String(key[..<index]))
         guard let bundlePath = parent.bundlePath else {
             return identity(forExecutablePath: child, fallbackName: (child as NSString).lastPathComponent)
         }
@@ -210,24 +208,41 @@ public final class AppIdentityResolver {
                        by: ParentApp(key: parent.key, displayName: parent.displayName, bundlePath: bundlePath))
     }
 
-    /// The key a row stored by an earlier version is filed under now (#663):
-    /// copies of one app in other folders under one key. A copy that's gone
-    /// since (a build in a worktree that was removed) can't show its bundle
-    /// id any more; it's taken as the installed app of the same folder name,
-    /// as it was named the same. Only history is folded so, never a rule.
+    /// A key with no child half: an app, an installed app's other copies
+    /// (#663), or a program.
+    static func identity(forAppKey key: String) -> AppIdentity {
+        if let installed = AppKey.installedApp(ofCopiesKey: key) {
+            let app = identity(forExecutablePath: installed, fallbackName: "")
+            return AppIdentity(key: key, displayName: L("%@ (other copies)", app.displayName),
+                               bundlePath: installed, isSystem: false)
+        }
+        return identity(forExecutablePath: key, fallbackName: (key as NSString).lastPathComponent)
+    }
+
+    /// The key a row stored by an earlier version is filed under now (#663).
+    /// The same as a live copy's, but for a copy that's gone since (a build in
+    /// a worktree that was removed), whose bundle id and team can't be read
+    /// any more: with the same name as an installed app, it's among that
+    /// app's other copies, never the app itself. A key already current stays
+    /// as it is. Only history is folded so, never a rule.
     public static func currentKey(forStored key: String, installedFolder: String = "/Applications") -> String {
         if let index = key.lastIndex(of: keySeparator) {
             let parent = currentKey(forStored: String(key[..<index]), installedFolder: installedFolder)
             let child = AppKey.stablePath(String(key[key.index(after: index)...]))
             return AppKey.key(adopting: child, by: parent)
         }
+        if AppKey.installedApp(ofCopiesKey: key) != nil || AppKey.isSimulatorKey(key) { return key }
+        // An app moved aside is filed by its folder alone, never as a copy.
+        if key.contains("/AppTranslocation/") { return AppKey.stablePath(key) }
         guard (key as NSString).lastPathComponent.hasSuffix(".app") else { return AppKey.stablePath(key) }
-        var bundleID: String?
-        if !AppKey.isInstalledPlace(key), !FileManager.default.fileExists(atPath: key) {
-            let installed = (installedFolder as NSString).appendingPathComponent((key as NSString).lastPathComponent)
-            bundleID = AppKey.bundleID(atBundlePath: installed)
+        if AppKey.isInstalledPlace(key) || FileManager.default.fileExists(atPath: key) {
+            return AppKey.key(forBundlePath: key, installedFolder: installedFolder)
         }
-        return AppKey.key(forBundlePath: key, bundleID: bundleID, installedFolder: installedFolder)
+        if let simulator = AppKey.simulatorInstallKey(key) { return simulator }
+        let stable = AppKey.stablePath(key)
+        let installed = (installedFolder as NSString).appendingPathComponent((key as NSString).lastPathComponent)
+        guard stable == key, FileManager.default.fileExists(atPath: installed) else { return stable }
+        return AppKey.copiesKey(of: installed)
     }
 
     /// Joins a parent key to a child key. A control character, so it cannot occur
@@ -306,9 +321,14 @@ public final class AppIdentityResolver {
         // Copies of one app in other folders are one row, under one key; the
         // bundle path stays this copy's, for its icon and name (#663).
         if let bundlePath = AppKey.bundlePath(forExecutablePath: path) {
+            let key = AppKey.key(forBundlePath: bundlePath)
             var name = displayName(forBundle: bundlePath, (bundlePath as NSString).lastPathComponent)
-            if AppKey.isSimulatorApp(bundlePath) { name = L("%@ (Simulator)", name) }
-            return AppIdentity(key: AppKey.key(forBundlePath: bundlePath),
+            if AppKey.isSimulatorApp(bundlePath) {
+                name = L("%@ (Simulator)", name)
+            } else if AppKey.installedApp(ofCopiesKey: key) != nil {
+                name = L("%@ (other copies)", name)
+            }
+            return AppIdentity(key: key,
                                displayName: name,
                                bundlePath: bundlePath,
                                isSystem: false)

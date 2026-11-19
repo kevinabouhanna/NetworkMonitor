@@ -247,6 +247,7 @@
 /* AppIdentityResolver.swift */
 "System process" = "系统进程";
 "%@ (Simulator)" = "%@（模拟器）";
+"%@ (other copies)" = "%@（其他副本）";
 
 /* AskPanel.swift */
 "All of %@'s network" = "%@ 的整个网络";

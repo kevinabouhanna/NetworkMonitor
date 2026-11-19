@@ -482,27 +482,26 @@ final class Firewall {
         let pid = FlowReport.pid(fromAuditToken: token)
         guard let path = path(token) else { return Placement(keys: []) }
         if let bundle = AppKey.bundlePath(forExecutablePath: path) {
-            return Placement(keys: [AppKey.key(forBundlePath: bundle, bundleID: bundleID(token, path: path, bundle: bundle))])
+            return Placement(keys: [AppKey.key(forBundlePath: bundle,
+                                               signed: signed(guestCode(token), path: path, bundle: bundle))])
         }
         let program = AppKey.stablePath(path)
-        if let parentBundle = nearestApp(above: pid) {
-            let parent = AppKey.key(forBundlePath: parentBundle)
-            return Placement(keys: [AppKey.key(adopting: program, by: parent), program, parent],
-                             parent: (parent, parentBundle))
+        if let parent = nearestApp(above: pid) {
+            let parentKey = AppKey.key(forBundlePath: parent.bundle,
+                                       signed: signed(guestCode(pid: parent.pid), path: parent.path, bundle: parent.bundle))
+            return Placement(keys: [AppKey.key(adopting: program, by: parentKey), program, parentKey],
+                             parent: (parentKey, parent.bundle))
         }
         return Placement(keys: [program])
     }
 
-    /// A copy's bundle id, to tell whether it's an installed app's copy: from
-    /// its Info.plist, or when the sandbox keeps that closed, from its
-    /// signature, which names the bundle when the program is the bundle's
-    /// own (not a helper inside it).
-    private static func bundleID(_ token: Data, path: String, bundle: String) -> String? {
-        guard !AppKey.isInstalledPlace(bundle) else { return nil }
-        if let id = AppKey.bundleID(atBundlePath: bundle) { return id }
-        let inside = path.dropFirst(bundle.count)
-        guard !inside.contains(".app/"), !inside.contains(".xpc/"), !inside.contains(".framework/"),
-              let code = guestCode(token) else { return nil }
+    /// What a copy's own signature says (#663), to tell whether it's an
+    /// installed app's copy, and signed by that app's team, without the
+    /// copy's files, which the sandbox may keep closed. Its bundle id is the
+    /// Info.plist's where that can be read, else the signature's identifier
+    /// when the program is the bundle's own (a helper inside it has its own).
+    private static func signed(_ code: SecCode?, path: String, bundle: String) -> AppKey.Signed? {
+        guard !AppKey.isInstalledPlace(bundle), let code else { return nil }
         var staticCode: SecStaticCode?
         var information: CFDictionary?
         guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode,
@@ -510,7 +509,19 @@ final class Firewall {
                                             &information) == errSecSuccess,
               let dictionary = information as? [String: Any]
         else { return nil }
-        return dictionary[kSecCodeInfoIdentifier as String] as? String
+        let inside = path.dropFirst(bundle.count)
+        let isTheBundles = !inside.contains(".app/") && !inside.contains(".xpc/") && !inside.contains(".framework/")
+        return AppKey.Signed(
+            bundleID: AppKey.bundleID(atBundlePath: bundle)
+                ?? (isTheBundles ? dictionary[kSecCodeInfoIdentifier as String] as? String : nil),
+            team: dictionary[kSecCodeInfoTeamIdentifier as String] as? String)
+    }
+
+    private static func guestCode(pid: Int32) -> SecCode? {
+        var code: SecCode?
+        let attributes = [kSecGuestAttributePid: NSNumber(value: pid)] as CFDictionary
+        guard SecCodeCopyGuestWithAttributes(nil, attributes, [], &code) == errSecSuccess else { return nil }
+        return code
     }
 
     /// The program behind a token: from the process table, or failing that,
@@ -540,7 +551,7 @@ final class Firewall {
     }
 
     /// The nearest `.app` above `pid`, as `AppIdentityResolver` adopts.
-    private static func nearestApp(above pid: Int32) -> String? {
+    private static func nearestApp(above pid: Int32) -> (bundle: String, path: String, pid: Int32)? {
         var current = pid
         for _ in 0..<8 {
             var info = proc_bsdshortinfo()
@@ -550,7 +561,7 @@ final class Firewall {
             guard parent > 1, parent != current else { return nil }
             current = parent
             if let path = executablePath(pid: current), let bundle = AppKey.bundlePath(forExecutablePath: path) {
-                return bundle
+                return (bundle, path, current)
             }
         }
         return nil
