@@ -12,34 +12,56 @@ public struct EnhancedBlocking: Codable, Equatable {
     /// Off until the person switches it on, and the root certificate is
     /// trusted.
     public var isOn: Bool
-    /// The apps whose connections it opens, by signing identifier: the
-    /// browsers, and any app the person adds.
-    public var apps: Set<String>
-    /// Sites the person keeps it away from, each with the names under it.
-    public var excludedSites: Set<String>
+    /// Apps the person adds to the browsers, and browsers they take away, by
+    /// signing identifier. Only their own choices are kept, so a change to
+    /// the browsers' list reaches everyone.
+    public var addedApps: Set<String>
+    public var removedApps: Set<String>
+    /// Sites the person keeps it away from, each with every name under it.
+    public var excludedSites: Set<String> {
+        didSet { excludedSites = Set(excludedSites.compactMap(SiteName.normalized)) }
+    }
     /// Apps found to refuse our certificate (they pin their own): left alone
-    /// for good, by signing identifier.
+    /// for good, by signing identifier, their helpers too.
     public var pinnedApps: Set<String>
 
-    public init(isOn: Bool = false, apps: Set<String> = EnhancedBlocking.browsers, excludedSites: Set<String> = [],
-                pinnedApps: Set<String> = []) {
+    public init(isOn: Bool = false, addedApps: Set<String> = [], removedApps: Set<String> = [],
+                excludedSites: Set<String> = [], pinnedApps: Set<String> = []) {
         self.isOn = isOn
-        self.apps = apps
-        self.excludedSites = excludedSites
+        self.addedApps = addedApps
+        self.removedApps = removedApps
+        self.excludedSites = Set(excludedSites.compactMap(SiteName.normalized))
         self.pinnedApps = pinnedApps
     }
 
-    /// The browsers it reaches by default, by signing identifier. Firefox
-    /// keeps its own certificates, so it's reached only once the person has
-    /// told it to use the Mac's.
+    /// Settings saved by another version read with what they have: a field
+    /// it didn't know is its default, never a reason to lose the rest.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(isOn: try container.decodeIfPresent(Bool.self, forKey: .isOn) ?? false,
+                  addedApps: try container.decodeIfPresent(Set<String>.self, forKey: .addedApps) ?? [],
+                  removedApps: try container.decodeIfPresent(Set<String>.self, forKey: .removedApps) ?? [],
+                  excludedSites: try container.decodeIfPresent(Set<String>.self, forKey: .excludedSites) ?? [],
+                  pinnedApps: try container.decodeIfPresent(Set<String>.self, forKey: .pinnedApps) ?? [])
+    }
+
+    /// The apps it reaches: the browsers, the person's own added, theirs
+    /// taken away.
+    public var apps: Set<String> { Self.browsers.union(addedApps).subtracting(removedApps) }
+
+    /// The browsers it reaches by default, by the signing identifier of the
+    /// app a connection is made for (the filter's app audit token): Safari's
+    /// pages, though loaded by WebKit's shared networking process, count as
+    /// Safari's, and no other app's web views are reached. Firefox keeps its
+    /// own certificates, so it's added only once the person has told it to
+    /// use the Mac's.
     public static let browsers: Set<String> = [
-        "com.apple.Safari", "com.apple.WebKit.Networking",
+        "com.apple.Safari",
         "com.google.Chrome", "com.google.Chrome.helper", "com.google.Chrome.canary",
         "com.microsoft.edgemac", "com.microsoft.edgemac.helper",
         "com.brave.Browser", "com.brave.Browser.helper",
         "company.thebrowser.Browser", "company.thebrowser.browser.helper",
         "com.operasoftware.Opera", "com.vivaldi.Vivaldi",
-        "org.mozilla.firefox",
     ]
 
     public enum Decision: Equatable {
@@ -61,32 +83,45 @@ public struct EnhancedBlocking: Codable, Equatable {
         case noName
     }
 
-    /// For a new connection from `app` (its signing identifier) to `host`
-    /// (the name it asked for, if known) on `port`.
+    /// For a new connection made for `app` (its signing identifier) to
+    /// `host` (the name it asked for, if known) on `port`.
+    ///
+    /// A browser's QUIC with no name is refused too: refusing opens nothing,
+    /// and the TCP connection the browser falls back to is decided by its
+    /// name, so a bank's is still left alone.
     public func decide(app: String?, host: String?, port: Int, isUDP: Bool) -> Decision {
         guard isOn else { return .leave(.off) }
-        guard let app, reaches(app) else { return .leave(.notAnAppItReaches) }
+        guard let app, Self.matches(app, in: apps) else { return .leave(.notAnAppItReaches) }
         guard port == 443 else { return .leave(.notWeb) }
-        if pinnedApps.contains(app) { return .leave(.pinned) }
-        // QUIC can't be read: refused, so the browser falls back to TCP, as
-        // it does whenever QUIC is blocked. Not for a site left alone.
-        if let host, Self.isNeverOpened(host) || isExcluded(host) {
-            return .leave(Self.isNeverOpened(host) ? .neverOpened : .excluded)
+        if Self.matches(app, in: pinnedApps) { return .leave(.pinned) }
+        // An address, or no name: there's no certificate to show for it.
+        let name = host.flatMap(SiteName.normalized)
+        if let name {
+            if Self.isNeverOpened(name) { return .leave(.neverOpened) }
+            if isExcluded(name) { return .leave(.excluded) }
         }
+        // QUIC can't be read: refused, so the browser falls back to TCP, as
+        // it does whenever QUIC is blocked.
         if isUDP { return .refuseQUIC }
-        // With no name, there's no certificate to show for it: leave it.
-        guard host != nil else { return .leave(.noName) }
-        return .open
+        return name == nil ? .leave(.noName) : .open
     }
 
     /// The app, or a helper of one: its identifier, or one it starts with
     /// (`com.google.Chrome.helper.renderer` is Chrome's).
-    func reaches(_ app: String) -> Bool {
+    static func matches(_ app: String, in apps: Set<String>) -> Bool {
         apps.contains(app) || apps.contains { app.hasPrefix($0 + ".") }
     }
 
-    func isExcluded(_ host: String) -> Bool {
-        SiteName.domains(of: host).contains { excludedSites.contains($0) }
+    /// Excluded: the name, or any name above it (a platform's too, such as
+    /// `github.io`), is in the person's list.
+    func isExcluded(_ name: String) -> Bool {
+        Self.namesAbove(name).contains { excludedSites.contains($0) }
+    }
+
+    /// The name and every name above it but the last label.
+    static func namesAbove(_ name: String) -> [String] {
+        let labels = name.split(separator: ".")
+        return (0..<max(labels.count - 1, 0)).map { labels[$0...].joined(separator: ".") }
     }
 
     // MARK: Never opened
@@ -99,16 +134,17 @@ public struct EnhancedBlocking: Codable, Equatable {
     public static func isNeverOpened(_ host: String) -> Bool {
         guard let name = SiteName.normalized(host) else { return true }
         let labels = name.split(separator: ".").map(String.init)
-        // gov, mil, bank, insurance, and gov.xx, gouv.xx, gob.xx, govt.nz…
         guard let last = labels.last else { return true }
         if ["gov", "mil", "bank", "insurance", "health", "bnpparibas"].contains(last) { return true }
-        // A country's government's names: gov.uk, gouv.fr, gob.mx, go.jp…,
-        // never go.com.
-        if last.count == 2, labels.count >= 2,
-           ["gov", "gouv", "gob", "govt", "go", "mil", "nhs"].contains(labels[labels.count - 2]) {
-            return true
+        // A country's government's names: gov.uk, gouv.fr, gob.mx, go.jp,
+        // gc.ca, gouv.qc.ca…, never go.com.
+        if last.count == 2, labels.count >= 2 {
+            if labels[labels.count - 2] == "go" || labels[labels.count - 2] == "nhs" { return true }
+            if labels.dropLast().contains(where: { ["gov", "gouv", "gob", "govt", "gc", "mil"].contains($0) }) {
+                return true
+            }
         }
-        return SiteName.domains(of: name).contains { neverOpenedSites.contains($0) }
+        return namesAbove(name).contains { neverOpenedSites.contains($0) }
     }
 
     /// The largest banking, payment, health and tax sites, each with every
@@ -130,10 +166,12 @@ public struct EnhancedBlocking: Codable, Equatable {
         "nab.com.au", "icicibank.com", "hdfcbank.com", "sbi.co.in", "dbs.com", "ocbc.com", "uob.com.sg",
         "mufg.jp", "smbc.co.jp", "bankaudi.com.lb", "blombank.com", "byblosbank.com",
         // Health
-        "mychart.com", "epic.com", "kp.org", "nhs.uk", "healthcare.gov", "doctolib.fr", "doctolib.de",
+        "mychart.com", "epic.com", "kp.org", "healthcare.gov", "doctolib.fr", "doctolib.de",
         "zocdoc.com", "teladoc.com", "cvs.com", "walgreens.com", "unitedhealthcare.com", "anthem.com",
         "aetna.com", "cigna.com", "humana.com",
         // Tax and identity
-        "irs.gov", "hmrc.gov.uk", "id.me", "login.gov", "turbotax.intuit.com", "hrblock.com",
+        "id.me", "turbotax.intuit.com", "hrblock.com",
+        // Governments whose names aren't gov.xx
+        "canada.ca", "europa.eu", "admin.ch", "bund.de", "service-public.fr", "gov.uk",
     ]
 }
