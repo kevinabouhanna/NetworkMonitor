@@ -35,7 +35,7 @@ VoiceOver 用文字读出读数，先读下载：<em>NetworkMonitor，下载 1.2
 - <strong>四个按钮</strong>：<strong>数据</strong>、<strong>连接</strong>、<strong>已拦截</strong> 和 <strong>网络</strong>，每个都显示自己的数字。点按一个按钮，下面就会显示它的视图。这些颜色在整个应用中都一样：数据为蓝色，连接为青绿色，拦截为红色，热点为橙色。
 - <strong>数据</strong> 列出用掉流量的 <strong>应用</strong> 或 <strong>网络</strong>，从多到少排列，每一项都有一个表示占比的条形。应用之间互相超过时，列表会实时重新排序；圆点表示此刻正在传输数据的应用。
   - <strong>辅助进程归入所属应用</strong>：Chrome 的十几个辅助进程合并为一行 *Google Chrome*。
-  - <strong>同一应用的多个副本合为一行</strong>：你已安装的应用，它的构建版本算作该应用；Xcode 模拟器里的 iPhone 或 iPad 应用无论重装多少次，都只有一行 *Home Control（模拟器）*。
+  - <strong>同一应用的多个副本合为一行</strong>：你已安装的应用，由其开发者签名的构建版本算作该应用；它的其他副本合为单独一行 *Home Control（其他副本）*。Xcode 模拟器里的 iPhone 或 iPad 应用无论重装多少次，都只有一行 *Home Control（模拟器）*。
   - <strong>命令显示在启动它们的应用下方。</strong>展开 iTerm2 或 VS Code，可以看到它启动的 `node`、`git` 或 `curl`，每个都有自己的数字。超过四个时会合并为 *其他（n）*。
   - <strong>系统</strong>：macOS 自己的守护进程合并为底部的一行。好奇的话可以展开它。
 - <strong>连接</strong> 按 <strong>公司</strong>、<strong>国家或地区</strong> 或 <strong>应用</strong> 对你的应用通信的对象分组。一个应用与一台服务器通信计为一次。公司或国家或地区可以展开为它的应用，应用可以展开为它的公司。
