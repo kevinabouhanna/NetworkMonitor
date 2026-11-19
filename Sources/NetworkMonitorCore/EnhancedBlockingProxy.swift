@@ -74,13 +74,18 @@ public final class EnhancedBlockingProxy {
 
     private static func configure(_ manager: NETransparentProxyManager) {
         let provider = (manager.protocolConfiguration as? NETunnelProviderProtocol)?.providerBundleIdentifier
-        if manager.isEnabled, provider == FilterIdentity.extensionIdentifier,
+        if manager.isEnabled, manager.isOnDemandEnabled, provider == FilterIdentity.extensionIdentifier,
            [.connected, .connecting].contains(manager.connection.status) {
             return
         }
         manager.protocolConfiguration = providerProtocol()
         manager.localizedDescription = name
         manager.isEnabled = true
+        // Started again by macOS whenever it stops: after the extension
+        // crashes (connections go on untouched meanwhile) or is replaced by
+        // an update (#702, checked in a VM).
+        manager.onDemandRules = [NEOnDemandRuleConnect()]
+        manager.isOnDemandEnabled = true
         manager.saveToPreferences { error in
             if let error {
                 log.error("couldn't configure the proxy: \(error.localizedDescription, privacy: .public)")

@@ -175,7 +175,7 @@ public struct EnhancedBlocking: Codable, Equatable {
     public static let neverOpenedSites: Set<String> = [
         // Payment
         "paypal.com", "paypal.me", "stripe.com", "squareup.com", "wise.com", "revolut.com", "klarna.com",
-        "venmo.com", "cash.app", "zellepay.com", "adyen.com", "braintreegateway.com", "checkout.com",
+        "paypalobjects.com", "venmo.com", "cash.app", "zellepay.com", "adyen.com", "braintreegateway.com", "checkout.com",
         "apple.com", "icloud.com", "pay.google.com", "payments.google.com", "accounts.google.com",
         "login.microsoftonline.com", "login.live.com", "appleid.apple.com",
         // Banks
