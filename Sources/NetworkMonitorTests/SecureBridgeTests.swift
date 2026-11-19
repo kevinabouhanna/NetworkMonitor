@@ -53,7 +53,8 @@ func runSecureBridgeTests() {
 
     /// A browser: connects to `port` as `host`, trusting `anchor` (or
     /// refusing everything), sends a GET, and reads the reply to its end.
-    func browse(port: UInt16, host: String, anchor: SecCertificate?) -> Data? {
+    func browse(port: UInt16, host: String, anchor: SecCertificate?,
+                request: String? = nil) -> Data? {
         let tls = NWProtocolTLS.Options()
         sec_protocol_options_set_tls_server_name(tls.securityProtocolOptions, host)
         sec_protocol_options_set_verify_block(tls.securityProtocolOptions, { _, trust, done in
@@ -75,8 +76,8 @@ func runSecureBridgeTests() {
         connection.stateUpdateHandler = { state in
             switch state {
             case .ready:
-                connection.send(content: Data("GET / HTTP/1.1\r\nHost: \(host)\r\nConnection: keep-alive\r\n\r\n".utf8),
-                                completion: .contentProcessed { _ in })
+                let text = request ?? "GET / HTTP/1.1\r\nHost: \(host)\r\nConnection: keep-alive\r\n\r\n"
+                connection.send(content: Data(text.utf8), completion: .contentProcessed { _ in })
                 read()
             case .failed: failed = true; finished.signal()
             default: break
@@ -95,7 +96,8 @@ func runSecureBridgeTests() {
     /// A bridge and a site, both with roots of their own, the bridge
     /// trusting the site's root (or not).
     func setUp(reply: Data, bridgeTrustsSite: Bool = true,
-               body: (_ bridgePort: UInt16, _ bridgeRoot: SecCertificate, _ events: () -> [BridgeEvent]) -> Void) {
+               body: (_ bridgePort: UInt16, _ bridgeRoot: SecCertificate, _ events: () -> [BridgeEvent],
+                      _ bridge: SecureBridge) -> Void) {
         guard let (keychain, done) = testKeychain(), let (siteKeychain, siteDone) = testKeychain() else {
             return Check.expectTrue(false, "no test keychain")
         }
@@ -123,7 +125,7 @@ func runSecureBridgeTests() {
             guard portReady.wait(timeout: .now() + 10) == .success, let bridgePort else {
                 return Check.expectTrue(false, "no bridge listener")
             }
-            body(bridgePort, secCertificate(bridgeRoot), { lock.lock(); defer { lock.unlock() }; return seen })
+            body(bridgePort, secCertificate(bridgeRoot), { lock.lock(); defer { lock.unlock() }; return seen }, bridge)
         } catch {
             Check.expectTrue(false, "\(error)")
         }
@@ -131,8 +133,64 @@ func runSecureBridgeTests() {
 
     Check.suite("Secure bridge — a browser and a site through it (#701)") {
 
+        Check.test("one listener per site, however many ask at once, whatever the case") {
+            setUp(reply: pageReply) { first, _, _, bridge in
+                let group = DispatchGroup()
+                var ports: [UInt16?] = []
+                let lock = NSLock()
+                for name in ["new.example", "NEW.example", "new.example", "New.Example"] {
+                    group.enter()
+                    bridge.port(for: name) { port in lock.lock(); ports.append(port); lock.unlock(); group.leave() }
+                }
+                Check.expectEqual(group.wait(timeout: .now() + 10), .success)
+                Check.expectEqual(Set(ports.compactMap { $0 }).count, 1, "\(ports)")
+                Check.expectFalse(ports.contains(first), "another site, another listener")
+            }
+        }
+
+        Check.test("an early hint before the page, and a page after it is rewritten") {
+            let hinted = Data("HTTP/1.1 103 Early Hints\r\nLink: </a.css>; rel=preload\r\n\r\n".utf8) + pageReply
+            setUp(reply: hinted) { port, bridgeRoot, _, _ in
+                let reply = browse(port: port, host: "test.example", anchor: bridgeRoot).map { String(decoding: $0, as: UTF8.self) }
+                Check.expectTrue(reply?.hasPrefix("HTTP/1.1 103 Early Hints") == true)
+                Check.expectTrue(reply?.contains(".ad-banner{display:none!important}") == true, "the page after the hint")
+            }
+        }
+
+        Check.test("a big download goes on whole, as it comes") {
+            let big = Data(repeating: 7, count: 3 * 1024 * 1024)
+            let download = Data("HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\nContent-Length: \(big.count)\r\n\r\n".utf8) + big
+            setUp(reply: download) { port, bridgeRoot, _, _ in
+                Check.expectEqual(browse(port: port, host: "test.example", anchor: bridgeRoot), download)
+            }
+        }
+
+        Check.test("a WebSocket's upgrade goes through both ways, untouched") {
+            let switched = Data("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\nhello".utf8)
+            setUp(reply: switched) { port, bridgeRoot, _, _ in
+                let request = "GET /socket HTTP/1.1\r\nHost: test.example\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n"
+                Check.expectEqual(browse(port: port, host: "test.example", anchor: bridgeRoot, request: request), switched)
+            }
+        }
+
+        Check.test("the sites' key is made once, found again, and removed with every certificate") {
+            guard let (keychain, done) = testKeychain() else { return Check.expectTrue(false, "no test keychain") }
+            defer { done() }
+            do {
+                let authority = try root("Test bridge")
+                let first = try SiteIdentities(authority: authority, keychain: keychain)
+                _ = try first.identity(for: "a.example")
+                let again = try SiteIdentities(authority: authority, keychain: keychain)
+                Check.expectEqual(again.certificates.siteKey, first.certificates.siteKey, "the same key, found again")
+                Check.expectTrue(SiteIdentities.remove(from: keychain), "nothing left")
+            } catch {
+                Check.expectTrue(false, "\(error)")
+            }
+        }
+
+
         Check.test("a browser trusting the root gets the site's page with its hiding added") {
-            setUp(reply: pageReply) { port, bridgeRoot, events in
+            setUp(reply: pageReply) { port, bridgeRoot, events, _ in
                 let reply = browse(port: port, host: "test.example", anchor: bridgeRoot).map { String(decoding: $0, as: UTF8.self) }
                 Check.expectTrue(reply?.hasPrefix("HTTP/1.1 200 OK") == true, "a reply: \(reply?.prefix(40) ?? "none")")
                 Check.expectTrue(reply?.contains(".ad-banner{display:none!important}") == true, "the hiding added")
@@ -142,7 +200,7 @@ func runSecureBridgeTests() {
         }
 
         Check.test("a site whose certificate isn't trusted is refused, and the browser gets nothing") {
-            setUp(reply: pageReply, bridgeTrustsSite: false) { port, bridgeRoot, events in
+            setUp(reply: pageReply, bridgeTrustsSite: false) { port, bridgeRoot, events, _ in
                 let reply = browse(port: port, host: "test.example", anchor: bridgeRoot)
                 Check.expectTrue(reply == nil || reply?.isEmpty == true, "nothing from an untrusted site")
                 Check.expectTrue(events().contains(.serverRefused(host: "test.example")), "\(events())")
@@ -150,7 +208,7 @@ func runSecureBridgeTests() {
         }
 
         Check.test("a browser that refuses our certificate is reported as pinning") {
-            setUp(reply: pageReply) { port, _, events in
+            setUp(reply: pageReply) { port, _, events, _ in
                 Check.expectNil(browse(port: port, host: "test.example", anchor: nil))
                 // The bridge hears of it a moment later.
                 let deadline = Date() + 5
@@ -163,11 +221,11 @@ func runSecureBridgeTests() {
 
         Check.test("a reply it can't read goes on byte for byte") {
             let odd = Data("not HTTP at all \u{1}\u{2}\u{3}".utf8)
-            setUp(reply: odd) { port, bridgeRoot, _ in
+            setUp(reply: odd) { port, bridgeRoot, _, _ in
                 Check.expectEqual(browse(port: port, host: "test.example", anchor: bridgeRoot), odd)
             }
             let image = Data("HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nContent-Length: 3\r\n\r\nabc".utf8)
-            setUp(reply: image) { port, bridgeRoot, _ in
+            setUp(reply: image) { port, bridgeRoot, _, _ in
                 Check.expectEqual(browse(port: port, host: "test.example", anchor: bridgeRoot), image)
             }
         }
