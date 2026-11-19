@@ -355,6 +355,8 @@ final class ProxiedConnection {
 
     private func close() {
         guard closed.first() else { return }
+        // Its handler holds this connection: let it go.
+        connection?.stateUpdateHandler = nil
         connection?.cancel()
         flow.closeReadWithError(nil)
         flow.closeWriteWithError(nil)
