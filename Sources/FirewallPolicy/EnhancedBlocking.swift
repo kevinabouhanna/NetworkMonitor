@@ -131,7 +131,7 @@ public struct EnhancedBlocking: Codable, Equatable {
 
     /// The app, or a helper of one: its identifier, or one it starts with
     /// (`com.google.Chrome.helper.renderer` is Chrome's).
-    static func matches(_ app: String, in apps: Set<String>) -> Bool {
+    public static func matches(_ app: String, in apps: Set<String>) -> Bool {
         apps.contains(app) || apps.contains { app.hasPrefix($0 + ".") }
     }
 

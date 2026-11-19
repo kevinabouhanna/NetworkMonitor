@@ -200,7 +200,10 @@ final class EnhancedProxy {
         let app = flow.metaData.sourceAppSigningIdentifier
         guard settings.isOn, let bridge = currentBridge else { return false }
         switch settings.start(app: app, host: flow.remoteHostname, port: port) {
-        case .leave:
+        case .leave(let reason):
+            if EnhancedBlocking.matches(app, in: settings.apps) {
+                log.debug("left \(flow.remoteHostname ?? remote.hostname, privacy: .public) alone: \(String(describing: reason), privacy: .public)")
+            }
             return false
         case .readName:
             ProxiedConnection(flow: flow, remote: remote, port: port, app: app, bridge: bridge, proxy: self).start()
@@ -388,6 +391,7 @@ final class ProxiedConnection {
         phase = .connecting
         let decision = proxy.settings.decide(app: app, host: name, port: port, isUDP: false)
         guard decision == .open, let name, let sitePort = UInt16(exactly: port) else {
+            log.debug("passed \(name ?? self.remote.hostname, privacy: .public) on unchanged: \(String(describing: decision), privacy: .public)")
             return connect(to: original, bridged: false)
         }
         bridge.port(for: name, sitePort: sitePort) { [self] bridgePort in
