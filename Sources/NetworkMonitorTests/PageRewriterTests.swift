@@ -86,6 +86,34 @@ func runPageRewriterTests() {
                               response(["Content-Type: text/html", "Content-Length: \(expectedPage.count)"], expectedPage))
         }
 
+        Check.test("what described the bytes as sent is dropped: tag, digest, ranges") {
+            let reply = response(["Content-Type: text/html", "ETag: \"abc\"", "Accept-Ranges: bytes",
+                                  "Content-Length: \(page.utf8.count)"], Data(page.utf8))
+            let (bytes, _) = PageRewriter.rewrite(response: reply, requestMethod: "GET", additions: additions, nonce: nonce)
+            Check.expectEqual(bytes, response(["Content-Type: text/html", "Content-Length: \(expectedPage.count)"],
+                                              expectedPage))
+        }
+
+        Check.test("our code goes in the page's head, never into a script that mentions one") {
+            let noHead = "<html><body><script>w.document.write(\"<head><title>x</title></head>\")</script><p>Hi</p></body></html>"
+            let out = PageRewriter.inject(additions, into: Data(noHead.utf8), nonce: nonce).map { String(decoding: $0, as: UTF8.self) }
+            Check.expectTrue(out?.hasPrefix("<html><body><style") == true, "after <body>: \(out?.prefix(40) ?? "")")
+        }
+
+        Check.test("a selector whose brackets or quotes don't close is left out, never swallows others") {
+            let risky = PageAdditions(selectors: ["div[data-x=\"a\"", ".ok", "a}body{color:red", "p:not(.x"], scriptlets: [])
+            let out = PageRewriter.inject(risky, into: Data(page.utf8), nonce: nonce).map { String(decoding: $0, as: UTF8.self) } ?? ""
+            Check.expectTrue(out.contains(".ok{display:none!important}"))
+            Check.expectFalse(out.contains("div[data-x"))
+            Check.expectFalse(out.contains("body{color"))
+            Check.expectFalse(out.contains("p:not(.x"))
+        }
+
+        Check.test("a policy's -elem directives get the nonce too") {
+            Check.expectEqual(PageRewriter.allowing(nonce: "n", in: "script-src 'self'; script-src-elem 'self' https://cdn.x"),
+                              "script-src 'self' 'nonce-n'; script-src-elem 'self' https://cdn.x 'nonce-n'")
+        }
+
         Check.test("a page's own inline code keeps working: 'unsafe-inline' left alone") {
             Check.expectEqual(PageRewriter.allowing(nonce: "n", in: "script-src 'self' 'unsafe-inline'"),
                               "script-src 'self' 'unsafe-inline'")
@@ -131,7 +159,14 @@ func runPageRewriterTests() {
                 ("another transfer coding", response(["Content-Type: text/html", "Transfer-Encoding: gzip, chunked"],
                                                      Data("0\r\n\r\n".utf8))),
                 ("no head, body or html", response(["Content-Type: text/html", "Content-Length: 5"], Data("hello".utf8))),
-                ("UTF-16", response(["Content-Type: text/html; charset=UTF-16", "Content-Length: 4"], Data([0xFF, 0xFE, 0x3C, 0])))
+                ("UTF-16", response(["Content-Type: text/html; charset=UTF-16", "Content-Length: 4"], Data([0xFF, 0xFE, 0x3C, 0]))),
+                ("a chunk size no reply could hold", response(["Content-Type: text/html", "Transfer-Encoding: chunked"],
+                                                              Data("7fffffffffffffff\r\nabc".utf8))),
+                ("a part of a page", response(["Content-Type: text/html", "Content-Range: bytes 0-99/500",
+                                               "Content-Length: \(page.utf8.count)"], Data(page.utf8),
+                                              status: "HTTP/1.1 206 Partial Content")),
+                ("XHTML", response(["Content-Type: application/xhtml+xml", "Content-Length: \(page.utf8.count)"],
+                                   Data(page.utf8)))
             ]
             for (what, reply) in broken {
                 let (bytes, untouched) = PageRewriter.rewrite(response: reply, requestMethod: "GET", additions: additions)
@@ -194,6 +229,20 @@ func runPageRewriterTests() {
             let value = run([Scriptlet(name: "json-prune", arguments: ["playerResponse.adPlacements"])],
                             then: "JSON.stringify(JSON.parse('{\"playerResponse\":{\"adPlacements\":[1],\"video\":2}}'))")
             Check.expectEqual(value?.toString(), "{\"playerResponse\":{\"video\":2}}")
+        }
+
+        Check.test("set-constant waits for an object the page hasn't made, never makes it") {
+            Check.expectEqual(run([Scriptlet(name: "set-constant", arguments: ["adConfig.enabled", "false"])],
+                                  then: "var before = (typeof window.adConfig); window.adConfig = {enabled: true, load: 1};"
+                                        + " before + ',' + window.adConfig.enabled + ',' + window.adConfig.load")?.toString(),
+                              "undefined,false,1")
+        }
+
+        Check.test("no-setTimeout-if with nothing to look for leaves timers alone; ! means not") {
+            Check.expectEqual(run([Scriptlet(name: "no-setTimeout-if", arguments: [])],
+                                  then: "setTimeout('a', 1); setTimeout('b', 2); timers.join(',')")?.toString(), "1,2")
+            Check.expectEqual(run([Scriptlet(name: "no-setTimeout-if", arguments: ["!keep"])],
+                                  then: "setTimeout('keep me', 1); setTimeout('drop', 2); timers.join(',')")?.toString(), "1")
         }
 
         Check.test("set-constant, abort-on-property-read and no-setTimeout-if") {

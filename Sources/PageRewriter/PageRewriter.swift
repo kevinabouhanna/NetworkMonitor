@@ -68,7 +68,12 @@ public enum PageRewriter {
             var newHead = head
             newHead.remove("Content-Encoding")
             newHead.remove("Transfer-Encoding")
-            newHead.remove("Content-MD5")
+            // What described the bytes as sent no longer does: their digests,
+            // their tag (or a later visit could be told the old page is still
+            // good), byte ranges.
+            for stale in ["Content-MD5", "Digest", "Content-Digest", "Repr-Digest", "ETag", "Accept-Ranges"] {
+                newHead.remove(stale)
+            }
             newHead.set("Content-Length", String(page.count))
             for (index, header) in newHead.headers.enumerated()
             where header.name.caseInsensitiveCompare("Content-Security-Policy") == .orderedSame {
@@ -80,12 +85,13 @@ public enum PageRewriter {
         }
     }
 
-    /// An HTML page worth adding to: a successful reply, in HTML, not in
-    /// UTF-16 (where bytes added in ASCII would break it).
+    /// An HTML page worth adding to: a whole page (200 or 203, never a part
+    /// of one), in HTML (not XHTML, whose parser would refuse our script's
+    /// `<` and `&&`), not in UTF-16 (where bytes added in ASCII would break it).
     static func isPage(_ head: HTTPHead, requestMethod: String?) -> Bool {
-        guard let status = head.status, (200..<300).contains(status), status != 204, requestMethod != "HEAD",
-              let type = head.value("Content-Type")?.lowercased(),
-              type.hasPrefix("text/html") || type.hasPrefix("application/xhtml+xml") else { return false }
+        guard let status = head.status, status == 200 || status == 203, requestMethod != "HEAD",
+              head.value("Content-Range") == nil,
+              let type = head.value("Content-Type")?.lowercased(), type.hasPrefix("text/html") else { return false }
         return !type.contains("utf-16")
     }
 
@@ -97,9 +103,12 @@ public enum PageRewriter {
         if bytes.starts(with: [0xFF, 0xFE]) || bytes.starts(with: [0xFE, 0xFF]) { return nil }   // UTF-16
         guard let at = insertionPoint(bytes) else { return nil }
         var added = ""
-        if !additions.selectors.isEmpty {
-            // A rule each, so one a browser can't read never takes others with it.
-            let css = additions.selectors.map { $0 + "{display:none!important}" }.joined(separator: "\n")
+        let selectors = additions.selectors.filter(isSafeSelector)
+        if !selectors.isEmpty {
+            // A rule each, so one a browser can't read never takes others with
+            // it; and only selectors whose brackets and quotes close, so none
+            // can swallow the rules after it.
+            let css = selectors.map { $0 + "{display:none!important}" }.joined(separator: "\n")
             added += "<style nonce=\"\(nonce)\">\n" + css.replacingOccurrences(of: "</", with: "<\\/") + "\n</style>"
         }
         if let script = ScriptletCode.script(for: additions.scriptlets) {
@@ -109,14 +118,43 @@ public enum PageRewriter {
         return Data(bytes[..<at]) + Data(added.utf8) + Data(bytes[at...])
     }
 
+    /// A selector that can stand as its own rule: brackets, parentheses and
+    /// quotes that close, no braces, no comment.
+    static func isSafeSelector(_ selector: String) -> Bool {
+        guard !selector.contains("{"), !selector.contains("}"), !selector.contains("/*"), !selector.contains("<") else {
+            return false
+        }
+        var stack: [Character] = []
+        var quote: Character?
+        var escaped = false
+        for character in selector {
+            if escaped { escaped = false; continue }
+            if character == "\\" { escaped = true; continue }
+            if let open = quote { if character == open { quote = nil }; continue }
+            switch character {
+            case "\"", "'": quote = character
+            case "[", "(": stack.append(character)
+            case "]": guard stack.popLast() == "[" else { return false }
+            case ")": guard stack.popLast() == "(" else { return false }
+            default: break
+            }
+        }
+        return stack.isEmpty && quote == nil && !escaped
+    }
+
     /// Just after the opening `<head …>`, else `<body …>`, else `<html …>`.
+    /// A `<head` (or `<html`) counts only before the page's first script or
+    /// body, so one written inside a script's text is never taken for it.
     static func insertionPoint(_ bytes: [UInt8]) -> Int? {
         // The first part of a page is enough to find its head.
         let window = Array(bytes.prefix(256 * 1024)).map { $0 >= 0x41 && $0 <= 0x5A ? $0 + 32 : $0 }
+        let firstScript = firstIndex(of: Array("<script".utf8), in: window, from: 0) ?? window.count
+        let firstBody = firstIndex(of: Array("<body".utf8), in: window, from: 0) ?? window.count
         for tag in ["<head", "<body", "<html"] {
             let needle = Array(tag.utf8)
+            let limit = tag == "<body" ? window.count : min(firstScript, firstBody)
             var index = 0
-            while let found = firstIndex(of: needle, in: window, from: index) {
+            while let found = firstIndex(of: needle, in: window, from: index), found < limit {
                 let after = found + needle.count
                 // `<header>` isn't `<head>`.
                 guard after < window.count else { break }
@@ -149,8 +187,12 @@ public enum PageRewriter {
     public static func allowing(nonce: String, in policy: String) -> String {
         var directives = policy.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         func name(_ directive: String) -> String { directive.split(separator: " ").first.map { $0.lowercased() } ?? "" }
-        for wanted in ["script-src", "style-src"] {
-            let target = directives.firstIndex { name($0) == wanted } ?? directives.firstIndex { name($0) == "default-src" }
+        // The -elem directives, where a policy has them, are what a browser
+        // checks a <script> or <style> against first: the nonce goes there too.
+        for wanted in ["script-src", "style-src", "script-src-elem", "style-src-elem"] {
+            let own = directives.firstIndex { name($0) == wanted }
+            if wanted.hasSuffix("-elem") && own == nil { continue }
+            let target = own ?? directives.firstIndex { name($0) == "default-src" }
             guard let index = target else { continue }
             let sources = directives[index].lowercased()
             if sources.contains("'unsafe-inline'") && !sources.contains("'nonce-") && !sources.contains("'sha") { continue }

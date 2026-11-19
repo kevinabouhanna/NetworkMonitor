@@ -37,11 +37,15 @@ public enum ScriptletCode {
 
     static let functions: [String: String] = [
         // set-constant(chain, value): the property reads as `value` from now on.
+        // A link of the chain not there yet is waited for, never made: the
+        // constant is set on it once the page makes it.
         "set-constant": """
-        function(chain,value){var v=nm._value(value);if(v===undefined&&value!=="undefined")return;var parts=chain.split("."),\
-        owner=window;for(var i=0;i<parts.length-1;i++){if(!(parts[i] in owner)){var o={};owner[parts[i]]=o}owner=owner[parts[i]];\
-        if(owner===null||typeof owner!=="object"&&typeof owner!=="function")return}Object.defineProperty(owner,\
-        parts[parts.length-1],{get:function(){return v},set:function(){},configurable:false})}
+        function(chain,value){var v=nm._value(value);if(v===undefined&&value!=="undefined")return;\
+        function set(owner,parts){if(owner===null||typeof owner!=="object"&&typeof owner!=="function")return;\
+        if(parts.length===1){Object.defineProperty(owner,parts[0],{get:function(){return v},set:function(){},\
+        configurable:false});return}var key=parts[0],rest=parts.slice(1);if(owner[key]!==undefined){set(owner[key],rest);\
+        return}var held;Object.defineProperty(owner,key,{get:function(){return held},set:function(n){held=n;set(n,rest)},\
+        configurable:true})}set(window,chain.split("."))}
         """,
         // abort-on-property-read(chain): reading it throws, so the script using it stops.
         "abort-on-property-read": """
@@ -86,10 +90,13 @@ public enum ScriptletCode {
         else go();new MutationObserver(go).observe(document.documentElement,{childList:true,subtree:true})}
         """,
         // no-setTimeout-if(needle, delay): a timer whose code matches never runs.
+        // With nothing to look for it does nothing, never every timer; a
+        // needle starting with ! means "not matching".
         "no-setTimeout-if": """
-        function(needle,delay){var test=nm._match(needle),d=delay===undefined||delay===""?null:parseInt(delay,10),\
-        set=window.setTimeout;window.setTimeout=function(f,t){if(test(f)&&(d===null||d===t))return 0;\
-        return set.apply(this,arguments)}}
+        function(needle,delay){if(!needle&&(delay===undefined||delay===""))return;var not=false;\
+        if(needle&&needle.charAt(0)==="!"){not=true;needle=needle.slice(1)}var test=nm._match(needle),\
+        d=delay===undefined||delay===""?null:parseInt(delay,10),set=window.setTimeout;window.setTimeout=function(f,t)\
+        {if(test(f)!==not&&(d===null||d===t))return 0;return set.apply(this,arguments)}}
         """,
     ]
 }

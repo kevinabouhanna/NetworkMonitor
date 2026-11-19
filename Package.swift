@@ -83,6 +83,11 @@ let package = Package(
         // Enhanced ad blocking's certificates (#682): the one made on this Mac,
         // and one per site made from it. Security, CryptoKit and Network, no
         // AppKit, for the filter, the app and the tests.
+        .target(
+            name: "SiteCertificates",
+            dependencies: [.product(name: "X509", package: "swift-certificates")],
+            path: "Sources/SiteCertificates"
+        ),
         // Enhanced ad blocking's page rewriter (#683): HTTP/1.1 exchanges read,
         // a page given its site's hiding and scriptlets, anything unexpected
         // passed through untouched. No system parts beyond Foundation,
@@ -91,11 +96,6 @@ let package = Package(
             name: "PageRewriter",
             dependencies: ["FirewallPolicy"],
             path: "Sources/PageRewriter"
-        ),
-        .target(
-            name: "SiteCertificates",
-            dependencies: [.product(name: "X509", package: "swift-certificates")],
-            path: "Sources/SiteCertificates"
         ),
         // The site a connection is for, read from its opening handshake (#196):
         // TLS's server_name, and QUIC's, from Initial packets anyone can

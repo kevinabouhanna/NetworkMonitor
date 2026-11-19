@@ -140,6 +140,9 @@ public enum HTTPError: Error, Equatable {
 /// A chunked body's content, once all of it has arrived: the content and how
 /// many bytes the chunks took, or nil while more is to come.
 public enum ChunkedBody {
+    /// Far above any page's chunk.
+    public static let maxChunk = 64 * 1024 * 1024
+
     public static func decode(_ data: Data) throws -> (content: Data, used: Int)? {
         var content = Data()
         var index = data.startIndex
@@ -158,6 +161,9 @@ public enum ChunkedBody {
                 guard let trailersEnd = data[index...].firstRange(of: Data("\r\n\r\n".utf8)) else { return nil }
                 return (content, trailersEnd.upperBound - data.startIndex)
             }
+            // A size no reply could hold is malformed, not waited for (and
+            // never added to, where it would overflow).
+            guard size <= maxChunk else { throw HTTPError.bodyTooLarge }
             guard data.endIndex - index >= size + 2 else { return nil }
             content.append(data[index..<(index + size)])
             index += size
