@@ -283,7 +283,8 @@ private struct SpeedColorPresets: View {
 
     var body: some View {
         let chosen = colors.preset?.id
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 8)], spacing: 8) {
+        // Six equal columns across the whole row (#695).
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 6), spacing: 10) {
             ForEach(MenuBarColors.presets) { preset in
                 Button { colors.choose(preset) } label: {
                     VStack(spacing: 4) {
@@ -293,9 +294,10 @@ private struct SpeedColorPresets: View {
                         }
                         .clipShape(RoundedRectangle(cornerRadius: 5))
                         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.secondary.opacity(0.35)))
-                        Text(preset.name).font(.caption)
+                        Text(preset.name).font(.callout)
                     }
-                    .padding(4)
+                    .frame(maxWidth: .infinity)
+                    .padding(5)
                     .overlay(RoundedRectangle(cornerRadius: 7)
                         .strokeBorder(chosen == preset.id ? Color.accentColor : .clear, lineWidth: 2))
                     .contentShape(Rectangle())
@@ -312,8 +314,10 @@ private struct SpeedColorPresets: View {
             Text("↓ 1.2").foregroundStyle(Color(nsColor: tints.down))
             Text("↑ 85").foregroundStyle(Color(nsColor: tints.up))
         }
-        .font(.system(size: 8, design: .monospaced))
-        .padding(.horizontal, 4).padding(.vertical, 3)
+        .font(.system(size: 11, design: .monospaced))
+        // A narrow window shrinks the samples rather than cutting them.
+        .lineLimit(1).minimumScaleFactor(0.6)
+        .padding(.horizontal, 6).padding(.vertical, 5)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(background)
         .accessibilityHidden(true)
