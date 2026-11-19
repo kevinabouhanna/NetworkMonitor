@@ -218,18 +218,19 @@ public enum CertificateError: Error {
 
 /// The root as kept in a keychain (#702): its key and its certificate, found
 /// again each time the filter starts, so the root the person trusted stays
-/// the one in use. Made afresh, the old ones taken out, when either is
-/// missing, they don't belong together, or the certificate is near its end.
+/// the one in use until it ends. Made afresh, the old ones taken out, only
+/// when either is missing, they don't belong together, or it has ended: a
+/// new root isn't trusted until the person approves it (#685), so the proxy
+/// opens nothing meanwhile.
 public enum AuthorityStore {
-    /// A root this close to its end is replaced.
-    public static let renewal: TimeInterval = 30 * 24 * 3600
 
     /// The root in `keychain` (the System keychain for the filter), and
     /// whether it was just made.
     public static func load(in keychain: SecKeychain? = nil, machine: String,
                             now: Date = Date()) throws -> (authority: CertificateAuthority, made: Bool) {
         if let kept = find(in: keychain, now: now) { return (kept, false) }
-        remove(from: keychain)
+        // Never a second root beside one that can't be taken out.
+        guard remove(from: keychain) else { throw CertificateError.keychain(errSecDuplicateItem) }
         let key = try Certificate.PrivateKey(AuthorityKey.make(in: keychain))
         let authority = try CertificateAuthority.make(key: key, machine: machine, now: now)
         guard let certificate = SecCertificateCreateWithData(nil, try authority.der() as CFData) else {
@@ -243,7 +244,7 @@ public enum AuthorityStore {
     }
 
     /// The kept root, if its one key and one certificate belong together and
-    /// it has a while to run.
+    /// it hasn't ended.
     static func find(in keychain: SecKeychain?, now: Date) -> CertificateAuthority? {
         let keys = AuthorityKey.find(in: keychain)
         let certificates = certificates(in: keychain)
@@ -251,7 +252,7 @@ public enum AuthorityStore {
               let key = try? Certificate.PrivateKey(keys[0]),
               let certificate = try? Certificate(derEncoded: Array(SecCertificateCopyData(certificates[0]) as Data)),
               certificate.publicKey == key.publicKey,
-              certificate.notValidAfter > now + renewal else { return nil }
+              certificate.notValidAfter > now else { return nil }
         return CertificateAuthority(certificate: certificate, key: key)
     }
 

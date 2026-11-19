@@ -212,10 +212,13 @@ func runSecureBridgeTests() {
                 Check.expectNil(browse(port: port, host: "test.example", anchor: nil))
                 // The bridge hears of it a moment later.
                 let deadline = Date() + 5
-                while !events().contains(.clientRefused(host: "test.example")) && Date() < deadline {
+                func refused(_ seen: [BridgeEvent]) -> Bool {
+                    seen.contains { if case .clientRefused(host: "test.example", clientPort: .some) = $0 { return true }; return false }
+                }
+                while !refused(events()) && Date() < deadline {
                     Thread.sleep(forTimeInterval: 0.1)
                 }
-                Check.expectTrue(events().contains(.clientRefused(host: "test.example")), "\(events())")
+                Check.expectTrue(refused(events()), "with the client's port: \(events())")
             }
         }
 

@@ -73,6 +73,11 @@ public final class EnhancedBlockingProxy {
     }
 
     private static func configure(_ manager: NETransparentProxyManager) {
+        let provider = (manager.protocolConfiguration as? NETunnelProviderProtocol)?.providerBundleIdentifier
+        if manager.isEnabled, provider == FilterIdentity.extensionIdentifier,
+           [.connected, .connecting].contains(manager.connection.status) {
+            return
+        }
         manager.protocolConfiguration = providerProtocol()
         manager.localizedDescription = name
         manager.isEnabled = true
@@ -82,7 +87,11 @@ public final class EnhancedBlockingProxy {
                 return
             }
             // Saved, then loaded again before it can start.
-            manager.loadFromPreferences { _ in
+            manager.loadFromPreferences { error in
+                if let error {
+                    log.error("couldn't read the proxy's configuration back: \(error.localizedDescription, privacy: .public)")
+                    return
+                }
                 do {
                     try manager.connection.startVPNTunnel()
                     log.notice("proxy started")

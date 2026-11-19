@@ -79,7 +79,7 @@ func runEnhancedProxyTests() {
             }
         }
 
-        Check.test("a root near its end, or a certificate without its key, is made again") {
+        Check.test("a root is kept until it ends; an ended one, or a certificate without its key, is made again") {
             let path = NSTemporaryDirectory() + "proxy-root-\(UUID().uuidString).keychain"
             var made: SecKeychain?
             guard SecKeychainCreate(path, 4, "test", false, nil, &made) == errSecSuccess, let keychain = made else {
@@ -89,8 +89,10 @@ func runEnhancedProxyTests() {
             do {
                 let old = try AuthorityStore.load(in: keychain, machine: "Test Mac",
                                                   now: Date() - CertificateAuthority.lifetime + 7 * 24 * 3600)
-                let renewed = try AuthorityStore.load(in: keychain, machine: "Test Mac")
-                Check.expectTrue(renewed.made, "a week from its end: made again")
+                Check.expectFalse(try AuthorityStore.load(in: keychain, machine: "Test Mac").made,
+                                  "a week from its end, still the trusted one")
+                let renewed = try AuthorityStore.load(in: keychain, machine: "Test Mac", now: Date() + 8 * 24 * 3600)
+                Check.expectTrue(renewed.made, "ended: made again")
                 Check.expectFalse(try renewed.authority.der() == old.authority.der(), "a new root")
                 Check.expectEqual(AuthorityStore.certificates(in: keychain).count, 1, "the old one gone")
                 Check.expectEqual(AuthorityKey.find(in: keychain).count, 1)
