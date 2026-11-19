@@ -5,15 +5,15 @@ import NetworkMonitorCore
 /// Pausing ad blocking from the menu bar (#600): the popover's Ads blocked
 /// bar and the right-click menu share the window's pause, one setting.
 func runPauseAdsTests() {
+    let office = FirewallRules.CurrentNetwork(id: "router-office", name: "Office")
+
+    func rules(_ name: String) -> FirewallRules {
+        let rules = FirewallRules(defaults: Check.defaults(name), teamOf: { _ in nil })
+        rules.lists = [.ads]
+        return rules
+    }
+
     Check.suite("Pause ad blocking from the menu bar (#600)") {
-        let office = FirewallRules.CurrentNetwork(id: "router-office", name: "Office")
-
-        func rules(_ name: String) -> FirewallRules {
-            let rules = FirewallRules(defaults: Check.defaults(name), teamOf: { _ in nil })
-            rules.lists = [.ads]
-            return rules
-        }
-
         Check.test("blocking, paused until a time, or off on this network") {
             let firewall = rules("pause-600-state")
             Check.expectEqual(firewall.listsState(on: office), .blocking)
@@ -54,8 +54,11 @@ func runPauseAdsTests() {
             Check.expectEqual(firewall.listsPausedUntil, expected)
             firewall.pauseLists(until: nil)
         }
+    }
 
-        Check.windowTest("the bar names everything VoiceOver reads, and Tab reaches its button") {
+    // Reads a window, so in a VM while the screen is locked (#675).
+    Check.windowSuite("Pause ad blocking from the menu bar (#600): the bar's window") {
+        Check.test("the bar names everything VoiceOver reads, and Tab reaches its button") {
             OutOfSight.startApp()
             KeyboardTour.start()
             defer { KeyboardTour.stop() }

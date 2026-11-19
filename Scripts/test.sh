@@ -4,12 +4,19 @@
 #
 # While the screen is locked, macOS serves no window's accessibility tree, so
 # the tests that read windows can't run here (#675, #626, #647). The runner
-# then leaves them out, says so, and this runs them in a throwaway VM
+# then leaves them out and says so, and this runs them in a throwaway VM
 # (Scripts/window-tests-vm.sh), whose screen is never locked. Unlocked, or on
 # GitHub's runners, it's the whole suite here, as before.
+#
+# NETMON_WINDOWS=all|skip|only picks the window tests by hand, and then no VM.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+case "${NETMON_WINDOWS:-}" in
+  ""|all|skip|only) ;;
+  *) echo "error: NETMON_WINDOWS=$NETMON_WINDOWS: it's all, skip or only" >&2; exit 2 ;;
+esac
 
 marker="$(mktemp "${TMPDIR:-/tmp}/nm-window-tests.XXXXXX")"
 trap 'rm -f "$marker"' EXIT
@@ -21,11 +28,17 @@ NETMON_WINDOWS_SKIPPED="$marker" ./Scripts/swiftpm.sh run NetworkMonitorTests ||
 # Left out because the screen is locked, not because someone asked.
 if [ -s "$marker" ] && [ -z "${NETMON_WINDOWS:-}" ]; then
   if command -v mac-vm >/dev/null 2>&1 && [ -z "${GITHUB_ACTIONS:-}" ]; then
-    ./Scripts/window-tests-vm.sh "$(./Scripts/swiftpm.sh build --show-bin-path 2>/dev/null)/NetworkMonitorTests" \
-      || status=1
+    vm=0
+    ./Scripts/window-tests-vm.sh "$(./Scripts/swiftpm.sh build --show-bin-path 2>/dev/null)/NetworkMonitorTests" || vm=$?
+    case "$vm" in
+      0) ;;
+      3) echo "note: the tests that read windows weren't run (the screen is locked, and the VM couldn't run" \
+           "them): they run once it's unlocked" ;;
+      *) status=1 ;;
+    esac
   else
-    echo "note: the tests that read windows weren't run (the screen is locked, and mac-vm isn't here to run them):" \
-      "they run once it's unlocked"
+    echo "note: the tests that read windows weren't run (the screen is locked, and mac-vm isn't here to run" \
+      "them): they run once it's unlocked"
   fi
 fi
 exit "$status"
