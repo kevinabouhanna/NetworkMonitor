@@ -907,6 +907,7 @@ A development build reads a few launch arguments for that run only; nothing pers
 | `-updateFeedURL http://127.0.0.1:PORT/appcast.xml -checkForUpdatesNow YES` | checks a local appcast for an update, at once (#132) |
 | `-historyDatabase ~/tmp/history.sqlite` | reads and writes Usage History, Connections and Ads and Trackers from another file, for test data (#251) |
 | `-language zh-Hans` (or `en`) | shows the app in that language for that run, whatever the Mac's or the one chosen in Settings (#433) |
+| `-enhancedAdBlockingForTesting YES` | switches Enhanced ad blocking's proxy on for that run, until Settings has its switch (#685); a run without it removes the proxy's configuration. Only a signed build carries the proxy: check it in a VM with a [signed test build](#ci), its root trusted there by hand (`sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain <root.pem>`, the root from `security find-certificate -c "NetworkMonitor Enhanced Ad Blocking" -p /Library/Keychains/System.keychain`) (#702) |
 
 Serve local test data on a port the system picks, so sessions working in parallel
 never ask for the same one: `python3 -m http.server 0 --bind 127.0.0.1` in the

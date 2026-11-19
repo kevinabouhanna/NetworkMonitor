@@ -110,6 +110,9 @@ public final class MonitorViewModel: ObservableObject {
     public let listLibrary = ListLibrary()
     /// Encrypted lookups (#291).
     public let lookups = EncryptedLookups()
+    /// Enhanced ad blocking's proxy (#702): on only for a test run until
+    /// Settings has its switch (#685).
+    public let enhancedProxy = EnhancedBlockingProxy()
     /// Each decision the filter reported, for the Ads window's log (#252).
     public let adsLog = AdsLog()
     #if DEBUG
@@ -281,6 +284,7 @@ public final class MonitorViewModel: ObservableObject {
         }
         filter.resume()
         lookups.resume()
+        enhancedProxy.apply(isOn: EnhancedBlockingProxy.isOnForTesting)
         // The rules, whether this is a hotspot for the ones that say "on
         // hotspots", and whether Hotspot mode pauses updates here (#98). The
         // values come from the publishers: they fire before the properties
@@ -308,7 +312,8 @@ public final class MonitorViewModel: ObservableObject {
                                                   // Only alongside a shipped list (#254).
                                                   downloadedLists: lists.isEmpty ? [] : downloaded,
                                                   threatLists: Set(downloaded.filter(ListCatalogue.isThreat)),
-                                                  lookupResolver: resolver))
+                                                  lookupResolver: resolver,
+                                                  enhancedBlocking: EnhancedBlocking(isOn: EnhancedBlockingProxy.isOnForTesting)))
                 // Switched on with stale lists: fetch newer ones soon.
                 if !rulesAndLists.1.isEmpty {
                     self?.blocklists.checkSoon()

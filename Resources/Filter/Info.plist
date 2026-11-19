@@ -34,6 +34,8 @@
 			<string>FilterDataProvider</string>
 			<key>com.apple.networkextension.dns-proxy</key>
 			<string>DNSProxyProvider</string>
+			<key>com.apple.networkextension.app-proxy</key>
+			<string>TransparentProxyProvider</string>
 		</dict>
 	</dict>
 </dict>

@@ -237,11 +237,15 @@ public struct FirewallPolicy: Codable, Equatable {
     /// The resolver the DNS proxy sends lookups to, encrypted (#291), by
     /// `EncryptedDNS.Resolver` id. Kept here so it's there when the proxy starts.
     public var lookupResolver: String?
+    /// Enhanced ad blocking (#256), for the transparent proxy (#702): off
+    /// unless the app says otherwise.
+    public var enhancedBlocking: EnhancedBlocking
 
     public init(mode: FirewallMode = .anywhere, rules: [FirewallRule] = [], onHotspot: Bool = false,
                 pausesUpdates: Bool = false, lists: Set<BlocklistTopic> = [], blocksEverything: Bool = false,
                 network: String? = nil, adRules: [AdRule] = [], downloadedLists: [String] = [],
-                threatLists: Set<String> = [], lookupResolver: String? = nil) {
+                threatLists: Set<String> = [], lookupResolver: String? = nil,
+                enhancedBlocking: EnhancedBlocking = EnhancedBlocking()) {
         self.mode = mode
         self.rules = rules
         self.onHotspot = onHotspot
@@ -253,11 +257,12 @@ public struct FirewallPolicy: Codable, Equatable {
         self.downloadedLists = downloadedLists
         self.threatLists = threatLists
         self.lookupResolver = lookupResolver
+        self.enhancedBlocking = enhancedBlocking
     }
 
     private enum CodingKeys: String, CodingKey {
         case mode, rules, onHotspot, pausesUpdates, lists, blocksEverything, network, adRules, downloadedLists
-        case threatLists, lookupResolver
+        case threatLists, lookupResolver, enhancedBlocking
     }
 
     /// A policy saved before a field existed reads it as off, so a filter
@@ -275,6 +280,7 @@ public struct FirewallPolicy: Codable, Equatable {
         downloadedLists = try container.decodeIfPresent([String].self, forKey: .downloadedLists) ?? []
         threatLists = try container.decodeIfPresent(Set<String>.self, forKey: .threatLists) ?? []
         lookupResolver = try container.decodeIfPresent(String.self, forKey: .lookupResolver)
+        enhancedBlocking = (try? container.decodeIfPresent(EnhancedBlocking.self, forKey: .enhancedBlocking)) ?? EnhancedBlocking()
     }
 
     /// Anything to decide at all. Without it, the filter looks nothing up.

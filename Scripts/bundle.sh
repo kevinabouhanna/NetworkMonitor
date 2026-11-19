@@ -212,6 +212,9 @@ case "$SIGN_KIND" in
         ln -s "../../Library/SystemExtensions/${FILTER_NAME}.systemextension/Contents/Resources/Geo/${table}" \
               "${APP}/Contents/Resources/Geo/${table}"
       done
+      # Enhanced ad blocking's page rules (#702): only the filter reads them.
+      mkdir -p "${FILTER_BUNDLE}/Contents/Resources/Blocklists"
+      mv "${APP}/Contents/Resources/Blocklists/pages.bin" "${FILTER_BUNDLE}/Contents/Resources/Blocklists/pages.bin"
       cp "$APP_PROFILE" "${APP}/Contents/embedded.provisionprofile"
       sign_developer_id --entitlements Resources/Filter/NetworkMonitorFilter.entitlements "$FILTER_BUNDLE"
       ENTITLEMENTS="Resources/NetworkMonitor+Filter.entitlements"
