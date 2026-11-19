@@ -83,6 +83,15 @@ let package = Package(
         // Enhanced ad blocking's certificates (#682): the one made on this Mac,
         // and one per site made from it. Security, CryptoKit and Network, no
         // AppKit, for the filter, the app and the tests.
+        // Enhanced ad blocking's page rewriter (#683): HTTP/1.1 exchanges read,
+        // a page given its site's hiding and scriptlets, anything unexpected
+        // passed through untouched. No system parts beyond Foundation,
+        // Compression and Security, so it's tested on recorded exchanges.
+        .target(
+            name: "PageRewriter",
+            dependencies: ["FirewallPolicy"],
+            path: "Sources/PageRewriter"
+        ),
         .target(
             name: "SiteCertificates",
             dependencies: [.product(name: "X509", package: "swift-certificates")],
@@ -140,7 +149,7 @@ let package = Package(
         .executableTarget(
             name: "NetworkMonitorTests",
             dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory", "FilterProtocol",
-                           "FirewallPolicy", "HandshakeName", "SiteCertificates"],
+                           "FirewallPolicy", "HandshakeName", "SiteCertificates", "PageRewriter"],
             path: "Sources/NetworkMonitorTests"
         ),
     ]
