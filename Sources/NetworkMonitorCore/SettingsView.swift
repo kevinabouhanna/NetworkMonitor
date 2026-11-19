@@ -123,15 +123,34 @@ struct GeneralSettingsPane: View {
 
             // The live rates only (#45). A speed test's colours follow from
             // these, so the two never look alike; they're shown, not offered.
+            // Ready-made pairs first (#688), your own behind Custom….
             Section {
-                // How the bar's light or dark changes them (#672), behind an ⓘ.
-                ExplainedRow(L("Download"), L("Drawn as picked on a dark menu bar. On a light one, as over a light wallpaper, it's drawn darker, in the same hue, so it stays readable.")) {
-                    ColorPicker(L("Download"), selection: binding(\.download), supportsOpacity: false)
-                        .labelsHidden()
+                SpeedColorPresets(colors: colors)
+                let custom = state.customColorsShown || colors.preset == nil
+                // Your own colors stay in view while they're in use: no
+                // button to hide them then.
+                if colors.preset != nil {
+                    HStack {
+                        Spacer()
+                        Button(custom ? L("Hide Custom Colors") : L("Custom…")) {
+                            state.customColorsShown = !custom
+                        }
+                    }
                 }
-                ExplainedRow(L("Upload"), L("Drawn as picked on a dark menu bar. On a light one, as over a light wallpaper, it's drawn darker, in the same hue, so it stays readable.")) {
-                    ColorPicker(L("Upload"), selection: binding(\.upload), supportsOpacity: false)
-                        .labelsHidden()
+                if custom {
+                    // How the bar's light or dark changes them (#672), behind an ⓘ.
+                    ExplainedRow(L("Download"), L("Drawn as picked on a dark menu bar. On a light one, as over a light wallpaper, it's drawn darker, in the same hue, so it stays readable.")) {
+                        ColorPicker(L("Download"), selection: binding(\.download), supportsOpacity: false)
+                            .labelsHidden()
+                    }
+                    ExplainedRow(L("Upload"), L("Drawn as picked on a dark menu bar. On a light one, as over a light wallpaper, it's drawn darker, in the same hue, so it stays readable.")) {
+                        ColorPicker(L("Upload"), selection: binding(\.upload), supportsOpacity: false)
+                            .labelsHidden()
+                    }
+                    // Once shown, kept until hidden or the pane closes: a pair
+                    // chosen with the color panel open mustn't take its well
+                    // away, or change the pane's height under it.
+                    .onAppear { state.customColorsShown = true }
                 }
                 ExplainedRow(L("During a speed test"),
                              L("A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates.")) {
@@ -142,15 +161,6 @@ struct GeneralSettingsPane: View {
                         ColorSwatch(color: colors.test.up)
                     }
                     .foregroundStyle(.secondary)
-                }
-                // Always there, dimmed at the defaults. A row that came and went
-                // changed the pane's height from the colour panel, which has the
-                // focus while a colour is picked, and the window only caught up
-                // on the next click in Settings.
-                HStack {
-                    Spacer()
-                    Button(L("Use Default Colors")) { colors.reset() }
-                        .disabled(colors.isDefault)
                 }
             } header: {
                 Text(L("Speed colors"))
@@ -236,6 +246,8 @@ struct GeneralSettingsPane: View {
             }
         }
         .settingsForm()
+        // Custom… starts folded again next time, unless your own colors are in use.
+        .onDisappear { state.customColorsShown = false }
     }
 
     /// A colour well's binding. Whatever space the colour panel hands back, the
@@ -244,6 +256,9 @@ struct GeneralSettingsPane: View {
         Binding(get: { colors[keyPath: line].cgColor },
                 set: { picked in
                     guard let color = NSColor(cgColor: picked) else { return }
+                    // Kept open while picking, even past a ready-made pair:
+                    // the pane's height mustn't change under the color panel.
+                    state.customColorsShown = true
                     colors[keyPath: line] = MenuBarColors.normalized(color)
                 })
     }
@@ -257,6 +272,51 @@ struct GeneralSettingsPane: View {
             // Snap the switch back so it never claims a state that did not stick.
             state.launchAtLogin = LoginItem.isEnabled
         }
+    }
+}
+
+/// The ready-made speed color pairs (#688), each shown as the readout looks
+/// on a dark and on a light menu bar, the one in use ringed. A button each,
+/// named for VoiceOver by its color, and said to be chosen when it is.
+private struct SpeedColorPresets: View {
+    @ObservedObject var colors: MenuBarColors
+
+    var body: some View {
+        let chosen = colors.preset?.id
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 8)], spacing: 8) {
+            ForEach(MenuBarColors.presets) { preset in
+                Button { colors.choose(preset) } label: {
+                    VStack(spacing: 4) {
+                        HStack(spacing: 0) {
+                            chip(preset.tints, background: Color(white: 0.12))
+                            chip(preset.tints.onBar(dark: false), background: Color(white: 0.93))
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.secondary.opacity(0.35)))
+                        Text(preset.name).font(.caption)
+                    }
+                    .padding(4)
+                    .overlay(RoundedRectangle(cornerRadius: 7)
+                        .strokeBorder(chosen == preset.id ? Color.accentColor : .clear, lineWidth: 2))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(preset.name)
+                .accessibilityAddTraits(chosen == preset.id ? .isSelected : [])
+            }
+        }
+    }
+
+    private func chip(_ tints: MenuBarTints, background: Color) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("↓ 1.2").foregroundStyle(Color(nsColor: tints.down))
+            Text("↑ 85").foregroundStyle(Color(nsColor: tints.up))
+        }
+        .font(.system(size: 8, design: .monospaced))
+        .padding(.horizontal, 4).padding(.vertical, 3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(background)
+        .accessibilityHidden(true)
     }
 }
 
@@ -990,4 +1050,7 @@ final class SettingsPaneState: ObservableObject {
     /// Why the last helper install failed, if it did. Cleared by a success or a
     /// deliberate cancel, which is an answer rather than a failure.
     @Published var helperMessage: String?
+    /// Speed colors' own pickers, behind Custom… (#688). Shown anyway while
+    /// the colors are no ready-made pair.
+    @Published var customColorsShown = false
 }

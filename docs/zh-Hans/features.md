@@ -6,7 +6,7 @@ NetworkMonitor 能做的一切，以及在哪里找到它们。
 
 ## 菜单栏读数
 
-两行，始终可见：绿色的 <strong>↓ 下载</strong> 在上，浅灰色的 <strong>↑ 上传</strong> 在下，单位为 <strong>MB/s</strong> 或 <strong>Mbps</strong>（<strong>设置 › 速度显示单位</strong>）。Mbps 与宽带套餐的标称速度一致；MB/s 与流量总计一致。数据量始终以 MB 和 GB 显示，与流量套餐的计算方式相同。你可以在 <strong>设置 › 网速颜色</strong> 中选择其他颜色。
+两行，始终可见：绿色的 <strong>↓ 下载</strong> 在上，浅灰色的 <strong>↑ 上传</strong> 在下，单位为 <strong>MB/s</strong> 或 <strong>Mbps</strong>（<strong>设置 › 速度显示单位</strong>）。Mbps 与宽带套餐的标称速度一致；MB/s 与流量总计一致。数据量始终以 MB 和 GB 显示，与流量套餐的计算方式相同。你可以在 <strong>设置 › 网速颜色</strong> 中选择其他颜色：六组现成的配色（绿色为默认，另有青绿色、蓝色、金色、粉色和紫色），每组在深色和浅色菜单栏上都清晰可读；也可以点按 <strong>自定义…</strong> 选择你自己的颜色。
 
 读数<strong>跟随菜单栏</strong>：在浅色菜单栏上（例如使用浅色墙纸时），每种颜色会以相同色调加深显示，以保持清晰可读；更换墙纸时会自动切换。在深色菜单栏上，颜色按所选的显示。
 
@@ -113,7 +113,7 @@ VoiceOver 用文字读出读数，先读下载：<em>NetworkMonitor，下载 1.2
 - <strong>NetworkMonitor 显示在</strong>：菜单栏、程序坞或两者；选择程序坞或两者时还有 <strong>程序坞图标</strong>：网速或应用图标
 - <strong>速度显示单位</strong>：MB/s 或 Mbps
 - <strong>Wi-Fi 名称</strong>（打开之前显示）
-- <strong>网速颜色</strong>（菜单栏读数和程序坞图标的颜色）：下载、上传、网速测试的颜色、使用默认颜色
+- <strong>网速颜色</strong>（菜单栏读数和程序坞图标的颜色）：六组现成的配色、用于自选下载和上传颜色的“自定义…”、网速测试的颜色
 - <strong>弹出窗口中的累计值</strong>：统计开始于、采样、立即重置
 - <strong>自动检查更新</strong>，以及 立即检查
 - <strong>各部分</strong>：每个部分的设置各有一行，与它的齿轮图标打开的页面相同

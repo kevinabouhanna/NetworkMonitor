@@ -133,15 +133,68 @@ public final class MenuBarColors: ObservableObject {
         upload = MenuBarTints.live.up
     }
 
+    // MARK: Ready-made pairs (#688)
+
+    /// A pair of speed colors ready to pick: each reads on a dark menu bar as
+    /// it is, and on a light one darkened as every color is there (#672).
+    public struct Preset: Identifiable, Equatable {
+        public let id: String
+        public let name: String
+        public let tints: MenuBarTints
+    }
+
+    /// Green first, the default; then the others around the wheel. None
+    /// near Block Everything's red, which must always stand out (#198).
+    /// The names are looked up each time, as the app's language can change.
+    public static var presets: [Preset] {
+        let names = [L("Green"), L("Teal"), L("Blue"), L("Gold"), L("Pink"), L("Violet")]
+        return zip(presetTints, names).map { Preset(id: $0.0.id, name: $0.1, tints: $0.0.tints) }
+    }
+
+    private static let presetTints: [(id: String, tints: MenuBarTints)] = {
+        func pair(_ down: String, _ up: String) -> MenuBarTints {
+            MenuBarTints(down: color(hex: down)!, up: color(hex: up)!)
+        }
+        return [("green", .live), ("teal", pair("#3FE6C8", "#C9F4EC")), ("blue", pair("#6FB1FF", "#D4E6FF")),
+                ("gold", pair("#FFD84D", "#FFF0BF")), ("pink", pair("#FF7AD1", "#FFD6F1")),
+                ("violet", pair("#A78BFA", "#DCD0FF"))]
+    }()
+
+    /// The pair the colors are now, or nil for colors of one's own.
+    public var preset: Preset? {
+        guard let index = Self.presetTints.firstIndex(where: { $0.tints.hex == live.hex }) else { return nil }
+        return Self.presets[index]
+    }
+
+    public func choose(_ preset: Preset) {
+        settingBoth = true
+        download = preset.tints.down
+        upload = preset.tints.up
+        settingBoth = false
+        save(download, key: Keys.download, default: MenuBarTints.live.down)
+        save(upload, key: Keys.upload, default: MenuBarTints.live.up)
+        let test = MenuBarTints.test(clearOf: live)
+        if test != self.test { self.test = test }
+        didChange?()
+    }
+
     private func colorsDidChange(_ color: NSColor, key: String, default: NSColor) {
+        // Choosing a pair sets both, then tells once (#688).
+        guard !settingBoth else { return }
+        save(color, key: key, default: `default`)
+        let test = MenuBarTints.test(clearOf: live)
+        if test != self.test { self.test = test }
+        didChange?()
+    }
+
+    private var settingBoth = false
+
+    private func save(_ color: NSColor, key: String, default: NSColor) {
         if Self.hex(color) == Self.hex(`default`) {
             defaults.removeObject(forKey: key)
         } else {
             defaults.set(Self.hex(color), forKey: key)
         }
-        let test = MenuBarTints.test(clearOf: live)
-        if test != self.test { self.test = test }
-        didChange?()
     }
 
     // MARK: Colour values
