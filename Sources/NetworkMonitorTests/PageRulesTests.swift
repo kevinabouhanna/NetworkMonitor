@@ -23,11 +23,34 @@ func runPageRulesTests() {
                                        sites: ["example.org"], notOn: []))
         }
 
+        Check.test("a scriptlet's arguments keep their backslashes and a quoted empty one") {
+            Check.expectEqual(PageRule.parseScriptlet(#"+js(nostif, /\.ads?\b/, 100)"#),
+                              Scriptlet(name: "no-setTimeout-if", arguments: [#"/\.ads?\b/"#, "100"]))
+            Check.expectEqual(PageRule.parseScriptlet(#"+js(set, a\,b, x)"#),
+                              Scriptlet(name: "set-constant", arguments: ["a,b", "x"]))
+            Check.expectEqual(PageRule.parseScriptlet("+js(set-constant, adBlockDetected, '')"),
+                              Scriptlet(name: "set-constant", arguments: ["adBlockDetected", ""]))
+        }
+
+        Check.test("exceptions: a scriptlet's, every scriptlet's, generic hiding's, all hiding's") {
+            let set = Scriptlet(name: "set-constant", arguments: ["ads", "false"])
+            Check.expectEqual(PageRule.parse("shop.example.com#@#+js(set, ads, false)"),
+                              PageRule(action: .noScriptlet(set), sites: ["shop.example.com"], notOn: []))
+            Check.expectEqual(PageRule.parse("shop.example.com#@#+js()"),
+                              PageRule(action: .noScriptlet(nil), sites: ["shop.example.com"], notOn: []))
+            Check.expectEqual(PageRule.parse("@@||news.example^$generichide"),
+                              PageRule(action: .noGenericHiding, sites: ["news.example"], notOn: []))
+            Check.expectEqual(PageRule.parse("@@||bank.example^$elemhide"),
+                              PageRule(action: .noHiding, sites: ["bank.example"], notOn: []))
+            Check.expectNil(PageRule.parse("@@||cdn.example^$script"))
+        }
+
         Check.test("what Enhanced ad blocking can't do yet is left out, never half read") {
             for line in ["! a comment", "[Adblock Plus 2.0]", "||ads.example.com^", "example.com#?#div:-abp-has(.ad)",
                          "example.com#$#abort-on-property-read ads", "example.com##div:has(> .ad)",
                          "example.com##+js(some-unknown-scriptlet, x)", "/^https?:\\/\\/ad/##.ad",
-                         "example.com##.ad { color: red }", "example.com$$script[tag-content=\"ad\"]"] {
+                         "example.com##.ad { color: red }", "example.com$$script[tag-content=\"ad\"]",
+                         "example.com##.banner:remove-attr(style)", "example.com##.ad:nth-ancestor(2)"] {
                 Check.expectNil(PageRule.parse(line), line)
             }
         }
@@ -74,6 +97,50 @@ func runPageRulesTests() {
                               [Scriptlet(name: "json-prune", arguments: ["playerResponse.adPlacements"])])
         }
 
+        let more = PageRules(listText: """
+            ##.everywhere
+            blogspot.com##.platform-ad
+            example.com##+js(set, ads, false)
+            example.com##+js(aopr, adsbygoogle)
+            shop.example.com#@#+js(set, ads, false)
+            checkout.example.com#@#+js()
+            @@||news.example^$generichide
+            news.example##.own-ad
+            @@||bank.example^$elemhide
+            bank.example##.own-ad
+            !#if env_safari
+            ##.only-for-safari
+            !#endif
+            ##.late
+            #@#.late
+            #@#.later
+            example.com##.later
+            ##.later
+            """)
+
+        Check.test("a platform's rules reach the sites under it, public suffix or not") {
+            Check.expectTrue(more.forPage(on: "someone.blogspot.com").selectors.contains(".platform-ad"))
+        }
+
+        Check.test("a scriptlet's exception, and one for every scriptlet, switch them off there") {
+            Check.expectEqual(more.forPage(on: "shop.example.com").scriptlets,
+                              [Scriptlet(name: "abort-on-property-read", arguments: ["adsbygoogle"])])
+            Check.expectEqual(more.forPage(on: "checkout.example.com").scriptlets, [])
+            Check.expectEqual(more.forPage(on: "example.com").scriptlets.count, 2)
+        }
+
+        Check.test("a site exempt from generic hiding keeps its own; one exempt from hiding gets none") {
+            Check.expectEqual(more.forPage(on: "news.example").selectors, [".own-ad"])
+            Check.expectEqual(more.forPage(on: "bank.example").selectors, [])
+        }
+
+        Check.test("an exception everywhere holds wherever it comes in the lists, site rules too") {
+            let page = more.forPage(on: "www.example.com").selectors
+            Check.expectFalse(page.contains(".late"))
+            Check.expectFalse(page.contains(".later"))
+            Check.expectFalse(page.contains(".only-for-safari"), "!#if blocks are left out")
+        }
+
         Check.test("they travel as pages.bin and read back the same") {
             guard let data = try? rules.encoded(), let back = PageRules.decode(data) else {
                 return Check.expectTrue(false, "didn't encode or decode")
@@ -104,7 +171,9 @@ func runPageRulesTests() {
             let rounds = 200
             for round in 0..<rounds { _ = shipped.forPage(on: hosts[round % hosts.count]) }
             let each = Date().timeIntervalSince(start) / Double(rounds)
-            Check.expectTrue(each < 0.001, "\(Int(each * 1_000_000)) µs each")
+            // On this Mac; a shared GitHub runner gets ten times the room.
+            let limit = ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] == nil ? 0.001 : 0.01
+            Check.expectTrue(each < limit, "\(Int(each * 1_000_000)) µs each")
         }
     }
 }

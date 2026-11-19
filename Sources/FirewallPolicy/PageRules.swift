@@ -41,6 +41,12 @@ public struct PageRule: Equatable {
         /// `#@#`: don't hide this selector there.
         case unhide(String)
         case scriptlet(Scriptlet)
+        /// `#@#+js(…)`: don't run this scriptlet there; nil for none at all.
+        case noScriptlet(Scriptlet?)
+        /// `@@||site^$generichide`: none of the rules for every page there.
+        case noGenericHiding
+        /// `@@||site^$elemhide` (or `$document`): no hiding there at all.
+        case noHiding
     }
 
     public let action: Action
@@ -62,6 +68,7 @@ public struct PageRule: Equatable {
     public static func parse(_ line: String) -> PageRule? {
         let line = line.trimmingCharacters(in: .whitespaces)
         guard !line.isEmpty, !line.hasPrefix("!"), !line.hasPrefix("[") else { return nil }
+        if line.hasPrefix("@@") { return parseException(line) }
         for (marker, unhide) in [("#@#", true), ("##", false)] {
             guard let range = line.range(of: marker) else { continue }
             let domains = String(line[..<range.lowerBound])
@@ -70,17 +77,43 @@ public struct PageRule: Equatable {
             if domains.contains("#") || domains.contains("$") || domains.contains("/") { return nil }
             guard let (sites, notOn) = parseDomains(domains) else { return nil }
             if body.hasPrefix("+js(") {
-                guard !unhide, let scriptlet = parseScriptlet(body) else { return nil }
+                if unhide {
+                    if body == "+js()" { return PageRule(action: .noScriptlet(nil), sites: sites, notOn: notOn) }
+                    guard let scriptlet = parseScriptlet(body) else { return nil }
+                    return PageRule(action: .noScriptlet(scriptlet), sites: sites, notOn: notOn)
+                }
+                guard let scriptlet = parseScriptlet(body) else { return nil }
                 return PageRule(action: .scriptlet(scriptlet), sites: sites, notOn: notOn)
             }
             guard isPlainSelector(body) else { return nil }
             return PageRule(action: unhide ? .unhide(body) : .hide(body), sites: sites, notOn: notOn)
         }
-        // AdGuard's way of writing a scriptlet: `site#%#//scriptlet('name', 'arg')`.
-        if let range = line.range(of: "#%#//scriptlet(") {
-            guard let (sites, notOn) = parseDomains(String(line[..<range.lowerBound])),
-                  let scriptlet = parseScriptlet("+js(" + line[range.upperBound...]) else { return nil }
-            return PageRule(action: .scriptlet(scriptlet), sites: sites, notOn: notOn)
+        // AdGuard's way of writing a scriptlet, and an exception to one:
+        // `site#%#//scriptlet('name', 'arg')`, `site#@%#//scriptlet(…)`.
+        for (marker, exception) in [("#@%#//scriptlet(", true), ("#%#//scriptlet(", false)] {
+            guard let range = line.range(of: marker) else { continue }
+            guard let (sites, notOn) = parseDomains(String(line[..<range.lowerBound])) else { return nil }
+            let body = "+js(" + line[range.upperBound...]
+            if exception && body == "+js()" { return PageRule(action: .noScriptlet(nil), sites: sites, notOn: notOn) }
+            guard let scriptlet = parseScriptlet(body) else { return nil }
+            return PageRule(action: exception ? .noScriptlet(scriptlet) : .scriptlet(scriptlet), sites: sites, notOn: notOn)
+        }
+        return nil
+    }
+
+    /// `@@||site^$generichide`, `$elemhide`, `$document`: a site's exception
+    /// from hiding. Any other exception by address is the filter's, not ours.
+    static func parseException(_ line: String) -> PageRule? {
+        guard line.hasPrefix("@@||"), let dollar = line.lastIndex(of: "$") else { return nil }
+        var site = String(line[line.index(line.startIndex, offsetBy: 4)..<dollar])
+        if site.hasSuffix("^") { site.removeLast() }
+        guard let (sites, _) = parseDomains(site), sites.count == 1 else { return nil }
+        let options = line[line.index(after: dollar)...].split(separator: ",").map(String.init)
+        if options.contains(where: { ["elemhide", "ehide", "document", "doc"].contains($0) }) {
+            return PageRule(action: .noHiding, sites: sites, notOn: [])
+        }
+        if options.contains(where: { ["generichide", "ghide"].contains($0) }) {
+            return PageRule(action: .noGenericHiding, sites: sites, notOn: [])
         }
         return nil
     }
@@ -100,43 +133,56 @@ public struct PageRule: Equatable {
     }
 
     /// `+js(name, a, b)` or `+js('name', 'a')`: its name, as `Scriptlet.known`
-    /// names it, and its arguments.
-    static func parseScriptlet(_ body: String) -> Scriptlet? {
+    /// names it, and its arguments. A backslash escapes only a comma (and,
+    /// in quotes, the quote): everywhere else it's kept, as regular
+    /// expressions need it. A quoted empty argument is kept; empty ones at
+    /// the end, unquoted, are padding.
+    public static func parseScriptlet(_ body: String) -> Scriptlet? {
         guard body.hasPrefix("+js("), body.hasSuffix(")") else { return nil }
-        let inner = body.dropFirst(4).dropLast()
-        var parts: [String] = []
+        let inner = Array(body.dropFirst(4).dropLast())
+        var parts: [(text: String, quoted: Bool)] = []
         var current = ""
+        var quoted = false
         var quote: Character?
-        var escaped = false
-        for character in inner {
-            if escaped { current.append(character); escaped = false; continue }
-            if character == "\\" { escaped = true; continue }
+        var index = 0
+        while index < inner.count {
+            let character = inner[index]
+            let next = index + 1 < inner.count ? inner[index + 1] : nil
+            if character == "\\", let next, next == "," || next == quote {
+                current.append(next)
+                index += 2
+                continue
+            }
             if let open = quote {
                 if character == open { quote = nil } else { current.append(character) }
             } else if (character == "'" || character == "\"") && current.allSatisfy(\.isWhitespace) {
                 quote = character
+                quoted = true
                 current = ""
             } else if character == "," {
-                parts.append(current.trimmingCharacters(in: .whitespaces))
+                parts.append((quoted ? current : current.trimmingCharacters(in: .whitespaces), quoted))
                 current = ""
+                quoted = false
             } else {
                 current.append(character)
             }
+            index += 1
         }
-        parts.append(current.trimmingCharacters(in: .whitespaces))
-        var name = parts.removeFirst()
+        parts.append((quoted ? current : current.trimmingCharacters(in: .whitespaces), quoted))
+        var name = parts.removeFirst().text
         if name.hasSuffix(".js") { name.removeLast(3) }
         guard let known = Scriptlet.known[name] else { return nil }
-        while parts.last == "" { parts.removeLast() }
-        return Scriptlet(name: known, arguments: parts)
+        while let last = parts.last, last.text.isEmpty, !last.quoted { parts.removeLast() }
+        return Scriptlet(name: known, arguments: parts.map(\.text))
     }
 
     /// A CSS selector a stylesheet can hide as it is: not one of the
     /// extended kinds only an ad blocker's own code understands.
     static func isPlainSelector(_ selector: String) -> Bool {
         guard !selector.isEmpty, !selector.hasPrefix("+"), !selector.hasPrefix("^") else { return false }
-        let extended = [":has(", ":has-text(", ":-abp-", ":xpath(", ":upward(", ":remove(", ":style(", ":matches-",
-                        ":min-text-length(", ":watch-attr(", ":others(", ":if(", ":if-not(", ":contains("]
+        let extended = [":has(", ":has-text(", ":-abp-", ":xpath(", ":upward(", ":remove", ":style(", ":matches-",
+                        ":min-text-length(", ":watch-attr(", ":others(", ":if(", ":if-not(", ":contains(",
+                        ":nth-ancestor(", ":spath(", ":shadow", ":matches-css"]
         if extended.contains(where: selector.contains) { return false }
         // Braces would end the rule the stylesheet wraps it in.
         return !selector.contains("{") && !selector.contains("}")
@@ -148,7 +194,8 @@ public struct PageRules: Codable, Equatable {
     /// Hidden on every page, unless a site's exception says otherwise.
     public private(set) var generic: [String] = []
     struct Entry: Codable, Equatable {
-        /// 0 hide, 1 unhide, 2 scriptlet.
+        /// 0 hide, 1 unhide, 2 scriptlet, 3 no scriptlet (nil: none), 4 no
+        /// generic hiding, 5 no hiding.
         var kind: UInt8
         var selector: String?
         var scriptlet: Scriptlet?
@@ -157,43 +204,68 @@ public struct PageRules: Codable, Equatable {
     /// Rules for each site, and the ones for everywhere but some (`~site##`)
     /// under "".
     private(set) var bySite: [String: [Entry]] = [:]
+    /// The rules read from the lists, before they're spread over their sites.
+    public private(set) var ruleCount = 0
 
     public init(rules: [PageRule]) {
         var generic: [String] = []
         var seen = Set<String>()
+        // Exceptions everywhere (`#@#.x`) apply to every rule, wherever in
+        // the lists they come: they're taken out once all are read.
+        var unhiddenEverywhere = Set<String>()
         for rule in rules {
-            let entry: Entry
+            var entry: Entry
             switch rule.action {
-            case .hide(let selector):    entry = Entry(kind: 0, selector: selector)
-            case .unhide(let selector):  entry = Entry(kind: 1, selector: selector)
-            case .scriptlet(let script): entry = Entry(kind: 2, scriptlet: script)
+            case .hide(let selector):        entry = Entry(kind: 0, selector: selector)
+            case .unhide(let selector):      entry = Entry(kind: 1, selector: selector)
+            case .scriptlet(let script):     entry = Entry(kind: 2, scriptlet: script)
+            case .noScriptlet(let script):   entry = Entry(kind: 3, scriptlet: script)
+            case .noGenericHiding:           entry = Entry(kind: 4)
+            case .noHiding:                  entry = Entry(kind: 5)
             }
-            var placed = entry
-            placed.notOn = rule.notOn.isEmpty ? nil : rule.notOn
-            if rule.sites.isEmpty {
-                if case .hide(let selector) = rule.action, rule.notOn.isEmpty {
+            entry.notOn = rule.notOn.isEmpty ? nil : rule.notOn
+            if rule.sites.isEmpty && rule.notOn.isEmpty {
+                switch rule.action {
+                case .hide(let selector):
                     if seen.insert(selector).inserted { generic.append(selector) }
-                } else if case .unhide(let selector) = rule.action, rule.notOn.isEmpty {
-                    // An exception everywhere: it was never hidden.
-                    generic.removeAll { $0 == selector }
-                    seen.remove(selector)
-                } else {
-                    bySite["", default: []].append(placed)
+                    continue
+                case .unhide(let selector):
+                    unhiddenEverywhere.insert(selector)
+                    continue
+                default: break
                 }
+            }
+            if rule.sites.isEmpty {
+                bySite["", default: []].append(entry)
             } else {
-                for site in rule.sites { bySite[site, default: []].append(placed) }
+                for site in rule.sites { bySite[site, default: []].append(entry) }
             }
         }
-        self.generic = generic
+        self.generic = generic.filter { !unhiddenEverywhere.contains($0) }
+        if !unhiddenEverywhere.isEmpty {
+            for (site, entries) in bySite {
+                bySite[site] = entries.filter { $0.kind != 0 || !unhiddenEverywhere.contains($0.selector ?? "") }
+            }
+        }
+        ruleCount = rules.count
     }
 
-    /// The rules from a list's text.
+    /// The rules from a list's text. Lines in `!#if … !#endif` blocks are
+    /// for particular blockers or browsers: left out, whatever they say.
     public init(listText: String) {
-        self.init(rules: listText.split(whereSeparator: \.isNewline).compactMap { PageRule.parse(String($0)) })
+        var depth = 0
+        var rules: [PageRule] = []
+        for line in listText.split(whereSeparator: \.isNewline) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("!#if") { depth += 1; continue }
+            if trimmed.hasPrefix("!#endif") { depth = max(0, depth - 1); continue }
+            guard depth == 0, let rule = PageRule.parse(trimmed) else { continue }
+            rules.append(rule)
+        }
+        self.init(rules: rules)
     }
 
     public var siteCount: Int { bySite.keys.filter { !$0.isEmpty }.count }
-    public var ruleCount: Int { generic.count + bySite.values.reduce(0) { $0 + $1.count } }
 
     /// What a page on `host` gets.
     public struct ForPage: Equatable {
@@ -203,35 +275,48 @@ public struct PageRules: Codable, Equatable {
     }
 
     public func forPage(on host: String) -> ForPage {
-        let domains = Self.lookupNames(for: host)
+        let keys = Self.lookupNames(for: host)
+        let hostNames = Set(keys)
         var hide: [String] = [], unhide = Set<String>(), scriptlets: [Scriptlet] = []
-        for key in domains + [""] {
+        var noScriptlets = Set<Scriptlet>(), noScriptletsAtAll = false
+        var noGeneric = false, noHiding = false
+        for key in keys + [""] {
             for entry in bySite[key] ?? [] {
-                if let notOn = entry.notOn, notOn.contains(where: { Self.matches(host, $0) }) { continue }
+                if let notOn = entry.notOn, notOn.contains(where: hostNames.contains) { continue }
                 switch entry.kind {
                 case 0: if let selector = entry.selector { hide.append(selector) }
                 case 1: if let selector = entry.selector { unhide.insert(selector) }
-                default: if let scriptlet = entry.scriptlet, !scriptlets.contains(scriptlet) { scriptlets.append(scriptlet) }
+                case 2: if let scriptlet = entry.scriptlet, !scriptlets.contains(scriptlet) { scriptlets.append(scriptlet) }
+                case 3: if let scriptlet = entry.scriptlet { noScriptlets.insert(scriptlet) } else { noScriptletsAtAll = true }
+                case 4: noGeneric = true
+                default: noHiding = true
                 }
             }
         }
-        let selectors = unhide.isEmpty ? generic + hide : (generic + hide).filter { !unhide.contains($0) }
+        var selectors: [String] = []
+        if !noHiding {
+            selectors = noGeneric ? hide : generic + hide
+            if !unhide.isEmpty { selectors = selectors.filter { !unhide.contains($0) } }
+        }
+        scriptlets = noScriptletsAtAll ? [] : scriptlets.filter { !noScriptlets.contains($0) }
         return ForPage(selectors: selectors, scriptlets: scriptlets)
     }
 
-    /// The keys a host's rules are under: itself and each domain above it,
-    /// each also as `name.*` with its public suffix left open.
+    /// The keys a host's rules are under: itself and every name above it but
+    /// the last label, as ad-blocking lists match (so `blogspot.com`'s rules
+    /// reach `someone.blogspot.com`, though it's a public suffix), each also
+    /// as `name.*` with its public suffix left open.
     static func lookupNames(for host: String) -> [String] {
-        let domains = SiteName.domains(of: host)
-        guard let site = domains.last, let dot = site.firstIndex(of: ".") else { return domains }
-        let suffix = site[site.index(after: dot)...]
-        return domains + domains.map { String($0.dropLast(suffix.count + 1)) + ".*" }
-    }
-
-    /// Whether a rule's domain covers `host`: it, or a name under it, with
-    /// `name.*` open to any public suffix.
-    static func matches(_ host: String, _ domain: String) -> Bool {
-        lookupNames(for: host).contains(domain) || host == domain
+        guard let name = SiteName.normalized(host) else { return [] }
+        let labels = name.split(separator: ".")
+        var names: [String] = []
+        for start in 0..<max(labels.count - 1, 0) { names.append(labels[start...].joined(separator: ".")) }
+        let site = SiteName.site(of: name)
+        if let dot = site.firstIndex(of: ".") {
+            let suffix = site[site.index(after: dot)...]
+            for domain in SiteName.domains(of: name) { names.append(String(domain.dropLast(suffix.count + 1)) + ".*") }
+        }
+        return names
     }
 
     // MARK: Travelling
