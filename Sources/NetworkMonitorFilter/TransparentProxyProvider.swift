@@ -141,10 +141,17 @@ final class EnhancedProxy {
     private func makeBridge() -> SecureBridge? {
         do {
             let machine = SCDynamicStoreCopyComputerName(nil, nil) as String? ?? "this Mac"
-            if case .missing(let why) = AuthorityStore.lookUp() {
+            // The System keychain by name: the default search list can
+            // name it twice, and every item is found twice.
+            var system: SecKeychain?
+            guard SecKeychainCopyDomainDefault(.system, &system) == errSecSuccess, let system else {
+                log.error("no System keychain, so nothing is opened")
+                return nil
+            }
+            if case .missing(let why) = AuthorityStore.lookUp(in: system) {
                 log.notice("no root to use (\(why, privacy: .public)): making one")
             }
-            let (authority, _) = try AuthorityStore.load(machine: machine)
+            let (authority, _) = try AuthorityStore.load(in: system, machine: machine)
             // A root macOS doesn't trust would show every page a certificate
             // error: until it's trusted, nothing is opened.
             let probe = try authority.issue(for: "trust-check.invalid", key: authority.certificate.publicKey)
@@ -154,7 +161,7 @@ final class EnhancedProxy {
                 log.notice("the root isn't trusted yet, so nothing is opened")
                 return nil
             }
-            let identities = try SiteIdentities(authority: authority, keychain: nil)
+            let identities = try SiteIdentities(authority: authority, keychain: system)
             let rules = Self.pageRules()
             if rules == nil { log.error("no page rules: pages go on without hiding") }
             log.notice("ready, with the trusted root")

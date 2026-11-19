@@ -285,6 +285,7 @@ public final class MonitorViewModel: ObservableObject {
         filter.resume()
         lookups.resume()
         enhancedProxy.apply(isOn: EnhancedBlockingProxy.isOnForTesting)
+        filter.onReplaced = { [weak self] in self?.enhancedProxy.apply(isOn: EnhancedBlockingProxy.isOnForTesting) }
         // The rules, whether this is a hotspot for the ones that say "on
         // hotspots", and whether Hotspot mode pauses updates here (#98). The
         // values come from the publishers: they fire before the properties

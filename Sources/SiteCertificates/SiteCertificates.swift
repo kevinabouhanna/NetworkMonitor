@@ -187,7 +187,14 @@ public enum AuthorityKey {
         if let keychain { query[kSecMatchSearchList as String] = [keychain] }
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return [] }
-        return (result as? [SecKey]) ?? []
+        // Once each: a search list naming the System keychain twice (the
+        // filter's) finds every item twice.
+        var seen = Set<Data>()
+        return ((result as? [SecKey]) ?? []).filter { key in
+            guard let publicKey = SecKeyCopyPublicKey(key),
+                  let data = SecKeyCopyExternalRepresentation(publicKey, nil) as Data? else { return true }
+            return seen.insert(data).inserted
+        }
     }
 
     /// Takes every one of the root's keys out of `keychain`, for good, one
@@ -288,8 +295,10 @@ public enum AuthorityStore {
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return [] }
         let prefix = CertificateAuthority.commonName + " ("
+        var seen = Set<Data>()
         return ((result as? [SecCertificate]) ?? []).filter {
             (SecCertificateCopySubjectSummary($0) as String?)?.hasPrefix(prefix) == true
+                && seen.insert(SecCertificateCopyData($0) as Data).inserted
         }
     }
 

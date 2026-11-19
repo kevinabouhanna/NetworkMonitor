@@ -410,6 +410,10 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
         }
     }
 
+    /// After a new version of the extension has taken over: macOS stops
+    /// the transparent proxy it carries while it's replaced (#702).
+    public var onReplaced: (() -> Void)?
+
     private func switchOnAfterSwap() {
         swap = .switchingOn
         logDropAll("with the new filter installed")
@@ -426,6 +430,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
             UserDefaults.standard.removeObject(forKey: Self.offForUpdateKey)
             Self.log.notice("filter back on after the update")
             self.state = .on
+            self.onReplaced?()
             self.watchdog.heard()
             self.connect()
             self.startGuard()
