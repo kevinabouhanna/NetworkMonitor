@@ -97,6 +97,15 @@ let package = Package(
             dependencies: ["FirewallPolicy"],
             path: "Sources/PageRewriter"
         ),
+        // Enhanced ad blocking's secure bridge (#701): TLS to the browser with
+        // a site's certificate made on this Mac, TLS to the real site checked
+        // as a browser would, each reply through the page rewriter. Network
+        // and Security, no system extension, so it's tested on this Mac.
+        .target(
+            name: "SecureBridge",
+            dependencies: ["PageRewriter", "SiteCertificates", "FirewallPolicy"],
+            path: "Sources/SecureBridge"
+        ),
         // The site a connection is for, read from its opening handshake (#196):
         // TLS's server_name, and QUIC's, from Initial packets anyone can
         // decrypt. Pure Foundation and the system's crypto, for the filter
@@ -149,7 +158,7 @@ let package = Package(
         .executableTarget(
             name: "NetworkMonitorTests",
             dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory", "FilterProtocol",
-                           "FirewallPolicy", "HandshakeName", "SiteCertificates", "PageRewriter"],
+                           "FirewallPolicy", "HandshakeName", "SiteCertificates", "PageRewriter", "SecureBridge"],
             path: "Sources/NetworkMonitorTests"
         ),
     ]
