@@ -637,6 +637,7 @@
 "App icon" = "应用图标";
 "Download" = "下载";
 "Upload" = "上传";
+"Drawn as picked on a dark menu bar. On a light one, as over a light wallpaper, it's drawn darker, in the same hue, so it stays readable." = "在深色菜单栏上按所选的颜色显示。在浅色菜单栏上（例如使用浅色墙纸时），会以相同色调加深显示，以保持清晰可读。";
 "During a speed test" = "网速测试期间";
 "A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates." = "网速测试的数值使用自己的颜色，与这些颜色区分开，因此不会被误认为是实时速度。";
 "Use Default Colors" = "使用默认颜色";

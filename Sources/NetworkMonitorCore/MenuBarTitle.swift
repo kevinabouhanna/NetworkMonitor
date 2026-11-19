@@ -120,35 +120,44 @@ public enum MenuBarTitle {
     /// be recoloured to the monochrome menu bar tint.
     public static func image(down: Double, up: Double, unit: SpeedUnit = .bytes,
                              tints: MenuBarTints = .live) -> NSImage {
-        image(attributed(down: down, up: up, unit: unit, tints: tints))
+        image(SpeedReadout(down: downLine(down, unit: unit), up: upLine(up, unit: unit), tints: tints))
     }
 
     /// The speed test's title, drawn exactly as the live one is.
     public static func speedTestImage(downBits: Double, upBits: Double, unit: SpeedUnit,
                                       tints: MenuBarTints = MenuBarTints.testChoices[0]) -> NSImage {
-        image(speedTestAttributed(downBits: downBits, upBits: upBits, unit: unit, tints: tints))
+        image(SpeedReadout(down: "↓ \(ByteFormat.menuBarSpeed(downBits, unit: unit))",
+                           up: "↑ \(ByteFormat.menuBarSpeed(upBits, unit: unit))", tints: tints))
     }
 
     /// A readout, live or a speed test's, drawn as the status item shows it.
+    ///
+    /// Drawn when it's shown, in the colours for the bar behind it (#672): the
+    /// menu bar is see-through, so a light wallpaper makes it light, and AppKit
+    /// draws each status item in its bar's appearance. On a light bar the
+    /// colours are darkened to read (`MenuBarTints.onBar`); when the wallpaper
+    /// changes, the next draw follows it.
     public static func image(_ readout: SpeedReadout) -> NSImage {
-        image(attributed(readout.down, readout.tints.down, readout.up, readout.tints.up))
-    }
-
-    private static func image(_ text: NSAttributedString) -> NSImage {
-        let textSize = text.size()
-        let size = NSSize(width: ceil(textSize.width), height: menuBarHeight)
-
-        let image = NSImage(size: size)
-        image.lockFocus()
-        // Flipped-text-in-unflipped-context: the rect's origin is bottom-left and
-        // the string fills it downward from the top, so centring the rect
-        // vertically centres the glyphs.
-        let inset = (size.height - textSize.height) / 2
-        text.draw(in: NSRect(x: 0, y: inset,
-                             width: size.width, height: textSize.height))
-        image.unlockFocus()
+        let measured = attributed(readout.down, readout.tints.down, readout.up, readout.tints.up).size()
+        let size = NSSize(width: ceil(measured.width), height: menuBarHeight)
+        let image = NSImage(size: size, flipped: false) { rect in
+            let tints = readout.tints.onBar(dark: isDark(NSAppearance.currentDrawing()))
+            let text = attributed(readout.down, tints.down, readout.up, tints.up)
+            // Flipped-text-in-unflipped-context: the rect's origin is
+            // bottom-left and the string fills it downward from the top, so
+            // centring the rect vertically centres the glyphs.
+            let inset = (rect.height - measured.height) / 2
+            text.draw(in: NSRect(x: 0, y: inset, width: rect.width, height: measured.height))
+            return true
+        }
+        // Never kept as a bitmap, so each draw is in the bar's appearance then.
+        image.cacheMode = .never
         image.isTemplate = false
         return image
+    }
+
+    static func isDark(_ appearance: NSAppearance) -> Bool {
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
     }
 
     /// Rendered width in points, for the width-stability test.

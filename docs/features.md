@@ -11,6 +11,10 @@ Two lines, always visible: **↓ download** in green over **↑ upload** in ligh
 is sold; MB/s matches the data totals. Amounts of data are always in MB and GB, the way
 data plans are sold. Pick other colours under **Settings › Speed colors**.
 
+The readout **follows the menu bar**: on a light one, as over a light wallpaper, each colour is
+drawn darker in the same hue so it stays readable, and it switches by itself when the
+wallpaper changes. On a dark menu bar the colours are drawn as picked.
+
 The readout keeps a **fixed width**, so nothing beside it in the menu bar jumps around as
 the numbers change. It updates up to twice a second, less often on battery and in Low Power
 Mode (see [battery](accuracy-and-battery.md#battery)). While a speed test runs, the readout

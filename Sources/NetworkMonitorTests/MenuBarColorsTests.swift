@@ -113,4 +113,134 @@ func runMenuBarColorsTests() {
             Check.expectTrue(abs(blackToWhite - 1) < 0.001, "got \(blackToWhite)")
         }
     }
+
+    Check.suite("MenuBarColors — on a light menu bar (#672)") {
+        func hex(_ value: String) -> NSColor { MenuBarColors.color(hex: value)! }
+        /// WCAG's contrast ratio, from 1 to 21.
+        func contrast(_ a: NSColor, _ b: NSColor) -> Double {
+            func luminance(_ color: NSColor) -> Double {
+                let c = color.usingColorSpace(.sRGB)!
+                func linear(_ x: CGFloat) -> Double {
+                    let x = Double(x)
+                    return x <= 0.04045 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4)
+                }
+                return 0.2126 * linear(c.redComponent) + 0.7152 * linear(c.greenComponent)
+                    + 0.0722 * linear(c.blueComponent)
+            }
+            let (x, y) = (luminance(a), luminance(b))
+            return (max(x, y) + 0.05) / (min(x, y) + 0.05)
+        }
+        func hue(_ color: NSColor) -> Double {
+            let (_, a, b) = MenuBarColors.oklab(color)
+            return atan2(b, a)
+        }
+        func chroma(_ color: NSColor) -> Double {
+            let (_, a, b) = MenuBarColors.oklab(color)
+            return (a * a + b * b).squareRoot()
+        }
+        let white = hex("#FFFFFF"), lightGrey = hex("#C8C8C8")
+        /// Every colour the readout takes: its own, Block Everything's, each
+        /// speed test pair's, and a sample of the wheel for colours picked.
+        let everyTint: [(String, NSColor)] = {
+            let pairs = [MenuBarTints.live, .blockingEverything] + MenuBarTints.testChoices
+            var named = pairs.enumerated().flatMap { [("pair \($0.offset) ↓", $0.element.down),
+                                                      ("pair \($0.offset) ↑", $0.element.up)] }
+            for hue in stride(from: 0.0, to: 1.0, by: 1.0 / 36) {
+                for (saturation, brightness) in [(1.0, 1.0), (0.4, 1.0), (1.0, 0.6), (0.15, 0.9)] {
+                    let color = NSColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1)
+                        .usingColorSpace(.sRGB)!
+                    named.append(("picked \(MenuBarColors.hex(color))", color))
+                }
+            }
+            return named
+        }()
+
+        Check.test("each line reads on a light bar: 4.5 : 1 on white, 3 : 1 on light grey") {
+            let light = MenuBarTints.live.onBar(dark: false)
+            for (line, color) in [("↓", light.down), ("↑", light.up)] {
+                Check.expectTrue(contrast(color, white) >= 4.5, "\(line) \(MenuBarColors.hex(color)) on white")
+                Check.expectTrue(contrast(color, lightGrey) >= 3, "\(line) \(MenuBarColors.hex(color)) on #C8C8C8")
+            }
+            // Where it was: about 1.3 : 1.
+            Check.expectTrue(contrast(MenuBarTints.live.down, white) < 1.5)
+        }
+
+        Check.test("on a dark bar the default colours are exactly as today") {
+            let dark = MenuBarTints.live.onBar(dark: true)
+            Check.expectEqual(MenuBarColors.hex(dark.down), "#51FF70")
+            Check.expectEqual(MenuBarColors.hex(dark.up), "#E5E5E5")
+        }
+
+        Check.test("every colour the readout takes keeps its hue and reads on a light bar") {
+            for (name, color) in everyTint {
+                let light = MenuBarTints(down: color, up: color).onBar(dark: false).down
+                Check.expectTrue(contrast(light, white) >= 4.5, "\(name) → \(MenuBarColors.hex(light)) on white")
+                Check.expectTrue(contrast(light, lightGrey) >= 3, "\(name) → \(MenuBarColors.hex(light)) on #C8C8C8")
+                // A grey has no hue to keep.
+                guard chroma(color) > 0.03, chroma(light) > 0.01 else { continue }
+                var turn = abs(hue(light) - hue(color))
+                if turn > .pi { turn = 2 * .pi - turn }
+                Check.expectTrue(turn < 0.05, "\(name) → \(MenuBarColors.hex(light)) turned \(turn) rad")
+            }
+        }
+
+        // Darkened to one lightness, colours come closer: a test's must still
+        // look unlike the live rates there (#45).
+        Check.test("on a light bar, a speed test's colours stay clear of the live ones") {
+            // The defaults and the test's own cyan clear it in full; a live
+            // pink leaves no choice that does, and gets the nearest, as on dark.
+            for (live, least) in [(MenuBarTints.live, MenuBarTints.clearDown),
+                                  (MenuBarTints(down: hex("#64D2FF"), up: hex("#B4E9FF")), MenuBarTints.clearDown),
+                                  (MenuBarTints(down: hex("#FF6FD8"), up: hex("#FFC2EF")), 0.12)] {
+                let test = MenuBarTints.test(clearOf: live).onBar(dark: false)
+                let lightLive = live.onBar(dark: false)
+                let down = [lightLive.down, lightLive.up].map { MenuBarColors.distance(test.down, $0) }.min()!
+                let up = [lightLive.down, lightLive.up].map { MenuBarColors.distance(test.up, $0) }.min()!
+                Check.expectTrue(down >= least, "\(MenuBarColors.hex(live.down)): ↓ \(down)")
+                Check.expectTrue(up >= MenuBarTints.clearUp, "\(MenuBarColors.hex(live.down)): ↑ \(up)")
+                // Before #672's fix, the default test was 0.076 from the live green here.
+            }
+            // On a dark bar the default test is still cyan.
+            Check.expectEqual(MenuBarColors.hex(MenuBarTints.test(clearOf: .live).down), "#64D2FF")
+        }
+
+        // Drawn as shown, so it follows the bar when the wallpaper changes.
+        Check.test("the same readout draws in other colours under the light and the dark appearance") {
+            let image = MenuBarTitle.image(down: 1_234_567, up: 4_321)
+            func greenest(_ name: NSAppearance.Name) -> (r: Int, g: Int, b: Int)? {
+                guard let appearance = NSAppearance(named: name),
+                      let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(image.size.width) * 2,
+                                                    pixelsHigh: Int(image.size.height) * 2, bitsPerSample: 8,
+                                                    samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                                    colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
+                else { return nil }
+                bitmap.size = image.size
+                NSGraphicsContext.saveGraphicsState()
+                NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+                appearance.performAsCurrentDrawingAppearance {
+                    image.draw(in: NSRect(origin: .zero, size: image.size))
+                }
+                NSGraphicsContext.restoreGraphicsState()
+                // The most opaque pixel that's greener than it is red: the
+                // download line's ink.
+                var best: (r: Int, g: Int, b: Int, a: Int)?
+                for y in 0..<bitmap.pixelsHigh {
+                    for x in 0..<bitmap.pixelsWide {
+                        guard let c = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB), c.alphaComponent > 0.9,
+                              c.greenComponent > c.redComponent + 0.15 else { continue }
+                        let a = Int(c.alphaComponent * 255)
+                        if a > (best?.a ?? 0) {
+                            best = (Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255), a)
+                        }
+                    }
+                }
+                return best.map { ($0.r, $0.g, $0.b) }
+            }
+            guard let onLight = greenest(.aqua), let onDark = greenest(.darkAqua) else {
+                return Check.expectTrue(false, "no green drawn")
+            }
+            Check.expectTrue(onDark.g > 200, "on dark, the bright green: \(onDark)")
+            Check.expectTrue(onLight.g < 140, "on light, a deep green: \(onLight)")
+        }
+    }
 }

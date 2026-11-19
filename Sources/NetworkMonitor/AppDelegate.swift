@@ -76,6 +76,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private var dockSpeedView: DockSpeedView?
     /// Redraws it when the Mac switches between light and dark.
     private var appearanceObserver: NSKeyValueObservation?
+    /// Redraws the menu bar readout when the bar behind it turns light or
+    /// dark, as the wallpaper changes (#672).
+    private var barAppearanceObserver: NSKeyValueObservation?
     /// When the Dock icon was last redrawn, and whether a redraw is waiting
     /// its turn; see `drawDockReadout()`.
     private var dockDrawnAt: TimeInterval = 0
@@ -223,6 +226,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         button.action = #selector(statusItemClicked(_:))
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         button.imagePosition = .imageOnly
+        // The readout picks its colours as it's drawn, for the bar's
+        // appearance; a new appearance needs a new draw.
+        barAppearanceObserver = button.observe(\.effectiveAppearance) { [weak self] _, _ in
+            // A new picture, not only a redraw, so the colours change while
+            // the rates hold still too.
+            DispatchQueue.main.async { self?.applyTitle() }
+        }
         applyTitle()
     }
 

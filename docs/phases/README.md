@@ -25,6 +25,7 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
+| 1.8 | #688 Ready-made speed colors, with your own as an advanced option | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 7 | #522 Improve onboarding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 8 | #582 Branding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 9 | #539 Short videos of features on their docs pages | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |

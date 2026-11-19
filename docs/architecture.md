@@ -371,7 +371,10 @@ Two stacked lines, `↓` download in green (`#51FF70`) over `↑` upload in ligh
   figures' size and weight, with edges on whole pixels of that picture. It's drawn on the
   readout's own signal and at most once a second, and again when the appearance
   changes; `MenuBarColors.readable` darkens the speed colors on light (and lightens
-  any too dark on dark) by OKLab lightness alone. With App icon the tile has no content
+  any too dark on dark) by OKLab lightness alone. The menu bar's readout is drawn when it's
+  shown, in its bar's appearance (an `NSImage` drawing handler, never cached): on a light
+  bar `MenuBarTints.onBar` darkens every colour to an OKLab lightness of 0.4, darker than
+  the Dock's 0.5 so a light bar over a mid-grey wallpaper still reads at 3 : 1 (#672). With App icon the tile has no content
   view, so the Dock shows the app's icon. `applicationDockMenu` builds the right-click
   menu's items, with the speeds in words first when they're on the icon.
   `DesignShots --dock-icons <dir>` draws the icon at the Dock's sizes, light and dark.
