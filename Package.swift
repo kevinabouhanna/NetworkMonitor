@@ -88,6 +88,15 @@ let package = Package(
             dependencies: [.product(name: "X509", package: "swift-certificates")],
             path: "Sources/SiteCertificates"
         ),
+        // Enhanced ad blocking's page rewriter (#683): HTTP/1.1 exchanges read,
+        // a page given its site's hiding and scriptlets, anything unexpected
+        // passed through untouched. No system parts beyond Foundation,
+        // Compression and Security, so it's tested on recorded exchanges.
+        .target(
+            name: "PageRewriter",
+            dependencies: ["FirewallPolicy"],
+            path: "Sources/PageRewriter"
+        ),
         // The site a connection is for, read from its opening handshake (#196):
         // TLS's server_name, and QUIC's, from Initial packets anyone can
         // decrypt. Pure Foundation and the system's crypto, for the filter
@@ -140,7 +149,7 @@ let package = Package(
         .executableTarget(
             name: "NetworkMonitorTests",
             dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory", "FilterProtocol",
-                           "FirewallPolicy", "HandshakeName", "SiteCertificates"],
+                           "FirewallPolicy", "HandshakeName", "SiteCertificates", "PageRewriter"],
             path: "Sources/NetworkMonitorTests"
         ),
     ]
