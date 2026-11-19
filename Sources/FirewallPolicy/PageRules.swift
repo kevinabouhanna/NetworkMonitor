@@ -206,6 +206,23 @@ public struct PageRules: Codable, Equatable {
     private(set) var bySite: [String: [Entry]] = [:]
     /// The rules read from the lists, before they're spread over their sites.
     public private(set) var ruleCount = 0
+    /// Where each generic selector is, so a site's few exceptions are taken
+    /// out without looking at the thirteen thousand others.
+    private var genericIndex: [String: Int] = [:]
+
+    private enum CodingKeys: String, CodingKey { case generic, bySite, ruleCount }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        generic = try container.decode([String].self, forKey: .generic)
+        bySite = try container.decode([String: [Entry]].self, forKey: .bySite)
+        ruleCount = try container.decode(Int.self, forKey: .ruleCount)
+        genericIndex = Self.index(generic)
+    }
+
+    private static func index(_ selectors: [String]) -> [String: Int] {
+        Dictionary(selectors.enumerated().map { ($0.element, $0.offset) }, uniquingKeysWith: { first, _ in first })
+    }
 
     public init(rules: [PageRule]) {
         var generic: [String] = []
@@ -248,6 +265,7 @@ public struct PageRules: Codable, Equatable {
             }
         }
         ruleCount = rules.count
+        genericIndex = Self.index(self.generic)
     }
 
     /// The rules from a list's text. Lines in `!#if … !#endif` blocks are
@@ -295,8 +313,12 @@ public struct PageRules: Codable, Equatable {
         }
         var selectors: [String] = []
         if !noHiding {
-            selectors = noGeneric ? hide : generic + hide
-            if !unhide.isEmpty { selectors = selectors.filter { !unhide.contains($0) } }
+            if !noGeneric {
+                selectors = generic
+                let gone = unhide.compactMap { genericIndex[$0] }.sorted(by: >)
+                for index in gone { selectors.remove(at: index) }
+            }
+            selectors += unhide.isEmpty ? hide : hide.filter { !unhide.contains($0) }
         }
         scriptlets = noScriptletsAtAll ? [] : scriptlets.filter { !noScriptlets.contains($0) }
         return ForPage(selectors: selectors, scriptlets: scriptlets)

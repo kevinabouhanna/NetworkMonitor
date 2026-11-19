@@ -167,10 +167,15 @@ func runPageRulesTests() {
             guard let shipped else { return Check.expectTrue(false, "no \(url.path)") }
             let hosts = ["www.example.com", "news.bbc.co.uk", "www.youtube.com", "en.softonic.com", "a.b.c.d.example.org"]
             _ = shipped.forPage(on: hosts[0])
-            let start = Date()
-            let rounds = 200
-            for round in 0..<rounds { _ = shipped.forPage(on: hosts[round % hosts.count]) }
-            let each = Date().timeIntervalSince(start) / Double(rounds)
+            // The best of five rounds: what a lookup costs, not what other
+            // work on the Mac (CI runs jobs side by side) took from it.
+            var each = Double.infinity
+            for _ in 0..<5 {
+                let start = Date()
+                let rounds = 100
+                for round in 0..<rounds { _ = shipped.forPage(on: hosts[round % hosts.count]) }
+                each = min(each, Date().timeIntervalSince(start) / Double(rounds))
+            }
             // On this Mac; a shared GitHub runner gets ten times the room.
             let limit = ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] == nil ? 0.001 : 0.01
             Check.expectTrue(each < limit, "\(Int(each * 1_000_000)) µs each")
