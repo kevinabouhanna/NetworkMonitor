@@ -92,6 +92,24 @@ case "build":
         sources += "| \(topic.title) | [\(topic.source)](\(topic.sourceURL)) | \(topic.licence) | \(table.count) |\n"
         print("\(topic.rawValue): \(table.count) names")
     }
+    // The rules for inside pages, for Enhanced ad blocking (#681, #256). They
+    // ship with the app; the weekly refresh carries the names alone.
+    var pageText = ""
+    for (name, url) in PageRules.sources {
+        let text = download(url)
+        pageText += text + "\n"
+        print("\(name): \(text.split(whereSeparator: \.isNewline).count) lines")
+    }
+    let pages = PageRules(listText: pageText)
+    guard pages.generic.count >= PageRules.minimumGeneric else {
+        fail("pages: only \(pages.generic.count) rules for every page; refusing to publish")
+    }
+    try pages.encoded().write(to: output.appendingPathComponent(PageRules.fileName), options: .atomic)
+    sources += "\n| Inside pages (Enhanced ad blocking) | Source | Licence | Rules |\n|---|---|---|---|\n"
+    sources += "| Every page, and \(pages.siteCount) sites | "
+        + PageRules.sources.map { "[\($0.name)](\($0.url))" }.joined(separator: ", ")
+        + " | [CC BY-SA 3.0](https://easylist.to/pages/licence.html) | \(pages.ruleCount) |\n"
+    print("pages: \(pages.generic.count) for every page, \(pages.siteCount) sites, \(pages.ruleCount) rules")
     try Data((version + "\n").utf8).write(to: output.appendingPathComponent(Blocklists.versionFile), options: .atomic)
     try Data(sources.utf8).write(to: output.appendingPathComponent("SOURCES.md"), options: .atomic)
     guard Blocklists(directory: output) != nil else { fail("the lists written don't read back") }
