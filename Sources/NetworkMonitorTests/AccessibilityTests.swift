@@ -9,8 +9,7 @@ import NetworkMonitorCore
 func runAccessibilityTests() {
     // Every SF Symbol the app's code names, so a control named after one is
     // caught on any macOS (see `AccessibilityAudit.audit`).
-    let sources = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-        .deletingLastPathComponent().appendingPathComponent("NetworkMonitorCore")
+    let sources = Check.repositoryRoot().appendingPathComponent("Sources/NetworkMonitorCore")
     var symbols: Set<String> = ["gearshape.fill"]   // FaultyView's
     let pattern = try! NSRegularExpression(pattern: #"(?:systemName|systemSymbolName): "([a-z0-9.]+)""#)
     for file in (try? FileManager.default.contentsOfDirectory(at: sources, includingPropertiesForKeys: nil)) ?? [] {
@@ -20,7 +19,15 @@ func runAccessibilityTests() {
         }
     }
 
-    Check.suite("Accessibility") {
+    Check.windowSuite("Accessibility") {
+        // What the audits lean on, read from the checkout, or in the VM from
+        // the copy of it (#675): without them they'd pass, checking less.
+        Check.test("the app's symbols and every language's table are there to check against") {
+            Check.expectTrue(symbols.count > 20, "only \(symbols.count) symbols, from \(sources.path)")
+            Check.expectTrue(Localization.shared.available.count > 1,
+                             "only \(Localization.shared.available) to show the windows in")
+        }
+
         OutOfSight.startApp()
 
         let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("a11y-\(UUID().uuidString)")

@@ -9,7 +9,8 @@ import NetworkMonitorCore
 /// sidebar, a switch and search. Built here with empty data; `make
 /// design-shots KEYBOARD=1` tours the same windows with rows in their lists.
 func runKeyboardTests() {
-    Check.suite("Keyboard and VoiceOver") {
+    Check.windowSuite("Keyboard and VoiceOver",
+                      notInVM: "the keyboard tour can't place SwiftUI's stops in the VM yet (#678)") {
         OutOfSight.startApp()
         KeyboardTour.start()
         defer { KeyboardTour.stop() }

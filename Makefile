@@ -14,7 +14,7 @@ build:
 # Then that .claude/ci.conf.sh, the CI `local-ci` runs, names and defines both jobs (#490).
 # Then the appcast's notes in every language, on made-up notes (#640).
 test: build/site-shots
-	@./Scripts/swiftpm.sh run NetworkMonitorTests
+	@./Scripts/test.sh
 	@python3 -I Scripts/lang-kit strings
 	@build/site-shots coverage-test
 	@./Scripts/tests/ci-conf-test.sh

@@ -5,8 +5,7 @@ import NetworkMonitorCore
 /// picked, how text is filled in, and that every piece of text the interface
 /// shows goes through `L("…")` and is in every language's table.
 func runLocalizationTests() {
-    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-        .deletingLastPathComponent().deletingLastPathComponent()
+    let root = Check.repositoryRoot()
     let tables = root.appendingPathComponent("Resources/Localization")
     // The suite runs outside the app, so it reads the checkout's tables.
     Localization.shared.useTables(in: tables)
