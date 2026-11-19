@@ -1,12 +1,15 @@
 name: Test build
+run-name: Test build of ${{ inputs.ref }} (${{ inputs.id }})
 
 # A signed, notarized test build of a branch (#704), for checking what only a
 # Developer ID build carries (the content filter, the helper, Enhanced ad
 # blocking's proxy) in a VM, without releasing. Started by hand:
-#   Scripts/test-build.sh <branch>     (or: gh workflow run test-build.yml -f ref=<branch>)
+#   Scripts/test-build.sh <branch>
 # It never makes a release or an appcast, so no installed copy is ever offered
-# it. The disk image is kept as this run's artifact for 14 days, visible only
-# to the repository's collaborators.
+# it, and its build number is above any release's, so it's never offered one
+# either. The repository is public, so its disk image would be downloadable by
+# anyone signed in to GitHub: it's kept one day at most, and the script deletes
+# it as soon as it has downloaded it.
 on:
   workflow_dispatch:
     inputs:
@@ -14,13 +17,20 @@ on:
         description: "The branch (or commit) to build"
         required: true
         default: main
+      id:
+        description: "What the starting script finds its run by"
+        required: false
+        default: by hand
 
 permissions:
   contents: read
+  actions: read
 
+# Queued, never cancelled: a cancelled run would leave its script waiting and
+# a notarization half done.
 concurrency:
   group: test-build-${{ inputs.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -34,12 +44,14 @@ jobs:
           # bundle.sh numbers the build by the commit count.
           fetch-depth: 0
 
-      # The version of the newest release, so the build reads as that and
-      # its updater offers nothing.
-      - name: Find the newest release's version
+      # The newest release's version, so it reads as that; a build number above
+      # every release's, so its updater never offers it a release.
+      - name: Name the build
         id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          latest=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo v0.0.0)
+          latest=$(gh release view -R "$GITHUB_REPOSITORY" --json tagName -q .tagName)
           echo "value=${latest#v}" >> "$GITHUB_OUTPUT"
           echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -47,6 +59,7 @@ jobs:
       - name: Build, sign, notarize and package
         env:
           MARKETING_VERSION: ${{ steps.version.outputs.value }}
+          BUILD_NUMBER: "999999"
           DEVID_P12_BASE64: ${{ secrets.DEVID_P12_BASE64 }}
           DEVID_P12_PASSWORD: ${{ secrets.DEVID_P12_PASSWORD }}
           NOTARY_KEY_BASE64: ${{ secrets.NOTARY_KEY_BASE64 }}
@@ -62,19 +75,33 @@ jobs:
           NOTARIZE=1 make dmg
           rm -f "$DEVID_P12" "$NOTARY_KEY"
 
-      - name: Verify the signature, the notarization and the content filter
+      # The Release workflow's checks: both architectures, the helper, the
+      # filter and its data, the signature and the notarization stapled.
+      - name: Verify it as a release is verified
+        env:
+          REF: ${{ inputs.ref }}
+          COMMIT: ${{ steps.version.outputs.commit }}
         run: |
-          codesign -dvv build/NetworkMonitor.app 2>&1 | grep -q 'TeamIdentifier=GRQKG7M8CL'
-          spctl -a -vv build/NetworkMonitor.app 2>&1 | tee /dev/stderr | grep -q 'source=Notarized Developer ID'
-          xcrun stapler validate build/NetworkMonitor.dmg
-          filter=build/NetworkMonitor.app/Contents/Library/SystemExtensions/com.kevinabouhanna.NetworkMonitor.Filter.systemextension
+          app=build/NetworkMonitor.app
+          lipo -archs "$app/Contents/MacOS/NetworkMonitor"
+          helper=$app/Contents/Library/LaunchServices/com.kevinabouhanna.NetworkMonitor.helper
+          case "$(lipo -archs "$helper")" in *arm64*x86_64*|*x86_64*arm64*) ;; *) echo "helper isn't universal" >&2; exit 1 ;; esac
+          filter=$app/Contents/Library/SystemExtensions/com.kevinabouhanna.NetworkMonitor.Filter.systemextension
+          case "$(lipo -archs "$filter/Contents/MacOS/com.kevinabouhanna.NetworkMonitor.Filter")" in
+            *arm64*x86_64*|*x86_64*arm64*) ;; *) echo "filter isn't universal" >&2; exit 1 ;; esac
           test -f "$filter/Contents/embedded.provisionprofile"
-          echo "test build of ${{ inputs.ref }} at ${{ steps.version.outputs.commit }}, as ${{ steps.version.outputs.value }}"
+          test -f "$filter/Contents/Resources/Geo/owners.bin"
+          codesign --verify --deep --strict "$app"
+          codesign -dvv "$app" 2>&1 | grep -q 'TeamIdentifier=GRQKG7M8CL'
+          spctl -a -vv "$app" 2>&1 | tee /dev/stderr | grep -q 'source=Notarized Developer ID'
+          xcrun stapler validate "$app"
+          xcrun stapler validate build/NetworkMonitor.dmg
+          echo "test build of $REF at $COMMIT"
 
-      - name: Keep the disk image for 14 days
+      - name: Keep the disk image for the script to fetch
         uses: actions/upload-artifact@v4
         with:
           name: NetworkMonitor-test-${{ steps.version.outputs.commit }}
           path: build/NetworkMonitor.dmg
-          retention-days: 14
+          retention-days: 1
           if-no-files-found: error

@@ -286,10 +286,12 @@ secrets. Check that GitHub can take one first ([Releasing](#releasing)).
 the helper, Enhanced ad blocking's proxy) can't be checked from a development build, and the
 signing keys aren't on this Mac. `Scripts/test-build.sh <branch>` starts GitHub's *Test build*
 workflow on a pushed branch: it builds, signs and notarizes as a release does, with the same
-secrets, keeps the disk image as the run's artifact for 14 days, and never makes a release or
-an appcast, so no installed copy is offered it. The script waits (90 minutes at most), downloads
-it to `~/Library/Caches/networkmonitor-dev/test-builds/<commit>/`, and prints its path, for a VM
-(`mac-vm`).
+secrets, and checks it as a release is checked. It never makes a release or an appcast, and its
+build number is above any release's, so no copy is ever offered it and it's never offered one.
+The script waits, downloads the disk image to
+`~/Library/Caches/networkmonitor-dev/test-builds/<commit>/`, prints its path, for a VM
+(`mac-vm`), and deletes it from GitHub: the repository is public, so anyone signed in could
+fetch it there (it expires within a day anyway).
 
 ## Contributing
 
