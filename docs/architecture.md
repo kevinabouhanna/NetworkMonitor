@@ -216,12 +216,22 @@ Each `nettop` row is a process name and pid, followed by its connections.
 2. The **outermost** `.app` in that path is the app, so Chrome's dozen helper processes
    all become one *Google Chrome* row. Process names can't be keys: `nettop` truncates
    them to 15 characters.
-3. A process outside any `.app` is **adopted** by its nearest ancestor that is one,
+3. **Copies of one app are one key** (#663), still a path: an iOS simulator install drops
+   its device's and its install's random folders (`…/CoreSimulator/Home Control.app`,
+   named *Home Control (Simulator)*); a copy outside `/Applications`, `~/Applications`,
+   `/System` and `/Library` with the same bundle id and folder name as
+   `/Applications/<name>.app` is that app; an app macOS moved aside
+   (`AppTranslocation`) and a simulator runtime's daemons drop their random folder. The
+   filter files a connection by the same `AppKey`, reading a copy's bundle id from its
+   signature where its sandbox keeps the Info.plist closed, and its team (#202) from the
+   copy itself, so a copy signed by someone else isn't covered by the app's rules. Rows
+   stored apart before are folded once when the history opens.
+4. A process outside any `.app` is **adopted** by its nearest ancestor that is one,
    walking up to 8 parent pids. So `node`, `git` or `curl` started from a terminal or an
    editor shows as a child of iTerm2 or VS Code instead of vanishing into System. A
    process's own path is tried first, so a helper that ships inside another app's
    bundle stays with that app.
-4. Anything left (daemons, `kernel_task`) is **System**, one collapsed row, because
+5. Anything left (daemons, `kernel_task`) is **System**, one collapsed row, because
    `mDNSResponder` alone was measured at 263 MB against 6 MB for the top real app.
 
 Rows with the same app merge, an app's total includes its children, and an app shows at

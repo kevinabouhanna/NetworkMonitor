@@ -1,5 +1,6 @@
 import FirewallPolicy
 import Foundation
+import os
 
 // MARK: - Model
 
@@ -1659,7 +1660,6 @@ public final class UsageHistory {
                 PRIMARY KEY (report, source, name)
             ) WITHOUT ROWID;
             CREATE INDEX IF NOT EXISTS updates_by_session ON updates (session_id);
-            PRAGMA user_version = 1;
             """)
         // Databases from before #128 have servers without a name column.
         if (try? database.scalar("SELECT COUNT(*) FROM pragma_table_info('servers') WHERE name = 'name'")) == 0 {
@@ -1671,7 +1671,117 @@ public final class UsageHistory {
             try database.execute("ALTER TABLE server_traffic ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0")
         }
         try renameTools(database)
+        // Once: rows of copies of one app, stored apart before #663.
+        // A fold that fails leaves the history as it was, to try again next
+        // time: never a reason to set the file aside as unreadable.
+        if (try? database.scalar("PRAGMA user_version")) ?? 0 < 2 {
+            do {
+                try foldCopies(database)
+                try database.execute("PRAGMA user_version = 2")
+            } catch {
+                Logger(subsystem: "com.kevinabouhanna.NetworkMonitor", category: "history")
+                    .error("Couldn't fold copies of one app together (#663): \(String(describing: error), privacy: .public)")
+            }
+        }
         return database
+    }
+
+    /// Files every row under the key it has now (#663): the 65 rows one iOS
+    /// simulator app left, one per install, become one, and builds of an
+    /// installed app join it. Bytes, servers, names and blocks are added
+    /// together, never dropped.
+    static func foldCopies(_ database: SQLiteDatabase, installedFolder: String = "/Applications") throws {
+        let query = try database.prepare("SELECT key, name FROM apps")
+        var moves: [(from: String, to: String, name: String)] = []
+        while try query.step() {
+            guard let key = query.string(0) else { continue }
+            let current = AppIdentityResolver.currentKey(forStored: key, installedFolder: installedFolder)
+            if current != key { moves.append((key, current, query.string(1) ?? "")) }
+        }
+        guard !moves.isEmpty else { return }
+        try database.transaction {
+            for move in moves { try foldApp(move.from, into: move.to, name: move.name, database) }
+        }
+    }
+
+    private static func foldApp(_ old: String, into new: String, name: String, _ database: SQLiteDatabase) throws {
+        let keys: [SQLiteStatement.Value] = [.text(old), .text(new)]
+        // The row naming it: the one already there, or this one moved.
+        if try database.prepare("SELECT 1 FROM apps WHERE key = ?1").bind([.text(new)]).step() {
+            try database.prepare("DELETE FROM apps WHERE key = ?1").run([.text(old)])
+        } else {
+            // Named, and nested, as the row is now: "(Simulator)", "(other
+            // copies)", under the app that started it as that app is now filed.
+            var newName = name
+            if AppKey.isSimulatorApp(new), !name.hasSuffix(L("%@ (Simulator)", "")) {
+                newName = L("%@ (Simulator)", name)
+            } else if AppKey.installedApp(ofCopiesKey: new) != nil {
+                newName = AppIdentityResolver.identity(forKey: new).displayName
+            }
+            let parent = new.contains(AppKey.separator) ? AppIdentityResolver.identity(forKey: new).parent : nil
+            try database.prepare("""
+                UPDATE apps SET key = ?2, name = ?3,
+                    parent_key = COALESCE(?4, parent_key), parent_name = COALESCE(?5, parent_name),
+                    parent_bundle_path = COALESCE(?6, parent_bundle_path)
+                WHERE key = ?1
+                """).run(keys + [.text(newName), parent.map { .text($0.key) } ?? .null,
+                                 parent.map { .text($0.displayName) } ?? .null,
+                                 parent.map { .text($0.bundlePath) } ?? .null])
+        }
+        try database.prepare("UPDATE apps SET parent_key = ?2 WHERE parent_key = ?1").run(keys)
+
+        try database.prepare("""
+            INSERT INTO app_traffic (hour, session_id, app_key, bytes_in, bytes_out)
+            SELECT hour, session_id, ?2, bytes_in, bytes_out FROM app_traffic WHERE app_key = ?1
+            ON CONFLICT(hour, session_id, app_key) DO UPDATE SET
+                bytes_in = bytes_in + excluded.bytes_in, bytes_out = bytes_out + excluded.bytes_out
+            """).run(keys)
+        try database.prepare("DELETE FROM app_traffic WHERE app_key = ?1").run([.text(old)])
+
+        try database.prepare("""
+            INSERT INTO list_blocks (hour, session_id, app_key, name, list, count)
+            SELECT hour, session_id, ?2, name, list, count FROM list_blocks WHERE app_key = ?1
+            ON CONFLICT(hour, session_id, app_key, name, list) DO UPDATE SET count = count + excluded.count
+            """).run(keys)
+        try database.prepare("DELETE FROM list_blocks WHERE app_key = ?1").run([.text(old)])
+
+        // Each server it talked to: moved, or added to the one the new key
+        // already has, with its traffic and names.
+        let servers = try database.prepare("""
+            SELECT o.id, n.id FROM app_servers o
+            LEFT JOIN app_servers n ON n.app_key = ?2 AND n.server_id = o.server_id
+            WHERE o.app_key = ?1
+            """)
+        servers.bind(keys)
+        var pairs: [(old: Int64, new: Int64?)] = []
+        while try servers.step() { pairs.append((servers.int64(0), servers.isNull(1) ? nil : servers.int64(1))) }
+        for pair in pairs {
+            guard let target = pair.new else {
+                try database.prepare("UPDATE app_servers SET app_key = ?2 WHERE id = ?1").run([.int(pair.old), .text(new)])
+                continue
+            }
+            let ids: [SQLiteStatement.Value] = [.int(pair.old), .int(target)]
+            try database.prepare("""
+                INSERT INTO server_traffic (hour, session_id, app_server_id, bytes_in, bytes_out, blocked)
+                SELECT hour, session_id, ?2, bytes_in, bytes_out, blocked FROM server_traffic WHERE app_server_id = ?1
+                ON CONFLICT(hour, session_id, app_server_id) DO UPDATE SET
+                    bytes_in = bytes_in + excluded.bytes_in, bytes_out = bytes_out + excluded.bytes_out,
+                    blocked = blocked + excluded.blocked
+                """).run(ids)
+            try database.prepare("""
+                INSERT INTO server_names (hour, session_id, app_server_id, name, allowed, blocked)
+                SELECT hour, session_id, ?2, name, allowed, blocked FROM server_names WHERE app_server_id = ?1
+                ON CONFLICT(hour, session_id, app_server_id, name) DO UPDATE SET
+                    allowed = allowed + excluded.allowed, blocked = blocked + excluded.blocked
+                """).run(ids)
+            try database.prepare("""
+                UPDATE app_servers SET first_seen = MIN(first_seen, (SELECT first_seen FROM app_servers WHERE id = ?1))
+                WHERE id = ?2
+                """).run(ids)
+            try database.prepare("DELETE FROM server_traffic WHERE app_server_id = ?1").run([.int(pair.old)])
+            try database.prepare("DELETE FROM server_names WHERE app_server_id = ?1").run([.int(pair.old)])
+            try database.prepare("DELETE FROM app_servers WHERE id = ?1").run([.int(pair.old)])
+        }
     }
 
     /// Programs outside any app stored under their file name when a better
