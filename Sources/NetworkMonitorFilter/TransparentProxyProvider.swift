@@ -141,8 +141,10 @@ final class EnhancedProxy {
     private func makeBridge() -> SecureBridge? {
         do {
             let machine = SCDynamicStoreCopyComputerName(nil, nil) as String? ?? "this Mac"
-            let (authority, made) = try AuthorityStore.load(machine: machine)
-            if made { log.notice("made a new root") }
+            if case .missing(let why) = AuthorityStore.lookUp() {
+                log.notice("no root to use (\(why, privacy: .public)): making one")
+            }
+            let (authority, _) = try AuthorityStore.load(machine: machine)
             // A root macOS doesn't trust would show every page a certificate
             // error: until it's trusted, nothing is opened.
             let probe = try authority.issue(for: "trust-check.invalid", key: authority.certificate.publicKey)

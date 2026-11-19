@@ -246,14 +246,33 @@ public enum AuthorityStore {
     /// The kept root, if its one key and one certificate belong together and
     /// it hasn't ended.
     static func find(in keychain: SecKeychain?, now: Date) -> CertificateAuthority? {
+        if case .found(let authority) = lookUp(in: keychain, now: now) { return authority }
+        return nil
+    }
+
+    /// The kept root, or why there's none to use, for the log.
+    public enum Lookup {
+        case found(CertificateAuthority)
+        case missing(String)
+    }
+
+    public static func lookUp(in keychain: SecKeychain? = nil, now: Date = Date()) -> Lookup {
         let keys = AuthorityKey.find(in: keychain)
         let certificates = certificates(in: keychain)
-        guard keys.count == 1, certificates.count == 1,
-              let key = try? Certificate.PrivateKey(keys[0]),
-              let certificate = try? Certificate(derEncoded: Array(SecCertificateCopyData(certificates[0]) as Data)),
-              certificate.publicKey == key.publicKey,
-              certificate.notValidAfter > now else { return nil }
-        return CertificateAuthority(certificate: certificate, key: key)
+        guard keys.count == 1, certificates.count == 1 else {
+            return .missing("\(keys.count) keys and \(certificates.count) certificates")
+        }
+        let key: Certificate.PrivateKey
+        do { key = try Certificate.PrivateKey(keys[0]) } catch { return .missing("the key: \(error)") }
+        let certificate: Certificate
+        do {
+            certificate = try Certificate(derEncoded: Array(SecCertificateCopyData(certificates[0]) as Data))
+        } catch {
+            return .missing("the certificate: \(error)")
+        }
+        guard certificate.publicKey == key.publicKey else { return .missing("the key isn't the certificate's") }
+        guard certificate.notValidAfter > now else { return .missing("it ended") }
+        return .found(CertificateAuthority(certificate: certificate, key: key))
     }
 
     /// The roots in `keychain`, by their name, "NetworkMonitor Enhanced Ad
