@@ -1,25 +1,21 @@
 # Phase 1: Everyday polish
 
-**Milestone:** Phase 1: Everyday polish · **Status:** Now
+**Milestone:** Phase 1: Everyday polish · **Status:** Done
 
 **Goal:** what people touch every day feels finished: the popover never jumps, the main
 window's three lists behave the same, and the VoiceOver and keyboard work of 1.29 is checked.
 
 ## The plans
 
-Open again (17 Nov 2026) for a bug Kevin found in what he uses every day:
-
-- **#672** The menu bar readout reads on a light wallpaper too (from Kevin's Inbox, 19 Nov
-  2026). Its two colours are fixed and made for a dark menu bar, so on a light wallpaper they
-  nearly vanish. It follows the bar as macOS's own icons do: unchanged on a dark bar; on a
-  light one each colour keeps its hue, darkened just enough to read, the colours chosen in
-  Settings, Block Everything's and the speed test's included. First in Now.
-- **#688** Ready-made speed colors, with your own as an advanced option (Kevin, 19 Nov
-  2026, after #672's design): six pairs that read on dark and light menu bars, and Custom…
-  for your own. Later, until Kevin says go on its design.
+Nothing open: everything Kevin found on 17–19 Nov is done, waiting for a release.
 
 Done on 19 Nov 2026, on `main`, not released yet (releases are on hold until Kevin says):
 
+- the menu bar readout reads on a light wallpaper too (#672): on a light bar every colour it
+  takes is darkened to read, keeping its hue, and a speed test's are chosen clear of the live
+  ones there; unchanged on a dark bar; it follows the wallpaper without a relaunch.
+- ready-made speed colors (#688): six pairs (Green, Teal, Blue, Gold, Pink, Violet) that read
+  on dark and light menu bars, and Custom… for your own.
 - copies of one app are one row (#663): every iPhone Simulator install of an app is one row,
   *(Simulator)*; a build signed by the installed app's team is that app, and other builds of
   it are one row of their own, *(other copies)*. History already recorded is folded the same
