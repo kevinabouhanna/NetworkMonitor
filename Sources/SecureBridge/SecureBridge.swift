@@ -121,12 +121,18 @@ public final class SecureBridge: @unchecked Sendable {
     }
 
     /// The least recently used site's listener goes, past `maxSites`.
+    /// Never one used in the last few seconds, whose port a browser may be
+    /// about to connect to; a site still starting goes with its waiters told.
     private func evictIfFull() {
-        guard sites.count >= Self.maxSites,
-              let oldest = sites.filter({ $0.value.listener != nil }).min(by: { $0.value.lastUsed < $1.value.lastUsed })
-        else { return }
-        sites.removeValue(forKey: oldest.key)
-        oldest.value.listener?.cancel()
+        let recent = Date().addingTimeInterval(-10)
+        while sites.count >= Self.maxSites {
+            guard let oldest = sites.filter({ $0.value.lastUsed < recent }).min(by: { $0.value.lastUsed < $1.value.lastUsed })
+            else { return }
+            sites.removeValue(forKey: oldest.key)
+            oldest.value.listener?.cancel()
+            oldest.value.waiting.forEach { $0(nil) }
+            oldest.value.waiting.removeAll()
+        }
     }
 
     private func listen(_ site: Site, key: String, host: String, sitePort: UInt16, identity: sec_identity_t?) {
@@ -265,13 +271,20 @@ private final class Exchange {
     /// Quiet too long: a page being held goes on as it is, untouched, rather
     /// than lost; anything else closes.
     private func quiet() {
-        if holding == true, !reply.isEmpty {
+        if holding == true, !reply.isEmpty, !abandoned {
             holding = false
+            abandoned = true
+            site?.cancel()
+            // Closed next time it's quiet, if the browser never takes it.
+            touch()
             bridge.events(.untouched(host: host, .cantRead("a page whose end didn't come")))
             return passOn(thenMore: false)
         }
         close()
     }
+
+    /// The site's side given up on: nothing more read from it.
+    private var abandoned = false
 
     /// What this exchange's held page counts against the bridge's limit.
     private var counted = 0
@@ -410,7 +423,7 @@ private final class Exchange {
     private func readReply() {
         guard let site else { return }
         site.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { [self] data, _, done, error in
-            guard !closed else { return }
+            guard !closed, !abandoned else { return }
             touch()
             if let data, !data.isEmpty { reply.append(data) }
             let ended = done || error != nil
@@ -497,6 +510,9 @@ private final class Exchange {
         case .length(let length)?:
             return reply.count - bodyStart >= length
         case .chunked?:
+            // Read whole only once it ends as a last chunk does: not every
+            // piece that comes.
+            guard reply.count - bodyStart >= 5, reply.suffix(5) == Data("0\r\n\r\n".utf8) else { return false }
             let body = Data(reply[(reply.startIndex + bodyStart)...])
             guard let (_, used) = (try? ChunkedBody.decode(body)) ?? nil else { return false }
             return used == body.count
@@ -527,7 +543,10 @@ private final class Exchange {
 public final class SiteIdentities: @unchecked Sendable {
     public let certificates: SiteCertificateCache
     private let keychain: SecKeychain?
-    private let lock = NSLock()
+    /// One for every instance: the bridge made each day cleans up while the
+    /// last may still be making an identity.
+    private static let lock = NSLock()
+    private var lock: NSLock { Self.lock }
 
     /// The key's and the sites' certificates' label, to find and remove them.
     public static let label = "NetworkMonitor Enhanced Ad Blocking site"
@@ -540,9 +559,11 @@ public final class SiteIdentities: @unchecked Sendable {
         self.certificates = SiteCertificateCache(authority: authority, siteKey: Certificate.PublicKey(p256))
         self.keychain = keychain
         // Any left by an earlier version, which kept them.
+        Self.lock.lock()
         for certificate in Self.siteCertificates(in: keychain) {
             SecItemDelete([kSecClass as String: kSecClassCertificate, kSecValueRef as String: certificate] as CFDictionary)
         }
+        Self.lock.unlock()
     }
 
     private static func query(_ itemClass: CFString, in keychain: SecKeychain?) -> [String: Any] {

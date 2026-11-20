@@ -64,6 +64,24 @@ func runEnhancedSecurityTests() {
             Check.expectFalse(why.contains("account") || why.contains("1234"), why)
         }
 
+        Check.test("a head with a UTF-8 cookie goes on byte for byte, its last character kept") {
+            let request = Data("GET / HTTP/1.1\r\nHost: a.example\r\nCookie: city=Bogotà\r\n\r\n".utf8)
+            guard let (head, _) = (try? HTTPHead.parse(request)) ?? nil else { return Check.expectTrue(false, "unread") }
+            Check.expectEqual(head.bytes, request)
+        }
+
+        Check.test("a root made before its limits, or with others, is made again; one with them is kept") {
+            let excluded = EnhancedBlocking.neverVouchedFor
+            do {
+                let key = Certificate.PrivateKey(P256.Signing.PrivateKey())
+                Check.expectFalse(try CertificateAuthority.make(key: key, machine: "Mac").isLimited(to: excluded))
+                Check.expectTrue(try CertificateAuthority.make(key: key, machine: "Mac", excluded: excluded).isLimited(to: excluded))
+                Check.expectFalse(try CertificateAuthority.make(key: key, machine: "Mac", excluded: ["gov"]).isLimited(to: excluded))
+            } catch {
+                Check.expectTrue(false, "\(error)")
+            }
+        }
+
         Check.test("site certificates an earlier version left in the keychain are found by their issuer and taken out") {
             let path = NSTemporaryDirectory() + "security-\(UUID().uuidString).keychain"
             var made: SecKeychain?

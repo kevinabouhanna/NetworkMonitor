@@ -107,6 +107,19 @@ public struct CertificateAuthority {
             extensions: extensions, issuerPrivateKey: signer)
     }
 
+    /// Whether it carries the limits it would be made with now: a root made
+    /// before them, or with other ones, is made again (#686).
+    public func isLimited(to excluded: [String]) -> Bool {
+        guard !excluded.isEmpty else { return true }
+        guard (try? certificate.extensions.extendedKeyUsage).flatMap({ $0 }).map(Array.init) == [.serverAuth],
+              let constraints = (try? certificate.extensions.nameConstraints) ?? nil else { return false }
+        let kept = Set(constraints.excludedSubtrees.compactMap { name -> String? in
+            if case .dnsName(let dns) = name { return dns }
+            return nil
+        })
+        return kept == Set(excluded)
+    }
+
     /// As DER, for the keychain and the trust settings.
     public func der() throws -> Data {
         var serializer = DER.Serializer()
@@ -244,7 +257,7 @@ public enum AuthorityStore {
     /// whether it was just made.
     public static func load(in keychain: SecKeychain? = nil, machine: String, excluded: [String] = [],
                             now: Date = Date()) throws -> (authority: CertificateAuthority, made: Bool) {
-        if let kept = find(in: keychain, now: now) { return (kept, false) }
+        if let kept = find(in: keychain, now: now), kept.isLimited(to: excluded) { return (kept, false) }
         // Never a second root beside one that can't be taken out.
         guard remove(from: keychain) else { throw CertificateError.keychain(errSecDuplicateItem) }
         let key = try Certificate.PrivateKey(AuthorityKey.make(in: keychain))

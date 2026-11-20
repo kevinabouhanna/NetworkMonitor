@@ -189,6 +189,7 @@ final class EnhancedProxy {
 
     func stop() {
         lock.lock()
+        refusedSites.removeAll()
         let old = bridge
         bridge = nil
         generation += 1
@@ -342,15 +343,19 @@ final class EnhancedProxy {
             lock.unlock()
             // Only the new one: one sent before may have been tried again since.
             if let app { AppLink.shared.leftAlone([app]) }
-            log.notice("\(app ?? "an app", privacy: .public) refused our certificate for \(host, privacy: .public); left alone from now on")
+            log.notice("\(app ?? "an app", privacy: .public) refused our certificate; left alone from now on")
+            log.debug("\(app ?? "an app", privacy: .public) refused our certificate for \(host, privacy: .public)")
         case .serverRefused(let host):
             // Its own certificate refused (a router's, a test server's): its
             // connections go on unopened for a while, so the browser shows
             // its own warning, which the person can choose to pass.
             lock.lock()
-            refusedSites[host] = Date()
+            let now = Date()
+            refusedSites = refusedSites.filter { now.timeIntervalSince($0.value) < Self.refusedFor }
+            if refusedSites.count < 1_000 { refusedSites[host] = now }
             lock.unlock()
-            log.notice("\(host, privacy: .public)'s certificate isn't trusted: refused, and left alone for an hour")
+            log.notice("a site's own certificate isn't trusted: refused, and left alone for an hour")
+            log.debug("\(host, privacy: .public)'s certificate isn't trusted")
         case .rewritten(let host):
             // Which sites were visited stays out of the kept log (#686).
             log.debug("hid ads on a page from \(host, privacy: .public)")
