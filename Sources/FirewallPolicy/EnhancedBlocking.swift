@@ -135,9 +135,18 @@ public struct EnhancedBlocking: Codable, Equatable {
         apps.contains(app) || apps.contains { app.hasPrefix($0 + ".") }
     }
 
+    /// Whether a request inside an opened page is answered empty (#699):
+    /// its rules by address refuse it, on a page it knows, never on one it
+    /// doesn't open or the person excludes, so a bank's page keeps all it
+    /// asks for, and a page it can't tell keeps it too.
+    public func refuses(_ request: AddressRequest, by rules: AddressRules) -> Bool {
+        guard let page = request.pageHost, !Self.isNeverOpened(page), !isExcluded(page) else { return false }
+        return rules.refuses(request)
+    }
+
     /// Excluded: the name, or any name above it (a platform's too, such as
     /// `github.io`), is in the person's list.
-    func isExcluded(_ name: String) -> Bool {
+    public func isExcluded(_ name: String) -> Bool {
         Self.namesAbove(name).contains { excludedSites.contains($0) }
     }
 

@@ -112,11 +112,15 @@ case "pages":
     guard pages.generic.count >= PageRules.minimumGeneric else {
         fail("pages: only \(pages.generic.count) rules for every page; refusing to publish")
     }
+    guard pages.addresses.count >= PageRules.minimumAddresses else {
+        fail("pages: only \(pages.addresses.count) rules by address; refusing to publish")
+    }
     try pages.encoded().write(to: output.appendingPathComponent(PageRules.fileName), options: .atomic)
-    let credit = "| Every page, and \(pages.siteCount) sites | "
+    let credit = "| Every page, and \(pages.siteCount) sites, and requests by address | "
         + PageRules.sources.map { "[\($0.name)](\($0.url))" }.joined(separator: ", ")
-        + " | [CC BY-SA 3.0](https://easylist.to/pages/licence.html) | \(pages.ruleCount) |"
-    print("pages: \(pages.generic.count) for every page, \(pages.siteCount) sites, \(pages.ruleCount) rules")
+        + " | [CC BY-SA 3.0](https://easylist.to/pages/licence.html) | \(pages.ruleCount + pages.addresses.count) |"
+    print("pages: \(pages.generic.count) for every page, \(pages.siteCount) sites, \(pages.ruleCount) rules, "
+          + "\(pages.addresses.count) by address")
     print("SOURCES.md's line for them:\n\(credit)")
 
 case "package":

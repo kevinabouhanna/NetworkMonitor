@@ -95,7 +95,7 @@ func runSecureBridgeTests() {
 
     /// A bridge and a site, both with roots of their own, the bridge
     /// trusting the site's root (or not).
-    func setUp(reply: Data, bridgeTrustsSite: Bool = true,
+    func setUp(reply: Data, bridgeTrustsSite: Bool = true, refuses: @escaping (AddressRequest) -> Bool = { _ in false },
                body: (_ bridgePort: UInt16, _ bridgeRoot: SecCertificate, _ events: () -> [BridgeEvent],
                       _ bridge: SecureBridge) -> Void) {
         guard let (keychain, done) = testKeychain(), let (siteKeychain, siteDone) = testKeychain() else {
@@ -115,6 +115,7 @@ func runSecureBridgeTests() {
             let bridge = SecureBridge(
                 identities: try SiteIdentities(authority: bridgeRoot, keychain: keychain),
                 additions: { _ in additions },
+                refuses: refuses,
                 trusts: { ServerTrust.isTrusted($0, host: $1, anchors: anchors) },
                 endpoint: { _, _ in .hostPort(host: "127.0.0.1", port: .init(rawValue: sitePort)!) },
                 events: { event in lock.lock(); seen.append(event); lock.unlock() })
@@ -220,6 +221,57 @@ func runSecureBridgeTests() {
                 }
                 Check.expectTrue(refused(events()), "with the client's port: \(events())")
             }
+        }
+
+        Check.test("a request its rules by address refuse is answered empty, one excepted goes to the site (#699)") {
+            let rules = AddressRules(lines: ["/ads/*$script", "@@/ads/house.js$script", "/pixel.gif$image"])
+            setUp(reply: pageReply, refuses: rules.refuses) { port, bridgeRoot, events, _ in
+                func get(_ path: String, dest: String) -> String? {
+                    let request = "GET \(path) HTTP/1.1\r\nHost: test.example\r\nSec-Fetch-Dest: \(dest)\r\n"
+                        + "Sec-Fetch-Site: same-origin\r\nOrigin: https://test.example\r\n\r\n"
+                    return browse(port: port, host: "test.example", anchor: bridgeRoot, request: request)
+                        .map { String(decoding: $0, as: UTF8.self) }
+                }
+                let refused = get("/ads/banner.js", dest: "script")
+                Check.expectTrue(refused?.hasPrefix("HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: 0\r\n")
+                                 == true, "empty: \(refused ?? "none")")
+                Check.expectTrue(refused?.contains("Access-Control-Allow-Origin: https://test.example") == true)
+                Check.expectFalse(refused?.contains("Story") == true, "nothing of the site's")
+                let pixel = browse(port: port, host: "test.example", anchor: bridgeRoot,
+                                   request: "GET /t/pixel.gif HTTP/1.1\r\nHost: test.example\r\nSec-Fetch-Dest: image\r\n\r\n")
+                Check.expectTrue(pixel.map { $0.suffix(43).starts(with: Data("GIF89a".utf8)) } == true, "a transparent pixel")
+                let excepted = get("/ads/house.js", dest: "script")
+                Check.expectTrue(excepted?.contains("Story") == true, "the site's own reply: \(excepted?.prefix(60) ?? "none")")
+                Check.expectTrue(get("/ads/banner.js", dest: "image")?.contains("Story") == true, "a script rule, not an image's")
+                // A refused request with a big body: read to its end first, so
+                // the browser gets the reply, never a reset connection.
+                let body = String(repeating: "x", count: 300_000)
+                let post = browse(port: port, host: "test.example", anchor: bridgeRoot,
+                                  request: "POST /ads/send.js HTTP/1.1\r\nHost: test.example\r\nSec-Fetch-Dest: script\r\n"
+                                    + "Content-Length: \(body.utf8.count)\r\n\r\n" + body)
+                Check.expectTrue(post.map { String(decoding: $0, as: UTF8.self).hasPrefix("HTTP/1.1 200 OK") } == true,
+                                 "the empty reply after the body")
+                Check.expectEqual(events().filter { $0 == .answeredEmpty(host: "test.example") }.count, 3)
+            }
+        }
+
+        Check.test("an empty reply: none for HEAD, a CORS preflight let through, nothing added from the request") {
+            func head(_ text: String) -> HTTPHead? { (try? HTTPHead.parse(Data(text.utf8)))?.head }
+            guard let headRequest = head("HEAD /p.gif HTTP/1.1\r\nHost: a\r\n\r\n"),
+                  let preflight = head("OPTIONS /c HTTP/1.1\r\nHost: a\r\nOrigin: https://site.example\r\n"
+                                       + "Access-Control-Request-Method: POST\r\n"
+                                       + "Access-Control-Request-Headers: content-type\r\n\r\n"),
+                  let sneaky = head("GET /x.js HTTP/1.1\r\nHost: a\r\nOrigin: https://a.example Set-Cookie: x\r\n\r\n") else {
+                return Check.expectTrue(false, "heads")
+            }
+            let none = String(decoding: EmptyReply.bytes(for: .image, request: headRequest), as: UTF8.self)
+            Check.expectTrue(none.hasSuffix("\r\n\r\n") && none.contains("Content-Length: 0"), none)
+            let allowed = String(decoding: EmptyReply.bytes(for: .xmlhttprequest, request: preflight), as: UTF8.self)
+            Check.expectTrue(allowed.hasPrefix("HTTP/1.1 204"), allowed)
+            Check.expectTrue(allowed.contains("Access-Control-Allow-Methods: POST\r\n"), allowed)
+            Check.expectTrue(allowed.contains("Access-Control-Allow-Headers: content-type\r\n"), allowed)
+            let plain = String(decoding: EmptyReply.bytes(for: .script, request: sneaky), as: UTF8.self)
+            Check.expectFalse(plain.contains("Set-Cookie") || plain.contains("Access-Control"), plain)
         }
 
         Check.test("a reply it can't read goes on byte for byte") {

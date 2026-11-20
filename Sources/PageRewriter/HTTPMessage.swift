@@ -53,6 +53,13 @@ public struct HTTPHead: Equatable {
         startLine.hasPrefix("HTTP/") ? nil : startLine.split(separator: " ").first.map(String.init)
     }
 
+    /// A request's target, `/path?query`; nil for a response.
+    public var target: String? {
+        guard method != nil else { return nil }
+        let parts = startLine.split(separator: " ")
+        return parts.count == 3 ? String(parts[1]) : nil
+    }
+
     /// The head as bytes, ending with its blank line.
     public var bytes: Data {
         var text = startLine + "\r\n"

@@ -170,6 +170,9 @@ final class EnhancedProxy {
                                     rules.map { PageAdditions($0.forPage(on: host)) }
                                         ?? PageAdditions(selectors: [], scriptlets: [])
                                 },
+                                refuses: { request in
+                                    rules.map { Firewall.shared.enhancedBlocking.refuses(request, by: $0.addresses) } ?? false
+                                },
                                 events: { [weak self] in self?.note($0) })
         } catch {
             log.error("no bridge, so nothing is opened: \(String(describing: error), privacy: .public)")
@@ -258,6 +261,8 @@ final class EnhancedProxy {
             log.notice("\(host, privacy: .public)'s certificate isn't trusted: refused")
         case .rewritten(let host):
             log.notice("hid ads on a page from \(host, privacy: .public)")
+        case .answeredEmpty(let host):
+            log.debug("answered a request to \(host, privacy: .public) empty: its address is an ad's or a tracker's")
         case .untouched(let host, let why):
             log.debug("a reply from \(host, privacy: .public) went on untouched: \(String(describing: why), privacy: .public)")
         }
