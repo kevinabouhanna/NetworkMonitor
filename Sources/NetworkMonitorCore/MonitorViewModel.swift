@@ -110,9 +110,11 @@ public final class MonitorViewModel: ObservableObject {
     public let listLibrary = ListLibrary()
     /// Encrypted lookups (#291).
     public let lookups = EncryptedLookups()
-    /// Enhanced ad blocking's proxy (#702): on only for a test run until
-    /// Settings has its switch (#685).
+    /// Enhanced ad blocking's proxy (#702), configured while its switch is on.
     public let enhancedProxy = EnhancedBlockingProxy()
+    /// Enhanced ad blocking's switch and the approval of its root (#685).
+    public private(set) lazy var enhanced = EnhancedBlockingController(
+        firewall: firewall, configureProxy: { [weak self] in self?.enhancedProxy.apply(isOn: true) })
     /// Each decision the filter reported, for the Ads window's log (#252).
     public let adsLog = AdsLog()
     #if DEBUG
@@ -133,6 +135,7 @@ public final class MonitorViewModel: ObservableObject {
     /// Updating NetworkMonitor itself (#132).
     public let updates = UpdateController()
     private var firewallPolicy: AnyCancellable?
+    private var enhancedProxyState: AnyCancellable?
     /// The readout's colours, and the speed test's alongside them (#45).
     public let menuBarColors: MenuBarColors
     /// Wi-Fi names, and the Location permission they need (#85).
@@ -284,13 +287,26 @@ public final class MonitorViewModel: ObservableObject {
         }
         filter.resume()
         lookups.resume()
-        enhancedProxy.apply(isOn: EnhancedBlockingProxy.isOnForTesting)
-        filter.onReplaced = { [weak self] in self?.enhancedProxy.apply(isOn: EnhancedBlockingProxy.isOnForTesting) }
+        // Enhanced ad blocking's proxy, configured while its switch is on
+        // (#685), and again after the filter is replaced by an update (#702).
+        enhancedProxyState = firewall.$enhancedBlocking
+            .map { $0.isOn || EnhancedBlockingProxy.isOnForTesting }
+            .removeDuplicates()
+            .sink { [weak self] isOn in self?.enhancedProxy.apply(isOn: isOn) }
+        // Apps that refuse its certificate are kept, left alone for good.
+        filter.onAppsLeftAlone = { [weak self] apps in
+            guard let self, !apps.isSubset(of: self.firewall.enhancedBlocking.pinnedApps) else { return }
+            self.firewall.enhancedBlocking.pinnedApps.formUnion(apps)
+        }
+        filter.onReplaced = { [weak self] in
+            guard let self else { return }
+            self.enhancedProxy.apply(isOn: self.firewall.enhancedBlocking.isOn || EnhancedBlockingProxy.isOnForTesting)
+        }
         // The rules, whether this is a hotspot for the ones that say "on
         // hotspots", and whether Hotspot mode pauses updates here (#98). The
         // values come from the publishers: they fire before the properties
         // change.
-        firewallPolicy = Publishers.CombineLatest3(
+        firewallPolicy = Publishers.CombineLatest4(
             Publishers.CombineLatest4(Publishers.CombineLatest4(firewall.$rules, firewall.$lists,
                                                                 firewall.$blocksEverything,
                                                                 firewall.$listsPausedUntil),
@@ -298,8 +314,8 @@ public final class MonitorViewModel: ObservableObject {
                                                                 firewall.$adRules,
                                                                 firewall.$listsPausedNetworks),
                                       $isExpensiveNetwork, metering.$isEnabled),
-            listLibrary.$ready, lookups.$resolverID)
-            .sink { [weak self] state, downloaded, resolver in
+            listLibrary.$ready, lookups.$resolverID, firewall.$enhancedBlocking)
+            .sink { [weak self] state, downloaded, resolver, enhanced in
                 let (rulesAndLists, modeAndNetwork, onHotspot, pausing) = state
                 let (mode, network, adRules, pausedNetworks) = modeAndNetwork
                 // None while ad blocking is paused (#251), and on a network
@@ -314,7 +330,9 @@ public final class MonitorViewModel: ObservableObject {
                                                   downloadedLists: lists.isEmpty ? [] : downloaded,
                                                   threatLists: Set(downloaded.filter(ListCatalogue.isThreat)),
                                                   lookupResolver: resolver,
-                                                  enhancedBlocking: EnhancedBlocking(isOn: EnhancedBlockingProxy.isOnForTesting)))
+                                                  enhancedBlocking: FirewallRules.enhancedPolicy(
+                                                    enhanced, adRules: adRules,
+                                                    onForTesting: EnhancedBlockingProxy.isOnForTesting)))
                 // Switched on with stale lists: fetch newer ones soon.
                 if !rulesAndLists.1.isEmpty {
                     self?.blocklists.checkSoon()

@@ -24,14 +24,18 @@ public struct EnhancedBlocking: Codable, Equatable {
     /// Apps found to refuse our certificate (they pin their own): left alone
     /// for good, by signing identifier, their helpers too.
     public var pinnedApps: Set<String>
+    /// The SHA-256 of the root the person approved (#685), so the filter
+    /// knows to try it at once rather than at its next retry.
+    public var trustedRoot: String?
 
     public init(isOn: Bool = false, addedApps: Set<String> = [], removedApps: Set<String> = [],
-                excludedSites: Set<String> = [], pinnedApps: Set<String> = []) {
+                excludedSites: Set<String> = [], pinnedApps: Set<String> = [], trustedRoot: String? = nil) {
         self.isOn = isOn
         self.addedApps = addedApps
         self.removedApps = removedApps
         self.excludedSites = Set(excludedSites.compactMap(SiteName.normalized))
         self.pinnedApps = pinnedApps
+        self.trustedRoot = trustedRoot
     }
 
     /// Settings saved by another version read with what they have: a field
@@ -42,7 +46,53 @@ public struct EnhancedBlocking: Codable, Equatable {
                   addedApps: try container.decodeIfPresent(Set<String>.self, forKey: .addedApps) ?? [],
                   removedApps: try container.decodeIfPresent(Set<String>.self, forKey: .removedApps) ?? [],
                   excludedSites: try container.decodeIfPresent(Set<String>.self, forKey: .excludedSites) ?? [],
-                  pinnedApps: try container.decodeIfPresent(Set<String>.self, forKey: .pinnedApps) ?? [])
+                  pinnedApps: try container.decodeIfPresent(Set<String>.self, forKey: .pinnedApps) ?? [],
+                  trustedRoot: try container.decodeIfPresent(String.self, forKey: .trustedRoot))
+    }
+
+    // MARK: The apps it reaches, as Settings shows them (#685)
+
+    /// The browsers as Settings lists them: each app once, its helpers
+    /// (which load its pages) going with it.
+    public static var browserApps: [String] {
+        browsers.filter { browser in !browsers.contains { $0 != browser && family($0, includes: browser) } }.sorted()
+    }
+
+    /// Whether `other` is `app` or one of its helpers, whatever the case
+    /// (Arc's helper is `company.thebrowser.browser.helper`); Chrome Canary
+    /// is an app of its own.
+    public static func family(_ app: String, includes other: String) -> Bool {
+        let app = app.lowercased(), other = other.lowercased()
+        return other == app || other.hasPrefix(app + ".helper")
+    }
+
+    /// Whether it reaches the app's pages.
+    public func reaches(_ app: String) -> Bool {
+        isOn(app, in: apps)
+    }
+
+    private func isOn(_ app: String, in set: Set<String>) -> Bool {
+        set.contains { Self.family($0, includes: app) }
+    }
+
+    /// Reaches the app (and its helpers), or no longer does.
+    public mutating func setReaches(_ app: String, _ on: Bool) {
+        let family = Self.browsers.union(addedApps).union([app]).filter { Self.family(app, includes: $0) }
+        if on {
+            removedApps.subtract(family)
+            if !Self.browsers.contains(where: { Self.family(app, includes: $0) }) { addedApps.insert(app) }
+        } else {
+            addedApps.subtract(family)
+            removedApps.formUnion(family.intersection(Self.browsers))
+        }
+    }
+
+    /// The apps the person added, in Settings' order.
+    public var addedAppList: [String] { addedApps.sorted() }
+
+    /// An app found to refuse the certificate is tried again (Try Again).
+    public mutating func forgetPinned(_ app: String) {
+        pinnedApps = pinnedApps.filter { !Self.family(app, includes: $0) && !Self.family($0, includes: app) }
     }
 
     /// The apps it reaches: the browsers, the person's own added, theirs
@@ -132,7 +182,7 @@ public struct EnhancedBlocking: Codable, Equatable {
     /// The app, or a helper of one: its identifier, or one it starts with
     /// (`com.google.Chrome.helper.renderer` is Chrome's).
     public static func matches(_ app: String, in apps: Set<String>) -> Bool {
-        apps.contains(app) || apps.contains { app.hasPrefix($0 + ".") }
+        apps.contains { family($0, includes: app) }
     }
 
     /// Whether a request inside an opened page is answered empty (#699):

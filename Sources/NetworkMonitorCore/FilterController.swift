@@ -414,6 +414,10 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     /// the transparent proxy it carries while it's replaced (#702).
     public var onReplaced: (() -> Void)?
 
+    /// Apps the filter found refusing Enhanced ad blocking's certificate
+    /// (#685), on the main queue.
+    public var onAppsLeftAlone: ((Set<String>) -> Void)?
+
     private func switchOnAfterSwap() {
         swap = .switchingOn
         logDropAll("with the new filter installed")
@@ -700,6 +704,11 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
 
     public func questionExpired(_ id: String) {
         DispatchQueue.main.async { self.expiredQuestions.send(id) }
+    }
+
+    public func appsLeftAlone(_ apps: Data) {
+        guard let apps = try? JSONDecoder().decode([String].self, from: apps), !apps.isEmpty else { return }
+        DispatchQueue.main.async { self.onAppsLeftAlone?(Set(apps)) }
     }
 
     /// The person's answer, for the filter to resume what it's holding.

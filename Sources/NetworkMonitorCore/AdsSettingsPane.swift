@@ -11,6 +11,8 @@ struct AdsSettingsPane: View {
     @ObservedObject var connections: ConnectionsViewModel
     @ObservedObject var filter: FilterController
     @ObservedObject var firewall: FirewallRules
+    /// Enhanced ad blocking (#685).
+    @ObservedObject var enhanced: EnhancedBlockingController
     @ObservedObject var blocklists: BlocklistUpdater
     @ObservedObject var listBlocks: ListBlockCount
     let onOpenAds: () -> Void
@@ -49,6 +51,8 @@ struct AdsSettingsPane: View {
                     } footer: {
                         SettingsFootnote(listsFootnote)
                     }
+                    // Inside pages too, by opening them (#685, #256).
+                    EnhancedBlockingSection(enhanced: enhanced, firewall: firewall)
                     // Bringing rules over from uBlock Origin or AdGuard, and
                     // saving yours (#253).
                     Section {

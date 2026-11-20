@@ -214,6 +214,7 @@ final class Firewall {
         lock.lock()
         self.policy = policy
         lock.unlock()
+        EnhancedProxy.shared.apply(policy.enhancedBlocking)
         let url = Self.storeURL
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? policy.encoded().write(to: url, options: .atomic)

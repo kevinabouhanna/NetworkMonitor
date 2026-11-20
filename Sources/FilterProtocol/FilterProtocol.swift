@@ -155,6 +155,10 @@ public enum FlowAnswer: String, Codable {
     func ask(_ question: Data)
     /// Nobody answered in time, and the connections went ahead.
     func questionExpired(_ id: String)
+    /// Apps found to refuse Enhanced ad blocking's certificate (#685), as a
+    /// JSON array of signing identifiers: the app keeps them, so they're
+    /// left alone for good.
+    func appsLeftAlone(_ apps: Data)
 }
 
 /// What the filter offers the app. The first call opens the connection the

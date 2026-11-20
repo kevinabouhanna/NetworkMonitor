@@ -272,6 +272,28 @@ func runAccessibilityTests() {
                 main.showSettings()
                 checkMain("\(section.title) › settings")
             }
+            // Enhanced ad blocking on (#685): its apps, an app left alone,
+            // waiting for approval with Try Again; then its two sheets.
+            let enhancedBefore = model.firewall.enhancedBlocking
+            model.firewall.enhancedBlocking.isOn = true
+            model.firewall.enhancedBlocking.pinnedApps = ["com.example.pinning"]
+            model.enhanced.preview(.needsApproval)
+            main.show(.ads)
+            main.showSettings()
+            checkMain("Ads and Trackers › settings, Enhanced ad blocking waiting for approval")
+            model.enhanced.preview(.on)
+            checkMain("Ads and Trackers › settings, Enhanced ad blocking on")
+            for (title, sheet) in [("Turn on Enhanced ad blocking", AnyView(EnhancedApprovalSheet(enhanced: model.enhanced))),
+                                   ("Apps it reaches", AnyView(EnhancedAppsSheet(enhanced: model.enhanced,
+                                                                                 firewall: model.firewall)))] {
+                let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 520), styleMask: [.titled],
+                                      backing: .buffered, defer: false)
+                window.title = title + language
+                window.contentView = NSHostingView(rootView: sheet.localizedRoot())
+                check(window, title + language)
+            }
+            model.firewall.enhancedBlocking = enhancedBefore
+            model.enhanced.preview(.off)
             // The speed test's styles are in Network's settings (#436).
             if code == Localization.source { Check.test("Network's settings read each speed test style's picture as one button") {
                 main.show(.network)

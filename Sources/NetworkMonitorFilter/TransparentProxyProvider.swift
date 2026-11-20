@@ -85,8 +85,18 @@ final class EnhancedProxy {
     /// How often a missing bridge is tried again: the root may be trusted since.
     static let retry: TimeInterval = 30
     /// Apps found to refuse our certificate while it ran (they pin their
-    /// own): left alone from then on. The app keeps them for good with #685.
+    /// own): left alone from then on, and sent to the app, which keeps them
+    /// for good (#685). Once the policy carries one, it's the policy's.
     private var pinned: Set<String> = []
+    /// Whether the switch was on in the last policy, nil before the first.
+    private var wasOn: Bool?
+    private var trustedRoot: String?
+    /// The apps the last policy kept for good: one it no longer keeps was
+    /// tried again (Try Again), and is forgotten here too.
+    private var keptByApp: Set<String> = []
+    /// Making the root and taking it out, one after the other, never at once.
+    private let keychainWork = DispatchQueue(label: "com.kevinabouhanna.NetworkMonitor.Filter.keychain",
+                                             qos: .userInitiated)
     /// The app behind each connection to the bridge, by its loopback port,
     /// so a refusal is put down to the app that refused.
     private var appsByPort: [UInt16: String] = [:]
@@ -117,7 +127,7 @@ final class EnhancedProxy {
         lastTry = Date()
         let run = generation
         lock.unlock()
-        DispatchQueue.global(qos: .userInitiated).async { [self] in
+        keychainWork.async { [self] in
             let made = makeBridge()
             lock.lock()
             preparing = false
@@ -126,6 +136,49 @@ final class EnhancedProxy {
             lock.unlock()
             if !current { made?.stop() }
         }
+    }
+
+    /// A new policy from the app (#685): the apps it now keeps for good are
+    /// its own, the rest sent again; a root the person just approved is
+    /// tried at once; and switched off, the root, its key and the sites'
+    /// certificates are taken out of the System keychain, so nothing is left.
+    func apply(_ settings: EnhancedBlocking) {
+        lock.lock()
+        pinned.subtract(settings.pinnedApps)
+        pinned.subtract(keptByApp.subtracting(settings.pinnedApps))
+        keptByApp = settings.pinnedApps
+        let unsent = pinned
+        let switchedOff = !settings.isOn && wasOn != false
+        let approved = settings.isOn && settings.trustedRoot != nil && settings.trustedRoot != trustedRoot
+        wasOn = settings.isOn
+        trustedRoot = settings.trustedRoot
+        if approved, bridge == nil { lastTry = nil }
+        lock.unlock()
+        AppLink.shared.leftAlone(unsent)
+        if switchedOff {
+            stop()
+            keychainWork.async { [self] in removeEverything() }
+        } else if approved {
+            prepare()
+        }
+    }
+
+    /// The root, its key, the sites' key and their certificates, out of the
+    /// System keychain: none of them is left once the switch is off.
+    /// Only while the switch is still off: switched on again meanwhile, the
+    /// root is kept, and used again.
+    private func removeEverything() {
+        lock.lock()
+        let stillOff = wasOn == false
+        lock.unlock()
+        guard stillOff else { return }
+        var system: SecKeychain?
+        guard SecKeychainCopyDomainDefault(.system, &system) == errSecSuccess, let system else { return }
+        guard !AuthorityStore.certificates(in: system).isEmpty || !AuthorityKey.find(in: system).isEmpty
+                || SiteIdentities.hasAny(in: system) else { return }
+        let rootGone = AuthorityStore.remove(from: system)
+        let sitesGone = SiteIdentities.remove(from: system)
+        log.notice("switched off: the root and the sites' certificates \(rootGone && sitesGone ? "removed" : "not all removed", privacy: .public)")
     }
 
     func stop() {
@@ -256,6 +309,8 @@ final class EnhancedProxy {
             let app = clientPort.flatMap { appsByPort[$0] }
             if let app { pinned.insert(app) }
             lock.unlock()
+            // Only the new one: one sent before may have been tried again since.
+            if let app { AppLink.shared.leftAlone([app]) }
             log.notice("\(app ?? "an app", privacy: .public) refused our certificate for \(host, privacy: .public); left alone from now on")
         case .serverRefused(let host):
             log.notice("\(host, privacy: .public)'s certificate isn't trusted: refused")

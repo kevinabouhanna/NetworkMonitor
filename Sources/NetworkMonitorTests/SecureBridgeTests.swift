@@ -183,7 +183,11 @@ func runSecureBridgeTests() {
                 _ = try first.identity(for: "a.example")
                 let again = try SiteIdentities(authority: authority, keychain: keychain)
                 Check.expectEqual(again.certificates.siteKey, first.certificates.siteKey, "the same key, found again")
+                _ = try again.identity(for: "b.example")
+                Check.expectEqual(SiteIdentities.siteCertificates(in: keychain).count, 2,
+                                  "the sites' certificates found by their issuer, whatever the keychain labels them")
                 Check.expectTrue(SiteIdentities.remove(from: keychain), "nothing left")
+                Check.expectEqual(SiteIdentities.siteCertificates(in: keychain).count, 0)
             } catch {
                 Check.expectTrue(false, "\(error)")
             }
