@@ -486,35 +486,57 @@ public final class SiteIdentities: @unchecked Sendable {
 
     /// Whether the sites' key or any site certificate is in `keychain`.
     public static func hasAny(in keychain: SecKeychain?) -> Bool {
-        [kSecClassKey, kSecClassCertificate].contains {
-            var find = query($0, in: keychain)
-            find[kSecReturnRef as String] = true
-            var result: CFTypeRef?
-            return SecItemCopyMatching(find as CFDictionary, &result) == errSecSuccess
+        var find = query(kSecClassKey, in: keychain)
+        find[kSecReturnRef as String] = true
+        var result: CFTypeRef?
+        return SecItemCopyMatching(find as CFDictionary, &result) == errSecSuccess
+            || !siteCertificates(in: keychain).isEmpty
+    }
+
+    /// The sites' certificates in `keychain`: those our root issued. Found by
+    /// their issuer, not their label: a keychain names a certificate after its
+    /// subject, whatever label it was added with (found in a VM, #685).
+    public static func siteCertificates(in keychain: SecKeychain?) -> [SecCertificate] {
+        var find: [String: Any] = [kSecClass as String: kSecClassCertificate, kSecReturnRef as String: true,
+                                   kSecMatchLimit as String: kSecMatchLimitAll]
+        if let keychain { find[kSecMatchSearchList as String] = [keychain] }
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(find as CFDictionary, &result) == errSecSuccess else { return [] }
+        let root = CertificateAuthority.commonName + " ("
+        var seen = Set<Data>()
+        return ((result as? [SecCertificate]) ?? []).filter { certificate in
+            guard issuerName(certificate)?.hasPrefix(root) == true,
+                  (SecCertificateCopySubjectSummary(certificate) as String?)?.hasPrefix(root) != true else { return false }
+            return seen.insert(SecCertificateCopyData(certificate) as Data).inserted
         }
+    }
+
+    /// A certificate's issuer's common name.
+    static func issuerName(_ certificate: SecCertificate) -> String? {
+        let key = kSecOIDX509V1IssuerName
+        guard let values = SecCertificateCopyValues(certificate, [key] as CFArray, nil) as? [CFString: Any],
+              let entry = values[key] as? [CFString: Any],
+              let parts = entry[kSecPropertyKeyValue] as? [[CFString: Any]] else { return nil }
+        return parts.first { ($0[kSecPropertyKeyLabel] as? String) == "2.5.4.3" }?[kSecPropertyKeyValue] as? String
     }
 
     /// Takes the sites' key and every site certificate out of `keychain`,
     /// one by one, and says whether anything is left.
     @discardableResult
     public static func remove(from keychain: SecKeychain?) -> Bool {
-        for itemClass in [kSecClassKey, kSecClassCertificate] {
-            var find = query(itemClass, in: keychain)
-            find[kSecReturnRef as String] = true
-            find[kSecMatchLimit as String] = kSecMatchLimitAll
-            var result: CFTypeRef?
-            guard SecItemCopyMatching(find as CFDictionary, &result) == errSecSuccess,
-                  let items = result as? [AnyObject] else { continue }
-            for item in items {
-                SecItemDelete([kSecClass as String: itemClass, kSecValueRef as String: item] as CFDictionary)
+        for certificate in siteCertificates(in: keychain) {
+            SecItemDelete([kSecClass as String: kSecClassCertificate, kSecValueRef as String: certificate] as CFDictionary)
+        }
+        var find = query(kSecClassKey, in: keychain)
+        find[kSecReturnRef as String] = true
+        find[kSecMatchLimit as String] = kSecMatchLimitAll
+        var result: CFTypeRef?
+        if SecItemCopyMatching(find as CFDictionary, &result) == errSecSuccess, let keys = result as? [AnyObject] {
+            for key in keys {
+                SecItemDelete([kSecClass as String: kSecClassKey, kSecValueRef as String: key] as CFDictionary)
             }
         }
-        return [kSecClassKey, kSecClassCertificate].allSatisfy {
-            var find = query($0, in: keychain)
-            find[kSecReturnRef as String] = true
-            var result: CFTypeRef?
-            return SecItemCopyMatching(find as CFDictionary, &result) != errSecSuccess
-        }
+        return !hasAny(in: keychain)
     }
 
     public func identity(for host: String) throws -> sec_identity_t {
