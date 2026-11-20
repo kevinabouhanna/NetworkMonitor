@@ -31,7 +31,7 @@ func runSecureBridgeTests() {
 
     /// A site on the loopback that answers every connection with `reply`
     /// and closes; its port.
-    func site(answering reply: Data, identity: sec_identity_t) -> (NWListener, UInt16)? {
+    func site(answering reply: Data, identity: sec_identity_t, keepOpen: Bool = false) -> (NWListener, UInt16)? {
         let tls = NWProtocolTLS.Options()
         sec_protocol_options_set_local_identity(tls.securityProtocolOptions, identity)
         let parameters = NWParameters(tls: tls)
@@ -42,6 +42,12 @@ func runSecureBridgeTests() {
         listener.newConnectionHandler = { connection in
             connection.start(queue: queue)
             connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { _, _, _, _ in
+                // A site that ignores `Connection: close` keeps it open.
+                if keepOpen {
+                    connection.send(content: reply, completion: .contentProcessed { _ in })
+                    queue.asyncAfter(deadline: .now() + 30) { connection.cancel() }
+                    return
+                }
                 connection.send(content: reply, contentContext: .finalMessage, isComplete: true,
                                 completion: .contentProcessed { _ in connection.cancel() })
             }
@@ -95,7 +101,8 @@ func runSecureBridgeTests() {
 
     /// A bridge and a site, both with roots of their own, the bridge
     /// trusting the site's root (or not).
-    func setUp(reply: Data, bridgeTrustsSite: Bool = true, refuses: @escaping (AddressRequest) -> Bool = { _ in false },
+    func setUp(reply: Data, bridgeTrustsSite: Bool = true, keepOpen: Bool = false,
+               refuses: @escaping (AddressRequest) -> Bool = { _ in false },
                body: (_ bridgePort: UInt16, _ bridgeRoot: SecCertificate, _ events: () -> [BridgeEvent],
                       _ bridge: SecureBridge) -> Void) {
         guard let (keychain, done) = testKeychain(), let (siteKeychain, siteDone) = testKeychain() else {
@@ -105,7 +112,7 @@ func runSecureBridgeTests() {
         do {
             let siteRoot = try root("Test site"), bridgeRoot = try root("Test bridge")
             let siteIdentity = try SiteIdentities(authority: siteRoot, keychain: siteKeychain).identity(for: "test.example")
-            guard let (listener, sitePort) = site(answering: reply, identity: siteIdentity) else {
+            guard let (listener, sitePort) = site(answering: reply, identity: siteIdentity, keepOpen: keepOpen) else {
                 return Check.expectTrue(false, "no test site")
             }
             defer { listener.cancel() }
@@ -184,8 +191,17 @@ func runSecureBridgeTests() {
                 let again = try SiteIdentities(authority: authority, keychain: keychain)
                 Check.expectEqual(again.certificates.siteKey, first.certificates.siteKey, "the same key, found again")
                 _ = try again.identity(for: "b.example")
-                Check.expectEqual(SiteIdentities.siteCertificates(in: keychain).count, 2,
-                                  "the sites' certificates found by their issuer, whatever the keychain labels them")
+                Check.expectEqual(SiteIdentities.siteCertificates(in: keychain).count, 0,
+                                  "no site's certificate kept in the keychain, which lists the sites visited (#686)")
+                var find: [String: Any] = [kSecClass as String: kSecClassKey, kSecAttrLabel as String: SiteIdentities.label,
+                                           kSecReturnRef as String: true, kSecMatchSearchList as String: [keychain]]
+                find[kSecAttrKeyClass as String] = kSecAttrKeyClassPrivate
+                var found: CFTypeRef?
+                SecItemCopyMatching(find as CFDictionary, &found)
+                let key = found.flatMap { SecKeyCopyAttributes($0 as! SecKey) as? [String: Any] } ?? [:]
+                Check.expectEqual(key[kSecAttrIsExtractable as String] as? Bool, false, "the sites' key is unexportable")
+                Check.expectNil(found.flatMap { SecKeyCopyExternalRepresentation($0 as! SecKey, nil) },
+                                "and reading it out is refused")
                 Check.expectTrue(SiteIdentities.remove(from: keychain), "nothing left")
                 Check.expectEqual(SiteIdentities.siteCertificates(in: keychain).count, 0)
             } catch {
@@ -276,6 +292,39 @@ func runSecureBridgeTests() {
             Check.expectTrue(allowed.contains("Access-Control-Allow-Headers: content-type\r\n"), allowed)
             let plain = String(decoding: EmptyReply.bytes(for: .script, request: sneaky), as: UTF8.self)
             Check.expectFalse(plain.contains("Set-Cookie") || plain.contains("Access-Control"), plain)
+        }
+
+        Check.test("a request with a UTF-8 cookie is read; one it can't read goes to the site untouched (#686)") {
+            setUp(reply: pageReply) { port, bridgeRoot, _, _ in
+                let cookie = "GET / HTTP/1.1\r\nHost: test.example\r\nCookie: name=José\r\n\r\n"
+                let read = browse(port: port, host: "test.example", anchor: bridgeRoot, request: cookie)
+                    .map { String(decoding: $0, as: UTF8.self) }
+                Check.expectTrue(read?.contains(".ad-banner{display:none!important}") == true, "rewritten: \(read ?? "none")")
+                let folded = "GET / HTTP/1.1\r\nHost: test.example\r\nX-Old: a\r\n b\r\n\r\n"
+                Check.expectEqual(browse(port: port, host: "test.example", anchor: bridgeRoot, request: folded), pageReply,
+                                  "a folded header: the site's reply, untouched, not a closed connection")
+            }
+        }
+
+        Check.test("a chunked page from a site that keeps the connection open is rewritten at its last chunk (#686)") {
+            let chunked = Data(("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nTransfer-Encoding: chunked\r\n\r\n"
+                                + String(page.utf8.count, radix: 16) + "\r\n" + page + "\r\n0\r\n\r\n").utf8)
+            setUp(reply: chunked, keepOpen: true) { port, bridgeRoot, _, _ in
+                let start = Date()
+                let reply = browse(port: port, host: "test.example", anchor: bridgeRoot).map { String(decoding: $0, as: UTF8.self) }
+                Check.expectTrue(reply?.contains(".ad-banner{display:none!important}") == true, "rewritten: \(reply ?? "none")")
+                Check.expectTrue(Date().timeIntervalSince(start) < 10, "without waiting for the site to close")
+            }
+        }
+
+        Check.test("never a certificate, nor a listener, for a site it never opens (#686)") {
+            setUp(reply: pageReply) { _, _, _, bridge in
+                let done = DispatchSemaphore(value: 0)
+                var port: UInt16? = 1
+                bridge.port(for: "www.PayPal.com") { port = $0; done.signal() }
+                Check.expectEqual(done.wait(timeout: .now() + 5), .success)
+                Check.expectNil(port)
+            }
         }
 
         Check.test("a reply it can't read goes on byte for byte") {

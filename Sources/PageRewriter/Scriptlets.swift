@@ -10,7 +10,8 @@ public enum ScriptletCode {
         let calls = scriptlets.compactMap { scriptlet -> String? in
             guard functions[scriptlet.name] != nil,
                   let arguments = try? JSONSerialization.data(withJSONObject: scriptlet.arguments),
-                  let json = String(data: arguments, encoding: .utf8) else { return nil }
+                  let json = String(data: arguments, encoding: .utf8)?.replacingOccurrences(of: "<", with: "\\u003c")
+            else { return nil }
             return "try{nm[\(quoted(scriptlet.name))].apply(null,\(json))}catch(e){}"
         }
         guard !calls.isEmpty else { return nil }
