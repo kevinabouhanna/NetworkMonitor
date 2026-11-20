@@ -46,6 +46,7 @@ struct EnhancedBlockingSection: View {
         } footer: {
             SettingsFootnote(footnote)
         }
+        .onAppear { enhanced.refresh() }
         .sheet(isPresented: $enhanced.asksToTurnOn) { EnhancedApprovalSheet(enhanced: enhanced) }
         .sheet(isPresented: $enhanced.showsApps) { EnhancedAppsSheet(enhanced: enhanced, firewall: firewall) }
     }
@@ -221,7 +222,15 @@ public struct EnhancedAppsSheet: View {
 /// Apps by bundle identifier: their name as the Finder shows it, and
 /// whether they're on this Mac.
 enum AppNames {
-    static func url(_ id: String) -> URL? { NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) }
+    /// Looked up once a minute at most: Settings asks on every redraw.
+    private static var cache: [String: (url: URL?, at: Date)] = [:]
+
+    static func url(_ id: String) -> URL? {
+        if let kept = cache[id], Date().timeIntervalSince(kept.at) < 60 { return kept.url }
+        let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id)
+        cache[id] = (url, Date())
+        return url
+    }
 
     static func isInstalled(_ id: String) -> Bool { url(id) != nil }
 

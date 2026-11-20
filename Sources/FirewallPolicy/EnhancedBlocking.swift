@@ -182,7 +182,7 @@ public struct EnhancedBlocking: Codable, Equatable {
     /// The app, or a helper of one: its identifier, or one it starts with
     /// (`com.google.Chrome.helper.renderer` is Chrome's).
     public static func matches(_ app: String, in apps: Set<String>) -> Bool {
-        apps.contains(app) || apps.contains { app.hasPrefix($0 + ".") }
+        apps.contains { family($0, includes: app) }
     }
 
     /// Whether a request inside an opened page is answered empty (#699):

@@ -484,6 +484,16 @@ public final class SiteIdentities: @unchecked Sendable {
         return key
     }
 
+    /// Whether the sites' key or any site certificate is in `keychain`.
+    public static func hasAny(in keychain: SecKeychain?) -> Bool {
+        [kSecClassKey, kSecClassCertificate].contains {
+            var find = query($0, in: keychain)
+            find[kSecReturnRef as String] = true
+            var result: CFTypeRef?
+            return SecItemCopyMatching(find as CFDictionary, &result) == errSecSuccess
+        }
+    }
+
     /// Takes the sites' key and every site certificate out of `keychain`,
     /// one by one, and says whether anything is left.
     @discardableResult

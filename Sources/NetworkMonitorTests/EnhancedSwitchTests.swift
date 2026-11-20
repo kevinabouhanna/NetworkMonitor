@@ -34,6 +34,18 @@ func runEnhancedSwitchTests() {
             Check.expectTrue(settings.addedApps.isEmpty, "a browser isn't added: \(settings.addedApps)")
         }
 
+        Check.test("Canary taken away while Chrome stays: Canary's connections aren't opened, Chrome's are") {
+            var settings = EnhancedBlocking(isOn: true)
+            settings.setReaches("com.google.Chrome.canary", false)
+            Check.expectEqual(settings.decide(app: "com.google.Chrome.canary", host: "news.example", port: 443, isUDP: false),
+                              .leave(.notAnAppItReaches))
+            Check.expectEqual(settings.decide(app: "com.google.Chrome.helper.renderer", host: "news.example", port: 443,
+                                              isUDP: false), .open)
+            let pinnedChrome = EnhancedBlocking(isOn: true, pinnedApps: ["com.google.Chrome"])
+            Check.expectEqual(pinnedChrome.decide(app: "com.google.Chrome.canary", host: "news.example", port: 443,
+                                                  isUDP: false), .open, "Chrome left alone isn't Canary")
+        }
+
         Check.test("an app added is reached, and taken away again; an app left alone is tried again") {
             var settings = EnhancedBlocking(isOn: true, pinnedApps: ["com.dropbox.client", "com.spotify.client.helper"])
             settings.setReaches("com.spotify.client", true)
@@ -157,6 +169,45 @@ func runEnhancedSwitchTests() {
             wait { waiting.status == .needsApproval }
             Check.expectEqual(waiting.status, .needsApproval)
             Check.expectEqual(renewed.asked, 0, "no password dialog at launch")
+        }
+
+        Check.test("switched off while macOS is still asking: the trust given then is taken away") {
+            let mac = Mac()
+            mac.made = true
+            let gate = DispatchSemaphore(value: 0)
+            let rules = FirewallRules(defaults: Check.defaults("enhanced-switch-\(UUID().uuidString)"), teamOf: { _ in nil })
+            let enhanced = EnhancedBlockingController(
+                firewall: rules, root: { root }, isTrusted: { _ in mac.trusted },
+                trust: { _ in gate.wait(); mac.trusted = true; return errSecSuccess },
+                removeTrust: { _ in mac.removed += 1; mac.trusted = false; return errSecSuccess })
+            enhanced.confirmTurnOn()
+            wait { enhanced.status == .approving }
+            enhanced.setOn(false)
+            gate.signal()   // the person approves in the dialog still open
+            wait { mac.removed == 1 }
+            Check.expectEqual(mac.removed, 1)
+            Check.expectFalse(mac.trusted, "nothing trusted with the switch off")
+            Check.expectEqual(enhanced.status, .off)
+        }
+
+        Check.test("on, but the root in use isn't the one approved: back to waiting for approval") {
+            let mac = Mac()
+            mac.made = true
+            let (enhanced, rules) = controller(mac, on: true, trusted: true)
+            wait { enhanced.status == .on }
+            rules.enhancedBlocking.trustedRoot = "another root"
+            enhanced.refresh()
+            wait { enhanced.status == .needsApproval }
+            Check.expectEqual(enhanced.status, .needsApproval)
+        }
+
+        Check.test("a browser's helper left alone is shown as the browser") {
+            let mac = Mac()
+            let (enhanced, rules) = controller(mac)
+            rules.enhancedBlocking.pinnedApps = ["com.google.Chrome.helper", "com.dropbox.client"]
+            Check.expectEqual(enhanced.leftAlone, ["com.dropbox.client", "com.google.Chrome"])
+            enhanced.forgetLeftAlone("com.google.Chrome")
+            Check.expectEqual(rules.enhancedBlocking.pinnedApps, ["com.dropbox.client"])
         }
 
         Check.test("switched off: off at once, the trust taken away, and the filter sent no root") {

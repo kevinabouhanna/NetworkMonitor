@@ -188,12 +188,28 @@ public final class EnhancedBlockingController: ObservableObject {
         firewall.enhancedBlocking.trustedRoot = nil
         status = .off
         // The trust taken away; the filter deletes the root, its key and the
-        // sites' certificates as the policy reaches it.
-        guard let certificate, isTrusted(certificate) else { return }
-        work.async { [removeTrust] in
+        // sites' certificates as the policy reaches it. Decided on the work
+        // queue, after any approval still waiting on macOS's dialog.
+        guard let certificate else { return }
+        work.async { [isTrusted, removeTrust] in
+            guard isTrusted(certificate) else { return }
             let status = removeTrust(certificate)
             if status != errSecSuccess {
                 Self.log.notice("the root's trust wasn't removed: \(status); its key is deleted all the same")
+            }
+        }
+    }
+
+    /// Looks again, as Settings shows it: the root the filter uses now may
+    /// not be the one approved (made again, or no longer trusted).
+    public func refresh() {
+        guard isOn, status == .on else { return }
+        let approved = firewall.enhancedBlocking.trustedRoot
+        work.async { [self] in
+            let certificate = root()
+            let good = certificate.map { isTrusted($0) && EnhancedRoot.fingerprint($0) == approved } ?? false
+            DispatchQueue.main.async { [self] in
+                if !good, isOn, status == .on { status = .needsApproval }
             }
         }
     }
@@ -271,7 +287,13 @@ public final class EnhancedBlockingController: ObservableObject {
         objectWillChange.send()
     }
 
-    public var leftAlone: [String] { firewall.enhancedBlocking.pinnedApps.sorted() }
+    /// The apps left alone, a helper shown as its app.
+    public var leftAlone: [String] {
+        let apps = EnhancedBlocking.browserApps + firewall.enhancedBlocking.addedAppList
+        return Array(Set(firewall.enhancedBlocking.pinnedApps.map { pinned in
+            apps.first { EnhancedBlocking.family($0, includes: pinned) } ?? pinned
+        })).sorted()
+    }
 
     /// Try Again for an app left alone: it's opened again, until it refuses.
     public func forgetLeftAlone(_ app: String) {
