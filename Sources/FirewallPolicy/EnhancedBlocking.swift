@@ -229,6 +229,15 @@ public struct EnhancedBlocking: Codable, Equatable {
         return namesAbove(name).contains { neverOpenedSites.contains($0) }
     }
 
+    /// What the root may never vouch for (#686), written into it as name
+    /// constraints: the kinds of name `isNeverOpened` knows by their last
+    /// labels, the commonest governments' own, and every site listed.
+    public static var neverVouchedFor: [String] {
+        ["gov", "mil", "bank", "insurance", "health", "bnpparibas",
+         "gov.uk", "nhs.uk", "gouv.fr", "gob.mx", "go.jp", "gc.ca", "gov.au", "gov.in", "gov.lb", "govt.nz",
+         "gob.es", "gov.br", "gov.it"] + neverOpenedSites.sorted()
+    }
+
     /// The largest banking, payment, health and tax sites, each with every
     /// name under it.
     public static let neverOpenedSites: Set<String> = [

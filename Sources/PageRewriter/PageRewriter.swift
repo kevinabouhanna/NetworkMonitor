@@ -81,8 +81,17 @@ public enum PageRewriter {
             }
             return (newHead.bytes + page, nil)
         } catch {
-            return (response, .cantRead("\(error)"))
+            return (response, .cantRead(Self.kind(of: error)))
         }
+    }
+
+    /// What went wrong, by its kind alone: an error may hold text from the
+    /// message (a header, a line of the page), and this reaches the log.
+    static func kind(of error: Error) -> String {
+        let mirror = Mirror(reflecting: error)
+        if mirror.displayStyle == .enum, let label = mirror.children.first?.label { return label }
+        if mirror.displayStyle == .enum { return "\(error)" }
+        return String(describing: type(of: error))
     }
 
     /// An HTML page worth adding to: a whole page (200 or 203, never a part
@@ -111,7 +120,11 @@ public enum PageRewriter {
             let css = selectors.map { $0 + "{display:none!important}" }.joined(separator: "\n")
             added += "<style nonce=\"\(nonce)\">\n" + css.replacingOccurrences(of: "</", with: "<\\/") + "\n</style>"
         }
-        if let script = ScriptletCode.script(for: additions.scriptlets) {
+        // A script with `<!--` or `<script` in it could keep the browser from
+        // ending it where it ends: left out, as everything else of the page
+        // goes on as it is.
+        if let script = ScriptletCode.script(for: additions.scriptlets),
+           !script.lowercased().contains("<!--"), !script.lowercased().contains("<script") {
             added += "<script nonce=\"\(nonce)\">" + script.replacingOccurrences(of: "</", with: "<\\/") + "</script>"
         }
         guard !added.isEmpty else { return nil }
@@ -217,6 +230,17 @@ public enum PageRewriter {
 /// unless macOS trusts it for that name. Enhanced ad blocking never stands in
 /// for a site whose own certificate the person's browser would refuse.
 public enum ServerTrust {
+    /// A handshake's own trust, with what the site stapled to it, checked
+    /// for `host` as a browser would (and against `anchors` alone in tests).
+    public static func isTrusted(_ trust: SecTrust, host: String, anchors: [SecCertificate]? = nil) -> Bool {
+        guard SecTrustSetPolicies(trust, SecPolicyCreateSSL(true, host as CFString)) == errSecSuccess else { return false }
+        if let anchors {
+            SecTrustSetAnchorCertificates(trust, anchors as CFArray)
+            SecTrustSetAnchorCertificatesOnly(trust, true)
+        }
+        return SecTrustEvaluateWithError(trust, nil)
+    }
+
     public static func isTrusted(_ chain: [SecCertificate], host: String, anchors: [SecCertificate]? = nil,
                                  at date: Date = Date()) -> Bool {
         guard !chain.isEmpty else { return false }

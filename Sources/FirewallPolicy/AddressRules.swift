@@ -368,6 +368,7 @@ struct Address {
     /// rules are indexed), and 0 for the rules with no token.
     var tokens: [UInt64] {
         var tokens: [UInt64] = [0]
+        var seen: Set<UInt64> = [0]
         var index = 0
         let count = lowered.count
         while index < count {
@@ -377,7 +378,7 @@ struct Address {
                 hash = Token.mix(hash, lowered[index])
                 index += 1
             }
-            if !tokens.contains(hash) { tokens.append(hash) }
+            if seen.insert(hash).inserted { tokens.append(hash) }
         }
         return tokens
     }

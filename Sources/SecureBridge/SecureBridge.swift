@@ -41,21 +41,34 @@ public final class SecureBridge: @unchecked Sendable {
     private let identities: SiteIdentities
     private let additions: (String) -> PageAdditions
     fileprivate let refuses: (AddressRequest) -> Bool
-    private let trusts: ([SecCertificate], String) -> Bool
+    private let trusts: (SecTrust, String) -> Bool
     private let endpoint: (String, UInt16) -> NWEndpoint
     fileprivate let events: (BridgeEvent) -> Void
     fileprivate let queue = DispatchQueue(label: "SecureBridge")
+    /// The sites' certificates are made here, and sites' certificates
+    /// checked here, never on `queue`, where every exchange's bytes move.
+    private let keychainQueue = DispatchQueue(label: "SecureBridge.keychain")
+    private let verifyQueue = DispatchQueue(label: "SecureBridge.verify", attributes: .concurrent)
 
     /// A site's listener: ready with its port, or still starting with whoever
     /// is waiting for it.
     private final class Site {
-        let listener: NWListener
+        var listener: NWListener?
         var port: UInt16?
         var waiting: [(UInt16?) -> Void] = []
-        init(_ listener: NWListener) { self.listener = listener }
+        var lastUsed = Date()
     }
     private var sites: [String: Site] = [:]
+    /// Exchanges under way, and the bytes their pages hold (#686): past
+    /// either limit, a new site's connections go on unopened, and a page goes
+    /// on as it comes, so a hostile page can't wear the extension down.
+    fileprivate var exchanges = 0
+    fileprivate var heldBytes = 0
 
+    /// The most sites with a listener: the least used one goes past it.
+    public static let maxSites = 256
+    public static let maxExchanges = 512
+    public static let maxHeld = 128 * 1024 * 1024
     /// The most a page is held to be read; past it, it goes on as it comes.
     public static let maxPage = 16 * 1024 * 1024
     /// A connection quiet this long is closed.
@@ -71,7 +84,7 @@ public final class SecureBridge: @unchecked Sendable {
     ///   - endpoint: where a site is reached; by default, by its name.
     public init(identities: SiteIdentities, additions: @escaping (String) -> PageAdditions,
                 refuses: @escaping (AddressRequest) -> Bool = { _ in false },
-                trusts: @escaping ([SecCertificate], String) -> Bool = { ServerTrust.isTrusted($0, host: $1) },
+                trusts: @escaping (SecTrust, String) -> Bool = { ServerTrust.isTrusted($0, host: $1) },
                 endpoint: @escaping (String, UInt16) -> NWEndpoint = { .hostPort(host: .init($0), port: .init(rawValue: $1)!) },
                 events: @escaping (BridgeEvent) -> Void = { _ in }) {
         self.identities = identities
@@ -86,42 +99,75 @@ public final class SecureBridge: @unchecked Sendable {
     /// asked for; nil when it can't be (no certificate for that name).
     public func port(for host: String, sitePort: UInt16 = 443, completion: @escaping (UInt16?) -> Void) {
         let host = host.lowercased()
+        // Never a certificate for a site it never opens, whatever asks (#686).
+        guard !EnhancedBlocking.isNeverOpened(host) else { return completion(nil) }
         queue.async { [self] in
+            guard exchanges < Self.maxExchanges else { return completion(nil) }
             let key = "\(host):\(sitePort)"
             if let site = sites[key] {
+                site.lastUsed = Date()
                 if let port = site.port { completion(port) } else { site.waiting.append(completion) }
                 return
             }
-            guard let identity = try? identities.identity(for: host) else { return completion(nil) }
-            let tls = NWProtocolTLS.Options()
-            sec_protocol_options_set_local_identity(tls.securityProtocolOptions, identity)
-            sec_protocol_options_add_tls_application_protocol(tls.securityProtocolOptions, "http/1.1")
-            let parameters = NWParameters(tls: tls)
-            parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
-            guard let listener = try? NWListener(using: parameters) else { return completion(nil) }
-            let site = Site(listener)
+            evictIfFull()
+            let site = Site()
             site.waiting.append(completion)
             sites[key] = site
-            listener.stateUpdateHandler = { [weak self, weak site] state in
-                guard let self, let site else { return }
-                switch state {
-                case .ready:
-                    site.port = site.listener.port?.rawValue
-                    site.waiting.forEach { $0(site.port) }
-                    site.waiting.removeAll()
-                case .failed, .cancelled:
-                    // Only this listener's own entry: never one that took its place.
-                    if self.sites[key] === site { self.sites.removeValue(forKey: key) }
-                    site.waiting.forEach { $0(nil) }
-                    site.waiting.removeAll()
-                default: break
-                }
+            keychainQueue.async { [self] in
+                let identity = try? identities.identity(for: host)
+                queue.async { [self] in listen(site, key: key, host: host, sitePort: sitePort, identity: identity) }
             }
-            listener.newConnectionHandler = { [weak self] client in
-                self?.serve(client, host: host, sitePort: sitePort)
-            }
-            listener.start(queue: queue)
         }
+    }
+
+    /// The least recently used site's listener goes, past `maxSites`.
+    /// Never one used in the last few seconds, whose port a browser may be
+    /// about to connect to; a site still starting goes with its waiters told.
+    private func evictIfFull() {
+        let recent = Date().addingTimeInterval(-10)
+        while sites.count >= Self.maxSites {
+            guard let oldest = sites.filter({ $0.value.lastUsed < recent }).min(by: { $0.value.lastUsed < $1.value.lastUsed })
+            else { return }
+            sites.removeValue(forKey: oldest.key)
+            oldest.value.listener?.cancel()
+            oldest.value.waiting.forEach { $0(nil) }
+            oldest.value.waiting.removeAll()
+        }
+    }
+
+    private func listen(_ site: Site, key: String, host: String, sitePort: UInt16, identity: sec_identity_t?) {
+        func fail() {
+            if sites[key] === site { sites.removeValue(forKey: key) }
+            site.waiting.forEach { $0(nil) }
+            site.waiting.removeAll()
+        }
+        guard sites[key] === site, let identity else { return fail() }
+        let tls = NWProtocolTLS.Options()
+        sec_protocol_options_set_local_identity(tls.securityProtocolOptions, identity)
+        sec_protocol_options_add_tls_application_protocol(tls.securityProtocolOptions, "http/1.1")
+        let parameters = NWParameters(tls: tls)
+        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
+        guard let listener = try? NWListener(using: parameters) else { return fail() }
+        site.listener = listener
+        listener.stateUpdateHandler = { [weak self, weak site] state in
+            guard let self, let site else { return }
+            switch state {
+            case .ready:
+                site.port = listener.port?.rawValue
+                site.waiting.forEach { $0(site.port) }
+                site.waiting.removeAll()
+            case .failed, .cancelled:
+                // Only this listener's own entry: never one that took its place.
+                if self.sites[key] === site { self.sites.removeValue(forKey: key) }
+                site.waiting.forEach { $0(nil) }
+                site.waiting.removeAll()
+            default: break
+            }
+        }
+        listener.newConnectionHandler = { [weak self] client in
+            self?.serve(client, host: host, sitePort: sitePort)
+        }
+        listener.start(queue: queue)
     }
 
     /// Stops every listener: when the switch goes off.
@@ -129,7 +175,7 @@ public final class SecureBridge: @unchecked Sendable {
         queue.async { [self] in
             let all = sites.values
             sites.removeAll()
-            all.forEach { $0.listener.cancel() }
+            all.forEach { $0.listener?.cancel() }
         }
     }
 
@@ -173,13 +219,15 @@ public final class SecureBridge: @unchecked Sendable {
         let options = tls.securityProtocolOptions
         sec_protocol_options_set_tls_server_name(options, host)
         sec_protocol_options_add_tls_application_protocol(options, "http/1.1")
+        sec_protocol_options_set_min_tls_protocol_version(options, .TLSv12)
+        // The handshake's own trust, with what the site stapled to it (its
+        // OCSP response, its certificate transparency), checked as a browser
+        // checks it, away from the exchanges' queue.
         sec_protocol_options_set_verify_block(options, { [trusts, events] _, trust, done in
-            let secTrust = sec_trust_copy_ref(trust).takeRetainedValue()
-            let chain = (SecTrustCopyCertificateChain(secTrust) as? [SecCertificate]) ?? []
-            let ok = trusts(chain, host)
+            let ok = trusts(sec_trust_copy_ref(trust).takeRetainedValue(), host)
             if !ok { events(.serverRefused(host: host)) }
             done(ok)
-        }, queue)
+        }, verifyQueue)
         return NWConnection(to: endpoint(host, port), using: NWParameters(tls: tls))
     }
 
@@ -206,9 +254,10 @@ private final class Exchange {
         self.host = host
         self.sitePort = sitePort
         self.bridge = bridge
+        bridge.exchanges += 1
         let timer = DispatchSource.makeTimerSource(queue: bridge.queue)
         // Strong: the timer keeps the exchange until it closes or goes quiet.
-        timer.setEventHandler { self.close() }
+        timer.setEventHandler { self.quiet() }
         self.timer = timer
         touch()
         timer.resume()
@@ -219,9 +268,36 @@ private final class Exchange {
         timer?.schedule(deadline: .now() + SecureBridge.idle)
     }
 
+    /// Quiet too long: a page being held goes on as it is, untouched, rather
+    /// than lost; anything else closes.
+    private func quiet() {
+        if holding == true, !reply.isEmpty, !abandoned {
+            holding = false
+            abandoned = true
+            site?.cancel()
+            // Closed next time it's quiet, if the browser never takes it.
+            touch()
+            bridge.events(.untouched(host: host, .cantRead("a page whose end didn't come")))
+            return passOn(thenMore: false)
+        }
+        close()
+    }
+
+    /// The site's side given up on: nothing more read from it.
+    private var abandoned = false
+
+    /// What this exchange's held page counts against the bridge's limit.
+    private var counted = 0
+    private func count(_ bytes: Int) {
+        bridge.heldBytes += bytes - counted
+        counted = bytes
+    }
+
     func close() {
         guard !closed else { return }
         closed = true
+        count(0)
+        bridge.exchanges -= 1
         timer?.setEventHandler {}
         timer?.cancel()
         timer = nil
@@ -261,7 +337,9 @@ private final class Exchange {
                 outgoing.remove("Proxy-Connection")
                 openSite(sending: outgoing.bytes + body, then: .reply, more: !done)
             } catch {
-                close()
+                // A request it can't read (a header not in ASCII, one too
+                // large) goes to the site as it came, both ways untouched.
+                openSite(sending: request, then: .tunnel, more: !done)
             }
         }
     }
@@ -345,18 +423,31 @@ private final class Exchange {
     private func readReply() {
         guard let site else { return }
         site.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { [self] data, _, done, error in
-            guard !closed else { return }
+            guard !closed, !abandoned else { return }
             touch()
             if let data, !data.isEmpty { reply.append(data) }
             let ended = done || error != nil
             decideFromHead()
             switch holding {
             case true?:
-                if ended || isComplete() { return deliverPage() }
-                if reply.count > SecureBridge.maxPage {
+                count(reply.count)
+                if isComplete() { return deliverPage() }
+                if ended {
+                    // Cut off by an error, a page that ends with the
+                    // connection can't be told whole: it goes on as it came,
+                    // so the browser sees it cut off too.
+                    if error != nil {
+                        holding = false
+                        bridge.events(.untouched(host: host, .cantRead("a page cut off")))
+                        return passOn(thenMore: false)
+                    }
+                    return deliverPage()
+                }
+                if reply.count > SecureBridge.maxPage || bridge.heldBytes > SecureBridge.maxHeld {
                     // Too big to hold: what's here as it came, the rest as it comes.
                     holding = false
-                    bridge.events(.untouched(host: host, .cantRead("a page over 16 MB")))
+                    count(0)
+                    bridge.events(.untouched(host: host, .cantRead("a page too big to hold")))
                     return passOn(thenMore: !ended)
                 }
                 readReply()
@@ -394,6 +485,7 @@ private final class Exchange {
     private func passOn(thenMore more: Bool) {
         let chunk = reply
         reply.removeAll()
+        count(0)
         let next = { [self] in more ? readReply() : finish(client) }
         guard !chunk.isEmpty else { return next() }
         client.send(content: chunk, completion: .contentProcessed { [self] error in
@@ -409,12 +501,24 @@ private final class Exchange {
         return type.hasPrefix("text/html")
     }
 
-    /// Complete by its stated length, for a site that keeps the connection
-    /// open; anything else ends when the site closes, as asked.
+    /// Complete by its stated length, or its last chunk, for a site that
+    /// keeps the connection open; anything else ends when the site closes,
+    /// as asked.
     private func isComplete() -> Bool {
-        guard let (head, bodyStart) = (try? HTTPHead.parse(reply)) ?? nil,
-              case .length(let length)? = try? BodyFraming.forResponse(head, requestMethod: method) else { return false }
-        return reply.count - bodyStart >= length
+        guard let (head, bodyStart) = (try? HTTPHead.parse(reply)) ?? nil else { return false }
+        switch try? BodyFraming.forResponse(head, requestMethod: method) {
+        case .length(let length)?:
+            return reply.count - bodyStart >= length
+        case .chunked?:
+            // Read whole only once it ends as a last chunk does: not every
+            // piece that comes.
+            guard reply.count - bodyStart >= 5, reply.suffix(5) == Data("0\r\n\r\n".utf8) else { return false }
+            let body = Data(reply[(reply.startIndex + bodyStart)...])
+            guard let (_, used) = (try? ChunkedBody.decode(body)) ?? nil else { return false }
+            return used == body.count
+        default:
+            return false
+        }
     }
 
     private func deliverPage() {
@@ -422,6 +526,7 @@ private final class Exchange {
                                                       additions: bridge.pageAdditions(for: host))
         bridge.events(untouched.map { .untouched(host: host, $0) } ?? .rewritten(host: host))
         reply.removeAll()
+        count(0)
         client.send(content: bytes, completion: .contentProcessed { [self] _ in finish(client) })
     }
 
@@ -438,7 +543,10 @@ private final class Exchange {
 public final class SiteIdentities: @unchecked Sendable {
     public let certificates: SiteCertificateCache
     private let keychain: SecKeychain?
-    private let lock = NSLock()
+    /// One for every instance: the bridge made each day cleans up while the
+    /// last may still be making an identity.
+    private static let lock = NSLock()
+    private var lock: NSLock { Self.lock }
 
     /// The key's and the sites' certificates' label, to find and remove them.
     public static let label = "NetworkMonitor Enhanced Ad Blocking site"
@@ -450,6 +558,12 @@ public final class SiteIdentities: @unchecked Sendable {
         let p256 = try P256.Signing.PublicKey(x963Representation: raw)
         self.certificates = SiteCertificateCache(authority: authority, siteKey: Certificate.PublicKey(p256))
         self.keychain = keychain
+        // Any left by an earlier version, which kept them.
+        Self.lock.lock()
+        for certificate in Self.siteCertificates(in: keychain) {
+            SecItemDelete([kSecClass as String: kSecClassCertificate, kSecValueRef as String: certificate] as CFDictionary)
+        }
+        Self.lock.unlock()
     }
 
     private static func query(_ itemClass: CFString, in keychain: SecKeychain?) -> [String: Any] {
@@ -473,7 +587,9 @@ public final class SiteIdentities: @unchecked Sendable {
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
             kSecAttrKeySizeInBits as String: 256,
             kSecAttrIsExtractable as String: false,
+            kSecAttrIsSensitive as String: true,
             kSecPrivateKeyAttrs as String: [kSecAttrIsPermanent as String: true, kSecAttrIsExtractable as String: false,
+                                            kSecAttrIsSensitive as String: true,
                                             kSecAttrLabel as String: label] as [String: Any],
         ]
         if let keychain { attributes[kSecUseKeychain as String] = keychain }
@@ -557,6 +673,10 @@ public final class SiteIdentities: @unchecked Sendable {
         }
         var identity: SecIdentity?
         let made = SecIdentityCreateWithCertificate(keychain, secCertificate, &identity)
+        // The certificate was only needed in the keychain to be paired with
+        // the key: taken out again at once, so the System keychain, which
+        // every account on the Mac can read, never lists the sites visited.
+        SecItemDelete([kSecClass as String: kSecClassCertificate, kSecValueRef as String: secCertificate] as CFDictionary)
         guard made == errSecSuccess, let identity else { throw BridgeError.keychain("making the identity", made) }
         guard let result = sec_identity_create(identity) else { throw BridgeError.identity }
         return result

@@ -90,6 +90,9 @@ final class EnhancedProxy {
     private var pinned: Set<String> = []
     /// Whether the switch was on in the last policy, nil before the first.
     private var wasOn: Bool?
+    private var bridgeMadeAt: Date?
+    /// Sites whose own certificate was refused, and when.
+    private var refusedSites: [String: Date] = [:]
     private var trustedRoot: String?
     /// The apps the last policy kept for good: one it no longer keeps was
     /// tried again (Try Again), and is forgotten here too.
@@ -132,7 +135,10 @@ final class EnhancedProxy {
             lock.lock()
             preparing = false
             let current = run == generation
-            if current { bridge = made }
+            if current {
+                bridge = made
+                bridgeMadeAt = made == nil ? nil : Date()
+            }
             lock.unlock()
             if !current { made?.stop() }
         }
@@ -183,6 +189,7 @@ final class EnhancedProxy {
 
     func stop() {
         lock.lock()
+        refusedSites.removeAll()
         let old = bridge
         bridge = nil
         generation += 1
@@ -204,7 +211,8 @@ final class EnhancedProxy {
             if case .missing(let why) = AuthorityStore.lookUp(in: system) {
                 log.notice("no root to use (\(why, privacy: .public)): making one")
             }
-            let (authority, _) = try AuthorityStore.load(in: system, machine: machine)
+            let (authority, _) = try AuthorityStore.load(in: system, machine: machine,
+                                                         excluded: EnhancedBlocking.neverVouchedFor)
             // A root macOS doesn't trust would show every page a certificate
             // error: until it's trusted, nothing is opened.
             let probe = try authority.issue(for: "trust-check.invalid", key: authority.certificate.publicKey)
@@ -240,12 +248,36 @@ final class EnhancedProxy {
         return PageRules.decode(data)
     }
 
+    /// The bridge, made again each day (#686): its listeners hold the
+    /// certificates they were made with, a week's, and the root itself ends.
     private var currentBridge: SecureBridge? {
         lock.lock()
-        let bridge = bridge
+        var bridge = bridge
+        var old: SecureBridge?
+        if let made = bridgeMadeAt, Date().timeIntervalSince(made) > Self.bridgeLifetime {
+            old = bridge
+            bridge = nil
+            self.bridge = nil
+            bridgeMadeAt = nil
+            lastTry = nil
+        }
         lock.unlock()
+        old?.stop()
         if bridge == nil { prepare() }
         return bridge
+    }
+
+    static let bridgeLifetime: TimeInterval = 24 * 3600
+    static let refusedFor: TimeInterval = 3600
+
+    /// Whether a site's own certificate was refused within the hour.
+    func refusedRecently(_ host: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let when = refusedSites[host.lowercased()] else { return false }
+        if Date().timeIntervalSince(when) < Self.refusedFor { return true }
+        refusedSites.removeValue(forKey: host.lowercased())
+        return false
     }
 
     // MARK: Flows
@@ -311,11 +343,22 @@ final class EnhancedProxy {
             lock.unlock()
             // Only the new one: one sent before may have been tried again since.
             if let app { AppLink.shared.leftAlone([app]) }
-            log.notice("\(app ?? "an app", privacy: .public) refused our certificate for \(host, privacy: .public); left alone from now on")
+            log.notice("\(app ?? "an app", privacy: .public) refused our certificate; left alone from now on")
+            log.debug("\(app ?? "an app", privacy: .public) refused our certificate for \(host, privacy: .public)")
         case .serverRefused(let host):
-            log.notice("\(host, privacy: .public)'s certificate isn't trusted: refused")
+            // Its own certificate refused (a router's, a test server's): its
+            // connections go on unopened for a while, so the browser shows
+            // its own warning, which the person can choose to pass.
+            lock.lock()
+            let now = Date()
+            refusedSites = refusedSites.filter { now.timeIntervalSince($0.value) < Self.refusedFor }
+            if refusedSites.count < 1_000 { refusedSites[host] = now }
+            lock.unlock()
+            log.notice("a site's own certificate isn't trusted: refused, and left alone for an hour")
+            log.debug("\(host, privacy: .public)'s certificate isn't trusted")
         case .rewritten(let host):
-            log.notice("hid ads on a page from \(host, privacy: .public)")
+            // Which sites were visited stays out of the kept log (#686).
+            log.debug("hid ads on a page from \(host, privacy: .public)")
         case .answeredEmpty(let host):
             log.debug("answered a request to \(host, privacy: .public) empty: its address is an ad's or a tracker's")
         case .untouched(let host, let why):
@@ -450,7 +493,7 @@ final class ProxiedConnection {
         guard phase == .naming else { return }
         phase = .connecting
         let decision = proxy.settings.decide(app: app, host: name, port: port, isUDP: false)
-        guard decision == .open, let name, let sitePort = UInt16(exactly: port) else {
+        guard decision == .open, let name, let sitePort = UInt16(exactly: port), !proxy.refusedRecently(name) else {
             log.debug("passed \(name ?? self.remote.hostname, privacy: .public) on unchanged: \(String(describing: decision), privacy: .public)")
             return connect(to: original, bridged: false)
         }

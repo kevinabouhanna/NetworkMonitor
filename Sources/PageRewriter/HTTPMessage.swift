@@ -62,9 +62,12 @@ public struct HTTPHead: Equatable {
 
     /// The head as bytes, ending with its blank line.
     public var bytes: Data {
-        var text = startLine + "\r\n"
-        for header in headers { text += "\(header.name): \(header.value)\r\n" }
-        return Data((text + "\r\n").utf8)
+        // Byte for byte as read: Latin-1 maps each byte to one character. A
+        // line set here that Latin-1 can't hold is written in UTF-8, alone.
+        func line(_ text: String) -> Data { (text + "\r\n").data(using: .isoLatin1) ?? Data((text + "\r\n").utf8) }
+        var data = line(startLine)
+        for header in headers { data += line("\(header.name): \(header.value)") }
+        return data + Data("\r\n".utf8)
     }
 
     /// Reads a head from the start of `data`: the head and where the body
@@ -74,9 +77,10 @@ public struct HTTPHead: Equatable {
             if data.count > maxHeadSize { throw HTTPError.headTooLarge }
             return nil
         }
-        // Heads are ASCII; anything else is passed through, not read.
-        guard let text = String(data: data[data.startIndex..<end.lowerBound], encoding: .ascii) else {
-            throw HTTPError.malformed("a head that isn't ASCII")
+        // Read byte for byte (a cookie may hold UTF-8), and written back the
+        // same way; only the ASCII parts are ever looked at.
+        guard let text = String(data: data[data.startIndex..<end.lowerBound], encoding: .isoLatin1) else {
+            throw HTTPError.malformed("a head it can't read")
         }
         var lines = text.components(separatedBy: "\r\n")
         let start = lines.removeFirst()
@@ -85,14 +89,18 @@ public struct HTTPHead: Equatable {
         for line in lines {
             // Folded headers are obsolete and ambiguous: pass through.
             guard let colon = line.firstIndex(of: ":"), !line.hasPrefix(" "), !line.hasPrefix("\t") else {
-                throw HTTPError.malformed("header line \(line.prefix(40))")
+                throw HTTPError.malformed("a folded or broken header line")
             }
             let name = String(line[..<colon])
-            guard !name.isEmpty, !name.contains(" ") else { throw HTTPError.malformed("header name \(name)") }
-            headers.append((name, line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)))
+            guard !name.isEmpty, !name.contains(" ") else { throw HTTPError.malformed("a header name") }
+            // Only ASCII spaces and tabs: read as Latin-1, a UTF-8 character's
+            // last byte can look like a no-break space.
+            headers.append((name, line[line.index(after: colon)...].trimmingCharacters(in: Self.blanks)))
         }
         return (HTTPHead(startLine: start, headers: headers), end.upperBound - data.startIndex)
     }
+
+    static let blanks = CharacterSet(charactersIn: " \t")
 
     /// Far above any real head; past it, it isn't one.
     public static let maxHeadSize = 64 * 1024
@@ -159,7 +167,7 @@ public enum ChunkedBody {
                 throw HTTPError.malformed("chunk size")
             }
             let sizeText = line.split(separator: ";", maxSplits: 1).first.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
-            guard let size = Int(sizeText, radix: 16), size >= 0 else { throw HTTPError.malformed("chunk size \(line)") }
+            guard let size = Int(sizeText, radix: 16), size >= 0 else { throw HTTPError.malformed("a chunk size") }
             index = lineEnd.upperBound
             if size == 0 {
                 // Trailers, then the blank line.

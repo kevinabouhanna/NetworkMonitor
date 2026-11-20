@@ -39,7 +39,11 @@ public struct CertificateAuthority {
 
     /// A new root, signed by `key`, named for this Mac (`machine`, such as
     /// its computer name) so two Macs' roots tell apart.
-    public static func make(key: Certificate.PrivateKey, machine: String, now: Date = Date()) throws -> CertificateAuthority {
+    /// `excluded`: the names it may never vouch for, nor any name under them
+    /// (banks', health, government and payment sites, #686), written into it
+    /// as name constraints macOS enforces, whatever signs with it.
+    public static func make(key: Certificate.PrivateKey, machine: String, excluded: [String] = [],
+                            now: Date = Date()) throws -> CertificateAuthority {
         let name = try DistinguishedName {
             CommonName("\(commonName) (\(machine))")
             OrganizationName("NetworkMonitor")
@@ -47,6 +51,11 @@ public struct CertificateAuthority {
         let extensions = try Certificate.Extensions {
             Critical(BasicConstraints.isCertificateAuthority(maxPathLength: 0))
             Critical(KeyUsage(keyCertSign: true, cRLSign: true))
+            // Only for secure websites, never code, mail or anything else.
+            try ExtendedKeyUsage([.serverAuth])
+            if !excluded.isEmpty {
+                Critical(NameConstraints(excludedDNSDomains: excluded))
+            }
             SubjectKeyIdentifier(hash: key.publicKey)
         }
         let certificate = try Certificate(
@@ -96,6 +105,19 @@ public struct CertificateAuthority {
             publicKey: key, notValidBefore: now - 3600, notValidAfter: end,
             issuer: certificate.subject, subject: subject, signatureAlgorithm: .ecdsaWithSHA256,
             extensions: extensions, issuerPrivateKey: signer)
+    }
+
+    /// Whether it carries the limits it would be made with now: a root made
+    /// before them, or with other ones, is made again (#686).
+    public func isLimited(to excluded: [String]) -> Bool {
+        guard !excluded.isEmpty else { return true }
+        guard (try? certificate.extensions.extendedKeyUsage).flatMap({ $0 }).map(Array.init) == [.serverAuth],
+              let constraints = (try? certificate.extensions.nameConstraints) ?? nil else { return false }
+        let kept = Set(constraints.excludedSubtrees.compactMap { name -> String? in
+            if case .dnsName(let dns) = name { return dns }
+            return nil
+        })
+        return kept == Set(excluded)
     }
 
     /// As DER, for the keychain and the trust settings.
@@ -233,13 +255,13 @@ public enum AuthorityStore {
 
     /// The root in `keychain` (the System keychain for the filter), and
     /// whether it was just made.
-    public static func load(in keychain: SecKeychain? = nil, machine: String,
+    public static func load(in keychain: SecKeychain? = nil, machine: String, excluded: [String] = [],
                             now: Date = Date()) throws -> (authority: CertificateAuthority, made: Bool) {
-        if let kept = find(in: keychain, now: now) { return (kept, false) }
+        if let kept = find(in: keychain, now: now), kept.isLimited(to: excluded) { return (kept, false) }
         // Never a second root beside one that can't be taken out.
         guard remove(from: keychain) else { throw CertificateError.keychain(errSecDuplicateItem) }
         let key = try Certificate.PrivateKey(AuthorityKey.make(in: keychain))
-        let authority = try CertificateAuthority.make(key: key, machine: machine, now: now)
+        let authority = try CertificateAuthority.make(key: key, machine: machine, excluded: excluded, now: now)
         guard let certificate = SecCertificateCreateWithData(nil, try authority.der() as CFData) else {
             throw CertificateError.keyNotMade
         }
