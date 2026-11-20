@@ -243,8 +243,35 @@ func runSecureBridgeTests() {
                 let excepted = get("/ads/house.js", dest: "script")
                 Check.expectTrue(excepted?.contains("Story") == true, "the site's own reply: \(excepted?.prefix(60) ?? "none")")
                 Check.expectTrue(get("/ads/banner.js", dest: "image")?.contains("Story") == true, "a script rule, not an image's")
-                Check.expectEqual(events().filter { $0 == .answeredEmpty(host: "test.example") }.count, 2)
+                // A refused request with a big body: read to its end first, so
+                // the browser gets the reply, never a reset connection.
+                let body = String(repeating: "x", count: 300_000)
+                let post = browse(port: port, host: "test.example", anchor: bridgeRoot,
+                                  request: "POST /ads/send.js HTTP/1.1\r\nHost: test.example\r\nSec-Fetch-Dest: script\r\n"
+                                    + "Content-Length: \(body.utf8.count)\r\n\r\n" + body)
+                Check.expectTrue(post.map { String(decoding: $0, as: UTF8.self).hasPrefix("HTTP/1.1 200 OK") } == true,
+                                 "the empty reply after the body")
+                Check.expectEqual(events().filter { $0 == .answeredEmpty(host: "test.example") }.count, 3)
             }
+        }
+
+        Check.test("an empty reply: none for HEAD, a CORS preflight let through, nothing added from the request") {
+            func head(_ text: String) -> HTTPHead? { (try? HTTPHead.parse(Data(text.utf8)))?.head }
+            guard let headRequest = head("HEAD /p.gif HTTP/1.1\r\nHost: a\r\n\r\n"),
+                  let preflight = head("OPTIONS /c HTTP/1.1\r\nHost: a\r\nOrigin: https://site.example\r\n"
+                                       + "Access-Control-Request-Method: POST\r\n"
+                                       + "Access-Control-Request-Headers: content-type\r\n\r\n"),
+                  let sneaky = head("GET /x.js HTTP/1.1\r\nHost: a\r\nOrigin: https://a.example Set-Cookie: x\r\n\r\n") else {
+                return Check.expectTrue(false, "heads")
+            }
+            let none = String(decoding: EmptyReply.bytes(for: .image, request: headRequest), as: UTF8.self)
+            Check.expectTrue(none.hasSuffix("\r\n\r\n") && none.contains("Content-Length: 0"), none)
+            let allowed = String(decoding: EmptyReply.bytes(for: .xmlhttprequest, request: preflight), as: UTF8.self)
+            Check.expectTrue(allowed.hasPrefix("HTTP/1.1 204"), allowed)
+            Check.expectTrue(allowed.contains("Access-Control-Allow-Methods: POST\r\n"), allowed)
+            Check.expectTrue(allowed.contains("Access-Control-Allow-Headers: content-type\r\n"), allowed)
+            let plain = String(decoding: EmptyReply.bytes(for: .script, request: sneaky), as: UTF8.self)
+            Check.expectFalse(plain.contains("Set-Cookie") || plain.contains("Access-Control"), plain)
         }
 
         Check.test("a reply it can't read goes on byte for byte") {

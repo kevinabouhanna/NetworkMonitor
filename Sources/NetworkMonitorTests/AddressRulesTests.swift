@@ -125,6 +125,30 @@ func runAddressRulesTests() {
         Check.test("a page itself is never refused") {
             Check.expectFalse(rules.refuses(request("https://adserver.example/", kind: .document)))
         }
+
+        Check.test("a ^ at the very end, before |, matches the end of the address") {
+            let end = AddressRules(lines: ["/track.js^|"])
+            Check.expectTrue(end.refuses(request("https://x.example/track.js")))
+            Check.expectTrue(end.refuses(request("https://x.example/a/track.js?")))
+            Check.expectFalse(end.refuses(request("https://x.example/track.js?v=1")))
+        }
+
+        Check.test("a whole-page exception keeps to its own pages") {
+            let some = AddressRules(lines: ["||adserver.example^", "@@||widgets.example^$document,domain=partner.example"])
+            Check.expectTrue(some.refuses(request("https://adserver.example/x.js", page: "widgets.example")),
+                             "not where its domain= doesn't reach")
+        }
+
+        Check.test("on a page it never opens, one the person excludes, or one it can't tell, nothing is refused") {
+            let settings = EnhancedBlocking(isOn: true, excludedSites: ["news.example"])
+            Check.expectTrue(settings.refuses(request("https://adserver.example/x.js", page: "www.other.example"), by: rules))
+            Check.expectFalse(settings.refuses(request("https://adserver.example/x.js", page: "www.paypal.com"), by: rules),
+                              "a payment site's page")
+            Check.expectFalse(settings.refuses(request("https://adserver.example/x.js", page: "www.news.example"), by: rules),
+                              "an excluded site's page")
+            Check.expectFalse(settings.refuses(request("https://adserver.example/x.js", page: nil, thirdParty: true),
+                                               by: rules), "a page the browser didn't name")
+        }
     }
 
     Check.suite("Rules by address — a browser's request (#699)") {
@@ -143,6 +167,7 @@ func runAddressRulesTests() {
             Check.expectEqual(RequestKind.of(fetchDest: "iframe", accept: nil), .subdocument)
             Check.expectEqual(RequestKind.of(fetchDest: nil, accept: "text/html,application/xhtml+xml"), .document)
             Check.expectEqual(RequestKind.of(fetchDest: nil, accept: nil, upgrade: "websocket"), .websocket)
+            Check.expectEqual(RequestKind.of(fetchDest: "empty", accept: nil, contentType: "text/ping"), .ping, "<a ping>")
         }
     }
 

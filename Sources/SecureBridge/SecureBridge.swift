@@ -246,7 +246,10 @@ private final class Exchange {
                 // here, empty, as what it asked for.
                 if let target = head.target {
                     let address = AddressRequest(host: host, port: sitePort, target: target, header: head.value)
-                    if bridge.refuses(address) { return answerEmpty(address.kind, origin: head.value("Origin")) }
+                    if bridge.refuses(address) {
+                        return answerEmpty(address.kind, request: head, body: Data(request[(request.startIndex + bodyStart)...]),
+                                           more: !done)
+                    }
                 }
                 let body = request[(request.startIndex + bodyStart)...]
                 if head.value("Upgrade") != nil {
@@ -263,12 +266,35 @@ private final class Exchange {
         }
     }
 
-    private func answerEmpty(_ kind: RequestKind, origin: String?) {
+    /// The request's body (a beacon's, a form's) is read to its end first,
+    /// up to a megabyte, and dropped: closing while the browser still sends
+    /// would reset the connection, and the page would see an error rather
+    /// than the empty reply.
+    private func answerEmpty(_ kind: RequestKind, request: HTTPHead, body: Data, more: Bool) {
+        if more, body.count < 1024 * 1024, !Self.isWhole(body, of: request) {
+            client.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { [self] data, _, done, error in
+                guard !closed else { return }
+                touch()
+                if error != nil { return close() }
+                answerEmpty(kind, request: request, body: body + (data ?? Data()), more: !done)
+            }
+            return
+        }
         bridge.events(.answeredEmpty(host: host))
-        client.send(content: EmptyReply.bytes(for: kind, origin: origin), completion: .contentProcessed { [self] error in
+        client.send(content: EmptyReply.bytes(for: kind, request: request), completion: .contentProcessed { [self] error in
             if error != nil { return close() }
             finish(client)
         })
+    }
+
+    /// Whether a request's body is all there, by its framing; one that
+    /// can't be read is taken as whole.
+    static func isWhole(_ body: Data, of request: HTTPHead) -> Bool {
+        switch try? BodyFraming.forRequest(request) {
+        case .length(let length)?: return body.count >= length
+        case .chunked?: return ((try? ChunkedBody.decode(body)) ?? nil) != nil
+        default: return true
+        }
     }
 
     private enum Then { case reply, tunnel }

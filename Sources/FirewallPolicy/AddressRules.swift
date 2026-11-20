@@ -42,8 +42,12 @@ public struct RequestKind: OptionSet, Hashable, Codable {
     /// The kind a browser says a request is for, by its `Sec-Fetch-Dest`
     /// (Safari, Chrome and their kind send it); without it, by what it
     /// accepts.
-    public static func of(fetchDest: String?, accept: String?, upgrade: String? = nil) -> RequestKind {
+    public static func of(fetchDest: String?, accept: String?, upgrade: String? = nil,
+                          contentType: String? = nil, pingTo: String? = nil) -> RequestKind {
         if upgrade?.lowercased() == "websocket" { return .websocket }
+        // `<a ping>` says so; `sendBeacon` can't be told from a fetch, and
+        // is matched as one.
+        if pingTo != nil || contentType?.lowercased().hasPrefix("text/ping") == true { return .ping }
         if let dest = fetchDest?.lowercased() {
             switch dest {
             case "document": return .document
@@ -108,7 +112,8 @@ public struct AddressRequest: Equatable {
             if let pageHost { thirdParty = SiteName.site(of: pageHost) != SiteName.site(of: host) }
         }
         self.init(url: url, host: host, pageHost: pageHost,
-                  kind: .of(fetchDest: header("Sec-Fetch-Dest"), accept: header("Accept"), upgrade: header("Upgrade")),
+                  kind: .of(fetchDest: header("Sec-Fetch-Dest"), accept: header("Accept"), upgrade: header("Upgrade"),
+                            contentType: header("Content-Type"), pingTo: header("Ping-To")),
                   isThirdParty: thirdParty)
     }
 }
@@ -165,10 +170,14 @@ public struct AddressRule: Equatable {
     /// an option it doesn't do (rewriting, headers, `$csp`, `$removeparam`…),
     /// left out rather than read as something it isn't.
     public static func parse(_ line: String) -> AddressRule? {
+        // Most rules refuse a whole host (`||ads.example^`): read at once.
+        if let host = plainHost(line) { return AddressRule(pattern: host + "^", hostAnchored: true) }
         var text = line.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty, !text.hasPrefix("!"), !text.hasPrefix("[") else { return nil }
-        for marker in ["##", "#@#", "#?#", "#$#", "#%#", "#@%#", "#@?#", "#@$#", "$$", "$@$"] where text.contains(marker) {
-            return nil
+        if text.utf8.contains(UInt8(ascii: "#")) || text.contains("$$") || text.contains("$@$") {
+            for marker in ["##", "#@#", "#?#", "#$#", "#%#", "#@%#", "#@?#", "#@$#", "$$", "$@$"] where text.contains(marker) {
+                return nil
+            }
         }
         var rule = AddressRule(pattern: "")
         if text.hasPrefix("@@") {
@@ -264,16 +273,35 @@ public struct AddressRule: Equatable {
         return rule
     }
 
+    /// The host of a line that's `||host^` and nothing else, lowercased.
+    static func plainHost(_ line: String) -> String? {
+        let bytes = line.utf8
+        guard bytes.count > 4, bytes.starts(with: [0x7C, 0x7C]), bytes.last == UInt8(ascii: "^") else { return nil }
+        let host = bytes.dropFirst(2).dropLast()
+        return isHostName(host) ? String(decoding: host, as: UTF8.self) : nil
+    }
+
+    /// Lowercase letters, digits, `-` and at least one `.`.
+    static func isHostName<Bytes: Collection>(_ bytes: Bytes) -> Bool where Bytes.Element == UInt8 {
+        var dot = false
+        for byte in bytes {
+            switch byte {
+            case 0x61...0x7A, 0x30...0x39, UInt8(ascii: "-"): continue
+            case UInt8(ascii: "."): dot = true
+            default: return false
+            }
+        }
+        return dot
+    }
+
     /// A rule refusing a whole host and nothing else (`||ads.example^`): kept
     /// as a name, looked up rather than matched.
     var plainHost: String? {
         guard !isException, hostAnchored, !startAnchored, !endAnchored, kinds == .allButDocument, thirdParty == nil,
               domains.isEmpty, notDomains.isEmpty, !important, !wholePage else { return nil }
-        var host = pattern
-        if host.hasSuffix("^") { host.removeLast() } else { return nil }
-        guard !host.isEmpty, host.contains("."),
-              host.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" }) else { return nil }
-        return host
+        guard pattern.utf8.last == UInt8(ascii: "^") else { return nil }
+        let host = pattern.utf8.dropLast()
+        return Self.isHostName(host) ? String(decoding: host, as: UTF8.self) : nil
     }
 
     // MARK: Matching
@@ -440,8 +468,7 @@ struct Pattern {
         }
         let first = parts[0]
         if endAnchored, parts.count == 1 {
-            let at = url.count - first.count
-            return at >= 0 && part(first, isLast: true, at: at, url)
+            return endings(of: first, url).contains { $0 >= 0 && part(first, isLast: true, at: $0, url) }
         }
         // Unanchored: its first part found anywhere. The leftmost leaves the
         // most room for the rest, so it's the only one to try.
@@ -465,10 +492,16 @@ struct Pattern {
         }
         let last = parts[lastIndex]
         if endAnchored {
-            let at = url.count - last.count
-            return at >= position && part(last, isLast: true, at: at, url)
+            return endings(of: last, url).contains { $0 >= position && part(last, isLast: true, at: $0, url) }
         }
         return find(last, isLast: true, from: position, url) != nil
+    }
+
+    /// Where a part that ends the address may start: its length from the
+    /// end, or one less when its final `^` stands for the end itself.
+    private func endings(of part: Range<Int>, _ url: [UInt8]) -> [Int] {
+        let at = url.count - part.count
+        return !part.isEmpty && bytes[part.upperBound - 1] == Self.caret ? [at, at + 1] : [at]
     }
 
     /// Whether the part is at `at`. A `^` ending the whole pattern also
@@ -549,14 +582,14 @@ public struct AddressRules: Codable, Equatable {
         self.lines = kept.map(\.line)
         // Each rule goes under the token it has that the fewest others have,
         // so no address meets many rules.
-        let candidates = kept.map { Self.tokens(of: $0.rule) }
+        var indexed: [AddressRule] = []
+        for (_, rule) in kept {
+            if let host = rule.plainHost { hosts.insert(host) } else { indexed.append(rule) }
+        }
+        let candidates = indexed.map(Self.tokens(of:))
         var frequency: [String: Int] = [:]
         for tokens in candidates { for token in tokens { frequency[token, default: 0] += 1 } }
-        for (index, (_, rule)) in kept.enumerated() {
-            if let host = rule.plainHost {
-                hosts.insert(host)
-                continue
-            }
+        for (index, rule) in indexed.enumerated() {
             let position = rules.count
             rules.append(rule)
             patterns.append(Pattern(rule))
@@ -685,7 +718,10 @@ public struct AddressRules: Codable, Equatable {
             if Self.host(pageHost, in: wholePageHosts) { return false }
             if !wholePages.isEmpty {
                 let page = Address("https://" + pageHost + "/")
-                for position in wholePages where patterns[position].matches(page) { return false }
+                for position in wholePages
+                where rules[position].optionsHold(for: request, pageNames: pageNames) && patterns[position].matches(page) {
+                    return false
+                }
             }
         }
         return true

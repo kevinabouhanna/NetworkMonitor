@@ -171,13 +171,7 @@ final class EnhancedProxy {
                                         ?? PageAdditions(selectors: [], scriptlets: [])
                                 },
                                 refuses: { request in
-                                    // Nothing a page on a site the person keeps
-                                    // it away from asks for is refused.
-                                    guard let rules else { return false }
-                                    if let page = request.pageHost, Firewall.shared.enhancedBlocking.isExcluded(page) {
-                                        return false
-                                    }
-                                    return rules.addresses.refuses(request)
+                                    rules.map { Firewall.shared.enhancedBlocking.refuses(request, by: $0.addresses) } ?? false
                                 },
                                 events: { [weak self] in self?.note($0) })
         } catch {

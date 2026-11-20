@@ -15,8 +15,9 @@ public enum EmptyReply {
         0x01, 0x00, 0x01, 0x00, 0x00, 0x02, 0x02, 0x44, 0x01, 0x00, 0x3B,
     ])
 
-    public static func bytes(for kind: RequestKind, origin: String?) -> Data {
-        let status: String, type: String?, body: Data
+    public static func bytes(for kind: RequestKind, request: HTTPHead) -> Data {
+        let origin = request.value("Origin")
+        var status: String, type: String?, body: Data
         switch kind {
         case .image: (status, type, body) = ("200 OK", "image/gif", pixel)
         case .script: (status, type, body) = ("200 OK", "text/javascript", Data())
@@ -26,6 +27,11 @@ public enum EmptyReply {
         case .ping: (status, type, body) = ("204 No Content", nil, Data())
         default: (status, type, body) = ("200 OK", "text/plain", Data())
         }
+        // A reply to HEAD has no body; a CORS preflight is let through, so
+        // the request after it gets its own empty reply.
+        if request.method == "HEAD" { body = Data() }
+        let preflight = request.method == "OPTIONS" && request.value("Access-Control-Request-Method") != nil
+        if preflight { (status, type, body) = ("204 No Content", nil, Data()) }
         var head = "HTTP/1.1 \(status)\r\n"
         if let type { head += "Content-Type: \(type)\r\n" }
         if !status.hasPrefix("204") { head += "Content-Length: \(body.count)\r\n" }
@@ -35,8 +41,19 @@ public enum EmptyReply {
         if let origin, origin.allSatisfy({ !$0.isWhitespace && $0 != "\r" && $0 != "\n" }),
            let components = URLComponents(string: origin), components.scheme != nil, components.host != nil {
             head += "Access-Control-Allow-Origin: \(origin)\r\nAccess-Control-Allow-Credentials: true\r\nVary: Origin\r\n"
+            if preflight {
+                for (asked, allowed) in [("Access-Control-Request-Method", "Access-Control-Allow-Methods"),
+                                         ("Access-Control-Request-Headers", "Access-Control-Allow-Headers")] {
+                    if let value = request.value(asked), Self.isToken(list: value) { head += "\(allowed): \(value)\r\n" }
+                }
+            }
         }
         head += "Connection: close\r\n\r\n"
         return Data(head.utf8) + body
+    }
+
+    /// A list of methods or header names, nothing that could end a header.
+    static func isToken(list: String) -> Bool {
+        !list.isEmpty && list.allSatisfy { $0.isLetter || $0.isNumber || "-_, ".contains($0) }
     }
 }
