@@ -1038,12 +1038,12 @@
 "Choose the apps whose pages it removes ads from" = "选择要移除其网页广告的应用";
 "Continue…" = "继续…";
 "Enhanced ad blocking" = "增强型广告拦截";
-"Getting ready: macOS may ask you to allow NetworkMonitor's proxy." = "正在准备：macOS 可能会请你允许 NetworkMonitor 的代理。";
+"Getting ready: NetworkMonitor is making its certificate for this Mac." = "正在准备：NetworkMonitor 正在为这台 Mac 生成证书。";
 "It makes a certificate for this Mac only. Its key never leaves the Mac." = "它会生成一个仅用于这台 Mac 的证书，其密钥永远不会离开这台 Mac。";
 "Left alone" = "不予处理";
 "NetworkMonitor opens your browsers' secure connections on this Mac, removes the ads inside their pages, and passes them on. Nothing leaves your Mac. It needs a certificate it makes for this Mac only: its key never leaves the Mac, and both are removed when you switch this off. Banking, health, government and payment sites, and sites you Always Allow, are never opened. How: a transparent proxy and a root certificate made on this Mac (HTTPS filtering)." = "NetworkMonitor 在这台 Mac 上打开浏览器的安全连接，移除网页里的广告，再把它们传下去。没有任何内容离开你的 Mac。它需要一个仅为这台 Mac 生成的证书：其密钥永远不会离开这台 Mac，关闭此功能时两者都会被移除。银行、医疗、政府和支付网站，以及你设为“始终允许”的网站，永远不会被打开。原理：透明代理和在这台 Mac 上生成的根证书（HTTPS 过滤）。";
 "NetworkMonitor will open your browsers' secure connections on this Mac to remove the ads inside pages and videos, then pass them on." = "NetworkMonitor 将在这台 Mac 上打开浏览器的安全连接，移除网页和视频里的广告，再把它们传下去。";
-"Next, macOS asks you twice: to allow NetworkMonitor's proxy, and for your password, to trust the certificate." = "接下来 macOS 会问你两次：是否允许 NetworkMonitor 的代理，以及输入密码以信任该证书。";
+"Next, macOS asks for your password, to trust the certificate." = "接下来 macOS 会请你输入密码，以信任该证书。";
 "No apps" = "没有应用";
 "Nothing is opened until macOS trusts NetworkMonitor's certificate. Ads are still blocked by name, as before." = "在 macOS 信任 NetworkMonitor 的证书之前，不会打开任何连接。广告仍会像以前一样按名称拦截。";
 "On. Banking, health, government and payment sites, and sites you Always Allow in Your rules, are never opened." = "已打开。银行、医疗、政府和支付网站，以及你在“你的规则”中设为“始终允许”的网站，永远不会被打开。";

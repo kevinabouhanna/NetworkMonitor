@@ -267,8 +267,8 @@ you switch it on.
   else on unchanged. Nothing leaves your Mac. Technically: a transparent proxy in the same
   system extension as the filter, and a root certificate made on this Mac (HTTPS filtering,
   as AdGuard does).
-- **Switching it on** says what it means once, then macOS asks twice: to allow
-  NetworkMonitor's proxy, and for your password, to trust the certificate. The certificate
+- **Switching it on** says what it means once, then macOS asks for your password, to trust
+  the certificate. The certificate
   is made for this Mac only; its key is made in the System keychain and can never be copied
   out of it. Until macOS trusts it, nothing is opened, and Settings says **Waiting for your
   approval** with **Try Again…**; ads are still blocked by name meanwhile.

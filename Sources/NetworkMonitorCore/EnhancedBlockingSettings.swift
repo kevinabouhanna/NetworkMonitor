@@ -56,7 +56,7 @@ struct EnhancedBlockingSection: View {
         case .off:
             return L("Also removes ads inside pages and videos, in Safari and other browsers. Off until you switch it on.")
         case .preparing:
-            return L("Getting ready: macOS may ask you to allow NetworkMonitor's proxy.")
+            return L("Getting ready: NetworkMonitor is making its certificate for this Mac.")
         case .approving:
             return L("macOS is asking for your password, to trust NetworkMonitor's certificate.")
         case .needsApproval:
@@ -114,7 +114,7 @@ public struct EnhancedApprovalSheet: View {
                     }
                 }
             }
-            Text(L("Next, macOS asks you twice: to allow NetworkMonitor's proxy, and for your password, to trust the certificate."))
+            Text(L("Next, macOS asks for your password, to trust the certificate."))
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)

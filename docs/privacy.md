@@ -126,7 +126,7 @@ it every server your Mac talks to. The data is
   leaves its System keychain. It reads pages only to remove their ads, keeps and logs none
   of their contents, and sends nothing anywhere. It never opens banking, health, government
   or payment sites, sites you always allow, or apps that refuse the certificate. macOS asks
-  to allow the proxy and for your password to trust the certificate; switching it off asks
+  for your password to trust the certificate; switching it off asks
   for the password again and deletes the certificate and its key. See
   [Enhanced ad blocking](connections.md#enhanced-ad-blocking).
 - **Nothing else, normally.** No Local Network, no Accessibility, no Full Disk Access.
