@@ -209,14 +209,18 @@ public struct PageRules: Codable, Equatable {
     /// Where each generic selector is, so a site's few exceptions are taken
     /// out without looking at the thirteen thousand others.
     private var genericIndex: [String: [Int]] = [:]
+    /// The requests refused by their address (#699).
+    public internal(set) var addresses = AddressRules(lines: [])
 
-    private enum CodingKeys: String, CodingKey { case generic, bySite, ruleCount }
+    private enum CodingKeys: String, CodingKey { case generic, bySite, ruleCount, addresses }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         generic = try container.decode([String].self, forKey: .generic)
         bySite = try container.decode([String: [Entry]].self, forKey: .bySite)
         ruleCount = try container.decode(Int.self, forKey: .ruleCount)
+        // Rules built before #699 have none: pages are still hidden.
+        addresses = try container.decodeIfPresent(AddressRules.self, forKey: .addresses) ?? AddressRules(lines: [])
         genericIndex = Self.index(generic)
     }
 
@@ -273,14 +277,21 @@ public struct PageRules: Codable, Equatable {
     public init(listText: String) {
         var depth = 0
         var rules: [PageRule] = []
+        var addressLines: [String] = []
         for line in listText.split(whereSeparator: \.isNewline) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed.hasPrefix("!#if") { depth += 1; continue }
             if trimmed.hasPrefix("!#endif") { depth = max(0, depth - 1); continue }
-            guard depth == 0, let rule = PageRule.parse(trimmed) else { continue }
-            rules.append(rule)
+            guard depth == 0 else { continue }
+            if let rule = PageRule.parse(trimmed) {
+                rules.append(rule)
+            } else {
+                addressLines.append(trimmed)
+            }
         }
         self.init(rules: rules)
+        // Those it can read (AddressRules keeps only those).
+        addresses = AddressRules(lines: addressLines)
     }
 
     public var siteCount: Int { bySite.keys.filter { !$0.isEmpty }.count }
@@ -364,4 +375,6 @@ public struct PageRules: Codable, Equatable {
 
     /// Far below EasyList's thirteen thousand, far above an error page.
     public static let minimumGeneric = 5_000
+    /// Far below the hundred thousand rules by address the two lists have.
+    public static let minimumAddresses = 20_000
 }

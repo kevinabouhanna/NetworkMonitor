@@ -137,7 +137,7 @@ public struct EnhancedBlocking: Codable, Equatable {
 
     /// Excluded: the name, or any name above it (a platform's too, such as
     /// `github.io`), is in the person's list.
-    func isExcluded(_ name: String) -> Bool {
+    public func isExcluded(_ name: String) -> Bool {
         Self.namesAbove(name).contains { excludedSites.contains($0) }
     }
 

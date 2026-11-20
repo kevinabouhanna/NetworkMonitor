@@ -33,11 +33,14 @@ public enum BridgeEvent: Equatable {
     /// A reply went on untouched, and why.
     case untouched(host: String, PageRewriter.Untouched)
     case rewritten(host: String)
+    /// A request its rules by address refuse (#699) was answered empty.
+    case answeredEmpty(host: String)
 }
 
 public final class SecureBridge: @unchecked Sendable {
     private let identities: SiteIdentities
     private let additions: (String) -> PageAdditions
+    fileprivate let refuses: (AddressRequest) -> Bool
     private let trusts: ([SecCertificate], String) -> Bool
     private let endpoint: (String, UInt16) -> NWEndpoint
     fileprivate let events: (BridgeEvent) -> Void
@@ -61,15 +64,19 @@ public final class SecureBridge: @unchecked Sendable {
     /// - Parameters:
     ///   - identities: the sites' certificates and their key.
     ///   - additions: what a page on a host gets.
+    ///   - refuses: whether a request is answered empty instead of going on
+    ///     to the site (#699).
     ///   - trusts: whether a site's certificate chain is trusted for it; by
     ///     default, as macOS would for a browser.
     ///   - endpoint: where a site is reached; by default, by its name.
     public init(identities: SiteIdentities, additions: @escaping (String) -> PageAdditions,
+                refuses: @escaping (AddressRequest) -> Bool = { _ in false },
                 trusts: @escaping ([SecCertificate], String) -> Bool = { ServerTrust.isTrusted($0, host: $1) },
                 endpoint: @escaping (String, UInt16) -> NWEndpoint = { .hostPort(host: .init($0), port: .init(rawValue: $1)!) },
                 events: @escaping (BridgeEvent) -> Void = { _ in }) {
         self.identities = identities
         self.additions = additions
+        self.refuses = refuses
         self.trusts = trusts
         self.endpoint = endpoint
         self.events = events
@@ -235,6 +242,12 @@ private final class Exchange {
                     return done ? close() : readRequest()
                 }
                 method = head.method
+                // A request its rules refuse goes no further: it's answered
+                // here, empty, as what it asked for.
+                if let target = head.target {
+                    let address = AddressRequest(host: host, port: sitePort, target: target, header: head.value)
+                    if bridge.refuses(address) { return answerEmpty(address.kind, origin: head.value("Origin")) }
+                }
                 let body = request[(request.startIndex + bodyStart)...]
                 if head.value("Upgrade") != nil {
                     return openSite(sending: request, then: .tunnel, more: !done)
@@ -248,6 +261,14 @@ private final class Exchange {
                 close()
             }
         }
+    }
+
+    private func answerEmpty(_ kind: RequestKind, origin: String?) {
+        bridge.events(.answeredEmpty(host: host))
+        client.send(content: EmptyReply.bytes(for: kind, origin: origin), completion: .contentProcessed { [self] error in
+            if error != nil { return close() }
+            finish(client)
+        })
     }
 
     private enum Then { case reply, tunnel }
