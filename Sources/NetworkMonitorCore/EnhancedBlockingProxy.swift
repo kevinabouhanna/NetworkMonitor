@@ -8,7 +8,7 @@ import os
 /// carries too. Configured and started only while the switch is on; with it
 /// off, any configuration left from before is removed, so nothing runs.
 ///
-/// Until Settings has its switch (#685), it's on only for a run started with
+/// On while its switch in Settings › Ads is (#685), or for a run started with
 /// `-enhancedAdBlockingForTesting YES`, to check a signed test build in a VM.
 public final class EnhancedBlockingProxy {
 

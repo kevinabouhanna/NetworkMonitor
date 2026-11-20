@@ -65,6 +65,15 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
         }
     }
 
+    /// Apps that refused Enhanced ad blocking's certificate, for the app to
+    /// keep (#685).
+    func leftAlone(_ apps: Set<String>) {
+        guard !apps.isEmpty, let data = try? JSONEncoder().encode(apps.sorted()) else { return }
+        queue.async {
+            (self.app?.remoteObjectProxy as? FilterAppInterface)?.appsLeftAlone(data)
+        }
+    }
+
     func expired(_ id: String) {
         queue.async {
             (self.app?.remoteObjectProxy as? FilterAppInterface)?.questionExpired(id)

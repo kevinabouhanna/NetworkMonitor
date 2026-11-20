@@ -156,7 +156,8 @@ One switch blocks ads, trackers and malware sites in every app. **Overview** sho
 blocked in the period, on a chart and by site and app, both used as Usage History's are:
 hover or click a bar, choose or open a row (#536); **Log** shows each connection live,
 as the filter decides it; **Rules** lists your own, as Connections lists its (#592). The
-lists are in its settings. See [Ads and Trackers](connections.md#ads-and-trackers).
+lists are in its settings, with **Enhanced ad blocking**, which also removes the ads inside
+pages and videos in your browsers (#685). See [Ads and Trackers](connections.md#ads-and-trackers).
 
 ## Speed test
 

@@ -118,8 +118,17 @@ it every server your Mac talks to. The data is
   When an app connects by address, as Chrome does, it reads the site's name from the
   connection's opening handshake, where it's sent for the network to read, and nothing
   after it (#196). It blocks only what you block (#114), never sees the contents of any
-  traffic, and sends nothing anywhere. macOS asks you twice to allow it; System Settings › Network › Filters
+  traffic (unless you switch on Enhanced ad blocking, below), and sends nothing anywhere. macOS asks you twice to allow it; System Settings › Network › Filters
   switches it off, and Uninstall removes it.
+- **A proxy and a certificate, only if you switch on Enhanced ad blocking** (#685), in Ads
+  and Trackers' settings. To remove the ads inside pages, it opens your browsers' secure
+  connections on this Mac, through a certificate made for this Mac only, whose key never
+  leaves its System keychain. It reads pages only to remove their ads, keeps and logs none
+  of their contents, and sends nothing anywhere. It never opens banking, health, government
+  or payment sites, sites you always allow, or apps that refuse the certificate. macOS asks
+  to allow the proxy and for your password to trust the certificate; switching it off asks
+  for the password again and deletes the certificate and its key. See
+  [Enhanced ad blocking](connections.md#enhanced-ad-blocking).
 - **Nothing else, normally.** No Local Network, no Accessibility, no Full Disk Access.
 - **A helper, once, if you choose it.** Switching on Hotspot mode offers a small helper,
   which macOS lists under NetworkMonitor in System Settings › General › Login Items &

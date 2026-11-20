@@ -85,8 +85,12 @@ final class EnhancedProxy {
     /// How often a missing bridge is tried again: the root may be trusted since.
     static let retry: TimeInterval = 30
     /// Apps found to refuse our certificate while it ran (they pin their
-    /// own): left alone from then on. The app keeps them for good with #685.
+    /// own): left alone from then on, and sent to the app, which keeps them
+    /// for good (#685). Once the policy carries one, it's the policy's.
     private var pinned: Set<String> = []
+    /// Whether the switch was on in the last policy, nil before the first.
+    private var wasOn: Bool?
+    private var trustedRoot: String?
     /// The app behind each connection to the bridge, by its loopback port,
     /// so a refusal is put down to the app that refused.
     private var appsByPort: [UInt16: String] = [:]
@@ -125,6 +129,42 @@ final class EnhancedProxy {
             if current { bridge = made }
             lock.unlock()
             if !current { made?.stop() }
+        }
+    }
+
+    /// A new policy from the app (#685): the apps it now keeps for good are
+    /// its own, the rest sent again; a root the person just approved is
+    /// tried at once; and switched off, the root, its key and the sites'
+    /// certificates are taken out of the System keychain, so nothing is left.
+    func apply(_ settings: EnhancedBlocking) {
+        lock.lock()
+        pinned.subtract(settings.pinnedApps)
+        let unsent = pinned
+        let switchedOff = !settings.isOn && wasOn != false
+        let approved = settings.isOn && settings.trustedRoot != nil && settings.trustedRoot != trustedRoot
+        wasOn = settings.isOn
+        trustedRoot = settings.trustedRoot
+        if approved, bridge == nil { lastTry = nil }
+        lock.unlock()
+        AppLink.shared.leftAlone(unsent)
+        if switchedOff {
+            stop()
+            DispatchQueue.global(qos: .utility).async { [self] in removeEverything() }
+        } else if approved {
+            prepare()
+        }
+    }
+
+    /// The root, its key, the sites' key and their certificates, out of the
+    /// System keychain: none of them is left once the switch is off.
+    private func removeEverything() {
+        var system: SecKeychain?
+        guard SecKeychainCopyDomainDefault(.system, &system) == errSecSuccess, let system else { return }
+        let hadRoot = !AuthorityStore.certificates(in: system).isEmpty || !AuthorityKey.find(in: system).isEmpty
+        let rootGone = AuthorityStore.remove(from: system)
+        let sitesGone = SiteIdentities.remove(from: system)
+        if hadRoot || !rootGone || !sitesGone {
+            log.notice("switched off: the root and the sites' certificates \(rootGone && sitesGone ? "removed" : "not all removed", privacy: .public)")
         }
     }
 
@@ -255,7 +295,9 @@ final class EnhancedProxy {
             lock.lock()
             let app = clientPort.flatMap { appsByPort[$0] }
             if let app { pinned.insert(app) }
+            let unsent = pinned
             lock.unlock()
+            AppLink.shared.leftAlone(unsent)
             log.notice("\(app ?? "an app", privacy: .public) refused our certificate for \(host, privacy: .public); left alone from now on")
         case .serverRefused(let host):
             log.notice("\(host, privacy: .public)'s certificate isn't trusted: refused")

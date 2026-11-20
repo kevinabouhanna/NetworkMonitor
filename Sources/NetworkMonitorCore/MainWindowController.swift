@@ -131,7 +131,8 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                                                        onShowRules: { go(.connections); connectionsModel.show = .rules }))
             case .ads:
                 view = AnyView(AdsSettingsPane(ads: adsModel, connections: connectionsModel, filter: model.filter,
-                                               firewall: model.firewall, blocklists: model.blocklists,
+                                               firewall: model.firewall, enhanced: model.enhanced,
+                                               blocklists: model.blocklists,
                                                listBlocks: model.listBlocks, onOpenAds: { go(.ads) },
                                                onShowRules: { go(.ads); adsModel.tab = .rules }))
             case .network, .settings:

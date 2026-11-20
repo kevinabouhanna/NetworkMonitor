@@ -129,6 +129,35 @@ func runKeyboardTests() {
             expectNoProblems(window, "ads rules")
         }
 
+        // Enhanced ad blocking on (#685): Apps… and Try Again… reached in Ads'
+        // settings, and every control of its two sheets.
+        Check.test("the main window › ads › settings with Enhanced ad blocking on: each stop named, every control reached") {
+            let before = model.firewall.enhancedBlocking
+            model.firewall.enhancedBlocking.isOn = true
+            model.firewall.enhancedBlocking.pinnedApps = ["com.example.pinning"]
+            model.enhanced.preview(.needsApproval)
+            defer {
+                model.firewall.enhancedBlocking = before
+                model.enhanced.preview(.off)
+            }
+            main.show(.ads)
+            main.showSettings()
+            settle(0.8)
+            expectNoProblems(window, "ads settings, enhanced on")
+            for (title, sheet) in [("Turn on Enhanced ad blocking", AnyView(EnhancedApprovalSheet(enhanced: model.enhanced))),
+                                   ("Apps it reaches", AnyView(EnhancedAppsSheet(enhanced: model.enhanced,
+                                                                                 firewall: model.firewall)))] {
+                let sheetWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 520), styleMask: [.titled],
+                                           backing: .buffered, defer: false)
+                sheetWindow.title = title
+                sheetWindow.contentView = NSHostingView(rootView: sheet.localizedRoot())
+                place(sheetWindow)
+                settle(0.6)
+                expectNoProblems(sheetWindow, title)
+                sheetWindow.orderOut(nil)
+            }
+        }
+
         Check.test("the sidebar is one stop, named, that ↑ and ↓ move through") {
             main.show(.history)
             settle(0.8)

@@ -47,6 +47,14 @@ public final class FirewallRules: ObservableObject {
         didSet { defaults.set(blocksEverything, forKey: Self.blocksEverythingKey) }
     }
 
+    /// Enhanced ad blocking's settings (#685): the switch, the apps it
+    /// reaches, the apps found to refuse its certificate, and the root the
+    /// person approved. Off at first.
+    @Published public var enhancedBlocking: EnhancedBlocking {
+        didSet { defaults.set(try? JSONEncoder().encode(enhancedBlocking), forKey: Self.enhancedBlockingKey) }
+    }
+    public static let enhancedBlockingKey = "enhancedBlocking"
+
     private let defaults: UserDefaults
     /// The team that signed an app key's program (#202).
     private let teamOf: (String) -> String?
@@ -63,7 +71,22 @@ public final class FirewallRules: ObservableObject {
             .flatMap { try? JSONDecoder().decode([AdRule].self, from: $0) } ?? []
         listsPausedUntil = (defaults.object(forKey: Self.listsPausedKey) as? Date).flatMap { $0 > Date() ? $0 : nil }
         listsPausedNetworks = defaults.dictionary(forKey: Self.listsPausedNetworksKey) as? [String: String] ?? [:]
+        enhancedBlocking = defaults.data(forKey: Self.enhancedBlockingKey)
+            .flatMap { try? JSONDecoder().decode(EnhancedBlocking.self, from: $0) } ?? EnhancedBlocking()
         scheduleResume()
+    }
+
+    /// What the filter is sent of Enhanced ad blocking: the settings, with
+    /// the sites the person always allows for every app never opened (#685),
+    /// as banks' aren't; on for a test run too (#702).
+    public static func enhancedPolicy(_ settings: EnhancedBlocking, adRules: [AdRule],
+                                      onForTesting: Bool = false) -> EnhancedBlocking {
+        var policy = settings
+        policy.isOn = settings.isOn || onForTesting
+        policy.excludedSites.formUnion(adRules.compactMap { rule in
+            rule.kind == .neverBlock && rule.appKey == nil ? rule.site : nil
+        })
+        return policy
     }
 
     /// The lists the filter is sent: none while paused, or on a network
