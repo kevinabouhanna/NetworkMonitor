@@ -121,8 +121,9 @@ and exits non-zero if anything fails.
   so the tests that read windows (`Check.windowSuite`, `Check.windowTest`) can't run here.
   The runner leaves them out and names them at the end, and `Scripts/test.sh` runs them
   in a throwaway VM (`Scripts/window-tests-vm.sh`, `mac-vm`), so a push or `local-ci`
-  while Kevin is away takes a few minutes more, never 400 failures. The keyboard tour
-  doesn't run in the VM yet (#678): while locked, it's left for the next unlocked run.
+  while Kevin is away takes a few minutes more, never 400 failures. The VM's screen is
+  1600×1000 points (`--display 3200x2000`): on its usual 960×720 the main window shrinks to
+  960 points, too narrow for search in its toolbar, and ⌘F has nothing to open (#678).
   `NETMON_WINDOWS=skip` or `only` picks them by hand. A new test that reads a window
   goes in a window suite, or is a `Check.windowTest`.
 - **The asset check's cases.** `make test` also runs `build/site-shots coverage-test`:
