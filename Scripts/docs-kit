@@ -56,7 +56,7 @@ import sys
 import time
 import unicodedata
 
-VERSION = "2.16.0"
+VERSION = "2.16.1"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -877,11 +877,16 @@ DESIGN_HEAD = re.compile(r"design[\s*_:]*$", re.I)
 DESIGN_UNDER = re.compile(DESIGN_SAID, re.I)
 # What ends a section a label opened: a heading (in a quote too), or another bold label ("**Why:**").
 SECTION_END = re.compile(r"^\s*(>\s*)*(#{1,6}\s|[-*+]?\s*\*\*[^*\n]+?(:\*\*|\*\*\s*:))")
+# A section a heading opened holds bold labels of its own ("**Why it's blank:** …", #107): it ends
+# at a heading, or at a label naming another of the item's parts.
+HEADING = re.compile(r"^\s*(>\s*)*#{1,6}\s")
+PART_END = re.compile(r"^\s*(>\s*)*[-*+]?\s*\*\*\s*(analysis|design|done[\s_-]+when|kind)\s*(:\*\*|\*\*\s*:)", re.I)
 
 
 def _says(body: str, label: re.Pattern) -> bool:
     """Whether a line of the description, outside code, starts with the label (once its lead is taken
-    off) and has something said after it, on that line or under it before the section ends."""
+    off) and has something said after it, on that line or under it before the section ends: for a
+    label, at the next heading or bold label; for a heading, at the next heading or part's label."""
     lines = FENCED.sub("", body.lstrip("\ufeff")).split("\n")
     for k, line in enumerate(lines):
         m = label.match(LINE_LEAD.sub("", line, count=1))
@@ -889,8 +894,9 @@ def _says(body: str, label: re.Pattern) -> bool:
             continue
         if re.search(r"\w", m.group(1)):
             return True
+        heading = HEADING.match(line)
         for after in lines[k + 1:]:
-            if SECTION_END.match(after):
+            if (HEADING.match(after) or PART_END.match(after)) if heading else SECTION_END.match(after):
                 break
             if re.search(r"\w", after):
                 return True
