@@ -9,8 +9,7 @@ import NetworkMonitorCore
 /// sidebar, a switch and search. Built here with empty data; `make
 /// design-shots KEYBOARD=1` tours the same windows with rows in their lists.
 func runKeyboardTests() {
-    Check.windowSuite("Keyboard and VoiceOver",
-                      notInVM: "the keyboard tour can't place SwiftUI's stops in the VM yet (#678)") {
+    Check.windowSuite("Keyboard and VoiceOver") {
         OutOfSight.startApp()
         KeyboardTour.start()
         defer { KeyboardTour.stop() }
@@ -244,6 +243,13 @@ func runKeyboardTests() {
             main.beginSearch()
             settle(0.8)
             let search = main.history.search
+            // A window narrower than its toolbar (a VM's small screen) drops
+            // search out of it, and ⌘F has nothing to open (#678).
+            guard search.field.window === window else {
+                Check.expectTrue(false, "search isn't in the toolbar: the window is \(Int(window.frame.width)) points wide, "
+                                 + "on a screen \(Int(window.screen?.frame.width ?? 0)) wide")
+                return
+            }
             Check.expectTrue(search.field.currentEditor() != nil, "⌘F didn't put the cursor in search")
             search.field.currentEditor()?.insertText("Sa")
             settle(0.3)

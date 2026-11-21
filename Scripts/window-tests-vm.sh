@@ -43,7 +43,10 @@ inside="/Volumes/My Shared Files/$(basename "$share")"
 echo "==> Running the window tests in a throwaway VM (mac-vm)"
 # The VM boots in under a minute and the tests take two or three (20 min at most).
 # The runner's own status goes in a file, to tell its failures from the VM's.
-MAC_VM_TIMEOUT="${MAC_VM_TIMEOUT:-1200}" mac-vm run --share "$share" -- bash -c "
+# A screen of 1600×1000 points: on the clone's usual 960×720, the main window
+# shrinks to 960 points, search drops out of its toolbar, and the keyboard
+# suite's ⌘F has nothing to open (#678).
+MAC_VM_TIMEOUT="${MAC_VM_TIMEOUT:-1200}" mac-vm run --display 3200x2000 --share "$share" -- bash -c "
   d=\$(mktemp -d /tmp/nm-window-tests.XXXXXX)
   ditto -x -k '$inside/runner.zip' \"\$d\" || exit 1
   cd \"\$d/runner\"
