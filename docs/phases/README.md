@@ -11,12 +11,12 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 |---|---|---|
 | 2 | #256 Enhanced ad blocking: an opt-in switch that removes ads inside pages and videos in every app | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
+| 4 | #585 Beta releases: checked by Kevin and beta users before everyone gets them | [Phase 5: Releases people check first](05-releases.md) |
 
 ## Next
 
 | Order | Plan | Phase |
 |---|---|---|
-| 4 | #585 Beta releases: checked by Kevin and beta users before everyone gets them | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 6 | #257 A NetworkMonitor extension for Chrome: in-page ads, pop-ups and YouTube ads, with the app's lists and rules | [Phase 3: The Chrome extension](03-chrome-extension.md) |
 
@@ -24,6 +24,7 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
+| 5 | #716 The first beta: the next version to beta users, then everyone | [Phase 5: Releases people check first](05-releases.md) |
 | 7 | #522 Improve onboarding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 8 | #582 Branding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 9 | #539 Short videos of features on their docs pages | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
