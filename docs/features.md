@@ -206,7 +206,7 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 - **Wi-Fi names**, until they're on
 - **Speed colors** (the readout's and the Dock icon's): six ready-made pairs, Custom… for your own Download and Upload, the speed test's colours
 - **Popover totals**: Counting since, Sampling, Reset Now
-- **Check for updates automatically**, and Check Now
+- **Check for updates automatically**, **Get beta versions**, and Check Now
 - **Sections**: a row to each section's settings, the same pages its gear shows
 
 **About NetworkMonitor**, in the right-click menu and the app menu, is the standard About

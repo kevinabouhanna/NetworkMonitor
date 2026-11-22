@@ -51,6 +51,10 @@ through without asking. What's particular to NetworkMonitor:
     mixed into the English file; `product-kit notes --check X.Y.Z` says when both are there
     (#640). The Release workflow fails without either, and puts each in the update window
     (Sparkle shows the one in the app's language) and in the release notes.
+  - **A beta first** (#585, `docs/development.md#betas`): tag `vX.Y.Z-beta.N` once its
+    release notes are merged. It goes only to copies with **Get beta versions** on (Kevin's
+    included), through the beta feed. When Kevin says it's good, tag `vX.Y.Z` on the same
+    commit, and the steps below follow. A beta gets no website, facts, pictures or review.
   - Before tagging, `gh-actions can-run` (seconds: the Actions billing, or the no-op
     `canary.yml`; kept an hour). If it says no, stop and tell Kevin: without the signing keys
     on this Mac there's no local release, and keys are never copied around.

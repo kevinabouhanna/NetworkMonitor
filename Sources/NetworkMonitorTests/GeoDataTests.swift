@@ -191,5 +191,31 @@ func runGeoDataTests() {
             Check.expectTrue(text.contains(
                 "SUFeedURL string https://github.com/kevinabouhanna/NetworkMonitor/releases/latest/download/appcast.xml"))
         }
+
+        Check.test("Get beta versions: off by default; on, the beta feed and the beta channel (#585)") {
+            let suite = "betas-\(UUID().uuidString)"
+            let defaults = UserDefaults(suiteName: suite)!
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let updates = UpdateController(defaults: defaults)
+            Check.expectFalse(updates.getsBetas, "off by default")
+            Check.expectNil(UpdateController.feedURL(betas: false, launchArgument: nil), "off: the app's own feed")
+            Check.expectEqual(UpdateController.channels(betas: false), [])
+            Check.expectEqual(UpdateController.feedURL(betas: true, launchArgument: nil),
+                              "https://github.com/kevinabouhanna/NetworkMonitor/releases/download/beta-updates/appcast.xml")
+            Check.expectEqual(UpdateController.channels(betas: true), ["beta"])
+            Check.expectEqual(UpdateController.feedURL(betas: true, launchArgument: "http://127.0.0.1:1/appcast.xml"),
+                              "http://127.0.0.1:1/appcast.xml", "a launch argument's feed comes first")
+            updates.getsBetas = true
+            Check.expectTrue(UpdateController(defaults: defaults).getsBetas, "kept")
+        }
+
+        Check.test("a beta's build sits between the releases before and after it, as Sparkle compares (#585)") {
+            // Scripts/build-number.sh: beta 1 at commit 1200 is 1199.1.
+            Check.expectTrue(UpdateController.isNewer(build: "1199.1", than: "1199"), "newer than the commit before's release")
+            Check.expectTrue(UpdateController.isNewer(build: "1200", than: "1199.1"), "older than its own commit's release")
+            Check.expectTrue(UpdateController.isNewer(build: "1204.2", than: "1199.1"), "a later beta is newer")
+            Check.expectTrue(UpdateController.isNewer(build: "1199.10", than: "1199.9"), "beta 10 after beta 9")
+            Check.expectFalse(UpdateController.isNewer(build: "1199.1", than: "1200"))
+        }
     }
 }

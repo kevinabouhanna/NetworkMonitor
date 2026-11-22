@@ -209,11 +209,21 @@ struct GeneralSettingsPane: View {
                 Section {
                     Toggle(L("Check for updates automatically"), isOn: $updates.checksAutomatically)
                         .toggleStyle(.switch)
+                    // Betas (#585): new versions before everyone else.
+                    Toggle(L("Get beta versions"), isOn: $updates.getsBetas)
+                        .toggleStyle(.switch)
                     LabeledContent(L("Updates")) {
                         Button(L("Check Now")) { updates.checkForUpdates() }
                     }
                 } footer: {
-                    SettingsFootnote(L("Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor."))
+                    VStack(alignment: .leading, spacing: 6) {
+                        SettingsFootnote(L("Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor."))
+                        SettingsFootnote(L("Beta versions come to you before everyone else, to try new things early. They may have problems. Switched off, you keep a beta until the next version comes out."))
+                        if updates.getsBetas {
+                            Link(L("Report a problem with a beta"), destination: Self.betaReportURL)
+                                .font(.system(size: 11))
+                        }
+                    }
                 }
             }
 
@@ -990,6 +1000,11 @@ struct SettingsRowDetail: View {
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
     }
+}
+
+extension GeneralSettingsPane {
+    /// A new issue on GitHub, labelled beta (#585).
+    static let betaReportURL = URL(string: "https://github.com/kevinabouhanna/NetworkMonitor/issues/new?labels=beta")!
 }
 
 /// The line of explanation under a section, as System Settings sets it.

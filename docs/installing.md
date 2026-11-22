@@ -57,6 +57,11 @@ the next day's check. **Check for Updates…** in its menu asks at
 once, and **Check for updates automatically** in Settings switches the daily check off. An update installs only if its
 disk image is signed with the key built into the app.
 
+**Get beta versions** in Settings (#585), off by default, offers you new versions before
+everyone else gets them, to try new things early. A beta may have problems: **Report a
+problem with a beta**, under the switch, opens a new issue on GitHub. Switched off, you
+keep the beta you have until the next version comes out, which then comes as usual.
+
 Before 1.15, or to do it by hand:
 
 1. Download the new `NetworkMonitor.dmg`.
