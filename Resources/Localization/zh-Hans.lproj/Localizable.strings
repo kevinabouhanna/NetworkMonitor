@@ -725,6 +725,9 @@
 "Check for updates automatically" = "自动检查更新";
 "Updates" = "更新";
 "Check Now" = "立即检查";
+"Get beta versions" = "获取测试版";
+"Beta versions come to you before everyone else, to try new things early. They may have problems. Switched off, you keep a beta until the next version comes out." = "测试版会先于其他人送到你这里，让你提前试用新功能。测试版可能有问题。关闭后，你会保留当前的测试版，直到下一个版本发布。";
+"Report a problem with a beta" = "报告测试版的问题";
 "Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor." = "NetworkMonitor 每天向 GitHub 查询一次是否有新版本，使用热点时从不查询。只有在你同意时才会安装更新，而且只安装由 NetworkMonitor 签名的更新。";
 
 /* SettingsWindowController.swift */

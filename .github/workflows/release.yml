@@ -1,6 +1,14 @@
 name: Release
 
 # Cut a release by tagging:  git tag v1.1.0 && git push origin v1.1.0
+#
+# A beta (#585) is a tag vX.Y.Z-beta.N: published as a prerelease, never the
+# "latest" release the app's feed reads, and offered only to copies with Get
+# beta versions on, through the beta feed (the standing `beta-updates`
+# prerelease's appcast.xml). Every release writes its appcast there too, so
+# beta users always get the newest of either. Promoting a beta to everyone is
+# tagging vX.Y.Z on the beta's commit: its build number is higher than the
+# beta's (Scripts/build-number.sh).
 on:
   push:
     tags: ["v*"]
@@ -23,19 +31,30 @@ jobs:
 
       - name: Derive the version from the tag
         id: version
-        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then beta=false
+          elif [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]]; then beta=true
+          else
+            echo "$GITHUB_REF_NAME is neither a release (vX.Y.Z) nor a beta (vX.Y.Z-beta.N)" >&2
+            exit 1
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          # A beta's What's new is its release's, written before the first beta.
+          echo "notes=${version%-beta.*}" >> "$GITHUB_OUTPUT"
+          echo "beta=$beta" >> "$GITHUB_OUTPUT"
 
       # The version's What's new is written before tagging (#152): it's what
       # the update window shows and what the release's notes say. Checked
       # first, so a missing one fails in seconds rather than after the build.
       - name: Check the release notes are written
         run: |
-          notes="ReleaseNotes/${{ steps.version.outputs.value }}.md"
+          notes="ReleaseNotes/${{ steps.version.outputs.notes }}.md"
           test -s "$notes" || { echo "$notes is missing: write the What's new before tagging" >&2; exit 1; }
           # Each language's copy too (#640): ReleaseNotes/<code>/X.Y.Z.md.
           for folder in ReleaseNotes/*/; do
             [ -d "$folder" ] || continue
-            copy="${folder}${{ steps.version.outputs.value }}.md"
+            copy="${folder}${{ steps.version.outputs.notes }}.md"
             test -s "$copy" || { echo "$copy is missing: write the What's new in $(basename "$folder") too" >&2; exit 1; }
           done
 
@@ -141,7 +160,19 @@ jobs:
       # with the Developer ID and notarized (#119).
       - name: Write the release notes
         run: |
-          cat > release-notes.md <<'NOTE'
+          if [ "${{ steps.version.outputs.beta }}" = true ]; then
+            cat > release-notes.md <<'NOTE'
+          ### A beta
+
+          This version comes to copies of NetworkMonitor with **Get beta versions** on, in
+          Settings, before everyone else gets it. It may have problems: please
+          [report what you find](https://github.com/kevinabouhanna/NetworkMonitor/issues/new?labels=beta).
+
+          NOTE
+          else
+            : > release-notes.md
+          fi
+          cat >> release-notes.md <<'NOTE'
           ### Installing
 
           Download **NetworkMonitor.dmg** below, open it, drag NetworkMonitor into
@@ -161,22 +192,39 @@ jobs:
           ---
           NOTE
           { echo; echo "### What's new in ${{ steps.version.outputs.value }}"; echo
-            cat "ReleaseNotes/${{ steps.version.outputs.value }}.md"; echo; } >> release-notes.md
+            cat "ReleaseNotes/${{ steps.version.outputs.notes }}.md"; echo; } >> release-notes.md
           # Then each language's copy, under the language's own name (#640).
           for folder in ReleaseNotes/*/; do
             [ -d "$folder" ] || continue
             code="$(basename "$folder")"
             name="$(python3 -c 'import json, sys; print(json.load(open(".product-kit.json"))["languages"][sys.argv[1]]["name"])' "$code")"
             { echo "### ${name}"; echo
-              cat "${folder}${{ steps.version.outputs.value }}.md"; echo; } >> release-notes.md
+              cat "${folder}${{ steps.version.outputs.notes }}.md"; echo; } >> release-notes.md
           done
 
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # A beta is a prerelease, never "latest": the app's feed,
+          # releases/latest/download/appcast.xml, never sees it.
+          extra=()
+          if [ "${{ steps.version.outputs.beta }}" = true ]; then extra=(--prerelease --latest=false); fi
           gh release create "$GITHUB_REF_NAME" \
              build/NetworkMonitor.dmg build/appcast.xml \
              --title "$GITHUB_REF_NAME" \
              --notes-file release-notes.md \
-             --generate-notes
+             --generate-notes "${extra[@]}"
+
+      # The beta feed (#585): what a copy with Get beta versions on reads.
+      # Every release and every beta replaces it, so it holds the newest of
+      # either; made the first time, as the data's releases are.
+      - name: Update the beta feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view beta-updates >/dev/null 2>&1; then
+            gh release create beta-updates --title "Beta updates" --prerelease --latest=false \
+              --notes "What NetworkMonitor reads with Get beta versions on: the newest beta or release. Not a version to download."
+          fi
+          gh release upload beta-updates build/appcast.xml --clobber

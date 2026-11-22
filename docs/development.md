@@ -419,6 +419,34 @@ are kept apart differently:
    glossary's `reviewer`) mentioned. They read it in the updated app; their changes
    follow on that issue, in a pull request of their own. Nothing waits on the review.
 
+### Betas
+
+A version goes to the copies with **Get beta versions** on first, and to everyone once
+Kevin says it's good (#585).
+
+1. **The beta.** With `ReleaseNotes/X.Y.Z.md` (and its copies) merged as for the release,
+   tag `vX.Y.Z-beta.1` on `main` and push it. The Release workflow publishes it as a
+   prerelease, never the "latest" release that `releases/latest/download/appcast.xml`, the
+   app's feed, reads, and writes its appcast to the beta feed only: the standing
+   `beta-updates` prerelease's `appcast.xml`, which a copy with the switch on reads instead
+   (`UpdateController.betaFeedURL`). Its item carries `<sparkle:channel>beta</sparkle:channel>`,
+   which Sparkle shows only to a copy that allows the beta channel, so a beta in the usual
+   feed by mistake would reach no one else. A fix during the beta is a new commit and
+   `vX.Y.Z-beta.2`.
+2. **Its build number** sits between: `<commit count − 1>.<N>` (`Scripts/build-number.sh`),
+   so `1199.1` for beta 1 at commit 1200. That's newer than anything built from the commit
+   before and older than the release tagged on its own commit. Sparkle compares build
+   numbers part by part.
+3. **Promoting it** is tagging `vX.Y.Z` on the last beta's commit, so everyone gets exactly
+   what was checked, and the release steps above follow (install, website, pictures,
+   review). Every release writes its appcast to the beta feed too, so beta users always
+   get the newest of either. The website, its facts and its pictures never follow a beta.
+4. Beta users report problems with **Report a problem with a beta**, under the switch: a new
+   issue on GitHub labelled `beta`.
+
+Switched off, a copy keeps its beta (Sparkle never goes back a version) and takes the next
+release.
+
 The keys behind these secrets are never committed. The update key's public half is
 `SUPublicEDKey` in `bundle.sh`, and the data key's is `GeoDataUpdater.publicKey`; the
 *Data refresh* workflow signs with `GEODATA_SIGNING_KEY`. The Developer ID certificate is

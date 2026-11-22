@@ -20,7 +20,10 @@
 import Foundation
 
 let arguments = CommandLine.arguments
-guard (3...4).contains(arguments.count), let currentBuild = Int(arguments[2]) else {
+// A string: a beta's build is `1199.1` (#585, Scripts/build-number.sh).
+let currentBuild = arguments.count > 2 ? arguments[2] : ""
+guard (3...4).contains(arguments.count),
+      currentBuild.range(of: #"^\d+(\.\d+)?$"#, options: .regularExpression) != nil else {
     FileHandle.standardError.write(Data("usage: release-notes.swift <version> <build> [<language>]\n".utf8))
     exit(64)
 }
@@ -46,17 +49,31 @@ func isOlder(_ a: String, than b: String) -> Bool {
     return false
 }
 
-func commitCount(atTag tag: String) -> Int? {
+func git(_ arguments: [String]) -> String? {
     let git = Process()
     git.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-    git.arguments = ["rev-list", "--count", tag]
+    git.arguments = arguments
     let output = Pipe()
     git.standardOutput = output
     git.standardError = FileHandle.nullDevice
     guard (try? git.run()) != nil else { return nil }
     let text = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
     git.waitUntilExit()
-    return git.terminationStatus == 0 ? Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) : nil
+    return git.terminationStatus == 0 ? text.trimmingCharacters(in: .whitespacesAndNewlines) : nil
+}
+
+func commitCount(atTag tag: String) -> String? {
+    git(["rev-list", "--count", tag]).flatMap { Int($0) }.map(String.init)
+}
+
+/// The builds of a version's betas (#585), as Scripts/build-number.sh stamps
+/// them: a beta user's copy matches one, so they see only what's newer.
+func betaBuilds(of version: String) -> [String] {
+    (git(["tag", "-l", "v\(version)-beta.*"]) ?? "").split(separator: "\n").compactMap { tag in
+        guard let number = tag.split(separator: ".").last.flatMap({ Int($0) }),
+              let count = commitCount(atTag: String(tag)).flatMap({ Int($0) }) else { return nil }
+        return "\(count - 1).\(number)"
+    }
 }
 
 // MARK: Markdown, the little the notes use
@@ -168,6 +185,11 @@ for version in versions {
         \(html(text))
         </div>
         """)
+    // Empty, after it: a beta of this version hides it, as Sparkle hides
+    // the installed version's and older.
+    for beta in betaBuilds(of: version) where beta != build {
+        sections.append(#"<div data-sparkle-version="\#(beta)"></div>"#)
+    }
 }
 
 print("""

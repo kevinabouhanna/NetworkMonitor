@@ -14,6 +14,11 @@ import Sparkle
 /// put it away until the next check. Found while the window is closed, or
 /// asked for, Sparkle's own window offers it, as before.
 ///
+/// With Get beta versions on (#585), it reads the beta feed instead, which
+/// holds the newest beta or release, whichever is newer, and allows the beta
+/// channel a beta's item carries. Off, a beta is never offered, even one in
+/// the usual feed by mistake.
+///
 /// Only in builds that carry a feed and that key, which `bundle.sh` adds to
 /// Developer ID builds: a build from source isn't replaced by a release.
 public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate,
@@ -25,6 +30,47 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
             guard let updater, updater.automaticallyChecksForUpdates != checksAutomatically else { return }
             updater.automaticallyChecksForUpdates = checksAutomatically
         }
+    }
+
+    /// Whether betas are offered too (#585). Off by default; turned on, it
+    /// looks at once, as the daily check would.
+    @Published public var getsBetas: Bool {
+        didSet {
+            guard getsBetas != oldValue else { return }
+            defaults.set(getsBetas, forKey: Self.betasKey)
+            if getsBetas { updater?.checkForUpdatesInBackground() }
+        }
+    }
+
+    public static let betasKey = "updatesIncludeBetas"
+
+    /// The standing `beta-updates` prerelease's appcast, which every release
+    /// and every beta replaces (.github/workflows/release.yml).
+    public static let betaFeedURL = "https://github.com/kevinabouhanna/NetworkMonitor/releases/download/beta-updates/appcast.xml"
+
+    /// The feed to read: a launch argument's, then the beta feed with betas
+    /// on, otherwise nil, the app's own (`SUFeedURL`).
+    public static func feedURL(betas: Bool, launchArgument: String?) -> String? {
+        launchArgument ?? (betas ? betaFeedURL : nil)
+    }
+
+    /// The channels allowed besides the default one.
+    public static func channels(betas: Bool) -> Set<String> {
+        betas ? ["beta"] : []
+    }
+
+    /// Whether Sparkle takes build `a` for newer than build `b`: how a beta's
+    /// build sits between two releases' (Scripts/build-number.sh).
+    public static func isNewer(build a: String, than b: String) -> Bool {
+        SUStandardVersionComparator.default.compareVersion(b, toVersion: a) == .orderedAscending
+    }
+
+    private let defaults: UserDefaults
+
+    public init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        getsBetas = defaults.bool(forKey: Self.betasKey)
+        super.init()
     }
 
     /// The version waiting on the sidebar's card (#520), while there is one.
@@ -140,7 +186,11 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
     // MARK: SPUUpdaterDelegate
 
     public func feedURLString(for updater: SPUUpdater) -> String? {
-        Self.launchArgument("updateFeedURL")
+        Self.feedURL(betas: getsBetas, launchArgument: Self.launchArgument("updateFeedURL"))
+    }
+
+    public func allowedChannels(for updater: SPUUpdater) -> Set<String> {
+        Self.channels(betas: getsBetas)
     }
 
     public func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {

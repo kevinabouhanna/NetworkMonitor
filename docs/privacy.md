@@ -64,7 +64,8 @@ Four things, and nothing else:
   on a hotspot or metered connection, unless you choose **Check for Updates…**. An update
   downloads and installs only when you say so, and only if its disk image is signed with
   the key built into the app. Switch the daily check off with **Check for updates
-  automatically** in Settings.
+  automatically** in Settings. With **Get beta versions** on (#585), it fetches the beta
+  appcast instead, from the same place on GitHub.
 
 There is no analytics, no telemetry, no crash reporting and no account.
 

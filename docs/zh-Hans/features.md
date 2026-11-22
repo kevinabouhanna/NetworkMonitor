@@ -115,7 +115,7 @@ VoiceOver 用文字读出读数，先读下载：<em>NetworkMonitor，下载 1.2
 - <strong>Wi-Fi 名称</strong>（打开之前显示）
 - <strong>网速颜色</strong>（菜单栏读数和程序坞图标的颜色）：六组现成的配色、用于自选下载和上传颜色的“自定义…”、网速测试的颜色
 - <strong>弹出窗口中的累计值</strong>：统计开始于、采样、立即重置
-- <strong>自动检查更新</strong>，以及 立即检查
+- <strong>自动检查更新</strong>、<strong>获取测试版</strong>，以及 立即检查
 - <strong>各部分</strong>：每个部分的设置各有一行，与它的齿轮图标打开的页面相同
 
 <strong>关于 NetworkMonitor</strong> 位于右键菜单和应用菜单中，是标准的“关于”窗口：版本、网站链接、新功能、源代码，以及许可证。

@@ -64,7 +64,8 @@ fi
 
 if [ -z "${BUILD_NUMBER:-}" ]; then
   if in_git_repo; then
-    BUILD_NUMBER="$(git rev-list --count HEAD)"
+    # A beta's sits just below its commit's release (#585).
+    BUILD_NUMBER="$(Scripts/build-number.sh "$MARKETING_VERSION" "$(git rev-list --count HEAD)")"
   else
     BUILD_NUMBER="$(plist_value CFBundleVersion)"
   fi

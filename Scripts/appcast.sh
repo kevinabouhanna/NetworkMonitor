@@ -16,6 +16,10 @@
 # shows the one in the app's language (the Mac's, or the one chosen in
 # Settings). The English one says en, as Sparkle asks when there are several.
 #
+# A beta, X.Y.Z-beta.N (#585), shows X.Y.Z's What's new, written before its
+# first beta, and its item carries the beta channel: Sparkle offers it only to
+# a copy with Get beta versions on, whichever feed it's found in.
+#
 # Usage: SPARKLE_ED_KEY=… Scripts/appcast.sh <NetworkMonitor.dmg> <NetworkMonitor.app> <version>
 
 set -euo pipefail
@@ -27,7 +31,19 @@ VERSION="${3:?usage: $0 <dmg> <app> <version>}"
 
 plist() { /usr/libexec/PlistBuddy -c "Print :$1" "${APP}/Contents/Info.plist"; }
 
-NOTES="ReleaseNotes/${VERSION}.md"
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$ ]]; then
+  echo "error: ${VERSION} is neither a release (X.Y.Z) nor a beta (X.Y.Z-beta.N)" >&2
+  exit 1
+fi
+# The version whose What's new it shows: a beta's is its release's.
+NOTES_VERSION="${VERSION%-beta.*}"
+CHANNEL=""
+if [ "$NOTES_VERSION" != "$VERSION" ]; then
+  CHANNEL="
+      <sparkle:channel>beta</sparkle:channel>"
+fi
+
+NOTES="ReleaseNotes/${NOTES_VERSION}.md"
 if [ ! -s "$NOTES" ]; then
   echo "error: ${NOTES} is missing: write the version's What's new before tagging" >&2
   exit 1
@@ -36,8 +52,8 @@ LANGUAGES=""
 for folder in ReleaseNotes/*/; do
   [ -d "$folder" ] || continue
   code="$(basename "$folder")"
-  if [ ! -s "ReleaseNotes/${code}/${VERSION}.md" ]; then
-    echo "error: ReleaseNotes/${code}/${VERSION}.md is missing: write the What's new in ${code} too (product-kit notes --check ${VERSION})" >&2
+  if [ ! -s "ReleaseNotes/${code}/${NOTES_VERSION}.md" ]; then
+    echo "error: ReleaseNotes/${code}/${NOTES_VERSION}.md is missing: write the What's new in ${code} too (product-kit notes --check ${NOTES_VERSION})" >&2
     exit 1
   fi
   LANGUAGES="${LANGUAGES} ${code}"
@@ -57,8 +73,8 @@ MINIMUM="$(plist LSMinimumSystemVersion)"
 # One language's <description>: en, or a folder's name.
 description() {
   local html
-  if [ "$1" = en ]; then html="$(swift Scripts/release-notes.swift "$VERSION" "$BUILD")" || return 1
-  else html="$(swift Scripts/release-notes.swift "$VERSION" "$BUILD" "$1")" || return 1; fi
+  if [ "$1" = en ]; then html="$(swift Scripts/release-notes.swift "$NOTES_VERSION" "$BUILD")" || return 1
+  else html="$(swift Scripts/release-notes.swift "$NOTES_VERSION" "$BUILD" "$1")" || return 1; fi
   if [[ "$html" == *']]>'* ]]; then
     echo "error: the release notes ($1) can't contain ]]>, which would end the appcast's CDATA" >&2
     return 1
@@ -82,7 +98,7 @@ cat <<XML
     <link>https://kevinabouhanna.github.io/NetworkMonitor/</link>
     <item>
       <title>Version ${VERSION}</title>
-      <pubDate>${DATE}</pubDate>
+      <pubDate>${DATE}</pubDate>${CHANNEL}
       <sparkle:version>${BUILD}</sparkle:version>
       <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>${MINIMUM}</sparkle:minimumSystemVersion>
