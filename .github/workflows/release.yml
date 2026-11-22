@@ -39,6 +39,12 @@ jobs:
             echo "$GITHUB_REF_NAME is neither a release (vX.Y.Z) nor a beta (vX.Y.Z-beta.N)" >&2
             exit 1
           fi
+          # A beta's build sits below its commit's release (Scripts/build-number.sh):
+          # on a commit that already has one, it would never be offered.
+          if [ "$beta" = true ] && git tag --points-at HEAD --list 'v[0-9]*' | grep -qv -- '-beta\.'; then
+            echo "this commit is already released: a beta goes on a later one" >&2
+            exit 1
+          fi
           echo "value=$version" >> "$GITHUB_OUTPUT"
           # A beta's What's new is its release's, written before the first beta.
           echo "notes=${version%-beta.*}" >> "$GITHUB_OUTPUT"
@@ -209,7 +215,14 @@ jobs:
           # A beta is a prerelease, never "latest": the app's feed,
           # releases/latest/download/appcast.xml, never sees it.
           extra=()
-          if [ "${{ steps.version.outputs.beta }}" = true ]; then extra=(--prerelease --latest=false); fi
+          if [ "${{ steps.version.outputs.beta }}" = true ]; then
+            extra=(--prerelease --latest=false)
+          else
+            # What's changed since the last release, not since its own beta on
+            # the same commit.
+            last=$(git tag --list 'v[0-9]*' --sort=-v:refname | grep -v -- '-beta\.' | grep -vx "$GITHUB_REF_NAME" | head -1)
+            [ -z "$last" ] || extra=(--notes-start-tag "$last")
+          fi
           gh release create "$GITHUB_REF_NAME" \
              build/NetworkMonitor.dmg build/appcast.xml \
              --title "$GITHUB_REF_NAME" \
@@ -223,8 +236,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Its tag on the first commit, so it's never the nearest tag a
+          # version is read from.
           if ! gh release view beta-updates >/dev/null 2>&1; then
             gh release create beta-updates --title "Beta updates" --prerelease --latest=false \
+              --target "$(git rev-list --max-parents=0 HEAD | tail -1)" \
               --notes "What NetworkMonitor reads with Get beta versions on: the newest beta or release. Not a version to download."
           fi
-          gh release upload beta-updates build/appcast.xml --clobber
+          # Only ever newer: two tags' runs may finish in either order.
+          build() { python3 -I -c 'import re, sys; m = re.search(r"<sparkle:version>([0-9.]+)<", open(sys.argv[1]).read()); print(m.group(1) if m else "0")' "$1"; }
+          current=build/beta-feed-current.xml
+          gh release download beta-updates --pattern appcast.xml --output "$current" --clobber 2>/dev/null || echo '' > "$current"
+          new_build=$(build build/appcast.xml); old_build=$(build "$current")
+          if python3 -I -c 'import sys; v = lambda s: tuple(int(p) for p in s.split(".")); sys.exit(0 if v(sys.argv[1]) > v(sys.argv[2]) else 1)' "$new_build" "$old_build"; then
+            gh release upload beta-updates build/appcast.xml --clobber
+          else
+            echo "the beta feed already has build $old_build, newer than $new_build: left as it is"
+          fi

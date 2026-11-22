@@ -67,7 +67,7 @@ func commitCount(atTag tag: String) -> String? {
 }
 
 /// The builds of a version's betas (#585), as Scripts/build-number.sh stamps
-/// them: a beta user's copy matches one, so they see only what's newer.
+/// them: a beta user's copy matches one, so the versions before are hidden.
 func betaBuilds(of version: String) -> [String] {
     (git(["tag", "-l", "v\(version)-beta.*"]) ?? "").split(separator: "\n").compactMap { tag in
         guard let number = tag.split(separator: ".").last.flatMap({ Int($0) }),
@@ -185,8 +185,9 @@ for version in versions {
         \(html(text))
         </div>
         """)
-    // Empty, after it: a beta of this version hides it, as Sparkle hides
-    // the installed version's and older.
+    // Empty, after it: a copy on one of this version's betas sees this
+    // version's notes, what the release brings over the last one, and none
+    // older, as Sparkle hides everything after the installed build's.
     for beta in betaBuilds(of: version) where beta != build {
         sections.append(#"<div data-sparkle-version="\#(beta)"></div>"#)
     }

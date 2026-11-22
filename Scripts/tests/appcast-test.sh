@@ -41,7 +41,8 @@ chinese="$(xpath "string(//description[@xml:lang='zh-Hans'])")"
 
 # A beta (#585): its build sits between the commit before's release and its own commit's, its
 # item carries the beta channel and its own disk image, with its release's What's new; the
-# release from the same commit hides those notes from a beta user who already has them.
+# release from the same commit marks the beta's build after its own notes, so a beta user sees
+# them and nothing older.
 cp "$here/Scripts/build-number.sh" "$repo/Scripts/"
 [ "$("$repo/Scripts/build-number.sh" 1.1.0-beta.3 1200)" = 1199.3 ] || fail "a beta's build at commit 1200"
 [ "$("$repo/Scripts/build-number.sh" 1.1.0 1200)" = 1200 ] || fail "a release's build at commit 1200"
@@ -64,7 +65,20 @@ beta_notes="$(xpath "string(//description[@xml:lang='zh-Hans'])")"
 [ "$(xpath 'count(//item/*[local-name()="channel"])')" = 0 ] || fail "a release with a channel"
 english="$(xpath "string(//description[@xml:lang='en'])")"
 [[ "$english" == *'data-sparkle-version="2" lang="en"'*'A new change.'*'</div>'*'<div data-sparkle-version="1.1"></div>'*'data-sparkle-version="1" lang="en"'* ]] \
-  || fail "the release's notes don't hide themselves from its beta: $english"
+  || fail "the release's notes don't mark its beta's build after its own: $english"
+# The version a local build stamps: the beta's on its own commit, the release's once it's
+# promoted there, the last release's on a later commit.
+version() { (cd "$repo" && Scripts/build-number.sh --version); }
+[ "$(version)" = 1.1.0-beta.1 ] || fail "on the beta's commit: $(version)"
+git -C "$repo" tag v1.1.0
+[ "$(version)" = 1.1.0 ] || fail "on the promoted commit: $(version)"
+git -C "$repo" tag -d v1.1.0 >/dev/null
+echo later > "$repo/later"
+git -C "$repo" add -A
+git -C "$repo" -c user.name=test -c user.email=test@example.invalid commit -qm three
+[ "$(version)" = 1.0.0 ] || fail "after the beta: $(version)"
+git -C "$repo" reset -q --hard HEAD~1
+
 for bad in 1.1 1.1.0-rc.1 1.1.0-beta; do
   if "$repo/Scripts/appcast.sh" "$work/Fake.dmg" "$app" "$bad" > /dev/null 2>&1; then fail "published version $bad"; fi
 done

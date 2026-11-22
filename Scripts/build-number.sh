@@ -11,8 +11,21 @@
 #   and beta users are offered it too. Sparkle compares part by part.
 #
 # Usage: Scripts/build-number.sh <version> <commit count>
+#        Scripts/build-number.sh --version
+#
+# --version prints the version to stamp, from the tags: the commit's own
+# release's; else the commit's own beta's; else the last release's, never a
+# beta's (a build after a beta isn't that beta). Promoting a beta puts its
+# release's tag on the same commit, and the release wins. Nothing without a tag.
 
 set -euo pipefail
+if [ "${1:-}" = --version ]; then
+  tag=$(git tag --points-at HEAD --list 'v[0-9]*' | grep -v -- '-beta\.' | head -1 || true)
+  [ -n "$tag" ] || tag=$(git tag --points-at HEAD --list 'v[0-9]*-beta.*' --sort=-v:refname | head -1 || true)
+  [ -n "$tag" ] || tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-beta.*' 2>/dev/null || true)
+  echo "${tag#v}"
+  exit 0
+fi
 VERSION="${1:?usage: $0 <version> <commit count>}"
 COUNT="${2:?usage: $0 <version> <commit count>}"
 

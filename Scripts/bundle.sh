@@ -55,8 +55,9 @@ in_git_repo() { git rev-parse --git-dir >/dev/null 2>&1; }
 if [ -z "${MARKETING_VERSION:-}" ]; then
   # Only version tags: the data refresh's `geodata` release (#121) has a tag
   # too, and the nearest tag of any kind made a build call itself "geodata".
-  if in_git_repo && tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null); then
-    MARKETING_VERSION="${tag#v}"
+  # A beta's version (#585) only when it's the commit's own and no release is.
+  if in_git_repo && version=$(Scripts/build-number.sh --version) && [ -n "$version" ]; then
+    MARKETING_VERSION="$version"
   else
     MARKETING_VERSION="$(plist_value CFBundleShortVersionString)"
   fi

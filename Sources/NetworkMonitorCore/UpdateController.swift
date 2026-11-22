@@ -33,12 +33,12 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
     }
 
     /// Whether betas are offered too (#585). Off by default; turned on, it
-    /// looks at once, as the daily check would.
+    /// looks at once, as the daily check would, if that's on.
     @Published public var getsBetas: Bool {
         didSet {
             guard getsBetas != oldValue else { return }
             defaults.set(getsBetas, forKey: Self.betasKey)
-            if getsBetas { updater?.checkForUpdatesInBackground() }
+            if getsBetas, checksAutomatically { updater?.checkForUpdatesInBackground() }
         }
     }
 

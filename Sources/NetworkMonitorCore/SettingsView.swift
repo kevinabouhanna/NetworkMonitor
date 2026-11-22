@@ -1002,12 +1002,12 @@ struct SettingsRowDetail: View {
     }
 }
 
-/// The line of explanation under a section, as System Settings sets it.
 extension GeneralSettingsPane {
     /// A new issue on GitHub, labelled beta (#585).
     static let betaReportURL = URL(string: "https://github.com/kevinabouhanna/NetworkMonitor/issues/new?labels=beta")!
 }
 
+/// The line of explanation under a section, as System Settings sets it.
 struct SettingsFootnote: View {
     let text: String
     init(_ text: String) { self.text = text }
