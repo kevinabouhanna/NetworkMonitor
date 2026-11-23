@@ -79,6 +79,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Redraws the menu bar readout when the bar behind it turns light or
     /// dark, as the wallpaper changes (#672).
     private var barAppearanceObserver: NSKeyValueObservation?
+    /// Whether the bar was light or dark for the last picture (#719).
+    private var barShade = BarShadeGate()
+    /// A look again at the bar's appearance is waiting (#719).
+    private var barShadeRecheck = false
     /// When the Dock icon was last redrawn, and whether a redraw is waiting
     /// its turn; see `drawDockReadout()`.
     private var dockDrawnAt: TimeInterval = 0
@@ -229,11 +233,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // The readout picks its colours as it's drawn, for the bar's
         // appearance; a new appearance needs a new draw.
         barAppearanceObserver = button.observe(\.effectiveAppearance) { [weak self] _, _ in
-            // A new picture, not only a redraw, so the colours change while
-            // the rates hold still too.
-            DispatchQueue.main.async { self?.applyTitle() }
+            DispatchQueue.main.async { self?.barAppearanceChanged() }
         }
         applyTitle()
+    }
+
+    /// A new picture, not only a redraw, so the colours change while the
+    /// rates hold still too; but only when the bar turns light or dark, and
+    /// at most once a second (#719). AppKit announces the appearance again
+    /// each time a new picture is set, so answering every announcement redrew
+    /// the readout in a loop, a core busy for good.
+    private func barAppearanceChanged() {
+        // In the Dock there's no readout in the bar; `apply(_:)` draws it on
+        // the way back.
+        guard placement.showsMenuBar, let button = statusItem.button else { return }
+        switch barShade.decide(button.effectiveAppearance) {
+        case .same:
+            return
+        case .draw:
+            applyTitle()
+        case .wait(let delay):
+            // One look again when the second is up, however many came.
+            guard !barShadeRecheck else { return }
+            barShadeRecheck = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.barShadeRecheck = false
+                self?.barAppearanceChanged()
+            }
+        }
     }
 
     /// Title construction lives in `MenuBarTitle` so its width-stability and

@@ -170,3 +170,51 @@ public enum MenuBarTitle {
         Double(attributed(down: down, up: up).size().height)
     }
 }
+
+/// Says when the bar behind the readout has turned light or dark, so a new
+/// picture is due (#719).
+///
+/// AppKit announces the button's `effectiveAppearance` far more often than it
+/// changes: each time a new picture is set, it redraws the button's copy on
+/// every menu bar and announces it again. Answering every announcement with a
+/// new picture kept the app redrawing forever, a core busy all the time. The
+/// picture is drawn when shown, in each bar's own appearance, so a new one is
+/// only needed when the bar itself turns light or dark.
+///
+/// At most one a second, too: with two displays, one bar light and the other
+/// dark, the announcements could take turns between them, and each would
+/// pass. Spaced out, the worst is a picture a second, what a moving rate
+/// costs anyway.
+public struct BarShadeGate {
+    public enum Decision: Equatable {
+        /// Make a new picture now.
+        case draw
+        /// The bar is as it was for the last picture.
+        case same
+        /// It changed, but a picture was made less than a second ago: ask
+        /// again after this many seconds.
+        case wait(TimeInterval)
+    }
+
+    public static let minimumGap: TimeInterval = 1
+
+    private var lastDark: Bool?
+    private var lastDrawn: Date?
+
+    public init() {}
+
+    /// `.draw` the first time, then only when `appearance` is light where
+    /// the last picture's was dark, or dark where it was light, and a second
+    /// after the last.
+    public mutating func decide(_ appearance: NSAppearance, now: Date = Date()) -> Decision {
+        let dark = MenuBarTitle.isDark(appearance)
+        guard dark != lastDark else { return .same }
+        if let lastDrawn {
+            let since = now.timeIntervalSince(lastDrawn)
+            if since >= 0, since < Self.minimumGap { return .wait(Self.minimumGap - since) }
+        }
+        lastDark = dark
+        lastDrawn = now
+        return .draw
+    }
+}
