@@ -299,6 +299,21 @@ func runMenuBarTitleTests() {
             Check.expectEqual(hex(MenuBarTitle.downTint), "#51FF70")
             Check.expectEqual(hex(MenuBarTitle.upTint), "#E5E5E5")
         }
+
+        // AppKit announces the appearance again after every new picture; a
+        // new picture for each announcement kept the app busy for good (#719).
+        Check.test("the bar's appearance asks for a new picture only when it turns light or dark") {
+            let dark = NSAppearance(named: .darkAqua)!
+            let vibrantDark = NSAppearance(named: .vibrantDark)!
+            let light = NSAppearance(named: .aqua)!
+            var gate = BarShadeGate()
+            Check.expectTrue(gate.changed(to: dark), "the first one draws")
+            Check.expectTrue(!gate.changed(to: dark), "the same again: no new picture")
+            Check.expectTrue(!gate.changed(to: vibrantDark), "another dark: no new picture")
+            Check.expectTrue(gate.changed(to: light), "dark to light: a new picture")
+            Check.expectTrue(!gate.changed(to: light), "light again: no new picture")
+            Check.expectTrue(gate.changed(to: dark), "light to dark: a new picture")
+        }
     }
 }
 

@@ -170,3 +170,26 @@ public enum MenuBarTitle {
         Double(attributed(down: down, up: up).size().height)
     }
 }
+
+/// Says when the bar behind the readout has turned light or dark, so a new
+/// picture is due (#719).
+///
+/// AppKit announces the button's `effectiveAppearance` far more often than it
+/// changes: each time a new picture is set, it redraws the button's copy on
+/// every menu bar and announces it again. Answering every announcement with a
+/// new picture kept the app redrawing forever, a core busy all the time. The
+/// picture is drawn when shown, in each bar's own appearance, so a new one is
+/// only needed when the bar itself turns light or dark.
+public struct BarShadeGate {
+    private var lastDark: Bool?
+
+    public init() {}
+
+    /// True the first time, then only when `appearance` is light where the
+    /// last was dark, or dark where it was light.
+    public mutating func changed(to appearance: NSAppearance) -> Bool {
+        let dark = MenuBarTitle.isDark(appearance)
+        defer { lastDark = dark }
+        return dark != lastDark
+    }
+}
