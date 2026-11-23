@@ -13,7 +13,8 @@ builds, checks and releases the app stays in order.
   (product-kit#115).
 - **Keep the tooling and the plan in order** (#606), standing: tooling chores (the vendored
   kits, local CI, the release workflow, the pictures' VM image, the plan and the board kept in
-  step) are its steps. First among them: the window tests fail while the screen is locked, so
+  step) are its steps. First among them: CI fails a change that keeps the app busy while it's
+  idle, since nothing caught beta 1's battery drain (#723); the window tests fail while the screen is locked, so
   nothing can be pushed while Kevin is away (#626); then the two pictures the VM got wrong for
   1.31.0 (#650). It stays open on purpose, so this phase stays open with it.
 
