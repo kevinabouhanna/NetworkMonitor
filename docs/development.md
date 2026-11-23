@@ -242,8 +242,9 @@ even in dark mode. The file name has no version, so
 - `Scripts/install-helper.sh` installs the helper for development, through the same
   `helper-setup.sh` the app uses.
 - `Scripts/smoke-test.sh` launches the built app and fails if it isn't still running five
-  seconds later. Deliberately shallow: a crash on launch is the one bug an auto-updater
-  would ship to everyone. On this Mac it runs in a throwaway VM (`mac-vm`, the shared-mac
+  seconds later, or if it's busy once settled ([The idle check](#the-idle-check)).
+  Deliberately shallow: a crash on launch, or an app that drains the battery, is the bug an
+  auto-updater would ship to everyone. On this Mac it runs in a throwaway VM (`mac-vm`, the shared-mac
   plugin), so it quits nothing and shows nothing on the screen (#528); on GitHub's runners,
   in place. `SMOKE_WHERE=here` or `vm` chooses.
 - `Scripts/appcast.sh` and `Scripts/ed25519-sign.swift` sign a release's disk image with the
@@ -269,7 +270,8 @@ merge. `ci.yml` itself runs only when dispatched by hand.
 How it runs here:
 - One run at a time, in one kept worktree in `~/Library/Caches/networkmonitor-dev/ci` whose
   `.build` stays, so SwiftPM builds incrementally; the website is checked out beside it.
-- The smoke test runs in a throwaway VM (`mac-vm`; about 40 s, the boot included): it takes
+- The smoke test runs in a throwaway VM (`mac-vm`; about 90 s, the boot and the 50 s of
+  [the idle check](#the-idle-check) included): it takes
   no Mac lane and quits nothing, so it runs while a review build is open or the installed
   copy is in use (#528). The bundle goes in zipped, since the VM's shared folder breaks its
   symlinks. On GitHub's runners it runs in place, in the `networkmonitor` lane, and opens the
@@ -968,3 +970,21 @@ Then time the CPU of the app and its `nettop` child with `ps -o time=` over a co
 minutes. Run it in the foreground: `top -l` hangs when run in the background, and its
 `IDLEW` column is a running total, not a rate. [Accuracy and battery](accuracy-and-battery.md)
 has the current figures.
+
+### The idle check
+
+1.32.0-beta.1 redrew its menu bar readout in a loop and kept a core busy for good (#719).
+Every check passed: the unit tests check the readout's pieces alone, and the loop needs the
+running app and AppKit's menu bar; the smoke test only asked whether the app was alive.
+
+So the smoke test, on every pull request, also measures the app idle (#723): after it has
+settled (`SMOKE_CPU_SETTLE`, 20 s), the CPU it uses over `SMOKE_CPU_WINDOW` (30 s), against
+`SMOKE_CPU_BUDGET` (15 % of one core, averaged). That loop used 100 %; a healthy app uses
+under 10 % in the VM, and well under 1 % on a Mac once it has settled.
+
+When it fails, it prints a sample of what the app was busy doing, by its own functions and
+AppKit's (for #719: `AppDelegate.applyTitle`, `MenuBarTitle.image`,
+`-[NSStatusItem _updateReplicants]`). Find what starts the work again and again (an observer
+answering its own change, a timer that never stops, a redraw that asks for another) and make
+it stop; raise the budget only when the work is meant to be there, and say why in the pull
+request.
