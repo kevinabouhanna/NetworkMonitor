@@ -9,9 +9,7 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
-| 2 | #256 Enhanced ad blocking: an opt-in switch that removes ads inside pages and videos in every app | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
-| 4 | #585 Beta releases: checked by Kevin and beta users before everyone gets them | [Phase 5: Releases people check first](05-releases.md) |
 
 ## Next
 
@@ -36,4 +34,5 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 ## Done
 
-[Phase 1: Everyday polish](01-everyday-polish.md)
+[Phase 1: Everyday polish](01-everyday-polish.md) ·
+[Phase 2: Ad blocking that holds up](02-ad-blocking.md)
