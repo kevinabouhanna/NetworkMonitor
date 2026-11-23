@@ -10,19 +10,19 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | Order | Plan | Phase |
 |---|---|---|
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
+| 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 
 ## Next
 
 | Order | Plan | Phase |
 |---|---|---|
-| 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 6 | #257 A NetworkMonitor extension for Chrome: in-page ads, pop-ups and YouTube ads, with the app's lists and rules | [Phase 3: The Chrome extension](03-chrome-extension.md) |
 
 ## Later
 
 | Order | Plan | Phase |
 |---|---|---|
-| 5 | #716 The first beta: the next version to beta users, then everyone | [Phase 5: Releases people check first](05-releases.md) |
+| 5 | #722 Release 1.32.0 to everyone once the beta is good | [Phase 5: Releases people check first](05-releases.md) |
 | 7 | #522 Improve onboarding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 8 | #582 Branding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 9 | #539 Short videos of features on their docs pages | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |

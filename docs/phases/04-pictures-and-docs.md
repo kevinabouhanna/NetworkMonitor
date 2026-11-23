@@ -1,6 +1,6 @@
 # Phase 4: Pictures, videos and docs
 
-**Milestone:** Phase 4: Pictures, videos and docs · **Status:** Next
+**Milestone:** Phase 4: Pictures, videos and docs · **Status:** Now
 
 **Goal:** everything people see before installing (the website, the README, the docs) shows
 the app as it is today, and the app links into its docs.
