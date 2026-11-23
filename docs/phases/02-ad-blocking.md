@@ -1,26 +1,25 @@
 # Phase 2: Ad blocking that holds up
 
-**Milestone:** Phase 2: Ad blocking that holds up · **Status:** Now
+**Milestone:** Phase 2: Ad blocking that holds up · **Status:** Done
 
 **Goal:** the best ad blocking a Mac app can do in every app, with the controls people know
 from other ad blockers.
 
 ## The plans
 
-- **Enhanced ad blocking** (#256), Now, second in the order after the release: an opt-in
-  switch that removes ads inside pages and videos in every app, by opening secure connections
-  on this Mac, never banking or health sites. Off by default. It reaches people as a beta first
-  (#585, phase 5), since it's the one feature that opens secure connections. Planned on 19 Nov
-  2026 as steps, in order: the rules for inside pages (#681, done), a certificate made on this
-  Mac and trusted only with your approval (#682, done), the page rewriter, which fails open
-  (#683, done), which connections it opens (#684), the secure bridge between a browser and a
-  site (#701), requests refused by address (#699), the transparent proxy in the system
-  extension, checked in a VM on a signed test build (#702), the switch in Settings with its
-  approval and docs (#685, designed first), and its own security review and battery cost
-  (#686). The provisioning profiles already allow the proxy (checked 19 Nov).
+Nothing left: the phase is done.
 
 Done:
 
+- **Enhanced ad blocking** (#256), out as a beta in 1.32.0-beta.1 on 23 Nov 2026 (#716): an
+  opt-in switch that hides the ads inside pages in the browsers, and in the apps chosen with
+  **Apps…**, by opening secure connections on this Mac, never banking, health, government or
+  payment sites. Built as steps: the rules for inside pages (#681), a certificate made on this
+  Mac (#682), the page rewriter, which fails open (#683), which connections it opens (#684), the
+  secure bridge (#701), requests refused by address (#699), the transparent proxy (#702), the
+  switch in Settings (#685), and its own security review and battery cost (#686, fixes in
+  #711). What's left, YouTube without its pre-roll ads on the day it reaches everyone, is in
+  #716.
 - **Ad blocking that holds up** (#246), closed 13 Nov 2026 with everything but Enhanced ad
   blocking shipped: an Ads and Trackers window of its own with an overview and a live log, the
   lists' own record of what they block, rules, more lists, trackers hiding behind a site's own
