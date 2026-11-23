@@ -306,13 +306,37 @@ func runMenuBarTitleTests() {
             let dark = NSAppearance(named: .darkAqua)!
             let vibrantDark = NSAppearance(named: .vibrantDark)!
             let light = NSAppearance(named: .aqua)!
+            let start = Date(timeIntervalSinceReferenceDate: 0)
+            func at(_ s: TimeInterval) -> Date { start.addingTimeInterval(s) }
             var gate = BarShadeGate()
-            Check.expectTrue(gate.changed(to: dark), "the first one draws")
-            Check.expectTrue(!gate.changed(to: dark), "the same again: no new picture")
-            Check.expectTrue(!gate.changed(to: vibrantDark), "another dark: no new picture")
-            Check.expectTrue(gate.changed(to: light), "dark to light: a new picture")
-            Check.expectTrue(!gate.changed(to: light), "light again: no new picture")
-            Check.expectTrue(gate.changed(to: dark), "light to dark: a new picture")
+            Check.expectEqual(gate.decide(dark, now: at(0)), .draw, "the first one draws")
+            Check.expectEqual(gate.decide(dark, now: at(5)), .same, "the same again: no new picture")
+            Check.expectEqual(gate.decide(vibrantDark, now: at(6)), .same, "another dark: no new picture")
+            Check.expectEqual(gate.decide(light, now: at(7)), .draw, "dark to light: a new picture")
+            Check.expectEqual(gate.decide(light, now: at(9)), .same, "light again: no new picture")
+            Check.expectEqual(gate.decide(dark, now: at(10)), .draw, "light to dark: a new picture")
+        }
+
+        // Two displays, one bar light and one dark: the announcements could
+        // take turns, each a change. Spaced out, at most one picture a second.
+        Check.test("bars that take turns light and dark make at most one picture a second") {
+            let dark = NSAppearance(named: .darkAqua)!
+            let light = NSAppearance(named: .aqua)!
+            let start = Date(timeIntervalSinceReferenceDate: 0)
+            var gate = BarShadeGate()
+            var pictures = 0
+            // Ten announcements a second for ten seconds, alternating.
+            for i in 0..<100 {
+                if gate.decide(i % 2 == 0 ? dark : light, now: start.addingTimeInterval(Double(i) / 10)) == .draw {
+                    pictures += 1
+                }
+            }
+            Check.expectTrue(pictures <= 10, "\(pictures) pictures in 10 s")
+            // A change that comes too soon is asked again, not lost.
+            var later = BarShadeGate()
+            _ = later.decide(dark, now: start)
+            Check.expectEqual(later.decide(light, now: start.addingTimeInterval(0.25)), .wait(0.75))
+            Check.expectEqual(later.decide(light, now: start.addingTimeInterval(1)), .draw)
         }
     }
 }
