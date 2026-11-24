@@ -1,13 +1,18 @@
 # Phase 1: Everyday polish
 
-**Milestone:** Phase 1: Everyday polish · **Status:** Done
+**Milestone:** Phase 1: Everyday polish · **Status:** Now
 
 **Goal:** what people touch every day feels finished: the popover never jumps, the main
 window's three lists behave the same, and the VoiceOver and keyboard work of 1.29 is checked.
 
 ## The plans
 
-Nothing open: everything Kevin found on 17–19 Nov is done, waiting for a release.
+- **The popover closes on a click in the app's own window, and stays still between its views**
+  (#728), Now, before the ⓘ links (#230): Kevin found, on 1.32.0-beta.2, that a click on the main
+  window leaves the popover open, and that moving between its views and inner tabs shifts
+  everything sideways, with a different space above **Today** in Data and Connections than in Ads
+  blocked and Network. The click's cause is found (the app listens only for clicks in other
+  apps); the shift is reproduced in a VM first. It doesn't hold 1.32.0 (#722) by itself.
 
 Done on 19 Nov 2026, on `main`, not released yet (releases are on hold until Kevin says):
 
