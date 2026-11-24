@@ -16,6 +16,7 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
+| 5.5 | #710 Update settings: automatic updates on or off, and what happens in plain words | [Phase 5: Releases people check first](05-releases.md) |
 | 6 | #257 A NetworkMonitor extension for Chrome: in-page ads, pop-ups and YouTube ads, with the app's lists and rules | [Phase 3: The Chrome extension](03-chrome-extension.md) |
 
 ## Later
