@@ -355,6 +355,8 @@ struct PopoverList<Content: View>: View {
     /// The popover's, the same in every view: see `sectionAreaHeight`.
     let height: CGFloat
     @ViewBuilder let content: Content
+    /// Not `@State`; see `SettingsPaneState`.
+    @StateObject private var scrollBar = ScrollBarStyle()
 
     init(rows: Int, height: CGFloat, @ViewBuilder content: () -> Content) {
         self.rows = rows
@@ -381,13 +383,43 @@ struct PopoverList<Content: View>: View {
             // up to 25 parts under each one opened.
             VStack(alignment: .leading, spacing: 0) { content }
                 .padding(.vertical, PopoverMetrics.listVerticalPadding / 2)
+                // Clear of the scroll bar, in a list that scrolls and in one
+                // that doesn't (#728), so the rows end at the same place in
+                // every view, and opening one moves nothing sideways.
+                .frame(width: PopoverMetrics.width - scrollBar.width, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(height: height)
+        // Never wider than the popover: a scroll view is as wide as its rows
+        // and its bar together, whatever it's offered.
+        .frame(width: PopoverMetrics.width, height: height)
         .scrollIndicators(scrolls ? .automatic : .never)
         // Tab goes through every row before the Open row under the list,
         // those scrolled out of sight too (#455).
         .focusSection()
     }
+}
+
+/// The room a scroll bar takes beside what it scrolls: none where it shows
+/// over it, as with only a trackpad; 17 points where it has a place of its
+/// own, as with a mouse, or with Show scroll bars on Always.
+private final class ScrollBarStyle: ObservableObject {
+    private var change: NSObjectProtocol?
+
+    /// Read each time: as the app starts, macOS answers as for a trackpad
+    /// until it has found the mouse.
+    var width: CGFloat {
+        NSScroller.preferredScrollerStyle == .legacy
+            ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0
+    }
+
+    init() {
+        // A mouse connected or put away, or the setting changed.
+        change = NotificationCenter.default.addObserver(
+            forName: NSScroller.preferredScrollerStyleDidChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in self?.objectWillChange.send() }
+    }
+
+    deinit { change.map(NotificationCenter.default.removeObserver) }
 }
 
 /// Connections: who the apps talked to in the period, by company, country
