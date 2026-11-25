@@ -7,14 +7,14 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
 
 ## The plans
 
+- **A late sample's own-network share stays on its network across an offline gap** (#763), Now:
+  reported by defragekb, with a fix (#764). A sample from one network that waits through a gap
+  could take its share off the next network's first bytes. Rare; after 1.33.0's beta 3.
 - **Does the app count a virtual machine's data, connections and ads?** (#738), Next, research:
   Kevin asked what the menu bar and the main window show for what a VM does online. First signs
   (25 Nov 2026): the total probably has it, the app rows may not, and Connections and ad blocking
   are unchecked. It's measured in a VM, then decided: the docs only, a row for it, or a fix. After
   the update settings (#710), before the Chrome extension (#257), which is weeks of work.
-- **Traffic through WebKit counts for the app that uses it** (#761), Now: reported and first
-  written by defragekb (#762). Safari's, Mail's and other web views' pages are System's today;
-  the app's rows and the filter's rules have to move together.
 - **Safari's Private Relay traffic has no row** (#754), Later, research: reported by defragekb.
   Not by capturing internet packets (#749), which costs too much CPU and privacy: whether the
   content filter's own byte counts cover it is what's to find out.
@@ -28,6 +28,10 @@ Done on 25 Nov 2026, on `main`, for 1.33.0 (#747):
 - what was seen on the network before isn't taken off the traffic of the one after (#759),
   reported and first written by defragekb (#760); and the helper's own-network counts hold in a
   signed, notarized build (#757): a test build (#704) in a VM.
+- what Safari, Mail and other apps' web views load counts for the app, not System, and a rule on
+  the app covers those pages (#761), reported and first written by defragekb (#762): macOS's
+  responsible process, asked by the app and by the content filter alike; checked on a signed
+  build in a VM, with a rule on Safari and one on WebKit.
 
 Done on 25 Nov 2026, released in 1.32.0 (#722):
 
