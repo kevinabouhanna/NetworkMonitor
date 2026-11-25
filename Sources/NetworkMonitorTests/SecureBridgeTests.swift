@@ -181,6 +181,38 @@ func runSecureBridgeTests() {
             }
         }
 
+        // A key only another program may use is what macOS asks about, as when
+        // the runner's own file is replaced while it runs (#739).
+        Check.test("a key the tests may not use is refused, and nobody is asked for a password (#739)") {
+            var allowed: DarwinBoolean = true
+            SecKeychainGetUserInteractionAllowed(&allowed)
+            // Checked first: past here, a dialog would come up.
+            guard !allowed.boolValue else { return Check.expectTrue(false, "the tests can raise password dialogs") }
+            guard let (keychain, done) = testKeychain() else { return Check.expectTrue(false, "no test keychain") }
+            defer { done() }
+            var length = UInt32(PATH_MAX)
+            var path = [CChar](repeating: 0, count: Int(PATH_MAX))
+            SecKeychainGetPath(keychain, &length, &path)
+            let security = Process()
+            security.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+            security.arguments = ["create-keypair", "-a", "rsa", "-s", "2048", "-k", String(cString: path),
+                                  "-T", "/usr/bin/true", "another program's"]
+            security.standardOutput = FileHandle.nullDevice
+            security.standardError = FileHandle.nullDevice
+            guard (try? security.run()) != nil else { return Check.expectTrue(false, "security didn't run") }
+            security.waitUntilExit()
+            var found: CFTypeRef?
+            let query: [String: Any] = [kSecClass as String: kSecClassKey,
+                                        kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
+                                        kSecMatchSearchList as String: [keychain], kSecReturnRef as String: true]
+            guard SecItemCopyMatching(query as CFDictionary, &found) == errSecSuccess, let found else {
+                return Check.expectTrue(false, "no key in the test keychain")
+            }
+            let signature = SecKeyCreateSignature(found as! SecKey, .rsaSignatureMessagePKCS1v15SHA256,
+                                                  Data("x".utf8) as CFData, nil)
+            Check.expectNil(signature, "signed with a key that isn't the tests'")
+        }
+
         Check.test("the sites' key is made once, found again, and removed with every certificate") {
             guard let (keychain, done) = testKeychain() else { return Check.expectTrue(false, "no test keychain") }
             defer { done() }

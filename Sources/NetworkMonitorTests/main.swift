@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 // Run with: swift run NetworkMonitorTests
 //
@@ -9,6 +10,9 @@ import Foundation
 // rest: two crashes in the Accessibility tests were read as UpdateWatch's and
 // UpdaterScan's (#488, #406).
 setvbuf(stdout, nil, _IOLBF, 0)
+
+// Never a password dialog (#739): what would ask fails its test instead.
+SecKeychainSetUserInteractionAllowed(false)
 
 print("NetworkMonitor test suite")
 print(String(repeating: "─", count: 62))
