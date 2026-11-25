@@ -48,27 +48,35 @@ public enum WebKitOwner {
 
     public struct ProcessInstance: Equatable {
         public let uid: uid_t
-        /// Since the Mac started, so setting the clock changes nothing.
-        public let started: UInt64
+        /// Since the Mac started, so setting the clock changes nothing; nil
+        /// where it can't be read, as in the content filter's sandbox.
+        public let started: UInt64?
+        /// By the clock, in microseconds: what's left when `started` isn't.
+        public let startedByClock: UInt64
 
-        public init(uid: uid_t, started: UInt64) {
+        public init(uid: uid_t, started: UInt64?, startedByClock: UInt64) {
             self.uid = uid
             self.started = started
+            self.startedByClock = startedByClock
         }
 
         public init?(pid: Int32) {
-            var info = proc_bsdshortinfo()
-            let size = Int32(MemoryLayout<proc_bsdshortinfo>.size)
-            guard proc_pidinfo(pid, PROC_PIDT_SHORTBSDINFO, 0, &info, size) == size else { return nil }
+            var info = proc_bsdinfo()
+            let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+            guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size else { return nil }
             var usage = rusage_info_v0()
             let read = withUnsafeMutablePointer(to: &usage) {
                 $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(pid, RUSAGE_INFO_V0, $0) }
             }
-            guard read == 0 else { return nil }
-            self.init(uid: info.pbsi_uid, started: usage.ri_proc_start_abstime)
+            self.init(uid: info.pbi_uid, started: read == 0 ? usage.ri_proc_start_abstime : nil,
+                      startedByClock: info.pbi_start_tvsec * 1_000_000 + info.pbi_start_tvusec)
         }
 
         /// One that started after the worker has only taken its owner's pid.
-        public func canOwn(_ worker: ProcessInstance) -> Bool { uid == worker.uid && started <= worker.started }
+        public func canOwn(_ worker: ProcessInstance) -> Bool {
+            guard uid == worker.uid else { return false }
+            if let started, let workerStarted = worker.started { return started <= workerStarted }
+            return startedByClock <= worker.startedByClock
+        }
     }
 }

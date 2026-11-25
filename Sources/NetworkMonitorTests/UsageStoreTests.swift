@@ -154,20 +154,30 @@ func runAppIdentityTests() {
         }
 
         Check.test("an owner is the worker's own account's, and older than it") {
-            let worker = WebKitOwner.ProcessInstance(uid: 501, started: 100)
-            func owns(_ uid: uid_t, _ started: UInt64) -> Bool {
-                WebKitOwner.ProcessInstance(uid: uid, started: started).canOwn(worker)
+            let worker = WebKitOwner.ProcessInstance(uid: 501, started: 100, startedByClock: 5_000)
+            func owns(_ uid: uid_t, _ started: UInt64?, _ clock: UInt64 = 1) -> Bool {
+                WebKitOwner.ProcessInstance(uid: uid, started: started, startedByClock: clock).canOwn(worker)
             }
             Check.expectTrue(owns(501, 99))
             Check.expectTrue(owns(501, 100))
             Check.expectFalse(owns(501, 101), "its pid was used again")
             Check.expectFalse(owns(502, 99))
+            // The time since the Mac started wins over the clock, set back in between.
+            Check.expectTrue(owns(501, 99, 9_000))
+            // Where that can't be read for either (the content filter's sandbox), the clock decides.
+            Check.expectTrue(owns(501, nil, 4_000))
+            Check.expectFalse(owns(501, nil, 6_000))
+            // Read one way for one and the other for the other, both are compared by the clock.
+            let sandboxed = WebKitOwner.ProcessInstance(uid: 501, started: nil, startedByClock: 5_000)
+            Check.expectTrue(WebKitOwner.ProcessInstance(uid: 501, started: 999, startedByClock: 4_000).canOwn(sandboxed))
+            Check.expectFalse(WebKitOwner.ProcessInstance(uid: 501, started: 1, startedByClock: 6_000).canOwn(sandboxed))
         }
 
         Check.test("this process can be read, and isn't WebKit's") {
             let this = WebKitOwner.ProcessInstance(pid: getpid())
             Check.expectEqual(this?.uid, getuid())
             Check.expectTrue((this?.started ?? 0) > 0)
+            Check.expectTrue((this?.startedByClock ?? 0) > 0)
             Check.expectNil(WebKitOwner.ProcessInstance(pid: -1))
             Check.expectNil(WebKitOwner.of(pid: getpid(), path: webKit)?.path, "not its path")
         }
