@@ -62,8 +62,9 @@ Four things, and nothing else:
   apps use, fetches the newest release's appcast from GitHub, a small file listing that
   version. GitHub sees your IP address and which version of NetworkMonitor asked. Never
   on a hotspot or metered connection, unless you choose **Check for Updates…**. An update
-  downloads and installs only when you say so, and only if its disk image is signed with
-  the key built into the app. Switch the daily check off with **Check for updates
+  downloads and installs only when you say so, or by itself with **Install updates
+  automatically** on (#710), which it isn't to begin with; either way, only if its disk image
+  is signed with the key built into the app. Switch the daily check off with **Check for updates
   automatically** in Settings. With **Get beta versions** on (#585), it fetches the beta
   appcast instead, from the same place on GitHub.
 

@@ -61,7 +61,7 @@ brew install --cask kevinabouhanna/tap/networkmonitor
 
 ### 🔄 更新
 
-从 1.15 开始，NetworkMonitor 会自己提示新版本：每天检查一次，或者在你从它的菜单中选择 <strong>检查更新…</strong> 时检查，并在你同意后安装。
+从 1.15 开始，NetworkMonitor 会自己提示新版本：每天检查一次，或者在你从它的菜单中选择 <strong>检查更新…</strong> 时检查，并在你同意后安装；如果打开 <strong>自动安装更新</strong>，则会自动安装。
 
 在此之前的版本，请下载新的 DMG，将 NetworkMonitor 拖到“应用程序”文件夹中，并选择 <strong>替换</strong>。你的设置和历史记录都会保留。从 1.13 或更早版本更新时，macOS 会再询问一次定位服务权限，因为应用现在使用 Developer ID 签名。
 

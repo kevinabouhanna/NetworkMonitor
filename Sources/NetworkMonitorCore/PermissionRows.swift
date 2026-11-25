@@ -12,8 +12,8 @@ import SwiftUI
 /// The words, in one place, so every row says the same thing and a test can
 /// keep them plain.
 public enum SetupCopy {
-    public static var welcome: String { L("It lives in your menu bar: click it to see which apps are using the internet. Two more things it can do, if you'd like:") }
-    public static var later: String { L("Not now? You can turn these on later in Settings. Nothing leaves your Mac.") }
+    public static var welcome: String { L("It lives in your menu bar: click it to see which apps are using the internet. A few more things it can do, if you'd like:") }
+    public static var later: String { L("Not now? You can turn these on later in Settings. What it sees stays on your Mac.") }
 
     public static var websitesTitle: String { L("See which websites your apps visit") }
     public static var websitesSummary: String { L("Slack shows up as slack.com, not just as Amazon, whose computers it runs on. It also lets you block any app, company or country.") }
@@ -40,7 +40,7 @@ public enum SetupCopy {
     /// Everything the person reads before a step: what they get, never how.
     public static var plain: [String] {
         [welcome, later, websitesTitle, websitesSummary, hotspotUpdatesTitle, hotspotUpdatesSummary,
-         hotspotUpdatesOn, wifiTitle, wifiSummary, needsApplications, failed]
+         hotspotUpdatesOn, wifiTitle, wifiSummary, UpdateCopy.installsSummary, needsApplications, failed]
     }
 }
 
@@ -187,5 +187,23 @@ struct WiFiNamesRow: View {
     static func openSystemSettings() {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:"
             + "com.apple.preference.security?Privacy_LocationServices")!)
+    }
+}
+
+/// Installing new versions by itself (#710), in the welcome window: a choice
+/// rather than a permission, so a switch, off until it's turned on. Settings
+/// has it too.
+struct InstallUpdatesRow: View {
+    @ObservedObject var updates: UpdateController
+
+    var body: some View {
+        PermissionRow(symbol: "arrow.down.circle", title: L("Install updates automatically"),
+                      summary: UpdateCopy.installsSummary) {
+            Toggle(L("Install updates automatically"), isOn: $updates.installsAutomatically)
+                .toggleStyle(.switch)
+                .labelsHidden()
+        } detail: {
+            EmptyView()
+        }
     }
 }

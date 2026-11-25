@@ -15,7 +15,7 @@
 #
 # Usage:
 #   ./Scripts/swiftpm.sh build -c release
-#   ./Scripts/swiftpm.sh run NetworkMonitorTests
+#   ./Scripts/swiftpm.sh build --product NetworkMonitorTests   (make test runs it)
 
 set -euo pipefail
 

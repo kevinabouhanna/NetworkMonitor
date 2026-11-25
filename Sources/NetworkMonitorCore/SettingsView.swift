@@ -93,6 +93,8 @@ struct GeneralSettingsPane: View {
                 }
             }
 
+            if updates.isAvailable { updatesSection }
+
             // One choice for every speed, so the menu bar and the speed test never
             // show the same line in two different units.
             Section {
@@ -203,30 +205,6 @@ struct GeneralSettingsPane: View {
                 }
             }
 
-            // Updating itself (#132), from what was About (#436): its one
-            // network access besides the monthly data, with its switch.
-            if updates.isAvailable {
-                Section {
-                    Toggle(L("Check for updates automatically"), isOn: $updates.checksAutomatically)
-                        .toggleStyle(.switch)
-                    // Betas (#585): new versions before everyone else.
-                    Toggle(L("Get beta versions"), isOn: $updates.getsBetas)
-                        .toggleStyle(.switch)
-                    LabeledContent(L("Updates")) {
-                        Button(L("Check Now")) { updates.checkForUpdates() }
-                    }
-                } footer: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        SettingsFootnote(L("Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor."))
-                        SettingsFootnote(L("Beta versions come to you before everyone else, to try new things early. They may have problems. Switched off, you keep a beta until the next version comes out."))
-                        if updates.getsBetas {
-                            Link(L("Report a problem with a beta"), destination: Self.betaReportURL)
-                                .font(.system(size: 11))
-                        }
-                    }
-                }
-            }
-
             // Each section's own settings (#436): the same pages its gear
             // shows, one home each, reached from here too.
             Section {
@@ -258,6 +236,60 @@ struct GeneralSettingsPane: View {
         .settingsForm()
         // Custom… starts folded again next time, unless your own colors are in use.
         .onDisappear { state.customColorsShown = false }
+    }
+
+    /// Updating itself (#132, #710), in view as Settings opens: the version,
+    /// what it's doing, and a sentence that says what the switches, as they
+    /// are, do. The details are behind each ⓘ.
+    private var updatesSection: some View {
+        Section {
+            LabeledContent {
+                HStack(spacing: 8) {
+                    if updates.readyVersion != nil {
+                        Button(L("Restart Now")) { updates.restartNow() }
+                    } else if updates.pendingVersion != nil {
+                        Button(L("What's New")) { updates.showPendingUpdate() }
+                        Button(L("Install & Restart")) { updates.installPendingUpdate() }
+                    } else {
+                        Button(L("Check Now")) { updates.checkForUpdates() }
+                            .disabled(!updates.canCheck)
+                    }
+                }
+            } label: {
+                Text(verbatim: "NetworkMonitor \(updates.currentVersion)")
+                Text(updates.status)
+            }
+            ExplainedRow(L("Check for updates automatically"),
+                         L("Once a day, NetworkMonitor asks GitHub whether there's a newer version. Never on a hotspot.")) {
+                Toggle(L("Check for updates automatically"), isOn: $updates.checksAutomatically)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+            }
+            ExplainedRow(L("Install updates automatically"), UpdateCopy.installsInfo) {
+                Toggle(L("Install updates automatically"), isOn: $updates.installsAutomatically)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    // Only the switch: the ⓘ says what it needs.
+                    .disabled(!updates.checksAutomatically)
+            }
+            // Betas (#585): new versions before everyone else.
+            ExplainedRow(L("Get beta versions"),
+                         L("Beta versions come to you before everyone else, to try new things early. They may have problems. Switched off, you keep a beta until the next version comes out.")) {
+                Toggle(L("Get beta versions"), isOn: $updates.getsBetas)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+            }
+        } header: {
+            Text(L("Updates"))
+        } footer: {
+            VStack(alignment: .leading, spacing: 6) {
+                SettingsFootnote(updates.whatHappens)
+                if updates.getsBetas {
+                    Link(L("Report a problem with a beta"), destination: Self.betaReportURL)
+                        .font(.system(size: 11))
+                }
+            }
+        }
     }
 
     /// A colour well's binding. Whatever space the colour panel hands back, the

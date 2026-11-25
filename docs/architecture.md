@@ -603,8 +603,21 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    `SUPublicEDKey`. The Release workflow signs the disk image with the matching Ed25519 key
    (`Scripts/ed25519-sign.swift`, as Sparkle's `sign_update` does), writes the appcast
    (`Scripts/appcast.sh`, which refuses a key the app doesn't trust) and publishes both.
-   `UpdateController` refuses a background check on a metered connection, and uses
-   Sparkle's gentle reminders, since the app lives in the menu bar.
+   `UpdateController` refuses a background check on a metered connection, and again before
+   the download it would start (`shouldProceedWithUpdate`); a download already under way as
+   the Mac joins a hotspot isn't stopped. It uses Sparkle's gentle reminders, since the app
+   lives in the menu bar. **Install updates automatically** (#710) is Sparkle's own
+   `automaticallyDownloadsUpdates`, never copied, so Settings, the welcome window and the tick
+   box in Sparkle's window are one choice. Sparkle would install such an update when the app
+   quits, which a menu bar app rarely does, so `willInstallUpdateOnQuit` takes it over:
+   `installReadyIfQuiet` runs it once no titled window, modal or popover is open and no speed
+   test is running or ended in the last five minutes (its result is in memory only), on each
+   window, popover or menu closing and every minute; never with an uninstall or a change of
+   the filter under way. Switched off meanwhile, or Get beta versions for a beta, it waits for
+   Restart Now or for the app to quit; until it installs, Sparkle's session stays open and
+   nothing newer is looked for, which Settings says. Settings' last check is the last appcast
+   read (`updatesLastChecked`), not Sparkle's date, which counts attempts. `willRestart` remembers the
+   section open as the app goes, for the new copy to open again within five minutes.
 
 An app's servers can add up to a little less than its total: a socket that opened and
 closed between two samples leaves no connection row. In a 30-second capture on the
@@ -681,6 +694,7 @@ Preferences (`com.kevinabouhanna.NetworkMonitor`):
   launch argument tries it for one run), and what the Dock icon shows in each mode:
   `dockIcon` in Dock (`speeds` when absent) and `dockIconInBoth` in Both (`appIcon`
   when absent); `-dockIcon appIcon` and `-dockIconInBoth speeds` likewise.
-- **Updates:** Sparkle's own `SU…` keys.
+- **Updates:** Sparkle's own `SU…` keys, `updatesIncludeBetas`, `updateInstalledByItself` (the
+  version a card has yet to say installed) and `reopenAfterUpdate`.
 
 `powerProfile` is read only as a launch argument, never stored.
