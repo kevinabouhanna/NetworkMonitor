@@ -56,7 +56,7 @@ import sys
 import time
 import unicodedata
 
-VERSION = "2.16.1"
+VERSION = "2.16.2"
 # The config: product-kit's, shared with lang-kit, or docs-kit's own from before.
 CONFIGS = (".product-kit.json", ".docs-kit.json")
 CONFIG = CONFIGS[0]
@@ -1394,9 +1394,9 @@ query($owner: String!, $name: String!, $board: String!, $number: Int!, $after: S
     def status(self, milestone: str) -> tuple[str | None, str]:
         """The Status a milestone's page should have, and why."""
         m = self.milestones[milestone]
-        if m["state"] == "CLOSED":
-            return "Done", "its milestone is closed"
         issues = self.open_in(milestone)
+        if m["state"] == "CLOSED" and not issues:
+            return "Done", "its milestone is closed"
         if not issues:
             return "Done", "its milestone has nothing open"
         placed = [i for i in issues if i["values"].get("horizon") in self.horizons]
@@ -1827,6 +1827,7 @@ class Changes:
         self.plan, self.dry = plan, dry
         self.said: list[str] = []
         self.issue_ops: list[str] = []
+        self.reopened: list[dict] = []
         self.adds: list[int] = []
         self.values: list[tuple[int, str, object]] = []
         self.made = 0
@@ -1883,6 +1884,12 @@ class Changes:
         i["milestone"] = milestone
         self.issue_ops.append(("milestone", i, milestone))
 
+    def reopen_milestone(self, title: str) -> None:
+        m = self.plan.milestones[title]
+        self.say(f"milestone \"{title}\": reopened, it has open work")
+        m["state"] = "OPEN"
+        self.reopened.append(m)
+
     def body(self, i: dict, body: str, what: str) -> None:
         self.say(f"{self.name(i)}: {what}")
         i["body"] = body
@@ -1916,6 +1923,9 @@ class Changes:
         if self.dry:
             return
         p = self.plan
+        # GitHub's GraphQL can't change a milestone, so over REST.
+        for m in self.reopened:
+            gh_rest("PATCH", f"repos/{p.p.repo}/milestones/{m['number']}", {"state": "open"})
         ops = []
         for kind, i, extra in self.issue_ops:
             iid = q(i["id"])
@@ -2052,6 +2062,14 @@ def sync(plan: Plan, pages: dict[str, dict], dry: bool, setup: bool = False) -> 
         phase = p.phase_of(i)
         if phase and phase["title"] in p.milestones and i["milestone"] != phase["title"]:
             ch.milestone(i, phase["title"])
+
+    # A phase with open work of its own isn't finished, so neither is its milestone (#108): a
+    # closed one would keep its page and the index at Done. A sub-phase's work is in its own
+    # milestone, so it doesn't open the one above.
+    for milestone in sorted(phases, key=natural):
+        if milestone in p.milestones and p.milestones[milestone]["state"] == "CLOSED" and p.open_in(milestone):
+            ch.reopen_milestone(milestone)
+
     in_plan = [root] + sorted(phases.values(), key=lambda i: i["number"]) + \
         sorted((i for i in p.open_work() if p.phase_of(i)), key=lambda i: i["number"])
     for i in in_plan:
