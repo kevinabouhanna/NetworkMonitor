@@ -238,7 +238,17 @@ Each `nettop` row is a process name and pid, followed by its connections.
    editor shows as a child of iTerm2 or VS Code instead of vanishing into System. A
    process's own path is tried first, so a helper that ships inside another app's
    bundle stays with that app.
-5. Anything left (daemons, `kernel_task`) is **System**, one collapsed row, because
+5. What an app loads through **WebKit** is that app's (#761). Safari, Mail and any app with
+   a web view each have a `com.apple.WebKit.Networking` of macOS's own, a child of `launchd`,
+   so neither its path nor its parents say whose it is. macOS's responsible process does
+   (`responsibility_get_pid_responsible_for_pid`, private, looked up once, 3 to 6 µs a call).
+   It's asked only about Apple's own networking process, and believed only for a live app of
+   the same account that started before it. Otherwise the bytes stay WebKit's. The content
+   filter asks the same (`WebKitOwner`), so a rule on the app's row covers its pages, and a rule
+   on WebKit itself still covers them all. An app started
+   by its path in a terminal is the terminal's here, as macOS sees it. Days already stored keep
+   their WebKit row, which can hold several apps' bytes.
+6. Anything left (daemons, `kernel_task`) is **System**, one collapsed row, because
    `mDNSResponder` alone was measured at 263 MB against 6 MB for the top real app.
 
 Rows with the same app merge, an app's total includes its children, and an app shows at

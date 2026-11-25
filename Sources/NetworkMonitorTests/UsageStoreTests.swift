@@ -1,3 +1,4 @@
+import FirewallPolicy
 import Foundation
 import NetworkMonitorCore
 
@@ -133,6 +134,81 @@ func runAppIdentityTests() {
         Check.test("a daemon under launchd is adopted by nobody") {
             Check.expectNil(AppIdentityResolver.adoptiveParent(ancestorPaths: ["/sbin/launchd"]))
             Check.expectNil(AppIdentityResolver.adoptiveParent(ancestorPaths: []))
+        }
+
+        // What an app loads through WebKit is that app's (#761).
+        let webKit = "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/"
+            + "com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking"
+
+        Check.test("only macOS's own WebKit networking process has an owner looked up") {
+            for place in ["", "/System/Cryptexes/OS", "/System/Volumes/Preboot/Cryptexes/OS",
+                          "/System/Volumes/Preboot/Cryptexes/App"] {
+                Check.expectTrue(WebKitOwner.isNetworking(place + webKit), place)
+            }
+            let staged = webKit.replacingOccurrences(of: "/Frameworks/", with: "/StagedFrameworks/Safari/")
+            for place in ["/System/Cryptexes/App", "/System/Volumes/Preboot/Cryptexes/App"] {
+                Check.expectTrue(WebKitOwner.isNetworking(place + staged), place)
+            }
+            for other in ["/Users/x" + webKit, "/Users/x" + staged, "/Applications/Evil.app" + webKit,
+                          "/Library/Developer/CoreSimulator/Volumes/iOS" + webKit, "/System/../Users/x" + webKit,
+                          webKit.replacingOccurrences(of: "Networking", with: "WebContent"),
+                          "/usr/libexec/nsurlsessiond"] {
+                Check.expectFalse(WebKitOwner.isNetworking(other), other)
+            }
+        }
+
+        Check.test("an owner is the worker's own account's, and older than it") {
+            let worker = WebKitOwner.ProcessInstance(uid: 501, started: 100, startedByClock: 5_000)
+            func owns(_ uid: uid_t, _ started: UInt64?, _ clock: UInt64 = 1) -> Bool {
+                WebKitOwner.ProcessInstance(uid: uid, started: started, startedByClock: clock).canOwn(worker)
+            }
+            Check.expectTrue(owns(501, 99))
+            Check.expectTrue(owns(501, 100))
+            Check.expectFalse(owns(501, 101), "its pid was used again")
+            Check.expectFalse(owns(502, 99))
+            // The time since the Mac started wins over the clock, set back in between.
+            Check.expectTrue(owns(501, 99, 9_000))
+            // Where that can't be read for either (the content filter's sandbox), the clock decides.
+            Check.expectTrue(owns(501, nil, 4_000))
+            Check.expectFalse(owns(501, nil, 6_000))
+            // Read one way for one and the other for the other, both are compared by the clock.
+            let sandboxed = WebKitOwner.ProcessInstance(uid: 501, started: nil, startedByClock: 5_000)
+            Check.expectTrue(WebKitOwner.ProcessInstance(uid: 501, started: 999, startedByClock: 4_000).canOwn(sandboxed))
+            Check.expectFalse(WebKitOwner.ProcessInstance(uid: 501, started: 1, startedByClock: 6_000).canOwn(sandboxed))
+        }
+
+        Check.test("this process can be read, and isn't WebKit's") {
+            let this = WebKitOwner.ProcessInstance(pid: getpid())
+            Check.expectEqual(this?.uid, getuid())
+            Check.expectTrue((this?.started ?? 0) > 0)
+            Check.expectTrue((this?.startedByClock ?? 0) > 0)
+            Check.expectNil(WebKitOwner.ProcessInstance(pid: -1))
+            Check.expectNil(WebKitOwner.of(pid: getpid(), path: webKit)?.path, "not its path")
+        }
+
+        Check.test("a WebKit process's bytes go to the app it works for, under that app's own key") {
+            // launchd stands in for the worker: a process of no app, always there.
+            func identity(ownedBy owner: String?) -> AppIdentity {
+                AppIdentityResolver(webKitOwner: { _, _ in owner }).trafficIdentity(pid: 1, fallbackName: "launchd")
+            }
+            let safari = "/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/MacOS/Safari"
+            let row = AppIdentityResolver.identity(forExecutablePath: safari, fallbackName: "Safari")
+            Check.expectEqual(identity(ownedBy: safari), row)
+            Check.expectFalse(row.isSystem)
+            // A helper that ships in an app's bundle is that app.
+            let helper = "/Applications/Example.app/Contents/Helpers/Web.app/Contents/MacOS/Web"
+            Check.expectEqual(identity(ownedBy: helper).key, "/Applications/Example.app")
+            // No owner, or one that's no app: it stays where it was.
+            for unknown in [nil, "/usr/local/bin/tool"] {
+                Check.expectEqual(identity(ownedBy: unknown).key, "/sbin/launchd")
+                Check.expectTrue(identity(ownedBy: unknown).isSystem)
+            }
+            // Two apps' workers stay apart, and a process of an app is never asked about.
+            var owner = safari
+            let resolver = AppIdentityResolver(webKitOwner: { _, _ in owner })
+            Check.expectEqual(resolver.trafficIdentity(pid: 1, fallbackName: "").key, row.key)
+            owner = helper
+            Check.expectEqual(resolver.trafficIdentity(pid: 1, fallbackName: "").key, "/Applications/Example.app")
         }
 
         Check.test("an adopted process leaves the System group") {
