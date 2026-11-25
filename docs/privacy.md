@@ -13,6 +13,13 @@ leaves your Mac.
   list. It sees which process moved how many bytes, and the address of the other end:
   whether it was on the internet or on your own network, and which server it was. It
   never sees the contents of any traffic.
+- **UDP packet headers on your own network, only with
+  [the helper](hotspot-mode.md#the-helper) switched on** (#753). Some apps, such as remote
+  desktops, use sockets that don't say where their traffic goes, so it would count as
+  internet. While one moves data, the helper runs macOS's own `tcpdump` with a fixed filter
+  that only lets through packets between two addresses on your own network; packets to or
+  from the internet never reach it. It counts bytes per socket, tells the app those counts
+  and nothing else, writes nothing to disk, and stops two minutes after the app last asked.
 - **The default gateway's hardware address**, to tell one network from another (see
   [how it tells networks apart](features.md#a-total-per-connection)). It comes from
   macOS's own network configuration, which needs no permission.
@@ -136,9 +143,11 @@ it every server your Mac talks to. The data is
   which macOS lists under NetworkMonitor in System Settings › General › Login Items &
   Extensions for you to switch on (#131), which macOS may confirm with your password or
   Touch ID. It answers only NetworkMonitor, checked by its
-  developer's signature, and can do a fixed handful of things and nothing else; see
-  [Hotspot mode](hotspot-mode.md#the-helper). Leave it off, and everything except the parts
-  that need it keeps working. A build from source, without a Developer ID, asks for your
+  developer's signature, and can do a fixed handful of things and nothing else: Hotspot
+  mode's changes, and counting [what stays on your own network](#what-it-reads) (#753); see
+  [Hotspot mode](hotspot-mode.md#the-helper). One approval covers both. Leave it off, and
+  everything except the parts that need it keeps working. A build from source, without a
+  Developer ID, asks for your
   password instead.
 
 ## Why it isn't in the App Store

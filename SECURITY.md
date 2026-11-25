@@ -35,8 +35,10 @@ Most important first:
   self-heal job and its records in `/Library/Application Support/NetworkMonitor/`. A build
   without a Developer ID runs the same binary through a sudoers rule at
   `/etc/sudoers.d/networkmonitor` instead. In scope is anything that gets more out of it
-  than its fixed verbs, reaches it from anything but NetworkMonitor, changes what those
-  verbs act on, or tampers with its records. How it's meant to work is in
+  than its fixed verbs and its `udpUsage` counts, reaches it from anything but
+  NetworkMonitor, changes what those verbs act on, makes it look at packets beyond your own
+  network or pass on more of them than their size, or tampers with its records. How it's
+  meant to work is in
   [Hotspot mode](docs/hotspot-mode.md#the-helper).
 - **The content filter**, the system extension that names each connection and applies
   your rules ([Connections](docs/connections.md#website-names)). In scope is anything that
@@ -68,6 +70,9 @@ These are documented choices, not vulnerabilities:
   its switch in System Settings › General › Login Items & Extensions; in a build without a
   Developer ID, through the sudoers rule, for the account that installed it. Each verb
   takes no arguments, and every setting, domain and host it touches is compiled in.
+- **The helper looks at UDP packet headers on your own network** while an app's traffic there
+  can't be told from internet traffic otherwise (#753). What it looks at is compiled in
+  ([Privacy](docs/privacy.md#what-it-reads)).
 - **Hotspot mode edits `/etc/hosts`**, to block Google's, Canva's and Figma's update
   servers while you're on a hotspot. It puts the file back when you leave.
 - **Hotspot mode writes managed policy files** while you're on a hotspot: for Claude and
