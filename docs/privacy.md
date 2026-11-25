@@ -145,8 +145,9 @@ it every server your Mac talks to. The data is
   Touch ID. It answers only NetworkMonitor, checked by its
   developer's signature, and can do a fixed handful of things and nothing else: Hotspot
   mode's changes, and counting [what stays on your own network](#what-it-reads) (#753); see
-  [Hotspot mode](hotspot-mode.md#the-helper). Leave it off, and everything except the parts
-  that need it keeps working. A build from source, without a Developer ID, asks for your
+  [Hotspot mode](hotspot-mode.md#the-helper). One approval covers both. Leave it off, and
+  everything except the parts that need it keeps working. A build from source, without a
+  Developer ID, asks for your
   password instead.
 
 ## Why it isn't in the App Store

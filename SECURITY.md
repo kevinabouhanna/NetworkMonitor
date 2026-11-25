@@ -37,7 +37,8 @@ Most important first:
   `/etc/sudoers.d/networkmonitor` instead. In scope is anything that gets more out of it
   than its fixed verbs and its `udpUsage` counts, reaches it from anything but
   NetworkMonitor, changes what those verbs act on, makes it look at packets beyond your own
-  network or pass on more of them than their size, or tampers with its records. How it's meant to work is in
+  network or pass on more of them than their size, or tampers with its records. How it's
+  meant to work is in
   [Hotspot mode](docs/hotspot-mode.md#the-helper).
 - **The content filter**, the system extension that names each connection and applies
   your rules ([Connections](docs/connections.md#website-names)). In scope is anything that

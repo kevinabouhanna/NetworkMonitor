@@ -37,12 +37,15 @@ a router alone can move 4 to 13 GB an hour, which would otherwise swamp the day.
 Every connection's other end is checked: private addresses (`10/8`, `172.16/12`,
 `192.168/16`, link-local) are your own network; everything else, and anything that can't be
 read, is internet. Under-reporting is the one error the app can't afford, so ambiguity counts
-as internet. Some sockets don't name their other end, as a remote desktop's often don't;
-with [the helper](hotspot-mode.md#the-helper) switched on, what they move on your own network
-is left out too, except for the first moments of it (#753).
-[Architecture](architecture.md#internet-not-your-own-network) has the details,
+as internet. [Architecture](architecture.md#internet-not-your-own-network) has the details,
 including why multicast is never subtracted and why the total is clamped between the app
 rows and the kernel's count.
+
+Some UDP apps talk to several peers through one socket, so `nettop` may omit the remote
+address (#753). When [the helper](hotspot-mode.md#the-helper) is enabled, NetworkMonitor
+leaves out the traffic it confirmed stayed on your own network, even if the same socket also
+uses the internet. Traffic it can't classify still counts, and so do the first moments after
+such traffic begins.
 
 ## Through a proxy or a VPN
 
