@@ -135,6 +135,67 @@ func runAppIdentityTests() {
             Check.expectNil(AppIdentityResolver.adoptiveParent(ancestorPaths: []))
         }
 
+        // What an app loads through WebKit is that app's (#761).
+        let webKit = "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/"
+            + "com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking"
+
+        Check.test("only macOS's own WebKit networking process has an owner looked up") {
+            for place in ["", "/System/Cryptexes/OS", "/System/Volumes/Preboot/Cryptexes/OS",
+                          "/System/Volumes/Preboot/Cryptexes/App"] {
+                Check.expectTrue(AppIdentityResolver.isWebKitNetworking(place + webKit), place)
+            }
+            for other in ["/Users/x" + webKit, "/Applications/Evil.app" + webKit,
+                          "/Library/Developer/CoreSimulator/Volumes/iOS" + webKit, "/System/../Users/x" + webKit,
+                          webKit.replacingOccurrences(of: "Networking", with: "WebContent"),
+                          "/usr/libexec/nsurlsessiond"] {
+                Check.expectFalse(AppIdentityResolver.isWebKitNetworking(other), other)
+            }
+        }
+
+        Check.test("an owner is the worker's own account's, and older than it") {
+            let worker = AppIdentityResolver.ProcessInstance(uid: 501, started: 100)
+            func owns(_ uid: uid_t, _ started: UInt64) -> Bool {
+                AppIdentityResolver.ProcessInstance(uid: uid, started: started).canOwn(worker)
+            }
+            Check.expectTrue(owns(501, 99))
+            Check.expectTrue(owns(501, 100))
+            Check.expectFalse(owns(501, 101), "its pid was used again")
+            Check.expectFalse(owns(502, 99))
+        }
+
+        Check.test("this process can be read, and isn't WebKit's") {
+            let this = AppIdentityResolver.ProcessInstance(pid: getpid())
+            Check.expectEqual(this?.uid, getuid())
+            Check.expectTrue((this?.started ?? 0) > 0)
+            Check.expectNil(AppIdentityResolver.ProcessInstance(pid: -1))
+            Check.expectNil(AppIdentityResolver.webKitOwnerPath(pid: getpid(), workerPath: webKit), "not its path")
+        }
+
+        Check.test("a WebKit process's bytes go to the app it works for, under that app's own key") {
+            // launchd stands in for the worker: a process of no app, always there.
+            func identity(ownedBy owner: String?) -> AppIdentity {
+                AppIdentityResolver(webKitOwner: { _, _ in owner }).trafficIdentity(pid: 1, fallbackName: "launchd")
+            }
+            let safari = "/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/MacOS/Safari"
+            let row = AppIdentityResolver.identity(forExecutablePath: safari, fallbackName: "Safari")
+            Check.expectEqual(identity(ownedBy: safari), row)
+            Check.expectFalse(row.isSystem)
+            // A helper that ships in an app's bundle is that app.
+            let helper = "/Applications/Example.app/Contents/Helpers/Web.app/Contents/MacOS/Web"
+            Check.expectEqual(identity(ownedBy: helper).key, "/Applications/Example.app")
+            // No owner, or one that's no app: it stays where it was.
+            for unknown in [nil, "/usr/local/bin/tool"] {
+                Check.expectEqual(identity(ownedBy: unknown).key, "/sbin/launchd")
+                Check.expectTrue(identity(ownedBy: unknown).isSystem)
+            }
+            // Two apps' workers stay apart, and a process of an app is never asked about.
+            var owner = safari
+            let resolver = AppIdentityResolver(webKitOwner: { _, _ in owner })
+            Check.expectEqual(resolver.trafficIdentity(pid: 1, fallbackName: "").key, row.key)
+            owner = helper
+            Check.expectEqual(resolver.trafficIdentity(pid: 1, fallbackName: "").key, "/Applications/Example.app")
+        }
+
         Check.test("an adopted process leaves the System group") {
             let daemonish = AppIdentityResolver.identity(
                 forExecutablePath: "/Users/x/.vscode/extensions/anthropic.claude-code/"

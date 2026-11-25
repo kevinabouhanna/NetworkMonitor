@@ -632,7 +632,7 @@ public final class MonitorViewModel: ObservableObject {
     private func identity(of flow: FlowReport) -> AppIdentity? {
         if let key = flow.appKey { return AppIdentityResolver.identity(forKey: key) }
         guard flow.pid > 0, AppIdentityResolver.executablePath(pid: flow.pid) != nil else { return nil }
-        return identityResolver.identity(pid: flow.pid, fallbackName: "")
+        return identityResolver.trafficIdentity(pid: flow.pid, fallbackName: "")
     }
 
     // MARK: nettop sampling

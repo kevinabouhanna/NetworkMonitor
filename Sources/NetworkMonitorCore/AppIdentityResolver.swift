@@ -91,7 +91,12 @@ public final class AppIdentityResolver {
     /// bounded so a pathological chain cannot stall a sample.
     static let maxAncestorDepth = 8
 
-    public init() {}
+    private let webKitOwner: (Int32, String) -> String?
+
+    /// - Parameter webKitOwner: the program behind a WebKit networking process, by its pid and path.
+    public init(webKitOwner: @escaping (Int32, String) -> String? = { AppIdentityResolver.webKitOwnerPath(pid: $0, workerPath: $1) }) {
+        self.webKitOwner = webKitOwner
+    }
 
     public func identity(pid: Int32, fallbackName: String) -> AppIdentity {
         if let cached = identityByPID[pid] { return cached }
@@ -131,72 +136,76 @@ public final class AppIdentityResolver {
         return identity
     }
 
-    /// A system WebKit networking service can have launchd as its parent. Use
-    /// macOS's responsible process for metering, when it identifies a live app.
-    func trafficIdentity(pid: Int32, fallbackName: String) -> AppIdentity {
+    /// `identity(pid:)`, except that what an app loads through WebKit is that
+    /// app's (#761). Safari, Mail and any app with a web view each have a
+    /// networking process of macOS's own, started by launchd, so neither its
+    /// path nor its parents say whose it is; macOS does.
+    ///
+    /// Days already stored keep their WebKit row: it can hold several apps' bytes.
+    public func trafficIdentity(pid: Int32, fallbackName: String) -> AppIdentity {
         let direct = identity(pid: pid, fallbackName: fallbackName)
         guard direct.isSystem, let path = pathByPID[pid],
-              let ownerPath = Self.webKitOwnerPath(pid: pid, workerPath: path) else { return direct }
-
+              let ownerPath = webKitOwner(pid, path) else { return direct }
         if let cached = identityByPath[ownerPath] { return cached }
-        // Use the app's own key. Historical system rows can contain bytes
-        // from several apps, so they must stay under their recorded key.
         let owner = Self.identity(forExecutablePath: ownerPath, fallbackName: fallbackName)
         guard owner.bundlePath != nil else { return direct }
         identityByPath[ownerPath] = owner
         return owner
     }
 
-    // This system SPI is optional. If absent, WebKit keeps its ordinary row.
-    // The symbol is looked up once and the main program handle stays open.
+    /// Private to macOS, and only looked up: without it, WebKit keeps a row.
     private static let responsiblePID: (@convention(c) (Int32) -> Int32)? = {
         guard let handle = dlopen(nil, RTLD_LAZY),
               let symbol = dlsym(handle, "responsibility_get_pid_responsible_for_pid") else { return nil }
         return unsafeBitCast(symbol, to: (@convention(c) (Int32) -> Int32).self)
     }()
 
-    // proc_pidpath can return the mounted OS or App cryptex path.
-    private static let systemLibraryPaths = [
-        "/System/Library/",
-        "/System/Cryptexes/OS/System/Library/",
-        "/System/Cryptexes/App/System/Library/",
-        "/System/Volumes/Preboot/Cryptexes/OS/System/Library/",
-        "/System/Volumes/Preboot/Cryptexes/App/System/Library/",
-    ]
+    /// Whether a path is macOS's own WebKit networking process, as
+    /// `proc_pidpath` says it: on the system volume or on a cryptex.
+    public static func isWebKitNetworking(_ path: String) -> Bool {
+        let system = path.hasPrefix("/System/Library/")
+            || path.hasPrefix("/System/Cryptexes/") || path.hasPrefix("/System/Volumes/Preboot/Cryptexes/")
+        return system && path.contains("/System/Library/Frameworks/WebKit.framework/")
+            && path.hasSuffix("/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking")
+    }
 
-    private static func webKitOwnerPath(pid: Int32, workerPath: String) -> String? {
-        // Restrict the lookup to Apple's service, regardless of the owning app.
-        guard systemLibraryPaths.contains(where: { workerPath.hasPrefix($0) }),
-              workerPath.contains("/WebKit.framework/"),
-              workerPath.hasSuffix("/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking"),
-              let responsiblePID,
-              let worker = processInstance(pid: pid),
-              executablePath(pid: pid) == workerPath else { return nil }
-
+    /// The program a WebKit networking process works for. Asked each time, as
+    /// it costs microseconds, and checked against pid reuse at both ends.
+    public static func webKitOwnerPath(pid: Int32, workerPath: String) -> String? {
+        guard isWebKitNetworking(workerPath), let responsiblePID,
+              let worker = ProcessInstance(pid: pid), executablePath(pid: pid) == workerPath else { return nil }
         let ownerPID = responsiblePID(pid)
-        // Take a fresh result for every active worker. Check both ends of the
-        // lookup for pid reuse, including an owner that started after the worker.
         guard ownerPID > 1, ownerPID != pid,
-              let owner = processInstance(pid: ownerPID), owner.uid == worker.uid,
-              (owner.seconds, owner.microseconds) <= (worker.seconds, worker.microseconds),
+              let owner = ProcessInstance(pid: ownerPID), owner.canOwn(worker),
               let path = executablePath(pid: ownerPID),
-              processInstance(pid: ownerPID) == owner,
-              processInstance(pid: pid) == worker else { return nil }
+              ProcessInstance(pid: ownerPID) == owner, ProcessInstance(pid: pid) == worker else { return nil }
         return path
     }
 
-    private struct ProcessInstance: Equatable {
-        let uid: uid_t
-        let seconds: UInt64
-        let microseconds: UInt64
-    }
+    public struct ProcessInstance: Equatable {
+        public let uid: uid_t
+        /// Since the Mac started, so setting the clock changes nothing.
+        public let started: UInt64
 
-    private static func processInstance(pid: Int32) -> ProcessInstance? {
-        var info = proc_bsdinfo()
-        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
-        guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size else { return nil }
-        return ProcessInstance(uid: info.pbi_uid, seconds: info.pbi_start_tvsec,
-                               microseconds: info.pbi_start_tvusec)
+        public init(uid: uid_t, started: UInt64) {
+            self.uid = uid
+            self.started = started
+        }
+
+        public init?(pid: Int32) {
+            var info = proc_bsdshortinfo()
+            let size = Int32(MemoryLayout<proc_bsdshortinfo>.size)
+            guard proc_pidinfo(pid, PROC_PIDT_SHORTBSDINFO, 0, &info, size) == size else { return nil }
+            var usage = rusage_info_v0()
+            let read = withUnsafeMutablePointer(to: &usage) {
+                $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(pid, RUSAGE_INFO_V0, $0) }
+            }
+            guard read == 0 else { return nil }
+            self.init(uid: info.pbsi_uid, started: usage.ri_proc_start_abstime)
+        }
+
+        /// One that started after the worker has only taken its owner's pid.
+        public func canOwn(_ worker: ProcessInstance) -> Bool { uid == worker.uid && started <= worker.started }
     }
 
     /// Drops per-pid entries for processes no longer present.
