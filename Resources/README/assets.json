@@ -3,12 +3,14 @@
     {
       "file": "Resources/README/demo.gif",
       "shows": ["popover", "popover-subprocesses"],
-      "made": "1.28.0"
+      "made": "1.28.0",
+      "stale": "#733"
     },
     {
       "file": "Resources/README/zh-Hans/demo.gif",
       "shows": ["popover", "popover-subprocesses"],
-      "made": "1.28.0"
+      "made": "1.28.0",
+      "stale": "#733"
     },
     {
       "file": "Resources/README/speed-test.png",
