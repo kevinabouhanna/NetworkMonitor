@@ -41,6 +41,11 @@ as internet. [Architecture](architecture.md#internet-not-your-own-network) has t
 including why multicast is never subtracted and why the total is clamped between the app
 rows and the kernel's count.
 
+Some UDP apps talk to several peers through one socket, so `nettop` may omit the remote
+address. When the helper is enabled, NetworkMonitor uses the actual peer to leave out
+confirmed local traffic, even if the same socket also uses the internet. Traffic it
+can't classify still counts.
+
 ## Through a proxy or a VPN
 
 A proxy such as Clash Verge (Mihomo) or sing-box, in its TUN mode or set as the system's

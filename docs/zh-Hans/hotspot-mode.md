@@ -162,7 +162,9 @@ sequenceDiagram
 
 ### 辅助程序
 
-一个以 root 身份运行的小型二进制文件，只有 <strong>固定的、不带参数的指令集</strong>。每个偏好设置键、域和主机名都编译在里面，所以应用（攻击者可能接触到的那一方）不能请求其他任何东西；增加功能就意味着发布新的辅助程序。
+一个以 root 身份运行的小型二进制文件，使用<strong>固定的、不带参数的指令</strong>修改系统设置。每个偏好设置键、域和主机名都编译在里面。
+
+启动守护进程另有一个只读的 XPC 请求，用于获取 [UDP 流量统计](../architecture.md#udp-sockets-with-no-peer-address)（英文）。应用提供最近一次采样的起止时间。辅助程序会验证时间，并自行选择捕获命令和选项。
 
 | 指令 | 作用 | 谁可以运行 |
 |---|---|---|
@@ -172,7 +174,7 @@ sequenceDiagram
 | `self-heal` | 如果 `/Applications/NetworkMonitor.app` 不在了，就撤销所有更改并删除自己 | launchd，以 root 身份 |
 | `uninstall` | 撤销所有更改并删除自己 | NetworkMonitor 的卸载功能，通过 XPC |
 
-<strong>应用内的启动守护进程</strong>（#131）。应用通过 `SMAppService` 注册它（`Contents/Library/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist`），macOS 会在“登录项”中的 NetworkMonitor 下列出它，你打开它后，launchd 会在应用第一次请求时启动它。它通过 XPC 响应，只响应由该团队（GRQKG7M8CL）签名的 NetworkMonitor，而应用也只与由该团队签名的辅助程序通信。每个请求都用这一个指令运行同一个二进制文件，所以每个指令的行为和在 `sudo` 下完全一样；它在空闲时退出，所以响应的总是更新后的应用所带的辅助程序。第一次启动时，它会：
+<strong>应用内的启动守护进程</strong>（#131）。应用通过 `SMAppService` 注册它（`Contents/Library/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist`），macOS 会在“登录项”中的 NetworkMonitor 下列出它，你打开它后，launchd 会在应用第一次请求时启动它。它通过 XPC 响应，只响应由该团队（GRQKG7M8CL）签名的 NetworkMonitor，而应用也只与由该团队签名的辅助程序通信。每个系统设置请求都用对应的指令运行同一个二进制文件，所以每个指令的行为和在 `sudo` 下完全一样；它在空闲时退出，所以响应的总是更新后的应用所带的辅助程序。第一次启动时，它会：
 
 - 删除旧的 sudoers 规则（如果有）；
 - 把自己复制到 `/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper`，并安装每小时运行的 `self-heal` 任务。把应用拖到废纸篓会连同守护进程一起带走，因为它的程序在应用里面，而 macOS 不会取消注册它，所以靠这份副本来恢复一切。这个任务也列在 NetworkMonitor 下（`AssociatedBundleIdentifiers`）。

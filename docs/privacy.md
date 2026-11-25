@@ -13,6 +13,10 @@ leaves your Mac.
   list. It sees which process moved how many bytes, and the address of the other end:
   whether it was on the internet or on your own network, and which server it was. It
   never sees the contents of any traffic.
+- **UDP packet metadata**, when the launch daemon is enabled. It uses timestamps,
+  addresses, ports, process IDs and byte counts to identify local traffic that `nettop`
+  can't classify. Recent observations stay in memory. The helper returns counters
+  through XPC, saves no packet trace and sends nothing off your Mac.
 - **The default gateway's hardware address**, to tell one network from another (see
   [how it tells networks apart](features.md#a-total-per-connection)). It comes from
   macOS's own network configuration, which needs no permission.
@@ -137,9 +141,10 @@ it every server your Mac talks to. The data is
   Extensions for you to switch on (#131), which macOS may confirm with your password or
   Touch ID. It answers only NetworkMonitor, checked by its
   developer's signature, and can do a fixed handful of things and nothing else; see
-  [Hotspot mode](hotspot-mode.md#the-helper). Leave it off, and everything except the parts
-  that need it keeps working. A build from source, without a Developer ID, asks for your
-  password instead.
+  [Hotspot mode](hotspot-mode.md#the-helper). The same approval enables the additional
+  UDP accounting on any network. With the helper off, traffic accounting uses the
+  interface counters and `nettop`. A build from source without a Developer ID asks
+  for your password for the Hotspot mode helper.
 
 ## Why it isn't in the App Store
 

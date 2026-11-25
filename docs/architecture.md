@@ -3,8 +3,8 @@
 NetworkMonitor is one menu bar process that runs `nettop` as a long-lived child. A
 build signed with the Developer ID adds two parts macOS runs on its behalf, each allowed
 once by you: a **content filter** (a system extension) for Connections, blocking and
-Hotspot mode, and a **helper** (a launch daemon) for the system settings Hotspot mode
-changes. It goes online for four things only: a [speed test](speed-test.md) you
+Hotspot mode, and a **helper** (a launch daemon) for Hotspot mode's system settings and
+UDP traffic accounting. It goes online for four things only: a [speed test](speed-test.md) you
 start, the daily [update check](installing.md), the
 [monthly country data](privacy.md#what-it-sends), and the weekly ad and malware lists
 while they're on (#176).
@@ -14,6 +14,7 @@ while they're on (#176).
 ```mermaid
 flowchart LR
     subgraph mac["macOS"]
+        PK["PKTAP<br/>UDP packet metadata"]
         K["Kernel byte counters<br/>sysctl NET_RT_IFLIST2"]
         N["nettop<br/>long-lived child, on a PTY,<br/>restarted if it dies or stalls"]
         P["NWPathMonitor<br/>route + configd: gateway MAC,<br/>DHCP lease"]
@@ -22,7 +23,7 @@ flowchart LR
 
     subgraph app["NetworkMonitor"]
         S["Sampler<br/>InterfaceCounters → DeltaTracker → RateSmoother"]
-        NS["NettopStream → NettopParser<br/>→ SampleSummary"]
+        NS["NettopStream → NettopParser<br/>→ UDPUsageCredit → SampleSummary"]
         ID["AppIdentityResolver<br/>pid → outermost .app"]
         NW["NetworkIdentityWatcher<br/>+ MeteredHeuristic"]
         VM(["MonitorViewModel"])
@@ -52,6 +53,8 @@ flowchart LR
     VM --> M
     UI -->|"This is a hotspot: on or off"| M
     M -->|"XPC, signature checked both ways"| HP
+    PK --> HP
+    HP -->|"optional UDP peer counters<br/>over signed XPC"| NS
     VM -->|"rules, and whether<br/>on a hotspot"| F
     F <-->|"XPC, signature checked both ways"| FX
     F -->|"server names,<br/>blocked connections"| H
@@ -94,6 +97,7 @@ the right-click menu and the windows.
 | main | `MonitorViewModel`, `UsageStore` and every write to it, `AppIdentityResolver` (it touches `NSWorkspace`), notifications, the UI |
 | `com.networkmonitor.sampler` | reading the kernel counters, deltas and smoothing |
 | `com.networkmonitor.nettop` | spawning `nettop`, reading its PTY, parsing |
+| `com.networkmonitor.udp-usage` | requesting UDP counts from the helper and applying them to a sample |
 | `com.networkmonitor.path` | path changes, the 2-second debounce, gateway lookup |
 | `com.networkmonitor.history` | Usage History reads (writes happen on main) |
 | `com.networkmonitor.speedtest` | running `networkQuality` and reading its PTY |
@@ -267,6 +271,18 @@ internet = min(kernel, max(kernel − local unicast, sum of app rows))
 It's never below what the app rows prove went to the internet, and never above what the
 kernel counted. Without the clamp, a measured 90 seconds gave 367 KB of "internet" with
 1,174 KB of app rows beneath it, which isn't an estimate but a contradiction.
+
+### UDP sockets with no peer address
+
+Some UDP sockets send to several peers, and `nettop` can show their remote address as a
+wildcard. When the signed helper is enabled, it gathers UDP packet metadata through
+macOS PKTAP and returns counters for the same interval over XPC. `UDPUsageCredit` matches
+the process, interface, IP version and local port. It excludes only confirmed local
+unicast bytes from the internet calculation and keeps public or unclassified bytes.
+
+The app requests capture as it starts sampling so the first delta can use it. Capture
+stops 25 seconds after the latest request. When the helper is off, the interval is
+unavailable or a socket match is ambiguous, counting falls back to `nettop`.
 
 ## A total per connection
 
