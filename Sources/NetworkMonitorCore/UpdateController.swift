@@ -465,8 +465,15 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
         readyEnded()
         guard checksOnceFree else { return }
         checksOnceFree = false
-        // Sparkle is still putting the session away.
-        DispatchQueue.main.async { updater.checkForUpdatesInBackground() }
+        checkWhenFree()
+    }
+
+    /// In the background, once Sparkle has put the last session away, which it
+    /// does a moment after saying it ended.
+    private func checkWhenFree(tries: Int = 10) {
+        guard let updater, tries > 0 else { return }
+        guard updater.sessionInProgress else { return updater.checkForUpdatesInBackground() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.checkWhenFree(tries: tries - 1) }
     }
 
     // MARK: SPUStandardUserDriverDelegate
