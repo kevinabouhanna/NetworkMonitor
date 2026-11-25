@@ -1,6 +1,6 @@
 # Phase 1: Everyday polish
 
-**Milestone:** Phase 1: Everyday polish · **Status:** Now
+**Milestone:** Phase 1: Everyday polish · **Status:** Next
 
 **Goal:** what people touch every day feels finished: the popover never jumps, the main
 window's three lists behave the same, and the VoiceOver and keyboard work of 1.29 is checked.
@@ -12,13 +12,18 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   (25 Nov 2026): the total probably has it, the app rows may not, and Connections and ad blocking
   are unchecked. It's measured in a VM, then decided: the docs only, a row for it, or a fix. After
   the update settings (#710), before the Chrome extension (#257), which is weeks of work.
-- **Your own network's traffic that counted as internet** (#753), Now: apps that use an
-  unconnected UDP socket, as remote desktops do. Reported and first fixed by defragekb (#748);
-  the helper counts it, looking only at packets between two addresses on your own network.
-  Then, Next, **the same checked in a Developer ID build** (#757), on the first beta with it.
+- **The helper's own-network counts, checked in a Developer ID build** (#757), Next, on the first
+  beta that has #753. Only a release's build can show it.
 - **Safari's Private Relay traffic has no row** (#754), Later, research: reported by defragekb.
   Not by capturing internet packets (#749), which costs too much CPU and privacy: whether the
   content filter's own byte counts cover it is what's to find out.
+
+Done on 25 Nov 2026, on `main`, for the release after 1.33.0:
+
+- your own network's traffic on an unconnected UDP socket, as remote desktops use, no longer
+  counts as internet (#753). Reported and first written by defragekb (#748), NetworkMonitor's
+  first outside contributor; the helper counts it, looking only at packets between two addresses
+  on your own network.
 
 Done on 25 Nov 2026, released in 1.32.0 (#722):
 
