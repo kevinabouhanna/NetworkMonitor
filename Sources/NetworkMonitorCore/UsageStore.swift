@@ -202,7 +202,10 @@ public final class UsageStore {
         history?.recordInterface(bytesIn: bytesIn, bytesOut: bytesOut, now: now)
     }
 
-    /// Adds one nettop sample's per-process deltas to the active bucket.
+    /// Adds one nettop sample's per-process deltas to the bucket it belongs to.
+    /// A sample with a known network can finish while the watcher says offline.
+    /// Keep it on the last joined network and reserve the offline bucket for
+    /// traffic whose network has yet to be identified.
     ///
     /// `bytesIn`/`bytesOut` are the app's *internet* bytes — LAN traffic is passed
     /// separately in `localBytesIn`/`localBytesOut` and never reaches an app row,
@@ -213,9 +216,10 @@ public final class UsageStore {
     public func recordApps(_ entries: [(identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)],
                            servers: [String: [String: ByteCounts]] = [:],
                            localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
-                           now: Date = Date()) {
+                           sampledOn: String? = nil, now: Date = Date()) {
         rolloverIfNeeded(now: now)
-        withCurrentBucket(now: now) { bucket in
+        guard let id = appSampleBucketID(from: sampledOn ?? currentNetwork.id) else { return }
+        withBucket(id: id, now: now) { bucket in
             bucket.localBytesIn += localBytesIn
             bucket.localBytesOut += localBytesOut
             for entry in entries where entry.bytesIn > 0 || entry.bytesOut > 0 {
@@ -272,18 +276,38 @@ public final class UsageStore {
         bucket.apps[identity.key] = totals
     }
 
+    /// Which bucket a sample taken on `sampledOn` goes to (#759, #763): the
+    /// current one when it was taken there, or before any network was known;
+    /// during an offline gap, the network joined last, when it was taken there,
+    /// as Usage History keeps that network's session open; otherwise none, and
+    /// the sample is left out, being another network's.
+    public func appSampleBucketID(from sampledOn: String) -> String? {
+        let active = currentNetwork.id
+        let offline = NetworkFingerprint.offline.id
+        if sampledOn == active || sampledOn == offline { return active }
+        if active == offline, sampledOn == state.lastNetworkID, state.buckets[sampledOn] != nil {
+            return sampledOn
+        }
+        return nil
+    }
+
     private func withCurrentBucket(now: Date, _ body: (inout NetworkBucket) -> Void) {
-        // Offline still gets a bucket: traffic on a link the path monitor hasn't
-        // classified yet would otherwise be dropped on the floor.
-        var bucket = state.buckets[currentNetwork.id] ?? NetworkBucket(
+        withBucket(id: currentNetwork.id, now: now, body)
+    }
+
+    private func withBucket(id: String, now: Date, _ body: (inout NetworkBucket) -> Void) {
+        // Offline still gets a bucket for traffic whose link has yet to be identified.
+        var bucket = state.buckets[id] ?? NetworkBucket(
             kind: currentNetwork.kind,
             defaultLabel: currentNetwork.defaultLabel,
             countingSince: now)
-        bucket.kind = currentNetwork.kind
-        bucket.defaultLabel = currentNetwork.defaultLabel
+        if id == currentNetwork.id {
+            bucket.kind = currentNetwork.kind
+            bucket.defaultLabel = currentNetwork.defaultLabel
+        }
         bucket.lastSeen = now
         body(&bucket)
-        state.buckets[currentNetwork.id] = bucket
+        state.buckets[id] = bucket
         dirty = true
     }
 

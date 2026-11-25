@@ -17,12 +17,4 @@ public final class SampleNetwork {
     public func moved(to fingerprint: NetworkFingerprint) {
         lock.withLock { id = fingerprint.id }
     }
-
-    /// Whether a sample taken on one network is still the store's to record.
-    /// Offline is a gap, not a network, as in `UsageStore`: what was sampled
-    /// around it belongs to the network that comes back.
-    public static func keeps(sampleFrom taken: String, on current: String) -> Bool {
-        let offline = NetworkFingerprint.offline.id
-        return taken == current || taken == offline || current == offline
-    }
 }

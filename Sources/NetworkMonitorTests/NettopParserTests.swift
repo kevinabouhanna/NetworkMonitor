@@ -290,25 +290,16 @@ func runNettopParserTests() {
             Check.expectEqual(next(mixed, usage(105_000, 0)), 110_000)
         }
 
-        Check.test("a sample that waited for the helper isn't another network's") {
-            func network(_ id: String) -> NetworkFingerprint {
-                NetworkFingerprint(id: id, kind: .wifi, gatewayMAC: nil, defaultLabel: id,
-                                   isExpensive: false, isConstrained: false)
-            }
-            let home = network("gw:home"), hotspot = network("gw:hotspot"), offline = NetworkFingerprint.offline
+        Check.test("a queued sample captures the network id before a change") {
+            let home = NetworkFingerprint(id: "gw:home", kind: .wifi, gatewayMAC: nil, defaultLabel: "Home",
+                                          isExpensive: false, isConstrained: false)
             let taken = SampleNetwork()
-            func keeps(takenOn first: NetworkFingerprint, recordedOn second: NetworkFingerprint) -> Bool {
-                taken.moved(to: first)
-                let sample = taken.current
-                taken.moved(to: second)
-                return SampleNetwork.keeps(sampleFrom: sample, on: second.id)
-            }
-            Check.expectTrue(keeps(takenOn: home, recordedOn: home))
-            Check.expectFalse(keeps(takenOn: home, recordedOn: hotspot))
-            // A gap isn't a network: nothing is lost over a Wi-Fi drop, nor at launch.
-            Check.expectTrue(keeps(takenOn: home, recordedOn: offline))
-            Check.expectTrue(keeps(takenOn: offline, recordedOn: home))
-            Check.expectEqual(SampleNetwork().current, offline.id)
+            Check.expectEqual(taken.current, NetworkFingerprint.offline.id)
+            taken.moved(to: home)
+            let queued = taken.current
+            taken.moved(to: .offline)
+            Check.expectEqual(queued, home.id)
+            Check.expectEqual(taken.current, NetworkFingerprint.offline.id)
         }
 
         Check.test("a VPN's traffic alone doesn't ask the helper") {

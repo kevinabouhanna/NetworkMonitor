@@ -660,13 +660,16 @@ public final class MonitorViewModel: ObservableObject {
             // A sample of the network just left still takes its own share of what
             // the tunnel's stream saw, so none of it is the new network's.
             let sample = self.tunnelCredit.credit(raw, now: now)
-            guard SampleNetwork.keeps(sampleFrom: network, on: self.store.currentNetwork.id) else { return }
+            guard let bucket = self.store.appSampleBucketID(from: network) else { return }
+            // One taken on the network just left and recorded during the gap (#763)
+            // goes to that network's totals only: nothing live is about it.
+            let live = bucket == self.store.currentNetwork.id
             let summary = SampleSummary(sample) {
                 self.identityResolver.trafficIdentity(pid: $0.pid, fallbackName: $0.processName)
             }
             let entries = summary.apps
-            for entry in entries { self.lastActivity[entry.identity.key] = now }
-            if self.metering.isSuppressing {
+            if live { for entry in entries { self.lastActivity[entry.identity.key] = now } }
+            if live, self.metering.isSuppressing {
                 for updater in summary.updaters {
                     self.metering.noteUpdaterTraffic(processName: updater.processName,
                                                      appName: updater.appName, bytes: updater.bytes)
@@ -679,20 +682,20 @@ public final class MonitorViewModel: ObservableObject {
             }
             self.metering.tick(now: now)
 
-            if self.speedTest.phase.isRunning {
+            if live, self.speedTest.phase.isRunning {
                 self.speedTest.recordBackground(entries.map {
                     ($0.identity.displayName, $0.identity.key, $0.bytesIn + $0.bytesOut)
                 })
             }
 
-            if !summary.servers.isEmpty {
+            if live, !summary.servers.isEmpty {
                 self.serverActivity.send(Set(summary.servers.values.flatMap(\.keys)))
             }
             self.lastSeenPIDs = summary.pids
             self.identityResolver.retainOnly(pids: summary.pids)
             self.store.recordApps(entries, servers: summary.servers,
                                   localBytesIn: summary.localIn, localBytesOut: summary.localOut,
-                                  now: now)
+                                  sampledOn: network, now: now)
 
             // The rows are Data's: rebuilt only while Data is what's shown.
             if self.popoverIsOpen && self.popoverSection == .today {

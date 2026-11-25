@@ -533,9 +533,11 @@ func runUsageStoreTests() {
             store.recordApps([(identity("Chrome"), 4000, 800)])
 
             Check.expectFalse(store.setCurrentNetwork(.offline), "going offline is not a switch")
+            store.recordApps([(identity("Chrome"), 20, 2)], localBytesIn: 40, sampledOn: "home")
             Check.expectFalse(store.setCurrentNetwork(network("home")),
                               "coming back to the same network is not a switch")
-            Check.expectEqual(store.currentBucket.apps["Chrome"]?.total, 4800)
+            Check.expectEqual(store.currentBucket.apps["Chrome"]?.total, 4822)
+            Check.expectEqual(store.currentBucket.localBytesIn, 40)
         }
 
         // The 2 s debounce means the first bytes of a new connection are recorded
@@ -555,6 +557,46 @@ func runUsageStoreTests() {
             Check.expectEqual(store.currentBucket.interfaceTotal, 330,
                               "pre-identification bytes belong to the network just joined")
             Check.expectEqual(store.currentBucket.apps["Chrome"]?.total, 275)
+        }
+
+        Check.test("a late sample from the old network stays out of the provisional bucket") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            let home = network("home")
+            let hotspot = network("hotspot", expensive: true)
+            store.setCurrentNetwork(home)
+            store.setCurrentNetwork(.offline)
+            store.recordApps([(identity("OldApp"), 20, 2)], localBytesIn: 800, sampledOn: home.id)
+            Check.expectEqual(store.currentBucket.localBytesIn, 0)
+            let oldBucket = store.allNetworks().first { $0.id == home.id }?.bucket
+            Check.expectEqual(oldBucket?.localBytesIn, 800)
+            Check.expectEqual(oldBucket?.apps["OldApp"]?.total, 22)
+
+            store.recordInterface(bytesIn: 1000, bytesOut: 0)
+            store.setCurrentNetwork(hotspot)
+            store.recordApps([], localBytesIn: 800, sampledOn: home.id)
+            store.recordApps([(identity("NewApp"), 200, 0)], sampledOn: NetworkFingerprint.offline.id)
+            Check.expectEqual(store.currentBucket.internetBytesIn, 1000)
+            Check.expectEqual(store.currentBucket.localBytesIn, 0)
+            Check.expectNil(store.currentBucket.apps["OldApp"])
+            Check.expectEqual(store.currentBucket.apps["NewApp"]?.bytesIn, 200)
+        }
+
+        Check.test("which network's totals a sample goes to, by where it was taken (#759, #763)") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            let offline = NetworkFingerprint.offline.id
+            // At launch, sampled before the network was known: the network's.
+            Check.expectEqual(store.appSampleBucketID(from: offline), offline)
+            store.setCurrentNetwork(network("home"))
+            Check.expectEqual(store.appSampleBucketID(from: offline), "home")
+            Check.expectEqual(store.appSampleBucketID(from: "home"), "home")
+            Check.expectNil(store.appSampleBucketID(from: "hotspot"), "another network's")
+            store.setCurrentNetwork(.offline)
+            Check.expectEqual(store.appSampleBucketID(from: "home"), "home", "the last one, over a gap")
+            Check.expectNil(store.appSampleBucketID(from: "hotspot"), "not the last one")
         }
 
         // Quitting is not switching networks. Restoring the day's totals on the
