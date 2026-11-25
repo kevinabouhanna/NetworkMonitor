@@ -510,7 +510,7 @@ final class ProxiedConnection {
                     log.error("no bridge for \(name, privacy: .public): it goes on unchanged")
                     return connect(to: original, bridged: false)
                 }
-                connect(to: .hostPort(host: "127.0.0.1", port: loopback), bridged: true)
+                connect(to: .hostPort(host: "127.0.0.1", port: loopback), bridged: true, name: name)
             }
         }
     }
@@ -519,7 +519,7 @@ final class ProxiedConnection {
         .hostPort(host: .init(remote.hostname), port: Network.NWEndpoint.Port(rawValue: UInt16(port)) ?? .https)
     }
 
-    private func connect(to endpoint: Network.NWEndpoint, bridged: Bool) {
+    private func connect(to endpoint: Network.NWEndpoint, bridged: Bool, name: String? = nil) {
         guard phase == .connecting else { return }
         let connection = NWConnection(to: endpoint, using: NWParameters(tls: nil, tcp: SecureBridge.atOnce))
         self.connection = connection
@@ -527,6 +527,13 @@ final class ProxiedConnection {
             switch state {
             case .ready:
                 guard phase == .connecting else { return }
+                // The settings may have changed while the bridge got ready
+                // (#741): none of the browser's bytes are in it yet.
+                if bridged, proxy.settings.decide(app: app, host: name, port: port, isUDP: false) != .open {
+                    connection.stateUpdateHandler = nil
+                    connection.cancel()
+                    return connect(to: original, bridged: false)
+                }
                 if bridged, case .hostPort(_, let local)? = connection.currentPath?.localEndpoint {
                     bridgePort = local.rawValue
                     proxy.bridging(from: local.rawValue, for: app)

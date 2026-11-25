@@ -277,9 +277,9 @@ you switch it on.
   and names such as `.gov` and `.bank`), sites you **Always Allow** in your rules for every
   app, and an app that refuses the certificate because it only trusts its own: it's left
   alone from then on, listed under **Apps… › Left alone** with **Try Again**. A connection
-  it can't read for certain goes on exactly as the site sent it. Neither are the few hosts
-  that hold only YouTube's and Google's pictures, fonts and video, where there's nothing to
-  remove (#741).
+  it can't read for certain goes on exactly as the site sent it. The few hosts that hold
+  only YouTube's and Google's pictures, fonts and video, with no ads of their own, aren't
+  opened either (#741).
 - **Which apps:** Safari and the other browsers (Chrome, Edge, Brave, Arc, Opera,
   Vivaldi) by default. **Apps…** takes a browser away or adds another app. Firefox keeps its
   own certificates, so it's reached only once you've told it to use the Mac's.

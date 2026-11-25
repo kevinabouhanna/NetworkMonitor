@@ -212,10 +212,10 @@ public struct EnhancedBlocking: Codable, Equatable {
     // MARK: Nothing to take out
 
     /// Where a site's pictures, fonts and video come from, and nothing else
-    /// (#741): no page and no ad of its own, so no rule has anything to do
-    /// there. Left as they are, over the browser's own connections (QUIC too):
-    /// YouTube's pages ask these hosts for a hundred small pictures, and for
-    /// the video itself.
+    /// (#741): no page, no script and no ad of its own. Left as they are, over
+    /// the browser's own connections (QUIC too): YouTube's pages ask these
+    /// hosts for a hundred small pictures, and for the video itself. Not
+    /// www.gstatic.com, which has trackers' scripts among its pictures.
     public static func isContentOnly(_ host: String) -> Bool {
         guard let name = SiteName.normalized(host) else { return false }
         return namesAbove(name).contains { contentOnlySites.contains($0) }
@@ -223,7 +223,7 @@ public struct EnhancedBlocking: Codable, Equatable {
 
     /// Each with every name under it.
     public static let contentOnlySites: Set<String> = [
-        "googlevideo.com", "c.youtube.com", "ytimg.com", "ggpht.com", "fonts.gstatic.com", "www.gstatic.com",
+        "googlevideo.com", "c.youtube.com", "ytimg.com", "ggpht.com", "fonts.gstatic.com",
     ]
 
     // MARK: Never opened

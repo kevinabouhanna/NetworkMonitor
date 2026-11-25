@@ -302,12 +302,15 @@ func runPageRewriterTests() {
         }
 
         Check.test("ad slots: which sites and paths have them, and only names are changed (#741)") {
-            Check.expectEqual(AdSlots.names(host: "www.youtube.com", target: "/watch?v=x"), ["adPlacements", "adSlots", "playerAds"])
-            Check.expectFalse(AdSlots.names(host: "M.YouTube.com", target: "/youtubei/v1/player?prettyPrint=false").isEmpty)
-            Check.expectFalse(AdSlots.names(host: "www.youtube-nocookie.com", target: "/embed/x").isEmpty)
-            Check.expectTrue(AdSlots.names(host: "www.youtube.com", target: "/api/stats/qoe").isEmpty)
-            Check.expectTrue(AdSlots.names(host: "notyoutube.com", target: "/watch").isEmpty)
-            Check.expectTrue(AdSlots.names(host: "youtube.com.example", target: "/watch").isEmpty)
+            let all = ["adPlacements", "adSlots", "playerAds"]
+            for page in ["/watch?v=x", "/@name/live", "/clip/x", "/shorts/x", "/"] {
+                Check.expectEqual(AdSlots.names(host: "www.youtube.com", target: page, page: true), all, page)
+            }
+            Check.expectEqual(AdSlots.names(host: "www.youtube-nocookie.com", target: "/embed/x", page: true), all)
+            Check.expectEqual(AdSlots.names(host: "M.YouTube.com", target: "/youtubei/v1/player?prettyPrint=false", page: false), all)
+            Check.expectEqual(AdSlots.names(host: "www.youtube.com", target: "/youtubei/v1/next", page: false), [])
+            Check.expectEqual(AdSlots.names(host: "notyoutube.com", target: "/watch", page: true), [])
+            Check.expectEqual(AdSlots.names(host: "youtube.com.example", target: "/watch", page: true), [])
             func renamed(_ text: String) -> String? {
                 AdSlots.renamed(["adSlots"], in: Data(text.utf8)).map { String(decoding: $0, as: UTF8.self) }
             }

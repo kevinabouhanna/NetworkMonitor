@@ -156,7 +156,7 @@ func runSecureBridgeTests() {
     /// refusing everything), sends a GET, and reads the reply to its end. It
     /// closes after it, unless its request says otherwise.
     func browse(port: UInt16, host: String, anchor: SecCertificate?,
-                request: String? = nil) -> Data? {
+                request: String? = nil, until last: String? = nil) -> Data? {
         let tls = NWProtocolTLS.Options()
         sec_protocol_options_set_tls_server_name(tls.securityProtocolOptions, host)
         sec_protocol_options_set_verify_block(tls.securityProtocolOptions, { _, trust, done in
@@ -172,7 +172,8 @@ func runSecureBridgeTests() {
         func read() {
             connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, done, error in
                 if let data { received.append(data) }
-                if done || error != nil { finished.signal() } else { read() }
+                let seen = last.map { received.suffix($0.utf8.count).elementsEqual($0.utf8) } ?? false
+                if done || error != nil || seen { finished.signal() } else { read() }
             }
         }
         connection.stateUpdateHandler = { state in
@@ -202,7 +203,7 @@ func runSecureBridgeTests() {
     /// trusting the site's root (or not).
     func setUp(reply: Data, bridgeTrustsSite: Bool = true, keepOpen: Bool = false,
                refuses: @escaping (AddressRequest) -> Bool = { _ in false },
-               slots: @escaping (String, String) -> [String] = { _, _ in [] },
+               slots: @escaping (String, String, Bool) -> [String] = { _, _, _ in [] },
                closesAfter: Bool = false, answer: ((String) -> Data?)? = nil, connections: ((Int) -> Void)? = nil,
                body: (_ bridgePort: UInt16, _ bridgeRoot: SecCertificate, _ events: () -> [BridgeEvent],
                       _ bridge: SecureBridge) -> Void) {
@@ -582,9 +583,72 @@ func runSecureBridgeTests() {
                 Check.expectTrue(replies.first??.contains("Story") == true, "the reply under way, whole")
                 Check.expectTrue(replies.first??.contains("\r\nConnection: close\r\n") == true, "and said to be the last")
                 Check.expectTrue(replies.count == 2 && replies[1] == nil, "then the end: \(replies.count)")
+                let atOnce = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot,
+                                           requests: [get("/third"), get("/fourth")])
+                Check.expectEqual(atOnce.map { $0 != nil }, [true, false], "nor one that may have been decided before")
+                Thread.sleep(forTimeInterval: 2.1)
                 let again = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot,
-                                          requests: [get("/third"), get("/fourth")])
+                                          requests: [get("/fifth"), get("/sixth")])
                 Check.expectEqual(again.map { $0 != nil }, [true, true], "a connection made since is kept")
+            }
+        }
+
+        Check.test("a WebSocket its rules refuse is refused, not passed through (#741)") {
+            let rules = AddressRules(lines: ["/ads/*$websocket"])
+            var opened = 0
+            setUp(reply: Data(), refuses: rules.refuses, answer: { _ in pageReply }, connections: { opened = $0 }) { port, bridgeRoot, _, _ in
+                let request = "GET /ads/socket HTTP/1.1\r\nHost: test.example\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n"
+                    + "Sec-Fetch-Dest: empty\r\nSec-Fetch-Mode: websocket\r\nOrigin: https://test.example\r\n\r\n"
+                let reply = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot, requests: [request])
+                    .first?.map { String(decoding: $0, as: UTF8.self) }
+                Check.expectTrue(reply?.hasPrefix("HTTP/1.1 403") == true, reply ?? "none")
+            }
+            Check.expectEqual(opened, 0)
+        }
+
+        Check.test("a reply it can't follow goes on as it comes, and so does what the browser asks after it (#741)") {
+            // A folded header; both framings; bare line ends: each read by the
+            // browser itself (here, its bytes), which then asks again.
+            for odd in ["HTTP/1.1 200 OK\r\nX-Old: a\r\n b\r\nContent-Length: 2\r\n\r\nok",
+                        "HTTP/1.1 200 OK\nContent-Length: 2\n\nok",
+                        "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nok\r\n0\r\n\r\n"] {
+                setUp(reply: Data(), answer: { request in
+                    Data((request.hasPrefix("GET /one") ? odd : "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nagain").utf8)
+                }) { port, bridgeRoot, _, _ in
+                    let start = Date()
+                    let both = "GET /one HTTP/1.1\r\nHost: test.example\r\n\r\nGET /two HTTP/1.1\r\nHost: test.example\r\n"
+                        + "Connection: close\r\n\r\n"
+                    let reply = browse(port: port, host: "test.example", anchor: bridgeRoot, request: both, until: "again")
+                        .map { String(decoding: $0, as: UTF8.self) }
+                    Check.expectEqual(reply, odd + "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nagain", "both, untouched")
+                    Check.expectTrue(Date().timeIntervalSince(start) < 10, "and neither waits")
+                }
+            }
+        }
+
+        Check.test("a page that ends with its site's closing says it's the connection's last (#741)") {
+            let closing = Data("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n\(page)".utf8)
+            setUp(reply: closing) { port, bridgeRoot, _, _ in
+                let request = "GET / HTTP/1.1\r\nHost: test.example\r\nConnection: keep-alive\r\n\r\n"
+                let reply = browse(port: port, host: "test.example", anchor: bridgeRoot, request: request)
+                    .map { String(decoding: $0, as: UTF8.self) }
+                Check.expectTrue(reply?.contains("\r\nConnection: close\r\n") == true, reply ?? "none")
+                Check.expectTrue(reply?.contains(".ad-banner{display:none!important}") == true)
+            }
+        }
+
+        Check.test("a WebSocket on a connection kept from a page goes through both ways (#741)") {
+            setUp(reply: Data(), answer: { request in
+                request.contains("Upgrade: websocket")
+                    ? Data("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\nhello".utf8)
+                    : pageReply
+            }) { port, bridgeRoot, _, _ in
+                let both = "GET / HTTP/1.1\r\nHost: test.example\r\n\r\nGET /socket HTTP/1.1\r\nHost: test.example\r\n"
+                    + "Connection: Upgrade\r\nUpgrade: websocket\r\n\r\n"
+                let reply = browse(port: port, host: "test.example", anchor: bridgeRoot, request: both, until: "hello")
+                    .map { String(decoding: $0, as: UTF8.self) }
+                Check.expectTrue(reply?.contains(".ad-banner{display:none!important}") == true, reply ?? "none")
+                Check.expectTrue(reply?.hasSuffix("Connection: Upgrade\r\n\r\nhello") == true, reply ?? "none")
             }
         }
 
@@ -609,7 +673,7 @@ func runSecureBridgeTests() {
                 Data("HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=UTF-8\r\nContent-Length: \(text.utf8.count)\r\n\r\n\(text)".utf8)
             }
             let watch = "<html><head></head><body><script>var p = \(data);</script></body></html>"
-            setUp(reply: Data(), slots: { $1.hasPrefix("/player") || $1.hasPrefix("/watch") ? ["adPlacements", "adSlots"] : [] },
+            setUp(reply: Data(), slots: { _, target, page in page || target.hasPrefix("/player") ? ["adPlacements", "adSlots"] : [] },
                   answer: { request in
                 request.hasPrefix("GET /watch")
                     ? Data("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: \(watch.utf8.count)\r\n\r\n\(watch)".utf8)

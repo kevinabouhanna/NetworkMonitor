@@ -43,9 +43,9 @@ public final class SecureBridge: @unchecked Sendable {
     private let identities: SiteIdentities
     private let additions: (String) -> PageAdditions
     fileprivate let refuses: (AddressRequest) -> Bool
-    /// The names of the ad slots in a reply's own data (#741), by the site
-    /// and what's asked of it.
-    fileprivate let slots: (String, String) -> [String]
+    /// The names of the ad slots in a reply's own data (#741), by the site,
+    /// what's asked of it, and whether that's a page.
+    fileprivate let slots: (_ host: String, _ target: String, _ page: Bool) -> [String]
     private let trusts: (SecTrust, String) -> Bool
     private let endpoint: (String, UInt16) -> NWEndpoint
     fileprivate let events: (BridgeEvent) -> Void
@@ -54,9 +54,9 @@ public final class SecureBridge: @unchecked Sendable {
     /// checked here, never on `queue`, where every exchange's bytes move.
     private let keychainQueue = DispatchQueue(label: "SecureBridge.keychain")
     private let verifyQueue = DispatchQueue(label: "SecureBridge.verify", attributes: .concurrent)
-    /// Pages are rewritten here, so a big one never holds up the others.
-    fileprivate let rewriteQueue = DispatchQueue(label: "SecureBridge.rewrite", qos: .userInitiated,
-                                                 attributes: .concurrent)
+    /// Pages are rewritten here, so a big one never holds up the exchanges'
+    /// bytes; one at a time, as each is unpacked whole.
+    fileprivate let rewriteQueue = DispatchQueue(label: "SecureBridge.rewrite", qos: .userInitiated)
 
     /// A site's listener: ready with its port, or still starting with whoever
     /// is waiting for it.
@@ -92,13 +92,15 @@ public final class SecureBridge: @unchecked Sendable {
     ///   - refuses: whether a request is answered empty instead of going on
     ///     to the site (#699).
     ///   - slots: the names of the ad slots in a reply's own data, for a host
-    ///     and a request's target (#741).
+    ///     and a request's target, and whether it's a page (#741).
     ///   - trusts: whether a site's certificate chain is trusted for it; by
     ///     default, as macOS would for a browser.
     ///   - endpoint: where a site is reached; by default, by its name.
     public init(identities: SiteIdentities, additions: @escaping (String) -> PageAdditions,
                 refuses: @escaping (AddressRequest) -> Bool = { _ in false },
-                slots: @escaping (String, String) -> [String] = { AdSlots.names(host: $0, target: $1) },
+                slots: @escaping (_ host: String, _ target: String, _ page: Bool) -> [String] = {
+                    AdSlots.names(host: $0, target: $1, page: $2)
+                },
                 trusts: @escaping (SecTrust, String) -> Bool = { ServerTrust.isTrusted($0, host: $1) },
                 endpoint: @escaping (String, UInt16) -> NWEndpoint = { .hostPort(host: .init($0), port: .init(rawValue: $1)!) },
                 events: @escaping (BridgeEvent) -> Void = { _ in }) {
@@ -201,8 +203,17 @@ public final class SecureBridge: @unchecked Sendable {
     /// what the settings now say is asked for each from its start (#741): a
     /// site just left alone isn't still opened on a connection kept before.
     public func retire() {
-        queue.async { [self] in open.allObjects.forEach { $0.retire() } }
+        queue.async { [self] in
+            retiredAt = Date()
+            open.allObjects.forEach { $0.retire() }
+        }
     }
+
+    /// When it last retired, so a connection decided just before, and only
+    /// reaching it now, isn't kept either.
+    private var retiredAt = Date.distantPast
+    fileprivate var justRetired: Bool { Date().timeIntervalSince(retiredAt) < Self.settling }
+    static let settling: TimeInterval = 2
 
     // MARK: One exchange
 
@@ -336,12 +347,14 @@ private final class Exchange {
     private var readingClient = false
     private var clientEnded = false
     private var method: String?
+    private var target = ""
     /// The names of the ad slots in what was asked for.
     private var slots: [String] = []
     /// How much of the request's body is still to go to the site; nil when
     /// its end isn't known, and whatever the browser sends follows it.
     private var bodyLeft: Int? = 0
     private var sendingBody = false
+    private var endedSite = false
     /// How much of a refused request's body was read.
     private var dropped = 0
     /// Whether the browser asked to keep this connection, and whether it and
@@ -367,6 +380,7 @@ private final class Exchange {
         self.bridge = bridge
         bridge.connections += 1
         bridge.open.add(self)
+        retiring = bridge.justRetired
         let timer = DispatchSource.makeTimerSource(queue: bridge.queue)
         // Strong: the timer keeps the exchange until it closes or goes quiet.
         timer.setEventHandler { self.quiet() }
@@ -488,26 +502,27 @@ private final class Exchange {
             return tunnel()
         }
         guard let (head, bodyStart) = parsed else { return clientEnded ? close() : readClient() }
-        guard head.value("Upgrade") == nil else { return tunnel() }
+        // A request its rules refuse goes no further, a WebSocket's too: it's
+        // answered here, empty, as what it asked for.
+        let refused = head.target.flatMap { target -> RequestKind? in
+            let address = AddressRequest(host: host, port: sitePort, target: target, header: head.value)
+            return bridge.refuses(address) ? address.kind : nil
+        }
+        if refused == nil, head.value("Upgrade") != nil { return tunnel() }
         busy(true)
         method = head.method
+        target = head.target ?? ""
         asksToKeep = head.keepsConnection && !clientEnded
         keeps = asksToKeep && !retiring
-        slots = head.target.map { bridge.slots(host, $0) } ?? []
         switch try? BodyFraming.forRequest(head) {
         case BodyFraming.none?: bodyLeft = 0
         case .length(let length)?: bodyLeft = length
         default: bodyLeft = nil
         }
         incoming = Data(incoming.dropFirst(bodyStart))
-        // A request its rules refuse goes no further: it's answered here,
-        // empty, as what it asked for.
-        if let target = head.target {
-            let address = AddressRequest(host: host, port: sitePort, target: target, header: head.value)
-            if bridge.refuses(address) {
-                phase = .refusing(address.kind, head)
-                return answerEmpty(address.kind, request: head)
-            }
+        if let refused {
+            phase = .refusing(refused, head)
+            return answerEmpty(refused, request: head)
         }
         var outgoing = head
         outgoing.remove("Proxy-Connection")
@@ -560,8 +575,14 @@ private final class Exchange {
     private func sendBody() {
         guard let link, linkReady, !sendingBody, bodyLeft != 0 else { return }
         if incoming.isEmpty {
-            // The browser ended before its body did.
-            if clientEnded, bodyLeft != nil { close() }
+            guard clientEnded else { return }
+            // The browser ended: before its body did, or, where its end isn't
+            // known, with it.
+            if bodyLeft != nil { return close() }
+            guard !endedSite else { return }
+            endedSite = true
+            link.connection.send(content: nil, contentContext: .finalMessage, isComplete: true,
+                                 completion: .contentProcessed { _ in })
             return
         }
         let piece = bodyLeft.map { Data(incoming.prefix($0)) } ?? incoming
@@ -578,6 +599,7 @@ private final class Exchange {
     /// Ready for the browser's next request, on the connections it has.
     private func next() {
         guard !closed else { return }
+        if retiring { return finish(client) }
         busy(false)
         phase = .head
         reply = Data()
@@ -633,27 +655,29 @@ private final class Exchange {
         if case .head = phase, incoming.isEmpty { finish(client) }
     }
 
-    /// Both ways as they come, on a connection to the site of its own.
+    /// Both ways as they come, on a connection to the site of its own: the
+    /// browser's as a body whose end isn't known, as a read of it may be out.
     private func tunnel() {
-        phase = .passing
-        busy(true)
         dropLink()
-        let site = bridge.connectToSite(host, port: sitePort)
-        link = SiteLink(site)
-        let first = incoming
-        incoming = Data()
-        site.stateUpdateHandler = { [self] state in
+        busy(true)
+        asksToKeep = false
+        keeps = false
+        bodyLeft = nil
+        let link = SiteLink(bridge.connectToSite(host, port: sitePort))
+        self.link = link
+        phase = .exchanging
+        link.connection.stateUpdateHandler = { [self] state in
             switch state {
             case .ready:
-                site.send(content: first, completion: .contentProcessed { _ in })
-                if !clientEnded { pump(from: client, to: site) }
-                pump(from: site, to: client)
+                linkReady = true
+                pump(from: link.connection, to: client)
+                advance()
             case .failed, .cancelled, .waiting:
-                close()
+                if !linkReady { close() }
             default: break
             }
         }
-        site.start(queue: bridge.queue)
+        link.connection.start(queue: bridge.queue)
     }
 
     /// Bytes from one side to the other as they come, the next read only
@@ -715,10 +739,8 @@ private final class Exchange {
                     siteKeeps = false
                 }
             } else {
-                // Its framing can't be followed: as it comes, until it closes.
-                end = nil
-                siteKeeps = false
-                keeps = false
+                // Its framing can't be followed: both ways as they come.
+                untouched()
                 if holding == true {
                     holding = false
                     bridge.events(.untouched(host: host, .cantRead("a chunked body it can't follow")))
@@ -765,7 +787,12 @@ private final class Exchange {
             } catch {
                 return asItComes()   // not a reply it can read
             }
-            guard let (head, bodyStart) = parsed else { return Data() }
+            guard let (head, bodyStart) = parsed else {
+                // Not a head it will ever read: lines that end otherwise, or
+                // no head at all.
+                let ended = reply.firstRange(of: Data("\n\n".utf8)) ?? reply.firstRange(of: Data("\n\r\n".utf8))
+                return ended != nil || !Data("HTTP/".utf8).starts(with: reply.prefix(5)) ? asItComes() : Data()
+            }
             guard let status = head.status else { return asItComes() }
             let sent = Data(reply.prefix(bodyStart))
             if (100..<200).contains(status), status != 101 {
@@ -781,9 +808,10 @@ private final class Exchange {
             let ends = end != nil && bodyLeft == 0
             siteKeeps = ends && head.keepsConnection
             keeps = keeps && ends
-            holding = PageRewriter.isPage(head, requestMethod: method)
-                || !slots.isEmpty && PageRewriter.isData(head, requestMethod: method)
-            reply = asksToKeep ? Self.passedOn(head, sent: sent, kept: keeps, ends: end != nil) : sent
+            let page = PageRewriter.isPage(head, requestMethod: method)
+            slots = page || PageRewriter.isData(head, requestMethod: method) ? bridge.slots(host, target, page) : []
+            holding = page || !slots.isEmpty
+            reply = asksToKeep ? Self.passedOn(head, sent: sent, kept: keeps) : sent
             return rest
         }
     }
@@ -791,22 +819,33 @@ private final class Exchange {
     /// A reply it can't read: all of it as it comes, until the site closes.
     private func asItComes() -> Data {
         holding = false
-        end = nil
-        keeps = false
-        siteKeeps = false
+        untouched()
         let all = reply
         reply = Data()
         return all
     }
 
+    /// Both ways as they come from here on, until either side ends: only the
+    /// browser knows where this reply ends, and what it sends after it goes to
+    /// the site as if it weren't here.
+    private func untouched() {
+        end = nil
+        siteKeeps = false
+        asksToKeep = false
+        keeps = false
+        bodyLeft = nil
+        advance()
+    }
+
     /// The reply's head for a browser that keeps its connection: as the site
     /// sent it, byte for byte, but for what it says of the connection, which
     /// is the browser's and ours.
-    static func passedOn(_ head: HTTPHead, sent: Data, kept: Bool, ends: Bool) -> Data {
+    static func passedOn(_ head: HTTPHead, sent: Data, kept: Bool) -> Data {
+        if !kept, !head.keepsConnection { return sent }
         var passed = head
         passed.remove("Connection")
         passed.remove("Keep-Alive")
-        if !kept, ends { passed.set("Connection", "close") }
+        if !kept { passed.set("Connection", "close") }
         return passed == head ? sent : passed.bytes
     }
 

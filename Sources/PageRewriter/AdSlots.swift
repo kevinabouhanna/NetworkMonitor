@@ -12,24 +12,25 @@ public enum AdSlots {
     struct Rule {
         /// Where it applies, and under each.
         let sites: [String]
-        /// What's asked for, by how it starts.
-        let paths: [String]
+        /// What's asked for that isn't a page, by how it starts.
+        let dataPaths: [String]
         let names: [String]
     }
 
     static let rules = [
         Rule(sites: ["youtube.com", "youtube-nocookie.com"],
-             paths: ["/watch", "/shorts/", "/embed/", "/live/", "/youtubei/v1/player", "/youtubei/v1/get_watch",
-                     "/youtubei/v1/reel/"],
+             dataPaths: ["/youtubei/v1/player", "/youtubei/v1/get_watch", "/youtubei/v1/reel/"],
              names: ["adPlacements", "adSlots", "playerAds"]),
     ]
 
     /// The names of the ad slots in what `target` (a request's path) gets
-    /// from `host`; none for nearly everything.
-    public static func names(host: String, target: String) -> [String] {
+    /// from `host`: in any page there, as a video's own page has many
+    /// addresses, or in the player's replies; none for nearly everything.
+    public static func names(host: String, target: String, page: Bool) -> [String] {
         let host = host.lowercased()
         return rules.first { rule in
-            rule.sites.contains { host == $0 || host.hasSuffix("." + $0) } && rule.paths.contains { target.hasPrefix($0) }
+            rule.sites.contains { host == $0 || host.hasSuffix("." + $0) }
+                && (page || rule.dataPaths.contains { target.hasPrefix($0) })
         }?.names ?? []
     }
 

@@ -105,21 +105,34 @@ func runEnhancedBlockingTests() {
 
         Check.test("hosts with only pictures, fonts and video are left alone, over QUIC too, and no shipped rule names them (#741)") {
             let on = EnhancedBlocking(isOn: true)
-            for host in ["rr3---sn-x.googlevideo.com", "rr3---sn-x.c.youtube.com", "i.ytimg.com", "yt3.ggpht.com", "fonts.gstatic.com", "www.gstatic.com"] {
+            for host in ["rr3---sn-x.googlevideo.com", "rr3---sn-x.c.youtube.com", "i.ytimg.com", "yt3.ggpht.com", "fonts.gstatic.com"] {
                 Check.expectEqual(on.decide(app: "com.apple.Safari", host: host, port: 443, isUDP: false), .leave(.contentOnly), host)
                 Check.expectEqual(on.decide(app: "com.apple.Safari", host: host, port: 443, isUDP: true), .leave(.contentOnly), host)
                 Check.expectEqual(on.start(app: "com.apple.Safari", host: host, port: 443), .leave(.contentOnly), host)
             }
-            for host in ["www.youtube.com", "gstatic.com", "notytimg.com", "ytimg.com.example"] {
+            for host in ["www.youtube.com", "gstatic.com", "www.gstatic.com", "notytimg.com", "ytimg.com.example"] {
                 Check.expectEqual(on.decide(app: "com.apple.Safari", host: host, port: 443, isUDP: false), .open, host)
             }
             let file = URL(fileURLWithPath: "Resources/Blocklists/\(PageRules.fileName)")
             guard let rules = (try? Data(contentsOf: file)).flatMap(PageRules.decode) else {
                 return Check.expectTrue(false, "the shipped page rules")
             }
-            for site in EnhancedBlocking.contentOnlySites {
-                let line = rules.addresses.lines.first { $0.hasPrefix("||") && $0.contains(site) && !$0.contains("domain=") }
-                Check.expectNil(line, "a rule for \(site)")
+            // No rule is for one of them, or a host under it, and what they
+            // really serve isn't refused by a rule for any host.
+            for line in rules.addresses.lines where line.hasPrefix("||") {
+                let host = String(line.dropFirst(2).prefix { $0.isLetter || $0.isNumber || ".-_".contains($0) })
+                Check.expectFalse(host.contains(".") && EnhancedBlocking.isContentOnly(host), line)
+            }
+            for (host, target, kind) in [
+                ("fonts.gstatic.com", "/s/i/youtube_outline_experimental/bell/v12/24px.svg", "empty"),
+                ("fonts.gstatic.com", "/s/roboto/v32/KFOmCnqEu92Fr1Mu4mxK.woff2", "font"),
+                ("i.ytimg.com", "/vi/fJ9rUzIMcZQ/hqdefault.jpg", "image"),
+                ("yt3.ggpht.com", "/MiFTTCMl22bQ46F91rXFVhZ7PnBfLujsRWNxMik7NKVRDRBc=s88-c-k", "image"),
+                ("rr2---sn-x.googlevideo.com", "/videoplayback?expire=1&ei=x&sabr=1&n=y", "empty"),
+            ] {
+                let headers = ["Sec-Fetch-Dest": kind, "Sec-Fetch-Site": "cross-site", "Referer": "https://www.youtube.com/"]
+                Check.expectFalse(on.refuses(AddressRequest(host: host, target: target, header: { headers[$0] }),
+                                             by: rules.addresses), host + target)
             }
         }
     }
