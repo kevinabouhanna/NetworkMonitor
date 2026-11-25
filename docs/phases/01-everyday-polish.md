@@ -7,7 +7,11 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
 
 ## The plans
 
-Nothing open.
+- **Does the app count a virtual machine's data, connections and ads?** (#738), Next, research:
+  Kevin asked what the menu bar and the main window show for what a VM does online. First signs
+  (25 Nov 2026): the total probably has it, the app rows may not, and Connections and ad blocking
+  are unchecked. It's measured in a VM, then decided: the docs only, a row for it, or a fix. After
+  the update settings (#710), before the Chrome extension (#257), which is weeks of work.
 
 Done on 25 Nov 2026, released in 1.32.0 (#722):
 
