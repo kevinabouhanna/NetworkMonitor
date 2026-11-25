@@ -11,12 +11,13 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 |---|---|---|
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
+| 5.61 | #763 Late LAN deductions can carry across an offline gap | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 99 | #747 Release 1.33.0 to everyone once the beta is good | [Phase 5: Releases people check first](05-releases.md) |
 
 ## Next
 
 | Order | Plan | Phase |
 |---|---|---|
-| 5.65 | #757 Check the helper's own-network counts in a Developer ID build (#753) | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.7 | #738 Research: does the app count a virtual machine's data, connections and ads? | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 6 | #257 A NetworkMonitor extension for Chrome: in-page ads, pop-ups and YouTube ads, with the app's lists and rules | [Phase 3: The Chrome extension](03-chrome-extension.md) |
 
@@ -24,7 +25,6 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
-| 0.5 | #741 YouTube's ads still play, and its pages are slow, with Enhanced ad blocking on | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 7 | #522 Improve onboarding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 8 | #582 Branding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 9 | #754 Safari Private Relay traffic is missing from per-app usage | [Phase 1: Everyday polish](01-everyday-polish.md) |
@@ -34,4 +34,7 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | 12 | #108 Idea: widgets for today's data and speed | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 | 13 | #77 Idea: a networkmonitor command for Terminal | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 | 14 | #308 Idea: ask an AI about what the network is doing | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
-| 99 | #747 Release 1.33.0 to everyone once the beta is good | [Phase 5: Releases people check first](05-releases.md) |
+
+## Done
+
+[Phase 2: Ad blocking that holds up](02-ad-blocking.md)

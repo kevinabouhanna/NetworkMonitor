@@ -1,19 +1,20 @@
 # Phase 2: Ad blocking that holds up
 
-**Milestone:** Phase 2: Ad blocking that holds up · **Status:** Later
+**Milestone:** Phase 2: Ad blocking that holds up · **Status:** Done
 
 **Goal:** the best ad blocking a Mac app can do in every app, with the controls people know
 from other ad blockers.
 
 ## The plans
 
-- **YouTube's ads still play, and its pages are slow, with Enhanced ad blocking on** (#741), a
-  bug, first: checked in a VM on 25 Nov 2026, the day 1.32.0 reached everyone, with the switch on
-  YouTube still opens videos with an ad, and its pages load slowly. Find whether its connections
-  are opened and its pages rewritten; then fix it, or say "videos" nowhere until it holds.
+- Nothing open.
 
 Done:
 
+- **YouTube plays without its ads, and its pages load faster than they did, with Enhanced ad
+  blocking on** (#741), 25 Nov 2026, for 1.33.0: the ad slots in YouTube's own data get names its
+  player doesn't know, and connections are kept. In a VM, 15 of 20 pages offered an ad with it on
+  and none showed it; with it off, 5 of 15 offered one and all 5 showed it.
 - **Enhanced ad blocking** (#256), released in 1.32.0 on 25 Nov 2026 (#722): an
   opt-in switch that hides the ads inside pages in the browsers, and in the apps chosen with
   **Apps…**, by opening secure connections on this Mac, never banking, health, government or
@@ -23,7 +24,7 @@ Done:
   switch in Settings (#685), and its own security review and battery cost (#686, fixes in
   #711). What was left,
   YouTube without its pre-roll ads on the day it reached everyone, was checked that day and
-  doesn't hold: #741.
+  didn't hold: #741.
 - **Ad blocking that holds up** (#246), closed 13 Nov 2026 with everything but Enhanced ad
   blocking shipped: an Ads and Trackers window of its own with an overview and a live log, the
   lists' own record of what they block, rules, more lists, trackers hiding behind a site's own
