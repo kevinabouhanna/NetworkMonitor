@@ -91,8 +91,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private var dockDrawPending = false
     /// While Sparkle shows an update (#132), which keeps the Dock icon.
     private var showingUpdate = false
-    /// Windows closing and speed tests ending, for an update waiting to
-    /// install by itself (#710).
+    /// Windows and popovers closing, for an update waiting to install by
+    /// itself (#710).
     private var quietCheck: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -880,18 +880,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             return window.isVisible && !window.isMiniaturized
         }
         // Installing by itself (#710): never under an open window, panel,
-        // question or popover, nor during a speed test.
+        // question or popover, nor during a speed test or just after one.
         model.updates.canRestartQuietly = { [weak self] in
             guard let self else { return false }
-            return !self.somethingIsOpen && !self.model.speedTest.phase.isRunning
+            return !self.somethingIsOpen && !self.model.speedTest.restartWouldLoseTest()
         }
         model.updates.sectionToReopen = { [weak self] in
             guard let main = self?.mainController, main.window.isVisible || main.window.isMiniaturized else { return nil }
             return main.section.rawValue
         }
         model.updates.onShowReady = { [weak self] in self?.showSettings() }
-        quietCheck = NotificationCenter.default.publisher(for: NSWindow.willCloseNotification).map { _ in }
-            .merge(with: model.speedTest.$phase.map(\.isRunning).removeDuplicates().filter { !$0 }.map { _ in })
+        let center = NotificationCenter.default
+        quietCheck = center.publisher(for: NSWindow.willCloseNotification)
+            .merge(with: center.publisher(for: NSPopover.didCloseNotification)).map { _ in }
             // Once the window has gone, and not between two that follow on.
             .debounce(for: .seconds(1), scheduler: DispatchQueue.main)
             .sink { [weak self] in self?.model.updates.installReadyIfQuiet() }
@@ -910,12 +911,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
     }
 
-    /// Whether a window of any kind is open, minimized included: the main one,
+    /// Whether a window of any kind is open, minimized or hidden included: the main one,
     /// the welcome, About, a question of Ask Me's, Sparkle's own.
     private var somethingIsOpen: Bool {
-        popover.isShown || NSApp.modalWindow != nil || NSApp.windows.contains {
-            $0.styleMask.contains(.titled) && ($0.isVisible || $0.isMiniaturized)
-        }
+        if popover.isShown || NSApp.modalWindow != nil { return true }
+        // Hidden with ⌘H, its windows don't count as visible, but they're open.
+        if NSApp.isHidden, NSApp.activationPolicy() == .regular { return true }
+        return NSApp.windows.contains { $0.styleMask.contains(.titled) && ($0.isVisible || $0.isMiniaturized) }
     }
 
     /// Sparkle's own window (#132), which says what's new and asks.

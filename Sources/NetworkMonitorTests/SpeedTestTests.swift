@@ -564,6 +564,22 @@ private func runSpeedTestControllerTests() {
             Check.expectEqual(speedTest.lastResult?.ping ?? 0, 21.5, accuracy: 0.01)
         }
 
+        // An update installing by itself restarts the app (#710), and a result
+        // is only in memory.
+        Check.test("a restart waits for a test, and for its result to have been up a while") {
+            let speedTest = controller()
+            Check.expectFalse(speedTest.restartWouldLoseTest(), "no test")
+            speedTest.run()
+            Check.expectTrue(speedTest.restartWouldLoseTest(), "running")
+            _ = waitFor { speedTest.lastResult != nil }
+            Check.expectTrue(speedTest.restartWouldLoseTest(), "just finished")
+            Check.expectFalse(speedTest.restartWouldLoseTest(now: Date(timeIntervalSinceNow: 301)), "five minutes later")
+            let stopped = controller()
+            stopped.run()
+            stopped.dismiss()
+            Check.expectFalse(stopped.restartWouldLoseTest(), "stopped: no result to keep")
+        }
+
         Check.test("pressing again measures again — the result changes") {
             let speedTest = controller()
             speedTest.run()

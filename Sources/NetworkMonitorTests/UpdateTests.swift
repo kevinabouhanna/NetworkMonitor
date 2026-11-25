@@ -109,6 +109,24 @@ func runUpdateTests() {
             Check.expectEqual(installs, 1, "once nothing's open")
         }
 
+        Check.test("looks again by itself, for what closes without saying so") {
+            let updates = controller("updates-again")
+            updates.installsAutomatically = true
+            updates.quietCheckInterval = 0.1
+            var quiet = false, installs = 0
+            updates.canRestartQuietly = { quiet }
+            updates.updateIsReady(version: "2.0") {
+                installs += 1
+                // As the app going does.
+                quiet = false
+            }
+            settle()
+            Check.expectEqual(installs, 0)
+            quiet = true
+            settle()
+            Check.expectEqual(installs, 1)
+        }
+
         Check.test("switched off since it downloaded, it waits to be asked") {
             let updates = controller("updates-off-since")
             updates.installsAutomatically = true

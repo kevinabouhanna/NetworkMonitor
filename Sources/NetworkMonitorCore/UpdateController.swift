@@ -77,6 +77,9 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
     /// Check for Updates… while one waits to install: where it says so.
     public var onShowReady: (() -> Void)?
 
+    /// How often a waiting update looks again. Public for the tests.
+    public var quietCheckInterval: TimeInterval = 60
+
     private var installNow: (() -> Void)?
     private var quietTimer: Timer?
     private var observers: Set<AnyCancellable> = []
@@ -244,11 +247,13 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
         // However it installs, the app having been quit included, the card
         // says so the next time the window opens.
         defaults.set(version, forKey: Self.installedByItselfKey)
-        // Told at once of a window closing or a speed test ending; this is
-        // for what closes without saying so.
+        // Told at once of a window closing; this is for what closes without
+        // saying so, and for a speed test's result having been up a while.
         quietTimer?.invalidate()
-        let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in self?.installReadyIfQuiet() }
-        timer.tolerance = 15
+        let timer = Timer(timeInterval: quietCheckInterval, repeats: true) { [weak self] _ in
+            self?.installReadyIfQuiet()
+        }
+        timer.tolerance = quietCheckInterval / 4
         RunLoop.main.add(timer, forMode: .common)
         quietTimer = timer
         installReadyIfQuiet()

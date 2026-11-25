@@ -611,7 +611,8 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    box in Sparkle's window are one choice. Sparkle would install such an update when the app
    quits, which a menu bar app rarely does, so `willInstallUpdateOnQuit` takes it over:
    `installReadyIfQuiet` runs it once no titled window, modal or popover is open and no speed
-   test is running, on each window closing, each test ending and every minute. Switched off
+   test is running or ended in the last five minutes (its result is in memory only), on each
+   window closing and every minute. Switched off
    meanwhile, it waits for Restart Now or for the app to quit. `willRestart` remembers the
    section open as the app goes, for the new copy to open again within five minutes.
 
