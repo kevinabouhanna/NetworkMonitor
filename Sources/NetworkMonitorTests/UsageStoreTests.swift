@@ -145,7 +145,11 @@ func runAppIdentityTests() {
                           "/System/Volumes/Preboot/Cryptexes/App"] {
                 Check.expectTrue(WebKitOwner.isNetworking(place + webKit), place)
             }
-            for other in ["/Users/x" + webKit, "/Applications/Evil.app" + webKit,
+            let staged = webKit.replacingOccurrences(of: "/Frameworks/", with: "/StagedFrameworks/Safari/")
+            for place in ["/System/Cryptexes/App", "/System/Volumes/Preboot/Cryptexes/App"] {
+                Check.expectTrue(WebKitOwner.isNetworking(place + staged), place)
+            }
+            for other in ["/Users/x" + webKit, "/Users/x" + staged, "/Applications/Evil.app" + webKit,
                           "/Library/Developer/CoreSimulator/Volumes/iOS" + webKit, "/System/../Users/x" + webKit,
                           webKit.replacingOccurrences(of: "Networking", with: "WebContent"),
                           "/usr/libexec/nsurlsessiond"] {

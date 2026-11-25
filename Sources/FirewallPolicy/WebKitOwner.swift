@@ -23,7 +23,9 @@ public enum WebKitOwner {
     public static func isNetworking(_ path: String) -> Bool {
         let system = path.hasPrefix("/System/Library/")
             || path.hasPrefix("/System/Cryptexes/") || path.hasPrefix("/System/Volumes/Preboot/Cryptexes/")
-        return system && path.contains("/System/Library/Frameworks/WebKit.framework/")
+        let framework = path.contains("/System/Library/Frameworks/WebKit.framework/")
+            || path.contains("/System/Library/StagedFrameworks/Safari/WebKit.framework/")
+        return system && framework
             && path.hasSuffix("/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking")
     }
 
