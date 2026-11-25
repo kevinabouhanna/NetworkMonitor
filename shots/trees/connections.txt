@@ -62,7 +62,7 @@ AXWindow (AXStandardWindow) title="Connections" 1300
         AXButton (AXSegment) description="Today" help="Back to the present" 60x36
         AXButton (AXSegment) description="Next" help="Next (⌘→)" 36x36
     AXGroup help="Search companies, apps, countries and addresses (⌘F)" h52
-      AXButton (AXSearchField) description="Search" help="Search companies, apps, countries and addresses (⌘F)" 40x40
+      AXButton (AXSearchField) description="Search" help="Search companies, apps, countries and addresses (⌘F)" 36x40
     AXButton description="Settings" help="Settings for Connections" 40x52
   AXButton (AXCloseButton) 16x16
   AXButton (AXFullScreenButton) help="this button also has an action to zoom the window" 16x16

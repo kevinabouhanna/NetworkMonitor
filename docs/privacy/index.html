@@ -117,7 +117,8 @@ version. GitHub sees your IP address and which version of NetworkMonitor asked. 
 on a hotspot or metered connection, unless you choose <strong>Check for Updates…</strong>. An update
 downloads and installs only when you say so, and only if its disk image is signed with
 the key built into the app. Switch the daily check off with <strong>Check for updates
-automatically</strong> in Settings.</p>
+automatically</strong> in Settings. With <strong>Get beta versions</strong> on (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/585">#585</a>), it fetches the beta
+appcast instead, from the same place on GitHub.</p>
 </li>
 </ul>
 <p>There is no analytics, no telemetry, no crash reporting and no account.</p>
@@ -194,8 +195,18 @@ name, and tells NetworkMonitor, which keeps the name with that server in Usage H
 When an app connects by address, as Chrome does, it reads the site's name from the
 connection's opening handshake, where it's sent for the network to read, and nothing
 after it (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/196">#196</a>). It blocks only what you block (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/114">#114</a>), never sees the contents of any
-traffic, and sends nothing anywhere. macOS asks you twice to allow it; System Settings › Network › Filters
+traffic (unless you switch on Enhanced ad blocking, below), and sends nothing anywhere. macOS asks you twice to allow it; System Settings › Network › Filters
 switches it off, and Uninstall removes it.</li>
+<li>
+<strong>A proxy and a certificate, only if you switch on Enhanced ad blocking</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/685">#685</a>), in Ads
+and Trackers' settings. To remove the ads inside pages, it opens your browsers' secure
+connections on this Mac, through a certificate made for this Mac only, whose key never
+leaves its System keychain. It reads pages only to remove their ads, keeps and logs none
+of their contents, and sends nothing anywhere. It never opens banking, health, government
+or payment sites, sites you always allow, or apps that refuse the certificate. macOS asks
+for your password to trust the certificate; switching it off asks
+for the password again and deletes the certificate and its key. See
+<a href="../../docs/connections/#enhanced-ad-blocking">Enhanced ad blocking</a>.</li>
 <li>
 <strong>Nothing else, normally.</strong> No Local Network, no Accessibility, no Full Disk Access.</li>
 <li>
@@ -212,7 +223,7 @@ password instead.</li>
 <p>App Store apps must be sandboxed, and a sandboxed app can't run <code>nettop</code>, which is the
 only way macOS offers to see network use per app.</p>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/privacy.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/365f4d49517e4d845b33f55bfeb12f6a3c37ee66"><code>365f4d4</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/privacy.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/221b2691cd092261e896436213fbe6df6d04c845"><code>221b269</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>

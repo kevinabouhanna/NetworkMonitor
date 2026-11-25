@@ -50,7 +50,12 @@ document.addEventListener('click', function (e) {
 <p>Two lines, always visible: <strong>↓ download</strong> in green over <strong>↑ upload</strong> in light grey, in
 <strong>MB/s</strong> or <strong>Mbps</strong> (<strong>Settings › Show speeds in</strong>). Mbps matches how your line
 is sold; MB/s matches the data totals. Amounts of data are always in MB and GB, the way
-data plans are sold. Pick other colours under <strong>Settings › Speed colors</strong>.</p>
+data plans are sold. Pick other colours under <strong>Settings › Speed colors</strong>: six ready-made
+pairs (Green, the default, Teal, Blue, Gold, Pink and Violet), each made to read on a dark
+and a light menu bar, or <strong>Custom…</strong> for your own.</p>
+<p>The readout <strong>follows the menu bar</strong>: on a light one, as over a light wallpaper, each colour is
+drawn darker in the same hue so it stays readable, and it switches by itself when the
+wallpaper changes. On a dark menu bar the colours are drawn as picked.</p>
 <p>The readout keeps a <strong>fixed width</strong>, so nothing beside it in the menu bar jumps around as
 the numbers change. It updates up to twice a second, less often on battery and in Low Power
 Mode (see <a href="../../docs/accuracy-and-battery/#battery">battery</a>). While a speed test runs, the readout
@@ -118,6 +123,11 @@ apps moving data right now.
 <li>
 <strong>Helpers fold into their app</strong>: Chrome's dozen helper processes are one <em>Google
 Chrome</em> row.</li>
+<li>
+<strong>Copies of one app are one row</strong>: a build of an app you have installed counts as
+that app when its maker signed it; every other copy of it is one row of its own,
+<em>Home Control (other copies)</em>. An iPhone or iPad app in Xcode's Simulator is one row,
+<em>Home Control (Simulator)</em>, however often it's reinstalled.</li>
 <li>
 <strong>Commands break out beneath the app that started them.</strong> Open iTerm2 or VS Code to
 see the <code>node</code>, <code>git</code> or <code>curl</code> it launched, each with its own figure. More than four
@@ -207,7 +217,8 @@ connects; <strong>Rules</strong>, beside Traffic and Blocked, lists every rule w
 blocked in the period, on a chart and by site and app, both used as Usage History's are:
 hover or click a bar, choose or open a row (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/536">#536</a>); <strong>Log</strong> shows each connection live,
 as the filter decides it; <strong>Rules</strong> lists your own, as Connections lists its (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/592">#592</a>). The
-lists are in its settings. See <a href="../../docs/connections/#ads-and-trackers">Ads and Trackers</a>.</p>
+lists are in its settings, with <strong>Enhanced ad blocking</strong>, which also removes the ads inside
+pages and videos in your browsers (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/685">#685</a>). See <a href="../../docs/connections/#ads-and-trackers">Ads and Trackers</a>.</p>
 <div class="markdown-heading"><h2 id="speed-test" class="heading-element">Speed test</h2><a id="speed-test" class="anchor" aria-label="Permalink: Speed test" href="#speed-test"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>One click runs a fresh test with the tool built into macOS: download, then upload, then
 ping, jitter, and ping under load, in Mbps or MB/s. If another app was competing for the
@@ -274,11 +285,11 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 <li>
 <strong>Wi-Fi names</strong>, until they're on</li>
 <li>
-<strong>Speed colors</strong> (the readout's and the Dock icon's): Download, Upload, the speed test's colours, Use Default Colors</li>
+<strong>Speed colors</strong> (the readout's and the Dock icon's): six ready-made pairs, Custom… for your own Download and Upload, the speed test's colours</li>
 <li>
 <strong>Popover totals</strong>: Counting since, Sampling, Reset Now</li>
 <li>
-<strong>Check for updates automatically</strong>, and Check Now</li>
+<strong>Check for updates automatically</strong>, <strong>Get beta versions</strong>, and Check Now</li>
 <li>
 <strong>Sections</strong>: a row to each section's settings, the same pages its gear shows</li>
 </ul>
@@ -302,7 +313,7 @@ login, and turning that off doesn't quit the running app.</li>
 hides, and the main window stays in front.</li>
 </ul>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/features.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/365f4d49517e4d845b33f55bfeb12f6a3c37ee66"><code>365f4d4</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/features.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/221b2691cd092261e896436213fbe6df6d04c845"><code>221b269</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>
