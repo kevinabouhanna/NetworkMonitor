@@ -223,7 +223,7 @@ public struct EnhancedBlocking: Codable, Equatable {
 
     /// Each with every name under it.
     public static let contentOnlySites: Set<String> = [
-        "googlevideo.com", "ytimg.com", "ggpht.com", "fonts.gstatic.com", "www.gstatic.com",
+        "googlevideo.com", "c.youtube.com", "ytimg.com", "ggpht.com", "fonts.gstatic.com", "www.gstatic.com",
     ]
 
     // MARK: Never opened
