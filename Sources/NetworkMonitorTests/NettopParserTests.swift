@@ -161,6 +161,19 @@ func runNettopParserTests() {
             Check.expectEqual(actual?.internetBytesOut, 60)
         }
 
+        Check.test("datagrams on a bucket boundary survive exactly one sampling interval") {
+            var bucket = TimedUDPCounts()
+            bucket.record(timestamp: 12.001, bytes: 11, inbound: true)
+            bucket.record(timestamp: 12.008, bytes: 22, inbound: true)
+            bucket.record(timestamp: 12.009, bytes: 33, inbound: false)
+            let earlier = bucket.bytes(in: 12.000..<12.008)
+            let later = bucket.bytes(in: 12.008..<12.020)
+            Check.expectEqual(earlier.incoming, 11)
+            Check.expectEqual(earlier.outgoing, 0)
+            Check.expectEqual(later.incoming, 22)
+            Check.expectEqual(later.outgoing, 33)
+        }
+
         Check.test("only a matching observed UDP socket can reduce internet counts") {
             let elsewhere = UDPPeerUsage(
                 socket: .init(pid: 999, interface: "en0", family: 4, port: 63259),
