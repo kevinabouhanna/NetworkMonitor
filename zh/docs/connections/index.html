@@ -221,9 +221,25 @@ document.addEventListener('click', function (e) {
 <li>
 <strong>弹出窗口中的“已拦截”</strong> 按钮以红色显示所选统计周期内拦截的次数，可按网站或应用查看；它的视图底部的 <strong>打开广告与跟踪器</strong>（⌘B）会打开这个部分。</li>
 <li>
-<strong>它无法拦截的内容：</strong> 由网站自己的服务器提供的广告（例如 YouTube 的广告），因为无法将它们与网站本身区分开；网页中原本放广告的空白框；以及任何没有名称的内容（其他端口，或者不使用 TLS 或 QUIC）。它不是浏览器的广告拦截器。</li>
+<strong>它无法拦截的内容：</strong> 由网站自己的服务器提供的广告（例如 YouTube 的广告），因为无法按名称将它们与网站本身区分开；网页中原本放广告的空白框；以及任何没有名称的内容（其他端口，或者不使用 TLS 或 QUIC）。下面的 <strong>增强型广告拦截</strong> 可以在浏览器中处理前两种。</li>
 <li>
 <strong>列表会自动保持最新。</strong> 每周一，一个工作流程会重新生成这些列表，拒绝缩水的列表（低于固定下限，或少于上周的一半，<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/319">#319</a>）以及会拦住人们每天使用的网站的列表，然后为它们签名；列表打开期间，应用每周获取一次，在热点上从不获取（<strong>每周更新列表</strong>）。应用自带一份副本，因此离线时也能使用。</li>
+</ul>
+<div class="markdown-heading"><h3 id="增强型广告拦截" class="heading-element">增强型广告拦截</h3><a id="增强型广告拦截" class="anchor" aria-label="Permalink: 增强型广告拦截" href="#增强型广告拦截"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>增强型广告拦截</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/256">#256</a>）位于同一组设置中，还会移除网页和视频里的广告，这些广告无法按名称拦截：网站自己的广告位，以及整个地址属于广告或跟踪器的请求（EasyList 和 EasyPrivacy 的规则，<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/681">#681</a>、<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/699">#699</a>）。在你打开之前它保持关闭。</p>
+<ul>
+<li>
+<strong>工作原理。</strong> NetworkMonitor 在这台 Mac 上打开浏览器的安全连接，移除每个网页里的广告（隐藏广告位，并运行列表指定的几个小脚本），对被拒绝的请求直接返回空的回复，其他内容原样传下去。没有任何内容离开你的 Mac。技术上：与过滤器同在一个系统扩展中的透明代理，加上在这台 Mac 上生成的根证书（HTTPS 过滤，与 AdGuard 的做法相同）。</li>
+<li>
+<strong>打开时</strong> 会先说明一次这意味着什么，然后 macOS 会请你输入密码，以信任该证书。证书仅为这台 Mac 生成；它的密钥在系统钥匙串中生成，永远无法从中复制出来。在 macOS 信任它之前，不会打开任何连接，“设置”会显示 <strong>正在等待你的批准</strong> 和 <strong>重试…</strong>；在此期间广告仍按名称拦截。</li>
+<li>
+<strong>它永远不会打开的：</strong> 银行、医疗、政府和支付网站（内置列表，以及 <code>.gov</code>、<code>.bank</code> 等名称），你在规则中对所有应用设为 <strong>始终允许</strong> 的网站，以及因为只信任自己的证书而拒绝该证书的应用：此后不再处理它，它会列在 <strong>应用… › 不予处理</strong> 中，并提供 <strong>重试</strong>。无法确定读懂的连接会按网站发送的原样传下去。</li>
+<li>
+<strong>哪些应用：</strong> 默认是 Safari 和其他浏览器（Chrome、Edge、Brave、Arc、Opera、Vivaldi）。<strong>应用…</strong> 可以去掉某个浏览器或添加其他应用。Firefox 使用自己的证书，只有在你让它使用 Mac 的证书之后才会被处理。</li>
+<li>
+<strong>关闭时</strong> 会再请你输入一次密码，以撤销对证书的信任，证书、它的密钥和各网站的证书都会从系统钥匙串中删除：什么都不会留下。</li>
+<li>
+<strong>代价：</strong> 它打开的每个网页都会在这台 Mac 上解密再重新加密，因此浏览时会多用一些 CPU 和电量。</li>
 </ul>
 <div class="markdown-heading"><h3 id="广告与跟踪器部分" class="heading-element">广告与跟踪器部分</h3><a id="广告与跟踪器部分" class="anchor" aria-label="Permalink: 广告与跟踪器部分" href="#广告与跟踪器部分"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>它是主窗口中的一个部分（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/251">#251</a>、<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/436">#436</a>），可以从弹出窗口“已拦截”下方的 <strong>打开广告与跟踪器</strong>、弹出窗口齿轮图标旁边的四个方块、右键菜单中的 <strong>广告与跟踪器…</strong>、边栏，或者在任一窗口打开时按 ⌘B 打开。顶部是 <strong>概览 | 日志</strong>，工具栏中的搜索（⌘F）对两者都有效。</p>
@@ -376,7 +392,7 @@ document.addEventListener('click', function (e) {
 <div class="markdown-heading"><h2 id="占用多少资源" class="heading-element">占用多少资源</h2><a id="占用多少资源" class="anchor" aria-label="Permalink: 占用多少资源" href="#占用多少资源"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>几乎察觉不到。记录使用的是 <code>nettop</code> 本来就会报告的行，测得没有额外的 CPU 占用。记录的保留时长与流量历史相同（“流量历史”的设置中的 <strong>历史记录保留</strong>），并会随它一起清除。为服务器命名的数据让下载大小增加约 5.5 MB。</p>
 
-    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/connections.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/365f4d49517e4d845b33f55bfeb12f6a3c37ee66"><code>365f4d4</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/connections.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/221b2691cd092261e896436213fbe6df6d04c845"><code>221b269</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
   </main>
 </div>
 <script>

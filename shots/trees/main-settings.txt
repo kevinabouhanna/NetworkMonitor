@@ -28,21 +28,25 @@ AXWindow (AXStandardWindow) title="Settings" 1300
             AXRadioGroup description="Show speeds in" help="In the menu bar or on the Dock icon, and in the speed test. Data you've used is always counted in MB and GB, the way data plans are sold." 116x24
               AXRadioButton (AXSegment) description="Mbps" 60x24
               AXRadioButton (AXSegment) description="MB/s" 60x24
-          AXGroup h88
+          AXGroup h112
             AXImage description="Wi-Fi" identifier="wifi" 20x12
             AXStaticText value="Know your Wi-Fi networks by name" h16
             AXStaticText value="Usage History calls them Home and Office, not “Wi-Fi · #f#a”. macOS calls this Location. NetworkMonitor also uses it to find your country for the Connections map, and keeps only the country." h48
+            AXStaticText value="In System Settings, switch on Location Services for NetworkMonitor." h16
             AXButton description="Turn On…" 84x24
           AXHeading description="Speed colors" 84x16
-          AXGroup h172
-            AXStaticText value="Download" h16
-            AXColorWell value="rgb # # # #" h24
-            AXStaticText value="Upload" h16
-            AXColorWell value="rgb # # # #" h24
+          AXGroup h168
+            AXOpaqueProviderGroup (AXOpaqueProviderGrid) h68
+              AXButton description="Green" 100x68
+              AXButton description="Teal" 104x68
+              AXButton description="Blue" 100x68
+              AXButton description="Gold" 100x68
+              AXButton description="Pink" 104x68
+              AXButton description="Violet" 100x68
+            AXButton description="Custom…" 80x24
             AXStaticText value="During a speed test" h16
             AXStaticText value="↓" help="A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates." h16
             AXStaticText value="↑" help="A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates." h16
-            AXButton description="Use Default Colors" 136x24
           AXHeading description="Popover totals" 92x16
           AXGroup
             AXStaticText value="Counting since" h16
@@ -51,12 +55,15 @@ AXWindow (AXStandardWindow) title="Settings" 1300
             data: AXStaticText
             AXStaticText value="Start the totals over" h16
             AXButton description="Reset Now" 88x24
-          AXGroup h76
+          AXGroup h116
             AXStaticText value="Check for updates automatically" h16
+            AXCheckBox (AXSwitch) 36x16
+            AXStaticText value="Get beta versions" h16
             AXCheckBox (AXSwitch) 36x16
             AXStaticText value="Updates" h16
             AXButton description="Check Now" 92x24
           AXStaticText value="Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor." h28
+          AXStaticText value="Beta versions come to you before everyone else, to try new things early. They may have problems. Switched off, you keep a beta until the next version comes out." h28
           AXHeading description="Sections" 56x16
           AXGroup h148
             AXButton description="Usage History" help="Open the settings for Usage History" 660x16

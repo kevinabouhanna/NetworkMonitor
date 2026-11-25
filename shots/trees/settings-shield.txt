@@ -11,7 +11,7 @@ AXWindow (AXStandardWindow) title="Ads and Trackers Settings" 1300
     AXSplitter value="#" h748
     AXGroup (AXHostingView)
       AXScrollArea
-        AXScrollArea h280
+        AXScrollArea h372
           AXGroup h52
             AXStaticText value="# blocked today, Ads, trackers and malware sites stopped in every app" h32
             AXButton description="Open Ads and Trackers…" help="Also ⌘B" 176x24
@@ -21,6 +21,10 @@ AXWindow (AXStandardWindow) title="Ads and Trackers Settings" 1300
             AXStaticText value="Update the lists weekly" h16
             AXCheckBox (AXToggle) description="Update the lists weekly" help="Once a week, NetworkMonitor downloads the lists from GitHub, the same signed file for everyone, never on a hotspot." 36x16
           AXStaticText value="Lists from # ‹month› # StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC#)." h16
+          AXGroup h36
+            AXStaticText value="Enhanced ad blocking" h16
+            AXCheckBox (AXToggle) description="Enhanced ad blocking" help="NetworkMonitor opens your browsers' secure connections on this Mac, removes the ads inside their pages, and passes them on. Nothing leaves your Mac. It needs a certificate it makes for this Mac only: its key never leaves the Mac, and both are removed when you switch this off. Banking, health, government and payment sites, and sites you Always Allow, are never opened. How: a transparent proxy and a root certificate made on this Mac (HTTPS filtering)." 36x16
+          AXStaticText value="Also removes ads inside pages and videos, in Safari and other browsers. Off until you switch it on." h16
           AXGroup h52
             AXStaticText value="Your rules" h16
             AXStaticText value="# rules" h16

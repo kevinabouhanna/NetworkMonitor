@@ -81,7 +81,7 @@ document.addEventListener('click', function (e) {
 <p><strong>每周一次，在你打开它们之后，广告、跟踪器和恶意软件列表</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/176">#176</a>），来自这个仓库的 <code>blocklists</code> 发布版本：一份已签名的清单和两个压缩的列表，约 0.6 MB。每个人下载的都是同一个文件，使用与国家或地区数据相同的密钥签名，使用热点时从不下载，并且只有当签名以及每个列表的大小和 SHA-256 都匹配时才会使用。在你打开列表之前一直是关闭的；打开后，可以在“广告与跟踪器”的设置中关闭 <strong>每周更新列表</strong>，停止下载。应用自带一份列表，所以即使不下载，列表也能正常工作。</p>
 </li>
 <li>
-<p><strong>每天一次，检查是否有新版本</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>）。Sparkle 是许多 Mac 应用使用的更新程序，它会从 GitHub 获取最新发布版本的 appcast，这是一个列出该版本的小文件。GitHub 能看到你的 IP 地址，以及发出请求的 NetworkMonitor 版本。使用热点或按流量计费的连接时从不检查，除非你选择 <strong>检查更新…</strong>。只有在你同意时，更新才会下载并安装，而且只有当它的磁盘映像使用应用内置的密钥签名时才会安装。在“设置”中关闭 <strong>自动检查更新</strong> 即可停止每日检查。</p>
+<p><strong>每天一次，检查是否有新版本</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>）。Sparkle 是许多 Mac 应用使用的更新程序，它会从 GitHub 获取最新发布版本的 appcast，这是一个列出该版本的小文件。GitHub 能看到你的 IP 地址，以及发出请求的 NetworkMonitor 版本。使用热点或按流量计费的连接时从不检查，除非你选择 <strong>检查更新…</strong>。只有在你同意时，更新才会下载并安装，而且只有当它的磁盘映像使用应用内置的密钥签名时才会安装。在“设置”中关闭 <strong>自动检查更新</strong> 即可停止每日检查。打开 <strong>获取测试版</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/585">#585</a>）后，它改为从 GitHub 上的同一位置获取测试版的 appcast。</p>
 </li>
 </ul>
 <p>没有分析，没有遥测，没有崩溃报告，也不需要账户。</p>
@@ -135,7 +135,9 @@ document.addEventListener('click', function (e) {
 <li>
 <strong>定位服务，用于读取 Wi-Fi 网络的名称</strong>，之后也用于为“连接”地图确定你所在的国家或地区（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/231">#231</a>）。应用第一次打开时会在欢迎窗口中提供这一选项，之后可在“设置”中打开（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/134">#134</a>）。不打开也一切正常，网络会显示为类似 <em>Wi-Fi · 3f2a</em> 的名称，地图则从 Mac 的“地区”设置开始。更新后你的选择会保留：每个发布版本都使用同一个 Developer ID 签名。从 1.13 或更早版本更新时会再询问一次，因为签名是新的（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/119">#119</a>）。</li>
 <li>
-<strong>内容过滤器，仅在你允许时</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/128">#128</a>），可在欢迎窗口或“连接”的设置中打开。这是 macOS 专为这类应用设计的部分：每个连接建立时，它能看到这个连接、打开它的进程，以及服务器的地址和名称，并告诉 NetworkMonitor，NetworkMonitor 会把名称和该服务器一起保存在流量历史中。当应用通过地址连接时（Chrome 就是这样），它会从连接开头的握手中读取网站的名称，这个名称本来就是公开发送给网络读取的，之后的内容它一概不读（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/196">#196</a>）。它只阻止你要阻止的内容（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/114">#114</a>），从不查看任何流量的内容，也不会把任何东西发送到任何地方。macOS 会请你允许两次；在“系统设置 › 网络 › 过滤条件”中可以关闭它，卸载时会移除它。</li>
+<strong>内容过滤器，仅在你允许时</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/128">#128</a>），可在欢迎窗口或“连接”的设置中打开。这是 macOS 专为这类应用设计的部分：每个连接建立时，它能看到这个连接、打开它的进程，以及服务器的地址和名称，并告诉 NetworkMonitor，NetworkMonitor 会把名称和该服务器一起保存在流量历史中。当应用通过地址连接时（Chrome 就是这样），它会从连接开头的握手中读取网站的名称，这个名称本来就是公开发送给网络读取的，之后的内容它一概不读（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/196">#196</a>）。它只阻止你要阻止的内容（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/114">#114</a>），从不查看任何流量的内容（除非你打开下面的增强型广告拦截），也不会把任何东西发送到任何地方。macOS 会请你允许两次；在“系统设置 › 网络 › 过滤条件”中可以关闭它，卸载时会移除它。</li>
+<li>
+<strong>代理和证书，仅在你打开增强型广告拦截时</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/685">#685</a>），位于“广告与跟踪器”的设置中。为了移除网页里的广告，它会在这台 Mac 上打开浏览器的安全连接，所用证书仅为这台 Mac 生成，其密钥永远不会离开系统钥匙串。它读取网页只是为了移除广告，不保存、不记录网页的任何内容，也不会把任何东西发送到任何地方。它从不打开银行、医疗、政府或支付网站、你始终允许的网站，以及拒绝该证书的应用。macOS 会请你输入密码以信任证书；关闭时会再次请你输入密码，并删除证书及其密钥。请参阅<a href="../../../zh/docs/connections/#%E5%A2%9E%E5%BC%BA%E5%9E%8B%E5%B9%BF%E5%91%8A%E6%8B%A6%E6%88%AA">增强型广告拦截</a>。</li>
 <li>
 <strong>通常不需要其他权限。</strong>不需要本地网络、辅助功能或完全磁盘访问权限。</li>
 <li>
@@ -144,7 +146,7 @@ document.addEventListener('click', function (e) {
 <div class="markdown-heading"><h2 id="为什么它不在-app-store-中" class="heading-element">为什么它不在 App Store 中</h2><a id="为什么它不在-app-store-中" class="anchor" aria-label="Permalink: 为什么它不在 App Store 中" href="#为什么它不在-app-store-中"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>App Store 中的应用必须在沙盒中运行，而沙盒中的应用无法运行 <code>nettop</code>，这是 macOS 提供的查看每个应用网络使用情况的唯一方式。</p>
 
-    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/privacy.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/365f4d49517e4d845b33f55bfeb12f6a3c37ee66"><code>365f4d4</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/privacy.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/221b2691cd092261e896436213fbe6df6d04c845"><code>221b269</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
   </main>
 </div>
 <script>

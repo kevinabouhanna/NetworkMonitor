@@ -6,6 +6,8 @@
       "name": "main-history",
       "file": "assets/main/history.png",
       "open": [
+        "-NSWindow Frame Main",
+        "100 100 1300 800 0 0 1600 1000 ",
         "-open",
         "history"
       ],
@@ -50,6 +52,8 @@
       "name": "connections",
       "file": "assets/connections.png",
       "open": [
+        "-NSWindow Frame Main",
+        "100 100 1300 800 0 0 1600 1000 ",
         "-open",
         "connections"
       ],
@@ -74,6 +78,8 @@
       "name": "main-shield",
       "file": "assets/main/shield.png",
       "open": [
+        "-NSWindow Frame Main",
+        "100 100 1300 800 0 0 1600 1000 ",
         "-open",
         "ads",
         "-tab",
@@ -87,6 +93,9 @@
         }
       ],
       "data": [
+        {
+          "from": "AXGroup:Blocked by hour"
+        },
         {
           "from": "AXStaticText:~blocked",
           "until": "AXMenuButton"
@@ -104,6 +113,8 @@
       "name": "main-network",
       "file": "assets/main/network.png",
       "open": [
+        "-NSWindow Frame Main",
+        "100 100 1300 800 0 0 1600 1000 ",
         "-open",
         "network"
       ],
@@ -152,6 +163,8 @@
       "name": "main-network-apps",
       "file": "assets/main/network-apps.png",
       "open": [
+        "-NSWindow Frame Main",
+        "100 100 1300 800 0 0 1600 1000 ",
         "-open",
         "network"
       ],
@@ -191,6 +204,8 @@
       "name": "main-network-uncovered",
       "file": "assets/main/network-uncovered.png",
       "open": [
+        "-NSWindow Frame Main",
+        "100 100 1300 800 0 0 1600 1000 ",
         "-open",
         "network"
       ],
@@ -230,6 +245,8 @@
       "name": "main-settings",
       "file": "assets/main/settings.png",
       "open": [
+        "-NSWindow Frame Main",
+        "100 100 1300 800 0 0 1600 1000 ",
         "-open",
         "settings"
       ],
@@ -249,6 +266,8 @@
       "name": "settings-history",
       "file": "assets/settings/history.png",
       "open": [
+        "-NSWindow Frame Main",
+        "100 100 1300 800 0 0 1600 1000 ",
         "-open",
         "settings",
         "-pane",
@@ -266,6 +285,8 @@
       "name": "settings-connections",
       "file": "assets/settings/connections.png",
       "open": [
+        "-NSWindow Frame Main",
+        "100 100 1300 800 0 0 1600 1000 ",
         "-open",
         "settings",
         "-pane",
@@ -277,10 +298,14 @@
       "name": "settings-shield",
       "file": "assets/settings/shield.png",
       "open": [
+        "-NSWindow Frame Main",
+        "100 100 1300 800 0 0 1600 1000 ",
         "-open",
         "settings",
         "-pane",
-        "ads"
+        "ads",
+        "-enhancedBlocking",
+        "<7b7d>"
       ],
       "window": "Ads and Trackers Settings",
       "data": [
@@ -294,6 +319,8 @@
       "name": "settings-network",
       "file": "assets/settings/network.png",
       "open": [
+        "-NSWindow Frame Main",
+        "100 100 1300 800 0 0 1600 1000 ",
         "-open",
         "settings",
         "-pane",
@@ -329,11 +356,11 @@
       "window": "AXPopover",
       "data": [
         {
-          "from": "AXOpaqueProviderGroup"
+          "from": "AXScrollArea"
         },
         {
           "from": "AXButton:Network",
-          "until": "AXStaticText:Group by",
+          "until": "AXTabGroup:Group by",
           "optional": true
         }
       ]
@@ -351,15 +378,15 @@
       ],
       "window": "AXPopover",
       "click": [
-        "AXOpaqueProviderGroup>AXButton"
+        "AXScrollArea>AXButton"
       ],
       "data": [
         {
-          "from": "AXOpaqueProviderGroup"
+          "from": "AXScrollArea"
         },
         {
           "from": "AXButton:Network",
-          "until": "AXStaticText:Group by",
+          "until": "AXTabGroup:Group by",
           "optional": true
         }
       ]
@@ -379,11 +406,11 @@
       "scroll": "AXScrollArea",
       "data": [
         {
-          "from": "AXOpaqueProviderGroup"
+          "from": "AXScrollArea"
         },
         {
           "from": "AXButton:Network",
-          "until": "AXStaticText:Group by",
+          "until": "AXTabGroup:Group by",
           "optional": true
         }
       ]
@@ -439,42 +466,48 @@
       "shows": [
         "popover"
       ],
-      "made": "1.28.0"
+      "made": "1.28.0",
+      "stale": "#733"
     },
     {
       "file": "assets/live-poster.jpg",
       "shows": [
         "popover"
       ],
-      "made": "1.28.0"
+      "made": "1.28.0",
+      "stale": "#733"
     },
     {
       "file": "assets/zh-Hans/live.mp4",
       "shows": [
         "popover"
       ],
-      "made": "1.28.0"
+      "made": "1.28.0",
+      "stale": "#733"
     },
     {
       "file": "assets/zh-Hans/live-poster.jpg",
       "shows": [
         "popover"
       ],
-      "made": "1.28.0"
+      "made": "1.28.0",
+      "stale": "#733"
     },
     {
       "file": "assets/social-card.png",
       "shows": [
         "popover"
       ],
-      "made": "1.28.1"
+      "made": "1.28.1",
+      "stale": "#733"
     },
     {
       "file": "assets/zh-Hans/social-card.png",
       "shows": [
         "popover"
       ],
-      "made": "1.28.1"
+      "made": "1.28.1",
+      "stale": "#733"
     },
     {
       "file": "assets/menubar.png",
