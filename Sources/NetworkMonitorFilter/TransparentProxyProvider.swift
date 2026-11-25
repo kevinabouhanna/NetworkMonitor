@@ -97,6 +97,9 @@ final class EnhancedProxy {
     /// The apps the last policy kept for good: one it no longer keeps was
     /// tried again (Try Again), and is forgotten here too.
     private var keptByApp: Set<String> = []
+    /// The last policy's settings: changed, no connection opened before it is
+    /// kept (#741).
+    private var applied: EnhancedBlocking?
     /// Making the root and taking it out, one after the other, never at once.
     private let keychainWork = DispatchQueue(label: "com.kevinabouhanna.NetworkMonitor.Filter.keychain",
                                              qos: .userInitiated)
@@ -156,11 +159,15 @@ final class EnhancedProxy {
         let unsent = pinned
         let switchedOff = !settings.isOn && wasOn != false
         let approved = settings.isOn && settings.trustedRoot != nil && settings.trustedRoot != trustedRoot
+        let changed = applied != nil && applied != settings
+        applied = settings
+        let current = bridge
         wasOn = settings.isOn
         trustedRoot = settings.trustedRoot
         if approved, bridge == nil { lastTry = nil }
         lock.unlock()
         AppLink.shared.leftAlone(unsent)
+        if changed { current?.retire() }
         if switchedOff {
             stop()
             keychainWork.async { [self] in removeEverything() }
@@ -503,7 +510,7 @@ final class ProxiedConnection {
                     log.error("no bridge for \(name, privacy: .public): it goes on unchanged")
                     return connect(to: original, bridged: false)
                 }
-                connect(to: .hostPort(host: "127.0.0.1", port: loopback), bridged: true)
+                connect(to: .hostPort(host: "127.0.0.1", port: loopback), bridged: true, name: name)
             }
         }
     }
@@ -512,14 +519,21 @@ final class ProxiedConnection {
         .hostPort(host: .init(remote.hostname), port: Network.NWEndpoint.Port(rawValue: UInt16(port)) ?? .https)
     }
 
-    private func connect(to endpoint: Network.NWEndpoint, bridged: Bool) {
+    private func connect(to endpoint: Network.NWEndpoint, bridged: Bool, name: String? = nil) {
         guard phase == .connecting else { return }
-        let connection = NWConnection(to: endpoint, using: .tcp)
+        let connection = NWConnection(to: endpoint, using: NWParameters(tls: nil, tcp: SecureBridge.atOnce))
         self.connection = connection
         connection.stateUpdateHandler = { [self] state in
             switch state {
             case .ready:
                 guard phase == .connecting else { return }
+                // The settings may have changed while the bridge got ready
+                // (#741): none of the browser's bytes are in it yet.
+                if bridged, proxy.settings.decide(app: app, host: name, port: port, isUDP: false) != .open {
+                    connection.stateUpdateHandler = nil
+                    connection.cancel()
+                    return connect(to: original, bridged: false)
+                }
                 if bridged, case .hostPort(_, let local)? = connection.currentPath?.localEndpoint {
                     bridgePort = local.rawValue
                     proxy.bridging(from: local.rawValue, for: app)

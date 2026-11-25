@@ -264,7 +264,8 @@ you switch it on.
 - **How it works.** NetworkMonitor opens your browsers' secure connections on this Mac,
   removes the ads from each page (hiding their places, and running a few small scripts the
   lists name), answers a refused request itself with an empty reply, and passes everything
-  else on unchanged. Nothing leaves your Mac. Technically: a transparent proxy in the same
+  else on unchanged. On YouTube, the ads the player is told to play are taken out of the
+  page's own data, so it plays only the video (#741). Nothing leaves your Mac. Technically: a transparent proxy in the same
   system extension as the filter, and a root certificate made on this Mac (HTTPS filtering,
   as AdGuard does).
 - **Switching it on** says what it means once, then macOS asks for your password, to trust
@@ -276,7 +277,9 @@ you switch it on.
   and names such as `.gov` and `.bank`), sites you **Always Allow** in your rules for every
   app, and an app that refuses the certificate because it only trusts its own: it's left
   alone from then on, listed under **Apps… › Left alone** with **Try Again**. A connection
-  it can't read for certain goes on exactly as the site sent it.
+  it can't read for certain goes on exactly as the site sent it. The few hosts that hold
+  only YouTube's and Google's pictures, fonts and video, with no ads of their own, aren't
+  opened either (#741).
 - **Which apps:** Safari and the other browsers (Chrome, Edge, Brave, Arc, Opera,
   Vivaldi) by default. **Apps…** takes a browser away or adds another app. Firefox keeps its
   own certificates, so it's reached only once you've told it to use the Mac's.

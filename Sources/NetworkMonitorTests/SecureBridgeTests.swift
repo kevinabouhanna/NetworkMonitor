@@ -57,10 +57,106 @@ func runSecureBridgeTests() {
         return (listener, port)
     }
 
+    /// A site that keeps its connections, answering each request in turn as
+    /// `answer` says (nil: it closes without a word), and how many
+    /// connections it was sent; `closesAfter` a reply, it closes that one.
+    func keepingSite(identity: sec_identity_t, closesAfter: Bool = false,
+                     answer: @escaping (_ request: String) -> Data?) -> (NWListener, UInt16, connections: () -> Int)? {
+        let tls = NWProtocolTLS.Options()
+        sec_protocol_options_set_local_identity(tls.securityProtocolOptions, identity)
+        let parameters = NWParameters(tls: tls)
+        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
+        guard let listener = try? NWListener(using: parameters) else { return nil }
+        let ready = DispatchSemaphore(value: 0)
+        listener.stateUpdateHandler = { if case .ready = $0 { ready.signal() } }
+        let lock = NSLock()
+        var count = 0
+        listener.newConnectionHandler = { connection in
+            lock.lock(); count += 1; lock.unlock()
+            let serial = DispatchQueue(label: "keepingSite")
+            var buffer = Data()
+            func serve() {
+                connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, done, error in
+                    if let data { buffer.append(data) }
+                    while let (head, start) = (try? HTTPHead.parse(buffer)) ?? nil {
+                        let length = Int(head.value("Content-Length") ?? "0") ?? 0
+                        guard buffer.count >= start + length else { break }
+                        let request = String(decoding: buffer.prefix(start + length), as: UTF8.self)
+                        buffer = Data(buffer.dropFirst(start + length))
+                        guard let reply = answer(request) else { return connection.cancel() }
+                        connection.send(content: reply, completion: .contentProcessed { _ in
+                            if closesAfter { connection.cancel() }
+                        })
+                    }
+                    if !done, error == nil { serve() }
+                }
+            }
+            connection.start(queue: serial)
+            serve()
+        }
+        listener.start(queue: queue)
+        guard ready.wait(timeout: .now() + 10) == .success, let port = listener.port?.rawValue else { return nil }
+        return (listener, port, { lock.lock(); defer { lock.unlock() }; return count })
+    }
+
+    /// A browser that keeps its connection: sends each request once the last
+    /// one's reply is whole by its framing, and says what it got for each,
+    /// nil for one the connection ended on.
+    func browseKeeping(port: UInt16, host: String, anchor: SecCertificate, requests: [String]) -> [Data?] {
+        let tls = NWProtocolTLS.Options()
+        sec_protocol_options_set_tls_server_name(tls.securityProtocolOptions, host)
+        sec_protocol_options_set_verify_block(tls.securityProtocolOptions, { _, trust, done in
+            let chain = (SecTrustCopyCertificateChain(sec_trust_copy_ref(trust).takeRetainedValue()) as? [SecCertificate]) ?? []
+            done(ServerTrust.isTrusted(chain, host: host, anchors: [anchor]))
+        }, queue)
+        let connection = NWConnection(to: .hostPort(host: "127.0.0.1", port: .init(rawValue: port)!),
+                                      using: NWParameters(tls: tls))
+        let serial = DispatchQueue(label: "browseKeeping")
+        var replies: [Data?] = []
+        var left = requests
+        var buffer = Data()
+        let finished = DispatchSemaphore(value: 0)
+        func wholeReply() -> Int? {
+            guard let (head, start) = (try? HTTPHead.parse(buffer)) ?? nil,
+                  let framing = try? BodyFraming.forResponse(head, requestMethod: "GET"), var end = BodyEnd(framing),
+                  let used = try? end.take(Data(buffer.dropFirst(start))), end.isEnded else { return nil }
+            return start + used
+        }
+        func ask() {
+            guard !left.isEmpty else { finished.signal(); return }
+            connection.send(content: Data(left.removeFirst().utf8), completion: .contentProcessed { _ in })
+            read()
+        }
+        func read() {
+            connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, done, error in
+                if let data { buffer.append(data) }
+                if let length = wholeReply() {
+                    replies.append(Data(buffer.prefix(length)))
+                    buffer = Data(buffer.dropFirst(length))
+                    return ask()
+                }
+                if done || error != nil { replies.append(nil); finished.signal(); return }
+                read()
+            }
+        }
+        connection.stateUpdateHandler = { state in
+            switch state {
+            case .ready: ask()
+            case .failed: finished.signal()
+            default: break
+            }
+        }
+        connection.start(queue: serial)
+        _ = finished.wait(timeout: .now() + 20)
+        connection.cancel()
+        return serial.sync { replies }
+    }
+
     /// A browser: connects to `port` as `host`, trusting `anchor` (or
-    /// refusing everything), sends a GET, and reads the reply to its end.
+    /// refusing everything), sends a GET, and reads the reply to its end. It
+    /// closes after it, unless its request says otherwise.
     func browse(port: UInt16, host: String, anchor: SecCertificate?,
-                request: String? = nil) -> Data? {
+                request: String? = nil, until last: String? = nil) -> Data? {
         let tls = NWProtocolTLS.Options()
         sec_protocol_options_set_tls_server_name(tls.securityProtocolOptions, host)
         sec_protocol_options_set_verify_block(tls.securityProtocolOptions, { _, trust, done in
@@ -76,13 +172,17 @@ func runSecureBridgeTests() {
         func read() {
             connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, done, error in
                 if let data { received.append(data) }
-                if done || error != nil { finished.signal() } else { read() }
+                let seen = last.map { received.suffix($0.utf8.count).elementsEqual($0.utf8) } ?? false
+                if done || error != nil || seen { finished.signal() } else { read() }
             }
         }
         connection.stateUpdateHandler = { state in
             switch state {
             case .ready:
-                let text = request ?? "GET / HTTP/1.1\r\nHost: \(host)\r\nConnection: keep-alive\r\n\r\n"
+                var text = request ?? "GET / HTTP/1.1\r\nHost: \(host)\r\n\r\n"
+                if !text.contains("\r\nConnection:"), let line = text.range(of: "\r\n") {
+                    text.insert(contentsOf: "Connection: close\r\n", at: line.upperBound)
+                }
                 connection.send(content: Data(text.utf8), completion: .contentProcessed { _ in })
                 read()
             case .failed: failed = true; finished.signal()
@@ -103,6 +203,8 @@ func runSecureBridgeTests() {
     /// trusting the site's root (or not).
     func setUp(reply: Data, bridgeTrustsSite: Bool = true, keepOpen: Bool = false,
                refuses: @escaping (AddressRequest) -> Bool = { _ in false },
+               slots: @escaping (String, String, Bool) -> [String] = { _, _, _ in [] },
+               closesAfter: Bool = false, answer: ((String) -> Data?)? = nil, connections: ((Int) -> Void)? = nil,
                body: (_ bridgePort: UInt16, _ bridgeRoot: SecCertificate, _ events: () -> [BridgeEvent],
                       _ bridge: SecureBridge) -> Void) {
         guard let (keychain, done) = testKeychain(), let (siteKeychain, siteDone) = testKeychain() else {
@@ -112,10 +214,15 @@ func runSecureBridgeTests() {
         do {
             let siteRoot = try root("Test site"), bridgeRoot = try root("Test bridge")
             let siteIdentity = try SiteIdentities(authority: siteRoot, keychain: siteKeychain).identity(for: "test.example")
-            guard let (listener, sitePort) = site(answering: reply, identity: siteIdentity, keepOpen: keepOpen) else {
-                return Check.expectTrue(false, "no test site")
+            let made: (NWListener, UInt16)?, counted: () -> Int
+            if let answer {
+                let keeping = keepingSite(identity: siteIdentity, closesAfter: closesAfter, answer: answer)
+                (made, counted) = (keeping.map { ($0.0, $0.1) }, keeping?.connections ?? { 0 })
+            } else {
+                (made, counted) = (site(answering: reply, identity: siteIdentity, keepOpen: keepOpen), { 0 })
             }
-            defer { listener.cancel() }
+            guard let (listener, sitePort) = made else { return Check.expectTrue(false, "no test site") }
+            defer { listener.cancel(); connections?(counted()) }
             var seen: [BridgeEvent] = []
             let lock = NSLock()
             let anchors = bridgeTrustsSite ? [secCertificate(siteRoot)] : [secCertificate(try root("Elsewhere"))]
@@ -123,6 +230,7 @@ func runSecureBridgeTests() {
                 identities: try SiteIdentities(authority: bridgeRoot, keychain: keychain),
                 additions: { _ in additions },
                 refuses: refuses,
+                slots: slots,
                 trusts: { ServerTrust.isTrusted($0, host: $1, anchors: anchors) },
                 endpoint: { _, _ in .hostPort(host: "127.0.0.1", port: .init(rawValue: sitePort)!) },
                 events: { event in lock.lock(); seen.append(event); lock.unlock() })
@@ -375,6 +483,213 @@ func runSecureBridgeTests() {
                 let reply = browse(port: port, host: "test.example", anchor: bridgeRoot).map { String(decoding: $0, as: UTF8.self) }
                 Check.expectTrue(reply?.contains(".ad-banner{display:none!important}") == true, "rewritten: \(reply ?? "none")")
                 Check.expectTrue(Date().timeIntervalSince(start) < 10, "without waiting for the site to close")
+            }
+        }
+
+        Check.test("a browser's requests one after the other, on one connection to the site (#741)") {
+            let styles = "a{color:red}"
+            func answer(_ request: String) -> Data? {
+                if request.hasPrefix("GET /style") {
+                    return Data(("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nTransfer-Encoding: chunked\r\n\r\n"
+                                 + String(styles.utf8.count, radix: 16) + "\r\n" + styles + "\r\n0\r\n\r\n").utf8)
+                }
+                if request.hasPrefix("POST ") {
+                    let body = request.components(separatedBy: "\r\n\r\n").last ?? ""
+                    return Data("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: \(body.utf8.count)\r\n\r\n\(body)".utf8)
+                }
+                if request.hasPrefix("GET /none") { return Data("HTTP/1.1 304 Not Modified\r\nETag: a\r\n\r\n".utf8) }
+                return pageReply
+            }
+            let body = String(repeating: "y", count: 200_000)
+            let requests = ["GET / HTTP/1.1\r\nHost: test.example\r\n\r\n",
+                            "GET /style.css HTTP/1.1\r\nHost: test.example\r\n\r\n",
+                            "POST /save HTTP/1.1\r\nHost: test.example\r\nContent-Length: \(body.utf8.count)\r\n\r\n" + body,
+                            "GET /none HTTP/1.1\r\nHost: test.example\r\n\r\n",
+                            "GET /again HTTP/1.1\r\nHost: test.example\r\n\r\n"]
+            var opened = 0
+            setUp(reply: Data(), answer: answer, connections: { opened = $0 }) { port, bridgeRoot, events, _ in
+                let replies = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot, requests: requests)
+                    .map { $0.map { String(decoding: $0, as: UTF8.self) } }
+                Check.expectEqual(replies.count, 5, "\(replies.map { $0?.count ?? -1 })")
+                guard replies.count == 5 else { return }
+                Check.expectTrue(replies[0]?.contains(".ad-banner{display:none!important}") == true, "the page, rewritten")
+                Check.expectTrue(replies[1]?.contains("\r\n" + styles + "\r\n0\r\n\r\n") == true, "chunks as they came")
+                Check.expectTrue(replies[2]?.hasSuffix("\r\n\r\n" + body) == true, "a body there and back")
+                Check.expectTrue(replies[3]?.hasPrefix("HTTP/1.1 304") == true, "a reply with no body")
+                Check.expectTrue(replies[4]?.contains(".ad-banner{display:none!important}") == true, "and another page")
+                Check.expectEqual(events().filter { $0 == .rewritten(host: "test.example") }.count, 2)
+            }
+            Check.expectEqual(opened, 1, "one connection to the site for all five")
+        }
+
+        Check.test("a site that closes after each reply is connected to again, on the browser's one connection (#741)") {
+            let closing = Data("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nConnection: close\r\nContent-Length: 2\r\n\r\nok".utf8)
+            var opened = 0
+            setUp(reply: Data(), closesAfter: true, answer: { _ in closing }, connections: { opened = $0 }) { port, bridgeRoot, _, _ in
+                let request = "GET / HTTP/1.1\r\nHost: test.example\r\n\r\n"
+                let replies = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot,
+                                            requests: [request, request, request])
+                    .map { $0.map { String(decoding: $0, as: UTF8.self) } }
+                Check.expectEqual(replies, Array(repeating: "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nok",
+                                                 count: 3), "its Connection: close was the site's, not the browser's")
+            }
+            Check.expectEqual(opened, 3)
+        }
+
+        Check.test("a site gone without a reply ends the browser's connection, never a reply of ours (#741)") {
+            var asked = 0
+            let lock = NSLock()
+            setUp(reply: Data(), answer: { _ in
+                lock.lock(); defer { lock.unlock() }
+                asked += 1
+                return asked == 1 ? Data("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok".utf8) : nil
+            }) { port, bridgeRoot, _, _ in
+                let request = "POST / HTTP/1.1\r\nHost: test.example\r\nContent-Length: 0\r\n\r\n"
+                let replies = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot, requests: [request, request])
+                Check.expectEqual(replies.map { $0 == nil }, [false, true], "the second: nothing, and the end")
+                lock.lock(); defer { lock.unlock() }
+                Check.expectEqual(asked, 2, "never sent twice")
+            }
+        }
+
+        Check.test("more than its reply stops there, and the next request has a connection of its own (#741)") {
+            let extra = Data("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nokHTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nevil".utf8)
+            var opened = 0
+            setUp(reply: Data(), answer: { _ in extra }, connections: { opened = $0 }) { port, bridgeRoot, _, _ in
+                let request = "GET / HTTP/1.1\r\nHost: test.example\r\n\r\n"
+                let replies = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot, requests: [request, request])
+                    .map { $0.map { String(decoding: $0.suffix(4), as: UTF8.self) } }
+                Check.expectEqual(replies, ["\r\nok", "\r\nok"])
+            }
+            Check.expectEqual(opened, 2)
+        }
+
+        Check.test("retired, as when the settings change, no connection is kept past its reply (#741)") {
+            var bridgeMade: SecureBridge?
+            let lock = NSLock()
+            setUp(reply: Data(), answer: { request in
+                // Retired while this reply is under way.
+                if request.hasPrefix("GET /first") {
+                    lock.lock(); bridgeMade?.retire(); lock.unlock()
+                    Thread.sleep(forTimeInterval: 0.2)
+                }
+                return pageReply
+            }) { port, bridgeRoot, _, bridge in
+                lock.lock(); bridgeMade = bridge; lock.unlock()
+                func get(_ path: String) -> String { "GET \(path) HTTP/1.1\r\nHost: test.example\r\n\r\n" }
+                let replies = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot,
+                                            requests: [get("/first"), get("/second")])
+                    .map { $0.map { String(decoding: $0, as: UTF8.self) } }
+                Check.expectTrue(replies.first??.contains("Story") == true, "the reply under way, whole")
+                Check.expectTrue(replies.first??.contains("\r\nConnection: close\r\n") == true, "and said to be the last")
+                Check.expectTrue(replies.count == 2 && replies[1] == nil, "then the end: \(replies.count)")
+                let atOnce = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot,
+                                           requests: [get("/third"), get("/fourth")])
+                Check.expectEqual(atOnce.map { $0 != nil }, [true, false], "nor one that may have been decided before")
+                Thread.sleep(forTimeInterval: 2.1)
+                let again = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot,
+                                          requests: [get("/fifth"), get("/sixth")])
+                Check.expectEqual(again.map { $0 != nil }, [true, true], "a connection made since is kept")
+            }
+        }
+
+        Check.test("a WebSocket its rules refuse is refused, not passed through (#741)") {
+            let rules = AddressRules(lines: ["/ads/*$websocket"])
+            var opened = 0
+            setUp(reply: Data(), refuses: rules.refuses, answer: { _ in pageReply }, connections: { opened = $0 }) { port, bridgeRoot, _, _ in
+                let request = "GET /ads/socket HTTP/1.1\r\nHost: test.example\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n"
+                    + "Sec-Fetch-Dest: empty\r\nSec-Fetch-Mode: websocket\r\nOrigin: https://test.example\r\n\r\n"
+                let reply = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot, requests: [request])
+                    .first?.map { String(decoding: $0, as: UTF8.self) }
+                Check.expectTrue(reply?.hasPrefix("HTTP/1.1 403") == true, reply ?? "none")
+            }
+            Check.expectEqual(opened, 0)
+        }
+
+        Check.test("a reply it can't follow goes on as it comes, and so does what the browser asks after it (#741)") {
+            // A folded header; both framings; bare line ends: each read by the
+            // browser itself (here, its bytes), which then asks again.
+            for odd in ["HTTP/1.1 200 OK\r\nX-Old: a\r\n b\r\nContent-Length: 2\r\n\r\nok",
+                        "HTTP/1.1 200 OK\nContent-Length: 2\n\nok",
+                        "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nok\r\n0\r\n\r\n"] {
+                setUp(reply: Data(), answer: { request in
+                    Data((request.hasPrefix("GET /one") ? odd : "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nagain").utf8)
+                }) { port, bridgeRoot, _, _ in
+                    let start = Date()
+                    let both = "GET /one HTTP/1.1\r\nHost: test.example\r\n\r\nGET /two HTTP/1.1\r\nHost: test.example\r\n"
+                        + "Connection: close\r\n\r\n"
+                    let reply = browse(port: port, host: "test.example", anchor: bridgeRoot, request: both, until: "again")
+                        .map { String(decoding: $0, as: UTF8.self) }
+                    Check.expectEqual(reply, odd + "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nagain", "both, untouched")
+                    Check.expectTrue(Date().timeIntervalSince(start) < 10, "and neither waits")
+                }
+            }
+        }
+
+        Check.test("a page that ends with its site's closing says it's the connection's last (#741)") {
+            let closing = Data("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n\(page)".utf8)
+            setUp(reply: closing) { port, bridgeRoot, _, _ in
+                let request = "GET / HTTP/1.1\r\nHost: test.example\r\nConnection: keep-alive\r\n\r\n"
+                let reply = browse(port: port, host: "test.example", anchor: bridgeRoot, request: request)
+                    .map { String(decoding: $0, as: UTF8.self) }
+                Check.expectTrue(reply?.contains("\r\nConnection: close\r\n") == true, reply ?? "none")
+                Check.expectTrue(reply?.contains(".ad-banner{display:none!important}") == true)
+            }
+        }
+
+        Check.test("a WebSocket on a connection kept from a page goes through both ways (#741)") {
+            setUp(reply: Data(), answer: { request in
+                request.contains("Upgrade: websocket")
+                    ? Data("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\nhello".utf8)
+                    : pageReply
+            }) { port, bridgeRoot, _, _ in
+                let both = "GET / HTTP/1.1\r\nHost: test.example\r\n\r\nGET /socket HTTP/1.1\r\nHost: test.example\r\n"
+                    + "Connection: Upgrade\r\nUpgrade: websocket\r\n\r\n"
+                let reply = browse(port: port, host: "test.example", anchor: bridgeRoot, request: both, until: "hello")
+                    .map { String(decoding: $0, as: UTF8.self) }
+                Check.expectTrue(reply?.contains(".ad-banner{display:none!important}") == true, reply ?? "none")
+                Check.expectTrue(reply?.hasSuffix("Connection: Upgrade\r\n\r\nhello") == true, reply ?? "none")
+            }
+        }
+
+        Check.test("a refused request's empty reply keeps the connection for the next (#741)") {
+            let rules = AddressRules(lines: ["/ads/*$script"])
+            var opened = 0
+            setUp(reply: Data(), refuses: rules.refuses, answer: { _ in pageReply }, connections: { opened = $0 }) { port, bridgeRoot, events, _ in
+                let refused = "POST /ads/x.js HTTP/1.1\r\nHost: test.example\r\nSec-Fetch-Dest: script\r\n"
+                    + "Sec-Fetch-Site: same-origin\r\nContent-Length: 5\r\n\r\nhello"
+                let page = "GET / HTTP/1.1\r\nHost: test.example\r\n\r\n"
+                let replies = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot, requests: [refused, page, refused, page])
+                    .map { $0.map { String(decoding: $0, as: UTF8.self) } }
+                Check.expectEqual(replies.map { $0?.contains("Story") }, [false, true, false, true])
+                Check.expectEqual(events().filter { $0 == .answeredEmpty(host: "test.example") }.count, 2)
+            }
+            Check.expectEqual(opened, 1, "the site heard only of the pages")
+        }
+
+        Check.test("ad slots in a page's data, and in its replies, get other names; other data goes on untouched (#741)") {
+            let data = "{\"videoDetails\":{\"title\":\"adSlots\"},\"adSlots\":[{\"a\":1}],\"adPlacements\" : []}"
+            func json(_ text: String) -> Data {
+                Data("HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=UTF-8\r\nContent-Length: \(text.utf8.count)\r\n\r\n\(text)".utf8)
+            }
+            let watch = "<html><head></head><body><script>var p = \(data);</script></body></html>"
+            setUp(reply: Data(), slots: { _, target, page in page || target.hasPrefix("/player") ? ["adPlacements", "adSlots"] : [] },
+                  answer: { request in
+                request.hasPrefix("GET /watch")
+                    ? Data("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: \(watch.utf8.count)\r\n\r\n\(watch)".utf8)
+                    : json(data)
+            }) { port, bridgeRoot, _, _ in
+                let replies = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot,
+                                            requests: ["/watch", "/player", "/other"].map { "GET \($0) HTTP/1.1\r\nHost: test.example\r\n\r\n" })
+                    .map { $0.map { String(decoding: $0, as: UTF8.self) } ?? "" }
+                Check.expectEqual(replies.count, 3)
+                guard replies.count == 3 else { return }
+                let without = data.replacingOccurrences(of: "\"adSlots\":", with: "\"_dSlots\":")
+                    .replacingOccurrences(of: "\"adPlacements\"", with: "\"_dPlacements\"")
+                Check.expectTrue(replies[0].contains("var p = \(without);"), replies[0])
+                Check.expectTrue(replies[0].contains(".ad-banner{display:none!important}"), "and its hiding")
+                Check.expectTrue(replies[1].hasSuffix("\r\n\r\n" + without), replies[1])
+                Check.expectEqual(Data(replies[2].utf8), json(data), "not one it knows of: untouched")
             }
         }
 

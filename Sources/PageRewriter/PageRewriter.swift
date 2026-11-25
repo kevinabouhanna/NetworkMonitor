@@ -36,15 +36,16 @@ public enum PageRewriter {
     /// The reply to send on: the page with its additions, or the reply's own
     /// bytes, unchanged, whenever anything isn't as expected. `response` is
     /// the whole reply as the server sent it, head and body; `requestMethod`
-    /// is the request's.
-    public static func rewrite(response: Data, requestMethod: String?, additions: PageAdditions,
+    /// is the request's; `slots` the names its data gives its ad slots (#741).
+    public static func rewrite(response: Data, requestMethod: String?, additions: PageAdditions, slots: [String] = [],
                                nonce: String = randomNonce()) -> (bytes: Data, untouched: Untouched?) {
         do {
             guard let (head, bodyStart) = try HTTPHead.parse(response) else {
                 return (response, .cantRead("an incomplete head"))
             }
-            guard isPage(head, requestMethod: requestMethod) else { return (response, .notAPage) }
-            guard !additions.isEmpty else { return (response, .nothingToAdd) }
+            let page = isPage(head, requestMethod: requestMethod)
+            guard page || !slots.isEmpty && isData(head, requestMethod: requestMethod) else { return (response, .notAPage) }
+            guard page && !additions.isEmpty || !slots.isEmpty else { return (response, .nothingToAdd) }
             let rawBody = response[(response.startIndex + bodyStart)...]
             let body: Data
             switch try BodyFraming.forResponse(head, requestMethod: requestMethod) {
@@ -61,9 +62,11 @@ public enum PageRewriter {
             case .untilClose:
                 body = Data(rawBody)
             }
-            let html = try BodyCoding.decode(body, encoding: head.value("Content-Encoding"))
-            guard let page = inject(additions, into: html, nonce: nonce) else {
-                return (response, .cantRead("no place in the page to add to"))
+            let content = try BodyCoding.decode(body, encoding: head.value("Content-Encoding"))
+            let emptied = AdSlots.renamed(slots, in: content)
+            let added = page ? inject(additions, into: emptied ?? content, nonce: nonce) : nil
+            guard let changed = added ?? emptied else {
+                return (response, page && !additions.isEmpty ? .cantRead("no place in the page to add to") : .nothingToAdd)
             }
             var newHead = head
             newHead.remove("Content-Encoding")
@@ -74,12 +77,12 @@ public enum PageRewriter {
             for stale in ["Content-MD5", "Digest", "Content-Digest", "Repr-Digest", "ETag", "Accept-Ranges"] {
                 newHead.remove(stale)
             }
-            newHead.set("Content-Length", String(page.count))
+            newHead.set("Content-Length", String(changed.count))
             for (index, header) in newHead.headers.enumerated()
-            where header.name.caseInsensitiveCompare("Content-Security-Policy") == .orderedSame {
+            where added != nil && header.name.caseInsensitiveCompare("Content-Security-Policy") == .orderedSame {
                 newHead.headers[index].value = allowing(nonce: nonce, in: header.value)
             }
-            return (newHead.bytes + page, nil)
+            return (newHead.bytes + changed, nil)
         } catch {
             return (response, .cantRead(Self.kind(of: error)))
         }
@@ -97,11 +100,18 @@ public enum PageRewriter {
     /// An HTML page worth adding to: a whole page (200 or 203, never a part
     /// of one), in HTML (not XHTML, whose parser would refuse our script's
     /// `<` and `&&`), not in UTF-16 (where bytes added in ASCII would break it).
-    static func isPage(_ head: HTTPHead, requestMethod: String?) -> Bool {
+    public static func isPage(_ head: HTTPHead, requestMethod: String?) -> Bool {
         guard let status = head.status, status == 200 || status == 203, requestMethod != "HEAD",
               head.value("Content-Range") == nil,
               let type = head.value("Content-Type")?.lowercased(), type.hasPrefix("text/html") else { return false }
         return !type.contains("utf-16")
+    }
+
+    /// A whole reply in JSON: a page's own data, which may hold its ad slots.
+    public static func isData(_ head: HTTPHead, requestMethod: String?) -> Bool {
+        guard head.status == 200, requestMethod != "HEAD", head.value("Content-Range") == nil,
+              let type = head.value("Content-Type")?.lowercased() else { return false }
+        return type.hasPrefix("application/json") && !type.contains("utf-16")
     }
 
     /// The page with the stylesheet and script placed first in its head (or
