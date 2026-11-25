@@ -10,7 +10,6 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | Order | Plan | Phase |
 |---|---|---|
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
-| 4 | #728 The popover closes on a click in the app's own window, and stays still between its views | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 
 ## Next
@@ -36,4 +35,5 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 ## Done
 
+[Phase 1: Everyday polish](01-everyday-polish.md) ·
 [Phase 2: Ad blocking that holds up](02-ad-blocking.md)
