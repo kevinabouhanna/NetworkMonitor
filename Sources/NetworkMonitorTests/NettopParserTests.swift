@@ -273,6 +273,27 @@ func runNettopParserTests() {
             }
         }
 
+        Check.test("a new network starts a UDP baseline even if the socket and capture survive") {
+            var credit = UDPUsageCredit(isCarrier: { _, _ in false })
+            func next(_ rows: [NettopRow], _ answer: UDPUsageSnapshot, network: UInt64) -> NettopRow? {
+                credit.apply(to: rows, networkGeneration: network,
+                             interfaces: { ["en0"] }, snapshot: { answer }).first
+            }
+
+            _ = next(mixed, started, network: 0)
+            // A helper observation on the old link has no matching socket yet.
+            _ = next(sample("14:13:05,ExampleApp.1234,,0,0,"), usage(90000, 0), network: 0)
+            // The same capture now delivers more of the old link's LAN bytes.
+            // Neither those bytes nor the remainder may reduce the new link's total.
+            let newLink = next(mixed, usage(95000, 0), network: 1)
+            Check.expectEqual(newLink?.internetBytesIn, 120_000)
+            Check.expectEqual(newLink?.subtractableLocalIn, 0)
+
+            let subsequent = next(mixed, usage(105000, 0), network: 1)
+            Check.expectEqual(subsequent?.internetBytesIn, 110_000)
+            Check.expectEqual(subsequent?.subtractableLocalIn, 10_000)
+        }
+
         Check.test("a VPN's traffic alone doesn't ask the helper") {
             var asked = 0
             var credit = UDPUsageCredit(isCarrier: { _, _ in true })

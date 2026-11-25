@@ -43,6 +43,7 @@ public struct UDPUsageCredit {
         let name: String
     }
 
+    private var networkGeneration: UInt64 = 0
     private var lastSnapshot: UDPUsageSnapshot?
     private var waiting: [Key: ByteCounts] = [:]
     private var quiet = 0
@@ -61,8 +62,15 @@ public struct UDPUsageCredit {
     /// The sample with what stayed on your own network marked so. `snapshot`
     /// asks the helper: once there's traffic worth placing, then for every
     /// sample until it's been quiet, so each answer covers one sample.
-    public mutating func apply(to sample: [NettopRow], interfaces: () -> Set<String>,
+    public mutating func apply(to sample: [NettopRow], networkGeneration: UInt64 = 0,
+                               interfaces: () -> Set<String>,
                                snapshot: () -> UDPUsageSnapshot?) -> [NettopRow] {
+        if self.networkGeneration != networkGeneration {
+            // The helper counts on the interface, which can stay up across a link change.
+            // Start with a new baseline and leave the previous link's remainder behind.
+            reset()
+            self.networkGeneration = networkGeneration
+        }
         var unplaced: Int64 = 0
         for row in sample where row.udpSockets.contains(where: \.hasTrafficWithoutPeer) && !carries(row) {
             for socket in row.udpSockets where socket.hasTrafficWithoutPeer { unplaced += socket.bytesIn + socket.bytesOut }

@@ -147,6 +147,9 @@ public final class MonitorViewModel: ObservableObject {
     /// queue, in order: the helper is asked over XPC.
     private let udpUsageQueue = DispatchQueue(label: "com.networkmonitor.udp-usage")  // untranslated: queue label
     private var udpCredit = UDPUsageCredit()
+    /// Captured on the nettop queue and checked again when a sample is written.
+    private let sampleNetworkLock = NSLock()
+    private var sampleNetworkGeneration: UInt64 = 0
     /// Traffic through a proxy or a VPN, credited to the apps behind it (#356).
     private let tunnelCredit: TunnelCreditor
     private let pathWatcher = NetworkIdentityWatcher()
@@ -637,21 +640,28 @@ public final class MonitorViewModel: ObservableObject {
 
     // MARK: nettop sampling
 
+    private var currentSampleNetwork: UInt64 {
+        sampleNetworkLock.withLock { sampleNetworkGeneration }
+    }
+
     private func handleNettopSample(_ raw: [NettopRow]) {
+        let network = currentSampleNetwork
         udpUsageQueue.async { [weak self] in
-            guard let self else { return }
-            self.recordNettopSample(self.udpCredit.apply(
-                to: raw,
+            guard let self, self.currentSampleNetwork == network else { return }
+            let sample = self.udpCredit.apply(
+                to: raw, networkGeneration: network,
                 interfaces: { Set(InterfaceCounters.read().map(\.name)) },
-                snapshot: { HelperService.udpUsage() }))
+                snapshot: { HelperService.udpUsage() })
+            self.recordNettopSample(sample, network: network)
         }
     }
 
-    private func recordNettopSample(_ raw: [NettopRow]) {
+    private func recordNettopSample(_ raw: [NettopRow], network: UInt64) {
         // Resolve identities on the main actor: AppIdentityResolver touches
         // NSWorkspace and its caches are not thread-safe.
         DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
+            // The reply can arrive after the store has moved to another network.
+            guard let self, self.currentSampleNetwork == network else { return }
             if self.perAppFailure != nil { self.perAppFailure = nil }
             let now = Date()
             let sample = self.tunnelCredit.credit(raw, now: now)
@@ -742,6 +752,8 @@ public final class MonitorViewModel: ObservableObject {
             refreshHeader()
             return
         }
+        // Invalidate samples on the old link even when the interface is still en0.
+        sampleNetworkLock.withLock { sampleNetworkGeneration &+= 1 }
         // Joining a different network restarts its counter; an offline blip and
         // a rejoin resume the same one. The store decides which happened.
         if store.setCurrentNetwork(fingerprint) {
