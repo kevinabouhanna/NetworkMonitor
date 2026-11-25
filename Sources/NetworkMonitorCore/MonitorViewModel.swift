@@ -634,7 +634,7 @@ public final class MonitorViewModel: ObservableObject {
     private func identity(of flow: FlowReport) -> AppIdentity? {
         if let key = flow.appKey { return AppIdentityResolver.identity(forKey: key) }
         guard flow.pid > 0, AppIdentityResolver.executablePath(pid: flow.pid) != nil else { return nil }
-        return identityResolver.identity(pid: flow.pid, fallbackName: "")
+        return identityResolver.trafficIdentity(pid: flow.pid, fallbackName: "")
     }
 
     // MARK: nettop sampling
@@ -662,7 +662,7 @@ public final class MonitorViewModel: ObservableObject {
             let sample = self.tunnelCredit.credit(raw, now: now)
             guard SampleNetwork.keeps(sampleFrom: network, on: self.store.currentNetwork.id) else { return }
             let summary = SampleSummary(sample) {
-                self.identityResolver.identity(pid: $0.pid, fallbackName: $0.processName)
+                self.identityResolver.trafficIdentity(pid: $0.pid, fallbackName: $0.processName)
             }
             let entries = summary.apps
             for entry in entries { self.lastActivity[entry.identity.key] = now }
