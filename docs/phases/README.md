@@ -9,6 +9,7 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
+| 0.5 | #741 YouTube's ads still play, and its pages are slow, with Enhanced ad blocking on | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 5.5 | #710 Update settings: automatic updates on or off, and what happens in plain words | [Phase 5: Releases people check first](05-releases.md) |
@@ -24,7 +25,6 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
-| 5 | #722 Release 1.32.0 to everyone once the beta is good | [Phase 5: Releases people check first](05-releases.md) |
 | 7 | #522 Improve onboarding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 8 | #582 Branding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 9 | #539 Short videos of features on their docs pages | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
@@ -33,7 +33,3 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | 12 | #108 Idea: widgets for today's data and speed | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 | 13 | #77 Idea: a networkmonitor command for Terminal | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 | 14 | #308 Idea: ask an AI about what the network is doing | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
-
-## Done
-
-[Phase 2: Ad blocking that holds up](02-ad-blocking.md)
