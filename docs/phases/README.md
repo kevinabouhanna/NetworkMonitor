@@ -11,7 +11,7 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 |---|---|---|
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
-| 5.6 | #763 Late LAN deductions can carry across an offline gap | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.61 | #763 Late LAN deductions can carry across an offline gap | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 99 | #747 Release 1.33.0 to everyone once the beta is good | [Phase 5: Releases people check first](05-releases.md) |
 
 ## Next
