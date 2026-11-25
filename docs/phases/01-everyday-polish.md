@@ -1,15 +1,12 @@
 # Phase 1: Everyday polish
 
-**Milestone:** Phase 1: Everyday polish · **Status:** Now
+**Milestone:** Phase 1: Everyday polish · **Status:** Next
 
 **Goal:** what people touch every day feels finished: the popover never jumps, the main
 window's three lists behave the same, and the VoiceOver and keyboard work of 1.29 is checked.
 
 ## The plans
 
-- **A late sample's own-network share stays on its network across an offline gap** (#763), Now:
-  reported by defragekb, with a fix (#764). A sample from one network that waits through a gap
-  could take its share off the next network's first bytes. Rare; after 1.33.0's beta 3.
 - **Does the app count a virtual machine's data, connections and ads?** (#738), Next, research:
   Kevin asked what the menu bar and the main window show for what a VM does online. First signs
   (25 Nov 2026): the total probably has it, the app rows may not, and Connections and ad blocking
@@ -32,6 +29,8 @@ Done on 25 Nov 2026, on `main`, for 1.33.0 (#747):
   the app covers those pages (#761), reported and first written by defragekb (#762): macOS's
   responsible process, asked by the app and by the content filter alike; checked on a signed
   build in a VM, with a rule on Safari and one on WebKit.
+- a late sample of a network keeps its own-network share on that network over an offline gap
+  (#763), reported and first written by defragekb (#764): in 1.33.0's beta 4.
 
 Done on 25 Nov 2026, released in 1.32.0 (#722):
 
