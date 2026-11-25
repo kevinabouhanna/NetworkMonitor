@@ -288,9 +288,13 @@ the exception, because it's machine-wide and nothing would lift it otherwise.
 
 ### The helper
 
-A small root binary with a **fixed, argument-free vocabulary**. Every preference key,
-domain and host name is compiled in, so the app (the side an attacker could reach) can't
-ask for anything else; adding a capability means shipping a new helper.
+A small root binary with **fixed, argument-free commands for system settings**. Every
+preference key, domain and host name is compiled in.
+
+The launch daemon also has one read-only XPC request for
+[UDP usage](architecture.md#udp-sockets-with-no-peer-address). The app supplies the start
+and end of a recent sample. The helper validates those times and chooses the capture
+command and options itself.
 
 | Verb | Does | Who can run it |
 |---|---|---|
@@ -304,8 +308,8 @@ ask for anything else; adding a capability means shipping a new helper.
 (`Contents/Library/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist`), macOS
 lists it under NetworkMonitor in Login Items, and once you switch it on launchd starts it on
 the app's first request. It answers over XPC, only to NetworkMonitor signed by its team
-(GRQKG7M8CL), and the app only talks to the helper signed by that team. Each request runs
-the same binary with the one verb, so a verb behaves exactly as it did under `sudo`; it
+(GRQKG7M8CL), and the app only talks to the helper signed by that team. Each system settings request
+runs the same binary with one verb. The verb behaves as it did under `sudo`. The daemon
 quits when idle, so an updated app's helper is the one that answers. On first start it:
 
 - removes the old sudoers rule, if there is one;
