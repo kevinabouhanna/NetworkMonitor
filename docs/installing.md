@@ -35,32 +35,49 @@ open its window; everything starts from the readout. To have it in the Dock
 instead, or in both, choose in **Settings › Show NetworkMonitor in**. It
 registers itself to start at login, which you can turn off in **Settings**.
 
-The first time, a welcome window offers two things, both optional (#134):
+The first time, a welcome window offers three things, all optional (#134):
 
 - **See which websites your apps visit**: a content filter that names the servers in
   [Connections](connections.md#website-names), and makes blocking possible.
 - **Know your Wi-Fi networks by name**: macOS shares the name only with Location
   permission, and it's used for nothing else. Without it, networks are named like
   *Wi-Fi · 3f2a*.
+- **Install updates automatically**: new versions install by themselves
+  ([below](#update)). Off, you're told about each one (#710).
 
-Neither is asked for again on its own. Skip either, and it has a **Turn On…** where it's
-used: website names in Connections' settings, Wi-Fi names in Settings.
+None is asked for again on its own. Skip one, and it's where it's used: website names have a
+**Turn On…** in Connections' settings, Wi-Fi names one in Settings, and the update switch is
+in Settings.
 
 ## Update
 
-From 1.15 on, NetworkMonitor updates itself with Sparkle (#132). Once a day it asks
-GitHub whether there's a newer version, never on a hotspot, and offers it: what's new,
-and **Install Update** when you're ready. Found while the main window is open, it waits on a
-card above **Settings** in the sidebar instead: **Install & Restart** downloads it and
-relaunches into it, **What's New** shows the release notes, and its ✕ puts it away until
-the next day's check. **Check for Updates…** in its menu asks at
-once, and **Check for updates automatically** in Settings switches the daily check off. An update installs only if its
-disk image is signed with the key built into the app.
+From 1.15 on, NetworkMonitor updates itself with Sparkle (#132). **Settings › Updates** (#710)
+shows your version and when it last looked for a newer one, and a sentence under its switches
+says what they do as they are.
+
+**Check for updates automatically**, on to begin with, asks GitHub once a day whether there's a
+newer version, never on a hotspot, and offers it: what's new, and **Install Update** when
+you're ready. Found while the main window is open, it waits on a card above **Settings** in
+the sidebar, and in Settings, instead: **Install & Restart** downloads it and
+relaunches into it, **What's New** shows the release notes, and the card's ✕ puts it away
+until the next day's check. **Check Now**, or **Check for Updates…** in the menu, asks at once.
+
+**Install updates automatically** (#710), off to begin with, lets new versions install by
+themselves. One downloads in the background, and installs while NetworkMonitor's windows
+are closed and no speed test is running; NetworkMonitor restarts, which takes a few seconds. If
+its window is open, a card says the update is ready: close the window and it installs, or
+choose **Restart Now**. The next time you open the window, a card says which version
+installed. It needs the daily check, so it's dimmed while that's off. The update window's
+**Automatically download and install updates in the future** is the same choice.
+
+After restarting into an update, the window you had open comes back. An update installs only
+if its disk image is signed with the key built into the app.
 
 **Get beta versions** in Settings (#585), off by default, offers you new versions before
 everyone else gets them, to try new things early. A beta may have problems: **Report a
 problem with a beta**, under the switch, opens a new issue on GitHub. Switched off, you
-keep the beta you have until the next version comes out, which then comes as usual.
+keep the beta you have until the next version comes out, which then comes as usual. With
+**Install updates automatically** on too, betas install by themselves as well.
 
 Before 1.15, or to do it by hand:
 

@@ -24,6 +24,7 @@
 
 - <strong>以 root 身份运行的辅助程序。</strong>在发布版本中，它是应用内的启动守护进程，只通过 XPC 响应由其团队签名的 NetworkMonitor；还包括它在 `/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper` 的副本、它每小时运行的自我修复任务，以及它在 `/Library/Application Support/NetworkMonitor/` 中的记录。没有 Developer ID 的构建版本则通过位于 `/etc/sudoers.d/networkmonitor` 的 sudoers 规则运行同一个二进制文件。范围内的问题包括：让它做出超出其固定指令的事情、从 NetworkMonitor 以外的任何程序访问它、改变这些指令的作用对象，或篡改它的记录。它本应如何工作，请参阅[热点模式](hotspot-mode.md#辅助程序)。
 - <strong>内容过滤器</strong>，即为每个连接命名并应用你的规则的系统扩展（[连接](connections.md#网站名称)）。范围内的问题包括：让它阻止或允许你的规则没有指定的内容、报告它不应报告的内容，或响应 NetworkMonitor 以外的任何程序。如果它停止运行，不应有任何连接被切断。
+- <strong>增强型广告拦截</strong>，在你打开之前保持关闭：同一个系统扩展中的代理，以及它在你的 Mac 上生成的证书（[连接](connections.md#增强型广告拦截)）。范围内的问题包括：让它打开它永远不应打开的内容（银行、医疗、政府和支付网站、你设为“始终允许”的网站、拒绝该证书的应用）、使用该证书或把其密钥从系统钥匙串中取出、读取或保留超出移除广告所需的网页内容，或者在关闭之后仍有任何遗留。
 - <strong>安装和移除它们</strong>：`helper-setup.sh`、`Scripts/install.sh`、`Scripts/uninstall.sh` 以及应用内的“卸载…”，包括它们遗留下来的任何内容。
 - <strong>应用把数据发送到你的 Mac 之外。</strong>它唯一应该发起的流量是你自己运行的网速测试、每日更新检查，以及每月的国家或地区和网络数据（请参阅[隐私](privacy.md#它会发送什么)）。
 - <strong>它从 GitHub 接受的内容。</strong>只有当更新的磁盘映像使用应用内置的密钥签名时，更新才会安装；只有当已签名的清单和每张表的 SHA-256 都验证通过时，每月数据才会被使用。任何能绕过其中一项的问题都在范围内。

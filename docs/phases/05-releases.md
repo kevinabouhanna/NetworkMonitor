@@ -7,14 +7,8 @@ builds, checks and releases the app stays in order.
 
 ## The plans
 
-- **Release 1.32.0 to everyone once the beta is good** (#722), waiting on Kevin: 1.32.0-beta.3
-  has the popover's fixes (#728) on top of beta 2's battery fix (#719); Kevin's copy updates to it. It goes to everyone as 1.32.0
-  when he says it's good, once product-kit reads the release's tag rather than its beta's
-  (product-kit#115).
-- **Update settings: automatic updates on or off** (#710), Next: an Updates section in Settings
-  that says what happens, and a switch to install new versions automatically, off by default
-  (today Settings only has the daily check). It starts with pictures of updating as it is. After
-  the ⓘ links (#230), before the Chrome extension (#257).
+- **Release 1.33.0 to everyone once the beta is good** (#747), waiting on Kevin: 1.33.0-beta.1
+  has the update settings (#710); his copy updates to it.
 - **Keep the tooling and the plan in order** (#606), standing: tooling chores (the vendored
   kits, local CI, the release workflow, the pictures' VM image, the plan and the board kept in
   step) are its steps. First among them: CI fails a change that keeps the app busy while it's
@@ -22,7 +16,12 @@ builds, checks and releases the app stays in order.
   nothing can be pushed while Kevin is away (#626); then the two pictures the VM got wrong for
   1.31.0 (#650). It stays open on purpose, so this phase stays open with it.
 
-Done: **The first beta** (#716), 23 Nov 2026: 1.32.0-beta.1 with Enhanced ad blocking, then
+Done: **Update settings** (#710), 25 Nov 2026: an Updates section in Settings that says what
+happens, and Install updates automatically, off by default, there and in the welcome window,
+approved from a working prototype's pictures. **The tests never ask for a keychain password**
+(#739), the same day. **Release 1.32.0 to everyone** (#722), 25 Nov 2026: beta 3, with the popover's fixes
+(#728), was used and then promoted on its own commit, once product-kit read a release's tag
+rather than its beta's (product-kit#115). **The first beta** (#716), 23 Nov 2026: 1.32.0-beta.1 with Enhanced ad blocking, then
 beta 2 the same day, after beta 1's menu bar readout redrew itself in a loop and drained the
 battery (#719). **Beta releases** (#585), 23 Nov 2026: **Get beta versions** in Settings, a second feed
 for beta copies, and a beta's build number just below its release's
