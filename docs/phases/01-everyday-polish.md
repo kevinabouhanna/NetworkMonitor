@@ -13,7 +13,7 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   are unchecked. It's measured in a VM, then decided: the docs only, a row for it, or a fix. After
   the update settings (#710), before the Chrome extension (#257), which is weeks of work.
 
-Done on 25 Nov 2026, in 1.32.0-beta.3 (#722):
+Done on 25 Nov 2026, released in 1.32.0 (#722):
 
 - the popover closes on a click in the app's own window, and stays still between its views
   (#728): the app listened only for clicks in other apps; and with a mouse connected, a long

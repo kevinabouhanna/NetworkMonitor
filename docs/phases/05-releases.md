@@ -18,7 +18,9 @@ builds, checks and releases the app stays in order.
   nothing can be pushed while Kevin is away (#626); then the two pictures the VM got wrong for
   1.31.0 (#650). It stays open on purpose, so this phase stays open with it.
 
-Done: **1.32.0 to everyone** (#722), 25 Nov 2026, from its beta 3. **The first beta** (#716), 23 Nov 2026: 1.32.0-beta.1 with Enhanced ad blocking, then
+Done: **Release 1.32.0 to everyone** (#722), 25 Nov 2026: beta 3, with the popover's fixes
+(#728), was used and then promoted on its own commit, once product-kit read a release's tag
+rather than its beta's (product-kit#115). **The first beta** (#716), 23 Nov 2026: 1.32.0-beta.1 with Enhanced ad blocking, then
 beta 2 the same day, after beta 1's menu bar readout redrew itself in a loop and drained the
 battery (#719). **Beta releases** (#585), 23 Nov 2026: **Get beta versions** in Settings, a second feed
 for beta copies, and a beta's build number just below its release's

@@ -42,6 +42,13 @@ Most important first:
   your rules ([Connections](docs/connections.md#website-names)). In scope is anything that
   makes it block or allow what your rules don't say, report what it shouldn't, or answer
   anything but NetworkMonitor. If it stops, nothing should be cut off.
+- **Enhanced ad blocking**, off until you switch it on: the proxy in the same system
+  extension, and the certificate it makes on your Mac
+  ([Connections](docs/connections.md#enhanced-ad-blocking)). In scope is anything that makes
+  it open what it never should (banking, health, government and payment sites, sites you
+  always allow, apps that refuse the certificate), uses the certificate or gets its key out
+  of the System keychain, reads or keeps more of a page than removing its ads needs, or
+  finds any of it left after it's switched off.
 - **Installing and removing them**: `helper-setup.sh`, `Scripts/install.sh`,
   `Scripts/uninstall.sh` and the in-app Uninstall…, including anything they leave behind.
 - **The app sending data off your Mac.** The only traffic it should start is the speed
