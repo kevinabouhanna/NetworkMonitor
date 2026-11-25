@@ -1,7 +1,8 @@
 import Foundation
 import Security
 
-// Run with: swift run NetworkMonitorTests
+// Run with: make test (Scripts/test.sh, which runs a copy a build meanwhile
+// doesn't replace, #739)
 //
 // Exits non-zero on any failure, so this works as a pre-commit or CI gate.
 

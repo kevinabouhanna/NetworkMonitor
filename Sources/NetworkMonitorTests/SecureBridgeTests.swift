@@ -191,16 +191,34 @@ func runSecureBridgeTests() {
             guard let (keychain, done) = testKeychain() else { return Check.expectTrue(false, "no test keychain") }
             defer { done() }
             var length = UInt32(PATH_MAX)
-            var path = [CChar](repeating: 0, count: Int(PATH_MAX))
-            SecKeychainGetPath(keychain, &length, &path)
-            let security = Process()
-            security.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-            security.arguments = ["create-keypair", "-a", "rsa", "-s", "2048", "-k", String(cString: path),
-                                  "-T", "/usr/bin/true", "another program's"]
-            security.standardOutput = FileHandle.nullDevice
-            security.standardError = FileHandle.nullDevice
-            guard (try? security.run()) != nil else { return Check.expectTrue(false, "security didn't run") }
-            security.waitUntilExit()
+            var bytes = [CChar](repeating: 0, count: Int(PATH_MAX))
+            guard SecKeychainGetPath(keychain, &length, &bytes) == errSecSuccess, length > 0 else {
+                return Check.expectTrue(false, "no path for the test keychain")
+            }
+            let path = String(cString: bytes)
+            /// `security`, which isn't kept from asking as this process is: the
+            /// keychain is unlocked first, and it's stopped if it waits.
+            func security(_ arguments: [String]) -> Bool {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+                process.arguments = arguments
+                process.standardInput = FileHandle.nullDevice
+                process.standardOutput = FileHandle.nullDevice
+                process.standardError = FileHandle.nullDevice
+                let ended = DispatchSemaphore(value: 0)
+                process.terminationHandler = { _ in ended.signal() }
+                guard (try? process.run()) != nil else { return false }
+                if ended.wait(timeout: .now() + 30) == .timedOut {
+                    process.terminate()
+                    return false
+                }
+                return process.terminationStatus == 0
+            }
+            guard security(["unlock-keychain", "-p", "test", path]),
+                  security(["create-keypair", "-a", "rsa", "-s", "2048", "-k", path,
+                            "-T", "/usr/bin/true", "another program's"]) else {
+                return Check.expectTrue(false, "security couldn't make the key")
+            }
             var found: CFTypeRef?
             let query: [String: Any] = [kSecClass as String: kSecClassKey,
                                         kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
@@ -208,9 +226,20 @@ func runSecureBridgeTests() {
             guard SecItemCopyMatching(query as CFDictionary, &found) == errSecSuccess, let found else {
                 return Check.expectTrue(false, "no key in the test keychain")
             }
-            let signature = SecKeyCreateSignature(found as! SecKey, .rsaSignatureMessagePKCS1v15SHA256,
-                                                  Data("x".utf8) as CFData, nil)
-            Check.expectNil(signature, "signed with a key that isn't the tests'")
+            func sign(_ key: SecKey) -> (signed: Bool, code: Int) {
+                var error: Unmanaged<CFError>?
+                let signature = SecKeyCreateSignature(key, .rsaSignatureMessagePKCS1v15SHA256,
+                                                      Data("x".utf8) as CFData, &error)
+                return (signature != nil, error.map { CFErrorGetCode($0.takeRetainedValue()) } ?? 0)
+            }
+            let refused = sign(found as! SecKey)
+            Check.expectFalse(refused.signed, "signed with a key that isn't the tests'")
+            Check.expectTrue([Int(errSecAuthFailed), Int(errSecInteractionNotAllowed)].contains(refused.code),
+                             "refused for another reason: \(refused.code)")
+            // The same kind of key, and the tests' own.
+            let own: [String: Any] = [kSecAttrKeyType as String: kSecAttrKeyTypeRSA, kSecAttrKeySizeInBits as String: 2048]
+            Check.expectTrue(SecKeyCreateRandomKey(own as CFDictionary, nil).map { sign($0).signed } ?? false,
+                             "can't sign with the tests' own key")
         }
 
         Check.test("the sites' key is made once, found again, and removed with every certificate") {
