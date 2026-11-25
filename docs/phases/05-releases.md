@@ -7,8 +7,8 @@ builds, checks and releases the app stays in order.
 
 ## The plans
 
-- **Release 1.32.0 to everyone once the beta is good** (#722), waiting on Kevin: 1.32.0-beta.2
-  is out with the battery fix (#719); Kevin's copy updates to it. It goes to everyone as 1.32.0
+- **Release 1.32.0 to everyone once the beta is good** (#722), waiting on Kevin: 1.32.0-beta.3
+  has the popover's fixes (#728) on top of beta 2's battery fix (#719); Kevin's copy updates to it. It goes to everyone as 1.32.0
   when he says it's good, once product-kit reads the release's tag rather than its beta's
   (product-kit#115).
 - **Update settings: automatic updates on or off** (#710), Next: an Updates section in Settings
