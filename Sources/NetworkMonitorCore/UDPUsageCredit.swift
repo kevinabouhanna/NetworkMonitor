@@ -44,6 +44,7 @@ public struct UDPUsageCredit {
     }
 
     private var networkGeneration: UInt64 = 0
+    private var needsNewCapture = false
     private var lastSnapshot: UDPUsageSnapshot?
     private var waiting: [Key: ByteCounts] = [:]
     private var quiet = 0
@@ -64,12 +65,13 @@ public struct UDPUsageCredit {
     /// sample until it's been quiet, so each answer covers one sample.
     public mutating func apply(to sample: [NettopRow], networkGeneration: UInt64 = 0,
                                interfaces: () -> Set<String>,
-                               snapshot: () -> UDPUsageSnapshot?) -> [NettopRow] {
+                               snapshot: (_ restartCapture: Bool) -> UDPUsageSnapshot?) -> [NettopRow] {
         if self.networkGeneration != networkGeneration {
-            // The helper counts on the interface, which can stay up across a link change.
-            // Start with a new baseline and leave the previous link's remainder behind.
+            // The interface and port can survive the switch, along with buffered
+            // output from the old link. A new capture keeps that output out.
             reset()
             self.networkGeneration = networkGeneration
+            needsNewCapture = true
         }
         var unplaced: Int64 = 0
         for row in sample where row.udpSockets.contains(where: \.hasTrafficWithoutPeer) && !carries(row) {
@@ -77,10 +79,11 @@ public struct UDPUsageCredit {
         }
         quiet = unplaced >= Self.worthAsking ? 0 : quiet + 1
         guard unplaced >= Self.worthAsking || (lastSnapshot != nil && quiet < Self.quietSamples),
-              let latest = snapshot() else {
+              let latest = snapshot(needsNewCapture) else {
             reset()
             return sample
         }
+        needsNewCapture = false
         let seen = added(by: latest, interfaces: interfaces())
         var pool = waiting
         for (key, bytes) in seen { pool[key, default: ByteCounts(bytesIn: 0, bytesOut: 0)] += bytes }

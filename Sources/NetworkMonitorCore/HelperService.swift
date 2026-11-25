@@ -113,7 +113,7 @@ public enum HelperService {
     /// answer. That one doesn't hold the verbs back: a daemon from before an
     /// update answers them, and not this, until it quits. The first question
     /// may have to wait for launchd to start the daemon.
-    static func udpUsage(timeout: TimeInterval = 2) -> UDPUsageSnapshot? {
+    static func udpUsage(restartCapture: Bool = false, timeout: TimeInterval = 2) -> UDPUsageSnapshot? {
         guard status == .enabled else { return nil }
         let now = Date()
         lock.lock()
@@ -131,11 +131,16 @@ public enum HelperService {
         let replyLock = NSLock()
         var answer: Data?
         let proxy = connection.remoteObjectProxyWithErrorHandler { _ in answered.signal() } as? HelperXPCInterface
-        proxy?.udpUsage { data in
+        let receive: (Data) -> Void = { data in
             replyLock.lock()
             answer = data
             replyLock.unlock()
             answered.signal()
+        }
+        if restartCapture {
+            proxy?.restartUDPUsage(reply: receive)
+        } else {
+            proxy?.udpUsage(reply: receive)
         }
         _ = proxy != nil && answered.wait(timeout: .now() + timeout) == .success
         replyLock.lock()

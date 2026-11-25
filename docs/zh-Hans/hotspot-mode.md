@@ -172,9 +172,9 @@ sequenceDiagram
 | `self-heal` | 如果 `/Applications/NetworkMonitor.app` 不在了，就撤销所有更改并删除自己 | launchd，以 root 身份 |
 | `uninstall` | 撤销所有更改并删除自己 | NetworkMonitor 的卸载功能，通过 XPC |
 
-守护进程还会回答一个不属于指令、也不改变任何东西的问题：`udpUsage`，即每个 UDP 套接字在你自己的网络中传输了多少字节（#753）。它同样不带参数。在应用询问期间，它运行 `/usr/sbin/tcpdump`，使用编译在程序中的过滤条件，只匹配两个私有地址之间的 UDP，并按套接字累加大小；地址和内容不会离开它，互联网流量不会到达它。它在最后一次询问的两分钟后停止，并且会在守护进程退出之前停止。
+守护进程还响应两种查询 UDP 计数的请求（#753）。`udpUsage` 报告每个 UDP 套接字在你自己的网络中传输了多少字节。`restartUDPUsage` 在链路变化后启动新的捕获并返回基准计数。这两种请求都不带参数。在应用询问期间，它运行 `/usr/sbin/tcpdump`，使用编译在程序中的过滤条件，只匹配两个私有地址之间的 UDP，并按套接字累加大小；地址和内容不会离开它，互联网流量不会到达它。它在最后一次询问的两分钟后停止，并且会在守护进程退出之前停止。
 
-<strong>应用内的启动守护进程</strong>（#131）。应用通过 `SMAppService` 注册它（`Contents/Library/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist`），macOS 会在“登录项”中的 NetworkMonitor 下列出它，你打开它后，launchd 会在应用第一次请求时启动它。它通过 XPC 响应，只响应由该团队（GRQKG7M8CL）签名的 NetworkMonitor，而应用也只与由该团队签名的辅助程序通信。每个指令都用它自己运行同一个二进制文件，所以每个指令的行为和在 `sudo` 下完全一样；它在空闲时退出，所以响应的总是更新后的应用所带的辅助程序。应用中的程序一旦更换，`udpUsage` 的询问就不再推迟退出。第一次启动时，它会：
+<strong>应用内的启动守护进程</strong>（#131）。应用通过 `SMAppService` 注册它（`Contents/Library/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist`），macOS 会在“登录项”中的 NetworkMonitor 下列出它，你打开它后，launchd 会在应用第一次请求时启动它。它通过 XPC 响应，只响应由该团队（GRQKG7M8CL）签名的 NetworkMonitor，而应用也只与由该团队签名的辅助程序通信。每个指令都用它自己运行同一个二进制文件，所以每个指令的行为和在 `sudo` 下完全一样；它在空闲时退出，所以响应的总是更新后的应用所带的辅助程序。应用中的程序一旦更换，查询 UDP 计数的请求就不再推迟退出。第一次启动时，它会：
 
 - 删除旧的 sudoers 规则（如果有）；
 - 把自己复制到 `/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper`，并安装每小时运行的 `self-heal` 任务。把应用拖到废纸篓会连同守护进程一起带走，因为它的程序在应用里面，而 macOS 不会取消注册它，所以靠这份副本来恢复一切。这个任务也列在 NetworkMonitor 下（`AssociatedBundleIdentifiers`）。

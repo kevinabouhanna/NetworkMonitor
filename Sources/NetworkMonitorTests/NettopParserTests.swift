@@ -158,7 +158,7 @@ func runNettopParserTests() {
         func credited(_ sample: [NettopRow], _ answers: [UDPUsageSnapshot?], carrier: Bool = false) -> [NettopRow] {
             var credit = UDPUsageCredit(isCarrier: { _, _ in carrier })
             var result = sample
-            for answer in answers { result = credit.apply(to: sample, interfaces: { ["en0"] }, snapshot: { answer }) }
+            for answer in answers { result = credit.apply(to: sample, interfaces: { ["en0"] }, snapshot: { _ in answer }) }
             return result
         }
 
@@ -205,7 +205,7 @@ func runNettopParserTests() {
             14:13:05,udp4 *:63259<->*:*,en0,20,0,
             """)
             func next(_ sample: [NettopRow], _ answer: UDPUsageSnapshot) -> Int64? {
-                credit.apply(to: sample, interfaces: { ["en0"] }, snapshot: { answer }).first?.internetBytesIn
+                credit.apply(to: sample, interfaces: { ["en0"] }, snapshot: { _ in answer }).first?.internetBytesIn
             }
             Check.expectEqual(next(mixed, started), 120_000)
             Check.expectEqual(next(quiet, usage(90000, 0)), 0)
@@ -248,12 +248,12 @@ func runNettopParserTests() {
             """)
             var asked = 0
             var credit = UDPUsageCredit(isCarrier: { _, _ in false })
-            _ = credit.apply(to: little, interfaces: { ["en0"] }, snapshot: { asked += 1; return started })
+            _ = credit.apply(to: little, interfaces: { ["en0"] }, snapshot: { _ in asked += 1; return started })
             Check.expectEqual(asked, 0)
-            _ = credit.apply(to: mixed, interfaces: { ["en0"] }, snapshot: { asked += 1; return started })
+            _ = credit.apply(to: mixed, interfaces: { ["en0"] }, snapshot: { _ in asked += 1; return started })
             // Once it's counting, every sample is placed, until it's been quiet.
             for _ in 1...20 {
-                _ = credit.apply(to: little, interfaces: { ["en0"] }, snapshot: { asked += 1; return started })
+                _ = credit.apply(to: little, interfaces: { ["en0"] }, snapshot: { _ in asked += 1; return started })
             }
             Check.expectEqual(asked, UDPUsageCredit.quietSamples)
         }
@@ -263,7 +263,7 @@ func runNettopParserTests() {
             for pause in [0, UDPUsageCredit.quietSamples] {
                 var credit = UDPUsageCredit(isCarrier: { _, _ in false })
                 func next(_ sample: [NettopRow], _ answer: UDPUsageSnapshot) -> Int64? {
-                    credit.apply(to: sample, interfaces: { ["en0"] }, snapshot: { answer }).first?.internetBytesIn
+                    credit.apply(to: sample, interfaces: { ["en0"] }, snapshot: { _ in answer }).first?.internetBytesIn
                 }
                 _ = next(mixed, started)
                 _ = next(nothing, usage(90000, 0))
@@ -273,31 +273,54 @@ func runNettopParserTests() {
             }
         }
 
-        Check.test("a new network starts a UDP baseline even if the socket and capture survive") {
+        Check.test("a link change restarts capture before buffered LAN bytes can reduce the new link") {
             var credit = UDPUsageCredit(isCarrier: { _, _ in false })
-            func next(_ rows: [NettopRow], _ answer: UDPUsageSnapshot, network: UInt64) -> NettopRow? {
-                credit.apply(to: rows, networkGeneration: network,
-                             interfaces: { ["en0"] }, snapshot: { answer }).first
+            var requests: [Bool] = []
+            let newEpoch = UUID()
+            let newBaseline = UDPUsageSnapshot(epoch: newEpoch, sockets: [])
+            let newLAN = UDPUsageSnapshot(epoch: newEpoch, sockets: usage(10_000, 0).sockets)
+
+            func next(_ rows: [NettopRow], network: UInt64,
+                      snapshot: (Bool) -> UDPUsageSnapshot?) -> NettopRow? {
+                credit.apply(to: rows, networkGeneration: network, interfaces: { ["en0"] }) { restart in
+                    requests.append(restart)
+                    return snapshot(restart)
+                }.first
             }
 
-            _ = next(mixed, started, network: 0)
-            // A helper observation on the old link has no matching socket yet.
-            _ = next(sample("14:13:05,ExampleApp.1234,,0,0,"), usage(90000, 0), network: 0)
-            // The same capture now delivers more of the old link's LAN bytes.
-            // Neither those bytes nor the remainder may reduce the new link's total.
-            let newLink = next(mixed, usage(95000, 0), network: 1)
-            Check.expectEqual(newLink?.internetBytesIn, 120_000)
-            Check.expectEqual(newLink?.subtractableLocalIn, 0)
+            _ = next(mixed, network: 0) { _ in started }
+            _ = next(sample("14:13:05,ExampleApp.1234,,0,0,"), network: 0) { _ in usage(90_000, 0) }
 
-            let subsequent = next(mixed, usage(105000, 0), network: 1)
+            let switched = next(mixed, network: 1) { restart in restart ? newBaseline : usage(90_000, 0) }
+            Check.expectEqual(switched?.internetBytesIn, 120_000)
+            // The old child finally emits more LAN bytes after the new baseline.
+            // A helper that wasn't restarted would add those bytes to its next answer.
+            let staleOnly = next(mixed, network: 1) { _ in requests.contains(true) ? newBaseline : usage(95_000, 0) }
+            Check.expectEqual(staleOnly?.internetBytesIn, 120_000)
+            let subsequent = next(mixed, network: 1) { _ in newLAN }
             Check.expectEqual(subsequent?.internetBytesIn, 110_000)
-            Check.expectEqual(subsequent?.subtractableLocalIn, 10_000)
+            Check.expectEqual(requests, [false, false, true, false, false])
+        }
+
+        Check.test("a lost answer leaves the capture restart pending") {
+            var credit = UDPUsageCredit(isCarrier: { _, _ in false })
+            var requests: [Bool] = []
+
+            _ = credit.apply(to: mixed, interfaces: { ["en0"] }) { _ in started }
+            for answer in [nil, nil, started] {
+                let result = credit.apply(to: mixed, networkGeneration: 1, interfaces: { ["en0"] }) { restart in
+                    requests.append(restart)
+                    return answer
+                }
+                Check.expectEqual(result.first?.internetBytesIn, 120_000)
+            }
+            Check.expectEqual(requests, [true, true, true])
         }
 
         Check.test("a VPN's traffic alone doesn't ask the helper") {
             var asked = 0
             var credit = UDPUsageCredit(isCarrier: { _, _ in true })
-            _ = credit.apply(to: mixed, interfaces: { ["en0"] }, snapshot: { asked += 1; return started })
+            _ = credit.apply(to: mixed, interfaces: { ["en0"] }, snapshot: { _ in asked += 1; return started })
             Check.expectEqual(asked, 0)
         }
 
@@ -307,8 +330,8 @@ func runNettopParserTests() {
             14:13:05,udp4 *:63259<->*:*,en0,100000,0,
             """)
             var credit = UDPUsageCredit(isCarrier: { _, name in name == "Tunnel" })
-            _ = credit.apply(to: mixed, interfaces: { ["en0"] }, snapshot: { started })
-            let row = credit.apply(to: vpn, interfaces: { ["en0"] }, snapshot: { usage(90000, 0) }).first
+            _ = credit.apply(to: mixed, interfaces: { ["en0"] }, snapshot: { _ in started })
+            let row = credit.apply(to: vpn, interfaces: { ["en0"] }, snapshot: { _ in usage(90000, 0) }).first
             Check.expectEqual(row?.internetBytesIn, 100_000)
         }
 

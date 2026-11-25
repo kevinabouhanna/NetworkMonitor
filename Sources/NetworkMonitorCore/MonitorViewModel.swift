@@ -651,7 +651,7 @@ public final class MonitorViewModel: ObservableObject {
             let sample = self.udpCredit.apply(
                 to: raw, networkGeneration: network,
                 interfaces: { Set(InterfaceCounters.read().map(\.name)) },
-                snapshot: { HelperService.udpUsage() })
+                snapshot: { HelperService.udpUsage(restartCapture: $0) })
             self.recordNettopSample(sample, network: network)
         }
     }
@@ -752,8 +752,11 @@ public final class MonitorViewModel: ObservableObject {
             refreshHeader()
             return
         }
-        // Invalidate samples on the old link even when the interface is still en0.
-        sampleNetworkLock.withLock { sampleNetworkGeneration &+= 1 }
+        // An update to cost or Low Data Mode can describe the same link.
+        let previous = store.currentNetwork
+        if fingerprint.id != previous.id || fingerprint.interfaceName != previous.interfaceName {
+            sampleNetworkLock.withLock { sampleNetworkGeneration &+= 1 }
+        }
         // Joining a different network restarts its counter; an offline blip and
         // a rejoin resume the same one. The store decides which happened.
         if store.setCurrentNetwork(fingerprint) {

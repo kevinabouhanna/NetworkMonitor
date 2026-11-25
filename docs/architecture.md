@@ -288,6 +288,8 @@ much off, as local unicast. Details that mattered:
   on the wire, and a socket that only receives may have no interface in `nettop`'s rows.
 - **The daemon's counts only run up**, so asking takes nothing from another account's copy.
   A new `epoch` (the capture started, or too many sockets) means no comparison for one sample.
+  After a link change, the app discards queued samples from the previous link and requests
+  a fresh capture the next time there is enough UDP to place.
 - **What was seen and not matched yet waits one sample**, the two being read a moment apart.
   Never more than was seen comes off, nor more than the socket moved, so what's left is
   internet: the first sample of a burst and anything the capture missed.

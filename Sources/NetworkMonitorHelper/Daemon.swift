@@ -57,12 +57,20 @@ final class Daemon: NSObject, NSXPCListenerDelegate, HelperXPCInterface {
     /// quitting while this is still the program in the app: after an update the
     /// new one has to get its turn.
     func udpUsage(reply: @escaping (Data) -> Void) {
+        udpUsage(restartCapture: false, reply: reply)
+    }
+
+    func restartUDPUsage(reply: @escaping (Data) -> Void) {
+        udpUsage(restartCapture: true, reply: reply)
+    }
+
+    private func udpUsage(restartCapture: Bool, reply: @escaping (Data) -> Void) {
         queue.async {
             guard Self.programOnDisk() == self.program else { return }
             self.idleExit?.cancel()
             self.scheduleIdleExit()
         }
-        udpMonitor.snapshot(reply: reply)
+        udpMonitor.snapshot(restartCapture: restartCapture, reply: reply)
     }
 
     /// Switched off in Login Items, or registered again. The handler does
