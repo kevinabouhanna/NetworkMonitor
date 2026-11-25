@@ -32,6 +32,41 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
         }
     }
 
+    /// Whether a new version downloads and installs by itself (#710). Off by
+    /// default; Sparkle keeps it, and its own tick box changes it too.
+    @Published public var installsAutomatically: Bool = false {
+        didSet {
+            guard let updater, updater.automaticallyDownloadsUpdates != installsAutomatically else { return }
+            updater.automaticallyDownloadsUpdates = installsAutomatically
+        }
+    }
+
+    /// When it last asked whether there's a newer version.
+    @Published public private(set) var lastChecked: Date?
+
+    /// The version downloaded and waiting to install by itself, while a window
+    /// is open or a speed test runs.
+    @Published public private(set) var readyVersion: String?
+    /// The card for it was put away with its ✕; it still installs.
+    @Published public private(set) var readyCardHidden = false
+    /// The version that installed by itself, until it's been seen.
+    @Published public private(set) var updatedVersion: String?
+
+    /// Whether nothing would be interrupted: no window open, no speed test.
+    public var canInstallQuietly: () -> Bool = { true }
+    /// Where to come back to after Restart Now: a section's raw value.
+    public var sectionToReopen: () -> String? = { nil }
+    /// Check for Updates… while one waits: the main window, with its card.
+    public var onShowReady: (() -> Void)?
+    private var installNow: (() -> Void)?
+    private var observers: Set<AnyCancellable> = []
+    static let reopenKey = "reopenAfterUpdate"
+    static let installedByItselfKey = "updateInstalledByItself"
+
+    public var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+    }
+
     /// Whether betas are offered too (#585). Off by default; turned on, it
     /// looks at once, as the daily check would, if that's on.
     @Published public var getsBetas: Bool {
@@ -123,7 +158,19 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
         }
         self.driver = driver
         self.updater = updater
+        updater.publisher(for: \.automaticallyChecksForUpdates).receive(on: DispatchQueue.main)
+            .sink { [weak self] on in if self?.checksAutomatically != on { self?.checksAutomatically = on } }
+            .store(in: &observers)
+        updater.publisher(for: \.automaticallyDownloadsUpdates).receive(on: DispatchQueue.main)
+            .sink { [weak self] on in if self?.installsAutomatically != on { self?.installsAutomatically = on } }
+            .store(in: &observers)
         checksAutomatically = updater.automaticallyChecksForUpdates
+        installsAutomatically = updater.automaticallyDownloadsUpdates
+        lastChecked = updater.lastUpdateCheckDate
+        if let version = defaults.string(forKey: Self.installedByItselfKey) {
+            defaults.removeObject(forKey: Self.installedByItselfKey)
+            if version == currentVersion { updatedVersion = version }
+        }
         switch Self.launchArgument("checkForUpdatesNow") {
         case "YES":
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.checkForUpdates() }
@@ -141,7 +188,51 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
     }
 
     public func checkForUpdates() {
+        if readyVersion != nil {
+            readyCardHidden = false
+            onShowReady?()
+            return
+        }
         updater?.checkForUpdates()
+    }
+
+    // MARK: Installing by itself (#710)
+
+    /// Called when a window closes or a speed test ends: the waiting update
+    /// installs once nothing would be interrupted.
+    public func installReadyIfQuiet() {
+        guard readyVersion != nil, canInstallQuietly() else { return }
+        defaults.set(readyVersion, forKey: Self.installedByItselfKey)
+        installNow?()
+    }
+
+    /// Restart Now.
+    public func restartNow() {
+        if let section = sectionToReopen() { defaults.set(section, forKey: Self.reopenKey) }
+        installNow?()
+    }
+
+    /// The section to reopen after Restart Now, once.
+    public func takeSectionToReopen() -> String? {
+        defer { defaults.removeObject(forKey: Self.reopenKey) }
+        return defaults.string(forKey: Self.reopenKey)
+    }
+
+    public func hideReadyCard() { readyCardHidden = true }
+    public func dismissUpdated() { updatedVersion = nil }
+    public static let releasesURL = URL(string: "https://github.com/kevinabouhanna/NetworkMonitor/releases")!
+
+    public func updater(_ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem,
+                        immediateInstallationBlock immediateInstallHandler: @escaping () -> Void) -> Bool {
+        installNow = immediateInstallHandler
+        readyVersion = item.displayVersionString
+        readyCardHidden = false
+        DispatchQueue.main.async { [weak self] in self?.installReadyIfQuiet() }
+        return true
+    }
+
+    public func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?) {
+        lastChecked = updater.lastUpdateCheckDate
     }
 
     public var canCheckForUpdates: Bool { updater?.canCheckForUpdates ?? false }
@@ -152,6 +243,7 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
     /// relaunches into it without asking again.
     public func installPendingUpdate() {
         pendingVersion = nil
+        if let section = sectionToReopen() { defaults.set(section, forKey: Self.reopenKey) }
         driver?.install()
     }
 

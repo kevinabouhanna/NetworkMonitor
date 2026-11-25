@@ -91,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private var dockDrawPending = false
     /// While Sparkle shows an update (#132), which keeps the Dock icon.
     private var showingUpdate = false
+    private var quietCheck: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
@@ -114,6 +115,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         observeLanguage()
         showWelcomeIfNeeded()
         openWindowFromLaunchArgument()
+        // Back where Restart Now or Install & Restart left it (#710).
+        if let section = model.updates.takeSectionToReopen().flatMap(MainSection.init(rawValue:)) { show(section: section) }
     }
 
     /// Once, on first launch, or the first after updating to a version that
@@ -596,6 +599,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Sent synchronously from within `performClose`, so this is done before any
     /// click that follows could reopen the popover.
     func popoverWillClose(_ notification: Notification) {
+        installUpdateOnceQuiet()
         model.setPopoverOpen(false)
         if let monitor = popoverMonitor {
             NSEvent.removeMonitor(monitor)
@@ -873,6 +877,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             guard let window = self?.mainController?.window else { return false }
             return window.isVisible && !window.isMiniaturized
         }
+        // Installing by itself (#710): never under an open window or popover,
+        // nor during a speed test.
+        model.updates.canInstallQuietly = { [weak self] in
+            guard let self else { return false }
+            return !self.ourWindows.contains(where: \.isVisible) && !self.popover.isShown
+                && !self.model.speedTest.phase.isRunning
+        }
+        model.updates.sectionToReopen = { [weak self] in
+            guard let main = self?.mainController, main.window.isVisible else { return nil }
+            return main.section.rawValue
+        }
+        model.updates.onShowReady = { [weak self] in self?.showSettings() }
+        quietCheck = model.speedTest.$phase.removeDuplicates { $0.isRunning == $1.isRunning }
+            .sink { [weak self] _ in self?.installUpdateOnceQuiet() }
         model.updates.onWillShowUpdate = { [weak self] userInitiated in
             guard let self else { return }
             self.showingUpdate = true
@@ -886,6 +904,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             self?.showingUpdate = false
             self?.settleActivationPolicy()
         }
+    }
+
+    private func installUpdateOnceQuiet() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.model.updates.installReadyIfQuiet() }
     }
 
     /// Sparkle's own window (#132), which says what's new and asks.
@@ -1070,6 +1092,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             model.updates.dismissPendingUpdate()
         }
         settleActivationPolicy(closing: closing)
+        installUpdateOnceQuiet()
     }
 
     /// A regular app, with a Dock icon and a menu bar of its own, while one of
