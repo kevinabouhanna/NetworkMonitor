@@ -6,6 +6,7 @@ struct NettopUDPSocket: Equatable {
     let hasWildcardPeer: Bool
     let bytesIn: Int64
     let bytesOut: Int64
+    let flow: UDPObservation.Flow?
 
     var hasTrafficWithoutPeer: Bool {
         hasWildcardPeer && (bytesIn > 0 || bytesOut > 0)

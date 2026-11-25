@@ -192,6 +192,57 @@ func runNettopParserTests() {
         }
     }
 
+    Check.suite("Physical UDP and QUIC byte accounting") {
+        func sample(rx: Int64, tx: Int64) -> [NettopRow] {
+            var parser = NettopParser()
+            let csv = """
+            time,,interface,bytes_in,bytes_out,
+            14:13:04,NetworkingWorker.1234,,20000,309,
+            time,,interface,bytes_in,bytes_out,
+            14:13:05,NetworkingWorker.1234,,\(rx + 50),\(tx + 5),
+            14:13:05,quic4 192.168.1.2:65321<->203.0.113.42:443,en0,\(rx),\(tx),
+            14:13:05,tcp4 192.168.1.2:58487<->203.0.113.55:443,en0,50,5,
+            time,,interface,bytes_in,bytes_out,
+            """
+            return parser.consume(csv + "\n").first ?? []
+        }
+
+        let packet = UDPObservation(
+            line: "14:13:04.185712 (en0, proc NetworkingWorker:1234, eproc ExampleClient:321, in) IP 203.0.113.42.443 > 192.168.1.2.65321: UDP, length 519")!
+        let observed = UDPPeerUsage(socket: packet.socket, address: packet.remoteAddress,
+                                    bytesIn: 500, bytesOut: 50, flow: packet.flow, effectivePID: packet.effectivePID)
+
+        Check.test("fills missing bytes for the effective owner of a verified physical flow") {
+            var credit = UDPWireCredit()
+            let rows = credit.apply(to: sample(rx: 2, tx: 1), peers: [observed], interfaces: ["en0"])
+            let owner = rows.first { $0.pid == 321 }
+            Check.expectEqual(owner?.internetBytesIn, 498)
+            Check.expectEqual(owner?.internetBytesOut, 49)
+            Check.expectEqual(owner?.servers[packet.remoteAddress]?.bytesIn, 498)
+            Check.expectEqual(rows.reduce(0) { $0 + $1.internetBytesIn }, 550)
+        }
+
+        Check.test("late socket counters do not bill the same packets again") {
+            var credit = UDPWireCredit()
+            _ = credit.apply(to: sample(rx: 2, tx: 1), peers: [observed], interfaces: ["en0"])
+            let rows = credit.apply(to: sample(rx: 498, tx: 49), peers: [], interfaces: ["en0"])
+            Check.expectEqual(rows.first?.internetBytesIn, 50)
+            Check.expectEqual(rows.first?.internetBytesOut, 5)
+            Check.expectEqual(rows.first?.servers[packet.remoteAddress]?.bytesIn, 0)
+        }
+
+        Check.test("an unrelated peer or a non-physical interface cannot add attributed bytes") {
+            var credit = UDPWireCredit()
+            let wrongPeer = UDPObservation.Flow(socket: packet.socket, localAddress: "192.168.1.2",
+                                               remoteAddress: "203.0.113.42", remotePort: 444)
+            let different = UDPPeerUsage(socket: packet.socket, address: packet.remoteAddress,
+                                         bytesIn: 500, flow: wrongPeer, effectivePID: 321)
+            let original = sample(rx: 2, tx: 1)
+            Check.expectEqual(credit.apply(to: original, peers: [different], interfaces: ["en0"]), original)
+            Check.expectEqual(credit.apply(to: original, peers: [observed], interfaces: ["en1"]), original)
+        }
+    }
+
     Check.suite("NettopParser — sample framing") {
 
         // The single most important behaviour in the app: nettop's first sample

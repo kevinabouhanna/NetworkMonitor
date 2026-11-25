@@ -17,9 +17,25 @@ public struct UDPObservation: Equatable {
         }
     }
 
+    public struct Flow: Codable, Hashable {
+        public let socket: Socket
+        public let localAddress: String
+        public let remoteAddress: String
+        public let remotePort: Int
+
+        public init(socket: Socket, localAddress: String, remoteAddress: String, remotePort: Int) {
+            self.socket = socket
+            self.localAddress = localAddress.lowercased()
+            self.remoteAddress = remoteAddress.lowercased()
+            self.remotePort = remotePort
+        }
+    }
+
     public let timestamp: Double?
     public let socket: Socket
     public let remoteAddress: String
+    public let flow: Flow
+    public let effectivePID: Int32?
     public let bytes: Int64
     public let inbound: Bool
 
@@ -49,12 +65,18 @@ public struct UDPObservation: Equatable {
         guard let localDot = local.lastIndex(of: "."),
               let remoteDot = remote.lastIndex(of: "."),
               let port = Int(local[local.index(after: localDot)...]),
-              (1...65535).contains(port), remoteDot != remote.startIndex else { return nil }
+              let remotePort = Int(remote[remote.index(after: remoteDot)...]),
+              (1...65535).contains(port), (1...65535).contains(remotePort) else { return nil }
         let remoteHost = remote[..<remoteDot].split(separator: "%", maxSplits: 1).first
-        guard let remoteHost else { return nil }
+        let localHost = local[..<localDot].split(separator: "%", maxSplits: 1).first
+        guard let remoteHost, let localHost else { return nil }
         timestamp = Double(line.prefix(while: { !$0.isWhitespace }))
         self.socket = Socket(pid: pid, interface: interface, family: ipv6 ? 6 : 4, port: port)
         self.remoteAddress = String(remoteHost)
+        flow = Flow(socket: socket, localAddress: String(localHost), remoteAddress: String(remoteHost),
+                    remotePort: remotePort)
+        effectivePID = metadata.first(where: { $0.hasPrefix("eproc ") })?
+            .split(separator: ":").last.flatMap { Int32($0) }
         self.bytes = bytes
         self.inbound = inbound
     }
@@ -66,12 +88,17 @@ public struct UDPPeerUsage: Codable, Equatable {
     public let address: String
     public var bytesIn: Int64
     public var bytesOut: Int64
+    public let flow: UDPObservation.Flow?
+    public let effectivePID: Int32?
 
-    public init(socket: UDPObservation.Socket, address: String, bytesIn: Int64 = 0, bytesOut: Int64 = 0) {
+    public init(socket: UDPObservation.Socket, address: String, bytesIn: Int64 = 0, bytesOut: Int64 = 0,
+                flow: UDPObservation.Flow? = nil, effectivePID: Int32? = nil) {
         self.socket = socket
         self.address = address
         self.bytesIn = bytesIn
         self.bytesOut = bytesOut
+        self.flow = flow
+        self.effectivePID = effectivePID
     }
 }
 

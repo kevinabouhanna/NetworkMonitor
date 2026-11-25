@@ -5,8 +5,8 @@ import PacketUsage
 /// Only socket/peer counters cross XPC. There is no packet file.
 final class UDPUsageMonitor {
     private struct Peer: Hashable {
-        let socket: UDPObservation.Socket
-        let address: String
+        let flow: UDPObservation.Flow
+        let effectivePID: Int32?
     }
 
     private struct Bucket {
@@ -50,7 +50,8 @@ final class UDPUsageMonitor {
             var totals: [Peer: UDPPeerUsage] = [:]
             for bucket in relevant.values {
                 for (peer, usage) in bucket.peers {
-                    var total = totals[peer] ?? UDPPeerUsage(socket: peer.socket, address: peer.address)
+                    var total = totals[peer] ?? UDPPeerUsage(socket: peer.flow.socket, address: peer.flow.remoteAddress,
+                                                                  flow: peer.flow, effectivePID: peer.effectivePID)
                     total.bytesIn += usage.bytesIn
                     total.bytesOut += usage.bytesOut
                     totals[peer] = total
@@ -111,7 +112,7 @@ final class UDPUsageMonitor {
                 latestBucket = index
                 discard(before: index - Int64(15 * Self.bucketsPerSecond))
             }
-            let key = Peer(socket: packet.socket, address: packet.remoteAddress)
+            let key = Peer(flow: packet.flow, effectivePID: packet.effectivePID)
             var bucket = buckets.removeValue(forKey: index) ?? Bucket()
             if var count = bucket.peers[key] {
                 if packet.inbound { count.bytesIn += packet.bytes } else { count.bytesOut += packet.bytes }
@@ -120,7 +121,8 @@ final class UDPUsageMonitor {
                 storedPeers += 1
                 bucket.peers[key] = UDPPeerUsage(socket: packet.socket, address: packet.remoteAddress,
                                                 bytesIn: packet.inbound ? packet.bytes : 0,
-                                                bytesOut: packet.inbound ? 0 : packet.bytes)
+                                                bytesOut: packet.inbound ? 0 : packet.bytes,
+                                                flow: packet.flow, effectivePID: packet.effectivePID)
             } else {
                 bucket.incomplete = true
             }

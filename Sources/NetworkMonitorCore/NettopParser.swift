@@ -9,8 +9,8 @@ public struct NettopRow: Equatable {
     /// identity comes from `proc_pidpath`.
     public let processName: String
     /// Everything the process moved, local and internet together.
-    public let bytesIn: Int64
-    public let bytesOut: Int64
+    public internal(set) var bytesIn: Int64
+    public internal(set) var bytesOut: Int64
     /// The part of the above that never left the LAN, summed from the process's
     /// connection rows. Kept out of every displayed figure. See `RemoteEndpoint`.
     public internal(set) var localBytesIn: Int64
@@ -164,8 +164,13 @@ public struct NettopParser {
             if let udp = connection.udp {
                 let socket = UDPObservation.Socket(pid: pending[index].pid, interface: interface,
                                                    family: udp.family, port: udp.port)
+                let flow = udp.peer.map {
+                    UDPObservation.Flow(socket: socket, localAddress: $0.localAddress,
+                                        remoteAddress: $0.remoteAddress, remotePort: $0.remotePort)
+                }
                 pending[index].udpSockets.append(NettopUDPSocket(socket: socket, hasWildcardPeer: udp.wildcard,
-                                                                bytesIn: connection.bytesIn, bytesOut: connection.bytesOut))
+                                                                bytesIn: connection.bytesIn, bytesOut: connection.bytesOut,
+                                                                flow: flow))
             }
             if Self.isTunnel(interface), !connection.scope.isLocal {
                 pending[index].tunnels[interface, default: ByteCounts(bytesIn: 0, bytesOut: 0)]
@@ -196,6 +201,12 @@ public struct NettopParser {
         }
     }
 
+    struct UDPPeer {
+        let localAddress: String
+        let remoteAddress: String
+        let remotePort: Int
+    }
+
     struct Connection {
         let scope: TrafficScope
         let bytesIn: Int64
@@ -206,7 +217,7 @@ public struct NettopParser {
         var interface: String? = nil
         /// Its two ports, when the stream has the column (for loopback).
         var ports: (local: Int, remote: Int)? = nil
-        var udp: (family: Int, port: Int, wildcard: Bool)? = nil
+        var udp: (family: Int, port: Int, wildcard: Bool, peer: UDPPeer?)? = nil
     }
 
     /// A tunnel's interface: a VPN's or a proxy's (`utun4`), never a link the
@@ -234,16 +245,25 @@ public struct NettopParser {
         let scope = RemoteEndpoint.scope(connectionLabel: label)
         // Only internet peers are kept by address, so only they are parsed again.
         var ports: (local: Int, remote: Int)?
-        var udp: (family: Int, port: Int, wildcard: Bool)?
+        var udp: (family: Int, port: Int, wildcard: Bool, peer: UDPPeer?)?
         if interfaceColumn, let separator = label.range(of: "<->") {
             let isIPv6 = RemoteEndpoint.isIPv6Label(label)
             let remote = String(label[separator.upperBound...])
-            if let local = RemoteEndpoint.port(of: String(label[..<separator.lowerBound]), isIPv6: isIPv6) {
+            let localEndpoint = String(label[..<separator.lowerBound])
+            if let local = RemoteEndpoint.port(of: localEndpoint, isIPv6: isIPv6) {
                 if let remotePort = RemoteEndpoint.port(of: remote, isIPv6: isIPv6) {
                     ports = (local, remotePort)
                 }
-                if label.hasPrefix("udp4 ") || label.hasPrefix("udp6 ") {
-                    udp = (isIPv6 ? 6 : 4, local, scope == .internet && remote.hasPrefix("*"))
+                if label.hasPrefix("udp") || label.hasPrefix("quic") {
+                    var peer: UDPPeer?
+                    if scope == .internet, !remote.hasPrefix("*"),
+                       let remoteAddress = RemoteEndpoint.host(of: remote, isIPv6: isIPv6),
+                       let localAddress = RemoteEndpoint.host(of: localEndpoint, isIPv6: isIPv6),
+                       !localAddress.hasPrefix("*"), let remotePort = ports?.remote {
+                        peer = UDPPeer(localAddress: localAddress, remoteAddress: remoteAddress, remotePort: remotePort)
+                    }
+                    let wildcard = label.hasPrefix("udp") && scope == .internet && remote.hasPrefix("*")
+                    udp = (isIPv6 ? 6 : 4, local, wildcard, peer)
                 }
             }
         }
