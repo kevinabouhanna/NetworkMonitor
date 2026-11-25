@@ -1,5 +1,6 @@
 import Foundation
 import NetworkMonitorCore
+import PacketUsage
 
 /// Fixtures are verbatim `nettop` output captured on macOS 26.5.2 from
 /// `nettop -P -x -d -L 0 -s 1 -J time,bytes_in,bytes_out`.
@@ -130,6 +131,64 @@ func runNettopParserTests() {
             Check.expectTrue(NettopParser.isHeader("time,,bytes_in,bytes_out,"))
             Check.expectTrue(NettopParser.isHeader(",bytes_in,bytes_out,"))
             Check.expectFalse(NettopParser.isHeader("02:21:32.760799,mDNSResponder.501,1,2,"))
+        }
+    }
+
+    Check.suite("Unconnected UDP accounting") {
+        func sample() -> [NettopRow] {
+            var parser = NettopParser()
+            let csv = """
+            time,,interface,bytes_in,bytes_out,
+            14:13:04,ExampleApp.1234,,20000,309,
+            time,,interface,bytes_in,bytes_out,
+            14:13:05,ExampleApp.1234,,1200,110,
+            14:13:05,udp4 *:63259<->*:*,en0,1000,100,
+            14:13:05,tcp4 192.168.1.2:58487<->203.0.113.55:443,en0,200,10,
+            time,,interface,bytes_in,bytes_out,
+            """
+            return parser.consume(csv + "\n").first ?? []
+        }
+
+        let socket = UDPObservation.Socket(pid: 1234, interface: "en0", family: 4, port: 63259)
+        let lan = UDPPeerUsage(socket: socket, address: "192.168.1.42", bytesIn: 875, bytesOut: 80)
+        let internet = UDPPeerUsage(socket: socket, address: "203.0.113.42", bytesIn: 250, bytesOut: 50)
+
+        Check.test("one wildcard socket can have both LAN and public peers") {
+            let actual = UDPUsageCredit.apply(to: sample(), peers: [lan, internet], interfaces: ["en0"]).first
+            Check.expectEqual(actual?.subtractableLocalIn, 750)
+            Check.expectEqual(actual?.subtractableLocalOut, 50)
+            Check.expectEqual(actual?.internetBytesIn, 450)
+            Check.expectEqual(actual?.internetBytesOut, 60)
+        }
+
+        Check.test("only a matching observed UDP socket can reduce internet counts") {
+            let elsewhere = UDPPeerUsage(
+                socket: .init(pid: 999, interface: "en0", family: 4, port: 63259),
+                address: lan.address, bytesIn: 900)
+            let original = sample()
+            Check.expectEqual(UDPUsageCredit.apply(to: original, peers: [elsewhere], interfaces: ["en0"]), original)
+            Check.expectEqual(UDPUsageCredit.apply(to: original, peers: [lan], interfaces: []), original)
+            Check.expectEqual(UDPUsageCredit.apply(to: original, peers: [internet], interfaces: ["en0"]), original)
+            Check.expectEqual(UDPUsageCredit.apply(to: original, peers: [], interfaces: ["en0"]), original)
+        }
+
+        Check.test("PKTAP resolves a wildcard socket to the actual source of inbound datagrams") {
+            let packet = UDPObservation(
+                line: "14:13:04.185712 (en0, proc ExampleApp:1234, in) IP 192.168.1.42.4000 > 192.168.1.2.63259: UDP, length 519")
+            Check.expectEqual(packet?.socket, socket)
+            Check.expectEqual(packet?.remoteAddress, "192.168.1.42")
+            Check.expectEqual(packet?.bytes, 519)
+            Check.expectEqual(packet?.inbound, true)
+        }
+
+        Check.test("PKTAP resolves the destination of outbound IPv6 datagrams") {
+            let packet = UDPObservation(
+                line: "14:13:04.185712 (en0, proc ExampleApp:1234, eproc ExampleParent:321, out) IP6 fd00::2.63259 > fd00::42.4000: UDP, length 519")
+            Check.expectEqual(packet?.socket, .init(pid: 1234, interface: "en0", family: 6, port: 63259))
+            Check.expectEqual(packet?.remoteAddress, "fd00::42")
+            Check.expectEqual(packet?.inbound, false)
+            Check.expectNil(UDPObservation(
+                line: "14:13:04.185712 (en0, in) IP 192.168.1.42.4000 > 192.168.1.2.63259: UDP, length 519"))
         }
     }
 

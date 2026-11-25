@@ -20,11 +20,12 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-asn1", exact: "1.7.3"),
     ],
     targets: [
+        .target(name: "PacketUsage", path: "Sources/PacketUsage"),
         // Everything testable lives in NetworkMonitorCore. The executable is a
         // thin shell so `swift test` never has to link an NSApplication main().
         .target(
             name: "NetworkMonitorCore",
-            dependencies: ["LowDataMode", "ServerDirectory", "FilterProtocol", "FirewallPolicy",
+            dependencies: ["LowDataMode", "ServerDirectory", "FilterProtocol", "FirewallPolicy", "PacketUsage",
                            .product(name: "Sparkle", package: "Sparkle")],
             path: "Sources/NetworkMonitorCore"
         ),
@@ -56,7 +57,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "NetworkMonitorHelper",
-            dependencies: ["HostsFile", "LowDataMode"],
+            dependencies: ["HostsFile", "LowDataMode", "PacketUsage"],
             path: "Sources/NetworkMonitorHelper"
         ),
         // Where a server is and whose network it belongs to, from DB-IP's data
@@ -158,7 +159,7 @@ let package = Package(
         // `swift test` cannot run here. Run with `swift run NetworkMonitorTests`.
         .executableTarget(
             name: "NetworkMonitorTests",
-            dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory", "FilterProtocol",
+            dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory", "FilterProtocol", "PacketUsage",
                            "FirewallPolicy", "HandshakeName", "SiteCertificates", "PageRewriter", "SecureBridge"],
             path: "Sources/NetworkMonitorTests"
         ),

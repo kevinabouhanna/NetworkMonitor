@@ -143,6 +143,8 @@ public final class MonitorViewModel: ObservableObject {
 
     private let identityResolver = AppIdentityResolver()
     private let nettop: NettopStream
+    private let udpUsageQueue = DispatchQueue(label: "com.networkmonitor.udp-usage")
+    private var previousUDPSample: Date?
     /// Traffic through a proxy or a VPN, credited to the apps behind it (#356).
     private let tunnelCredit: TunnelCreditor
     private let pathWatcher = NetworkIdentityWatcher()
@@ -626,12 +628,28 @@ public final class MonitorViewModel: ObservableObject {
     // MARK: nettop sampling
 
     private func handleNettopSample(_ raw: [NettopRow]) {
+        let now = Date()
+        udpUsageQueue.async { [weak self] in
+            guard let self else { return }
+            var sample = raw
+            let end = raw.first?.captureTime.flatMap { UDPUsageCredit.timestamp($0, near: now) }
+            if let end, let start = self.previousUDPSample,
+               raw.contains(where: { $0.udpSockets.contains(where: \.hasTrafficWithoutPeer) }),
+               let usage = HelperService.udpUsage(from: start, to: end) {
+                let interfaces = Set(InterfaceCounters.read().map(\.name))
+                sample = UDPUsageCredit.apply(to: raw, peers: usage.peers, interfaces: interfaces)
+            }
+            self.previousUDPSample = end
+            self.recordNettopSample(sample, at: now)
+        }
+    }
+
+    private func recordNettopSample(_ raw: [NettopRow], at now: Date) {
         // Resolve identities on the main actor: AppIdentityResolver touches
         // NSWorkspace and its caches are not thread-safe.
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             if self.perAppFailure != nil { self.perAppFailure = nil }
-            let now = Date()
             let sample = self.tunnelCredit.credit(raw, now: now)
             let summary = SampleSummary(sample) {
                 self.identityResolver.identity(pid: $0.pid, fallbackName: $0.processName)

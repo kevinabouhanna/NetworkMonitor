@@ -1,4 +1,5 @@
 import Foundation
+import PacketUsage
 
 /// One process's byte movement within a single `nettop` sample.
 public struct NettopRow: Equatable {
@@ -12,12 +13,12 @@ public struct NettopRow: Equatable {
     public let bytesOut: Int64
     /// The part of the above that never left the LAN, summed from the process's
     /// connection rows. Kept out of every displayed figure. See `RemoteEndpoint`.
-    public let localBytesIn: Int64
-    public let localBytesOut: Int64
+    public internal(set) var localBytesIn: Int64
+    public internal(set) var localBytesOut: Int64
     /// The subset of the local bytes trustworthy enough to subtract from the
     /// kernel's interface total: unicast LAN peers only, never multicast.
-    public let subtractableLocalIn: Int64
-    public let subtractableLocalOut: Int64
+    public internal(set) var subtractableLocalIn: Int64
+    public internal(set) var subtractableLocalOut: Int64
 
     /// What the app reports: bytes that actually crossed the internet.
     ///
@@ -50,6 +51,9 @@ public struct NettopRow: Equatable {
     /// filled when the stream has an `interface` column, which `-t external`
     /// never shows loopback in. See `TunnelCredit`.
     public internal(set) var loopback: [LoopbackSocket]
+
+    var udpSockets: [NettopUDPSocket] = []
+    var captureTime: String?
 
     public init(pid: Int32, processName: String, bytesIn: Int64, bytesOut: Int64,
                 localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
@@ -142,7 +146,12 @@ public struct NettopParser {
                 foldConnection(connection)
                 continue
             }
-            if let row = Self.parseRow(line, interfaceColumn: interfaceColumn) { pending.append(row) }
+            if var row = Self.parseRow(line, interfaceColumn: interfaceColumn) {
+                if pending.isEmpty, interfaceColumn, let comma = line.firstIndex(of: ",") {
+                    row.captureTime = String(line[..<comma])
+                }
+                pending.append(row)
+            }
         }
         return samples
     }
@@ -152,6 +161,12 @@ public struct NettopParser {
     private mutating func foldConnection(_ connection: Connection) {
         guard let index = pending.indices.last else { return }
         if let interface = connection.interface {
+            if let udp = connection.udp {
+                let socket = UDPObservation.Socket(pid: pending[index].pid, interface: interface,
+                                                   family: udp.family, port: udp.port)
+                pending[index].udpSockets.append(NettopUDPSocket(socket: socket, hasWildcardPeer: udp.wildcard,
+                                                                bytesIn: connection.bytesIn, bytesOut: connection.bytesOut))
+            }
             if Self.isTunnel(interface), !connection.scope.isLocal {
                 pending[index].tunnels[interface, default: ByteCounts(bytesIn: 0, bytesOut: 0)]
                     += ByteCounts(bytesIn: connection.bytesIn, bytesOut: connection.bytesOut)
@@ -173,22 +188,12 @@ public struct NettopParser {
             }
             return
         }
-        let parent = pending[index]
-        let subtractable = connection.scope.isSubtractable
-        pending[index] = NettopRow(
-            pid: parent.pid,
-            processName: parent.processName,
-            bytesIn: parent.bytesIn,
-            bytesOut: parent.bytesOut,
-            localBytesIn: parent.localBytesIn + connection.bytesIn,
-            localBytesOut: parent.localBytesOut + connection.bytesOut,
-            subtractableLocalIn: parent.subtractableLocalIn
-                + (subtractable ? connection.bytesIn : 0),
-            subtractableLocalOut: parent.subtractableLocalOut
-                + (subtractable ? connection.bytesOut : 0),
-            servers: parent.servers,
-            tunnels: parent.tunnels,
-            loopback: parent.loopback)
+        pending[index].localBytesIn += connection.bytesIn
+        pending[index].localBytesOut += connection.bytesOut
+        if connection.scope.isSubtractable {
+            pending[index].subtractableLocalIn += connection.bytesIn
+            pending[index].subtractableLocalOut += connection.bytesOut
+        }
     }
 
     struct Connection {
@@ -201,6 +206,7 @@ public struct NettopParser {
         var interface: String? = nil
         /// Its two ports, when the stream has the column (for loopback).
         var ports: (local: Int, remote: Int)? = nil
+        var udp: (family: Int, port: Int, wildcard: Bool)? = nil
     }
 
     /// A tunnel's interface: a VPN's or a proxy's (`utun4`), never a link the
@@ -228,16 +234,22 @@ public struct NettopParser {
         let scope = RemoteEndpoint.scope(connectionLabel: label)
         // Only internet peers are kept by address, so only they are parsed again.
         var ports: (local: Int, remote: Int)?
+        var udp: (family: Int, port: Int, wildcard: Bool)?
         if interfaceColumn, let separator = label.range(of: "<->") {
             let isIPv6 = RemoteEndpoint.isIPv6Label(label)
-            if let local = RemoteEndpoint.port(of: String(label[..<separator.lowerBound]), isIPv6: isIPv6),
-               let remote = RemoteEndpoint.port(of: String(label[separator.upperBound...]), isIPv6: isIPv6) {
-                ports = (local, remote)
+            let remote = String(label[separator.upperBound...])
+            if let local = RemoteEndpoint.port(of: String(label[..<separator.lowerBound]), isIPv6: isIPv6) {
+                if let remotePort = RemoteEndpoint.port(of: remote, isIPv6: isIPv6) {
+                    ports = (local, remotePort)
+                }
+                if label.hasPrefix("udp4 ") || label.hasPrefix("udp6 ") {
+                    udp = (isIPv6 ? 6 : 4, local, scope == .internet && remote.hasPrefix("*"))
+                }
             }
         }
         return Connection(scope: scope, bytesIn: bytesIn, bytesOut: bytesOut,
                           remoteHost: scope.isLocal ? nil : RemoteEndpoint.remoteHost(connectionLabel: label),
-                          interface: interface?.isEmpty == false ? interface : nil, ports: ports)
+                          interface: interface?.isEmpty == false ? interface : nil, ports: ports, udp: udp)
     }
 
     /// Emits whatever is buffered, for use when the stream ends.

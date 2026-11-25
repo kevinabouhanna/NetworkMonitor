@@ -56,4 +56,7 @@ public enum HelperDaemon {
 /// with its exit status and what it printed.
 @objc public protocol HelperXPCInterface {
     func run(_ verb: String, reply: @escaping (Int32, String) -> Void)
+    /// Aggregate UDP counters in one nettop interval. Empty when capture
+    /// isn't ready. It has no shell arguments and never exports packet contents.
+    func udpUsage(from: Double, to: Double, reply: @escaping (Data) -> Void)
 }

@@ -1,5 +1,6 @@
 import Foundation
 import LowDataMode
+import PacketUsage
 import ServiceManagement
 
 /// The app's side of the helper as a launch daemon (#131): registering it with
@@ -103,6 +104,32 @@ public enum HelperService {
         let limit = timeout ?? (Thread.isMainThread ? mainThreadTimeout : 20)
         guard let reply = call(verb, timeout: limit), reply.status == 0 else { return nil }
         return reply.text
+    }
+
+    /// Called off the main thread, while nettop has unconnected UDP traffic.
+    static func udpUsage(from start: Date, to end: Date) -> UDPUsageSnapshot? {
+        guard status == .enabled else { return nil }
+        let connection = NSXPCConnection(machServiceName: HelperDaemon.machServiceName, options: .privileged)
+        connection.setCodeSigningRequirement(HelperDaemon.helperRequirement)
+        connection.remoteObjectInterface = NSXPCInterface(with: HelperXPCInterface.self)
+        connection.resume()
+        defer { connection.invalidate() }
+
+        let answered = DispatchSemaphore(value: 0)
+        let lock = NSLock()
+        var answer: Data?
+        guard let proxy = connection.remoteObjectProxyWithErrorHandler({ _ in answered.signal() })
+                as? HelperXPCInterface else { return nil }
+        proxy.udpUsage(from: start.timeIntervalSince1970, to: end.timeIntervalSince1970) { data in
+            lock.lock()
+            answer = data
+            lock.unlock()
+            answered.signal()
+        }
+        guard answered.wait(timeout: .now() + 0.4) == .success else { return nil }
+        lock.lock()
+        defer { lock.unlock() }
+        return answer.flatMap { try? JSONDecoder().decode(UDPUsageSnapshot.self, from: $0) }
     }
 
     public static let mainThreadTimeout: TimeInterval = 5

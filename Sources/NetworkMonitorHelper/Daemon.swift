@@ -18,6 +18,7 @@ final class Daemon: NSObject, NSXPCListenerDelegate, HelperXPCInterface {
 
     private let queue = DispatchQueue(label: HelperDaemon.label)
     private var idleExit: DispatchWorkItem?
+    private let udpMonitor = UDPUsageMonitor()
 
     static func serve() -> Never {
         shared.migrate()
@@ -47,6 +48,14 @@ final class Daemon: NSObject, NSXPCListenerDelegate, HelperXPCInterface {
             reply(status, output)
             self.scheduleIdleExit()
         }
+    }
+
+    func udpUsage(from: Double, to: Double, reply: @escaping (Data) -> Void) {
+        queue.async {
+            self.idleExit?.cancel()
+            self.scheduleIdleExit()
+        }
+        udpMonitor.takeSnapshot(from: from, to: to, reply: reply)
     }
 
     /// On `queue`.
