@@ -90,7 +90,12 @@ public final class AppIdentityResolver {
     /// bounded so a pathological chain cannot stall a sample.
     static let maxAncestorDepth = 8
 
-    public init() {}
+    private let webKitOwner: (Int32, String) -> String?
+
+    /// - Parameter webKitOwner: the program behind a WebKit networking process, by its pid and path.
+    public init(webKitOwner: @escaping (Int32, String) -> String? = { WebKitOwner.of(pid: $0, path: $1)?.path }) {
+        self.webKitOwner = webKitOwner
+    }
 
     public func identity(pid: Int32, fallbackName: String) -> AppIdentity {
         if let cached = identityByPID[pid] { return cached }
@@ -128,6 +133,23 @@ public final class AppIdentityResolver {
         // is a single syscall — launchd is the immediate parent.
         if identity.bundlePath != nil { identityByPath[path] = identity }
         return identity
+    }
+
+    /// `identity(pid:)`, except that what an app loads through WebKit is that
+    /// app's (#761). Safari, Mail and any app with a web view each have a
+    /// networking process of macOS's own, started by launchd, so neither its
+    /// path nor its parents say whose it is; macOS does.
+    ///
+    /// Days already stored keep their WebKit row: it can hold several apps' bytes.
+    public func trafficIdentity(pid: Int32, fallbackName: String) -> AppIdentity {
+        let direct = identity(pid: pid, fallbackName: fallbackName)
+        guard direct.isSystem, let path = pathByPID[pid],
+              let ownerPath = webKitOwner(pid, path) else { return direct }
+        if let cached = identityByPath[ownerPath] { return cached }
+        let owner = Self.identity(forExecutablePath: ownerPath, fallbackName: fallbackName)
+        guard owner.bundlePath != nil else { return direct }
+        identityByPath[ownerPath] = owner
+        return owner
     }
 
     /// Drops per-pid entries for processes no longer present.

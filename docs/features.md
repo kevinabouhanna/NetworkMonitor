@@ -70,7 +70,8 @@ There's no choice of neither: there'd be no way back to the app.
   bar for its share. The apps re-sort live as they overtake each other, and a dot marks
   apps moving data right now.
   - **Helpers fold into their app**: Chrome's dozen helper processes are one *Google
-    Chrome* row.
+    Chrome* row, and the pages Safari, Mail or another app loads through macOS's WebKit are
+    that app's (#761).
   - **Copies of one app are one row**: a build of an app you have installed counts as
     that app when its maker signed it; every other copy of it is one row of its own,
     *Home Control (other copies)*. An iPhone or iPad app in Xcode's Simulator is one row,
