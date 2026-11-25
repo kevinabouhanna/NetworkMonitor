@@ -291,6 +291,11 @@ much off, as local unicast. Details that mattered:
 - **What was seen and not matched yet waits one sample**, the two being read a moment apart.
   Never more than was seen comes off, nor more than the socket moved, so what's left is
   internet: the first sample of a burst and anything the capture missed.
+- **It starts again when the link changes** (#759), in the app: the first answer after it is
+  only compared with. The watcher waits 2 s before it reports a change, and `tcpdump` holds
+  a packet 0.1 s at most (7,980 of them in a VM, also with every core busy), so the old link's
+  are all in that answer. And a sample that waited for the helper while the Mac moved to
+  another network is left out of that one (`SampleNetwork`).
 - **VPNs and proxies are left alone**: their socket to a gateway on your network carries
   other apps' internet traffic.
 

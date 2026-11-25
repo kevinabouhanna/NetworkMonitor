@@ -147,6 +147,7 @@ public final class MonitorViewModel: ObservableObject {
     /// queue, in order: the helper is asked over XPC.
     private let udpUsageQueue = DispatchQueue(label: "com.networkmonitor.udp-usage")  // untranslated: queue label
     private var udpCredit = UDPUsageCredit()
+    private let sampleNetwork = SampleNetwork()
     /// Traffic through a proxy or a VPN, credited to the apps behind it (#356).
     private let tunnelCredit: TunnelCreditor
     private let pathWatcher = NetworkIdentityWatcher()
@@ -254,6 +255,7 @@ public final class MonitorViewModel: ObservableObject {
         wifiNames.start()
         // Adopt whatever the watcher already knows so the first tick has a bucket.
         store.setCurrentNetwork(pathWatcher.fingerprint)
+        sampleNetwork.moved(to: pathWatcher.fingerprint)
         refreshHeader()
 
         // After the store has a current network, so the first evaluation judges
@@ -638,23 +640,27 @@ public final class MonitorViewModel: ObservableObject {
     // MARK: nettop sampling
 
     private func handleNettopSample(_ raw: [NettopRow]) {
+        let network = sampleNetwork.current
         udpUsageQueue.async { [weak self] in
             guard let self else { return }
             self.recordNettopSample(self.udpCredit.apply(
                 to: raw,
                 interfaces: { Set(InterfaceCounters.read().map(\.name)) },
-                snapshot: { HelperService.udpUsage() }))
+                snapshot: { HelperService.udpUsage() }), network: network)
         }
     }
 
-    private func recordNettopSample(_ raw: [NettopRow]) {
+    private func recordNettopSample(_ raw: [NettopRow], network: String) {
         // Resolve identities on the main actor: AppIdentityResolver touches
         // NSWorkspace and its caches are not thread-safe.
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             if self.perAppFailure != nil { self.perAppFailure = nil }
             let now = Date()
+            // A sample of the network just left still takes its own share of what
+            // the tunnel's stream saw, so none of it is the new network's.
             let sample = self.tunnelCredit.credit(raw, now: now)
+            guard SampleNetwork.keeps(sampleFrom: network, on: self.store.currentNetwork.id) else { return }
             let summary = SampleSummary(sample) {
                 self.identityResolver.identity(pid: $0.pid, fallbackName: $0.processName)
             }
@@ -742,6 +748,15 @@ public final class MonitorViewModel: ObservableObject {
             refreshHeader()
             return
         }
+        // What the helper saw on the link before this one isn't taken off this
+        // one's traffic (#759), though a socket and its interface may outlast it.
+        // The watcher waits 2 s before it says so, so `tcpdump` has passed on
+        // everything it had from the old link.
+        let previous = store.currentNetwork
+        if fingerprint.id != previous.id || fingerprint.interfaceName != previous.interfaceName {
+            udpUsageQueue.async { [weak self] in self?.udpCredit.reset() }
+        }
+        sampleNetwork.moved(to: fingerprint)
         // Joining a different network restarts its counter; an offline blip and
         // a rejoin resume the same one. The store decides which happened.
         if store.setCurrentNetwork(fingerprint) {

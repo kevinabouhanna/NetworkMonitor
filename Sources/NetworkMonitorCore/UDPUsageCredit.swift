@@ -109,7 +109,7 @@ public struct UDPUsageCredit {
     }
 
     /// What was seen so far belongs to no sample to come: nettop started again,
-    /// or nothing was asked for a while.
+    /// the link changed (#759), or nothing was asked for a while.
     public mutating func reset() {
         lastSnapshot = nil
         waiting = [:]
