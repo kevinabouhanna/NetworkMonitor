@@ -145,6 +145,7 @@ public final class MonitorViewModel: ObservableObject {
     private let nettop: NettopStream
     private let udpUsageQueue = DispatchQueue(label: "com.networkmonitor.udp-usage")
     private var previousUDPSample: Date?
+    private var waitingForPacketCapture = false
     /// Traffic through a proxy or a VPN, credited to the apps behind it (#356).
     private let tunnelCredit: TunnelCreditor
     private let pathWatcher = NetworkIdentityWatcher()
@@ -397,7 +398,7 @@ public final class MonitorViewModel: ObservableObject {
                 self.perAppFailure = message
             }
         }
-        nettop.start()
+        startNettop()
         powerToken = PowerSource.observe { [weak self] in
             self?.applyProfile()
         }
@@ -441,6 +442,7 @@ public final class MonitorViewModel: ObservableObject {
         sampleTimer?.cancel()
         sampleTimer = nil
         powerToken = nil
+        waitingForPacketCapture = false
         nettop.stop()
         tunnelCredit.stop()
         speedTest.stop()
@@ -626,6 +628,22 @@ public final class MonitorViewModel: ObservableObject {
     }
 
     // MARK: nettop sampling
+
+    /// Give an available helper a chance to start capture before nettop's
+    /// first baseline. Otherwise the very UDP bytes that trigger capture have
+    /// already been counted as internet and can never be classified.
+    private func startNettop() {
+        waitingForPacketCapture = true
+        udpUsageQueue.async { [weak self] in
+            let now = Date()
+            _ = HelperService.udpUsage(from: now.addingTimeInterval(-0.1), to: now)
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.waitingForPacketCapture else { return }
+                self.waitingForPacketCapture = false
+                self.nettop.start()
+            }
+        }
+    }
 
     private func handleNettopSample(_ raw: [NettopRow]) {
         let now = Date()

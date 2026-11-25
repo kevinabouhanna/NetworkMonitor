@@ -10,7 +10,8 @@ final class UDPUsageMonitor {
     }
 
     private struct Bucket {
-        var peers: [Peer: UDPPeerUsage] = [:]
+        var peers: [Peer: TimedUDPCounts] = [:]
+        var packets = 0
         var incomplete = false
     }
 
@@ -22,6 +23,7 @@ final class UDPUsageMonitor {
     private var buckets: [Int64: Bucket] = [:]
     private var latestBucket: Int64?
     private var storedPeers = 0
+    private var storedPackets = 0
     private var startedAt: Date?
     private var lastFailure: Date?
     private var stopWork: DispatchWorkItem?
@@ -41,18 +43,23 @@ final class UDPUsageMonitor {
                 return
             }
             self.scheduleStop()
-            let first = Int64((from * Self.bucketsPerSecond).rounded(.up))
+            let first = Int64((from * Self.bucketsPerSecond).rounded(.down))
             let end = Int64((to * Self.bucketsPerSecond).rounded(.down))
-            let relevant = self.buckets.filter { $0.key >= first && $0.key < end }
+            let relevant = self.buckets.filter { $0.key >= first && $0.key <= end }
+            // Retain the ending bucket for the next interval. The timestamp
+            // predicate below ensures a packet at the boundary is counted once.
             self.discard(before: end)
             guard let startedAt = self.startedAt, startedAt.timeIntervalSince1970 <= from,
                   !relevant.values.contains(where: \.incomplete) else { reply(Data()); return }
             var totals: [Peer: UDPPeerUsage] = [:]
-            for bucket in relevant.values {
+            for (index, bucket) in relevant {
                 for (peer, usage) in bucket.peers {
+                    let bytes = index == first || index == end
+                        ? usage.bytes(in: from..<to) : (usage.bytesIn, usage.bytesOut)
+                    guard bytes.0 > 0 || bytes.1 > 0 else { continue }
                     var total = totals[peer] ?? UDPPeerUsage(socket: peer.socket, address: peer.address)
-                    total.bytesIn += usage.bytesIn
-                    total.bytesOut += usage.bytesOut
+                    total.bytesIn += bytes.0
+                    total.bytesOut += bytes.1
                     totals[peer] = total
                 }
             }
@@ -113,14 +120,13 @@ final class UDPUsageMonitor {
             }
             let key = Peer(socket: packet.socket, address: packet.remoteAddress)
             var bucket = buckets.removeValue(forKey: index) ?? Bucket()
-            if var count = bucket.peers[key] {
-                if packet.inbound { count.bytesIn += packet.bytes } else { count.bytesOut += packet.bytes }
-                bucket.peers[key] = count
-            } else if storedPeers < 8_192 {
-                storedPeers += 1
-                bucket.peers[key] = UDPPeerUsage(socket: packet.socket, address: packet.remoteAddress,
-                                                bytesIn: packet.inbound ? packet.bytes : 0,
-                                                bytesOut: packet.inbound ? 0 : packet.bytes)
+            let isNewPeer = bucket.peers[key] == nil
+            if storedPackets < 262_144, !isNewPeer || storedPeers < 8_192 {
+                bucket.peers[key, default: TimedUDPCounts()].record(timestamp: timestamp, bytes: packet.bytes,
+                                                                  inbound: packet.inbound)
+                if isNewPeer { storedPeers += 1 }
+                storedPackets += 1
+                bucket.packets += 1
             } else {
                 bucket.incomplete = true
             }
@@ -132,6 +138,7 @@ final class UDPUsageMonitor {
         for key in Array(buckets.keys) where key < cutoff {
             if let discarded = buckets.removeValue(forKey: key) {
                 storedPeers -= discarded.peers.count
+                storedPackets -= discarded.packets
             }
         }
     }
@@ -155,6 +162,7 @@ final class UDPUsageMonitor {
         buckets.removeAll()
         latestBucket = nil
         storedPeers = 0
+        storedPackets = 0
         startedAt = nil
     }
 }
