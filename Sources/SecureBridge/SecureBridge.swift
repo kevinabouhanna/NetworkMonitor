@@ -74,6 +74,7 @@ public final class SecureBridge: @unchecked Sendable {
     fileprivate var heldBytes = 0
     /// The browsers' connections, those kept for a next request too.
     fileprivate var connections = 0
+    fileprivate let open = NSHashTable<Exchange>.weakObjects()
 
     /// The most sites with a listener: the least used one goes past it.
     public static let maxSites = 256
@@ -185,13 +186,22 @@ public final class SecureBridge: @unchecked Sendable {
         listener.start(queue: queue)
     }
 
-    /// Stops every listener: when the switch goes off.
+    /// Stops every listener, and keeps none of the browsers' connections:
+    /// when the switch goes off.
     public func stop() {
         queue.async { [self] in
             let all = sites.values
             sites.removeAll()
             all.forEach { $0.listener?.cancel() }
         }
+        retire()
+    }
+
+    /// Keeps none of the browsers' connections past the reply under way, so
+    /// what the settings now say is asked for each from its start (#741): a
+    /// site just left alone isn't still opened on a connection kept before.
+    public func retire() {
+        queue.async { [self] in open.allObjects.forEach { $0.retire() } }
     }
 
     // MARK: One exchange
@@ -317,7 +327,7 @@ private final class Exchange {
     let client: NWConnection
     let host: String
     let sitePort: UInt16
-    unowned let bridge: SecureBridge
+    let bridge: SecureBridge
     private var phase = Phase.head
     private var link: SiteLink?
     private var linkReady = false
@@ -339,6 +349,8 @@ private final class Exchange {
     private var asksToKeep = false
     private var keeps = false
     private var siteKeeps = false
+    /// Not kept past the reply under way.
+    private var retiring = false
     private var reply = Data()
     /// Whether the reply is being held to be read whole, nil until its head is.
     private var holding: Bool?
@@ -354,6 +366,7 @@ private final class Exchange {
         self.sitePort = sitePort
         self.bridge = bridge
         bridge.connections += 1
+        bridge.open.add(self)
         let timer = DispatchSource.makeTimerSource(queue: bridge.queue)
         // Strong: the timer keeps the exchange until it closes or goes quiet.
         timer.setEventHandler { self.quiet() }
@@ -399,9 +412,18 @@ private final class Exchange {
         bridge.exchanges += now ? 1 : -1
     }
 
+    /// Waiting for a request, it ends; under way, it ends with its reply.
+    func retire() {
+        guard !closed else { return }
+        retiring = true
+        keeps = false
+        if case .head = phase, incoming.isEmpty { finish(client) }
+    }
+
     func close() {
         guard !closed else { return }
         closed = true
+        bridge.open.remove(self)
         phase = .passing
         count(0)
         busy(false)
@@ -470,7 +492,7 @@ private final class Exchange {
         busy(true)
         method = head.method
         asksToKeep = head.keepsConnection && !clientEnded
-        keeps = asksToKeep
+        keeps = asksToKeep && !retiring
         slots = head.target.map { bridge.slots(host, $0) } ?? []
         switch try? BodyFraming.forRequest(head) {
         case BodyFraming.none?: bodyLeft = 0

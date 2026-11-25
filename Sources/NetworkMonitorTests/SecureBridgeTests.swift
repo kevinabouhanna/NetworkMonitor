@@ -563,6 +563,31 @@ func runSecureBridgeTests() {
             Check.expectEqual(opened, 2)
         }
 
+        Check.test("retired, as when the settings change, no connection is kept past its reply (#741)") {
+            var bridgeMade: SecureBridge?
+            let lock = NSLock()
+            setUp(reply: Data(), answer: { request in
+                // Retired while this reply is under way.
+                if request.hasPrefix("GET /first") {
+                    lock.lock(); bridgeMade?.retire(); lock.unlock()
+                    Thread.sleep(forTimeInterval: 0.2)
+                }
+                return pageReply
+            }) { port, bridgeRoot, _, bridge in
+                lock.lock(); bridgeMade = bridge; lock.unlock()
+                func get(_ path: String) -> String { "GET \(path) HTTP/1.1\r\nHost: test.example\r\n\r\n" }
+                let replies = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot,
+                                            requests: [get("/first"), get("/second")])
+                    .map { $0.map { String(decoding: $0, as: UTF8.self) } }
+                Check.expectTrue(replies.first??.contains("Story") == true, "the reply under way, whole")
+                Check.expectTrue(replies.first??.contains("\r\nConnection: close\r\n") == true, "and said to be the last")
+                Check.expectTrue(replies.count == 2 && replies[1] == nil, "then the end: \(replies.count)")
+                let again = browseKeeping(port: port, host: "test.example", anchor: bridgeRoot,
+                                          requests: [get("/third"), get("/fourth")])
+                Check.expectEqual(again.map { $0 != nil }, [true, true], "a connection made since is kept")
+            }
+        }
+
         Check.test("a refused request's empty reply keeps the connection for the next (#741)") {
             let rules = AddressRules(lines: ["/ads/*$script"])
             var opened = 0
