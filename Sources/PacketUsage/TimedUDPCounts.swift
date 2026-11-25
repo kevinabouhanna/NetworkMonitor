@@ -10,7 +10,6 @@ public struct TimedUDPCounts {
     private var packets: [Packet] = []
     public private(set) var bytesIn: Int64 = 0
     public private(set) var bytesOut: Int64 = 0
-    public var count: Int { packets.count }
 
     public init() {}
 

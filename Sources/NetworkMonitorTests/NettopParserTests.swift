@@ -161,6 +161,13 @@ func runNettopParserTests() {
             Check.expectEqual(actual?.internetBytesOut, 60)
         }
 
+        Check.test("the first UDP delta retains the priming sample's timestamp") {
+            let now = Calendar.current.date(bySettingHour: 14, minute: 13, second: 5, of: Date())!
+            let interval = UDPUsageCredit.captureInterval(for: sample(), near: now)
+            Check.expectEqual(interval?.upperBound, now)
+            Check.expectEqual(interval?.lowerBound, now.addingTimeInterval(-1))
+        }
+
         Check.test("datagrams on a bucket boundary survive exactly one sampling interval") {
             var bucket = TimedUDPCounts()
             bucket.record(timestamp: 12.001, bytes: 11, inbound: true)

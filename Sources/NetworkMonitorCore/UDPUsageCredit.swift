@@ -45,9 +45,18 @@ public enum UDPUsageCredit {
         }
     }
 
+    /// The physical capture must cover the exact nettop interval, including
+    /// the first delta whose starting timestamp comes from the priming sample.
+    public static func captureInterval(for sample: [NettopRow], near now: Date) -> Range<Date>? {
+        guard let first = sample.first, let started = first.captureStartTime, let finished = first.captureTime,
+              let end = timestamp(finished, near: now, limit: 2),
+              let start = timestamp(started, near: end, limit: 12), start < end else { return nil }
+        return start..<end
+    }
+
     /// nettop prints local clock time without a date. Choose the occurrence
     /// nearest receipt, including the other side of midnight or a DST change.
-    static func timestamp(_ value: String, near now: Date) -> Date? {
+    private static func timestamp(_ value: String, near now: Date, limit: TimeInterval) -> Date? {
         let fields = value.split(separator: ":")
         guard fields.count == 3, let hour = Int(fields[0]), let minute = Int(fields[1]),
               let second = Double(fields[2]), (0...23).contains(hour), (0...59).contains(minute),
@@ -58,7 +67,7 @@ public enum UDPUsageCredit {
         let difference = Double(hour * 3600 + minute * 60) + second - localNow
         let nearest = (difference + 43200).truncatingRemainder(dividingBy: 86400)
         let offset = (nearest < 0 ? nearest + 86400 : nearest) - 43200
-        guard abs(offset) < 2 else { return nil }
+        guard abs(offset) <= limit else { return nil }
         return now.addingTimeInterval(offset)
     }
 
