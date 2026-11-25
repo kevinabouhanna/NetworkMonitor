@@ -1,13 +1,14 @@
 # Phase 2: Ad blocking that holds up
 
-**Milestone:** Phase 2: Ad blocking that holds up · **Status:** Done
+**Milestone:** Phase 2: Ad blocking that holds up · **Status:** Now
 
 **Goal:** the best ad blocking a Mac app can do in every app, with the controls people know
 from other ad blockers.
 
 ## The plans
 
-Nothing left: the phase is done.
+- **YouTube's ads still play, and its pages are slow, with Enhanced ad blocking on** (#741): found
+  checking 1.32.0 on 25 Nov 2026, the day it reached everyone.
 
 Done:
 
