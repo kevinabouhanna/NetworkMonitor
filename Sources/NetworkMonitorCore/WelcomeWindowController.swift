@@ -20,7 +20,7 @@ public final class WelcomeWindowController {
     public let window: NSWindow
     private var languageObserver: NSObjectProtocol?
 
-    public init(filter: FilterController, wifiNames: WiFiNames) {
+    public init(filter: FilterController, wifiNames: WiFiNames, updates: UpdateController) {
         let window = NSWindow(contentRect: .zero, styleMask: [.titled, .closable, .fullSizeContentView],
                               backing: .buffered, defer: true)
         window.titleVisibility = .hidden
@@ -29,7 +29,7 @@ public final class WelcomeWindowController {
         // Nothing to minimise or zoom: it's read once and closed.
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
-        let host = NSHostingController(rootView: WelcomeView(filter: filter, wifiNames: wifiNames) {
+        let host = NSHostingController(rootView: WelcomeView(filter: filter, wifiNames: wifiNames, updates: updates) {
             [weak window] in window?.performClose(nil)
         }.localizedRoot())
         // Grows when a row shows its steps, and shrinks back.
@@ -57,6 +57,7 @@ public final class WelcomeWindowController {
 struct WelcomeView: View {
     @ObservedObject var filter: FilterController
     @ObservedObject var wifiNames: WiFiNames
+    @ObservedObject var updates: UpdateController
     let onDone: () -> Void
 
     var body: some View {
@@ -81,6 +82,10 @@ struct WelcomeView: View {
                     Divider()
                 }
                 WiFiNamesRow(wifiNames: wifiNames)
+                if updates.isAvailable {
+                    Divider()
+                    InstallUpdatesRow(updates: updates)
+                }
             }
             .padding(16)
             .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))

@@ -537,7 +537,7 @@ struct MainSidebar: View {
                     }
                 }
             }
-            if let card = card {
+            if let card {
                 card
                     .padding(.horizontal, 10)
                     .padding(.bottom, 10)
@@ -549,35 +549,34 @@ struct MainSidebar: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
         }
-        .animation(Motion.content, value: updates.pendingVersion)
-        .animation(Motion.content, value: updates.readyVersion)
-        .animation(Motion.content, value: updates.readyCardHidden)
-        .animation(Motion.content, value: updates.updatedVersion)
+        .animation(Motion.content, value: updates.notice)
     }
 
-    /// One at a time: ready to install, available, or just installed (#710).
+    /// One card at a time: a version offered, one waiting to install, or one
+    /// that installed by itself (#520, #710).
     private var card: UpdateCard? {
-        if let version = updates.readyVersion {
-            guard !updates.readyCardHidden else { return nil }
-            return UpdateCard(title: L("Update ready"), text: L("Version %@ installs when you close this window.", version),
-                              primary: L("Restart Now"), onInstall: updates.restartNow,
-                              onWhatsNew: { NSWorkspace.shared.open(UpdateController.releasesURL) },
-                              onDismiss: updates.hideReadyCard, dismissLabel: L("Hide"), dismissHelp: L("Hide until it installs"))
-        }
-        if let version = updates.pendingVersion {
+        switch updates.notice {
+        case .available(let version):
             return UpdateCard(title: L("Update available"),
                               text: L("Version %@ is available. You have %@.", version, updates.currentVersion),
-                              primary: L("Install & Restart"), onInstall: updates.installPendingUpdate,
-                              onWhatsNew: updates.showPendingUpdate, onDismiss: updates.dismissPendingUpdate,
-                              dismissLabel: L("Remind Me Later"), dismissHelp: L("Remind me tomorrow"))
+                              action: (L("Install & Restart"), updates.installPendingUpdate),
+                              onWhatsNew: updates.showPendingUpdate,
+                              dismiss: (L("Remind Me Later"), L("Remind me tomorrow"), updates.dismissPendingUpdate))
+        case .ready(let version):
+            return UpdateCard(title: L("Update ready"), text: updates.readyText(version),
+                              action: (L("Restart Now"), updates.restartNow),
+                              onWhatsNew: { NSWorkspace.shared.open(UpdateController.releaseURL(version: version)) },
+                              dismiss: (L("Hide"), L("Hide until it installs"), updates.hideReadyCard))
+        case .updated(let version):
+            return UpdateCard(title: L("Updated"), text: L("Version %@ installed by itself.", version), action: nil,
+                              onWhatsNew: {
+                                  NSWorkspace.shared.open(UpdateController.releaseURL(version: version))
+                                  updates.dismissUpdated()
+                              },
+                              dismiss: (L("Hide this"), L("Hide this"), updates.dismissUpdated))
+        case nil:
+            return nil
         }
-        if let version = updates.updatedVersion {
-            return UpdateCard(title: L("Updated"), text: L("Version %@ installed by itself.", version),
-                              primary: nil, onInstall: {},
-                              onWhatsNew: { NSWorkspace.shared.open(UpdateController.releasesURL); updates.dismissUpdated() },
-                              onDismiss: updates.dismissUpdated, dismissLabel: L("Close"), dismissHelp: L("Close"))
-        }
-        return nil
     }
 
     private func row(_ section: MainSection) -> some View {
@@ -613,18 +612,15 @@ struct MainSidebar: View {
 }
 
 /// A new version, found by the daily check while the window was open
-/// (#520): an offer, as the app's others are, with a ✕ that puts it away
-/// until the next check. The buttons stack, as two side by side don't fit
-/// the sidebar's width.
+/// (#520), waiting to install, or installed by itself (#710): a card as the
+/// app's other offers are, with a ✕ that puts it away. The buttons stack, as
+/// two side by side don't fit the sidebar's width.
 struct UpdateCard: View {
     let title: String
     let text: String
-    let primary: String?
-    let onInstall: () -> Void
+    let action: (title: String, run: () -> Void)?
     let onWhatsNew: () -> Void
-    let onDismiss: () -> Void
-    let dismissLabel: String
-    let dismissHelp: String
+    let dismiss: (name: String, help: String, run: () -> Void)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -639,7 +635,7 @@ struct UpdateCard: View {
                     .layoutPriority(1)
                     .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 0)
-                Button(action: onDismiss) {
+                Button(action: dismiss.run) {
                     Image(systemName: "xmark")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.secondary)
@@ -647,17 +643,17 @@ struct UpdateCard: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(dismissLabel)
-                .help(dismissHelp)
+                .accessibilityLabel(dismiss.name)
+                .help(dismiss.help)
             }
             Text(text)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 6) {
-                if let primary {
-                    Button(action: onInstall) {
-                        Text(primary).frame(maxWidth: .infinity)
+                if let action {
+                    Button(action: action.run) {
+                        Text(action.title).frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                 }

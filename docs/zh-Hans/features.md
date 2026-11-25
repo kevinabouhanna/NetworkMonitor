@@ -93,7 +93,7 @@ VoiceOver 用文字读出读数，先读下载：<em>NetworkMonitor，下载 1.2
 
 ## 主窗口
 
-一个带边栏的窗口：<strong>流量历史</strong>、<strong>连接</strong>、<strong>广告与跟踪器</strong> 和 <strong>网络</strong>，顺序与弹出窗口相同，<strong>设置</strong> 固定在底部。点按边栏按钮，或选择 <strong>视图 › 隐藏边栏</strong>（⌃⌘S），即可隐藏边栏。有新版本时，<strong>设置</strong> 上方会出现一张卡片提供更新（[更新](installing.md#更新)）。
+一个带边栏的窗口：<strong>流量历史</strong>、<strong>连接</strong>、<strong>广告与跟踪器</strong> 和 <strong>网络</strong>，顺序与弹出窗口相同，<strong>设置</strong> 固定在底部。点按边栏按钮，或选择 <strong>视图 › 隐藏边栏</strong>（⌃⌘S），即可隐藏边栏。有新版本时，<strong>设置</strong> 上方会出现一张卡片提供更新，或者告诉你它即将安装、已经安装（[更新](installing.md#更新)）。
 
 每个部分的工具栏以视图开头：流量历史和广告与跟踪器中是 <strong>列表、两者或图表</strong>，“连接”中是 <strong>列表、两者或地图</strong>（#524）；“两者”总是列表在左，图表或地图在右（#534）。工具栏中间是统计周期（<strong>日、周、月、年</strong>），然后是 <strong>‹ 今天 ›</strong>、一个点按后展开为输入框的搜索按钮（⌘F），以及一个 <strong>齿轮图标</strong>。齿轮图标会在原处显示该部分自己的设置，并带有返回按钮。“网络”只关注当下，所以它只有齿轮图标。
 
@@ -111,11 +111,11 @@ VoiceOver 用文字读出读数，先读下载：<em>NetworkMonitor，下载 1.2
 - <strong>语言</strong>：跟随系统，或为应用单独选择
 - <strong>登录时启动</strong>
 - <strong>NetworkMonitor 显示在</strong>：菜单栏、程序坞或两者；选择程序坞或两者时还有 <strong>程序坞图标</strong>：网速或应用图标
+- <strong>更新</strong>（[如何更新](installing.md#更新)）：你的版本、上次检查的时间和 立即检查，<strong>自动检查更新</strong>、<strong>自动安装更新</strong> 和 <strong>获取测试版</strong>
 - <strong>速度显示单位</strong>：MB/s 或 Mbps
 - <strong>Wi-Fi 名称</strong>（打开之前显示）
 - <strong>网速颜色</strong>（菜单栏读数和程序坞图标的颜色）：六组现成的配色、用于自选下载和上传颜色的“自定义…”、网速测试的颜色
 - <strong>弹出窗口中的累计值</strong>：统计开始于、采样、立即重置
-- <strong>自动检查更新</strong>、<strong>获取测试版</strong>，以及 立即检查
 - <strong>各部分</strong>：每个部分的设置各有一行，与它的齿轮图标打开的页面相同
 
 <strong>关于 NetworkMonitor</strong> 位于右键菜单和应用菜单中，是标准的“关于”窗口：版本、网站链接、新功能、源代码，以及许可证。

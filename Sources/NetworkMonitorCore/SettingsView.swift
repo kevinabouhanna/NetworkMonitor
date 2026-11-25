@@ -238,7 +238,9 @@ struct GeneralSettingsPane: View {
         .onDisappear { state.customColorsShown = false }
     }
 
-    /// Updating itself (#132, #710): what it's doing, and what each switch does.
+    /// Updating itself (#132, #710), in view as Settings opens: the version,
+    /// what it's doing, and a sentence that says what the switches, as they
+    /// are, do. The details are behind each ⓘ.
     private var updatesSection: some View {
         Section {
             LabeledContent {
@@ -253,8 +255,8 @@ struct GeneralSettingsPane: View {
                     }
                 }
             } label: {
-                Text(L("NetworkMonitor %@", updates.currentVersion))
-                Text(updateStatus)
+                Text(verbatim: "NetworkMonitor \(updates.currentVersion)")
+                Text(updates.status)
             }
             ExplainedRow(L("Check for updates automatically"),
                          L("Once a day, NetworkMonitor asks GitHub whether there's a newer version. Never on a hotspot.")) {
@@ -262,8 +264,7 @@ struct GeneralSettingsPane: View {
                     .toggleStyle(.switch)
                     .labelsHidden()
             }
-            ExplainedRow(L("Install updates automatically"),
-                         L("A new version downloads in the background and installs while NetworkMonitor's windows are closed and no speed test is running. NetworkMonitor restarts, which takes a few seconds. Only updates signed by NetworkMonitor install. Needs the daily check.")) {
+            ExplainedRow(L("Install updates automatically"), UpdateCopy.installsInfo) {
                 Toggle(L("Install updates automatically"), isOn: $updates.installsAutomatically)
                     .toggleStyle(.switch)
                     .labelsHidden()
@@ -281,39 +282,13 @@ struct GeneralSettingsPane: View {
             Text(L("Updates"))
         } footer: {
             VStack(alignment: .leading, spacing: 6) {
-                SettingsFootnote(updateFootnote)
+                SettingsFootnote(updates.whatHappens)
                 if updates.getsBetas {
                     Link(L("Report a problem with a beta"), destination: Self.betaReportURL)
                         .font(.system(size: 11))
                 }
             }
         }
-    }
-
-    private var updateStatus: String {
-        if let version = updates.readyVersion {
-            return L("Version %@ is downloaded. It installs when you close this window.", version)
-        }
-        if let version = updates.pendingVersion { return L("Version %@ is available.", version) }
-        guard let date = updates.lastChecked else { return L("Not checked yet") }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        formatter.doesRelativeDateFormatting = true
-        return L("Last checked: %@", formatter.string(from: date))
-    }
-
-    /// What happens with the switches as they are.
-    private var updateFootnote: String {
-        guard updates.checksAutomatically else {
-            return L("NetworkMonitor looks for a new version only when you press Check Now. It installs only when you say so.")
-        }
-        guard updates.installsAutomatically else {
-            return L("You're told when there's a new version. It installs only when you say so.")
-        }
-        return updates.getsBetas
-            ? L("New versions, betas included, install by themselves while NetworkMonitor's windows are closed.")
-            : L("New versions install by themselves while NetworkMonitor's windows are closed.")
     }
 
     /// A colour well's binding. Whatever space the colour panel hands back, the

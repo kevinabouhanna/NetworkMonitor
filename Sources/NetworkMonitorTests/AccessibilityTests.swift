@@ -232,11 +232,22 @@ func runAccessibilityTests() {
             main.show(.network)
             checkMain("Network")
             main.show(.settings)
+            // With its Updates section (#710), as in a copy that updates itself.
+            model.updates.previewsSettings = true
             checkMain("Settings")
+            Check.test("Settings' update switches are named\(language)") {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                let names = namesNow()
+                for name in [L("Check Now"), L("Check for updates automatically"), L("Install updates automatically"),
+                             L("Get beta versions")] {
+                    Check.expectTrue(names.contains(name), "Settings has no \(name) in \(names)")
+                }
+            }
             // A new version waiting on its card in the sidebar, above Settings
             // (#520): the ✕ says what it does, and each button reads as it's
             // labelled.
-            model.updates.previewCard(version: "9.9.9")
+            let height = window.frame.height
+            model.updates.preview(.available("9.9.9"))
             checkMain("Settings, with an update waiting")
             Check.test("The update card's buttons are named\(language)") {
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
@@ -245,7 +256,46 @@ func runAccessibilityTests() {
                     Check.expectTrue(names.contains(name), "the update card has no \(name) in \(names)")
                 }
             }
-            model.updates.previewCard(version: nil)
+            // Waiting to install by itself, and installed (#710).
+            model.updates.preview(.ready("9.9.9"))
+            checkMain("Settings, with an update about to install")
+            Check.test("The card of an update about to install has its buttons\(language)") {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                let names = namesNow()
+                for name in [L("Restart Now"), L("What's New"), L("Hide")] {
+                    Check.expectTrue(names.contains(name), "the card has no \(name) in \(names)")
+                }
+            }
+            model.updates.preview(.updated("9.9.9"))
+            checkMain("Settings, with an update that installed by itself")
+            Check.test("The card of an update that installed has its buttons\(language)") {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                let names = namesNow()
+                for name in [L("What's New"), L("Hide this")] {
+                    Check.expectTrue(names.contains(name), "the card has no \(name) in \(names)")
+                }
+                Check.expectFalse(names.contains(L("Restart Now")), "nothing left to restart for")
+            }
+            // It grew by the card's height and stayed that way (#710).
+            Check.test("The update card leaves the window's height alone\(language)") {
+                Check.expectEqual(window.frame.height, height)
+            }
+            model.updates.preview(nil)
+            // The welcome window (#134), with its update switch (#710).
+            Check.test("The welcome window names everything VoiceOver reads\(language)") {
+                let welcome = WelcomeWindowController(filter: model.filter, wifiNames: model.wifiNames,
+                                                      updates: model.updates)
+                welcome.window.placeOutOfSight()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+                defer { welcome.window.orderOut(nil) }
+                guard let problems = AccessibilityAudit.auditOwnWindow(titled: welcome.window.title, symbols: symbols) else {
+                    Check.expectTrue(false, "couldn't read the welcome window's accessibility tree")
+                    return
+                }
+                for problem in problems { Check.expectTrue(false, problem.description) }
+                let names = AccessibilityAudit.namesOwnWindow(titled: welcome.window.title)
+                Check.expectTrue(names.contains(L("Install updates automatically")), "no update switch in \(names)")
+            }
             // With Dock chosen, and so its Dock icon choice showing (#523).
             let placement = AppPlacementSetting.shared.placement
             AppPlacementSetting.shared.placement = .dock

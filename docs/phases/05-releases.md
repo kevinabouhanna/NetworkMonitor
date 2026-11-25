@@ -11,10 +11,10 @@ builds, checks and releases the app stays in order.
   has the popover's fixes (#728) on top of beta 2's battery fix (#719); Kevin's copy updates to it. It goes to everyone as 1.32.0
   when he says it's good, once product-kit reads the release's tag rather than its beta's
   (product-kit#115).
-- **Update settings: automatic updates on or off** (#710), Next: an Updates section in Settings
-  that says what happens, and a switch to install new versions automatically, off by default
-  (today Settings only has the daily check). It starts with pictures of updating as it is. After
-  the ⓘ links (#230), before the Chrome extension (#257).
+- **Update settings: automatic updates on or off** (#710): an Updates section in Settings that
+  says what happens, and a switch to install new versions automatically, off by default, in the
+  welcome window too. Approved by Kevin on 25 Nov 2026 from a working prototype's pictures, and
+  built ahead of the ⓘ links (#230) because he asked for it then.
 - **Keep the tooling and the plan in order** (#606), standing: tooling chores (the vendored
   kits, local CI, the release workflow, the pictures' VM image, the plan and the board kept in
   step) are its steps. First among them: CI fails a change that keeps the app busy while it's

@@ -11,12 +11,12 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 |---|---|---|
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
+| 5.5 | #710 Update settings: automatic updates on or off, and what happens in plain words | [Phase 5: Releases people check first](05-releases.md) |
 
 ## Next
 
 | Order | Plan | Phase |
 |---|---|---|
-| 5.5 | #710 Update settings: automatic updates on or off, and what happens in plain words | [Phase 5: Releases people check first](05-releases.md) |
 | 6 | #257 A NetworkMonitor extension for Chrome: in-page ads, pop-ups and YouTube ads, with the app's lists and rules | [Phase 3: The Chrome extension](03-chrome-extension.md) |
 
 ## Later
