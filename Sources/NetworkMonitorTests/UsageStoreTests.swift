@@ -507,6 +507,22 @@ func runUsageStoreTests() {
             Check.expectEqual(store.currentBucket.apps["NewApp"]?.bytesIn, 200)
         }
 
+        Check.test("which network's totals a sample goes to, by where it was taken (#759, #763)") {
+            let url = temporaryURL()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let store = UsageStore(storeURL: url)
+            let offline = NetworkFingerprint.offline.id
+            // At launch, sampled before the network was known: the network's.
+            Check.expectEqual(store.appSampleBucketID(from: offline), offline)
+            store.setCurrentNetwork(network("home"))
+            Check.expectEqual(store.appSampleBucketID(from: offline), "home")
+            Check.expectEqual(store.appSampleBucketID(from: "home"), "home")
+            Check.expectNil(store.appSampleBucketID(from: "hotspot"), "another network's")
+            store.setCurrentNetwork(.offline)
+            Check.expectEqual(store.appSampleBucketID(from: "home"), "home", "the last one, over a gap")
+            Check.expectNil(store.appSampleBucketID(from: "hotspot"), "not the last one")
+        }
+
         // Quitting is not switching networks. Restoring the day's totals on the
         // same network is the whole point of persisting them.
         Check.test("relaunching on the same network resumes its counter") {

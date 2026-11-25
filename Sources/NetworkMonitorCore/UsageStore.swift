@@ -217,8 +217,8 @@ public final class UsageStore {
                            servers: [String: [String: ByteCounts]] = [:],
                            localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
                            sampledOn: String? = nil, now: Date = Date()) {
-        guard let id = appSampleBucketID(from: sampledOn ?? currentNetwork.id) else { return }
         rolloverIfNeeded(now: now)
+        guard let id = appSampleBucketID(from: sampledOn ?? currentNetwork.id) else { return }
         withBucket(id: id, now: now) { bucket in
             bucket.localBytesIn += localBytesIn
             bucket.localBytesOut += localBytesOut
@@ -276,8 +276,12 @@ public final class UsageStore {
         bucket.apps[identity.key] = totals
     }
 
-    /// During an offline gap, History also keeps the last session open.
-    func appSampleBucketID(from sampledOn: String) -> String? {
+    /// Which bucket a sample taken on `sampledOn` goes to (#759, #763): the
+    /// current one when it was taken there, or before any network was known;
+    /// during an offline gap, the network joined last, when it was taken there,
+    /// as Usage History keeps that network's session open; otherwise none, and
+    /// the sample is left out, being another network's.
+    public func appSampleBucketID(from sampledOn: String) -> String? {
         let active = currentNetwork.id
         let offline = NetworkFingerprint.offline.id
         if sampledOn == active || sampledOn == offline { return active }
