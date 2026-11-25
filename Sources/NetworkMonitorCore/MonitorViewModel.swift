@@ -394,9 +394,13 @@ public final class MonitorViewModel: ObservableObject {
             self.tunnelCarrierName = pid.map { self.identityResolver.identity(pid: $0, fallbackName: "").displayName }
         }
         nettop.onFailure = { [weak self] message in
-            DispatchQueue.main.async {
-                guard let self, self.perAppFailure != message else { return }
-                self.perAppFailure = message
+            // After the samples before it, which clear what it says.
+            self?.udpUsageQueue.async {
+                self?.udpCredit.reset()
+                DispatchQueue.main.async {
+                    guard let self, self.perAppFailure != message else { return }
+                    self.perAppFailure = message
+                }
             }
         }
         nettop.start()
@@ -417,6 +421,10 @@ public final class MonitorViewModel: ObservableObject {
     /// interval does.
     private func applyProfile() {
         let next = PowerProfile.current()
+        if profile.nettopSampleInterval != next.nettopSampleInterval {
+            // nettop starts again, and drops what it had counted.
+            udpUsageQueue.async { [weak self] in self?.udpCredit.reset() }
+        }
         if profile != next { profile = next }
         setSampleInterval(next.interfaceInterval(unattended: unattended))
         nettop.setSampleInterval(next.nettopSampleInterval)

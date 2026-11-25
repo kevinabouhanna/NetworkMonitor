@@ -111,8 +111,9 @@ public enum HelperService {
     ///
     /// Held back like the verbs (#243), and for a minute after its own missed
     /// answer. That one doesn't hold the verbs back: a daemon from before an
-    /// update answers them, and not this, until it quits.
-    static func udpUsage(timeout: TimeInterval = 0.4) -> UDPUsageSnapshot? {
+    /// update answers them, and not this, until it quits. The first question
+    /// may have to wait for launchd to start the daemon.
+    static func udpUsage(timeout: TimeInterval = 2) -> UDPUsageSnapshot? {
         guard status == .enabled else { return nil }
         let now = Date()
         lock.lock()

@@ -25,12 +25,14 @@ final class UDPUsageMonitor {
     func snapshot(reply: @escaping (Data) -> Void) {
         queue.async {
             if self.capture?.isRunning != true {
+                // It died by itself, and its handler's turn is still to come.
+                if self.capture != nil { self.lastFailure = Date() }
                 self.stopOnQueue()
                 if self.lastFailure.map({ Date().timeIntervalSince($0) >= 30 }) ?? true { self.startCapture() }
             }
             guard self.capture != nil else { reply(Data()); return }
             self.scheduleStop()
-            reply((try? JSONEncoder().encode(self.counts.snapshot)) ?? Data())
+            reply((try? JSONEncoder().encode(self.counts.snapshot())) ?? Data())
         }
     }
 
@@ -39,14 +41,30 @@ final class UDPUsageMonitor {
         queue.sync { stopOnQueue() }
     }
 
+    /// Fixed, so one a killed daemon left behind is known again. No
+    /// `--immediate-mode`: packets come in batches, which is most of the
+    /// saving. `UDPUsageCredit` allows for their coming late.
+    private static let options = ["-i", "pktap", "-nn", "-p", "-q", "-t", "-k", "NPDI", "-s", "256", "-l"]
+
+    /// Ends a capture left by a daemon that had no chance to: only `launchd`'s
+    /// children, so never another's.
+    private static func endOrphans() {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
+        task.arguments = ["-P", "1", "-f", "^/usr/sbin/tcpdump " + options.joined(separator: " ")]
+        task.standardInput = FileHandle.nullDevice
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+        guard (try? task.run()) != nil else { return }
+        task.waitUntilExit()
+    }
+
     private func startCapture() {
+        Self.endOrphans()
         let task = Process()
         let output = Pipe()
         task.executableURL = URL(fileURLWithPath: "/usr/sbin/tcpdump")
-        // No `--immediate-mode`: packets come in batches, which is most of the
-        // saving. `UDPUsageCredit` allows for their coming late.
-        task.arguments = ["-i", "pktap", "-nn", "-p", "-q", "-t", "-k", "NPDI", "-s", "256", "-l",
-                          UDPObservation.filter]
+        task.arguments = Self.options + [UDPObservation.filter]
         task.standardInput = FileHandle.nullDevice
         task.standardOutput = output
         task.standardError = FileHandle.nullDevice

@@ -20,9 +20,11 @@ final class Daemon: NSObject, NSXPCListenerDelegate, HelperXPCInterface {
     private var idleExit: DispatchWorkItem?
     private let udpMonitor = UDPUsageMonitor()
     private let program = Daemon.programOnDisk()
+    private var terminated: DispatchSourceSignal?
 
     static func serve() -> Never {
         shared.migrate()
+        shared.stopCaptureWhenTerminated()
         let listener = NSXPCListener(machServiceName: HelperDaemon.machServiceName)
         listener.delegate = shared
         listener.resume()
@@ -61,6 +63,19 @@ final class Daemon: NSObject, NSXPCListenerDelegate, HelperXPCInterface {
             self.scheduleIdleExit()
         }
         udpMonitor.snapshot(reply: reply)
+    }
+
+    /// Switched off in Login Items, or registered again. The handler does
+    /// nothing, where `SIG_IGN` would be passed on to `tcpdump`.
+    private func stopCaptureWhenTerminated() {
+        signal(SIGTERM) { _ in }
+        let source = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .global())
+        source.setEventHandler { [udpMonitor] in
+            udpMonitor.stop()
+            exit(0)
+        }
+        source.resume()
+        terminated = source
     }
 
     /// Which file the program is, to tell when an update has replaced it.

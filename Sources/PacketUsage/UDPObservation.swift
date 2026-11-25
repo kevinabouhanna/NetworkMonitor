@@ -102,24 +102,30 @@ public struct UDPUsageSnapshot: Codable {
 
 /// The running counts behind a snapshot.
 public struct UDPUsageCounts {
-    /// Sockets come and go. Past this many the counts start again, under a new
-    /// epoch, which costs one sample's correction.
+    /// Past this many the counts start again, under a new epoch, which costs
+    /// one sample's correction.
     public static let maximumSockets = 4096
+    /// A socket this long without a packet is left out, and counted from zero
+    /// if it's seen again: longer than any two questions are apart.
+    public static let forgetAfter: TimeInterval = 60
 
     public private(set) var epoch = UUID()
-    private var sockets: [UDPObservation.Socket: UDPSocketUsage] = [:]
+    private var sockets: [UDPObservation.Socket: (usage: UDPSocketUsage, seen: Date)] = [:]
 
     public init() {}
 
-    public mutating func record(_ packet: UDPObservation) {
+    public mutating func record(_ packet: UDPObservation, now: Date = Date()) {
         if sockets[packet.socket] == nil, sockets.count >= Self.maximumSockets {
             sockets = [:]
             epoch = UUID()
         }
-        var usage = sockets[packet.socket] ?? UDPSocketUsage(socket: packet.socket)
+        var usage = sockets[packet.socket]?.usage ?? UDPSocketUsage(socket: packet.socket)
         if packet.inbound { usage.bytesIn += packet.bytes } else { usage.bytesOut += packet.bytes }
-        sockets[packet.socket] = usage
+        sockets[packet.socket] = (usage, now)
     }
 
-    public var snapshot: UDPUsageSnapshot { UDPUsageSnapshot(epoch: epoch, sockets: Array(sockets.values)) }
+    public mutating func snapshot(now: Date = Date()) -> UDPUsageSnapshot {
+        sockets = sockets.filter { now.timeIntervalSince($0.value.seen) < Self.forgetAfter }
+        return UDPUsageSnapshot(epoch: epoch, sockets: sockets.values.map(\.usage))
+    }
 }

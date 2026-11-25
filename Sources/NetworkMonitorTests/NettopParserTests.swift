@@ -251,9 +251,44 @@ func runNettopParserTests() {
             _ = credit.apply(to: little, interfaces: { ["en0"] }, snapshot: { asked += 1; return started })
             Check.expectEqual(asked, 0)
             _ = credit.apply(to: mixed, interfaces: { ["en0"] }, snapshot: { asked += 1; return started })
-            // Once it's counting, small samples are placed as well.
-            _ = credit.apply(to: little, interfaces: { ["en0"] }, snapshot: { asked += 1; return started })
-            Check.expectEqual(asked, 2)
+            // Once it's counting, every sample is placed, until it's been quiet.
+            for _ in 1...20 {
+                _ = credit.apply(to: little, interfaces: { ["en0"] }, snapshot: { asked += 1; return started })
+            }
+            Check.expectEqual(asked, UDPUsageCredit.quietSamples)
+        }
+
+        Check.test("what's left over isn't taken off after a quiet spell, or once nettop starts again") {
+            let nothing = sample("14:13:05,ExampleApp.1234,,20,0,")
+            for pause in [0, UDPUsageCredit.quietSamples] {
+                var credit = UDPUsageCredit(isCarrier: { _, _ in false })
+                func next(_ sample: [NettopRow], _ answer: UDPUsageSnapshot) -> Int64? {
+                    credit.apply(to: sample, interfaces: { ["en0"] }, snapshot: { answer }).first?.internetBytesIn
+                }
+                _ = next(mixed, started)
+                _ = next(nothing, usage(90000, 0))
+                for _ in 0..<pause { _ = next(nothing, usage(90000, 0)) }
+                if pause == 0 { credit.reset() }
+                Check.expectEqual(next(mixed, usage(95000, 0)), 120_000)
+            }
+        }
+
+        Check.test("a VPN's traffic alone doesn't ask the helper") {
+            var asked = 0
+            var credit = UDPUsageCredit(isCarrier: { _, _ in true })
+            _ = credit.apply(to: mixed, interfaces: { ["en0"] }, snapshot: { asked += 1; return started })
+            Check.expectEqual(asked, 0)
+        }
+
+        Check.test("a VPN is known by its name too, as a process number is used again") {
+            let vpn = sample("""
+            14:13:05,Tunnel.1234,,100000,0,
+            14:13:05,udp4 *:63259<->*:*,en0,100000,0,
+            """)
+            var credit = UDPUsageCredit(isCarrier: { _, name in name == "Tunnel" })
+            _ = credit.apply(to: mixed, interfaces: { ["en0"] }, snapshot: { started })
+            let row = credit.apply(to: vpn, interfaces: { ["en0"] }, snapshot: { usage(90000, 0) }).first
+            Check.expectEqual(row?.internetBytesIn, 100_000)
         }
 
         Check.test("PKTAP's lines give the socket, the direction and the size") {
@@ -292,12 +327,16 @@ func runNettopParserTests() {
                 UDPObservation(line: "(en0, proc A:1, out) IP 192.168.1.2.\(port) > 192.168.1.3.9: UDP, length 10")!
             }
             counts.record(packet(1)); counts.record(packet(1))
-            Check.expectEqual(counts.snapshot.sockets.first?.bytesOut, 20)
+            Check.expectEqual(counts.snapshot().sockets.first?.bytesOut, 20)
+            // One that's gone quiet is left out, so an answer doesn't grow all day.
+            counts.record(packet(2), now: Date().addingTimeInterval(-UDPUsageCounts.forgetAfter))
+            Check.expectEqual(counts.snapshot().sockets.count, 1)
+            Check.expectEqual(counts.epoch, first)
             for port in 2...UDPUsageCounts.maximumSockets { counts.record(packet(port)) }
             Check.expectEqual(counts.epoch, first)
             counts.record(packet(60000))
             Check.expectTrue(counts.epoch != first, "a new epoch")
-            Check.expectEqual(counts.snapshot.sockets.count, 1)
+            Check.expectEqual(counts.snapshot().sockets.count, 1)
         }
     }
 

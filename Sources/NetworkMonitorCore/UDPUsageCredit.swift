@@ -30,15 +30,24 @@ struct NettopUDPSocket: Equatable {
 public struct UDPUsageCredit {
     /// Less than this in a sample isn't worth starting the capture for.
     public static let worthAsking: Int64 = 16 * 1024
+    /// After this many samples below it, the helper is no longer asked.
+    public static let quietSamples = 5
 
     private struct Key: Hashable {
         let pid: Int32
         let port: Int
     }
 
+    private struct Process: Hashable {
+        let pid: Int32
+        let name: String
+    }
+
     private var lastSnapshot: UDPUsageSnapshot?
     private var waiting: [Key: ByteCounts] = [:]
-    private var carriers: [Int32: Bool] = [:]
+    private var quiet = 0
+    /// By name too: a process number is used again.
+    private var carriers: [Process: Bool] = [:]
     private let isCarrier: (Int32, String) -> Bool
 
     /// - Parameter isCarrier: a VPN or a proxy. Its socket to a gateway on your own
@@ -50,16 +59,18 @@ public struct UDPUsageCredit {
     }
 
     /// The sample with what stayed on your own network marked so. `snapshot`
-    /// asks the helper, and is only called when there's traffic it could place.
+    /// asks the helper: once there's traffic worth placing, then for every
+    /// sample until it's been quiet, so each answer covers one sample.
     public mutating func apply(to sample: [NettopRow], interfaces: () -> Set<String>,
                                snapshot: () -> UDPUsageSnapshot?) -> [NettopRow] {
-        let unplaced = sample.reduce(Int64(0)) { total, row in
-            row.udpSockets.reduce(total) { $0 + ($1.hasTrafficWithoutPeer ? $1.bytesIn + $1.bytesOut : 0) }
+        var unplaced: Int64 = 0
+        for row in sample where row.udpSockets.contains(where: \.hasTrafficWithoutPeer) && !carries(row) {
+            for socket in row.udpSockets where socket.hasTrafficWithoutPeer { unplaced += socket.bytesIn + socket.bytesOut }
         }
-        guard unplaced >= Self.worthAsking || (unplaced > 0 && lastSnapshot != nil) else { return sample }
-        guard let latest = snapshot() else {
-            lastSnapshot = nil
-            waiting = [:]
+        quiet = unplaced >= Self.worthAsking ? 0 : quiet + 1
+        guard unplaced >= Self.worthAsking || (lastSnapshot != nil && quiet < Self.quietSamples),
+              let latest = snapshot() else {
+            reset()
             return sample
         }
         let seen = added(by: latest, interfaces: interfaces())
@@ -97,6 +108,13 @@ public struct UDPUsageCredit {
         return corrected
     }
 
+    /// What was seen so far belongs to no sample to come: nettop started again,
+    /// or nothing was asked for a while.
+    public mutating func reset() {
+        lastSnapshot = nil
+        waiting = [:]
+    }
+
     private mutating func added(by latest: UDPUsageSnapshot, interfaces: Set<String>) -> [Key: ByteCounts] {
         defer { lastSnapshot = latest }
         // Counts that started again can't be compared with the last ones.
@@ -114,10 +132,11 @@ public struct UDPUsageCredit {
     }
 
     private mutating func carries(_ row: NettopRow) -> Bool {
-        if let known = carriers[row.pid] { return known }
+        let process = Process(pid: row.pid, name: row.processName)
+        if let known = carriers[process] { return known }
         let answer = isCarrier(row.pid, row.processName)
         if carriers.count > 1024 { carriers = [:] }
-        carriers[row.pid] = answer
+        carriers[process] = answer
         return answer
     }
 }
