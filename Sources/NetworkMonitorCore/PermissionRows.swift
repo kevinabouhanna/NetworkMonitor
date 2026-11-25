@@ -202,7 +202,6 @@ struct InstallUpdatesRow: View {
             Toggle(L("Install updates automatically"), isOn: $updates.installsAutomatically)
                 .toggleStyle(.switch)
                 .labelsHidden()
-                .disabled(!updates.checksAutomatically)
         } detail: {
             EmptyView()
         }

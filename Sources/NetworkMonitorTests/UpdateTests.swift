@@ -142,6 +142,68 @@ func runUpdateTests() {
             Check.expectEqual(installs, 1, "Restart Now")
         }
 
+        Check.test("a beta that downloaded doesn't install by itself once betas are off") {
+            let updates = controller("updates-beta-off")
+            updates.installsAutomatically = true
+            updates.getsBetas = true
+            updates.canRestartQuietly = { false }
+            var installs = 0
+            updates.updateIsReady(version: "2.0-beta.1", isBeta: true) { installs += 1 }
+            updates.getsBetas = false
+            updates.canRestartQuietly = { true }
+            updates.installReadyIfQuiet()
+            Check.expectEqual(installs, 0)
+            Check.expectTrue(updates.whatHappens.contains("once this one has installed"), updates.whatHappens)
+            updates.getsBetas = true
+            updates.installReadyIfQuiet()
+            Check.expectEqual(installs, 1, "betas back on")
+        }
+
+        Check.test("an install that fails leaves nothing waiting") {
+            withUpdater { make, _ in
+                let defaults = Check.defaults("updates-failed")
+                let updates = UpdateController(defaults: defaults)
+                updates.installsAutomatically = true
+                updates.quietCheckInterval = 0.1
+                updates.canRestartQuietly = { false }
+                var installs = 0
+                updates.updateIsReady(version: "2.0") { installs += 1 }
+                updates.readyEnded()
+                updates.canRestartQuietly = { true }
+                settle()
+                Check.expectNil(updates.notice)
+                Check.expectEqual(installs, 0, "nothing to look again for")
+                Check.expectNil(defaults.string(forKey: UpdateController.installedByItselfKey))
+            }
+        }
+
+        Check.test("the last check is when GitHub answered, and kept") {
+            withUpdater { make, _ in
+                let defaults = Check.defaults("updates-heard")
+                let updates = UpdateController(defaults: defaults)
+                updates.follow(make())
+                Check.expectNil(updates.lastChecked, "never")
+                let then = Date(timeIntervalSinceNow: -60)
+                updates.heardFromGitHub(now: then)
+                let relaunched = UpdateController(defaults: defaults)
+                relaunched.follow(make())
+                Check.expectEqual(relaunched.lastChecked?.timeIntervalSince1970 ?? 0, then.timeIntervalSince1970, accuracy: 0.01)
+            }
+        }
+
+        Check.test("switched on with a version on the card, the card gives way to installing it") {
+            let updates = controller("updates-on-with-card")
+            updates.preview(.available("2.0"))
+            updates.installsAutomatically = true
+            Check.expectNil(updates.notice)
+        }
+
+        Check.test("What's New opens that version's page, whatever it's called") {
+            Check.expectEqual(UpdateController.releaseURL(version: "1.33.0-beta.1").absoluteString,
+                              "https://github.com/kevinabouhanna/NetworkMonitor/releases/tag/v1.33.0-beta.1")
+            Check.expectTrue(UpdateController.releaseURL(version: "1 2").absoluteString.hasSuffix("v1%202"))
+        }
+
         Check.test("Check for Updates… while one waits shows it, card and all") {
             let updates = controller("updates-check")
             updates.canRestartQuietly = { false }

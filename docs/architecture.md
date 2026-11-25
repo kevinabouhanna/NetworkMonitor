@@ -612,8 +612,11 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    quits, which a menu bar app rarely does, so `willInstallUpdateOnQuit` takes it over:
    `installReadyIfQuiet` runs it once no titled window, modal or popover is open and no speed
    test is running or ended in the last five minutes (its result is in memory only), on each
-   window closing and every minute. Switched off
-   meanwhile, it waits for Restart Now or for the app to quit. `willRestart` remembers the
+   window, popover or menu closing and every minute; never with an uninstall or a change of
+   the filter under way. Switched off meanwhile, or Get beta versions for a beta, it waits for
+   Restart Now or for the app to quit; until it installs, Sparkle's session stays open and
+   nothing newer is looked for, which Settings says. Settings' last check is the last appcast
+   read (`updatesLastChecked`), not Sparkle's date, which counts attempts. `willRestart` remembers the
    section open as the app goes, for the new copy to open again within five minutes.
 
 An app's servers can add up to a little less than its total: a socket that opened and

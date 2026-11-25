@@ -82,7 +82,8 @@ struct WelcomeView: View {
                     Divider()
                 }
                 WiFiNamesRow(wifiNames: wifiNames)
-                if updates.isAvailable {
+                // Nothing to offer without the daily check it needs.
+                if updates.isAvailable, updates.checksAutomatically {
                     Divider()
                     InstallUpdatesRow(updates: updates)
                 }

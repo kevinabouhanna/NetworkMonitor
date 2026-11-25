@@ -94,6 +94,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Windows and popovers closing, for an update waiting to install by
     /// itself (#710).
     private var quietCheck: AnyCancellable?
+    private var menuWatch: AnyCancellable?
+    private var hideWatch: AnyCancellable?
+    private var menuIsOpen = false
+    private var hidWithWindows = false
+    /// From Uninstall's OK until it's done or given up.
+    private var uninstalling = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
@@ -883,7 +889,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // question or popover, nor during a speed test or just after one.
         model.updates.canRestartQuietly = { [weak self] in
             guard let self else { return false }
-            return !self.somethingIsOpen && !self.model.speedTest.restartWouldLoseTest()
+            return !self.somethingIsOpen && !self.uninstalling && !self.model.filter.isBusy
+                && !self.model.speedTest.restartWouldLoseTest()
         }
         model.updates.sectionToReopen = { [weak self] in
             guard let main = self?.mainController, main.window.isVisible || main.window.isMiniaturized else { return nil }
@@ -892,10 +899,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         model.updates.onShowReady = { [weak self] in self?.showSettings() }
         let center = NotificationCenter.default
         quietCheck = center.publisher(for: NSWindow.willCloseNotification)
-            .merge(with: center.publisher(for: NSPopover.didCloseNotification)).map { _ in }
+            .merge(with: center.publisher(for: NSPopover.didCloseNotification),
+                   center.publisher(for: NSMenu.didEndTrackingNotification)).map { _ in }
             // Once the window has gone, and not between two that follow on.
             .debounce(for: .seconds(1), scheduler: DispatchQueue.main)
             .sink { [weak self] in self?.model.updates.installReadyIfQuiet() }
+        menuWatch = center.publisher(for: NSMenu.didBeginTrackingNotification).map { _ in true }
+            .merge(with: center.publisher(for: NSMenu.didEndTrackingNotification).map { _ in false })
+            .sink { [weak self] in self?.menuIsOpen = $0 }
+        // Hidden with ⌘H, its windows don't count as visible, but they're open.
+        hideWatch = center.publisher(for: NSApplication.willHideNotification)
+            .sink { [weak self] _ in self?.hidWithWindows = self?.windowsAreOpen ?? false }
         model.updates.onWillShowUpdate = { [weak self] userInitiated in
             guard let self else { return }
             self.showingUpdate = true
@@ -911,13 +925,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
     }
 
-    /// Whether a window of any kind is open, minimized or hidden included: the main one,
-    /// the welcome, About, a question of Ask Me's, Sparkle's own.
+    /// Whether a menu, or a window of any kind, is open, minimized or hidden
+    /// included: the main one, the welcome, About, a question of Ask Me's,
+    /// Sparkle's own.
     private var somethingIsOpen: Bool {
-        if popover.isShown || NSApp.modalWindow != nil { return true }
-        // Hidden with ⌘H, its windows don't count as visible, but they're open.
-        if NSApp.isHidden, NSApp.activationPolicy() == .regular { return true }
-        return NSApp.windows.contains { $0.styleMask.contains(.titled) && ($0.isVisible || $0.isMiniaturized) }
+        popover.isShown || menuIsOpen || NSApp.modalWindow != nil || windowsAreOpen || (NSApp.isHidden && hidWithWindows)
+    }
+
+    private var windowsAreOpen: Bool {
+        NSApp.windows.contains { $0.styleMask.contains(.titled) && ($0.isVisible || $0.isMiniaturized) }
     }
 
     /// Sparkle's own window (#132), which says what's new and asks.
@@ -975,11 +991,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
         // The content filter goes first: its extension is removed by the app
         // that installed it, which is about to be in the Trash.
+        uninstalling = true
         model.filter.remove { [weak self] in self?.finishUninstall() }
     }
 
     private func finishUninstall() {
-        switch model.uninstall() {
+        let outcome = model.uninstall()
+        uninstalling = false
+        switch outcome {
         case .done:
             NSApp.terminate(nil)
         case .cancelled, .waitingForApproval:

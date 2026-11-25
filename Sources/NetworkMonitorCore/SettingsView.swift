@@ -252,6 +252,7 @@ struct GeneralSettingsPane: View {
                         Button(L("Install & Restart")) { updates.installPendingUpdate() }
                     } else {
                         Button(L("Check Now")) { updates.checkForUpdates() }
+                            .disabled(!updates.canCheck)
                     }
                 }
             } label: {
@@ -268,9 +269,9 @@ struct GeneralSettingsPane: View {
                 Toggle(L("Install updates automatically"), isOn: $updates.installsAutomatically)
                     .toggleStyle(.switch)
                     .labelsHidden()
+                    // Only the switch: the ⓘ says what it needs.
+                    .disabled(!updates.checksAutomatically)
             }
-            .disabled(!updates.checksAutomatically)
-            .opacity(updates.checksAutomatically ? 1 : 0.45)
             // Betas (#585): new versions before everyone else.
             ExplainedRow(L("Get beta versions"),
                          L("Beta versions come to you before everyone else, to try new things early. They may have problems. Switched off, you keep a beta until the next version comes out.")) {
