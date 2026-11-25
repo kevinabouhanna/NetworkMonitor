@@ -23,7 +23,7 @@ flowchart LR
 
     subgraph app["NetworkMonitor"]
         S["Sampler<br/>InterfaceCounters → DeltaTracker → RateSmoother"]
-        NS["NettopStream → NettopParser<br/>→ UDPUsageCredit → SampleSummary"]
+        NS["NettopStream → NettopParser<br/>→ UDPUsageCredit → UDPWireCredit<br/>→ SampleSummary"]
         ID["AppIdentityResolver<br/>pid → outermost .app"]
         NW["NetworkIdentityWatcher<br/>+ MeteredHeuristic"]
         VM(["MonitorViewModel"])
@@ -283,6 +283,19 @@ unicast bytes from the internet calculation and keeps public or unclassified byt
 The app requests capture as it starts sampling so the first delta can use it. Capture
 stops 25 seconds after the latest request. When the helper is off, the interval is
 unavailable or a socket match is ambiguous, counting falls back to `nettop`.
+
+### UDP and QUIC flows with missing bytes
+
+Sometimes `nettop` shows a UDP or QUIC flow but undercounts its bytes. This can happen
+with Safari and iCloud Private Relay. `UDPWireCredit` matches the helper's observations
+to a unique `nettop` flow on a physical interface by process, IP version, addresses and
+ports. It uses the greater cumulative count in each direction, so bytes are counted
+once even if `nettop` reports them later.
+
+Extra bytes go to the app identified by the packet's effective process ID when macOS
+provides a single resolvable ID. Otherwise they go to the socket's process. This rule
+works on matching UDP and QUIC flows from any app. A flow missing entirely from
+`nettop` cannot be matched.
 
 ## A total per connection
 

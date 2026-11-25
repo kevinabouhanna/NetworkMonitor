@@ -14,8 +14,10 @@ leaves your Mac.
   whether it was on the internet or on your own network, and which server it was. It
   never sees the contents of any traffic.
 - **UDP packet metadata**, when the launch daemon is enabled. It uses timestamps,
-  addresses, ports, process IDs and byte counts to identify local traffic that `nettop`
-  can't classify. Recent observations stay in memory. The helper returns counters
+  addresses, ports, process IDs and byte counts to identify local traffic and fill in
+  bytes missing from matching `nettop` flows. When macOS identifies the responsible app,
+  the extra bytes are credited to that app. Recent observations stay in memory. The
+  helper returns counters
   through XPC, saves no packet trace and sends nothing off your Mac.
 - **The default gateway's hardware address**, to tell one network from another (see
   [how it tells networks apart](features.md#a-total-per-connection)). It comes from

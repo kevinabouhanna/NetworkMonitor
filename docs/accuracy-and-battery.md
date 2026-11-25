@@ -28,6 +28,10 @@ profile. A socket that opens and closes in between still reaches its process's r
 process that starts and ends in between may never be named. Its bytes are still in the
 total, and in History and the CSV they're under *Not attributed to an app*.
 
+With the helper enabled, NetworkMonitor can fill in bytes missing from UDP or QUIC
+flows that `nettop` lists. For example, this can restore traffic to Safari's row when
+using iCloud Private Relay. A flow still needs a matching socket in `nettop`.
+
 ## Internet, not your own network
 
 Mirroring your screen to an Apple TV, Time Machine to a NAS, a Plex stream from your own
