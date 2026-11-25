@@ -34,6 +34,13 @@ func runUpdateTests() {
             }, bundle)
         }
         func settle() { RunLoop.main.run(until: Date().addingTimeInterval(0.3)) }
+        /// Runs until `condition` holds, for what arrives when it arrives:
+        /// Sparkle's settings reach each other through another process (#751).
+        func arrives(_ condition: () -> Bool) -> Bool {
+            let limit = Date().addingTimeInterval(20)
+            while !condition(), Date() < limit { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+            return condition()
+        }
         func controller(_ name: String) -> UpdateController { UpdateController(defaults: Check.defaults(name)) }
 
         Check.test("off on a new copy, and kept after a relaunch") {
@@ -56,17 +63,13 @@ func runUpdateTests() {
                 updates.follow(make())
                 let tickBox = SPUUpdaterSettings(hostBundle: bundle)
                 tickBox.automaticallyDownloadsUpdates = true
-                settle()
-                Check.expectTrue(updates.installsAutomatically, "ticked there, on here")
+                Check.expectTrue(arrives { updates.installsAutomatically }, "ticked there, on here")
                 updates.installsAutomatically = false
-                settle()
-                Check.expectFalse(tickBox.automaticallyDownloadsUpdates, "off here, not ticked there")
+                Check.expectTrue(arrives { !tickBox.automaticallyDownloadsUpdates }, "off here, not ticked there")
                 updates.installsAutomatically = true
-                settle()
-                Check.expectTrue(tickBox.automaticallyDownloadsUpdates, "on here, ticked there")
+                Check.expectTrue(arrives { tickBox.automaticallyDownloadsUpdates }, "on here, ticked there")
                 tickBox.automaticallyDownloadsUpdates = false
-                settle()
-                Check.expectFalse(updates.installsAutomatically, "unticked there, off here")
+                Check.expectTrue(arrives { !updates.installsAutomatically }, "unticked there, off here")
             }
         }
 
@@ -76,11 +79,9 @@ func runUpdateTests() {
                 updates.follow(make())
                 updates.installsAutomatically = true
                 updates.checksAutomatically = false
-                settle()
-                Check.expectFalse(updates.installsAutomatically, "it needs the daily check")
+                Check.expectTrue(arrives { !updates.installsAutomatically }, "it needs the daily check")
                 updates.checksAutomatically = true
-                settle()
-                Check.expectTrue(updates.installsAutomatically, "the choice came back")
+                Check.expectTrue(arrives { updates.installsAutomatically }, "the choice came back")
             }
         }
 
@@ -123,8 +124,7 @@ func runUpdateTests() {
             settle()
             Check.expectEqual(installs, 0)
             quiet = true
-            settle()
-            Check.expectEqual(installs, 1)
+            Check.expectTrue(arrives { installs == 1 }, "installed once nothing was open")
         }
 
         Check.test("switched off since it downloaded, it waits to be asked") {

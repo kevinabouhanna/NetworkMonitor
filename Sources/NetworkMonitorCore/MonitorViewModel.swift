@@ -143,6 +143,10 @@ public final class MonitorViewModel: ObservableObject {
 
     private let identityResolver = AppIdentityResolver()
     private let nettop: NettopStream
+    /// Traffic of your own network that nettop can't place (#753). On its own
+    /// queue, in order: the helper is asked over XPC.
+    private let udpUsageQueue = DispatchQueue(label: "com.networkmonitor.udp-usage")  // untranslated: queue label
+    private var udpCredit = UDPUsageCredit()
     /// Traffic through a proxy or a VPN, credited to the apps behind it (#356).
     private let tunnelCredit: TunnelCreditor
     private let pathWatcher = NetworkIdentityWatcher()
@@ -390,9 +394,13 @@ public final class MonitorViewModel: ObservableObject {
             self.tunnelCarrierName = pid.map { self.identityResolver.identity(pid: $0, fallbackName: "").displayName }
         }
         nettop.onFailure = { [weak self] message in
-            DispatchQueue.main.async {
-                guard let self, self.perAppFailure != message else { return }
-                self.perAppFailure = message
+            // After the samples before it, which clear what it says.
+            self?.udpUsageQueue.async {
+                self?.udpCredit.reset()
+                DispatchQueue.main.async {
+                    guard let self, self.perAppFailure != message else { return }
+                    self.perAppFailure = message
+                }
             }
         }
         nettop.start()
@@ -413,6 +421,10 @@ public final class MonitorViewModel: ObservableObject {
     /// interval does.
     private func applyProfile() {
         let next = PowerProfile.current()
+        if profile.nettopSampleInterval != next.nettopSampleInterval {
+            // nettop starts again, and drops what it had counted.
+            udpUsageQueue.async { [weak self] in self?.udpCredit.reset() }
+        }
         if profile != next { profile = next }
         setSampleInterval(next.interfaceInterval(unattended: unattended))
         nettop.setSampleInterval(next.nettopSampleInterval)
@@ -626,6 +638,16 @@ public final class MonitorViewModel: ObservableObject {
     // MARK: nettop sampling
 
     private func handleNettopSample(_ raw: [NettopRow]) {
+        udpUsageQueue.async { [weak self] in
+            guard let self else { return }
+            self.recordNettopSample(self.udpCredit.apply(
+                to: raw,
+                interfaces: { Set(InterfaceCounters.read().map(\.name)) },
+                snapshot: { HelperService.udpUsage() }))
+        }
+    }
+
+    private func recordNettopSample(_ raw: [NettopRow]) {
         // Resolve identities on the main actor: AppIdentityResolver touches
         // NSWorkspace and its caches are not thread-safe.
         DispatchQueue.main.async { [weak self] in
