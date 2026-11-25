@@ -7,8 +7,9 @@ builds, checks and releases the app stays in order.
 
 ## The plans
 
-- **Release 1.33.0 to everyone once the beta is good** (#747), waiting on Kevin: 1.33.0-beta.2
-  has the update settings (#710); his copy updates to it.
+- **Release 1.33.0 to everyone once the beta is good** (#747): beta 2 has the update settings
+  (#710), beta 3 everything merged since. Kevin asked on 25 Nov 2026 to release it all once the
+  pull requests were reviewed: after beta 3's checks in a VM.
 - **Keep the tooling and the plan in order** (#606), standing: tooling chores (the vendored
   kits, local CI, the release workflow, the pictures' VM image, the plan and the board kept in
   step) are its steps. First among them: CI fails a change that keeps the app busy while it's
