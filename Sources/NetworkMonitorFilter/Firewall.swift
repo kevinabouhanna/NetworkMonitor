@@ -473,8 +473,8 @@ final class Firewall {
         Self.placement(token).keys
     }
 
-    /// A token's app keys, and the app above it that adopted it, if one did:
-    /// its key and the bundle it really is, which may be a copy filed under
+    /// A token's app keys, and the app above it that adopted it, or that a
+    /// WebKit process works for, if there's one: its key and the bundle it really is, which may be a copy filed under
     /// another path (#663).
     private struct Placement {
         var keys: [String]
@@ -489,6 +489,14 @@ final class Firewall {
                                                signed: signed(guestCode(token), path: path, bundle: bundle))])
         }
         let program = AppKey.stablePath(path)
+        // What an app loads through WebKit is that app's, as its bytes are (#761).
+        // A rule on WebKit itself still covers them all.
+        if let owner = WebKitOwner.of(pid: pid, path: path),
+           let bundle = AppKey.bundlePath(forExecutablePath: owner.path) {
+            let key = AppKey.key(forBundlePath: bundle,
+                                 signed: signed(guestCode(pid: owner.pid), path: owner.path, bundle: bundle))
+            return Placement(keys: [key, program], parent: (key, bundle))
+        }
         if let parent = nearestApp(above: pid) {
             let parentKey = AppKey.key(forBundlePath: parent.bundle,
                                        signed: signed(guestCode(pid: parent.pid), path: parent.path, bundle: parent.bundle))
