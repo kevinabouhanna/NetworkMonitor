@@ -32,7 +32,7 @@ trap 'rm -rf "$share"' EXIT
 mkdir -p "$share/runner/repo/Sources" "$share/runner/repo/Resources"
 cp "$RUNNER" "$share/runner/NetworkMonitorTests"
 # It finds Sparkle beside itself (@loader_path).
-ditto "$(dirname "$RUNNER")/Sparkle.framework" "$share/runner/Sparkle.framework"
+ditto "$(cd "$(dirname "$RUNNER")/Sparkle.framework" && pwd -P)" "$share/runner/Sparkle.framework"
 ditto Sources/NetworkMonitorCore "$share/runner/repo/Sources/NetworkMonitorCore"
 ditto Resources/Localization "$share/runner/repo/Resources/Localization"
 # Zipped: through the shared folder, a framework's symlinks come out as loops.

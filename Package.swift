@@ -155,7 +155,7 @@ let package = Package(
         ),
         // An executable, not a .testTarget: neither XCTest nor swift-testing is
         // available with Command Line Tools alone (both ship inside Xcode), so
-        // `swift test` cannot run here. Run with `swift run NetworkMonitorTests`.
+        // `swift test` cannot run here. Run with `make test`.
         .executableTarget(
             name: "NetworkMonitorTests",
             dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory", "FilterProtocol",

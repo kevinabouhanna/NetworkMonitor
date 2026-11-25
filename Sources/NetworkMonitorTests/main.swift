@@ -1,6 +1,8 @@
 import Foundation
+import Security
 
-// Run with: swift run NetworkMonitorTests
+// Run with: make test (Scripts/test.sh, which runs a copy a build meanwhile
+// doesn't replace, #739)
 //
 // Exits non-zero on any failure, so this works as a pre-commit or CI gate.
 
@@ -9,6 +11,9 @@ import Foundation
 // rest: two crashes in the Accessibility tests were read as UpdateWatch's and
 // UpdaterScan's (#488, #406).
 setvbuf(stdout, nil, _IOLBF, 0)
+
+// Never a password dialog (#739): what would ask fails its test instead.
+SecKeychainSetUserInteractionAllowed(false)
 
 print("NetworkMonitor test suite")
 print(String(repeating: "─", count: 62))
