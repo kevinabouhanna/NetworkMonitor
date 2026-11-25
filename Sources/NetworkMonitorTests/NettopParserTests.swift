@@ -273,6 +273,44 @@ func runNettopParserTests() {
             }
         }
 
+        Check.test("what was seen before the link changed isn't taken off after it, even late") {
+            var credit = UDPUsageCredit(isCarrier: { _, _ in false })
+            func next(_ sample: [NettopRow], _ answer: UDPUsageSnapshot) -> Int64? {
+                credit.apply(to: sample, interfaces: { ["en0"] }, snapshot: { answer }).first?.internetBytesIn
+            }
+            _ = next(mixed, started)
+            _ = next(sample("14:13:05,ExampleApp.1234,,0,0,"), usage(90_000, 0))
+            credit.reset()
+            // The same process, port and interface, on another Wi-Fi network: the
+            // old one's count, and what `tcpdump` only passed on since, are in the
+            // first answer, which starts the comparison.
+            Check.expectEqual(next(mixed, usage(95_000, 0)), 120_000)
+            Check.expectEqual(next(mixed, usage(95_000, 0)), 120_000)
+            // Then its own traffic comes off as before.
+            Check.expectEqual(next(mixed, usage(105_000, 0)), 110_000)
+        }
+
+        Check.test("a sample that waited for the helper isn't another network's") {
+            func network(_ id: String) -> NetworkFingerprint {
+                NetworkFingerprint(id: id, kind: .wifi, gatewayMAC: nil, defaultLabel: id,
+                                   isExpensive: false, isConstrained: false)
+            }
+            let home = network("gw:home"), hotspot = network("gw:hotspot"), offline = NetworkFingerprint.offline
+            let taken = SampleNetwork()
+            func keeps(takenOn first: NetworkFingerprint, recordedOn second: NetworkFingerprint) -> Bool {
+                taken.moved(to: first)
+                let sample = taken.current
+                taken.moved(to: second)
+                return SampleNetwork.keeps(sampleFrom: sample, on: second.id)
+            }
+            Check.expectTrue(keeps(takenOn: home, recordedOn: home))
+            Check.expectFalse(keeps(takenOn: home, recordedOn: hotspot))
+            // A gap isn't a network: nothing is lost over a Wi-Fi drop, nor at launch.
+            Check.expectTrue(keeps(takenOn: home, recordedOn: offline))
+            Check.expectTrue(keeps(takenOn: offline, recordedOn: home))
+            Check.expectEqual(SampleNetwork().current, offline.id)
+        }
+
         Check.test("a VPN's traffic alone doesn't ask the helper") {
             var asked = 0
             var credit = UDPUsageCredit(isCarrier: { _, _ in true })
