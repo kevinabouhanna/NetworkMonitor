@@ -81,6 +81,9 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     /// Where an update's swap of the filter has got to (#278): the running
     /// filter is switched off, replaced, then switched on again, so the new
     /// one starts a session of its own instead of taking over a live one.
+    /// Being switched on, replaced or removed: no time to restart (#710).
+    public var isBusy: Bool { removing || swap != nil || state == .starting || state == .confirming }
+
     private enum Swap { case switchingOff, replacing, switchingOn }
     private var swap: Swap?
     /// Whether the router answered just before the swap, so the guard knows

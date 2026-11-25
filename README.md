@@ -61,7 +61,7 @@ Look for the ↓ ↑ readout in your menu bar. It starts at login from then on.
 
 ### 🔄 Update
 
-From 1.15 on, NetworkMonitor offers each new version itself, once a day or when you choose **Check for Updates…** in its menu, and installs it when you say so.
+From 1.15 on, NetworkMonitor offers each new version itself, once a day or when you choose **Check for Updates…** in its menu, and installs it when you say so, or by itself if you switch on **Install updates automatically**.
 
 Before that, download the new DMG and drag NetworkMonitor into Applications, choosing **Replace**. Your settings and history are kept. Updating from 1.13 or earlier, macOS asks for Location once more, because the app is now signed with a Developer ID.
 

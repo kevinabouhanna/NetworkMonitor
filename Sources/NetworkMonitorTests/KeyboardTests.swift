@@ -88,6 +88,28 @@ func runKeyboardTests() {
         main.windowDidShow()
         settle(0.8)
 
+        // Settings with its Updates section (#710).
+        model.updates.previewsSettings = true
+
+        Check.test("the welcome window: each stop named, every control reached (#710)") {
+            let welcome = WelcomeWindowController(filter: model.filter, wifiNames: model.wifiNames, updates: model.updates)
+            place(welcome.window)
+            settle()
+            expectNoProblems(welcome.window, "welcome")
+            welcome.window.orderOut(nil)
+            window.makeKeyAndOrderFront(nil)
+            settle()
+        }
+        Check.test("the cards of an update about to install, and installed: every control reached (#710)") {
+            for notice: UpdateController.Notice in [.available("9.9.9"), .ready("9.9.9"), .updated("9.9.9")] {
+                model.updates.preview(notice)
+                settle()
+                expectNoProblems(window, "the \(notice) card")
+            }
+            model.updates.preview(nil)
+            settle()
+        }
+
         // One window, each section shown in turn: Tab reaches what each
         // brings in, not only the first one's (#455).
         for section in MainSection.allCases {
