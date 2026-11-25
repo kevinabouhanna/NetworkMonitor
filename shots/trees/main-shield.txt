@@ -22,11 +22,7 @@ AXWindow (AXStandardWindow) title="Ads and Trackers" 1300
       AXMenuButton title="Pause" help="Let ads through for a while, in every app" 56x16
       AXStaticText value="Today" h16
       data: AXButton AXImage AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXStaticText
-      AXGroup description="Blocked by hour" h580
-        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h488
-        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h168
-        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h32
-        AXUnknown description="# ‹month› # at ‹time› to # ‹month› # at ‹time›" h152
+      data: AXGroup AXUnknown
   AXToolbar 1300x52
     AXButton description="Sidebar" help="Hide Sidebar" 44x52
     AXGroup help="The list, both side by side, or the chart" h52

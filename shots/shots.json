@@ -94,6 +94,9 @@
       ],
       "data": [
         {
+          "from": "AXGroup:Blocked by hour"
+        },
+        {
           "from": "AXStaticText:~blocked",
           "until": "AXMenuButton"
         },
