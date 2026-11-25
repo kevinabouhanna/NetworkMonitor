@@ -238,7 +238,13 @@ Each `nettop` row is a process name and pid, followed by its connections.
    editor shows as a child of iTerm2 or VS Code instead of vanishing into System. A
    process's own path is tried first, so a helper that ships inside another app's
    bundle stays with that app.
-5. Anything left (daemons, `kernel_task`) is **System**, one collapsed row, because
+5. For usage accounting, a system WebKit networking service can belong to the app
+   macOS marks responsible for its PID. It may have `launchd` as its parent. A
+   live, validated owner gets the bytes under its own app key. If the optional
+   macOS SPI is unavailable or no owner can be confirmed, the bytes stay with
+   WebKit. Old WebKit rows keep their recorded totals because they can contain
+   bytes from multiple apps.
+6. Anything left (daemons, `kernel_task`) is **System**, one collapsed row, because
    `mDNSResponder` alone was measured at 263 MB against 6 MB for the top real app.
 
 Rows with the same app merge, an app's total includes its children, and an app shows at

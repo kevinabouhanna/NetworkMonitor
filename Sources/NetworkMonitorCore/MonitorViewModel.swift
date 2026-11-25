@@ -656,7 +656,7 @@ public final class MonitorViewModel: ObservableObject {
             let now = Date()
             let sample = self.tunnelCredit.credit(raw, now: now)
             let summary = SampleSummary(sample) {
-                self.identityResolver.identity(pid: $0.pid, fallbackName: $0.processName)
+                self.identityResolver.trafficIdentity(pid: $0.pid, fallbackName: $0.processName)
             }
             let entries = summary.apps
             for entry in entries { self.lastActivity[entry.identity.key] = now }

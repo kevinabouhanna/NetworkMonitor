@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import FirewallPolicy
 import Foundation
 import UniformTypeIdentifiers
@@ -128,6 +129,74 @@ public final class AppIdentityResolver {
         // is a single syscall — launchd is the immediate parent.
         if identity.bundlePath != nil { identityByPath[path] = identity }
         return identity
+    }
+
+    /// A system WebKit networking service can have launchd as its parent. Use
+    /// macOS's responsible process for metering, when it identifies a live app.
+    func trafficIdentity(pid: Int32, fallbackName: String) -> AppIdentity {
+        let direct = identity(pid: pid, fallbackName: fallbackName)
+        guard direct.isSystem, let path = pathByPID[pid],
+              let ownerPath = Self.webKitOwnerPath(pid: pid, workerPath: path) else { return direct }
+
+        if let cached = identityByPath[ownerPath] { return cached }
+        // Use the app's own key. Historical system rows can contain bytes
+        // from several apps, so they must stay under their recorded key.
+        let owner = Self.identity(forExecutablePath: ownerPath, fallbackName: fallbackName)
+        guard owner.bundlePath != nil else { return direct }
+        identityByPath[ownerPath] = owner
+        return owner
+    }
+
+    // This system SPI is optional. If absent, WebKit keeps its ordinary row.
+    // The symbol is looked up once and the main program handle stays open.
+    private static let responsiblePID: (@convention(c) (Int32) -> Int32)? = {
+        guard let handle = dlopen(nil, RTLD_LAZY),
+              let symbol = dlsym(handle, "responsibility_get_pid_responsible_for_pid") else { return nil }
+        return unsafeBitCast(symbol, to: (@convention(c) (Int32) -> Int32).self)
+    }()
+
+    // proc_pidpath can return the mounted OS or App cryptex path.
+    private static let systemLibraryPaths = [
+        "/System/Library/",
+        "/System/Cryptexes/OS/System/Library/",
+        "/System/Cryptexes/App/System/Library/",
+        "/System/Volumes/Preboot/Cryptexes/OS/System/Library/",
+        "/System/Volumes/Preboot/Cryptexes/App/System/Library/",
+    ]
+
+    private static func webKitOwnerPath(pid: Int32, workerPath: String) -> String? {
+        // Restrict the lookup to Apple's service, regardless of the owning app.
+        guard systemLibraryPaths.contains(where: { workerPath.hasPrefix($0) }),
+              workerPath.contains("/WebKit.framework/"),
+              workerPath.hasSuffix("/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking"),
+              let responsiblePID,
+              let worker = processInstance(pid: pid),
+              executablePath(pid: pid) == workerPath else { return nil }
+
+        let ownerPID = responsiblePID(pid)
+        // Take a fresh result for every active worker. Check both ends of the
+        // lookup for pid reuse, including an owner that started after the worker.
+        guard ownerPID > 1, ownerPID != pid,
+              let owner = processInstance(pid: ownerPID), owner.uid == worker.uid,
+              (owner.seconds, owner.microseconds) <= (worker.seconds, worker.microseconds),
+              let path = executablePath(pid: ownerPID),
+              processInstance(pid: ownerPID) == owner,
+              processInstance(pid: pid) == worker else { return nil }
+        return path
+    }
+
+    private struct ProcessInstance: Equatable {
+        let uid: uid_t
+        let seconds: UInt64
+        let microseconds: UInt64
+    }
+
+    private static func processInstance(pid: Int32) -> ProcessInstance? {
+        var info = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+        guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size else { return nil }
+        return ProcessInstance(uid: info.pbi_uid, seconds: info.pbi_start_tvsec,
+                               microseconds: info.pbi_start_tvusec)
     }
 
     /// Drops per-pid entries for processes no longer present.
