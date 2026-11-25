@@ -255,5 +255,81 @@ func runPageRewriterTests() {
                                   then: "setTimeout('detect adblock', 5); setTimeout('other', 7); timers.join(',')")?
                                 .toString(), "7")
         }
+
+        Check.test("where a body ends, however it's cut into pieces (#741)") {
+            let chunked = Data("5\r\nhello\r\n1;x=y\r\n!\r\n0\r\nTrailer: a\r\n\r\n".utf8)
+            for size in 1...chunked.count {
+                guard var end = BodyEnd(.chunked) else { return Check.expectTrue(false) }
+                var used = 0
+                let all = chunked + Data("next".utf8)
+                var index = 0
+                while index < all.count, !end.isEnded {
+                    let piece = Data(all[index..<min(index + size, all.count)])
+                    used += (try? end.take(piece)) ?? -1000
+                    index += piece.count
+                }
+                Check.expectTrue(end.isEnded, "in pieces of \(size)")
+                Check.expectEqual(used, chunked.count, "in pieces of \(size)")
+            }
+            guard var length = BodyEnd(.length(3)), let none = BodyEnd(.none) else { return Check.expectTrue(false) }
+            Check.expectEqual(try? length.take(Data("ab".utf8)), 2)
+            Check.expectFalse(length.isEnded)
+            Check.expectEqual(try? length.take(Data("cde".utf8)), 1)
+            Check.expectTrue(length.isEnded)
+            Check.expectTrue(none.isEnded)
+            Check.expectTrue(BodyEnd(.untilClose) == nil)
+            for bad in ["zz\r\n", "\r\n", "-1\r\n", "+5\r\nhello\r\n", "5\nhello", "1\r\nab\r\n", "FFFFFFFFFFFFFFFF\r\n"] {
+                var end = BodyEnd(.chunked)!
+                Check.expectNil(try? end.take(Data(bad.utf8)), bad.debugDescription)
+            }
+        }
+
+        Check.test("whether a connection is kept, as each side says (#741)") {
+            func keeps(_ head: String) -> Bool? { ((try? HTTPHead.parse(Data((head + "\r\n\r\n").utf8))) ?? nil)?.head.keepsConnection }
+            Check.expectEqual(keeps("GET / HTTP/1.1\r\nHost: a"), true)
+            Check.expectEqual(keeps("GET / HTTP/1.1\r\nConnection: Keep-Alive, Close"), false)
+            Check.expectEqual(keeps("GET / HTTP/1.0\r\nConnection: keep-alive"), false)
+            Check.expectEqual(keeps("HTTP/1.1 200 OK\r\nConnection: keep-alive"), true)
+            Check.expectEqual(keeps("HTTP/1.1 200"), true)
+            Check.expectEqual(keeps("HTTP/1.1 200 OK\r\nconnection: close"), false)
+            Check.expectEqual(keeps("HTTP/1.0 200 OK"), false)
+        }
+
+        Check.test("only codings it can read are asked for (#741)") {
+            Check.expectEqual(BodyCoding.readable("gzip, deflate, br, zstd"), "gzip, deflate, br")
+            Check.expectEqual(BodyCoding.readable("br;q=1.0, zstd;q=0.9, dcb, *;q=0.1"), "br;q=1.0")
+            Check.expectEqual(BodyCoding.readable("zstd"), "identity")
+        }
+
+        Check.test("ad slots: which sites and paths have them, and only names are changed (#741)") {
+            Check.expectEqual(AdSlots.names(host: "www.youtube.com", target: "/watch?v=x"), ["adPlacements", "adSlots", "playerAds"])
+            Check.expectFalse(AdSlots.names(host: "M.YouTube.com", target: "/youtubei/v1/player?prettyPrint=false").isEmpty)
+            Check.expectFalse(AdSlots.names(host: "www.youtube-nocookie.com", target: "/embed/x").isEmpty)
+            Check.expectTrue(AdSlots.names(host: "www.youtube.com", target: "/api/stats/qoe").isEmpty)
+            Check.expectTrue(AdSlots.names(host: "notyoutube.com", target: "/watch").isEmpty)
+            Check.expectTrue(AdSlots.names(host: "youtube.com.example", target: "/watch").isEmpty)
+            func renamed(_ text: String) -> String? {
+                AdSlots.renamed(["adSlots"], in: Data(text.utf8)).map { String(decoding: $0, as: UTF8.self) }
+            }
+            Check.expectEqual(renamed("{\"adSlots\":[]}"), "{\"_dSlots\":[]}")
+            Check.expectEqual(renamed("\"{\\\"adSlots\\\" :[]}\""), "\"{\\\"_dSlots\\\" :[]}\"", "in a string")
+            Check.expectEqual(renamed("'\\x7b\\x22adSlots\\x22:'"), "'\\x7b\\x22_dSlots\\x22:'", "in a script's string")
+            Check.expectNil(renamed("{\"title\":\"adSlots\"}"), "a value")
+            Check.expectNil(renamed("x.adSlots=1;\"myadSlots\":1,\"adSlotsX\":2,\"adSlots\""))
+            Check.expectNil(renamed(""))
+            let sliced = Data("xx{\"adSlots\":1}".utf8).dropFirst(2)
+            Check.expectEqual(AdSlots.renamed(["adSlots"], in: sliced), Data("{\"_dSlots\":1}".utf8))
+        }
+
+        Check.test("a page whose only change is its ad slots keeps the rest, its policy too (#741)") {
+            let html = "<p>{\"adSlots\":[]}</p>"
+            let head = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Security-Policy: script-src 'self'\r\n"
+            let (bytes, untouched) = PageRewriter.rewrite(
+                response: Data((head + "Content-Length: \(html.utf8.count)\r\n\r\n" + html).utf8), requestMethod: "GET",
+                additions: PageAdditions(selectors: [], scriptlets: []), slots: ["adSlots"])
+            Check.expectNil(untouched)
+            Check.expectEqual(String(decoding: bytes, as: UTF8.self),
+                              head + "Content-Length: \(html.utf8.count)\r\n\r\n<p>{\"_dSlots\":[]}</p>")
+        }
     }
 }

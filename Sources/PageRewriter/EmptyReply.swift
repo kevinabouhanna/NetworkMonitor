@@ -15,7 +15,8 @@ public enum EmptyReply {
         0x01, 0x00, 0x01, 0x00, 0x00, 0x02, 0x02, 0x44, 0x01, 0x00, 0x3B,
     ])
 
-    public static func bytes(for kind: RequestKind, request: HTTPHead) -> Data {
+    /// `closing`: whether the connection ends with it.
+    public static func bytes(for kind: RequestKind, request: HTTPHead, closing: Bool = true) -> Data {
         let origin = request.value("Origin")
         var status: String, type: String?, body: Data
         switch kind {
@@ -48,7 +49,7 @@ public enum EmptyReply {
                 }
             }
         }
-        head += "Connection: close\r\n\r\n"
+        head += (closing ? "Connection: close\r\n" : "") + "\r\n"
         return Data(head.utf8) + body
     }
 

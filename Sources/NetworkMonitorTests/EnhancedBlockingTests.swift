@@ -102,5 +102,25 @@ func runEnhancedBlockingTests() {
             let data = try? JSONEncoder().encode(settings)
             Check.expectEqual(data.flatMap { try? JSONDecoder().decode(EnhancedBlocking.self, from: $0) }, settings)
         }
+
+        Check.test("hosts with only pictures, fonts and video are left alone, over QUIC too, and no shipped rule names them (#741)") {
+            let on = EnhancedBlocking(isOn: true)
+            for host in ["rr3---sn-x.googlevideo.com", "i.ytimg.com", "yt3.ggpht.com", "fonts.gstatic.com", "www.gstatic.com"] {
+                Check.expectEqual(on.decide(app: "com.apple.Safari", host: host, port: 443, isUDP: false), .leave(.contentOnly), host)
+                Check.expectEqual(on.decide(app: "com.apple.Safari", host: host, port: 443, isUDP: true), .leave(.contentOnly), host)
+                Check.expectEqual(on.start(app: "com.apple.Safari", host: host, port: 443), .leave(.contentOnly), host)
+            }
+            for host in ["www.youtube.com", "gstatic.com", "notytimg.com", "ytimg.com.example"] {
+                Check.expectEqual(on.decide(app: "com.apple.Safari", host: host, port: 443, isUDP: false), .open, host)
+            }
+            let file = URL(fileURLWithPath: "Resources/Blocklists/\(PageRules.fileName)")
+            guard let rules = (try? Data(contentsOf: file)).flatMap(PageRules.decode) else {
+                return Check.expectTrue(false, "the shipped page rules")
+            }
+            for site in EnhancedBlocking.contentOnlySites {
+                let line = rules.addresses.lines.first { $0.hasPrefix("||") && $0.contains(site) && !$0.contains("domain=") }
+                Check.expectNil(line, "a rule for \(site)")
+            }
+        }
     }
 }

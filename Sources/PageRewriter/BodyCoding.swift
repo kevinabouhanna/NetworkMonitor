@@ -17,6 +17,16 @@ public enum BodyCoding {
         }
     }
 
+    /// An `Accept-Encoding` with only the codings read here, as the browser
+    /// put them (#741): a page in one it can't read (zstd) would pass untouched.
+    public static func readable(_ accepted: String) -> String {
+        let kept = accepted.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { coding in
+            let name = coding.split(separator: ";").first.map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
+            return ["gzip", "x-gzip", "deflate", "br", "identity"].contains(name)
+        }
+        return kept.isEmpty ? "identity" : kept.joined(separator: ", ")
+    }
+
     /// Far above any page; past it, decoding stops and the page passes
     /// through, so a crafted body can't fill memory.
     public static let maxDecoded = 32 * 1024 * 1024

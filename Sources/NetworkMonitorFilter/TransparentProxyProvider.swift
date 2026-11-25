@@ -514,7 +514,7 @@ final class ProxiedConnection {
 
     private func connect(to endpoint: Network.NWEndpoint, bridged: Bool) {
         guard phase == .connecting else { return }
-        let connection = NWConnection(to: endpoint, using: .tcp)
+        let connection = NWConnection(to: endpoint, using: NWParameters(tls: nil, tcp: SecureBridge.atOnce))
         self.connection = connection
         connection.stateUpdateHandler = { [self] state in
             switch state {

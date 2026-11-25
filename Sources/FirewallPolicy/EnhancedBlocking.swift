@@ -128,6 +128,8 @@ public struct EnhancedBlocking: Codable, Equatable {
         case notAnAppItReaches
         case notWeb
         case neverOpened
+        /// Only pictures, fonts and video: nothing to take out (#741).
+        case contentOnly
         case excluded
         case pinned
         case noName
@@ -149,6 +151,7 @@ public struct EnhancedBlocking: Codable, Equatable {
         if let name {
             if Self.isNeverOpened(name) { return .leave(.neverOpened) }
             if isExcluded(name) { return .leave(.excluded) }
+            if Self.isContentOnly(name) { return .leave(.contentOnly) }
         }
         // QUIC can't be read: refused, so the browser falls back to TCP, as
         // it does whenever QUIC is blocked.
@@ -205,6 +208,23 @@ public struct EnhancedBlocking: Codable, Equatable {
         let labels = name.split(separator: ".")
         return (0..<max(labels.count - 1, 0)).map { labels[$0...].joined(separator: ".") }
     }
+
+    // MARK: Nothing to take out
+
+    /// Where a site's pictures, fonts and video come from, and nothing else
+    /// (#741): no page and no ad of its own, so no rule has anything to do
+    /// there. Left as they are, over the browser's own connections (QUIC too):
+    /// YouTube's pages ask these hosts for a hundred small pictures, and for
+    /// the video itself.
+    public static func isContentOnly(_ host: String) -> Bool {
+        guard let name = SiteName.normalized(host) else { return false }
+        return namesAbove(name).contains { contentOnlySites.contains($0) }
+    }
+
+    /// Each with every name under it.
+    public static let contentOnlySites: Set<String> = [
+        "googlevideo.com", "ytimg.com", "ggpht.com", "fonts.gstatic.com", "www.gstatic.com",
+    ]
 
     // MARK: Never opened
 
