@@ -144,7 +144,6 @@ public final class MonitorViewModel: ObservableObject {
     private let identityResolver = AppIdentityResolver()
     private let nettop: NettopStream
     private let udpUsageQueue = DispatchQueue(label: "com.networkmonitor.udp-usage")
-    private var previousUDPSample: Date?
     private var waitingForPacketCapture = false
     /// Traffic through a proxy or a VPN, credited to the apps behind it (#356).
     private let tunnelCredit: TunnelCreditor
@@ -650,14 +649,12 @@ public final class MonitorViewModel: ObservableObject {
         udpUsageQueue.async { [weak self] in
             guard let self else { return }
             var sample = raw
-            let end = raw.first?.captureTime.flatMap { UDPUsageCredit.timestamp($0, near: now) }
-            if let end, let start = self.previousUDPSample,
+            if let interval = UDPUsageCredit.captureInterval(for: raw, near: now),
                raw.contains(where: { $0.udpSockets.contains(where: \.hasTrafficWithoutPeer) }),
-               let usage = HelperService.udpUsage(from: start, to: end) {
+               let usage = HelperService.udpUsage(from: interval.lowerBound, to: interval.upperBound) {
                 let interfaces = Set(InterfaceCounters.read().map(\.name))
                 sample = UDPUsageCredit.apply(to: raw, peers: usage.peers, interfaces: interfaces)
             }
-            self.previousUDPSample = end
             self.recordNettopSample(sample, at: now)
         }
     }

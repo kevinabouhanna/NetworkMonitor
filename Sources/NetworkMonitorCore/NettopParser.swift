@@ -54,6 +54,7 @@ public struct NettopRow: Equatable {
 
     var udpSockets: [NettopUDPSocket] = []
     var captureTime: String?
+    var captureStartTime: String?
 
     public init(pid: Int32, processName: String, bytesIn: Int64, bytesOut: Int64,
                 localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
@@ -112,6 +113,7 @@ public struct NettopParser {
     /// Discards the priming sample, whose values are cumulative rather than deltas.
     private var sawFirstSample = false
     private var pending: [NettopRow] = []
+    private var lastCaptureTime: String?
     private var buffer = ""
     /// Whether rows carry an `interface` column before their counters, as the
     /// header says (`time,,interface,bytes_in,bytes_out,`).
@@ -280,6 +282,8 @@ public struct NettopParser {
     private mutating func closeSample() -> [NettopRow]? {
         defer { pending = [] }
         guard !pending.isEmpty else { return nil }
+        pending[0].captureStartTime = lastCaptureTime
+        lastCaptureTime = pending[0].captureTime
         guard sawFirstSample else {
             sawFirstSample = true   // priming sample: cumulative, not a delta
             return nil
@@ -290,6 +294,7 @@ public struct NettopParser {
     /// Call when the `nettop` process restarts — the next sample is cumulative again.
     public mutating func resetForRestart() {
         sawFirstSample = false
+        lastCaptureTime = nil
         pending = []
         buffer = ""
     }
