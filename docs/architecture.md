@@ -295,7 +295,9 @@ much off, as local unicast. Details that mattered:
   only compared with. The watcher waits 2 s before it reports a change, and `tcpdump` holds
   a packet 0.1 s at most (7,980 of them in a VM, also with every core busy), so the old link's
   are all in that answer. And a sample that waited for the helper while the Mac moved to
-  another network is left out of that one (`SampleNetwork`).
+  another network is left out of that one. A sample tagged with the last joined network
+  can finish while the watcher says offline. `UsageStore` keeps it in that network's
+  bucket. The provisional offline bucket holds traffic whose network is still unknown.
 - **VPNs and proxies are left alone**: their socket to a gateway on your network carries
   other apps' internet traffic.
 

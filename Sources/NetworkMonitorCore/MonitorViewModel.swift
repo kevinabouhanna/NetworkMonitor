@@ -660,7 +660,7 @@ public final class MonitorViewModel: ObservableObject {
             // A sample of the network just left still takes its own share of what
             // the tunnel's stream saw, so none of it is the new network's.
             let sample = self.tunnelCredit.credit(raw, now: now)
-            guard SampleNetwork.keeps(sampleFrom: network, on: self.store.currentNetwork.id) else { return }
+            guard self.store.appSampleBucketID(from: network) != nil else { return }
             let summary = SampleSummary(sample) {
                 self.identityResolver.identity(pid: $0.pid, fallbackName: $0.processName)
             }
@@ -692,7 +692,7 @@ public final class MonitorViewModel: ObservableObject {
             self.identityResolver.retainOnly(pids: summary.pids)
             self.store.recordApps(entries, servers: summary.servers,
                                   localBytesIn: summary.localIn, localBytesOut: summary.localOut,
-                                  now: now)
+                                  sampledOn: network, now: now)
 
             // The rows are Data's: rebuilt only while Data is what's shown.
             if self.popoverIsOpen && self.popoverSection == .today {
