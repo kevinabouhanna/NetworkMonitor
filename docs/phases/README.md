@@ -9,14 +9,15 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
-| 0.5 | #741 YouTube's ads still play, and its pages are slow, with Enhanced ad blocking on | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
+| 5.6 | #753 LAN traffic on unconnected UDP sockets counts as internet usage | [Phase 1: Everyday polish](01-everyday-polish.md) |
 
 ## Next
 
 | Order | Plan | Phase |
 |---|---|---|
+| 5.65 | #757 Check the helper's own-network counts in a Developer ID build (#753) | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.7 | #738 Research: does the app count a virtual machine's data, connections and ads? | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 6 | #257 A NetworkMonitor extension for Chrome: in-page ads, pop-ups and YouTube ads, with the app's lists and rules | [Phase 3: The Chrome extension](03-chrome-extension.md) |
 
@@ -24,8 +25,10 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
+| 0.5 | #741 YouTube's ads still play, and its pages are slow, with Enhanced ad blocking on | [Phase 2: Ad blocking that holds up](02-ad-blocking.md) |
 | 7 | #522 Improve onboarding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 8 | #582 Branding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
+| 9 | #754 Safari Private Relay traffic is missing from per-app usage | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 9 | #539 Short videos of features on their docs pages | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 10 | #458 Remake the launch video (brag.mp4) for the redesign, in English and Chinese | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 11 | #577 Launch NetworkMonitor publicly | [Phase 7: The launch](07-launch.md) |
