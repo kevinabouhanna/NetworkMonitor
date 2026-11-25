@@ -20,6 +20,8 @@ final class UDPUsageMonitor {
     private var pipe: Pipe?
     private var buffer = Data()
     private var buckets: [Int64: Bucket] = [:]
+    private var latestBucket: Int64?
+    private var storedPeers = 0
     private var startedAt: Date?
     private var lastFailure: Date?
     private var stopWork: DispatchWorkItem?
@@ -42,7 +44,7 @@ final class UDPUsageMonitor {
             let first = Int64((from * Self.bucketsPerSecond).rounded(.up))
             let end = Int64((to * Self.bucketsPerSecond).rounded(.down))
             let relevant = self.buckets.filter { $0.key >= first && $0.key < end }
-            self.buckets = self.buckets.filter { $0.key >= end }
+            self.discard(before: end)
             guard let startedAt = self.startedAt, startedAt.timeIntervalSince1970 <= from,
                   !relevant.values.contains(where: \.incomplete) else { reply(Data()); return }
             var totals: [Peer: UDPPeerUsage] = [:]
@@ -105,16 +107,17 @@ final class UDPUsageMonitor {
                   timestamp.isFinite, timestamp > 0, timestamp < 1e10 else { continue }
             let index = Int64((timestamp * Self.bucketsPerSecond).rounded(.down))
             // Keep only enough packets for the slowest sampling profile.
-            let cutoff = index - Int64(15 * Self.bucketsPerSecond)
-            if let first = buckets.keys.min(), first < cutoff {
-                buckets = buckets.filter { $0.key >= cutoff }
+            if latestBucket.map({ index > $0 }) ?? true {
+                latestBucket = index
+                discard(before: index - Int64(15 * Self.bucketsPerSecond))
             }
             let key = Peer(socket: packet.socket, address: packet.remoteAddress)
             var bucket = buckets.removeValue(forKey: index) ?? Bucket()
             if var count = bucket.peers[key] {
                 if packet.inbound { count.bytesIn += packet.bytes } else { count.bytesOut += packet.bytes }
                 bucket.peers[key] = count
-            } else if bucket.peers.count < 1024 {
+            } else if storedPeers < 8_192 {
+                storedPeers += 1
                 bucket.peers[key] = UDPPeerUsage(socket: packet.socket, address: packet.remoteAddress,
                                                 bytesIn: packet.inbound ? packet.bytes : 0,
                                                 bytesOut: packet.inbound ? 0 : packet.bytes)
@@ -122,6 +125,14 @@ final class UDPUsageMonitor {
                 bucket.incomplete = true
             }
             buckets[index] = bucket
+        }
+    }
+
+    private func discard(before cutoff: Int64) {
+        for key in Array(buckets.keys) where key < cutoff {
+            if let discarded = buckets.removeValue(forKey: key) {
+                storedPeers -= discarded.peers.count
+            }
         }
     }
 
@@ -142,6 +153,8 @@ final class UDPUsageMonitor {
         pipe = nil
         buffer.removeAll()
         buckets.removeAll()
+        latestBucket = nil
+        storedPeers = 0
         startedAt = nil
     }
 }
