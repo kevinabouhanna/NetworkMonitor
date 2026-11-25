@@ -185,17 +185,6 @@ func runPopoverMetricsTests() {
             Check.expectTrue(PopoverMetrics.childNameFontSize < PopoverMetrics.nameFontSize)
             Check.expectTrue(PopoverMetrics.childTotalFontSize < PopoverMetrics.totalFontSize)
         }
-
-        /// The bar plus the figure after it plus every inset has to fit the
-        /// popover's 320 pt, at the deepest indent, or a long total is clipped.
-        Check.test("a full-width bar still fits the most indented row") {
-            let used = PopoverMetrics.rowHorizontalPadding * 2
-                + PopoverMetrics.childIndent
-                + PopoverMetrics.childIconSize
-                + PopoverMetrics.iconSpacing * 2
-                + PopoverMetrics.detailWidth
-            Check.expectTrue(used <= 320, "row uses \(used) of 320")
-        }
     }
 
     Check.suite("PopoverMetrics — the scrollbar never strobes") {

@@ -12,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Builds the menu bar again in the new language (#433).
     private var languageObserver: AnyCancellable?
     private var popoverMonitor: Any?
+    /// Its other half, for clicks in the app's own windows (#728).
+    private var popoverLocalMonitor: Any?
     /// Pointer watchers that exist only while a revealed menu bar holds focus
     /// the popover had. See `restoreFocusWhenMenuBarHides()`.
     private var menuBarMonitors: [Any] = []
@@ -391,6 +393,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             guard let self, self.popover.isShown, !self.pointerIsOnStatusItem else { return }
             DispatchQueue.main.async { self.closePopover() }
         }
+        // And clicks in the app's own windows, which the global monitor never
+        // hears (#728). The click goes on to the window. Closed here rather
+        // than a turn later, so the window can be key by the time the click
+        // reaches it, and the control under it acts on it.
+        popoverLocalMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            if let self, self.popover.isShown,
+               PopoverClicks.closes(clickIn: event.window,
+                                    popover: self.popover.contentViewController?.view.window) {
+                // One of the open windows comes forward with the click. Any
+                // other (a question, About) leaves them where they are (#71),
+                // and a panel that doesn't activate the app, such as a
+                // question, leaves the focus with the app underneath.
+                self.closePopover(
+                    returningFocus: event.window?.styleMask.contains(.nonactivatingPanel) == true,
+                    parking: !PopoverClicks.isIn(event.window, anyOf: self.openWindows))
+            }
+            return event
+        }
     }
 
     private var pointerIsOnStatusItem: Bool {
@@ -543,10 +563,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         let returnTo = returningFocus && NSApp.isActive ? appUnderPopover : nil
         appUnderPopover = nil
         closingPopover = true
+        // `performClose` does nothing while an ⓘ opened from the popover shows
+        // (#728); `close` closes both.
+        let hasChild = popover.contentViewController?.view.window?.childWindows?.isEmpty == false
+        let close = { [popover] in
+            if hasChild { popover.close() } else { popover.performClose(nil) }
+        }
         if NSApp.isActive && parking {
-            keepingWindowsInPlace { popover.performClose(nil) }
+            keepingWindowsInPlace(close)
         } else {
-            popover.performClose(nil)
+            close()
         }
         closingPopover = false
         returnTo?.activate(options: [])
@@ -574,6 +600,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if let monitor = popoverMonitor {
             NSEvent.removeMonitor(monitor)
             popoverMonitor = nil
+        }
+        if let monitor = popoverLocalMonitor {
+            NSEvent.removeMonitor(monitor)
+            popoverLocalMonitor = nil
         }
         stopWatchingMenuBar()
         anchorWindow?.orderOut(nil)

@@ -395,6 +395,10 @@ Two stacked lines, `↓` download in green (`#51FF70`) over `↑` upload in ligh
   below the window that was in front of it (`WindowStack`). Esc or a second
   click on the item hands focus back to that app. ⌘-Tab, the Dock icon or a click on
   the window closes the popover and shows the window alone.
+- **A click outside the popover closes it** (issue #728): one in another app through a
+  global event monitor, one in the app's own windows through a local one, since a global
+  monitor never hears those. The click goes on to the window. What opens from the popover
+  (an ⓘ, a menu) and the menu bar's windows don't count (`PopoverClicks`).
 
 ### The auto-hidden menu bar
 
@@ -427,6 +431,11 @@ Several fixes exist only because of macOS's "Automatically hide and show the men
 - **The popover's height is computed** from the number of rows, not measured, so it
   never starts from zero and the list never strobes a scrollbar. The list stops at 372
   points, eight rows and part of a ninth, so the cut-off row says "more below".
+- **The popover is 320 points wide whatever it shows** (#728). A row fills what the list
+  gives it, and the list keeps clear of a scroll bar with a place of its own (17 points,
+  with a mouse connected or Show scroll bars on Always) whether or not it scrolls. At a
+  fixed 316 points beside that bar, a long list was wider than the popover, and SwiftUI
+  centred the header on it: 6 points further left than with a short list.
 - **Command Line Tools constraints**: no `@State` (it's an Xcode-only macro in the macOS
   27 SDK), so view state lives in small `ObservableObject`s. See
   [development](development.md#command-line-tools-quirks).

@@ -153,6 +153,25 @@ public enum AccessibilityAudit {
         } ?? []
     }
 
+    /// Every named element in the window, a text by its words, and where it
+    /// is, in the Accessibility API's coordinates: from the main screen's top
+    /// left (#728).
+    public static func framesOwnWindow(titled title: String) -> [(name: String, frame: CGRect)] {
+        onOwnWindow(titled: title) { window in
+            var out: [(name: String, frame: CGRect)] = []
+            func walk(_ e: AXUIElement) {
+                var frame = CGRect.zero
+                if let name = name(of: e) ?? string(e, kAXValueAttribute), let value = value(e, "AXFrame"), CFGetTypeID(value) == AXValueGetTypeID(),
+                   AXValueGetValue(value as! AXValue, .cgRect, &frame) {
+                    out.append((name, frame))
+                }
+                children(e).forEach(walk)
+            }
+            walk(window)
+            return out
+        } ?? []
+    }
+
     /// What VoiceOver reads, in the order VO-→ goes: each element with a
     /// name or a value, as "role: name, value" (#525). A text's words are
     /// its value.

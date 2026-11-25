@@ -116,10 +116,11 @@ public struct MenuBarPopoverView: View {
                 .transition(Motion.swap)
             }
             // One height for the four (#599): sized to each, the popover
-            // jumped as it moved to Network and back.
-            .frame(height: sectionHeight, alignment: .top)
+            // jumped as it moved to Network and back. And one width (#728): a
+            // view wider than the popover was centred in it, header and all.
+            .frame(width: PopoverMetrics.width, height: sectionHeight, alignment: .topLeading)
         }
-        .frame(width: 320)
+        .frame(width: PopoverMetrics.width, alignment: .leading)
     }
 
     /// Every view's height under the header (#599), from the tallest list
@@ -641,16 +642,11 @@ public enum PopoverMetrics {
     /// Gap between the icon and the name-over-bar stack.
     public static let iconSpacing: CGFloat = 10
 
-    /// Width of the name-over-bar stack, fixed so the bars all start at the same
-    /// x and a long app name truncates instead of shoving the row about.
-    public static let detailWidth: CGFloat = 220
-
-    /// The same, less what an indented row gives to its indent and keeps
-    /// back of its smaller icon, so an opened row is no wider than the
-    /// popover: at 220 it was 340 pt wide in a 320 pt popover (#436).
-    public static func detailWidth(indented: Bool) -> CGFloat {
-        indented ? detailWidth - childIndent - (iconSize - childIconSize) - 2 : detailWidth
-    }
+    /// The popover's width, whatever it shows.
+    public static let width: CGFloat = 320
+    /// Width held for the disclosure chevron on *every* row, expandable or not,
+    /// so a chevron fading in never nudges the row's contents.
+    public static let chevronWidth: CGFloat = 10
 
     /// Tallest the list may grow before it scrolls instead.
     ///
@@ -785,10 +781,6 @@ struct PopoverRow: View {
     /// `SettingsPaneState`.
     @StateObject private var hover = HoverState()
 
-    /// Width held for the disclosure chevron on *every* row, expandable or not,
-    /// so a chevron fading in never nudges the row's contents.
-    private static let chevronWidth: CGFloat = 10
-
     var body: some View {
         if let onToggle {
             Button(action: onToggle) { content }
@@ -835,16 +827,19 @@ struct PopoverRow: View {
                         .monospacedDigit()
                         .foregroundStyle(isMuted ? AnyShapeStyle(.secondary)
                                                  : AnyShapeStyle(.primary))
-                    Spacer(minLength: 0)
+                        // Whole, always: the bar gives way to it (#728).
+                        .lineLimit(1)
+                        .fixedSize()
                 }
             }
             // Held to the stack's own height and centred, so the name and the bar
             // stay vertically centred on the icon beside them.
-            .frame(width: PopoverMetrics.detailWidth(indented: indented),
-                   height: PopoverMetrics.detailStackHeight(indented: indented),
-                   alignment: .leading)
-
-            Spacer(minLength: 0)
+            // As wide as the row leaves it, never wider (#728), so a long name
+            // truncates instead of shoving the row about. At a fixed 220 a row
+            // was 316 pt wide, and beside a 17 pt scroll bar that made the
+            // list, and the header centred on it, wider than the popover.
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            .frame(height: PopoverMetrics.detailStackHeight(indented: indented))
 
             // Faint at rest, full strength when pointed at or open. Only rows
             // with something behind them get one, so the chevron doubles as the
@@ -855,7 +850,7 @@ struct PopoverRow: View {
                 .foregroundStyle(.secondary)
                 .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 .opacity(chevronOpacity)
-                .frame(width: Self.chevronWidth)
+                .frame(width: PopoverMetrics.chevronWidth)
         }
         .frame(height: PopoverMetrics.rowContentHeight)
         .padding(.horizontal, PopoverMetrics.rowHorizontalPadding)
@@ -900,7 +895,8 @@ struct PopoverRow: View {
     private var bar: some View {
         Capsule()
             .fill(barColor.opacity(isMuted ? 0.5 : 1))
-            .frame(width: barWidth, height: PopoverMetrics.barHeight)
+            .frame(minWidth: PopoverMetrics.minBarWidth, maxWidth: barWidth)
+            .frame(height: PopoverMetrics.barHeight)
             .animation(.easeOut(duration: 0.45), value: barWidth)
     }
 
