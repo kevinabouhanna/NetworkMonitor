@@ -176,7 +176,8 @@ puts the connection in Low Data Mode, and tells you which apps it can't stop. Se
 One window with a sidebar: **Usage History**, **Connections**, **Ads and Trackers** and
 **Network**, in the popover's order, with **Settings** pinned at the bottom. Hide the sidebar
 with its button or **View › Hide Sidebar** (⌃⌘S). When a new version is out, a card above
-**Settings** offers it ([Update](installing.md#update)).
+**Settings** offers it, or says it's about to install, or that it did
+([Update](installing.md#update)).
 
 Each section's toolbar starts with the view: **List, Both or Chart** in Usage History and
 Ads and Trackers, **List, Both or Map** in Connections (#524); Both is always the list on
@@ -202,11 +203,11 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 - **Language**: the Mac's, or one chosen for the app
 - **Start at login**
 - **Show NetworkMonitor in** the Menu bar, the Dock or Both, and with the Dock or Both, **Dock icon**: Speeds or App icon
+- **Updates** ([how it updates](installing.md#update)): your version, when it last checked and Check Now, **Check for updates automatically**, **Install updates automatically** and **Get beta versions**
 - **Show speeds in** MB/s or Mbps
 - **Wi-Fi names**, until they're on
 - **Speed colors** (the readout's and the Dock icon's): six ready-made pairs, Custom… for your own Download and Upload, the speed test's colours
 - **Popover totals**: Counting since, Sampling, Reset Now
-- **Check for updates automatically**, **Get beta versions**, and Check Now
 - **Sections**: a row to each section's settings, the same pages its gear shows
 
 **About NetworkMonitor**, in the right-click menu and the app menu, is the standard About

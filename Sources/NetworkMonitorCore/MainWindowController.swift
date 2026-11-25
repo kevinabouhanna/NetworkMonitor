@@ -160,6 +160,8 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         let sidebar = NSHostingController(rootView: MainSidebar(navigation: navigation, updates: model.updates,
                                                                 onSelect: { [weak self] in self?.show($0) })
             .localizedRoot())
+        // The update card mustn't make the window taller (#710).
+        sidebar.sizingOptions = []
         let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebar)
         sidebarItem.minimumThickness = MainMetrics.sidebarWidth
         sidebarItem.maximumThickness = 260
@@ -535,9 +537,8 @@ struct MainSidebar: View {
                     }
                 }
             }
-            if let version = updates.pendingVersion {
-                UpdateCard(version: version, onInstall: updates.installPendingUpdate,
-                           onWhatsNew: updates.showPendingUpdate, onDismiss: updates.dismissPendingUpdate)
+            if let card {
+                card
                     .padding(.horizontal, 10)
                     .padding(.bottom, 10)
                     .transition(Motion.swap)
@@ -548,7 +549,34 @@ struct MainSidebar: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
         }
-        .animation(Motion.content, value: updates.pendingVersion)
+        .animation(Motion.content, value: updates.notice)
+    }
+
+    /// One card at a time: a version offered, one waiting to install, or one
+    /// that installed by itself (#520, #710).
+    private var card: UpdateCard? {
+        switch updates.notice {
+        case .available(let version):
+            return UpdateCard(title: L("Update available"),
+                              text: L("Version %@ is available. You have %@.", version, updates.currentVersion),
+                              action: (L("Install & Restart"), updates.installPendingUpdate),
+                              onWhatsNew: updates.showPendingUpdate,
+                              dismiss: (L("Remind Me Later"), L("Remind me tomorrow"), updates.dismissPendingUpdate))
+        case .ready(let version):
+            return UpdateCard(title: L("Update ready"), text: updates.readyText(version),
+                              action: (L("Restart Now"), updates.restartNow),
+                              onWhatsNew: { NSWorkspace.shared.open(UpdateController.releaseURL(version: version)) },
+                              dismiss: (L("Hide"), L("Hide until it installs"), updates.hideReadyCard))
+        case .updated(let version):
+            return UpdateCard(title: L("Updated"), text: L("Version %@ installed by itself.", version), action: nil,
+                              onWhatsNew: {
+                                  NSWorkspace.shared.open(UpdateController.releaseURL(version: version))
+                                  updates.dismissUpdated()
+                              },
+                              dismiss: (L("Hide this"), L("Hide this"), updates.dismissUpdated))
+        case nil:
+            return nil
+        }
     }
 
     private func row(_ section: MainSection) -> some View {
@@ -584,14 +612,15 @@ struct MainSidebar: View {
 }
 
 /// A new version, found by the daily check while the window was open
-/// (#520): an offer, as the app's others are, with a ✕ that puts it away
-/// until the next check. The buttons stack, as two side by side don't fit
-/// the sidebar's width.
+/// (#520), waiting to install, or installed by itself (#710): a card as the
+/// app's other offers are, with a ✕ that puts it away. The buttons stack, as
+/// two side by side don't fit the sidebar's width.
 struct UpdateCard: View {
-    let version: String
-    let onInstall: () -> Void
+    let title: String
+    let text: String
+    let action: (title: String, run: () -> Void)?
     let onWhatsNew: () -> Void
-    let onDismiss: () -> Void
+    let dismiss: (name: String, help: String, run: () -> Void)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -600,13 +629,13 @@ struct UpdateCard: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Color.accentColor)
                     .accessibilityHidden(true)
-                Text(L("Update available"))
+                Text(title)
                     .font(.system(size: 13, weight: .semibold))
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(1)
                     .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 0)
-                Button(action: onDismiss) {
+                Button(action: dismiss.run) {
                     Image(systemName: "xmark")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.secondary)
@@ -614,18 +643,20 @@ struct UpdateCard: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(L("Remind Me Later"))
-                .help(L("Remind me tomorrow"))
+                .accessibilityLabel(dismiss.name)
+                .help(dismiss.help)
             }
-            Text(L("Version %@ is ready to install.", version))
+            Text(text)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 6) {
-                Button(action: onInstall) {
-                    Text(L("Install & Restart")).frame(maxWidth: .infinity)
+                if let action {
+                    Button(action: action.run) {
+                        Text(action.title).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.borderedProminent)
                 Button(action: onWhatsNew) {
                     Text(L("What's New")).frame(maxWidth: .infinity)
                 }
@@ -635,7 +666,7 @@ struct UpdateCard: View {
         .padding(10)
         .background(Color.accentColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(L("Update available"))
+        .accessibilityLabel(title)
     }
 }
 

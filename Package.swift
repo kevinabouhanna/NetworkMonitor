@@ -159,7 +159,8 @@ let package = Package(
         .executableTarget(
             name: "NetworkMonitorTests",
             dependencies: ["NetworkMonitorCore", "HostsFile", "LowDataMode", "ServerDirectory", "FilterProtocol",
-                           "FirewallPolicy", "HandshakeName", "SiteCertificates", "PageRewriter", "SecureBridge"],
+                           "FirewallPolicy", "HandshakeName", "SiteCertificates", "PageRewriter", "SecureBridge",
+                           .product(name: "Sparkle", package: "Sparkle")],
             path: "Sources/NetworkMonitorTests"
         ),
     ]

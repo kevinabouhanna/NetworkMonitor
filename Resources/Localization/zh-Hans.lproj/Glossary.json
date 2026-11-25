@@ -61,6 +61,11 @@
 
     { "en": "Universal", "where": "docs", "text": "通用版（Apple 芯片和 Intel）", "note": "the download, on the website's download line" },
     { "en": "Accuracy and battery", "where": "docs", "text": "统计准确性与耗电量", "note": "the docs page's title" },
-    { "en": "Get beta versions", "text": "获取测试版", "note": "the switch in Settings, under Updates (#585); a beta version is 测试版" }
+    { "en": "Get beta versions", "text": "获取测试版", "note": "the switch in Settings, under Updates (#585); a beta version is 测试版"
+    },
+    {
+      "en": "Install updates automatically",
+      "text": "自动安装更新",
+      "note": "the switch in Settings, under Updates, and in the welcome window (#710)" }
   ]
 }

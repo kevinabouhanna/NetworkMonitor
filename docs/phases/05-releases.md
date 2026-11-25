@@ -7,10 +7,10 @@ builds, checks and releases the app stays in order.
 
 ## The plans
 
-- **Update settings: automatic updates on or off** (#710), Next: an Updates section in Settings
-  that says what happens, and a switch to install new versions automatically, off by default
-  (today Settings only has the daily check). It starts with pictures of updating as it is. After
-  the ⓘ links (#230), before the Chrome extension (#257).
+- **Update settings: automatic updates on or off** (#710): an Updates section in Settings that
+  says what happens, and a switch to install new versions automatically, off by default, in the
+  welcome window too. Approved by Kevin on 25 Nov 2026 from a working prototype's pictures, and
+  built ahead of the ⓘ links (#230) because he asked for it then.
 - **Keep the tooling and the plan in order** (#606), standing: tooling chores (the vendored
   kits, local CI, the release workflow, the pictures' VM image, the plan and the board kept in
   step) are its steps. First among them: CI fails a change that keeps the app busy while it's

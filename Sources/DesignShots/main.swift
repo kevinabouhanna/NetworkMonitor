@@ -627,12 +627,18 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     main.show(.network)
     shoot("network")
     main.show(.settings)
+    world.model.updates.previewsSettings = true
     shoot("settings-general")
     // A new version waiting on its card, above Settings (#520).
     main.show(.history)
-    world.model.updates.previewCard(version: "1.30.0")
+    world.model.updates.preview(.available("9.9.9"))
     shoot("update-card")
-    world.model.updates.previewCard(version: nil)
+    // Waiting to install by itself, and installed (#710).
+    world.model.updates.preview(.ready("9.9.9"))
+    shoot("update-ready")
+    world.model.updates.preview(.updated("9.9.9"))
+    shoot("update-installed")
+    world.model.updates.preview(nil)
     main.show(.settings)
     for section in MainSection.features {
         main.show(section)

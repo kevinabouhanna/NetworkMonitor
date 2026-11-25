@@ -57,7 +57,23 @@ public final class SpeedTestController: ObservableObject {
         @Published public fileprivate(set) var progress = SpeedTestProgress()
     }
 
-    @Published public private(set) var phase: Phase = .idle
+    @Published public private(set) var phase: Phase = .idle {
+        didSet {
+            guard oldValue.isRunning, !phase.isRunning else { return }
+            if case .idle = phase { return }
+            endedAt = Date()
+        }
+    }
+    /// When the last test finished or failed, rather than being stopped.
+    private var endedAt: Date?
+
+    /// Whether a restart would take a test, or a result just in, from someone
+    /// waiting for it (#710): a result is in memory only. Five minutes is time
+    /// enough to come back and read it.
+    public func restartWouldLoseTest(now: Date = Date()) -> Bool {
+        if phase.isRunning { return true }
+        return endedAt.map { now.timeIntervalSince($0) < 300 } ?? false
+    }
     public let live = Live()
 
     /// Whether the card is on screen. Separate from `phase` because leaving the

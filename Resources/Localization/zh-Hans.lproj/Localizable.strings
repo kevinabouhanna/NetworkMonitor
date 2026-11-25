@@ -588,8 +588,6 @@
 "could not launch nettop: %@" = "无法启动 nettop：%@";
 
 /* PermissionRows.swift */
-"It lives in your menu bar: click it to see which apps are using the internet. Two more things it can do, if you'd like:" = "它就在你的菜单栏中：点按它，即可查看哪些应用正在使用网络。如果你愿意，它还能做两件事：";
-"Not now? You can turn these on later in Settings. Nothing leaves your Mac." = "现在不想打开？你可以稍后在“设置”中打开它们。任何数据都不会离开你的 Mac。";
 "See which websites your apps visit" = "查看你的应用访问了哪些网站";
 "Slack shows up as slack.com, not just as Amazon, whose computers it runs on. It also lets you block any app, company or country." = "Slack 会显示为 slack.com，而不只是显示为托管它的 Amazon。你还可以借此阻止任何应用、公司或国家或地区。";
 "Stop every app's updates on hotspots" = "使用热点时停止所有应用的更新";
@@ -728,7 +726,6 @@
 "Get beta versions" = "获取测试版";
 "Beta versions come to you before everyone else, to try new things early. They may have problems. Switched off, you keep a beta until the next version comes out." = "测试版会先于其他人送到你这里，让你提前试用新功能。测试版可能有问题。关闭后，你会保留当前的测试版，直到下一个版本发布。";
 "Report a problem with a beta" = "报告测试版的问题";
-"Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor." = "NetworkMonitor 每天向 GitHub 查询一次是否有新版本，使用热点时从不查询。只有在你同意时才会安装更新，而且只安装由 NetworkMonitor 签名的更新。";
 
 /* SettingsWindowController.swift */
 "Hotspot" = "热点";
@@ -939,7 +936,6 @@
 
 /* A new version, on a card above Settings in the main window's sidebar (#520). */
 "Update available" = "有可用的更新";
-"Version %@ is ready to install." = "版本 %@ 已可安装。";
 "Install & Restart" = "安装并重新启动";
 "What's New" = "新功能";
 "Remind Me Later" = "稍后提醒我";
@@ -1059,3 +1055,28 @@
 "Turn on Enhanced ad blocking?" = "要打开增强型广告拦截吗？";
 "Waiting for your approval" = "正在等待你的批准";
 "macOS is asking for your password, to trust NetworkMonitor's certificate." = "macOS 正在请你输入密码，以信任 NetworkMonitor 的证书。";
+"Hide" = "隐藏";
+"Hide until it installs" = "隐藏，直到安装完成";
+"Install updates automatically" = "自动安装更新";
+"It lives in your menu bar: click it to see which apps are using the internet. A few more things it can do, if you'd like:" = "它就在你的菜单栏中：点按它，即可查看哪些应用正在使用网络。如果你愿意，它还能做这几件事：";
+"Last checked: %@" = "上次检查：%@";
+"NetworkMonitor looks for a new version only when you press Check Now. It installs only when you say so." = "只有在你点按“立即检查”时，NetworkMonitor 才会查找新版本。只有在你同意时才会安装。";
+"New versions install by themselves while NetworkMonitor's windows are closed." = "新版本会在 NetworkMonitor 的窗口都已关闭时自动安装。";
+"New versions install by themselves while NetworkMonitor's windows are closed. Otherwise you're told, and they install when you say so." = "新版本会在 NetworkMonitor 的窗口都已关闭时自动安装。关闭此选项时，会提示你有新版本，在你同意后才安装。";
+"New versions, betas included, install by themselves while NetworkMonitor's windows are closed." = "新版本（包括测试版）会在 NetworkMonitor 的窗口都已关闭时自动安装。";
+"Not checked yet" = "尚未检查";
+"Not now? You can turn these on later in Settings. What it sees stays on your Mac." = "现在不想打开？你可以稍后在“设置”中打开它们。它看到的内容都留在你的 Mac 上。";
+"Once a day, NetworkMonitor asks GitHub whether there's a newer version. Never on a hotspot." = "NetworkMonitor 每天向 GitHub 查询一次是否有新版本，使用热点时从不查询。";
+"Restart Now" = "立即重新启动";
+"Update ready" = "更新已就绪";
+"Updated" = "已更新";
+"Version %@ installed by itself." = "版本 %@ 已自动安装。";
+"Version %@ installs when you close this window." = "版本 %@ 会在你关闭此窗口时安装。";
+"Version %@ installs when you quit NetworkMonitor." = "版本 %@ 会在你退出 NetworkMonitor 时安装。";
+"Version %@ is available." = "版本 %@ 可用。";
+"Version %@ is available. You have %@." = "版本 %@ 可用，你的版本是 %@。";
+"You're told when there's a new version. It installs only when you say so." = "有新版本时会提示你，只有在你同意时才会安装。";
+"Hide this" = "隐藏此消息";
+"A new version downloads in the background, and installs while NetworkMonitor's windows are closed and no speed test is running. NetworkMonitor restarts, which takes a few seconds. Never on a hotspot, and only if it's signed by NetworkMonitor. Needs Check for updates automatically." = "新版本会在后台下载，并在 NetworkMonitor 的窗口都已关闭、没有进行网速测试时安装。NetworkMonitor 会重新启动，需要几秒钟。使用热点时从不进行，而且只安装由 NetworkMonitor 签名的更新。需要打开“自动检查更新”。";
+"Downloading version %@…" = "正在下载版本 %@…";
+"NetworkMonitor looks for newer versions again once this one has installed." = "这个版本安装后，NetworkMonitor 会再次查找新版本。";
