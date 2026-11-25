@@ -12,11 +12,17 @@ public enum PopoverClicks {
     /// holds anything else is.
     public static func closes(clickIn window: NSWindow?, popover: NSWindow?) -> Bool {
         guard let window, let popover else { return false }
-        var next: NSWindow? = window
+        if isIn(window, anyOf: [popover]) { return false }
+        return window.level.rawValue < NSWindow.Level.statusBar.rawValue
+    }
+
+    /// Whether `window` is one of `windows`, or opened from one, however deep.
+    public static func isIn(_ window: NSWindow?, anyOf windows: [NSWindow]) -> Bool {
+        var next = window
         while let current = next {
-            if current === popover { return false }
+            if windows.contains(where: { $0 === current }) { return true }
             next = current.parent ?? current.sheetParent
         }
-        return window.level.rawValue < NSWindow.Level.statusBar.rawValue
+        return false
     }
 }

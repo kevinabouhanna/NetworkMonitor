@@ -47,6 +47,12 @@ func runPopoverStillTests() {
             Check.expectFalse(closes(window(.popUpMenu)), "a menu")
             Check.expectFalse(closes(nil), "no window")
             Check.expectFalse(PopoverClicks.closes(clickIn: main, popover: nil), "no popover")
+
+            // Which come forward with the click, so aren't kept in place (#71).
+            Check.expectTrue(PopoverClicks.isIn(main, anyOf: [window(), main]), "the main window")
+            Check.expectTrue(PopoverClicks.isIn(mainsChild, anyOf: [main]), "a popover in the main window")
+            Check.expectFalse(PopoverClicks.isIn(window(.floating), anyOf: [main]), "a question")
+            Check.expectFalse(PopoverClicks.isIn(nil, anyOf: [main]), "no window")
         }
     }
 
@@ -90,7 +96,8 @@ private func expectStill(_ style: NSScroller.Style) {
                     bundlePath: "/Applications/App \(i).app", isSystem: false)
     }
     // Twenty apps, on two networks: more apps and servers than fit, blocked
-    // from many sites, but only three of them blocked from any.
+    // from many sites, but only three of them blocked from any. All but
+    // nothing on the first network, so its bar is as long as a bar gets.
     for n in 0..<2 {
         history.join(NetworkFingerprint(id: "net\(n)", kind: .wifi, gatewayMAC: "net\(n)", defaultLabel: "Net \(n)",
                                         isExpensive: false, isConstrained: false),
@@ -99,11 +106,11 @@ private func expectStill(_ style: NSScroller.Style) {
         var entries: [(identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)] = []
         var blocks: [(identity: AppIdentity, name: String, list: String)] = []
         for i in 0..<20 {
-            entries.append((app(i), Int64(900_000_000 - i * 1_000_000), 0))
+            entries.append((app(i), n == 0 ? Int64(15_000_000 - i * 1_000) : 1_000, 0))
             servers[app(i).key] = ["198.51.100.\(i)": ByteCounts(bytesIn: 900_000_000, bytesOut: 0)]
             blocks.append((app(i % 3), "ads\(i).example\(i).com", "ads"))
         }
-        history.recordInterface(bytesIn: 18_000_000_000, bytesOut: 0, now: now)
+        history.recordInterface(bytesIn: n == 0 ? 312_400_000 : 1_000, bytesOut: 0, now: now)
         history.recordApps(entries, servers: servers, now: now)
         history.recordListBlocks(blocks, now: now)
         history.flush(now: now)
@@ -191,6 +198,16 @@ private func expectStill(_ style: NSScroller.Style) {
         model.popoverSection = .today
         glance.dataGrouping = grouping
         check("Data › \(grouping.label)")
+        // A full bar leaves the figure after it whole.
+        if grouping == .networks {
+            let figure = ByteFormat.bytes(glance.report?.networks.first?.bytes ?? 0)
+            let ideal = (figure as NSString).size(withAttributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: PopoverMetrics.totalFontSize, weight: .medium)]).width
+            let seen = AccessibilityAudit.framesOwnWindow(titled: window.title)
+                .filter { $0.name == figure }.map(\.frame)
+            Check.expectTrue(seen.contains { $0.width >= ideal - 1 && $0.height < 20 },
+                             "\(figure) beside a full bar is at \(seen), \(ideal) wide whole")
+        }
     }
     for grouping in ConnectionsGrouping.allCases {
         model.popoverSection = .companies

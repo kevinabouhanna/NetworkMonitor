@@ -120,7 +120,7 @@ public struct MenuBarPopoverView: View {
             // view wider than the popover was centred in it, header and all.
             .frame(width: PopoverMetrics.width, height: sectionHeight, alignment: .topLeading)
         }
-        .frame(width: PopoverMetrics.width)
+        .frame(width: PopoverMetrics.width, alignment: .leading)
     }
 
     /// Every view's height under the header (#599), from the tallest list
@@ -648,16 +648,6 @@ public enum PopoverMetrics {
     /// so a chevron fading in never nudges the row's contents.
     public static let chevronWidth: CGFloat = 10
 
-    /// Width of the name-over-bar stack in a row `rowWidth` wide: what the icon,
-    /// the chevron, the insets and the gaps leave. Never a width of its own
-    /// (#728): at a fixed 220 a row was 316 pt wide, and beside a 17 pt scroll
-    /// bar that made the list, and the popover's header centred on it, wider
-    /// than the popover.
-    public static func detailWidth(indented: Bool, rowWidth: CGFloat) -> CGFloat {
-        let used = rowHorizontalPadding * 2 + iconSize(indented: indented) + iconSpacing * 2 + chevronWidth
-        return rowWidth - used - (indented ? childIndent + iconSpacing : 0)
-    }
-
     /// Tallest the list may grow before it scrolls instead.
     ///
     /// A ceiling rather than a fixed height. `NSPopover` re-anchors itself
@@ -837,13 +827,17 @@ struct PopoverRow: View {
                         .monospacedDigit()
                         .foregroundStyle(isMuted ? AnyShapeStyle(.secondary)
                                                  : AnyShapeStyle(.primary))
-                    Spacer(minLength: 0)
+                        // Whole, always: the bar gives way to it (#728).
+                        .lineLimit(1)
+                        .fixedSize()
                 }
             }
             // Held to the stack's own height and centred, so the name and the bar
             // stay vertically centred on the icon beside them.
             // As wide as the row leaves it, never wider (#728), so a long name
-            // truncates instead of shoving the row about.
+            // truncates instead of shoving the row about. At a fixed 220 a row
+            // was 316 pt wide, and beside a 17 pt scroll bar that made the
+            // list, and the header centred on it, wider than the popover.
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             .frame(height: PopoverMetrics.detailStackHeight(indented: indented))
 
@@ -901,7 +895,8 @@ struct PopoverRow: View {
     private var bar: some View {
         Capsule()
             .fill(barColor.opacity(isMuted ? 0.5 : 1))
-            .frame(width: barWidth, height: PopoverMetrics.barHeight)
+            .frame(minWidth: PopoverMetrics.minBarWidth, maxWidth: barWidth)
+            .frame(height: PopoverMetrics.barHeight)
             .animation(.easeOut(duration: 0.45), value: barWidth)
     }
 

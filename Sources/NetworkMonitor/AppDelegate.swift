@@ -401,7 +401,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             if let self, self.popover.isShown,
                PopoverClicks.closes(clickIn: event.window,
                                     popover: self.popover.contentViewController?.view.window) {
-                self.closePopover(parking: false)
+                // One of the open windows comes forward with the click. Any
+                // other (a question, About) leaves them where they are (#71),
+                // and a panel that doesn't activate the app, such as a
+                // question, leaves the focus with the app underneath.
+                self.closePopover(
+                    returningFocus: event.window?.styleMask.contains(.nonactivatingPanel) == true,
+                    parking: !PopoverClicks.isIn(event.window, anyOf: self.openWindows))
             }
             return event
         }
@@ -557,10 +563,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         let returnTo = returningFocus && NSApp.isActive ? appUnderPopover : nil
         appUnderPopover = nil
         closingPopover = true
+        // `performClose` does nothing while an ⓘ opened from the popover shows
+        // (#728); `close` closes both.
+        let hasChild = popover.contentViewController?.view.window?.childWindows?.isEmpty == false
+        let close = { [popover] in
+            if hasChild { popover.close() } else { popover.performClose(nil) }
+        }
         if NSApp.isActive && parking {
-            keepingWindowsInPlace { popover.performClose(nil) }
+            keepingWindowsInPlace(close)
         } else {
-            popover.performClose(nil)
+            close()
         }
         closingPopover = false
         returnTo?.activate(options: [])

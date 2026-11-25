@@ -185,20 +185,6 @@ func runPopoverMetricsTests() {
             Check.expectTrue(PopoverMetrics.childNameFontSize < PopoverMetrics.nameFontSize)
             Check.expectTrue(PopoverMetrics.childTotalFontSize < PopoverMetrics.totalFontSize)
         }
-
-        /// The bar and a figure after it have to fit a row at the deepest
-        /// indent, beside a scroll bar with a place of its own (#728).
-        Check.test("a full-width bar still fits the most indented row, beside a scroll bar") {
-            for scrollBar in [CGFloat(0), 17] {
-                for indented in [false, true] {
-                    let detail = PopoverMetrics.detailWidth(indented: indented,
-                                                            rowWidth: PopoverMetrics.width - scrollBar)
-                    Check.expectTrue(detail >= PopoverMetrics.maxBarWidth + 8 + 35,
-                                     "\(detail) pt for the bar and its figure, indented \(indented), "
-                                         + "beside a \(scrollBar) pt scroll bar")
-                }
-            }
-        }
     }
 
     Check.suite("PopoverMetrics — the scrollbar never strobes") {
