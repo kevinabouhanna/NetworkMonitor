@@ -300,13 +300,21 @@ ask for anything else; adding a capability means shipping a new helper.
 | `self-heal` | if `/Applications/NetworkMonitor.app` is gone, undoes everything and removes itself | launchd, as root |
 | `uninstall` | undoes everything and removes itself | NetworkMonitor's Uninstall, over XPC |
 
+The daemon also answers one question that isn't a verb and changes nothing: `udpUsage`,
+how many bytes each UDP socket moved on your own network (#753). It has no arguments either.
+While the app asks, it runs `/usr/sbin/tcpdump` with a compiled-in filter for UDP between two
+private addresses, and adds up the sizes per socket; addresses, contents and internet traffic
+never leave it or reach it. It stops two minutes after the last question, and before the
+daemon quits. [Architecture](architecture.md#internet-not-your-own-network) has how it's used.
+
 **A launch daemon inside the app** (#131). The app registers it with `SMAppService`
 (`Contents/Library/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist`), macOS
 lists it under NetworkMonitor in Login Items, and once you switch it on launchd starts it on
 the app's first request. It answers over XPC, only to NetworkMonitor signed by its team
 (GRQKG7M8CL), and the app only talks to the helper signed by that team. Each request runs
 the same binary with the one verb, so a verb behaves exactly as it did under `sudo`; it
-quits when idle, so an updated app's helper is the one that answers. On first start it:
+quits when idle, so an updated app's helper is the one that answers. A `udpUsage` question
+doesn't put that off once the program in the app has changed. On first start it:
 
 - removes the old sudoers rule, if there is one;
 - copies itself to `/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper`

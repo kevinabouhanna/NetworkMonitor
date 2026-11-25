@@ -258,6 +258,26 @@ claims came out at least 12.6 times what the interface physically carried. Anyth
 that can't be classified counts as internet, because **under-reporting is the one error
 this app can't afford**.
 
+**A socket with no far end** (#753). An unconnected UDP socket shows as
+`udp4 *:4000<->*:*`: bytes, and no address to classify, so all of it is internet. NoMachine's
+media, some calls and remote desktops work that way. With the helper's daemon allowed, the
+app asks it, while such sockets move more than 16 KB in a sample, how many bytes each socket
+moved between two private addresses (`UDPUsageCredit`, `UDPUsageMonitor`), and takes that
+much off, as local unicast. Details that mattered, each measured in a VM:
+
+- **The filter is in the kernel** (`UDPObservation.filter`): UDP with both ends private. A
+  capture of all UDP, 400 packets a second of it, cost 8.9% of a core in the helper and 4.8%
+  in `tcpdump`; private only, read in batches, 0.4% and 0.3%. Idle, it isn't running.
+- **Matched by process and port**, since a dual-stack socket is `udp6` to `nettop` and IPv4
+  on the wire, and a socket that only receives may have no interface in `nettop`'s rows.
+- **The daemon's counts only run up**, so asking takes nothing from another account's copy.
+  A new `epoch` (the capture started, or too many sockets) means no comparison for one sample.
+- **What was seen and not matched yet waits one sample**, the two being read a moment apart.
+  Never more than was seen comes off, nor more than the socket moved, so what's left is
+  internet: the first sample of a burst and anything the capture missed.
+- **VPNs and proxies are left alone**: their socket to a gateway on your network carries
+  other apps' internet traffic.
+
 The headline is then clamped, per direction:
 
 ```

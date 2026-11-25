@@ -143,8 +143,10 @@ public final class MonitorViewModel: ObservableObject {
 
     private let identityResolver = AppIdentityResolver()
     private let nettop: NettopStream
-    private let udpUsageQueue = DispatchQueue(label: "com.networkmonitor.udp-usage")
-    private var waitingForPacketCapture = false
+    /// Traffic of your own network that nettop can't place (#753). On its own
+    /// queue, in order: the helper is asked over XPC.
+    private let udpUsageQueue = DispatchQueue(label: "com.networkmonitor.udp-usage")  // untranslated: queue label
+    private var udpCredit = UDPUsageCredit()
     /// Traffic through a proxy or a VPN, credited to the apps behind it (#356).
     private let tunnelCredit: TunnelCreditor
     private let pathWatcher = NetworkIdentityWatcher()
@@ -397,7 +399,7 @@ public final class MonitorViewModel: ObservableObject {
                 self.perAppFailure = message
             }
         }
-        startNettop()
+        nettop.start()
         powerToken = PowerSource.observe { [weak self] in
             self?.applyProfile()
         }
@@ -441,7 +443,6 @@ public final class MonitorViewModel: ObservableObject {
         sampleTimer?.cancel()
         sampleTimer = nil
         powerToken = nil
-        waitingForPacketCapture = false
         nettop.stop()
         tunnelCredit.stop()
         speedTest.stop()
@@ -628,43 +629,23 @@ public final class MonitorViewModel: ObservableObject {
 
     // MARK: nettop sampling
 
-    /// Give an available helper a chance to start capture before nettop's
-    /// first baseline. Otherwise the very UDP bytes that trigger capture have
-    /// already been counted as internet and can never be classified.
-    private func startNettop() {
-        waitingForPacketCapture = true
-        udpUsageQueue.async { [weak self] in
-            let now = Date()
-            _ = HelperService.udpUsage(from: now.addingTimeInterval(-0.1), to: now)
-            DispatchQueue.main.async { [weak self] in
-                guard let self, self.waitingForPacketCapture else { return }
-                self.waitingForPacketCapture = false
-                self.nettop.start()
-            }
-        }
-    }
-
     private func handleNettopSample(_ raw: [NettopRow]) {
-        let now = Date()
         udpUsageQueue.async { [weak self] in
             guard let self else { return }
-            var sample = raw
-            if let interval = UDPUsageCredit.captureInterval(for: raw, near: now),
-               raw.contains(where: { $0.udpSockets.contains(where: \.hasTrafficWithoutPeer) }),
-               let usage = HelperService.udpUsage(from: interval.lowerBound, to: interval.upperBound) {
-                let interfaces = Set(InterfaceCounters.read().map(\.name))
-                sample = UDPUsageCredit.apply(to: raw, peers: usage.peers, interfaces: interfaces)
-            }
-            self.recordNettopSample(sample, at: now)
+            self.recordNettopSample(self.udpCredit.apply(
+                to: raw,
+                interfaces: { Set(InterfaceCounters.read().map(\.name)) },
+                snapshot: { HelperService.udpUsage() }))
         }
     }
 
-    private func recordNettopSample(_ raw: [NettopRow], at now: Date) {
+    private func recordNettopSample(_ raw: [NettopRow]) {
         // Resolve identities on the main actor: AppIdentityResolver touches
         // NSWorkspace and its caches are not thread-safe.
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             if self.perAppFailure != nil { self.perAppFailure = nil }
+            let now = Date()
             let sample = self.tunnelCredit.credit(raw, now: now)
             let summary = SampleSummary(sample) {
                 self.identityResolver.identity(pid: $0.pid, fallbackName: $0.processName)

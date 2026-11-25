@@ -53,10 +53,12 @@ public enum HelperDaemon {
 }
 
 /// What the daemon offers: one verb at a time, with no arguments, answered
-/// with its exit status and what it printed.
+/// with its exit status and what it printed; and the counts for `udpUsage`.
 @objc public protocol HelperXPCInterface {
     func run(_ verb: String, reply: @escaping (Int32, String) -> Void)
-    /// Aggregate UDP counters in one nettop interval. Empty when capture
-    /// isn't ready. It has no shell arguments and never exports packet contents.
-    func udpUsage(from: Double, to: Double, reply: @escaping (Data) -> Void)
+    /// What each UDP socket moved on your own network, as `UDPUsageSnapshot`
+    /// (#753), or nothing while it can't be counted. No arguments either: what
+    /// is looked at is compiled in. Only bytes per socket, never an address or
+    /// a packet's contents.
+    func udpUsage(reply: @escaping (Data) -> Void)
 }

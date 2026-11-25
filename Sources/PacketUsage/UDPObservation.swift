@@ -1,7 +1,7 @@
 import Foundation
 
-/// A physical UDP datagram as reported by macOS's PKTAP interface. The
-/// capture backend keeps just these fields, never the packet contents.
+/// One UDP datagram on your own network, as macOS's PKTAP interface reports it
+/// (#753). Only these fields are kept, never the packet's contents.
 public struct UDPObservation: Equatable {
     public struct Socket: Codable, Hashable {
         public let pid: Int32
@@ -17,14 +17,29 @@ public struct UDPObservation: Equatable {
         }
     }
 
-    public let timestamp: Double?
+    /// `tcpdump`'s filter: UDP whose two ends are both on your own network, so
+    /// the kernel hands over nothing else. A datagram to or from the internet
+    /// is never looked at, nor is multicast.
+    ///
+    /// The ranges `RemoteEndpoint` calls `localUnicast`, without loopback, which
+    /// PKTAP sees too and the app doesn't count.
+    public static let filter: String = {
+        func both(_ ranges: [String]) -> String {
+            let ends = ["src", "dst"].map { end in
+                "(" + ranges.map { "\(end) net \($0)" }.joined(separator: " or ") + ")"
+            }
+            return "(" + ends.joined(separator: " and ") + ")"
+        }
+        return "udp and (" + both(["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16"])
+            + " or " + both(["fe80::/10", "fc00::/7"]) + ")"
+    }()
+
     public let socket: Socket
     public let remoteAddress: String
     public let bytes: Int64
     public let inbound: Bool
 
-    /// Parses tcpdump's numeric, quiet PKTAP output. The timestamp and any
-    /// effective process label are immaterial to identifying the socket.
+    /// One line of tcpdump's numeric, quiet PKTAP output.
     public init?(line: String) {
         guard let start = line.firstIndex(of: "("),
               let end = line.range(of: ") IP", range: start..<line.endIndex),
@@ -52,7 +67,6 @@ public struct UDPObservation: Equatable {
               (1...65535).contains(port), remoteDot != remote.startIndex else { return nil }
         let remoteHost = remote[..<remoteDot].split(separator: "%", maxSplits: 1).first
         guard let remoteHost else { return nil }
-        timestamp = Double(line.prefix(while: { !$0.isWhitespace }))
         self.socket = Socket(pid: pid, interface: interface, family: ipv6 ? 6 : 4, port: port)
         self.remoteAddress = String(remoteHost)
         self.bytes = bytes
@@ -60,29 +74,52 @@ public struct UDPObservation: Equatable {
     }
 }
 
-/// Counters for one socket and peer during a capture interval.
-public struct UDPPeerUsage: Codable, Equatable {
+/// What one socket moved on your own network since the capture started.
+public struct UDPSocketUsage: Codable, Equatable {
     public let socket: UDPObservation.Socket
-    public let address: String
     public var bytesIn: Int64
     public var bytesOut: Int64
 
-    public init(socket: UDPObservation.Socket, address: String, bytesIn: Int64 = 0, bytesOut: Int64 = 0) {
+    public init(socket: UDPObservation.Socket, bytesIn: Int64 = 0, bytesOut: Int64 = 0) {
         self.socket = socket
-        self.address = address
         self.bytesIn = bytesIn
         self.bytesOut = bytesOut
     }
 }
 
+/// The helper's answer: running counts, so that asking takes nothing away from
+/// the next ask, or from another account's copy of the app.
 public struct UDPUsageSnapshot: Codable {
-    public let start: Date
-    public let end: Date
-    public let peers: [UDPPeerUsage]
+    /// New whenever the counts start again from zero.
+    public let epoch: UUID
+    public let sockets: [UDPSocketUsage]
 
-    public init(start: Date, end: Date, peers: [UDPPeerUsage]) {
-        self.start = start
-        self.end = end
-        self.peers = peers
+    public init(epoch: UUID, sockets: [UDPSocketUsage]) {
+        self.epoch = epoch
+        self.sockets = sockets
     }
+}
+
+/// The running counts behind a snapshot.
+public struct UDPUsageCounts {
+    /// Sockets come and go. Past this many the counts start again, under a new
+    /// epoch, which costs one sample's correction.
+    public static let maximumSockets = 4096
+
+    public private(set) var epoch = UUID()
+    private var sockets: [UDPObservation.Socket: UDPSocketUsage] = [:]
+
+    public init() {}
+
+    public mutating func record(_ packet: UDPObservation) {
+        if sockets[packet.socket] == nil, sockets.count >= Self.maximumSockets {
+            sockets = [:]
+            epoch = UUID()
+        }
+        var usage = sockets[packet.socket] ?? UDPSocketUsage(socket: packet.socket)
+        if packet.inbound { usage.bytesIn += packet.bytes } else { usage.bytesOut += packet.bytes }
+        sockets[packet.socket] = usage
+    }
+
+    public var snapshot: UDPUsageSnapshot { UDPUsageSnapshot(epoch: epoch, sockets: Array(sockets.values)) }
 }

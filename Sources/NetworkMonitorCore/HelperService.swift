@@ -106,9 +106,20 @@ public enum HelperService {
         return reply.text
     }
 
-    /// Called off the main thread, while nettop has unconnected UDP traffic.
-    static func udpUsage(from start: Date, to end: Date) -> UDPUsageSnapshot? {
+    /// What UDP sockets moved on your own network, as the daemon counted it
+    /// (#753), or nil: not allowed, or no answer. Off the main thread.
+    ///
+    /// Held back like the verbs (#243), and for a minute after its own missed
+    /// answer. That one doesn't hold the verbs back: a daemon from before an
+    /// update answers them, and not this, until it quits.
+    static func udpUsage(timeout: TimeInterval = 0.4) -> UDPUsageSnapshot? {
         guard status == .enabled else { return nil }
+        let now = Date()
+        lock.lock()
+        let allowed = breaker.allows(now: now) && udpBreaker.allows(now: now)
+        lock.unlock()
+        guard allowed else { return nil }
+
         let connection = NSXPCConnection(machServiceName: HelperDaemon.machServiceName, options: .privileged)
         connection.setCodeSigningRequirement(HelperDaemon.helperRequirement)
         connection.remoteObjectInterface = NSXPCInterface(with: HelperXPCInterface.self)
@@ -116,21 +127,27 @@ public enum HelperService {
         defer { connection.invalidate() }
 
         let answered = DispatchSemaphore(value: 0)
-        let lock = NSLock()
+        let replyLock = NSLock()
         var answer: Data?
-        guard let proxy = connection.remoteObjectProxyWithErrorHandler({ _ in answered.signal() })
-                as? HelperXPCInterface else { return nil }
-        proxy.udpUsage(from: start.timeIntervalSince1970, to: end.timeIntervalSince1970) { data in
-            lock.lock()
+        let proxy = connection.remoteObjectProxyWithErrorHandler { _ in answered.signal() } as? HelperXPCInterface
+        proxy?.udpUsage { data in
+            replyLock.lock()
             answer = data
-            lock.unlock()
+            replyLock.unlock()
             answered.signal()
         }
-        guard answered.wait(timeout: .now() + 0.4) == .success else { return nil }
+        _ = proxy != nil && answered.wait(timeout: .now() + timeout) == .success
+        replyLock.lock()
+        let data = answer
+        replyLock.unlock()
         lock.lock()
-        defer { lock.unlock() }
-        return answer.flatMap { try? JSONDecoder().decode(UDPUsageSnapshot.self, from: $0) }
+        data != nil ? udpBreaker.answered() : udpBreaker.missed(now: Date())
+        lock.unlock()
+        return data.flatMap { try? JSONDecoder().decode(UDPUsageSnapshot.self, from: $0) }
     }
+
+    /// Whether the daemon answered `udpUsage` lately.
+    private static var udpBreaker = HelperBreaker()
 
     public static let mainThreadTimeout: TimeInterval = 5
 

@@ -1,5 +1,4 @@
 import Foundation
-import PacketUsage
 
 /// One process's byte movement within a single `nettop` sample.
 public struct NettopRow: Equatable {
@@ -52,9 +51,8 @@ public struct NettopRow: Equatable {
     /// never shows loopback in. See `TunnelCredit`.
     public internal(set) var loopback: [LoopbackSocket]
 
+    /// Its UDP sockets, by port, for `UDPUsageCredit` (#753).
     var udpSockets: [NettopUDPSocket] = []
-    var captureTime: String?
-    var captureStartTime: String?
 
     public init(pid: Int32, processName: String, bytesIn: Int64, bytesOut: Int64,
                 localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
@@ -113,7 +111,6 @@ public struct NettopParser {
     /// Discards the priming sample, whose values are cumulative rather than deltas.
     private var sawFirstSample = false
     private var pending: [NettopRow] = []
-    private var lastCaptureTime: String?
     private var buffer = ""
     /// Whether rows carry an `interface` column before their counters, as the
     /// header says (`time,,interface,bytes_in,bytes_out,`).
@@ -148,12 +145,7 @@ public struct NettopParser {
                 foldConnection(connection)
                 continue
             }
-            if var row = Self.parseRow(line, interfaceColumn: interfaceColumn) {
-                if pending.isEmpty, interfaceColumn, let comma = line.firstIndex(of: ",") {
-                    row.captureTime = String(line[..<comma])
-                }
-                pending.append(row)
-            }
+            if let row = Self.parseRow(line, interfaceColumn: interfaceColumn) { pending.append(row) }
         }
         return samples
     }
@@ -162,13 +154,11 @@ public struct NettopParser {
     /// they stayed on the LAN, and to its servers if they crossed the internet.
     private mutating func foldConnection(_ connection: Connection) {
         guard let index = pending.indices.last else { return }
+        if let udp = connection.udp {
+            pending[index].udpSockets.append(NettopUDPSocket(port: udp.port, hasWildcardPeer: udp.wildcard,
+                                                             bytesIn: connection.bytesIn, bytesOut: connection.bytesOut))
+        }
         if let interface = connection.interface {
-            if let udp = connection.udp {
-                let socket = UDPObservation.Socket(pid: pending[index].pid, interface: interface,
-                                                   family: udp.family, port: udp.port)
-                pending[index].udpSockets.append(NettopUDPSocket(socket: socket, hasWildcardPeer: udp.wildcard,
-                                                                bytesIn: connection.bytesIn, bytesOut: connection.bytesOut))
-            }
             if Self.isTunnel(interface), !connection.scope.isLocal {
                 pending[index].tunnels[interface, default: ByteCounts(bytesIn: 0, bytesOut: 0)]
                     += ByteCounts(bytesIn: connection.bytesIn, bytesOut: connection.bytesOut)
@@ -208,7 +198,8 @@ public struct NettopParser {
         var interface: String? = nil
         /// Its two ports, when the stream has the column (for loopback).
         var ports: (local: Int, remote: Int)? = nil
-        var udp: (family: Int, port: Int, wildcard: Bool)? = nil
+        /// Its local port, and whether nettop leaves its other end out.
+        var udp: (port: Int, wildcard: Bool)? = nil
     }
 
     /// A tunnel's interface: a VPN's or a proxy's (`utun4`), never a link the
@@ -236,7 +227,7 @@ public struct NettopParser {
         let scope = RemoteEndpoint.scope(connectionLabel: label)
         // Only internet peers are kept by address, so only they are parsed again.
         var ports: (local: Int, remote: Int)?
-        var udp: (family: Int, port: Int, wildcard: Bool)?
+        var udp: (port: Int, wildcard: Bool)?
         if interfaceColumn, let separator = label.range(of: "<->") {
             let isIPv6 = RemoteEndpoint.isIPv6Label(label)
             let remote = String(label[separator.upperBound...])
@@ -245,7 +236,7 @@ public struct NettopParser {
                     ports = (local, remotePort)
                 }
                 if label.hasPrefix("udp4 ") || label.hasPrefix("udp6 ") {
-                    udp = (isIPv6 ? 6 : 4, local, scope == .internet && remote.hasPrefix("*"))
+                    udp = (local, scope == .internet && remote.hasPrefix("*"))
                 }
             }
         }
@@ -282,8 +273,6 @@ public struct NettopParser {
     private mutating func closeSample() -> [NettopRow]? {
         defer { pending = [] }
         guard !pending.isEmpty else { return nil }
-        pending[0].captureStartTime = lastCaptureTime
-        lastCaptureTime = pending[0].captureTime
         guard sawFirstSample else {
             sawFirstSample = true   // priming sample: cumulative, not a delta
             return nil
@@ -294,7 +283,6 @@ public struct NettopParser {
     /// Call when the `nettop` process restarts — the next sample is cumulative again.
     public mutating func resetForRestart() {
         sawFirstSample = false
-        lastCaptureTime = nil
         pending = []
         buffer = ""
     }

@@ -88,13 +88,14 @@ Two things in the Command Line Tools 27 shape the code:
 | `NetworkMonitor` | executable | A thin shell: `main.swift` and `AppDelegate.swift` (status item, popover, menus, the main window, lifecycle) |
 | `LowDataMode` | library | Interface flags, the helper's report, and `HelperProtocol.version`, shared by the app and the helper so the two can't disagree |
 | `HostsFile` | library | `/etc/hosts` editing, shared by the helper and the tests |
+| `PacketUsage` | library | The helper's `udpUsage` counts (#753): what's counted from a capture of your own network's UDP. Foundation only |
 | `ServerDirectory` | library | Which country an address is in and whose network it belongs to, from `Resources/Geo`. Pure Foundation, so the content filter can use it without the app's frameworks |
 | `GeoDataBuilder` | executable | Converts DB-IP's CSVs into `Resources/Geo`. Run by `make geodata`, never part of the app |
 | `MapDataBuilder` | executable | Converts Natural Earth's countries into `Resources/Geo/world.bin`, the Connections map. Run by `Scripts/mapdata.sh`, never part of the app |
 | `FilterProtocol` | library | What the app and its content filter agree on: identities, the XPC interfaces, `FlowReport`. Foundation only |
 | `FirewallPolicy` | library | What may connect (#114): the rules, the mode and the decision, for the app that keeps them and the filter that applies them. Foundation only |
 | `NetworkMonitorFilter` | executable | The content filter, a Network Extension system extension (#128). In the bundle only for Developer ID builds |
-| `NetworkMonitorHelper` | executable | The root helper. Links only `LowDataMode` and `HostsFile`, never Core: a root binary shouldn't carry a menu bar app's dependencies |
+| `NetworkMonitorHelper` | executable | The root helper. Links only `LowDataMode`, `HostsFile` and `PacketUsage`, never Core: a root binary shouldn't carry a menu bar app's dependencies |
 | `NetworkMonitorTests` | executable | The test suite |
 
 Tested internals are `public` rather than reached with `@testable import`, which compiled

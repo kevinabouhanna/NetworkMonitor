@@ -134,81 +134,170 @@ func runNettopParserTests() {
         }
     }
 
-    Check.suite("Unconnected UDP accounting") {
-        func sample() -> [NettopRow] {
+    Check.suite("Your own network's traffic on unconnected UDP sockets (#753)") {
+        func sample(_ rows: String) -> [NettopRow] {
             var parser = NettopParser()
-            let csv = """
-            time,,interface,bytes_in,bytes_out,
-            14:13:04,ExampleApp.1234,,20000,309,
-            time,,interface,bytes_in,bytes_out,
-            14:13:05,ExampleApp.1234,,1200,110,
-            14:13:05,udp4 *:63259<->*:*,en0,1000,100,
-            14:13:05,tcp4 192.168.1.2:58487<->203.0.113.55:443,en0,200,10,
-            time,,interface,bytes_in,bytes_out,
-            """
-            return parser.consume(csv + "\n").first ?? []
+            let csv = "time,,interface,bytes_in,bytes_out,\n14:13:04,ExampleApp.1234,,20000,309,\n"
+                + "time,,interface,bytes_in,bytes_out,\n" + rows + "\ntime,,interface,bytes_in,bytes_out,\n"
+            return parser.consume(csv).first ?? []
+        }
+        let mixed = sample("""
+        14:13:05,ExampleApp.1234,,120000,11000,
+        14:13:05,udp4 *:63259<->*:*,en0,100000,10000,
+        14:13:05,tcp4 192.168.1.2:58487<->203.0.113.55:443,en0,20000,1000,
+        """)
+        let epoch = UUID()
+        func socket(pid: Int32 = 1234, interface: String = "en0", family: Int = 4, port: Int = 63259) -> UDPObservation.Socket {
+            .init(pid: pid, interface: interface, family: family, port: port)
+        }
+        func usage(_ bytesIn: Int64, _ bytesOut: Int64, _ socket: UDPObservation.Socket = socket()) -> UDPUsageSnapshot {
+            .init(epoch: epoch, sockets: [.init(socket: socket, bytesIn: bytesIn, bytesOut: bytesOut)])
+        }
+        let started = UDPUsageSnapshot(epoch: epoch, sockets: [])
+        /// The last sample's row, after the helper gave each of `answers` in turn.
+        func credited(_ sample: [NettopRow], _ answers: [UDPUsageSnapshot?], carrier: Bool = false) -> [NettopRow] {
+            var credit = UDPUsageCredit(isCarrier: { _, _ in carrier })
+            var result = sample
+            for answer in answers { result = credit.apply(to: sample, interfaces: { ["en0"] }, snapshot: { answer }) }
+            return result
         }
 
-        let socket = UDPObservation.Socket(pid: 1234, interface: "en0", family: 4, port: 63259)
-        let lan = UDPPeerUsage(socket: socket, address: "192.168.1.42", bytesIn: 875, bytesOut: 80)
-        let internet = UDPPeerUsage(socket: socket, address: "203.0.113.42", bytesIn: 250, bytesOut: 50)
-
-        Check.test("one wildcard socket can have both LAN and public peers") {
-            let actual = UDPUsageCredit.apply(to: sample(), peers: [lan, internet], interfaces: ["en0"]).first
-            Check.expectEqual(actual?.subtractableLocalIn, 750)
-            Check.expectEqual(actual?.subtractableLocalOut, 50)
-            Check.expectEqual(actual?.internetBytesIn, 450)
-            Check.expectEqual(actual?.internetBytesOut, 60)
+        Check.test("what stayed on your own network comes off, the rest stays internet") {
+            let row = credited(mixed, [started, usage(75000, 5000)]).first
+            Check.expectEqual(row?.subtractableLocalIn, 75000)
+            Check.expectEqual(row?.subtractableLocalOut, 5000)
+            Check.expectEqual(row?.internetBytesIn, 45000)
+            Check.expectEqual(row?.internetBytesOut, 6000)
         }
 
-        Check.test("the first UDP delta retains the priming sample's timestamp") {
-            let now = Calendar.current.date(bySettingHour: 14, minute: 13, second: 5, of: Date())!
-            let interval = UDPUsageCredit.captureInterval(for: sample(), near: now)
-            Check.expectEqual(interval?.upperBound, now)
-            Check.expectEqual(interval?.lowerBound, now.addingTimeInterval(-1))
+        Check.test("it's never more than the socket moved") {
+            let row = credited(mixed, [started, usage(900_000, 900_000)]).first
+            Check.expectEqual(row?.internetBytesIn, 20000)
+            Check.expectEqual(row?.internetBytesOut, 1000)
         }
 
-        Check.test("datagrams on a bucket boundary survive exactly one sampling interval") {
-            var bucket = TimedUDPCounts()
-            bucket.record(timestamp: 12.001, bytes: 11, inbound: true)
-            bucket.record(timestamp: 12.008, bytes: 22, inbound: true)
-            bucket.record(timestamp: 12.009, bytes: 33, inbound: false)
-            let earlier = bucket.bytes(in: 12.000..<12.008)
-            let later = bucket.bytes(in: 12.008..<12.020)
-            Check.expectEqual(earlier.incoming, 11)
-            Check.expectEqual(earlier.outgoing, 0)
-            Check.expectEqual(later.incoming, 22)
-            Check.expectEqual(later.outgoing, 33)
+        Check.test("only what was seen since the last sample counts") {
+            let row = credited(mixed, [usage(500_000, 500_000), usage(510_000, 500_000)]).first
+            Check.expectEqual(row?.localBytesIn, 10000)
+            Check.expectEqual(row?.localBytesOut, 0)
         }
 
-        Check.test("only a matching observed UDP socket can reduce internet counts") {
-            let elsewhere = UDPPeerUsage(
-                socket: .init(pid: 999, interface: "en0", family: 4, port: 63259),
-                address: lan.address, bytesIn: 900)
-            let original = sample()
-            Check.expectEqual(UDPUsageCredit.apply(to: original, peers: [elsewhere], interfaces: ["en0"]), original)
-            Check.expectEqual(UDPUsageCredit.apply(to: original, peers: [lan], interfaces: []), original)
-            Check.expectEqual(UDPUsageCredit.apply(to: original, peers: [internet], interfaces: ["en0"]), original)
-            Check.expectEqual(UDPUsageCredit.apply(to: original, peers: [], interfaces: ["en0"]), original)
+        Check.test("a dual-stack socket is udp6 to nettop and IPv4 on the wire") {
+            let dual = sample("""
+            14:13:05,ExampleApp.1234,,100000,0,
+            14:13:05,udp6 *.63259<->*.*,en0,100000,0,
+            """)
+            Check.expectEqual(credited(dual, [started, usage(100_000, 0)]).first?.internetBytesIn, 0)
         }
 
-        Check.test("PKTAP resolves a wildcard socket to the actual source of inbound datagrams") {
-            let packet = UDPObservation(
-                line: "14:13:04.185712 (en0, proc ExampleApp:1234, in) IP 192.168.1.42.4000 > 192.168.1.2.63259: UDP, length 519")
-            Check.expectEqual(packet?.socket, socket)
-            Check.expectEqual(packet?.remoteAddress, "192.168.1.42")
-            Check.expectEqual(packet?.bytes, 519)
-            Check.expectEqual(packet?.inbound, true)
+        Check.test("a socket nettop names no interface for is matched too") {
+            let receiver = sample("""
+            14:13:05,ExampleApp.1234,,100000,0,
+            14:13:05,udp4 *:63259<->*:*,,100000,0,
+            """)
+            Check.expectEqual(credited(receiver, [started, usage(100_000, 0)]).first?.internetBytesIn, 0)
         }
 
-        Check.test("PKTAP resolves the destination of outbound IPv6 datagrams") {
-            let packet = UDPObservation(
-                line: "14:13:04.185712 (en0, proc ExampleApp:1234, eproc ExampleParent:321, out) IP6 fd00::2.63259 > fd00::42.4000: UDP, length 519")
-            Check.expectEqual(packet?.socket, .init(pid: 1234, interface: "en0", family: 6, port: 63259))
-            Check.expectEqual(packet?.remoteAddress, "fd00::42")
-            Check.expectEqual(packet?.inbound, false)
+        Check.test("what's seen a moment before nettop counts it comes off the next sample, and no later") {
+            var credit = UDPUsageCredit(isCarrier: { _, _ in false })
+            let quiet = sample("""
+            14:13:05,ExampleApp.1234,,20,0,
+            14:13:05,udp4 *:63259<->*:*,en0,20,0,
+            """)
+            func next(_ sample: [NettopRow], _ answer: UDPUsageSnapshot) -> Int64? {
+                credit.apply(to: sample, interfaces: { ["en0"] }, snapshot: { answer }).first?.internetBytesIn
+            }
+            Check.expectEqual(next(mixed, started), 120_000)
+            Check.expectEqual(next(quiet, usage(90000, 0)), 0)
+            Check.expectEqual(next(mixed, usage(90000, 0)), 120_000 - 89980)
+            Check.expectEqual(next(mixed, usage(90000, 0)), 120_000)
+        }
+
+        Check.test("another process, another port or an interface that isn't counted takes nothing off") {
+            for other in [socket(pid: 999), socket(port: 1), socket(interface: "en1")] {
+                Check.expectEqual(credited(mixed, [started, usage(90000, 900, other)]), mixed)
+            }
+        }
+
+        Check.test("no helper, a capture just started or counts that started again take nothing off") {
+            Check.expectEqual(credited(mixed, [nil]), mixed)
+            Check.expectEqual(credited(mixed, [usage(90000, 900)]), mixed)
+            Check.expectEqual(credited(mixed, [started, nil, usage(90000, 900)]), mixed)
+            let again = UDPUsageSnapshot(epoch: UUID(), sockets: usage(90000, 900).sockets)
+            Check.expectEqual(credited(mixed, [started, again]), mixed)
+        }
+
+        Check.test("a connected socket on the same port is left to its own address") {
+            let both = sample("""
+            14:13:05,ExampleApp.1234,,200000,0,
+            14:13:05,udp4 *:63259<->*:*,en0,100000,0,
+            14:13:05,udp4 192.168.1.2:63259<->203.0.113.9:443,en0,100000,0,
+            """)
+            Check.expectEqual(credited(both, [started, usage(90000, 0)]), both)
+        }
+
+        Check.test("a VPN's own traffic to a gateway on your network is its apps' internet") {
+            Check.expectEqual(credited(mixed, [started, usage(75000, 5000)], carrier: true), mixed)
+        }
+
+        Check.test("the helper isn't asked when there's next to nothing to place, or nothing") {
+            let little = sample("""
+            14:13:05,ExampleApp.1234,,100300,0,
+            14:13:05,udp4 *:63259<->*:*,en0,300,0,
+            14:13:05,udp4 *:5353<->*:*,en0,100000,0,
+            """)
+            var asked = 0
+            var credit = UDPUsageCredit(isCarrier: { _, _ in false })
+            _ = credit.apply(to: little, interfaces: { ["en0"] }, snapshot: { asked += 1; return started })
+            Check.expectEqual(asked, 0)
+            _ = credit.apply(to: mixed, interfaces: { ["en0"] }, snapshot: { asked += 1; return started })
+            // Once it's counting, small samples are placed as well.
+            _ = credit.apply(to: little, interfaces: { ["en0"] }, snapshot: { asked += 1; return started })
+            Check.expectEqual(asked, 2)
+        }
+
+        Check.test("PKTAP's lines give the socket, the direction and the size") {
+            let inbound = UDPObservation(
+                line: "(en0, proc ExampleApp:1234, in) IP 192.168.1.42.4000 > 192.168.1.2.63259: UDP, length 519")
+            Check.expectEqual(inbound?.socket, socket())
+            Check.expectEqual(inbound?.remoteAddress, "192.168.1.42")
+            Check.expectEqual(inbound?.bytes, 519)
+            Check.expectEqual(inbound?.inbound, true)
+            let outbound = UDPObservation(
+                line: "(en0, proc ExampleApp:1234, eproc ExampleParent:321, out) IP6 fd00::2.63259 > fd00::42.4000: UDP, length 519")
+            Check.expectEqual(outbound?.socket, socket(family: 6))
+            Check.expectEqual(outbound?.remoteAddress, "fd00::42")
+            Check.expectEqual(outbound?.inbound, false)
             Check.expectNil(UDPObservation(
-                line: "14:13:04.185712 (en0, in) IP 192.168.1.42.4000 > 192.168.1.2.63259: UDP, length 519"))
+                line: "(en0, in) IP 192.168.1.42.4000 > 192.168.1.2.63259: UDP, length 519"))
+        }
+
+        Check.test("the capture's filter is every range that counts as your own network, at both ends") {
+            let filter = UDPObservation.filter
+            for (range, address) in [("10.0.0.0/8", "10.1.2.3"), ("172.16.0.0/12", "172.31.255.1"),
+                                     ("192.168.0.0/16", "192.168.64.1"), ("169.254.0.0/16", "169.254.3.4")] {
+                Check.expectEqual(RemoteEndpoint.scopeOfIPv4(address), .localUnicast)
+                Check.expectTrue(filter.contains("src net \(range)") && filter.contains("dst net \(range)"), range)
+            }
+            for (range, address) in [("fe80::/10", "febf::1"), ("fc00::/7", "fd12::1")] {
+                Check.expectEqual(RemoteEndpoint.scopeOfIPv6(address), .localUnicast)
+                Check.expectTrue(filter.contains("src net \(range)") && filter.contains("dst net \(range)"), range)
+            }
+        }
+
+        Check.test("running counts add up per socket, and start again when there are too many") {
+            var counts = UDPUsageCounts()
+            let first = counts.epoch
+            func packet(_ port: Int) -> UDPObservation {
+                UDPObservation(line: "(en0, proc A:1, out) IP 192.168.1.2.\(port) > 192.168.1.3.9: UDP, length 10")!
+            }
+            counts.record(packet(1)); counts.record(packet(1))
+            Check.expectEqual(counts.snapshot.sockets.first?.bytesOut, 20)
+            for port in 2...UDPUsageCounts.maximumSockets { counts.record(packet(port)) }
+            Check.expectEqual(counts.epoch, first)
+            counts.record(packet(60000))
+            Check.expectTrue(counts.epoch != first, "a new epoch")
+            Check.expectEqual(counts.snapshot.sockets.count, 1)
         }
     }
 

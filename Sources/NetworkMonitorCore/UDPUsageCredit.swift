@@ -2,78 +2,122 @@ import Foundation
 import PacketUsage
 
 struct NettopUDPSocket: Equatable {
-    let socket: UDPObservation.Socket
+    let port: Int
+    /// `udp4 *:4000<->*:*`: nettop doesn't say where its bytes went.
     let hasWildcardPeer: Bool
     let bytesIn: Int64
     let bytesOut: Int64
 
-    var hasTrafficWithoutPeer: Bool {
-        hasWildcardPeer && (bytesIn > 0 || bytesOut > 0)
-    }
+    var hasTrafficWithoutPeer: Bool { hasWildcardPeer && (bytesIn > 0 || bytesOut > 0) }
 }
 
-/// nettop gives unconnected UDP sockets a byte count and no remote address.
-/// Correct that count only with traffic observed at the matching physical
-/// socket. A socket can talk to a LAN peer and an internet peer in the same
-/// interval, and packets missing from the capture stay in internet usage.
-public enum UDPUsageCredit {
-    public static func apply(to sample: [NettopRow], peers: [UDPPeerUsage], interfaces: Set<String>) -> [NettopRow] {
-        guard !peers.isEmpty else { return sample }
-        let counts = Dictionary(grouping: peers, by: \.socket)
-        return sample.map { row in
-            guard row.udpSockets.contains(where: \.hasTrafficWithoutPeer) else { return row }
-            var result = row
-            let sockets = Dictionary(grouping: row.udpSockets, by: \.socket)
-            for (socket, candidates) in sockets {
-                guard candidates.count == 1, let flow = candidates.first, flow.hasTrafficWithoutPeer,
-                      interfaces.contains(socket.interface), let observations = counts[socket] else { continue }
-                let local = observations.filter { scope($0) == .localUnicast }
-                let internet = observations.filter { scope($0) == .internet }
-                let incoming = min(local.reduce(0) { $0 + $1.bytesIn },
-                                   max(0, flow.bytesIn - internet.reduce(0) { $0 + $1.bytesIn }),
-                                   result.internetBytesIn)
-                let outgoing = min(local.reduce(0) { $0 + $1.bytesOut },
-                                   max(0, flow.bytesOut - internet.reduce(0) { $0 + $1.bytesOut }),
-                                   result.internetBytesOut)
-                result.localBytesIn += incoming
-                result.localBytesOut += outgoing
-                result.subtractableLocalIn += incoming
-                result.subtractableLocalOut += outgoing
-            }
-            return result
+/// Keeps your own network's traffic out of the internet figures when nettop
+/// can't say where it went (#753).
+///
+/// An unconnected UDP socket, as NoMachine's and many calls' are, shows as
+/// `udp4 *:4000<->*:*`: a byte count and no other end, which counts as
+/// internet. The helper, when it's allowed, counts what each socket moved
+/// between two addresses on your own network, and that much comes off. What it
+/// didn't see stays internet.
+///
+/// Sockets are matched by process and port, not by family or interface: nettop
+/// calls a dual-stack socket `udp6` while its packets are IPv4, and names no
+/// interface for one that only receives.
+///
+/// The two counts are taken a moment apart, so what was seen on your own
+/// network and not matched yet waits for the next sample, and no longer. What
+/// comes off is never more than was seen, nor than the socket moved.
+public struct UDPUsageCredit {
+    /// Less than this in a sample isn't worth starting the capture for.
+    public static let worthAsking: Int64 = 16 * 1024
+
+    private struct Key: Hashable {
+        let pid: Int32
+        let port: Int
+    }
+
+    private var lastSnapshot: UDPUsageSnapshot?
+    private var waiting: [Key: ByteCounts] = [:]
+    private var carriers: [Int32: Bool] = [:]
+    private let isCarrier: (Int32, String) -> Bool
+
+    /// - Parameter isCarrier: a VPN or a proxy. Its socket to a gateway on your own
+    ///   network carries the other apps' internet traffic, so it's left alone.
+    public init(isCarrier: @escaping (Int32, String) -> Bool = { pid, name in
+        TunnelCarrier.isCarrier(processName: name, path: AppIdentityResolver.executablePath(pid: pid))
+    }) {
+        self.isCarrier = isCarrier
+    }
+
+    /// The sample with what stayed on your own network marked so. `snapshot`
+    /// asks the helper, and is only called when there's traffic it could place.
+    public mutating func apply(to sample: [NettopRow], interfaces: () -> Set<String>,
+                               snapshot: () -> UDPUsageSnapshot?) -> [NettopRow] {
+        let unplaced = sample.reduce(Int64(0)) { total, row in
+            row.udpSockets.reduce(total) { $0 + ($1.hasTrafficWithoutPeer ? $1.bytesIn + $1.bytesOut : 0) }
         }
+        guard unplaced >= Self.worthAsking || (unplaced > 0 && lastSnapshot != nil) else { return sample }
+        guard let latest = snapshot() else {
+            lastSnapshot = nil
+            waiting = [:]
+            return sample
+        }
+        let seen = added(by: latest, interfaces: interfaces())
+        var pool = waiting
+        for (key, bytes) in seen { pool[key, default: ByteCounts(bytesIn: 0, bytesOut: 0)] += bytes }
+        waiting = [:]
+        guard !pool.isEmpty else { return sample }
+
+        var corrected = sample
+        var left = pool
+        for index in corrected.indices {
+            let row = corrected[index]
+            guard row.udpSockets.contains(where: \.hasTrafficWithoutPeer), !carries(row) else { continue }
+            for (port, sockets) in Dictionary(grouping: row.udpSockets, by: \.port) {
+                let key = Key(pid: row.pid, port: port)
+                // A connected socket on the same port is placed by its address
+                // already, and which of the two a datagram was for can't be told.
+                guard let bytes = pool[key], sockets.allSatisfy(\.hasWildcardPeer) else { continue }
+                let incoming = min(bytes.bytesIn, sockets.reduce(0) { $0 + $1.bytesIn }, corrected[index].internetBytesIn)
+                let outgoing = min(bytes.bytesOut, sockets.reduce(0) { $0 + $1.bytesOut }, corrected[index].internetBytesOut)
+                corrected[index].localBytesIn += incoming
+                corrected[index].localBytesOut += outgoing
+                corrected[index].subtractableLocalIn += incoming
+                corrected[index].subtractableLocalOut += outgoing
+                left[key] = ByteCounts(bytesIn: bytes.bytesIn - incoming, bytesOut: bytes.bytesOut - outgoing)
+            }
+        }
+        // One sample's worth at most, so bytes nettop never reports can't build
+        // up and come off the internet's later.
+        for (key, recent) in seen {
+            guard let rest = left[key] else { continue }
+            let kept = ByteCounts(bytesIn: min(rest.bytesIn, recent.bytesIn), bytesOut: min(rest.bytesOut, recent.bytesOut))
+            if kept.bytesIn > 0 || kept.bytesOut > 0 { waiting[key] = kept }
+        }
+        return corrected
     }
 
-    /// The physical capture must cover the exact nettop interval, including
-    /// the first delta whose starting timestamp comes from the priming sample.
-    public static func captureInterval(for sample: [NettopRow], near now: Date) -> Range<Date>? {
-        guard let first = sample.first, let started = first.captureStartTime, let finished = first.captureTime,
-              let end = timestamp(finished, near: now, limit: 2),
-              let start = timestamp(started, near: end, limit: 12), start < end else { return nil }
-        return start..<end
+    private mutating func added(by latest: UDPUsageSnapshot, interfaces: Set<String>) -> [Key: ByteCounts] {
+        defer { lastSnapshot = latest }
+        // Counts that started again can't be compared with the last ones.
+        guard let previous = lastSnapshot, previous.epoch == latest.epoch else { return [:] }
+        let before = Dictionary(previous.sockets.map { ($0.socket, $0) }, uniquingKeysWith: { first, _ in first })
+        var added: [Key: ByteCounts] = [:]
+        for usage in latest.sockets where interfaces.contains(usage.socket.interface) {
+            let old = before[usage.socket]
+            let bytes = ByteCounts(bytesIn: max(0, usage.bytesIn - (old?.bytesIn ?? 0)),
+                                   bytesOut: max(0, usage.bytesOut - (old?.bytesOut ?? 0)))
+            guard bytes.bytesIn > 0 || bytes.bytesOut > 0 else { continue }
+            added[Key(pid: usage.socket.pid, port: usage.socket.port), default: ByteCounts(bytesIn: 0, bytesOut: 0)] += bytes
+        }
+        return added
     }
 
-    /// nettop prints local clock time without a date. Choose the occurrence
-    /// nearest receipt, including the other side of midnight or a DST change.
-    private static func timestamp(_ value: String, near now: Date, limit: TimeInterval) -> Date? {
-        let fields = value.split(separator: ":")
-        guard fields.count == 3, let hour = Int(fields[0]), let minute = Int(fields[1]),
-              let second = Double(fields[2]), (0...23).contains(hour), (0...59).contains(minute),
-              (0..<60).contains(second) else { return nil }
-        let current = Calendar.current.dateComponents([.hour, .minute, .second, .nanosecond], from: now)
-        guard let h = current.hour, let m = current.minute, let s = current.second else { return nil }
-        let localNow = Double(h * 3600 + m * 60 + s) + Double(current.nanosecond ?? 0) / 1e9
-        let difference = Double(hour * 3600 + minute * 60) + second - localNow
-        let nearest = (difference + 43200).truncatingRemainder(dividingBy: 86400)
-        let offset = (nearest < 0 ? nearest + 86400 : nearest) - 43200
-        guard abs(offset) <= limit else { return nil }
-        return now.addingTimeInterval(offset)
-    }
-
-    private static func scope(_ observation: UDPPeerUsage) -> TrafficScope {
-        let address = observation.address
-        if observation.socket.family == 4 { return RemoteEndpoint.scopeOfIPv4(address) }
-        if let mapped = RemoteEndpoint.ipv4Mapped(address) { return RemoteEndpoint.scopeOfIPv4(mapped) }
-        return RemoteEndpoint.scopeOfIPv6(address)
+    private mutating func carries(_ row: NettopRow) -> Bool {
+        if let known = carriers[row.pid] { return known }
+        let answer = isCarrier(row.pid, row.processName)
+        if carriers.count > 1024 { carriers = [:] }
+        carriers[row.pid] = answer
+        return answer
     }
 }

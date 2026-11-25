@@ -19,6 +19,7 @@ final class Daemon: NSObject, NSXPCListenerDelegate, HelperXPCInterface {
     private let queue = DispatchQueue(label: HelperDaemon.label)
     private var idleExit: DispatchWorkItem?
     private let udpMonitor = UDPUsageMonitor()
+    private let program = Daemon.programOnDisk()
 
     static func serve() -> Never {
         shared.migrate()
@@ -50,17 +51,32 @@ final class Daemon: NSObject, NSXPCListenerDelegate, HelperXPCInterface {
         }
     }
 
-    func udpUsage(from: Double, to: Double, reply: @escaping (Data) -> Void) {
+    /// Asked every second while there's traffic to place, so it only puts off
+    /// quitting while this is still the program in the app: after an update the
+    /// new one has to get its turn.
+    func udpUsage(reply: @escaping (Data) -> Void) {
         queue.async {
+            guard Self.programOnDisk() == self.program else { return }
             self.idleExit?.cancel()
             self.scheduleIdleExit()
         }
-        udpMonitor.takeSnapshot(from: from, to: to, reply: reply)
+        udpMonitor.snapshot(reply: reply)
+    }
+
+    /// Which file the program is, to tell when an update has replaced it.
+    private static func programOnDisk() -> [FileAttributeKey: AnyHashable] {
+        guard let path = Bundle.main.executablePath,
+              let found = try? FileManager.default.attributesOfItem(atPath: path) else { return [:] }
+        return [.systemFileNumber: found[.systemFileNumber] as? Int ?? 0,
+                .modificationDate: found[.modificationDate] as? Date ?? .distantPast]
     }
 
     /// On `queue`.
     private func scheduleIdleExit() {
-        let work = DispatchWorkItem { exit(0) }
+        let work = DispatchWorkItem { [udpMonitor] in
+            udpMonitor.stop()
+            exit(0)
+        }
         idleExit = work
         queue.asyncAfter(deadline: .now() + Self.idleTimeout, execute: work)
     }
