@@ -43,8 +43,6 @@ public struct UDPUsageCredit {
         let name: String
     }
 
-    private var networkGeneration: UInt64 = 0
-    private var needsNewCapture = false
     private var lastSnapshot: UDPUsageSnapshot?
     private var waiting: [Key: ByteCounts] = [:]
     private var quiet = 0
@@ -63,27 +61,18 @@ public struct UDPUsageCredit {
     /// The sample with what stayed on your own network marked so. `snapshot`
     /// asks the helper: once there's traffic worth placing, then for every
     /// sample until it's been quiet, so each answer covers one sample.
-    public mutating func apply(to sample: [NettopRow], networkGeneration: UInt64 = 0,
-                               interfaces: () -> Set<String>,
-                               snapshot: (_ restartCapture: Bool) -> UDPUsageSnapshot?) -> [NettopRow] {
-        if self.networkGeneration != networkGeneration {
-            // The interface and port can survive the switch, along with buffered
-            // output from the old link. A new capture keeps that output out.
-            reset()
-            self.networkGeneration = networkGeneration
-            needsNewCapture = true
-        }
+    public mutating func apply(to sample: [NettopRow], interfaces: () -> Set<String>,
+                               snapshot: () -> UDPUsageSnapshot?) -> [NettopRow] {
         var unplaced: Int64 = 0
         for row in sample where row.udpSockets.contains(where: \.hasTrafficWithoutPeer) && !carries(row) {
             for socket in row.udpSockets where socket.hasTrafficWithoutPeer { unplaced += socket.bytesIn + socket.bytesOut }
         }
         quiet = unplaced >= Self.worthAsking ? 0 : quiet + 1
         guard unplaced >= Self.worthAsking || (lastSnapshot != nil && quiet < Self.quietSamples),
-              let latest = snapshot(needsNewCapture) else {
+              let latest = snapshot() else {
             reset()
             return sample
         }
-        needsNewCapture = false
         let seen = added(by: latest, interfaces: interfaces())
         var pool = waiting
         for (key, bytes) in seen { pool[key, default: ByteCounts(bytesIn: 0, bytesOut: 0)] += bytes }
@@ -120,7 +109,7 @@ public struct UDPUsageCredit {
     }
 
     /// What was seen so far belongs to no sample to come: nettop started again,
-    /// or nothing was asked for a while.
+    /// the link changed (#759), or nothing was asked for a while.
     public mutating func reset() {
         lastSnapshot = nil
         waiting = [:]

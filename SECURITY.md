@@ -35,8 +35,8 @@ Most important first:
   self-heal job and its records in `/Library/Application Support/NetworkMonitor/`. A build
   without a Developer ID runs the same binary through a sudoers rule at
   `/etc/sudoers.d/networkmonitor` instead. In scope is anything that gets more out of it
-  than its fixed verbs and local UDP counts (including restarting that capture), reaches
-  it from anything but NetworkMonitor, changes what those verbs act on, makes it look at packets beyond your own
+  than its fixed verbs and its `udpUsage` counts, reaches it from anything but
+  NetworkMonitor, changes what those verbs act on, makes it look at packets beyond your own
   network or pass on more of them than their size, or tampers with its records. How it's
   meant to work is in
   [Hotspot mode](docs/hotspot-mode.md#the-helper).

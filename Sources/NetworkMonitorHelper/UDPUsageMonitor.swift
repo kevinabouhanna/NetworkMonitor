@@ -22,10 +22,8 @@ final class UDPUsageMonitor {
 
     /// The counts so far, or nothing when there's no capture to be had. The
     /// first question starts it, and is answered with counts of zero.
-    func snapshot(restartCapture: Bool, reply: @escaping (Data) -> Void) {
+    func snapshot(reply: @escaping (Data) -> Void) {
         queue.async {
-            // Replacing the child also makes any queued output from the old link stale.
-            if restartCapture { self.stopOnQueue() }
             if self.capture?.isRunning != true {
                 // It died by itself, and its handler's turn is still to come.
                 if self.capture != nil { self.lastFailure = Date() }

@@ -288,11 +288,13 @@ much off, as local unicast. Details that mattered:
   on the wire, and a socket that only receives may have no interface in `nettop`'s rows.
 - **The daemon's counts only run up**, so asking takes nothing from another account's copy.
   A new `epoch` (the capture started, or too many sockets) means no comparison for one sample.
-  After a link change, the app discards queued samples from the previous link and requests
-  a fresh capture the next time there is enough UDP to place.
 - **What was seen and not matched yet waits one sample**, the two being read a moment apart.
   Never more than was seen comes off, nor more than the socket moved, so what's left is
   internet: the first sample of a burst and anything the capture missed.
+- **It starts again when the link changes** (#759), in the app: the first answer after it is
+  only compared with. The watcher's 2 s before it reports a change is longer than `tcpdump`
+  holds a packet, so the old link's are all in that answer. And a sample that waited for the
+  helper while the Mac moved to another network is left out of that one (`SampleNetwork`).
 - **VPNs and proxies are left alone**: their socket to a gateway on your network carries
   other apps' internet traffic.
 

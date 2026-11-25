@@ -61,6 +61,4 @@ public enum HelperDaemon {
     /// is looked at is compiled in. Only bytes per socket, never an address or
     /// a packet's contents.
     func udpUsage(reply: @escaping (Data) -> Void)
-    /// Starts a new local capture and returns its baseline after a link change.
-    func restartUDPUsage(reply: @escaping (Data) -> Void)
 }
