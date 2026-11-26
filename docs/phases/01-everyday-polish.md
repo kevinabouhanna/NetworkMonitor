@@ -19,6 +19,13 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   but not for QUIC's sent bytes. The switch for them is in 1.35.0 beta 1 (#786), off unless
   set by hand. defragekb measures Private Relay and the cost on the Mac that has it. If that
   holds, the first pass is downloads only, with the filter on, reconciled with nettop.
+- **The popover: a Speed view first, the views in the order you choose, and the IP address in
+  Network** (#792), Now: defragekb asked for what they open iStat Menus to see (a short graph
+  of the speeds, the apps using the network now with their live rates, the IP address); Kevin
+  (27 Nov 2026) made it a **Speed** view, first and where the popover opens, with the five
+  views ordered and shown or hidden in Settings, and the IP address and location in Network.
+  A design artifact with the options comes first: five buttons in 320 points, the Speed view,
+  and whether the internet address is asked of an outside service, which the app has never done.
 
 Done on 26 Nov 2026, released in 1.34.0 the same day (#778):
 
