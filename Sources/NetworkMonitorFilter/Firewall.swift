@@ -423,9 +423,11 @@ final class Firewall {
 
         for (flow, dataStage) in question.flows {
             if dataStage {
-                provider?.resumeFlow(flow, with: allows ? NEFilterDataVerdict.allow() : NEFilterDataVerdict.drop())
+                provider?.resumeFlow(flow, with: FlowBytesProbe.observe(
+                    flow, verdict: allows ? NEFilterDataVerdict.allow() : NEFilterDataVerdict.drop()))
             } else {
-                provider?.resumeFlow(flow, with: allows ? NEFilterNewFlowVerdict.allow() : NEFilterNewFlowVerdict.drop())
+                provider?.resumeFlow(flow, with: FlowBytesProbe.resumed(
+                    flow, verdict: allows ? NEFilterNewFlowVerdict.allow() : NEFilterNewFlowVerdict.drop()))
             }
         }
         if !allows {

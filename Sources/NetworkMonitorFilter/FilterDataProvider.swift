@@ -100,8 +100,9 @@ final class FilterDataProvider: NEFilterDataProvider {
     override func handleOutboundData(from flow: NEFilterFlow, readBytesStartOffset offset: Int,
                                      readBytes: Data) -> NEFilterDataVerdict {
         let verdict = HandshakeWatch.shared.read(flow, offset: offset, bytes: readBytes)
-        // The verdict after a handshake ends the statistics unless it asks again (#754).
-        return Firewall.shared.measuresFlowBytes ? FlowBytesProbe.observe(flow, verdict: verdict) : verdict
+        // The verdict after a handshake ends the statistics unless it asks
+        // again (#754): for a flow the probe watches, whether it's on now or not.
+        return FlowBytesProbe.observe(flow, verdict: verdict)
     }
 
     override func handleOutboundDataComplete(for flow: NEFilterFlow) -> NEFilterDataVerdict {
