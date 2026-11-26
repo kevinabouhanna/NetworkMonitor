@@ -2,6 +2,8 @@ import Foundation
 import Network
 import OSLog
 
+private let log = Logger(subsystem: "com.kevinabouhanna.NetworkMonitor", category: "background-downloads")
+
 /// Only the sockets already seen by the main nettop stream. The log supplies
 /// ownership, never byte counts.
 struct BackgroundSocket: Equatable {
@@ -58,11 +60,18 @@ struct BackgroundDownloads {
         let peer: BackgroundSocket.Address
         let firstSeen: Date
         let lastSeen: Date
+        /// The last sample it moved bytes in. nettop can list a socket for a
+        /// moment after it closed, so the close is after this, not `lastSeen`.
+        let lastActive: Date
         let missingAt: Date
         let charges: [Charge: ByteCounts]
         /// Log reads that found no owner yet: the close line can land in the
         /// log a moment after the socket is gone, so it's asked again.
         var attempts = 0
+
+        /// Where the log is read from for its close: after its last bytes,
+        /// and never more than a window before it went.
+        var readFrom: Date { max(lastActive, missingAt - (BackgroundDownloads.window - 2)) }
     }
 
     /// How many hours or networks one socket's bytes may span. Past that,
@@ -136,6 +145,7 @@ struct BackgroundDownloads {
         let peer: BackgroundSocket.Address
         let firstSeen: Date
         var lastSeen: Date
+        var lastActive: Date
         var charges: [Charge: ByteCounts] = [:]
         /// More hours or networks than `maxCharges`: never moved.
         var overflowed = false
@@ -162,14 +172,16 @@ struct BackgroundDownloads {
         var ended: [Closed] = []
         for (key, socket) in active where byKey[key] == nil && !socket.charges.isEmpty && !socket.overflowed {
             ended.append(Closed(key: key, peer: socket.peer, firstSeen: socket.firstSeen,
-                                lastSeen: socket.lastSeen, missingAt: now, charges: socket.charges))
+                                lastSeen: socket.lastSeen, lastActive: socket.lastActive,
+                                missingAt: now, charges: socket.charges))
         }
         var next: [BackgroundSocket.Key: Active] = [:]
         for (key, observations) in byKey {
             guard observations.count == 1, let (socket, source) = observations.first else { continue }
             var tracked = active[key].flatMap { $0.peer == socket.peer ? $0 : nil }
-                ?? Active(peer: socket.peer, firstSeen: now, lastSeen: now)
+                ?? Active(peer: socket.peer, firstSeen: now, lastSeen: now, lastActive: now)
             tracked.lastSeen = now
+            if socket.counts.bytesIn > 0 || socket.counts.bytesOut > 0 { tracked.lastActive = now }
             if let slot, let source, socket.counts.bytesIn > 0 || socket.counts.bytesOut > 0 {
                 let charge = Charge(slot: slot, source: source)
                 if tracked.charges.count < Self.maxCharges || tracked.charges[charge] != nil {
@@ -189,7 +201,7 @@ struct BackgroundDownloads {
             $0.key == socket.key
                 && ($0.peer == nil || $0.peer == socket.peer)
                 && $0.start <= socket.firstSeen
-                && $0.end >= socket.lastSeen - 0.25
+                && $0.end >= socket.lastActive - 0.25
                 && $0.end <= socket.missingAt + 1
         }.map(\.owner))
         return candidates.count == 1 ? (candidates.first ?? nil) : nil
@@ -232,10 +244,19 @@ final class BackgroundDownloadReader {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.reading = false
-                guard records != nil else {
+                guard let records else {
+                    log.info("the system log can't be read: background downloads stay under nsurlsessiond for 5 minutes")
                     self.retryAfter = Date() + 300
                     self.pending.removeAll()
                     return
+                }
+                for (owner, socket) in matched {
+                    let bytes = socket.charges.values.reduce(0) { $0 + $1.bytesIn + $1.bytesOut }
+                    log.info("background download of \(bytes, privacy: .public) bytes is \(owner, privacy: .public)'s")
+                }
+                for socket in unmatched where socket.attempts + 1 >= BackgroundDownloads.maxAttempts {
+                    let near = records.filter { $0.key.localPort == socket.key.localPort }
+                    log.debug("no owner for port \(socket.key.localPort, privacy: .public) (\(String(describing: socket.key.transport), privacy: .public)) seen \(socket.firstSeen.timeIntervalSince1970, privacy: .public)–\(socket.lastActive.timeIntervalSince1970, privacy: .public), gone \(socket.missingAt.timeIntervalSince1970, privacy: .public); \(records.count, privacy: .public) closes read, \(near.count, privacy: .public) on its port")
                 }
                 if !matched.isEmpty { result(matched) }
                 // Not in the log yet, perhaps: asked again on the next read,
@@ -257,12 +278,12 @@ final class BackgroundDownloadReader {
         let store = try OSLogStore.local()
         var records: [BackgroundDownloads.CloseRecord] = []
         var window: [BackgroundDownloads.Closed] = []
-        for socket in batch.sorted(by: { $0.lastSeen < $1.lastSeen }) {
-            if let first = window.first, socket.missingAt.timeIntervalSince(first.lastSeen) >= BackgroundDownloads.window {
+        for socket in batch.sorted(by: { $0.readFrom < $1.readFrom }) {
+            if let first = window.first, socket.missingAt.timeIntervalSince(first.readFrom) >= BackgroundDownloads.window {
                 records += try readWindow(window, from: store)
                 window = []
             }
-            if socket.missingAt.timeIntervalSince(socket.lastSeen) < BackgroundDownloads.window { window.append(socket) }
+            window.append(socket)
         }
         if !window.isEmpty { records += try readWindow(window, from: store) }
         return records
@@ -270,7 +291,7 @@ final class BackgroundDownloadReader {
 
     private static func readWindow(_ batch: [BackgroundDownloads.Closed],
                                    from store: OSLogStore) throws -> [BackgroundDownloads.CloseRecord] {
-        guard let first = batch.map(\.lastSeen).min(), let last = batch.map(\.missingAt).max() else { return [] }
+        guard let first = batch.map(\.readFrom).min(), let last = batch.map(\.missingAt).max() else { return [] }
         let query = NSPredicate(format: "process == %@ AND subsystem == %@ AND category == %@ AND eventMessage CONTAINS %@",
                                 "nsurlsessiond", "com.apple.network", "connection", "bytes in/out:")
         let entries = try store.getEntries(at: store.position(date: first - 1), matching: query)

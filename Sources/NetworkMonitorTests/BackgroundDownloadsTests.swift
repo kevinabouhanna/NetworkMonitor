@@ -101,6 +101,20 @@ func runBackgroundDownloadsTests() {
                 report, close(51_000, owner: nil, at: midnight + 0.5)!]))
         }
 
+        Check.test("a socket nettop still lists after it closed is matched by when it last moved bytes") {
+            var tracker = BackgroundDownloads()
+            let slot = UsageHistory.AppSlot(hour: 1, session: 10, generation: 0)
+            _ = tracker.update([.init(sockets: [socket(51_000, counts: bytes)], source: source)], slot: slot, now: midnight)
+            for second in 1...2 {
+                _ = tracker.update([.init(sockets: [socket(51_000, counts: zero)], source: source)],
+                                   slot: slot, now: midnight + Double(second))
+            }
+            let ended = tracker.update([], slot: nil, now: midnight + 3)
+            Check.expectEqual(ended.count, 1)
+            let records = [close(51_000, owner: "com.example.first", at: midnight + 0.5)!]
+            Check.expectEqual(ended.first.flatMap { BackgroundDownloads.owner(for: $0, in: records) }, "com.example.first")
+        }
+
         Check.test("a QUIC request that ran over TCP is matched as TCP, as nettop shows it") {
             // A background download's close on macOS 27.2, in a VM (#767).
             let report = BackgroundDownloads.CloseRecord.parse(pid: 446, time: midnight, message: """
