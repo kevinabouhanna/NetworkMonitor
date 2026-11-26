@@ -10,6 +10,9 @@ builds, checks and releases the app stays in order.
 - **Release 1.34.0 to everyone once the beta is good** (#778), Now: Usage History following
   midnight (#770) and the menu bar's top row (#772), both first written by defragekb. A beta
   first, then `v1.34.0` on its commit when Kevin says it's good.
+- **Release 1.35.0: a beta first, with #754's switch** (#794), Now: beta 1 carries only the
+  switch for measuring Safari with iCloud Private Relay (#786), off unless set by hand, for
+  defragekb to run. 1.35.0 goes to everyone when Kevin says, with what lands by then.
 - **Keep the tooling and the plan in order** (#606), standing: tooling chores (the vendored
   kits, local CI, the release workflow, the pictures' VM image, the plan and the board kept in
   step) are its steps. First among them: CI fails a change that keeps the app busy while it's
