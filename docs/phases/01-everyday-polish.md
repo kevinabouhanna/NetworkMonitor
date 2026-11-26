@@ -7,11 +7,6 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
 
 ## The plans
 
-- **Background downloads count for the app that asked for them** (#767), Next: reported by
-  defragekb (#768 reproduces it). macOS's `nsurlsessiond` downloads for many apps, so its bytes
-  are System's today. The content filter can't tell which app asked (checked in a VM on 26 Nov
-  2026: a rule on the app didn't block its background download), so the owner comes from the
-  log after the close, and what doesn't match stays where it is.
 - **Does the app count a virtual machine's data, connections and ads?** (#738), Next, research:
   Kevin asked what the menu bar and the main window show for what a VM does online. First signs
   (25 Nov 2026): the total probably has it, the app rows may not, and Connections and ad blocking
@@ -25,8 +20,13 @@ Done on 26 Nov 2026, on `main`, for the next release:
 
 - Usage History left on **Today** moves on to the new day at midnight, and a period you chose
   stays (#770), reported and first written by defragekb (#771).
-- **Menu bar top row** in Settings › Speed colors puts download or upload on top (#772), asked
-  for and first written by defragekb (#773); the Dock icon keeps download on top.
+- **Speed on top** in Settings › Speed colors puts download or upload on top, in the menu bar
+  and on the Dock icon (#772), asked for and first written by defragekb (#773, #783).
+- Downloads an app hands to macOS count for that app in Usage History once they end (#767),
+  reported and first written by defragekb (#768, #782): the owner comes from macOS's log after
+  the close, since the content filter can't tell (a rule on the app didn't block its background
+  download); checked on a signed build in a VM, where 44.1 MB of a test app's downloads moved
+  to it. What doesn't match stays under the service.
 - Connections and Ads and Trackers move on to the new day at midnight too (#776), found while
   reviewing #771: the three windows share one piece that follows the calendar.
 
