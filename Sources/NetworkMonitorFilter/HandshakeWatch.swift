@@ -114,7 +114,8 @@ final class HandshakeWatch {
         // ahead (#199). Only a handshake that never completes gets here.
         let allows = watch.decision.asks || conclude(watch.report, decision: watch.decision, name: nil)
         if watch.decision.asks { AppLink.shared.report(watch.report) }
-        provider?.update(watch.flow, using: allows ? .allow() : .drop(), for: .any)
+        provider?.update(watch.flow, using: FlowBytesProbe.observe(watch.flow, verdict: allows ? .allow() : .drop()),
+                         for: .any)
     }
 
     /// Ask Me, now that the site has a name (#199): unless a rule decides it

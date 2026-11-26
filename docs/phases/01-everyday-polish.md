@@ -1,6 +1,6 @@
 # Phase 1: Everyday polish
 
-**Milestone:** Phase 1: Everyday polish · **Status:** Next
+**Milestone:** Phase 1: Everyday polish · **Status:** Now
 
 **Goal:** what people touch every day feels finished: the popover never jumps, the main
 window's three lists behave the same, and the VoiceOver and keyboard work of 1.29 is checked.
@@ -12,9 +12,13 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   (25 Nov 2026): the total probably has it, the app rows may not, and Connections and ad blocking
   are unchecked. It's measured in a VM, then decided: the docs only, a row for it, or a fix. After
   the update settings (#710), before the Chrome extension (#257), which is weeks of work.
-- **Safari's Private Relay traffic has no row** (#754), Later, research: reported by defragekb.
+- **Safari's Private Relay traffic has no row** (#754), Now, research: reported by defragekb.
   Not by capturing internet packets (#749), which costs too much CPU and privacy: whether the
-  content filter's own byte counts cover it is what's to find out.
+  content filter's own byte counts cover it is what's to find out. In a VM (25 Nov 2026) they
+  hold for received bytes, QUIC included, but not for QUIC's sent bytes. Next, a switch for
+  them in a beta, off unless set by hand (#786), so defragekb can measure Private Relay, and
+  its cost, on the Mac that has it. If that holds, the first pass is downloads only, with the
+  filter on, reconciled with nettop.
 
 Done on 26 Nov 2026, on `main`, for the next release:
 

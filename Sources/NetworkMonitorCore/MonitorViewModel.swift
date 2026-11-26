@@ -338,7 +338,9 @@ public final class MonitorViewModel: ObservableObject {
                                                   lookupResolver: resolver,
                                                   enhancedBlocking: FirewallRules.enhancedPolicy(
                                                     enhanced, adRules: adRules,
-                                                    onForTesting: EnhancedBlockingProxy.isOnForTesting)))
+                                                    onForTesting: EnhancedBlockingProxy.isOnForTesting),
+                                                  // By hand only, for #754 (#786).
+                                                  measuresFlowBytes: UserDefaults.standard.bool(forKey: "flowBytesProbe")))
                 // Switched on with stale lists: fetch newer ones soon.
                 if !rulesAndLists.1.isEmpty {
                     self?.blocklists.checkSoon()

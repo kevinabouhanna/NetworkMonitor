@@ -17,6 +17,15 @@ func runFilterTests() {
             Check.expectEqual(FlowReport.decode(Data("not json".utf8)), [])
         }
 
+        Check.test("the byte-count probe is off unless sent, and a policy from before it reads it as off (#786)") {
+            Check.expectFalse(FirewallPolicy().measuresFlowBytes)
+            let old = Data(#"{"mode":"anywhere","rules":[],"onHotspot":false}"#.utf8)
+            Check.expectEqual(FirewallPolicy.decode(old)?.measuresFlowBytes, false)
+            let on = FirewallPolicy(measuresFlowBytes: true)
+            Check.expectEqual(FirewallPolicy.decode(on.encoded())?.measuresFlowBytes, true)
+            Check.expectEqual(FirewallPolicy.decode(on.encoded()), on)
+        }
+
         // audit_token_t is eight 32-bit words; the process ID is the sixth.
         Check.test("reads the process ID from an audit token") {
             var words: [UInt32] = [1, 2, 3, 4, 5, 4242, 7, 8]
