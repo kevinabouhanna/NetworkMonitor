@@ -1,6 +1,61 @@
 import Foundation
 @testable import NetworkMonitorCore
 
+// The three localhost captures for #785, in close order. The close times
+// are relative to the first nettop sample. The log keeps only the lines
+// the parser reads, with synthetic connection IDs, endpoints, owners and
+// byte counts.
+private let loopbackCloseCaptures: [[(offset: TimeInterval, message: String)]] = [
+    [
+        (0.0353, """
+            [C2 IPv4#00000001:52000 tcp, bundle id: com.example.second, attribution: developer] cancelled
+            \t[C2 127.0.0.1:51001<->IPv4#00000001:52000]
+            \tConnected Path: satisfied (Path is satisfied), viable, interface: lo0
+            \tDuration: 0.018s, TCP @0.000s
+            \tbytes in/out: 1/0
+            """),
+        (0.0359, """
+            [C1 IPv4#00000001:52000 tcp, bundle id: com.example.first, attribution: developer] cancelled
+            \t[C1 127.0.0.1:51000<->IPv4#00000001:52000]
+            \tConnected Path: satisfied (Path is satisfied), viable, interface: lo0
+            \tDuration: 0.163s, TCP @0.000s
+            \tbytes in/out: 1/0
+            """),
+    ],
+    [
+        (0.0430, """
+            [C1 IPv4#00000001:52000 tcp, bundle id: com.example.first, attribution: developer] cancelled
+            \t[C1 127.0.0.1:51000<->IPv4#00000001:52000]
+            \tConnected Path: satisfied (Path is satisfied), viable, interface: lo0
+            \tDuration: 0.185s, TCP @0.000s
+            \tbytes in/out: 1/0
+            """),
+        (0.0437, """
+            [C2 IPv4#00000001:52000 tcp, bundle id: com.example.second, attribution: developer] cancelled
+            \t[C2 127.0.0.1:51001<->IPv4#00000001:52000]
+            \tConnected Path: satisfied (Path is satisfied), viable, interface: lo0
+            \tDuration: 0.019s, TCP @0.000s
+            \tbytes in/out: 1/0
+            """),
+    ],
+    [
+        (0.0429, """
+            [C1 IPv4#00000001:52000 tcp, bundle id: com.example.first, attribution: developer] cancelled
+            \t[C1 127.0.0.1:51000<->IPv4#00000001:52000]
+            \tConnected Path: satisfied (Path is satisfied), viable, interface: lo0
+            \tDuration: 0.280s, TCP @0.000s
+            \tbytes in/out: 1/0
+            """),
+        (0.0435, """
+            [C2 IPv4#00000001:52000 tcp, bundle id: com.example.second, attribution: developer] cancelled
+            \t[C2 127.0.0.1:51001<->IPv4#00000001:52000]
+            \tConnected Path: satisfied (Path is satisfied), viable, interface: lo0
+            \tDuration: 0.014s, TCP @0.000s
+            \tbytes in/out: 1/0
+            """),
+    ],
+]
+
 func runBackgroundDownloadsTests() {
     let midnight = Date(timeIntervalSince1970: 1_798_761_600)
     let source = "/usr/libexec/nsurlsessiond"
@@ -115,30 +170,29 @@ func runBackgroundDownloadsTests() {
             Check.expectEqual(ended.first.flatMap { BackgroundDownloads.owner(for: $0, in: records) }, "com.example.first")
         }
 
-        Check.test("a close whose start the log puts just after the first sample is still matched (#785)") {
-            // defragekb's fresh run on macOS 26.7.3: nettop listed the socket
-            // and its bytes, then the close came at +35.3 ms with Duration
-            // 0.018s, so the log's start is 17.3 ms after that sample.
-            var tracker = BackgroundDownloads()
+        Check.test("localhost close captures match both owners when a log start follows the first sample (#785)") {
             let slot = UsageHistory.AppSlot(hour: 1, session: 10, generation: 0)
-            let a = socket(51_000, counts: bytes)
-            let b = socket(51_001, counts: bytes)
-            _ = tracker.update([.init(sockets: [a, b], source: source)], slot: slot, now: midnight)
-            let ended = tracker.update([], slot: nil, now: midnight + 1)
-            let records = [close(51_000, owner: "com.example.first", at: midnight + 0.0353, duration: 0.018)!,
-                           close(51_001, owner: "com.example.second", at: midnight + 0.2, duration: 0.19)!]
-            Check.expectEqual(ended.count, 2)
-            for socket in ended {
-                Check.expectEqual(BackgroundDownloads.owner(for: socket, in: records),
-                                  socket.key.localPort == 51_000 ? "com.example.first" : "com.example.second")
+            let localhost = BackgroundSocket.Address("127.0.0.1")!
+            let owners = [51_000: "com.example.first", 51_001: "com.example.second"]
+            let sockets = owners.keys.map { port in
+                BackgroundSocket(key: .init(pid: 42, interface: "lo0", transport: .tcp, local: localhost,
+                                            localPort: port, remotePort: 52_000),
+                                 peer: localhost, counts: bytes)
             }
-            // The two earlier captures: +24.7 and +29.5 ms.
-            let first = ended.first { $0.key.localPort == 51_000 }
-            for delay in [0.0247, 0.0295] {
-                Check.expectEqual(first.flatMap {
-                    BackgroundDownloads.owner(for: $0, in: [
-                        close(51_000, owner: "com.example.late", at: midnight + delay + 0.1, duration: 0.1)!])
-                }, "com.example.late")
+
+            for (index, capture) in loopbackCloseCaptures.enumerated() {
+                var tracker = BackgroundDownloads()
+                _ = tracker.update([.init(sockets: sockets, source: source)], slot: slot, now: midnight)
+                let ended = tracker.update([], slot: nil, now: midnight + 1)
+                let records = capture.compactMap {
+                    BackgroundDownloads.CloseRecord.parse(pid: 42, time: midnight + $0.offset, message: $0.message)
+                }
+                Check.expectEqual(ended.count, 2, "capture \(index + 1)")
+                Check.expectEqual(records.count, 2, "capture \(index + 1)")
+                for socket in ended {
+                    Check.expectEqual(BackgroundDownloads.owner(for: socket, in: records),
+                                      owners[socket.key.localPort], "capture \(index + 1), port \(socket.key.localPort)")
+                }
             }
         }
 
