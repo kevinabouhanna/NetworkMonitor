@@ -132,7 +132,7 @@ struct GeneralSettingsPane: View {
                 // Dock icon when it's the speeds (#772).
                 if placement.placement.showsMenuBar || placement.drawsSpeedsOnDock {
                     ExplainedRow(L("Speed on top"),
-                                 L("Which speed is on the upper line, in the menu bar and on the Dock icon, live and during a speed test. Each keeps its arrow and color, and VoiceOver reads them in that order.")) {
+                                 L("Which speed is on the upper line wherever the speeds show: in the menu bar, and on the Dock icon when it shows them. Live and during a speed test. Each keeps its arrow and color, and VoiceOver reads them in that order.")) {
                         Picker(L("Speed on top"), selection: $colors.uploadFirst) {
                             Text(L("Download")).tag(false)
                             Text(L("Upload")).tag(true)

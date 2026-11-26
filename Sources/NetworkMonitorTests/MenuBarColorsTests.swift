@@ -119,14 +119,16 @@ func runMenuBarColorsTests() {
                                         up: "↑ \(ByteFormat.menuBarSpeed(6_000_000, unit: unit))",
                                         tints: MenuBarTints.testChoices[0])
                 for readout in [live, test] {
-                    let reversed = MenuBarTitle.attributed(readout, uploadFirst: true)
+                    let upFirst = SpeedReadout(down: readout.down, up: readout.up, tints: readout.tints,
+                                               uploadFirst: true)
+                    let reversed = MenuBarTitle.attributed(upFirst)
                     Check.expectEqual(reversed.string, readout.up + "\n" + readout.down)
                     Check.expectTrue(reversed.attribute(.foregroundColor, at: 0, effectiveRange: nil)
                                      as? NSColor == readout.tints.up)
                     Check.expectTrue(reversed.attribute(.foregroundColor, at: readout.up.utf16.count + 1,
                                                          effectiveRange: nil) as? NSColor == readout.tints.down)
                     let normalSize = MenuBarTitle.image(readout).size
-                    Check.expectEqual(MenuBarTitle.image(readout, uploadFirst: true).size, normalSize)
+                    Check.expectEqual(MenuBarTitle.image(upFirst).size, normalSize)
                 }
             }
         }

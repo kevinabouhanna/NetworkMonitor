@@ -145,7 +145,8 @@ public struct SpeedReadout: Equatable {
     public let down: String
     public let up: String
     public let tints: MenuBarTints
-    /// Upload on the upper line: **Speed on top** (#772), on the Dock icon.
+    /// Upload on the upper line: **Speed on top** (#772), in the menu bar
+    /// and on the Dock icon.
     public let uploadFirst: Bool
 
     public init(down: String, up: String, tints: MenuBarTints, uploadFirst: Bool = false) {
