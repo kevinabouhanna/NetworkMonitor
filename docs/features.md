@@ -6,12 +6,13 @@ Everything NetworkMonitor does, and where to find it.
 
 ## The menu bar readout
 
-Two lines, always visible: **↓ download** in green over **↑ upload** in light grey, in
+The menu bar shows two lines, with **↓ download** in green over **↑ upload** in light grey by default, in
 **MB/s** or **Mbps** (**Settings › Show speeds in**). Mbps matches how your line
 is sold; MB/s matches the data totals. Amounts of data are always in MB and GB, the way
 data plans are sold. Pick other colours under **Settings › Speed colors**: six ready-made
 pairs (Green, the default, Teal, Blue, Gold, Pink and Violet), each made to read on a dark
-and a light menu bar, or **Custom…** for your own.
+and a light menu bar, or **Custom…** for your own. **Menu bar top row** in that
+section lets you put Download or Upload first, including when a speed test is shown.
 
 The readout **follows the menu bar**: on a light one, as over a light wallpaper, each colour is
 drawn darker in the same hue so it stays readable, and it switches by itself when the
@@ -23,7 +24,8 @@ Mode (see [battery](accuracy-and-battery.md#battery)). While a speed test runs, 
 shows it in cyan, or in another pair of colours if yours come close to cyan, so a test never
 looks like the live rates.
 
-VoiceOver reads it in words, download first: *NetworkMonitor, Download 1.2 megabytes per
+VoiceOver reads it in the order shown. With the default order,
+it says *NetworkMonitor, Download 1.2 megabytes per
 second, upload 30 kilobytes per second*, or *Speed test: download …* while a test shows (#497).
 
 - **Click** it for the popover.
@@ -207,7 +209,7 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 - **Updates** ([how it updates](installing.md#update)): your version, when it last checked and Check Now, **Check for updates automatically**, **Install updates automatically** and **Get beta versions**
 - **Show speeds in** MB/s or Mbps
 - **Wi-Fi names**, until they're on
-- **Speed colors** (the readout's and the Dock icon's): six ready-made pairs, Custom… for your own Download and Upload, the speed test's colours
+- **Speed colors** (the readout's and the Dock icon's): six ready-made pairs, Custom… for your own Download and Upload, the speed test's colours, and **Menu bar top row**
 - **Popover totals**: Counting since, Sampling, Reset Now
 - **Sections**: a row to each section's settings, the same pages its gear shows
 

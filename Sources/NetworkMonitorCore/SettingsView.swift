@@ -127,6 +127,15 @@ struct GeneralSettingsPane: View {
             // these, so the two never look alike; they're shown, not offered.
             // Ready-made pairs first (#688), your own behind Custom….
             Section {
+                LabeledContent(L("Menu bar top row")) {
+                    Picker(L("Menu bar top row"), selection: $colors.uploadFirst) {
+                        Text(L("Download")).tag(false)
+                        Text(L("Upload")).tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                }
                 SpeedColorPresets(colors: colors)
                 let custom = state.customColorsShown || colors.preset == nil
                 // Your own colors stay in view while they're in use: no

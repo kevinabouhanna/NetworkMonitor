@@ -82,8 +82,8 @@ public struct MenuBarTints: Equatable {
     }
 }
 
-/// The colours of the menu bar's live rates, chosen in Settings
-/// (#45), and the tints a speed test uses in their place.
+/// The menu bar's speed colours and row order, chosen in Settings,
+/// and the tints a speed test uses in place of the live colours (#45).
 ///
 /// A test takes the menu bar over at the same width, so colour is the only thing
 /// that says the figures are a test's: a capacity, not what is moving now. Its
@@ -100,6 +100,18 @@ public final class MenuBarColors: ObservableObject {
     @Published public var upload: NSColor {
         didSet { colorsDidChange(upload, key: Keys.upload, default: MenuBarTints.live.up) }
     }
+    /// Whether the upload rate is drawn above the download rate in the menu bar.
+    @Published public var uploadFirst: Bool {
+        didSet {
+            guard uploadFirst != oldValue else { return }
+            if uploadFirst {
+                defaults.set(true, forKey: Keys.uploadFirst)
+            } else {
+                defaults.removeObject(forKey: Keys.uploadFirst)
+            }
+            didChange?()
+        }
+    }
     /// What a speed test is drawn in for the current live colours.
     @Published public private(set) var test: MenuBarTints
 
@@ -115,6 +127,7 @@ public final class MenuBarColors: ObservableObject {
     private enum Keys {
         static let download = "menuBarDownloadColor"
         static let upload = "menuBarUploadColor"
+        static let uploadFirst = "menuBarUploadFirst"
     }
 
     public init(defaults: UserDefaults = .standard) {
@@ -125,6 +138,7 @@ public final class MenuBarColors: ObservableObject {
             ?? MenuBarTints.live.up
         self.download = download
         self.upload = upload
+        uploadFirst = defaults.bool(forKey: Keys.uploadFirst)
         test = MenuBarTints.test(clearOf: MenuBarTints(down: download, up: upload))
     }
 
