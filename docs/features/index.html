@@ -47,12 +47,14 @@ document.addEventListener('click', function (e) {
 <div class="markdown-heading"><h1 id="features" class="heading-element">Features</h1><a id="features" class="anchor" aria-label="Permalink: Features" href="#features"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>Everything NetworkMonitor does, and where to find it.</p>
 <div class="markdown-heading"><h2 id="the-menu-bar-readout" class="heading-element">The menu bar readout</h2><a id="the-menu-bar-readout" class="anchor" aria-label="Permalink: The menu bar readout" href="#the-menu-bar-readout"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
-<p>Two lines, always visible: <strong>↓ download</strong> in green over <strong>↑ upload</strong> in light grey, in
+<p>The menu bar shows two lines, with <strong>↓ download</strong> in green over <strong>↑ upload</strong> in light grey by default, in
 <strong>MB/s</strong> or <strong>Mbps</strong> (<strong>Settings › Show speeds in</strong>). Mbps matches how your line
 is sold; MB/s matches the data totals. Amounts of data are always in MB and GB, the way
 data plans are sold. Pick other colours under <strong>Settings › Speed colors</strong>: six ready-made
 pairs (Green, the default, Teal, Blue, Gold, Pink and Violet), each made to read on a dark
-and a light menu bar, or <strong>Custom…</strong> for your own.</p>
+and a light menu bar, or <strong>Custom…</strong> for your own. <strong>Speed on top</strong> in that
+section puts Download or Upload on the upper line, in the menu bar and on the Dock icon,
+including when a speed test is shown.</p>
 <p>The readout <strong>follows the menu bar</strong>: on a light one, as over a light wallpaper, each colour is
 drawn darker in the same hue so it stays readable, and it switches by itself when the
 wallpaper changes. On a dark menu bar the colours are drawn as picked.</p>
@@ -61,7 +63,8 @@ the numbers change. It updates up to twice a second, less often on battery and i
 Mode (see <a href="../../docs/accuracy-and-battery/#battery">battery</a>). While a speed test runs, the readout
 shows it in cyan, or in another pair of colours if yours come close to cyan, so a test never
 looks like the live rates.</p>
-<p>VoiceOver reads it in words, download first: <em>NetworkMonitor, Download 1.2 megabytes per
+<p>VoiceOver reads it in the order shown. With the default order,
+it says <em>NetworkMonitor, Download 1.2 megabytes per
 second, upload 30 kilobytes per second</em>, or <em>Speed test: download …</em> while a test shows (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/497">#497</a>).</p>
 <ul>
 <li>
@@ -84,12 +87,12 @@ at once.</p>
 <p><strong>Dock</strong>: nothing in the menu bar. A <strong>Dock icon</strong> choice appears under it (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/523">#523</a>):</p>
 <ul>
 <li>
-<strong>Speeds</strong>, Dock's default: the whole Dock icon is the live speeds, download over upload,
+<strong>Speeds</strong>, Dock's default: the whole Dock icon shows the live speeds, download over upload by default,
 drawn like the app's icon: its shape and lighting, near black in dark mode and near
 white in light, following the Mac as it switches. Each speed is the icon's arrow and
 its figure to three significant figures (12.3), as large as fits, with its unit under
 it, in the speed colors (on light, drawn darker so they read). It updates as the
-readout would, at most once a second.</li>
+readout would, at most once a second, in the order <strong>Speed on top</strong> sets.</li>
 <li>
 <strong>App icon</strong>: NetworkMonitor's own icon, with no speeds.</li>
 </ul>
@@ -290,7 +293,8 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 <li>
 <strong>Wi-Fi names</strong>, until they're on</li>
 <li>
-<strong>Speed colors</strong> (the readout's and the Dock icon's): six ready-made pairs, Custom… for your own Download and Upload, the speed test's colours</li>
+<strong>Speed colors</strong> (the readout's and the Dock icon's): six ready-made pairs, Custom… for your own Download and Upload, the speed test's colours, and <strong>Speed on top</strong>
+</li>
 <li>
 <strong>Popover totals</strong>: Counting since, Sampling, Reset Now</li>
 <li>
@@ -316,7 +320,7 @@ login, and turning that off doesn't quit the running app.</li>
 hides, and the main window stays in front.</li>
 </ul>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/features.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/e4c30cb1e3dcd1fc0dc484cde2df78c08f42c9a4"><code>e4c30cb</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/features.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/05b2124a1b7042f56a354e5f445c415e91cbd33f"><code>05b2124</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>

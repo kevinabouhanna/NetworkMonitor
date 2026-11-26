@@ -120,7 +120,9 @@ delete anything.</li>
 <strong>Clear History…</strong>, there too, deletes it all. The menu bar totals aren't
 affected.</li>
 </ul>
-<p>While Usage History is shown on a period that includes now, it refreshes every 30 seconds.</p>
+<p>While Usage History is shown on a period that includes now, it refreshes every 30 seconds.
+If you leave it on <strong>Today</strong>, it moves to the new day at midnight. The current week,
+month or year advances at its own boundary. If you chose a past period, it stays on it.</p>
 <div class="markdown-heading"><h2 id="what-counts" class="heading-element">What counts</h2><a id="what-counts" class="anchor" aria-label="Permalink: What counts" href="#what-counts"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>History counts the same <strong>internet-only</strong> figure as the popover. Mirroring a screen,
 Time Machine to a NAS or a Plex stream from your own server is never part of it. See
@@ -129,6 +131,13 @@ is worked out.</p>
 <p>It starts the moment you install a version that has it (1.4.0 or later). Nothing from
 before can be recovered: the old totals have no hours in them, and spreading a lump
 over a day would be inventing data.</p>
+<p><strong>Downloads an app hands to macOS</strong> to finish in the background (an update, a podcast, a
+photo library) are done by macOS for it, so at first they count under macOS's download
+service, <code>nsurlsessiond</code> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/767">#767</a>). Once such a download ends, Usage History looks up which
+app asked for it, in macOS's own log of that service, and moves its bytes to that app, in
+the hour and network they were used. What can't be matched for certain stays under
+<code>nsurlsessiond</code>. The move is Usage History's only: the popover's totals for today, and the
+servers in Connections, stay under the service.</p>
 <div class="markdown-heading"><h2 id="sessions" class="heading-element">Sessions</h2><a id="sessions" class="anchor" aria-label="Permalink: Sessions" href="#sessions"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>A session is one visit to a network: from joining it until you leave for another, or
 until the Mac has been silent for <strong>30 minutes</strong>, as it is after a sleep.</p>
@@ -312,7 +321,7 @@ name (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/128">#128
 if they're missing.</li>
 </ul>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/usage-history.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/e4c30cb1e3dcd1fc0dc484cde2df78c08f42c9a4"><code>e4c30cb</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/usage-history.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/05b2124a1b7042f56a354e5f445c415e91cbd33f"><code>05b2124</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>

@@ -26,7 +26,7 @@ AXWindow (AXStandardWindow) title="Settings" 1300
           AXHeading description="Updates" 52x16
           AXGroup h164
             AXStaticText value="NetworkMonitor #" h16
-            AXStaticText value="Last checked: Yesterday at ‹time›" h16
+            AXStaticText value="Last checked: Today at ‹time›" h16
             AXButton description="Check Now" 92x24
             AXStaticText value="Check for updates automatically" h16
             AXCheckBox (AXToggle) description="Check for updates automatically" help="Once a day, NetworkMonitor asks GitHub whether there's a newer version. Never on a hotspot." 36x16
@@ -48,7 +48,11 @@ AXWindow (AXStandardWindow) title="Settings" 1300
             AXStaticText value="In System Settings, switch on Location Services for NetworkMonitor." h16
             AXButton description="Turn On…" 84x24
           AXHeading description="Speed colors" 84x16
-          AXGroup h168
+          AXGroup h208
+            AXStaticText value="Speed on top" h16
+            AXRadioGroup description="Speed on top" help="Which speed is on the upper line wherever the speeds show: in the menu bar, and on the Dock icon when it shows them. Live and during a speed test. Each keeps its arrow and color, and VoiceOver reads them in that order." 168x24
+              AXRadioButton (AXSegment) description="Download" 84x24
+              AXRadioButton (AXSegment) description="Upload" 84x24
             AXOpaqueProviderGroup (AXOpaqueProviderGrid) h68
               AXButton description="Green" 100x68
               AXButton description="Teal" 104x68

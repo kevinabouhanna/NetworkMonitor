@@ -66,6 +66,11 @@ that only lets through packets between two addresses on your own network; packet
 from the internet never reach it. It counts bytes per socket, tells the app those counts
 and nothing else, writes nothing to disk, and stops two minutes after the app last asked.</li>
 <li>
+<strong>Which app asked for a background download</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/767">#767</a>): when a download macOS's download
+service (<code>nsurlsessiond</code>) did for an app ends, the app reads that service's own
+connection-closed lines in macOS's log, for the few seconds around it, to learn the
+app's name. Only those lines, only then, and nothing is kept but the name on the row.</li>
+<li>
 <strong>The default gateway's hardware address</strong>, to tell one network from another (see
 <a href="../../docs/features/#a-total-per-connection">how it tells networks apart</a>). It comes from
 macOS's own network configuration, which needs no permission.</li>
@@ -234,7 +239,7 @@ password instead.</li>
 <p>App Store apps must be sandboxed, and a sandboxed app can't run <code>nettop</code>, which is the
 only way macOS offers to see network use per app.</p>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/privacy.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/e4c30cb1e3dcd1fc0dc484cde2df78c08f42c9a4"><code>e4c30cb</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/privacy.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/05b2124a1b7042f56a354e5f445c415e91cbd33f"><code>05b2124</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>

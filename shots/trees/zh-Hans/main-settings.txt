@@ -26,7 +26,7 @@ AXWindow (AXStandardWindow) title="设置" 1300
           AXHeading description="更新" 28x16
           AXGroup h164
             AXStaticText value="NetworkMonitor #" h16
-            AXStaticText value="上次检查：昨天 #" h16
+            AXStaticText value="上次检查：今天 #" h16
             AXButton description="立即检查" 76x24
             AXStaticText value="自动检查更新" h16
             AXCheckBox (AXToggle) description="自动检查更新" help="NetworkMonitor 每天向 GitHub 查询一次是否有新版本，使用热点时从不查询。" 36x16
@@ -48,7 +48,11 @@ AXWindow (AXStandardWindow) title="设置" 1300
             AXStaticText value="在“系统设置”中，为 NetworkMonitor 打开“定位服务”。" h16
             AXButton description="打开…" 60x24
           AXHeading description="网速颜色" 52x16
-          AXGroup h168
+          AXGroup h208
+            AXStaticText value="上方的速度" h16
+            AXRadioGroup description="上方的速度" help="凡是显示网速的地方，上方一行显示哪个速度：菜单栏中，以及程序坞图标显示网速时。实时速度和网速测试都适用。每个速度保留各自的箭头和颜色，VoiceOver 也按这个顺序朗读。" 100x24
+              AXRadioButton (AXSegment) description="下载" 52x24
+              AXRadioButton (AXSegment) description="上传" 52x24
             AXOpaqueProviderGroup (AXOpaqueProviderGrid) h68
               AXButton description="绿色" 100x68
               AXButton description="青绿色" 104x68
