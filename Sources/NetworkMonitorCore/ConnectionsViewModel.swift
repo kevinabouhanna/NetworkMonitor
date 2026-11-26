@@ -200,6 +200,8 @@ public final class ConnectionsViewModel: ObservableObject {
     private let monitor: MonitorViewModel
     private let calendar: Calendar
     private let defaults: UserDefaults
+    private let follower: PeriodFollower
+    private var now: Date { follower.now() }
     private var liveSubscription: AnyCancellable?
     /// A new month of data (#121): named afresh from it.
     private var geoSubscription: AnyCancellable?
@@ -216,16 +218,18 @@ public final class ConnectionsViewModel: ObservableObject {
     private var directoryOpened = false
 
     /// `homeSources`: where the Mac's country comes from, for tests; the
-    /// app's own otherwise.
+    /// app's own otherwise. `now`: the clock, for tests that cross midnight.
     public init(monitor: MonitorViewModel, calendar: Calendar = .current,
-                defaults: UserDefaults = .standard, homeSources: HomeCountryFinder.Sources? = nil) {
+                defaults: UserDefaults = .standard, homeSources: HomeCountryFinder.Sources? = nil,
+                now: @escaping () -> Date = Date.init) {
         self.monitor = monitor
         self.calendar = calendar
         self.defaults = defaults
+        follower = PeriodFollower(calendar: calendar, now: now)
         self.homeSources = homeSources
         layout = defaults.string(forKey: Self.layoutKey).flatMap(Layout.init) ?? .both
         offersWebsiteNames = !defaults.bool(forKey: Self.websiteNamesOfferClosedKey)
-        period = HistoryPeriod(scale: .day, containing: Date(), calendar: calendar)
+        period = HistoryPeriod(scale: .day, containing: now(), calendar: calendar)
         geoSubscription = monitor.geoData.$month.dropFirst().removeDuplicates().sink { [weak self] _ in
             guard let self else { return }
             self.naming.async { self.directoryOpened = false }
@@ -252,20 +256,22 @@ public final class ConnectionsViewModel: ObservableObject {
             openedBySearch.reset()
             showingAll.removeAll()
             kind = HistoryFilter.opening(on: monitor.store.currentNetwork.kind).kind
-            period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar)
+            period = HistoryPeriod(scale: period.scale, containing: now, calendar: calendar)
+            follower.shown(period, changed: true)
             // Traffic, unless only what's allowed may connect: then what was
             // blocked is where someone looks to allow it.
             measure = firewall.mode == .onlyAllowed ? .blocked : .bytes
             showsRules = false
+            reload()
+        } else {
+            followCalendar(reopening: true)
         }
-        reload()
+        // Today moves on to the new day at midnight, as Usage History does (#776).
+        follower.observeDayChanges { [weak self] in self?.followCalendar() }
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            // Past midnight, today is yesterday, and no longer live.
-            self.refreshLive()
-            guard self.period.contains(Date()) else { return }
-            self.reload()
+            self?.followCalendar()
+            self?.refreshLive()
         }
         windowIsVisible = true
     }
@@ -273,7 +279,17 @@ public final class ConnectionsViewModel: ObservableObject {
     public func windowDidClose() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+        follower.stopObserving()
         windowIsVisible = false
+    }
+
+    private func followCalendar(reopening: Bool = false) {
+        switch follower.check(period, reopening: reopening) {
+        case .moveOn(let next): show(next, clearing: true)
+        case .reload: reload()
+        case .retitle: objectWillChange.send()
+        case .none: break
+        }
     }
 
     // MARK: Period
@@ -282,21 +298,21 @@ public final class ConnectionsViewModel: ObservableObject {
         get { period.scale }
         set {
             guard newValue != period.scale else { return }
-            let now = Date()
-            let anchor = period.contains(now) ? now : period.start
+            let present = now
+            let anchor = period.contains(present) ? present : period.start
             show(HistoryPeriod(scale: newValue, containing: anchor, calendar: calendar))
         }
     }
 
-    public var title: String { period.title(now: Date(), calendar: calendar) }
+    public var title: String { period.title(now: now, calendar: calendar) }
 
     /// The period of `scale` that holds now, as the popover's period chose
     /// (#449), so Open … shows the window on the numbers the popover showed.
     public func showPresent(_ scale: HistoryScale) {
-        show(HistoryPeriod(scale: scale, containing: Date(), calendar: calendar))
+        show(HistoryPeriod(scale: scale, containing: now, calendar: calendar))
     }
-    public var isCurrent: Bool { period.contains(Date()) }
-    public var canStepForward: Bool { period.end <= Date() }
+    public var isCurrent: Bool { period.contains(now) }
+    public var canStepForward: Bool { period.end <= now }
 
     /// Back as far as the first hour a server was recorded, and no further.
     public var canStepBack: Bool {
@@ -309,10 +325,19 @@ public final class ConnectionsViewModel: ObservableObject {
     }
 
     public func goToPresent() {
-        show(HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar))
+        show(HistoryPeriod(scale: period.scale, containing: now, calendar: calendar))
     }
 
-    private func show(_ period: HistoryPeriod) {
+    /// A period someone chose keeps the last servers on screen until its own
+    /// arrive; one the calendar moved on to is `clearing`, as in Usage History.
+    private func show(_ period: HistoryPeriod, clearing: Bool = false) {
+        follower.shown(period, changed: period != self.period)
+        if clearing && period != self.period {
+            connections = []
+            appDetails = [:]
+            bins = Self.timeline(for: period, hours: [], calendar: calendar)
+            rebuild()
+        }
         self.period = period
         span = nil
         reload()
@@ -554,7 +579,7 @@ public final class ConnectionsViewModel: ObservableObject {
     public func mapDidDisappear() { mapsShown = max(0, mapsShown - 1) }
 
     private func refreshLive() {
-        isLive = windowIsVisible && mapsShown > 0 && measure == .bytes && period.contains(Date())
+        isLive = windowIsVisible && mapsShown > 0 && measure == .bytes && period.contains(now)
     }
 
     /// Follows the servers each sample reaches while the map is live, and

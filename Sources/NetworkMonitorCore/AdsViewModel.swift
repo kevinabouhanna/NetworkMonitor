@@ -261,18 +261,23 @@ public final class AdsViewModel: ObservableObject {
     public let monitor: MonitorViewModel
     private let calendar: Calendar
     private let defaults: UserDefaults
+    private let follower: PeriodFollower
+    private var now: Date { follower.now() }
     private var refreshTimer: Timer?
     private var icons: [String: NSImage] = [:]
     private var changes: AnyCancellable?
     private var libraryChanges: AnyCancellable?
     private var logChanges: AnyCancellable?
 
-    public init(monitor: MonitorViewModel, calendar: Calendar = .current, defaults: UserDefaults = .standard) {
+    /// `now`: the clock, for tests that cross midnight.
+    public init(monitor: MonitorViewModel, calendar: Calendar = .current, defaults: UserDefaults = .standard,
+                now: @escaping () -> Date = Date.init) {
         self.monitor = monitor
         self.calendar = calendar
         self.defaults = defaults
+        follower = PeriodFollower(calendar: calendar, now: now)
         layout = defaults.string(forKey: Self.layoutKey).flatMap(ChartLayout.init) ?? .both
-        period = HistoryPeriod(scale: .day, containing: Date(), calendar: calendar)
+        period = HistoryPeriod(scale: .day, containing: now(), calendar: calendar)
         // The switch, the lists and pausing show at once.
         changes = monitor.firewall.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { self?.objectWillChange.send() }
@@ -622,25 +627,42 @@ public final class AdsViewModel: ObservableObject {
     /// `reset` false: the section shown again in the open window (#436).
     public func windowDidOpen(reset: Bool = true) {
         if reset {
-            period = HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar)
+            period = HistoryPeriod(scale: period.scale, containing: now, calendar: calendar)
+            follower.shown(period, changed: true)
             spanStart = nil
             selection = nil
             selectedCounts = [:]
             expanded.removeAll()
             openedBySearch.reset()
             showingAll.removeAll()
+            reload()
+        } else {
+            followCalendar(reopening: true)
         }
-        reload()
+        // Today moves on to the new day at midnight, as Usage History does (#776).
+        follower.observeDayChanges { [weak self] in self?.followCalendar() }
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            if self.period.contains(Date()) { self.reload() } else { self.reloadToday() }
+            self?.followCalendar()
         }
     }
 
     public func windowDidClose() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+        follower.stopObserving()
+    }
+
+    /// `reload` reads today's lists too; otherwise they're read on their own.
+    private func followCalendar(reopening: Bool = false) {
+        switch follower.check(period, reopening: reopening) {
+        case .moveOn(let next): show(next)
+        case .reload: reload()
+        case .retitle:
+            objectWillChange.send()
+            reloadToday()
+        case .none: reloadToday()
+        }
     }
 
     // MARK: Period
@@ -649,27 +671,32 @@ public final class AdsViewModel: ObservableObject {
         get { period.scale }
         set {
             guard newValue != period.scale else { return }
-            let now = Date()
-            show(HistoryPeriod(scale: newValue, containing: period.contains(now) ? now : period.start,
+            let present = now
+            show(HistoryPeriod(scale: newValue, containing: period.contains(present) ? present : period.start,
                                calendar: calendar))
         }
     }
 
-    public var title: String { period.title(now: Date(), calendar: calendar) }
+    public var title: String { period.title(now: now, calendar: calendar) }
 
     /// The period of `scale` that holds now, as the popover's period chose
     /// (#449), so Open … shows the window on the numbers the popover showed.
     public func showPresent(_ scale: HistoryScale) {
-        show(HistoryPeriod(scale: scale, containing: Date(), calendar: calendar))
+        show(HistoryPeriod(scale: scale, containing: now, calendar: calendar))
     }
-    public var canStepForward: Bool { period.end <= Date() }
+    /// Whether the period holds the present, for what the window says when
+    /// nothing's blocked in it.
+    public var isCurrent: Bool { period.contains(now) }
+    public var canStepForward: Bool { period.end <= now }
     public var canStepBack: Bool { recordingSince.map { period.start > $0 } ?? false }
 
     public func step(_ count: Int) { show(period.shifted(by: count, calendar: calendar)) }
 
-    public func goToPresent() { show(HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar)) }
+    public func goToPresent() { show(HistoryPeriod(scale: period.scale, containing: now, calendar: calendar)) }
 
+    /// Read at once, so nothing of the old period is left to clear.
     private func show(_ period: HistoryPeriod) {
+        follower.shown(period, changed: period != self.period)
         self.period = period
         spanStart = nil
         hoveredBin = nil
@@ -855,8 +882,8 @@ public final class AdsViewModel: ObservableObject {
     /// What each list blocked today, for the lists in Ads and Trackers' settings.
     public func reloadToday() {
         guard let history = monitor.store.history else { return }
-        let now = Date()
-        let blocks = history.listBlocks(from: calendar.startOfDay(for: now), to: now.addingTimeInterval(3600))
+        let present = now
+        let blocks = history.listBlocks(from: calendar.startOfDay(for: present), to: present.addingTimeInterval(3600))
         listsToday = Self.byList(blocks)
     }
 

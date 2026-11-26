@@ -44,6 +44,8 @@ networks it covers. Then the period's name, its total, and the counts.
   opens to show it, and closes again when the search is cleared.
 - **Day, Week, Month, Year**, the arrows and ⌘← ⌘→ move through time, as in every
   section, and **Networks: All / Wi-Fi / Hotspot** narrows it to one kind of network.
+  Left on **Today**, Connections moves on to the new day at midnight, as Usage History does;
+  a past period you chose stays (#776).
 - **Under each app is who made it**, read from its code signature, and the companies it
   talks to besides its maker. Hosts aren't counted: an app on Amazon's network isn't
   talking to Amazon.
@@ -302,7 +304,7 @@ and the toolbar's search (⌘F) covers both.
   ⓘ beside the total says how it's counted, and what each list blocked, largest first
   (#402). A list switched off since keeps what it blocked while it was on, marked *off*.
   The period is in the toolbar on Overview only: the Log is the present, so it's hidden
-  there (#311).
+  there (#311). Left on **Today**, it moves on to the new day at midnight (#776).
 - **List, Both or Chart**, at the start of the toolbar, as Connections has List, Both or
   Map (#524): the list alone, the list on the left and the chart on the right (the
   default, side by side as Connections has its list and map, #534), or the chart filling
