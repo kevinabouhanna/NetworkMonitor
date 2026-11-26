@@ -65,6 +65,8 @@ History in the main window's sidebar.
   affected.
 
 While Usage History is shown on a period that includes now, it refreshes every 30 seconds.
+If you leave it on **Today**, it moves to the new day at midnight. The current week,
+month or year advances at its own boundary. If you chose a past period, it stays on it.
 
 ## What counts
 

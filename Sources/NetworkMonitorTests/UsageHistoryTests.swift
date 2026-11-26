@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import NetworkMonitorCore
 
@@ -581,6 +582,104 @@ func runUsageHistoryTests() {
             store.resetCurrentNetwork(now: now + 3)
             Check.expectEqual(history.report(for: HistoryPeriod(scale: .day, containing: now)).total,
                               450)
+        }
+    }
+
+    Check.suite("Usage History window — calendar rollover") {
+        let url = temporaryURL()
+        defer { remove(url) }
+        let cal = calendar("Europe/Belgrade")
+        let midnight = cal.startOfDay(for: reference)
+        let beforeMidnight = midnight.addingTimeInterval(-1)
+        var present = beforeMidnight
+        let defaults = Check.defaults("history-rollover")
+        let history = UsageHistory(databaseURL: url, calendar: cal)
+        let earlier = cal.date(byAdding: .day, value: -1, to: beforeMidnight)!
+        history.join(network("A"), label: "Net A", switched: false, now: earlier)
+        history.recordInterface(bytesIn: 50, bytesOut: 0, now: earlier)
+        history.recordApps([(app("Notes"), 50, 0)], now: earlier)
+        history.recordInterface(bytesIn: 600, bytesOut: 0, now: beforeMidnight)
+        history.recordApps([(app("Safari"), 600, 0)], now: beforeMidnight)
+        history.recordInterface(bytesIn: 200, bytesOut: 0, now: midnight)
+        history.recordApps([(app("Mail"), 200, 0)], now: midnight)
+
+        let store = UsageStore(storeURL: url.appendingPathExtension("json"), calendar: cal, history: history)
+        let metering = MeteringController(store: store,
+                                          journal: SuppressionJournal(url: url.appendingPathExtension("journal")),
+                                          suppressors: [], defaults: defaults)
+        let model = HistoryViewModel(monitor: MonitorViewModel(store: store, metering: metering),
+                                     calendar: cal, defaults: defaults, now: { present })
+
+        func waitUntil(_ condition: () -> Bool) {
+            let deadline = Date() + 2
+            while !condition() && Date() < deadline { RunLoop.main.run(until: Date() + 0.01) }
+            Check.expectTrue(condition(), "the window did not refresh")
+        }
+
+        Check.test("Today switches to the new day's report and Yesterday keeps its bytes") {
+            present = beforeMidnight
+            model.windowDidOpen()
+            defer { model.windowDidClose() }
+            model.kind = .wifi
+            waitUntil { model.report.total == 600 }
+            Check.expectEqual(model.title, "Today")
+            Check.expectEqual(model.report.apps.map(\.displayName), ["Safari"])
+
+            present = midnight
+            NotificationCenter.default.post(name: .NSCalendarDayChanged, object: nil)
+            waitUntil { model.report.total == 200 }
+            Check.expectEqual(model.title, "Today")
+            Check.expectEqual(model.period.start, midnight)
+            Check.expectEqual(model.report.apps.map(\.displayName), ["Mail"])
+            Check.expectEqual(model.filter.kind, .wifi)
+            waitUntil { model.todayTotal == 200 }
+
+            model.step(-1)
+            waitUntil { model.report.total == 600 }
+            Check.expectEqual(model.title, "Yesterday")
+            Check.expectEqual(model.report.apps.map(\.displayName), ["Safari"])
+        }
+
+        Check.test("midnight updates a relative title while leaving a past day selected") {
+            present = beforeMidnight
+            model.windowDidOpen()
+            defer { model.windowDidClose() }
+            model.step(-1)
+            let selected = model.period
+            Check.expectEqual(model.title, "Yesterday")
+            waitUntil { model.report.total == 50 }
+
+            var refreshed = false
+            let observation = model.objectWillChange.sink { refreshed = true }
+            defer { observation.cancel() }
+            present = midnight
+            NotificationCenter.default.post(name: .NSCalendarDayChanged, object: nil)
+            waitUntil { refreshed }
+            Check.expectEqual(model.period, selected)
+            Check.expectTrue(model.title != "Yesterday")
+            Check.expectTrue(model.canStepForward)
+        }
+
+        Check.test("returning to the section catches up after a missed week boundary") {
+            present = beforeMidnight
+            model.windowDidOpen()
+            model.scale = .week
+            let previousWeek = model.period
+            waitUntil { model.report.total == 850 }
+            model.windowDidClose()
+
+            present = previousWeek.end.addingTimeInterval(60)
+            history.recordInterface(bytesIn: 300, bytesOut: 0, now: present)
+            var loaded = false
+            let observation = model.$report.dropFirst().sink { loaded = $0.total == 300 }
+            defer { observation.cancel() }
+            model.windowDidOpen(reset: false)
+            defer { model.windowDidClose() }
+            Check.expectEqual(model.period.start, previousWeek.end)
+            Check.expectEqual(model.report.period, model.period)
+            Check.expectEqual(model.report.total, 0, "the previous week's bytes stayed visible")
+            Check.expectTrue(model.canStepBack, "the earlier week cannot be reached while loading")
+            waitUntil { loaded }
         }
     }
 
