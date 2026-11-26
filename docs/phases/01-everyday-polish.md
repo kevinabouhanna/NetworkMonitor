@@ -20,7 +20,7 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   its cost, on the Mac that has it. If that holds, the first pass is downloads only, with the
   filter on, reconciled with nettop.
 
-Done on 26 Nov 2026, on `main`, for the next release:
+Done on 26 Nov 2026, released in 1.34.0 the same day (#778):
 
 - Usage History left on **Today** moves on to the new day at midnight, and a period you chose
   stays (#770), reported and first written by defragekb (#771).

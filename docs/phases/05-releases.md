@@ -7,9 +7,6 @@ builds, checks and releases the app stays in order.
 
 ## The plans
 
-- **Release 1.34.0 to everyone once the beta is good** (#778), Now: Usage History following
-  midnight (#770) and the menu bar's top row (#772), both first written by defragekb. A beta
-  first, then `v1.34.0` on its commit when Kevin says it's good.
 - **Release 1.35.0: a beta first, with #754's switch** (#794), Now: beta 1 carries only the
   switch for measuring Safari with iCloud Private Relay (#786), off unless set by hand, for
   defragekb to run. 1.35.0 goes to everyone when Kevin says, with what lands by then.
@@ -18,9 +15,15 @@ builds, checks and releases the app stays in order.
   step) are its steps. First among them: CI fails a change that keeps the app busy while it's
   idle, since nothing caught beta 1's battery drain (#723); the window tests fail while the screen is locked, so
   nothing can be pushed while Kevin is away (#626); then the pictures the VM gets wrong, for
-  1.31.0 and again for 1.33.0 (#650). It stays open on purpose, so this phase stays open with it.
+  1.31.0 and again for 1.33.0 and 1.34.0 (#650); and a Secure bridge test that failed
+  1.34.0 beta 3's release once on GitHub's runner (#790). It stays open on purpose, so this phase stays open with it.
 
-Done: **Release 1.33.0 to everyone** (#747), 26 Nov 2026: four betas (the first never
+Done: **Release 1.34.0 to everyone** (#778), 26 Nov 2026: three betas, then `v1.34.0` on beta
+3's commit, as Kevin asked: everything defragekb asked for that held up in review. Midnight
+in the three windows (#770, #776), **Speed on top** for the menu bar and the Dock (#772), and
+downloads an app hands to macOS counted for it (#767, with #787's fix), checked on a signed
+build in a VM. A test that depends on timing failed once on GitHub's runner (#790).
+**Release 1.33.0 to everyone** (#747), 26 Nov 2026: four betas (the first never
 published, #751), then `v1.33.0` on beta 4's commit, after a signed copy in a VM updated itself
 from beta 2 to beta 3 and from beta 3 to beta 4 with its filter back on. Kevin asked on 25 Nov
 to review the open pull requests, merge what held, and release it all: the update settings,
