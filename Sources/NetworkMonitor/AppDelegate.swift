@@ -774,7 +774,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         func key(_ equivalent: String) -> String { forDock ? "" : equivalent }
 
         if forDock, placement.drawsSpeedsOnDock(dockIcon) {
-            let item = NSMenuItem(title: model.dockSpeedSpoken, action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: model.menuBarSpoken, action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)
             menu.addItem(.separator())
@@ -1204,6 +1204,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// nothing is drawn (`MonitorViewModel.setAttention`).
     private func drawDockReadout() {
         guard let view = dockSpeedView else { return }
+        // In the order Speed on top sets, as the menu bar (#772); a change to
+        // it arrives as the menu bar's redraw, which draws this.
         let readout = model.readout
         guard readout != view.readout else { return }
         let wait = dockDrawnAt + Self.dockRedrawInterval - ProcessInfo.processInfo.systemUptime

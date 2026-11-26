@@ -175,6 +175,19 @@ func runAppPlacementTests() {
                               MenuBarColors.hex(MenuBarTints.live.up))
         }
 
+        Check.test("the Dock moves each live arrow and its figure together in the chosen order") {
+            let bounds = NSRect(x: 0, y: 0, width: 64, height: 64)
+            let normal = SpeedReadout(down: "↓ 128 KB/s", up: "↑ 16 MB/s", tints: .live)
+            let reversed = SpeedReadout(down: normal.down, up: normal.up, tints: normal.tints, uploadFirst: true)
+            let before = DockSpeedView.layout(for: normal, in: bounds)
+            let after = DockSpeedView.layout(for: reversed, in: bounds)
+            Check.expectEqual(before.lines.map(\.isDownload), [true, false])
+            Check.expectEqual(after.lines.map(\.isDownload), [false, true])
+            Check.expectEqual(after.lines.map(\.figure), Array(before.lines.map(\.figure).reversed()))
+            Check.expectEqual(after.lines.map(\.unit), Array(before.lines.map(\.unit).reversed()))
+            Check.expectEqual(after.lines.map(\.arrowFrame), before.lines.map(\.arrowFrame))
+        }
+
         // The menu bar draws what the readout says, so the two never differ.
         Check.test("the menu bar's picture is the readout's") {
             let readout = SpeedReadout(down: MenuBarTitle.downLine(1_234_567), up: MenuBarTitle.upLine(4_321),

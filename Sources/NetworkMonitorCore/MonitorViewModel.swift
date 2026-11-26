@@ -876,7 +876,7 @@ public final class MonitorViewModel: ObservableObject {
     /// A running speed test takes the title over and keeps it for a few seconds
     /// after with the result. Same width, tints kept clear of the live colours;
     /// see `MenuBarTitle.speedTestImage` and `MenuBarColors`.
-    public var menuBarImage: NSImage { MenuBarTitle.image(readout, uploadFirst: menuBarColors.uploadFirst) }
+    public var menuBarImage: NSImage { MenuBarTitle.image(readout) }
 
     /// The readout's two lines and colours, for the menu bar and, in Dock
     /// mode, the Dock icon (#69).
@@ -885,18 +885,17 @@ public final class MonitorViewModel: ObservableObject {
         if let reading = speedTest.menuBarReading {
             return SpeedReadout(down: "↓ \(ByteFormat.menuBarSpeed(reading.down, unit: unit))",
                                 up: "↑ \(ByteFormat.menuBarSpeed(reading.up, unit: unit))",
-                                tints: menuBarColors.test)
+                                tints: menuBarColors.test, uploadFirst: menuBarColors.uploadFirst)
         }
         return SpeedReadout(down: MenuBarTitle.downLine(downBytesPerSecond, unit: unit),
                             up: MenuBarTitle.upLine(upBytesPerSecond, unit: unit),
-                            tints: firewall.blocksEverything ? .blockingEverything : menuBarColors.live)
+                            tints: firewall.blocksEverything ? .blockingEverything : menuBarColors.live,
+                            uploadFirst: menuBarColors.uploadFirst)
     }
 
-    /// VoiceOver reads the rates in the same order as their rows (#424).
+    /// The rates in words, in the order shown in the menu bar and on the
+    /// Dock icon (#424, #772): for VoiceOver, and the Dock menu's first line.
     public var menuBarSpoken: String { spokenReadout(uploadFirst: menuBarColors.uploadFirst) }
-
-    /// The Dock's menu follows the order drawn on its icon.
-    public var dockSpeedSpoken: String { spokenReadout(uploadFirst: false) }
 
     private func spokenReadout(uploadFirst: Bool) -> String {
         let unit = speedTest.unit

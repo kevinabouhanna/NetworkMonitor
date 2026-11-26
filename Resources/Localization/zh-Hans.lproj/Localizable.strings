@@ -630,7 +630,7 @@
 "Menu bar" = "菜单栏";
 "Dock" = "程序坞";
 "Dock icon" = "程序坞图标";
-"Speeds: the whole Dock icon is the live speeds, download over upload, in the speed colors. App icon: NetworkMonitor's own icon, with no speeds. Dock and Both each keep their own choice: Speeds to begin with in Dock, App icon in Both." = "网速：整个程序坞图标显示实时网速，下载在上、上传在下，使用网速颜色。应用图标：NetworkMonitor 自己的图标，不显示网速。程序坞和两者各自保留自己的选择：程序坞一开始为网速，两者一开始为应用图标。";
+"Speeds: the whole Dock icon shows the live speeds in the speed colors. App icon: NetworkMonitor's own icon, with no speeds. Dock and Both each keep their own choice: Speeds to begin with in Dock, App icon in Both." = "网速：整个程序坞图标以网速颜色显示实时网速。应用图标：NetworkMonitor 自己的图标，不显示网速。程序坞和两者各自保留自己的选择：程序坞一开始为网速，两者一开始为应用图标。";
 "Speeds" = "网速";
 "App icon" = "应用图标";
 "Download" = "下载";
@@ -647,8 +647,8 @@
 "Pink" = "粉色";
 "Violet" = "紫色";
 "Speed colors" = "网速颜色";
-"Menu bar top row" = "菜单栏第一行";
-"Which speed is on the upper line in the menu bar, live and during a speed test. Each keeps its arrow and color. The Dock icon always shows download on top." = "菜单栏上方一行显示哪个速度，实时速度和网速测试都适用。每个速度保留各自的箭头和颜色。程序坞图标始终把下载放在上方。";
+"Speed on top" = "上方的速度";
+"Which speed is on the upper line wherever the speeds show: in the menu bar, and on the Dock icon when it shows them. Live and during a speed test. Each keeps its arrow and color, and VoiceOver reads them in that order." = "凡是显示网速的地方，上方一行显示哪个速度：菜单栏中，以及程序坞图标显示网速时。实时速度和网速测试都适用。每个速度保留各自的箭头和颜色，VoiceOver 也按这个顺序朗读。";
 "Counting since" = "统计开始于";
 "What this connection has used, per app, all the time. The totals start over when you join a different network, and at midnight. History keeps every hour of it." = "按应用持续统计此连接用了多少流量。加入其他网络时以及每天午夜，累计值会重新开始。“历史记录”会保留每个小时的数据。";
 "Sampling" = "采样";

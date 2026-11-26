@@ -119,29 +119,30 @@ func runMenuBarColorsTests() {
                                         up: "↑ \(ByteFormat.menuBarSpeed(6_000_000, unit: unit))",
                                         tints: MenuBarTints.testChoices[0])
                 for readout in [live, test] {
-                    let reversed = MenuBarTitle.attributed(readout, uploadFirst: true)
+                    let upFirst = SpeedReadout(down: readout.down, up: readout.up, tints: readout.tints,
+                                               uploadFirst: true)
+                    let reversed = MenuBarTitle.attributed(upFirst)
                     Check.expectEqual(reversed.string, readout.up + "\n" + readout.down)
                     Check.expectTrue(reversed.attribute(.foregroundColor, at: 0, effectiveRange: nil)
                                      as? NSColor == readout.tints.up)
                     Check.expectTrue(reversed.attribute(.foregroundColor, at: readout.up.utf16.count + 1,
                                                          effectiveRange: nil) as? NSColor == readout.tints.down)
                     let normalSize = MenuBarTitle.image(readout).size
-                    Check.expectEqual(MenuBarTitle.image(readout, uploadFirst: true).size, normalSize)
+                    Check.expectEqual(MenuBarTitle.image(upFirst).size, normalSize)
                 }
             }
         }
 
-        Check.test("VoiceOver follows the menu bar choice and the Dock keeps its spoken order") {
+        Check.test("VoiceOver reads the rates in the order Speed on top sets") {
             let defaults = freshDefaults()
             let colors = MenuBarColors(defaults: defaults)
             let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("row-order-\(UUID()).json")
             let model = MonitorViewModel(store: UsageStore(storeURL: url), menuBarColors: colors)
             let normal = model.menuBarSpoken
-            Check.expectEqual(model.dockSpeedSpoken, normal)
             colors.uploadFirst = true
             let rate = ByteFormat.spokenSpeed(0, unit: model.speedTest.unit)
             Check.expectEqual(model.menuBarSpoken, L("Upload %@, download %@", rate, rate))
-            Check.expectEqual(model.dockSpeedSpoken, normal)
+            Check.expectTrue(model.menuBarSpoken != normal)
         }
 
         // The colour panel hands back colours in whatever space it likes.

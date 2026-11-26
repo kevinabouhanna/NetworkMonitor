@@ -11,9 +11,9 @@ The menu bar shows two lines, with **↓ download** in green over **↑ upload**
 is sold; MB/s matches the data totals. Amounts of data are always in MB and GB, the way
 data plans are sold. Pick other colours under **Settings › Speed colors**: six ready-made
 pairs (Green, the default, Teal, Blue, Gold, Pink and Violet), each made to read on a dark
-and a light menu bar, or **Custom…** for your own. **Menu bar top row** in that
-section lets you put Download or Upload first, including when a speed test is shown. It
-appears while there's a menu bar item; the Dock icon always shows download on top.
+and a light menu bar, or **Custom…** for your own. **Speed on top** in that
+section puts Download or Upload on the upper line, in the menu bar and on the Dock icon,
+including when a speed test is shown.
 
 The readout **follows the menu bar**: on a light one, as over a light wallpaper, each colour is
 drawn darker in the same hue so it stays readable, and it switches by itself when the
@@ -43,12 +43,12 @@ at once.
 
 - **Menu bar**, the default: the readout above, and a Dock icon only while a window is open.
 - **Dock**: nothing in the menu bar. A **Dock icon** choice appears under it (#523):
-  - **Speeds**, Dock's default: the whole Dock icon is the live speeds, download over upload,
+  - **Speeds**, Dock's default: the whole Dock icon shows the live speeds, download over upload by default,
     drawn like the app's icon: its shape and lighting, near black in dark mode and near
     white in light, following the Mac as it switches. Each speed is the icon's arrow and
     its figure to three significant figures (12.3), as large as fits, with its unit under
     it, in the speed colors (on light, drawn darker so they read). It updates as the
-    readout would, at most once a second.
+    readout would, at most once a second, in the order **Speed on top** sets.
   - **App icon**: NetworkMonitor's own icon, with no speeds.
 
   Click the icon for the main window, on the section it was last on. Its menu has what the
@@ -210,7 +210,7 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 - **Updates** ([how it updates](installing.md#update)): your version, when it last checked and Check Now, **Check for updates automatically**, **Install updates automatically** and **Get beta versions**
 - **Show speeds in** MB/s or Mbps
 - **Wi-Fi names**, until they're on
-- **Speed colors** (the readout's and the Dock icon's): six ready-made pairs, Custom… for your own Download and Upload, the speed test's colours, and **Menu bar top row**
+- **Speed colors** (the readout's and the Dock icon's): six ready-made pairs, Custom… for your own Download and Upload, the speed test's colours, and **Speed on top**
 - **Popover totals**: Counting since, Sampling, Reset Now
 - **Sections**: a row to each section's settings, the same pages its gear shows
 
