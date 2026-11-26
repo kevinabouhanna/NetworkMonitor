@@ -352,6 +352,8 @@ public final class UsageHistory {
     private var lastJoined: NetworkRef?
     private var nextSessionID: Int64 = 1
     private var pending = Pending()
+    private let backgroundReader = BackgroundDownloadReader()
+    private var historyGeneration: UInt64 = 0
 
     public init(databaseURL: URL? = nil, calendar: Calendar = .current) {
         self.calendar = calendar
@@ -437,10 +439,34 @@ public final class UsageHistory {
                            servers: [String: [String: ByteCounts]] = [:],
                            localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
                            now: Date = Date()) {
+        recordAppSample(entries, servers: servers, localBytesIn: localBytesIn, localBytesOut: localBytesOut,
+                        backgroundDownloads: nil, now: now)
+    }
+
+    @discardableResult
+    func recordAppSample(_ entries: [(identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)],
+                         servers: [String: [String: ByteCounts]], localBytesIn: Int64, localBytesOut: Int64,
+                         backgroundDownloads: BackgroundDownloads.Observation?, now: Date) -> AppSlot? {
+        var receipt: AppSlot?
+        defer {
+            if let backgroundDownloads, database != nil {
+                backgroundReader.observe(backgroundDownloads.samples, slot: receipt, now: backgroundDownloads.time) { [weak self] matched in
+                    guard let self else { return }
+                    let byOwner = Dictionary(grouping: matched, by: { $0.0 })
+                    for (bundleID, sockets) in byOwner {
+                        guard let owner = AppIdentityResolver.backgroundOwner(bundleID: bundleID) else { continue }
+                        for (_, socket) in sockets {
+                            self.recordBackgroundOwner(owner, charges: socket.charges)
+                        }
+                    }
+                }
+            }
+        }
         let moving = entries.filter { $0.bytesIn > 0 || $0.bytesOut > 0 }
         guard !moving.isEmpty || localBytesIn > 0 || localBytesOut > 0,
               let slot = slot(at: now)
-        else { return }
+        else { return nil }
+        receipt = AppSlot(hour: slot.hour, session: slot.session, generation: historyGeneration)
 
         var traffic = pending.traffic[slot, default: Traffic()]
         traffic.localIn += localBytesIn
@@ -458,7 +484,7 @@ public final class UsageHistory {
         pending.traffic[slot] = traffic
         pending.apps[slot] = apps
 
-        guard !servers.isEmpty else { return }
+        guard !servers.isEmpty else { return receipt }
         if serversThisHour.hour != slot.hour { serversThisHour = (slot.hour, [:]) }
         var byServer = pending.servers[slot, default: [:]]
         for (appKey, addresses) in servers {
@@ -475,6 +501,19 @@ public final class UsageHistory {
             serversThisHour.byApp[appKey] = seen
         }
         pending.servers[slot] = byServer
+        return receipt
+    }
+
+    /// A post-close correction affects Usage History only. The slot is the
+    /// original receipt, even when the active network or day has moved on.
+    func recordBackgroundOwner(_ owner: AppIdentity, charges: [BackgroundDownloads.Charge: ByteCounts]) {
+        for (charge, counts) in charges
+        where charge.slot.generation == historyGeneration && charge.source != owner.key {
+            guard counts.bytesIn >= 0, counts.bytesOut >= 0, counts.bytesIn > 0 || counts.bytesOut > 0 else { continue }
+            let slot = Slot(hour: charge.slot.hour, session: charge.slot.session)
+            pending.identities[owner.key] = owner
+            pending.appMoves.append(AppMove(slot: slot, source: charge.source, destination: owner.key, counts: counts))
+        }
     }
 
     /// The store has pointed accumulation at `fingerprint`.
@@ -590,13 +629,18 @@ public final class UsageHistory {
         if !pending.isEmpty {
             let batch = pending
             pending = Pending()
-            queue.sync { Self.write(batch, to: database) }
+            if !queue.sync(execute: { Self.write(batch, to: database) }) {
+                // Receipts from a rolled-back batch might share a row with
+                // earlier traffic. They can no longer authorize a debit.
+                historyGeneration &+= 1
+            }
         }
         if let lastPruned, calendar.isDate(lastPruned, inSameDayAs: now) { return }
         prune(now: now)
     }
 
-    private static func write(_ batch: Pending, to database: SQLiteDatabase) {
+    private static func write(_ batch: Pending, to database: SQLiteDatabase) -> Bool {
+        let wroteUsage: Bool
         do {
             try database.transaction {
                 let sessions = try database.prepare("""
@@ -664,6 +708,10 @@ public final class UsageHistory {
                     }
                 }
 
+                if !batch.appMoves.isEmpty {
+                    try moveAppTraffic(batch.appMoves, credit: appTraffic, in: database)
+                }
+
                 let listBlocks = try database.prepare("""
                     INSERT INTO list_blocks (hour, session_id, app_key, name, list, count)
                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -700,7 +748,9 @@ public final class UsageHistory {
                                      .text(row.networkID)])
                 }
             }
+            wroteUsage = true
         } catch {
+            wroteUsage = false
             // Dropped rather than retried: a database that refuses one write
             // will refuse the next, and holding the batch would grow without
             // bound. The popover's own totals are unaffected.
@@ -709,7 +759,7 @@ public final class UsageHistory {
 
         // Servers in a transaction of their own: whatever goes wrong with them
         // must never cost Usage History the figures above.
-        guard !batch.servers.isEmpty || !batch.blocked.isEmpty || !batch.names.isEmpty else { return }
+        guard !batch.servers.isEmpty || !batch.blocked.isEmpty || !batch.names.isEmpty else { return wroteUsage }
         do {
             try database.transaction {
                 // Three small upserts per app and server, each on an index. A
@@ -790,6 +840,7 @@ public final class UsageHistory {
         } catch {
             NSLog("NetworkMonitor: writing servers failed: \(error)")
         }
+        return wroteUsage
     }
 
     // MARK: Retention
@@ -835,6 +886,7 @@ public final class UsageHistory {
     /// from `now`, so nothing from before the clear can reappear.
     public func clear(now: Date = Date()) {
         guard let database else { return }
+        historyGeneration &+= 1
         pending = Pending()
         serversThisHour = (0, [:])
         lastWrittenOpen = nil
@@ -1831,7 +1883,46 @@ public final class UsageHistory {
         }
     }
 
+    /// Debit and credit within the writer's transaction. A missing or pruned
+    /// source row can't create bytes, and direction totals stay unchanged.
+    private static func moveAppTraffic(_ moves: [AppMove], credit: SQLiteStatement, in database: SQLiteDatabase) throws {
+        let available = try database.prepare(
+            "SELECT bytes_in, bytes_out FROM app_traffic WHERE hour = ?1 AND session_id = ?2 AND app_key = ?3")
+        let debit = try database.prepare("""
+            UPDATE app_traffic SET bytes_in = bytes_in - ?4, bytes_out = bytes_out - ?5
+            WHERE hour = ?1 AND session_id = ?2 AND app_key = ?3
+            """)
+        let removeEmpty = try database.prepare("""
+            DELETE FROM app_traffic WHERE hour = ?1 AND session_id = ?2 AND app_key = ?3 AND bytes_in = 0 AND bytes_out = 0
+            """)
+        for move in moves {
+            let slot: [SQLiteStatement.Value] = [.int(move.slot.hour), .int(move.slot.session)]
+            let source = slot + [.text(move.source)]
+            available.bind(source)
+            guard try available.step(),
+                  available.int64(0) >= move.counts.bytesIn,
+                  available.int64(1) >= move.counts.bytesOut else { continue }
+            let counts: [SQLiteStatement.Value] = [.int(move.counts.bytesIn), .int(move.counts.bytesOut)]
+            try debit.run(source + counts)
+            try credit.run(slot + [.text(move.destination)] + counts)
+            try removeEmpty.run(source)
+        }
+    }
+
     // MARK: Pending writes
+
+    struct AppSlot: Hashable {
+        let hour: Int64
+        let session: Int64
+        let generation: UInt64
+    }
+
+    private struct AppMove {
+        let slot: Slot
+        let source: String
+        let destination: String
+        let counts: ByteCounts
+    }
 
     private struct Slot: Hashable {
         let hour: Int64
@@ -1896,6 +1987,7 @@ public final class UsageHistory {
     private struct Pending {
         var traffic: [Slot: Traffic] = [:]
         var apps: [Slot: [String: (bytesIn: Int64, bytesOut: Int64)]] = [:]
+        var appMoves: [AppMove] = []
         var servers: [Slot: [ServerKey: ByteCounts]] = [:]
         /// Connections the content filter blocked, counted.
         var blocked: [Slot: [ServerKey: Int64]] = [:]
@@ -1909,7 +2001,7 @@ public final class UsageHistory {
 
         var isEmpty: Bool {
             traffic.isEmpty && apps.isEmpty && servers.isEmpty && blocked.isEmpty && names.isEmpty && listBlocks.isEmpty
-                && identities.isEmpty && sessions.isEmpty && updates.isEmpty
+                && identities.isEmpty && sessions.isEmpty && updates.isEmpty && appMoves.isEmpty
         }
     }
 

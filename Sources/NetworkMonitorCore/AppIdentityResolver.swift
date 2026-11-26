@@ -215,6 +215,21 @@ public final class AppIdentityResolver {
                     parent: parent)
     }
 
+    /// A background task's log names its client by bundle ID. Use the
+    /// installed app's normal key when it resolves unambiguously. Unbundled
+    /// Apple services can still be listed in History by their bundle ID.
+    static func backgroundOwner(bundleID: String) -> AppIdentity? {
+        let matches = NSWorkspace.shared.urlsForApplications(withBundleIdentifier: bundleID).compactMap { url -> AppIdentity? in
+            guard Bundle(url: url)?.bundleIdentifier == bundleID else { return nil }
+            return identity(forExecutablePath: url.path, fallbackName: bundleID)
+        }
+        let byKey = Dictionary(grouping: matches, by: \.key)
+        if byKey.count == 1 { return matches.first }
+        guard matches.isEmpty, bundleID.hasPrefix("com.apple."), bundleID != "com.apple.nsurlsessiond"
+        else { return nil }
+        return AppIdentity(key: bundleID, displayName: bundleID, bundlePath: nil, isSystem: true)
+    }
+
     /// The identity a key stands for, rebuilt from the key alone: for a
     /// connection the content filter blocked (#114), whose process may be gone
     /// by the time the app hears of it. A bundle path, an executable's path,

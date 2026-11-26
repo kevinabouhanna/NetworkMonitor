@@ -79,6 +79,11 @@ It starts the moment you install a version that has it (1.4.0 or later). Nothing
 before can be recovered: the old totals have no hours in them, and spreading a lump
 over a day would be inventing data.
 
+Background URLSession downloads can initially appear under `nsurlsessiond`.
+When a measured internet socket closes, History can use the system log to find
+its owner and move those bytes to the app in the original hour and network.
+Traffic whose owner cannot be matched stays under `nsurlsessiond`.
+
 ## Sessions
 
 A session is one visit to a network: from joining it until you leave for another, or
