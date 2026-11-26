@@ -133,10 +133,11 @@ func runBackgroundDownloadsTests() {
                                   socket.key.localPort == 51_000 ? "com.example.first" : "com.example.second")
             }
             // The two earlier captures: +24.7 and +29.5 ms.
+            let first = ended.first { $0.key.localPort == 51_000 }
             for delay in [0.0247, 0.0295] {
-                Check.expectEqual(ended.first.flatMap {
+                Check.expectEqual(first.flatMap {
                     BackgroundDownloads.owner(for: $0, in: [
-                        close($0.key.localPort, owner: "com.example.late", at: midnight + delay + 0.1, duration: 0.1)!])
+                        close(51_000, owner: "com.example.late", at: midnight + delay + 0.1, duration: 0.1)!])
                 }, "com.example.late")
             }
         }
@@ -157,6 +158,8 @@ func runBackgroundDownloadsTests() {
             // Past the slack, a later connection is a different socket.
             Check.expectNil(BackgroundDownloads.owner(for: socket, in: [
                 close(51_000, owner: "com.example.later", at: midnight + 0.8, duration: 0.5)!]))
+            Check.expectNil(BackgroundDownloads.owner(for: socket, in: [
+                close(51_000, owner: "com.example.later", at: midnight + 0.5, duration: 0.35)!]))
         }
 
         Check.test("a QUIC request that ran over TCP is matched as TCP, as nettop shows it") {
