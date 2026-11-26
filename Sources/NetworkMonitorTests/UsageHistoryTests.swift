@@ -683,6 +683,129 @@ func runUsageHistoryTests() {
         }
     }
 
+    Check.suite("The period follows the calendar (#776)") {
+        let cal = calendar("Europe/Belgrade")
+        let midnight = cal.startOfDay(for: reference)
+        let beforeMidnight = midnight.addingTimeInterval(-1)
+
+        Check.test("Today moves on at midnight; a day someone chose stays, its heading to change") {
+            var present = beforeMidnight
+            let follower = PeriodFollower(calendar: cal, now: { present })
+            let today = HistoryPeriod(scale: .day, containing: present, calendar: cal)
+            follower.shown(today, changed: true)
+            Check.expectEqual(follower.check(today), .reload)
+            present = midnight
+            Check.expectEqual(follower.check(today), .moveOn(HistoryPeriod(scale: .day, containing: midnight, calendar: cal)))
+
+            present = beforeMidnight
+            let yesterday = today.shifted(by: -1, calendar: cal)
+            follower.shown(yesterday, changed: true)
+            Check.expectEqual(follower.check(yesterday), .none)
+            Check.expectEqual(follower.check(yesterday, reopening: true), .reload)
+            present = midnight
+            Check.expectEqual(follower.check(yesterday), .retitle)
+            Check.expectEqual(follower.check(yesterday), .none)
+        }
+
+        Check.test("the same period shown again with another filter still moves on once it has passed") {
+            var present = beforeMidnight
+            let follower = PeriodFollower(calendar: cal, now: { present })
+            let today = HistoryPeriod(scale: .day, containing: present, calendar: cal)
+            follower.shown(today, changed: true)
+            present = midnight + 10
+            follower.shown(today, changed: false)
+            Check.expectEqual(follower.check(today), .moveOn(HistoryPeriod(scale: .day, containing: midnight, calendar: cal)))
+        }
+
+        func waitUntil(_ what: String, _ condition: () -> Bool) {
+            let deadline = Date() + 3
+            while !condition() && Date() < deadline { RunLoop.main.run(until: Date() + 0.01) }
+            Check.expectTrue(condition(), what)
+        }
+
+        func setUp(_ name: String) -> (URL, UsageHistory, MonitorViewModel, UserDefaults) {
+            let url = temporaryURL()
+            let defaults = Check.defaults(name)
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            history.join(network("A"), label: "Net A", switched: false, now: beforeMidnight - 3_600)
+            let store = UsageStore(storeURL: url.appendingPathExtension("json"), calendar: cal, history: history)
+            let metering = MeteringController(store: store,
+                                              journal: SuppressionJournal(url: url.appendingPathExtension("journal")),
+                                              suppressors: [], defaults: defaults)
+            return (url, history, MonitorViewModel(store: store, metering: metering), defaults)
+        }
+
+        Check.test("Connections left on Today shows the new day's servers after midnight") {
+            let (url, history, monitor, defaults) = setUp("connections-rollover")
+            defer { remove(url) }
+            let teams = app("Teams")
+            history.recordApps([(teams, 600, 0)],
+                               servers: [teams.key: ["52.112.0.1": ByteCounts(bytesIn: 600, bytesOut: 0)]],
+                               now: beforeMidnight)
+            history.recordApps([(teams, 200, 0)],
+                               servers: [teams.key: ["52.112.0.2": ByteCounts(bytesIn: 200, bytesOut: 0)]],
+                               now: midnight)
+            var present = beforeMidnight
+            let model = ConnectionsViewModel(monitor: monitor, calendar: cal, defaults: defaults, now: { present })
+            model.windowDidOpen()
+            defer { model.windowDidClose() }
+            model.measure = .bytes
+            model.setKind(.wifi)
+            func total() -> Int64 { model.bins.reduce(0) { $0 + $1.bytes } }
+            waitUntil("today's servers before midnight") { total() == 600 }
+
+            // What's on screen the moment the period moves on.
+            var shownWhenMoved: Int64?
+            var loadingWhenMoved = false
+            let moved = model.$period.dropFirst().sink { _ in
+                shownWhenMoved = total()
+                loadingWhenMoved = !model.hasLoaded && model.rulesActivity.traffic.isEmpty
+            }
+            defer { moved.cancel() }
+            present = midnight
+            NotificationCenter.default.post(name: .NSCalendarDayChanged, object: nil)
+            waitUntil("the period moves on") { model.period.start == midnight }
+            Check.expectEqual(shownWhenMoved, 0, "yesterday's servers stayed under the new day")
+            Check.expectTrue(loadingWhenMoved, "it says it's loading, not that the day is empty")
+            waitUntil("the new day's servers") { total() == 200 }
+            Check.expectEqual(model.title, "Today")
+            Check.expectEqual(model.kind, .wifi)
+
+            model.step(-1)
+            waitUntil("Yesterday keeps its servers") { total() == 600 }
+            Check.expectEqual(model.title, "Yesterday")
+        }
+
+        Check.test("Ads & Trackers left on Today shows the new day's blocks; a day chosen stays") {
+            let (url, history, monitor, defaults) = setUp("ads-rollover")
+            defer { remove(url) }
+            history.recordListBlocks([(app("Chrome"), "ad.doubleclick.net", "ads")], now: beforeMidnight)
+            history.recordListBlocks([(app("Chrome"), "ad.doubleclick.net", "ads"),
+                                      (app("Chrome"), "stats.doubleclick.net", "ads")], now: midnight)
+            var present = beforeMidnight
+            let ads = AdsViewModel(monitor: monitor, calendar: cal, defaults: defaults, now: { present })
+            ads.windowDidOpen()
+            defer { ads.windowDidClose() }
+            Check.expectEqual(ads.periodTotal, 1)
+
+            present = midnight
+            NotificationCenter.default.post(name: .NSCalendarDayChanged, object: nil)
+            waitUntil("the new day's blocks") { ads.periodTotal == 2 }
+            Check.expectEqual(ads.title, "Today")
+            Check.expectEqual(ads.listsToday["ads"], 2)
+
+            ads.step(-1)
+            Check.expectEqual(ads.periodTotal, 1)
+            Check.expectEqual(ads.title, "Yesterday")
+            let chosen = ads.period
+            present = midnight + 86_400
+            NotificationCenter.default.post(name: .NSCalendarDayChanged, object: nil)
+            RunLoop.main.run(until: Date() + 0.05)
+            Check.expectEqual(ads.period, chosen, "a day chosen by hand stays")
+            Check.expectTrue(ads.title != "Yesterday")
+        }
+    }
+
     Check.suite("HistoryPeriod") {
 
         Check.test("a day has 24 hourly bars, 23 and 25 at the daylight saving changes") {

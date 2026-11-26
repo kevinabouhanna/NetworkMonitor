@@ -291,7 +291,7 @@ struct AdsView: View {
     private var empty: some View {
         VStack(spacing: 6) {
             Image(systemName: "shield.lefthalf.filled").font(.system(size: 28)).foregroundStyle(.secondary)
-            Text(model.period.contains(Date()) ? L("Nothing blocked yet") : L("Nothing blocked in this period"))
+            Text(model.isCurrent ? L("Nothing blocked yet") : L("Nothing blocked in this period"))
                 .font(.system(size: 14, weight: .medium))
             Text(L("Ads and trackers your apps try to reach show here as they're stopped."))
                 .font(.system(size: 12)).foregroundStyle(.secondary)

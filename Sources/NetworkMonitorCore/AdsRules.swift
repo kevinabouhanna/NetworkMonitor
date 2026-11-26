@@ -80,7 +80,7 @@ struct AdsRulesPage: View {
         .onChange(of: model.period) { _ in model.loadRulesActivity() }
         // As Overview does, while the period includes now.
         .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
-            if model.period.contains(Date()) { model.loadRulesActivity(again: true) }
+            if model.isCurrent { model.loadRulesActivity(again: true) }
         }
     }
 
