@@ -12,7 +12,8 @@ is sold; MB/s matches the data totals. Amounts of data are always in MB and GB, 
 data plans are sold. Pick other colours under **Settings › Speed colors**: six ready-made
 pairs (Green, the default, Teal, Blue, Gold, Pink and Violet), each made to read on a dark
 and a light menu bar, or **Custom…** for your own. **Menu bar top row** in that
-section lets you put Download or Upload first, including when a speed test is shown.
+section lets you put Download or Upload first, including when a speed test is shown. It
+appears while there's a menu bar item; the Dock icon always shows download on top.
 
 The readout **follows the menu bar**: on a light one, as over a light wallpaper, each colour is
 drawn darker in the same hue so it stays readable, and it switches by itself when the

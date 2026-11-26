@@ -123,18 +123,23 @@ struct GeneralSettingsPane: View {
                 }
             }
 
-            // The live rates only (#45). A speed test's colours follow from
-            // these, so the two never look alike; they're shown, not offered.
-            // Ready-made pairs first (#688), your own behind Custom….
+            // The live rates' colours (#45), and which of them is on top in the
+            // menu bar (#772). A speed test's colours follow from these, so the
+            // two never look alike; they're shown, not offered. Ready-made pairs
+            // first (#688), your own behind Custom….
             Section {
-                LabeledContent(L("Menu bar top row")) {
-                    Picker(L("Menu bar top row"), selection: $colors.uploadFirst) {
-                        Text(L("Download")).tag(false)
-                        Text(L("Upload")).tag(true)
+                // Only with a menu bar item: the Dock icon keeps its order.
+                if placement.placement.showsMenuBar {
+                    ExplainedRow(L("Menu bar top row"),
+                                 L("Which speed is on the upper line in the menu bar, live and during a speed test. Each keeps its arrow and color. The Dock icon always shows download on top.")) {
+                        Picker(L("Menu bar top row"), selection: $colors.uploadFirst) {
+                            Text(L("Download")).tag(false)
+                            Text(L("Upload")).tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
                 }
                 SpeedColorPresets(colors: colors)
                 let custom = state.customColorsShown || colors.preset == nil
@@ -165,11 +170,13 @@ struct GeneralSettingsPane: View {
                 }
                 ExplainedRow(L("During a speed test"),
                              L("A speed test shows its figures in its own colors, kept clear of these, so they're never taken for live rates.")) {
+                    // In the menu bar's order (#772).
+                    let rows = [("↓", colors.test.down), ("↑", colors.test.up)]
                     HStack(spacing: 6) {
-                        Text("↓")
-                        ColorSwatch(color: colors.test.down)
-                        Text("↑").padding(.leading, 4)
-                        ColorSwatch(color: colors.test.up)
+                        ForEach(Array((colors.uploadFirst ? rows.reversed() : rows).enumerated()), id: \.offset) { index, row in
+                            Text(row.0).padding(.leading, index == 0 ? 0 : 4)
+                            ColorSwatch(color: row.1)
+                        }
                     }
                     .foregroundStyle(.secondary)
                 }
