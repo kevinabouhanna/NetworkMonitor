@@ -7,6 +7,9 @@ builds, checks and releases the app stays in order.
 
 ## The plans
 
+- **Release 1.35.0: a beta first, with #754's switch** (#794), Now: the switch for measuring
+  Private Relay (#786), off unless turned on by hand, in a beta for defragekb; 1.35.0 itself
+  goes to everyone once Kevin says, with whatever else lands by then.
 - **Keep the tooling and the plan in order** (#606), standing: tooling chores (the vendored
   kits, local CI, the release workflow, the pictures' VM image, the plan and the board kept in
   step) are its steps. First among them: CI fails a change that keeps the app busy while it's

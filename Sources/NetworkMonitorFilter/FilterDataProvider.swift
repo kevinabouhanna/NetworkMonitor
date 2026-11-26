@@ -35,6 +35,20 @@ final class FilterDataProvider: NEFilterDataProvider {
     /// here, the answer is allow: a filter that fails must never cut the Mac
     /// off.
     override func handleNewFlow(_ flow: NEFilterFlow) -> NEFilterNewFlowVerdict {
+        let verdict = decide(flow)
+        // Off unless switched on by hand (#786).
+        return Firewall.shared.measuresFlowBytes ? FlowBytesProbe.observe(flow, verdict: verdict) : verdict
+    }
+
+    /// What macOS counted for a flow the probe watches (#786).
+    override func handle(_ report: NEFilterReport) {
+        // macOS reports some closes unasked (a lookup's, whose answer is
+        // read): only while the probe is on are they logged.
+        guard Firewall.shared.measuresFlowBytes else { return }
+        FlowBytesProbe.handle(report)
+    }
+
+    private func decide(_ flow: NEFilterFlow) -> NEFilterNewFlowVerdict {
         guard let socket = flow as? NEFilterSocketFlow,
               let remote = socket.remoteEndpoint as? NWHostEndpoint else { return .allow() }
         let port = Int(remote.port) ?? 0
@@ -88,7 +102,10 @@ final class FilterDataProvider: NEFilterDataProvider {
 
     override func handleOutboundData(from flow: NEFilterFlow, readBytesStartOffset offset: Int,
                                      readBytes: Data) -> NEFilterDataVerdict {
-        HandshakeWatch.shared.read(flow, offset: offset, bytes: readBytes)
+        let verdict = HandshakeWatch.shared.read(flow, offset: offset, bytes: readBytes)
+        // The verdict after a handshake ends the statistics unless it asks
+        // again (#754): for a flow the probe watches, whether it's on now or not.
+        return FlowBytesProbe.observe(flow, verdict: verdict)
     }
 
     override func handleOutboundDataComplete(for flow: NEFilterFlow) -> NEFilterDataVerdict {

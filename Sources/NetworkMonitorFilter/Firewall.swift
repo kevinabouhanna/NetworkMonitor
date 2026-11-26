@@ -154,6 +154,10 @@ final class Firewall {
     /// Whether lookups' answers are worth reading: only while a list is on.
     var readsLookups: Bool { !current.lists.isEmpty }
 
+    /// The probe of macOS's byte counts per flow (#786): off unless the app
+    /// was told to by hand.
+    var measuresFlowBytes: Bool { current.measuresFlowBytes }
+
     /// A lookup's answer, as it came back to the Mac. Only its aliases are
     /// kept; the answer itself goes on unchanged.
     func learnLookup(_ answer: Data) {
@@ -419,9 +423,11 @@ final class Firewall {
 
         for (flow, dataStage) in question.flows {
             if dataStage {
-                provider?.resumeFlow(flow, with: allows ? NEFilterDataVerdict.allow() : NEFilterDataVerdict.drop())
+                provider?.resumeFlow(flow, with: FlowBytesProbe.observe(
+                    flow, verdict: allows ? NEFilterDataVerdict.allow() : NEFilterDataVerdict.drop()))
             } else {
-                provider?.resumeFlow(flow, with: allows ? NEFilterNewFlowVerdict.allow() : NEFilterNewFlowVerdict.drop())
+                provider?.resumeFlow(flow, with: FlowBytesProbe.resumed(
+                    flow, verdict: allows ? NEFilterNewFlowVerdict.allow() : NEFilterNewFlowVerdict.drop()))
             }
         }
         if !allows {
