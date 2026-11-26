@@ -62,6 +62,8 @@ document.addEventListener('click', function (e) {
 <strong>你的 Mac 所在的国家或地区</strong>，用于确定“连接”地图上线条的起点（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/231">#231</a>），仅在地图显示时读取，且最多每十分钟一次。如果你已经为 Wi-Fi 名称允许了定位服务（它从不只为这个目的请求权限），就来自定位服务：位置会在你的 Mac 上用地图自己的轮廓换算成国家或地区，而不是使用 Apple 的地址查询，那会把位置发送给 Apple。只保留国家或地区，而且只保存在内存中。没有定位服务时，使用你的 Mac 自己的互联网地址所在的国家或地区，前提是它持有一个互联网能直接看到的地址（在家用路由器后面时没有，也不会询问任何外部服务）；再不行就使用 Mac 的“地区”设置。</li>
 <li>
 <strong>已安装应用的更新设置</strong>，仅在你打开<a href="../../../zh/docs/hotspot-mode/">热点模式</a>时读取，用于了解它能暂停什么，以及之后如何恢复。</li>
+<li>
+<strong>后台下载是哪个应用发起的</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/767">#767</a>）：macOS 的下载服务（<code>nsurlsessiond</code>）为某个应用完成的下载结束时，应用会读取 macOS 日志中该服务前后几秒的“连接已关闭”记录，以得知该应用的名称。只读这些记录，只在那时读取，除了行上的名称外什么都不保留。</li>
 </ul>
 <p><code>nettop</code> 以 <code>-n</code> 参数运行，所以它从不查询主机名。查询主机名本身就会产生流量。</p>
 <div class="markdown-heading"><h2 id="它会发送什么" class="heading-element">它会发送什么</h2><a id="它会发送什么" class="anchor" aria-label="Permalink: 它会发送什么" href="#它会发送什么"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
@@ -148,7 +150,7 @@ document.addEventListener('click', function (e) {
 <div class="markdown-heading"><h2 id="为什么它不在-app-store-中" class="heading-element">为什么它不在 App Store 中</h2><a id="为什么它不在-app-store-中" class="anchor" aria-label="Permalink: 为什么它不在 App Store 中" href="#为什么它不在-app-store-中"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>App Store 中的应用必须在沙盒中运行，而沙盒中的应用无法运行 <code>nettop</code>，这是 macOS 提供的查看每个应用网络使用情况的唯一方式。</p>
 
-    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/privacy.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/e4c30cb1e3dcd1fc0dc484cde2df78c08f42c9a4"><code>e4c30cb</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/privacy.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/05b2124a1b7042f56a354e5f445c415e91cbd33f"><code>05b2124</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
   </main>
 </div>
 <script>
