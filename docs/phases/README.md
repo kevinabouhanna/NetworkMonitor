@@ -16,9 +16,8 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 
 | Order | Plan | Phase |
 |---|---|---|
-| 5.62 | #770 Usage History stays on yesterday’s totals after midnight | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.62 | #776 Connections and Ads stay on yesterday after midnight | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.63 | #767 Attribute shared nsurlsessiond traffic to its requesting app | [Phase 1: Everyday polish](01-everyday-polish.md) |
-| 5.64 | #772 Let me choose which speed goes on top in the menu bar | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.7 | #738 Research: does the app count a virtual machine's data, connections and ads? | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 6 | #257 A NetworkMonitor extension for Chrome: in-page ads, pop-ups and YouTube ads, with the app's lists and rules | [Phase 3: The Chrome extension](03-chrome-extension.md) |
 
