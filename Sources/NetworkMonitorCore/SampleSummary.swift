@@ -22,6 +22,7 @@ public struct SampleSummary {
     /// Every process in the sample, quiet ones included, for pid-reuse cache
     /// eviction.
     public private(set) var pids = Set<Int32>()
+    private(set) var backgroundDownloads: [BackgroundDownloads.Sample] = []
     /// Rows from processes named like updaters, by their own name rather than
     /// the app they fold into: GoogleUpdater is an updater whether or not its
     /// row groups under Chrome, and the name is the only list-free sign.
@@ -36,8 +37,22 @@ public struct SampleSummary {
             // Only internet bytes reach a row. An app that did nothing but talk
             // to a NAS or mirror a screen doesn't appear at all.
             let bytesIn = row.internetBytesIn, bytesOut = row.internetBytesOut
-            guard bytesIn > 0 || bytesOut > 0 else { continue }
+            guard bytesIn > 0 || bytesOut > 0 else {
+                if !row.backgroundSockets.isEmpty {
+                    backgroundDownloads.append(.init(sockets: row.backgroundSockets, source: nil))
+                }
+                continue
+            }
             let identity = identify(row)
+            if !row.backgroundSockets.isEmpty {
+                let eligible = row.backgroundSockets.reduce(into: ByteCounts(bytesIn: 0, bytesOut: 0)) {
+                    $0 += $1.counts
+                }
+                // Connection rows may disagree with the process row. Keep the
+                // whole sample under the daemon rather than move an estimate.
+                let source = eligible.bytesIn <= bytesIn && eligible.bytesOut <= bytesOut ? identity.key : nil
+                backgroundDownloads.append(.init(sockets: row.backgroundSockets, source: source))
+            }
             if let index = merged[identity.key] {
                 apps[index].bytesIn += bytesIn
                 apps[index].bytesOut += bytesOut

@@ -20,6 +20,10 @@ leaves your Mac.
   that only lets through packets between two addresses on your own network; packets to or
   from the internet never reach it. It counts bytes per socket, tells the app those counts
   and nothing else, writes nothing to disk, and stops two minutes after the app last asked.
+- **Which app asked for a background download** (#767): when a download macOS's download
+  service (`nsurlsessiond`) did for an app ends, the app reads that service's own
+  connection-closed lines in macOS's log, for the few seconds around it, to learn the
+  app's name. Only those lines, only then, and nothing is kept but the name on the row.
 - **The default gateway's hardware address**, to tell one network from another (see
   [how it tells networks apart](features.md#a-total-per-connection)). It comes from
   macOS's own network configuration, which needs no permission.

@@ -53,6 +53,7 @@ public struct NettopRow: Equatable {
 
     /// Its UDP sockets, by port, for `UDPUsageCredit` (#753).
     var udpSockets: [NettopUDPSocket] = []
+    var backgroundSockets: [BackgroundSocket] = []
 
     public init(pid: Int32, processName: String, bytesIn: Int64, bytesOut: Int64,
                 localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
@@ -141,7 +142,8 @@ public struct NettopParser {
             // A connection row belongs to the process row above it — nettop emits
             // each process followed by its own sockets — so it is folded into the
             // row already pending rather than becoming a row of its own.
-            if let connection = Self.parseConnection(line, interfaceColumn: interfaceColumn) {
+            if let connection = Self.parseConnection(line, interfaceColumn: interfaceColumn,
+                                                     captureBackground: pending.last?.processName == "nsurlsessiond") {
                 foldConnection(connection)
                 continue
             }
@@ -171,6 +173,15 @@ public struct NettopParser {
             }
         }
         guard connection.scope.isLocal else {
+            if let socket = connection.background,
+               let interface = connection.interface, let ports = connection.ports {
+                let key = BackgroundSocket.Key(pid: pending[index].pid, interface: interface,
+                                               transport: socket.transport, local: socket.local,
+                                               localPort: ports.local, remotePort: ports.remote)
+                pending[index].backgroundSockets.append(BackgroundSocket(
+                    key: key, peer: socket.peer, counts: ByteCounts(bytesIn: max(connection.bytesIn, 0),
+                                                           bytesOut: max(connection.bytesOut, 0))))
+            }
             // A wildcard peer has no address to record. Its bytes still count,
             // through the process row.
             if let server = connection.remoteHost,
@@ -200,6 +211,8 @@ public struct NettopParser {
         var ports: (local: Int, remote: Int)? = nil
         /// Its local port, and whether nettop leaves its other end out.
         var udp: (port: Int, wildcard: Bool)? = nil
+        var background: (local: BackgroundSocket.Address, peer: BackgroundSocket.Address,
+                         transport: BackgroundSocket.Transport)? = nil
     }
 
     /// A tunnel's interface: a VPN's or a proxy's (`utun4`), never a link the
@@ -213,7 +226,8 @@ public struct NettopParser {
     ///
     /// These exist only because the stream does not pass `-P`. They carry the one
     /// thing the process rows cannot: where the bytes were going.
-    static func parseConnection(_ line: String, interfaceColumn: Bool = false) -> Connection? {
+    static func parseConnection(_ line: String, interfaceColumn: Bool = false,
+                                captureBackground: Bool = false) -> Connection? {
         guard line.contains("<->") else { return nil }
         var fields = line.components(separatedBy: ",")
         if fields.last?.isEmpty == true { fields.removeLast() }
@@ -228,21 +242,35 @@ public struct NettopParser {
         // Only internet peers are kept by address, so only they are parsed again.
         var ports: (local: Int, remote: Int)?
         var udp: (port: Int, wildcard: Bool)?
+        var background: (BackgroundSocket.Address, BackgroundSocket.Address, BackgroundSocket.Transport)?
         if interfaceColumn, let separator = label.range(of: "<->") {
             let isIPv6 = RemoteEndpoint.isIPv6Label(label)
+            let local = String(label[..<separator.lowerBound])
             let remote = String(label[separator.upperBound...])
-            if let local = RemoteEndpoint.port(of: String(label[..<separator.lowerBound]), isIPv6: isIPv6) {
+            if let localPort = RemoteEndpoint.port(of: local, isIPv6: isIPv6) {
                 if let remotePort = RemoteEndpoint.port(of: remote, isIPv6: isIPv6) {
-                    ports = (local, remotePort)
+                    ports = (localPort, remotePort)
                 }
                 if label.hasPrefix("udp4 ") || label.hasPrefix("udp6 ") {
-                    udp = (local, scope == .internet && remote.hasPrefix("*"))
+                    udp = (localPort, scope == .internet && remote.hasPrefix("*"))
+                }
+            }
+            if captureBackground, !scope.isLocal, let interface, !interface.isEmpty,
+               !interface.hasPrefix("lo"), !Self.isTunnel(interface), let ports,
+               (1...65535).contains(ports.local), (1...65535).contains(ports.remote),
+               let localAddress = RemoteEndpoint.host(of: local, isIPv6: isIPv6).flatMap(BackgroundSocket.Address.init),
+               let peerAddress = RemoteEndpoint.host(of: remote, isIPv6: isIPv6).flatMap(BackgroundSocket.Address.init) {
+                switch label.prefix { $0 != " " } {
+                case "tcp4", "tcp6": background = (localAddress, peerAddress, .tcp)
+                case "quic4", "quic6": background = (localAddress, peerAddress, .quic)
+                default: break
                 }
             }
         }
         return Connection(scope: scope, bytesIn: bytesIn, bytesOut: bytesOut,
                           remoteHost: scope.isLocal ? nil : RemoteEndpoint.remoteHost(connectionLabel: label),
-                          interface: interface?.isEmpty == false ? interface : nil, ports: ports, udp: udp)
+                          interface: interface?.isEmpty == false ? interface : nil, ports: ports, udp: udp,
+                          background: background)
     }
 
     /// Emits whatever is buffered, for use when the stream ends.

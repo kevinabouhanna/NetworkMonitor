@@ -217,6 +217,13 @@ public final class UsageStore {
                            servers: [String: [String: ByteCounts]] = [:],
                            localBytesIn: Int64 = 0, localBytesOut: Int64 = 0,
                            sampledOn: String? = nil, now: Date = Date()) {
+        recordAppSample(entries, servers: servers, localBytesIn: localBytesIn, localBytesOut: localBytesOut,
+                        sampledOn: sampledOn, backgroundDownloads: nil, now: now)
+    }
+
+    func recordAppSample(_ entries: [(identity: AppIdentity, bytesIn: Int64, bytesOut: Int64)],
+                         servers: [String: [String: ByteCounts]], localBytesIn: Int64, localBytesOut: Int64,
+                         sampledOn: String?, backgroundDownloads: BackgroundDownloads.Observation?, now: Date) {
         rolloverIfNeeded(now: now)
         guard let id = appSampleBucketID(from: sampledOn ?? currentNetwork.id) else { return }
         withBucket(id: id, now: now) { bucket in
@@ -240,8 +247,9 @@ public final class UsageStore {
                 bucket.apps[entry.identity.key] = totals
             }
         }
-        history?.recordApps(entries, servers: servers,
-                            localBytesIn: localBytesIn, localBytesOut: localBytesOut, now: now)
+        history?.recordAppSample(entries, servers: servers,
+                                 localBytesIn: localBytesIn, localBytesOut: localBytesOut,
+                                 backgroundDownloads: backgroundDownloads, now: now)
     }
 
     /// Folds a row left behind by a version that could not adopt this process

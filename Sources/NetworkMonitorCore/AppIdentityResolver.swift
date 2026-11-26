@@ -215,6 +215,60 @@ public final class AppIdentityResolver {
                     parent: parent)
     }
 
+    /// A background task's log names its client by bundle ID (#767). An app
+    /// resolves to the row its own traffic is in: the installed copy's when
+    /// there are several. A service with no app (`softwareupdated`, say)
+    /// resolves to its running program's row, found by name and checked by
+    /// its code signature. Anything else stays under `nsurlsessiond`.
+    static func backgroundOwner(bundleID: String) -> AppIdentity? {
+        guard bundleID != "com.apple.nsurlsessiond" else { return nil }
+        let matches = NSWorkspace.shared.urlsForApplications(withBundleIdentifier: bundleID).compactMap { url -> AppIdentity? in
+            guard Bundle(url: url)?.bundleIdentifier == bundleID else { return nil }
+            return identity(forExecutablePath: url.path, fallbackName: bundleID)
+        }
+        let byKey = Dictionary(grouping: matches, by: \.key)
+        if byKey.count == 1 { return matches.first }
+        if byKey.count > 1 {
+            // Copies elsewhere (a mounted disk image, Downloads) have a row of
+            // their own; the installed one's is where the app's traffic goes.
+            let installed = byKey.keys.filter { AppKey.installedApp(ofCopiesKey: $0) == nil }
+            return installed.count == 1 ? byKey[installed[0]]?.first : nil
+        }
+        guard let path = runningProgram(signedAs: bundleID) else { return nil }
+        return identity(forExecutablePath: path, fallbackName: bundleID)
+    }
+
+    /// A running program whose name is the bundle ID's last part and whose
+    /// code signature says it is that ID: how a system service with no app
+    /// is named in its own row.
+    static func runningProgram(signedAs bundleID: String) -> String? {
+        guard let name = bundleID.split(separator: ".").last.map(String.init), !name.isEmpty else { return nil }
+        var pids = [Int32](repeating: 0, count: 4096)
+        let count = Int(proc_listallpids(&pids, Int32(pids.count * MemoryLayout<Int32>.size)))
+        guard count > 0 else { return nil }
+        var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
+        for pid in pids.prefix(min(count, pids.count)) where pid > 0 {
+            guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { continue }
+            let path = String(cString: buffer)
+            guard (path as NSString).lastPathComponent == name, signingIdentifier(pid: pid) == bundleID
+            else { continue }
+            return path
+        }
+        return nil
+    }
+
+    private static func signingIdentifier(pid: Int32) -> String? {
+        var code: SecCode?
+        guard SecCodeCopyGuestWithAttributes(nil, [kSecGuestAttributePid: pid] as CFDictionary, [], &code)
+                == errSecSuccess, let code else { return nil }
+        var staticCode: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return nil }
+        var info: CFDictionary?
+        guard SecCodeCopySigningInformation(staticCode, [], &info) == errSecSuccess,
+              let info = info as? [String: Any] else { return nil }
+        return info[kSecCodeInfoIdentifier as String] as? String
+    }
+
     /// The identity a key stands for, rebuilt from the key alone: for a
     /// connection the content filter blocked (#114), whose process may be gone
     /// by the time the app hears of it. A bundle path, an executable's path,

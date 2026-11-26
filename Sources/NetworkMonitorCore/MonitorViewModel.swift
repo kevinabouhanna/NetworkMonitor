@@ -641,16 +641,17 @@ public final class MonitorViewModel: ObservableObject {
 
     private func handleNettopSample(_ raw: [NettopRow]) {
         let network = sampleNetwork.current
+        let observedAt = Date()
         udpUsageQueue.async { [weak self] in
             guard let self else { return }
             self.recordNettopSample(self.udpCredit.apply(
                 to: raw,
                 interfaces: { Set(InterfaceCounters.read().map(\.name)) },
-                snapshot: { HelperService.udpUsage() }), network: network)
+                snapshot: { HelperService.udpUsage() }), network: network, observedAt: observedAt)
         }
     }
 
-    private func recordNettopSample(_ raw: [NettopRow], network: String) {
+    private func recordNettopSample(_ raw: [NettopRow], network: String, observedAt: Date) {
         // Resolve identities on the main actor: AppIdentityResolver touches
         // NSWorkspace and its caches are not thread-safe.
         DispatchQueue.main.async { [weak self] in
@@ -693,9 +694,11 @@ public final class MonitorViewModel: ObservableObject {
             }
             self.lastSeenPIDs = summary.pids
             self.identityResolver.retainOnly(pids: summary.pids)
-            self.store.recordApps(entries, servers: summary.servers,
-                                  localBytesIn: summary.localIn, localBytesOut: summary.localOut,
-                                  sampledOn: network, now: now)
+            self.store.recordAppSample(entries, servers: summary.servers,
+                                       localBytesIn: summary.localIn, localBytesOut: summary.localOut,
+                                       sampledOn: network,
+                                       backgroundDownloads: .init(samples: summary.backgroundDownloads, time: observedAt),
+                                       now: now)
 
             // The rows are Data's: rebuilt only while Data is what's shown.
             if self.popoverIsOpen && self.popoverSection == .today {
