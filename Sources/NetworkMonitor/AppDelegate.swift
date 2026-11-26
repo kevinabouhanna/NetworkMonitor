@@ -774,7 +774,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         func key(_ equivalent: String) -> String { forDock ? "" : equivalent }
 
         if forDock, placement.drawsSpeedsOnDock(dockIcon) {
-            let item = NSMenuItem(title: model.menuBarSpoken, action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: model.dockSpeedSpoken, action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)
             menu.addItem(.separator())

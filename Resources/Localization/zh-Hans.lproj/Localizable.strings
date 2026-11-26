@@ -647,6 +647,8 @@
 "Pink" = "粉色";
 "Violet" = "紫色";
 "Speed colors" = "网速颜色";
+"Menu bar top row" = "菜单栏第一行";
+"Which speed is on the upper line in the menu bar, live and during a speed test. Each keeps its arrow and color. The Dock icon always shows download on top." = "菜单栏上方一行显示哪个速度，实时速度和网速测试都适用。每个速度保留各自的箭头和颜色。程序坞图标始终把下载放在上方。";
 "Counting since" = "统计开始于";
 "What this connection has used, per app, all the time. The totals start over when you join a different network, and at midnight. History keeps every hour of it." = "按应用持续统计此连接用了多少流量。加入其他网络时以及每天午夜，累计值会重新开始。“历史记录”会保留每个小时的数据。";
 "Sampling" = "采样";
@@ -915,6 +917,8 @@
 /* The menu bar readout, read by VoiceOver (#424). */
 "Download %@, upload %@" = "下载 %@，上传 %@";
 "Speed test: download %@, upload %@" = "网速测试：下载 %@，上传 %@";
+"Upload %@, download %@" = "上传 %@，下载 %@";
+"Speed test: upload %@, download %@" = "网速测试：上传 %@，下载 %@";
 
 /* Its speeds, the unit in words, as VoiceOver reads them (#497). */
 "%@ bytes per second" = "%@ 字节每秒";

@@ -136,7 +136,7 @@ public final class MonitorViewModel: ObservableObject {
     public let updates = UpdateController()
     private var firewallPolicy: AnyCancellable?
     private var enhancedProxyState: AnyCancellable?
-    /// The readout's colours, and the speed test's alongside them (#45).
+    /// The menu bar's row order and colours, and the speed test's colours (#45).
     public let menuBarColors: MenuBarColors
     /// Wi-Fi names, and the Location permission they need (#85).
     public let wifiNames: WiFiNames
@@ -876,7 +876,7 @@ public final class MonitorViewModel: ObservableObject {
     /// A running speed test takes the title over and keeps it for a few seconds
     /// after with the result. Same width, tints kept clear of the live colours;
     /// see `MenuBarTitle.speedTestImage` and `MenuBarColors`.
-    public var menuBarImage: NSImage { MenuBarTitle.image(readout) }
+    public var menuBarImage: NSImage { MenuBarTitle.image(readout, uploadFirst: menuBarColors.uploadFirst) }
 
     /// The readout's two lines and colours, for the menu bar and, in Dock
     /// mode, the Dock icon (#69).
@@ -892,17 +892,23 @@ public final class MonitorViewModel: ObservableObject {
                             tints: firewall.blocksEverything ? .blockingEverything : menuBarColors.live)
     }
 
-    /// The readout in words, for VoiceOver (#424) and the Dock's menu:
-    /// "Download 2.61 megabytes per second, upload 117 kilobytes per second",
-    /// the units spelled out (#497), in the unit chosen in General, or a
-    /// speed test's.
-    public var menuBarSpoken: String {
+    /// VoiceOver reads the rates in the same order as their rows (#424).
+    public var menuBarSpoken: String { spokenReadout(uploadFirst: menuBarColors.uploadFirst) }
+
+    /// The Dock's menu follows the order drawn on its icon.
+    public var dockSpeedSpoken: String { spokenReadout(uploadFirst: false) }
+
+    private func spokenReadout(uploadFirst: Bool) -> String {
+        let unit = speedTest.unit
         if let reading = speedTest.menuBarReading {
-            return L("Speed test: download %@, upload %@", ByteFormat.spokenSpeed(reading.down, unit: speedTest.unit),
-                     ByteFormat.spokenSpeed(reading.up, unit: speedTest.unit))
+            let down = ByteFormat.spokenSpeed(reading.down, unit: unit)
+            let up = ByteFormat.spokenSpeed(reading.up, unit: unit)
+            return uploadFirst ? L("Speed test: upload %@, download %@", up, down)
+                               : L("Speed test: download %@, upload %@", down, up)
         }
-        return L("Download %@, upload %@", ByteFormat.spokenSpeed(downBytesPerSecond * 8, unit: speedTest.unit),
-                 ByteFormat.spokenSpeed(upBytesPerSecond * 8, unit: speedTest.unit))
+        let down = ByteFormat.spokenSpeed(downBytesPerSecond * 8, unit: unit)
+        let up = ByteFormat.spokenSpeed(upBytesPerSecond * 8, unit: unit)
+        return uploadFirst ? L("Upload %@, download %@", up, down) : L("Download %@, upload %@", down, up)
     }
 
     /// Block Everything (#198). Like any rule it needs the content filter:

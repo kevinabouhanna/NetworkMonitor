@@ -1,6 +1,6 @@
 import AppKit
 
-/// Builds the status item's title: two stacked lines, download above upload.
+/// Builds the status item's title: two stacked lines in the chosen order.
 ///
 /// Kept out of `AppDelegate` so the width-stability invariant can be measured in
 /// the test suite: this is the one piece of the UI where a formatting mistake is
@@ -78,6 +78,14 @@ public enum MenuBarTitle {
                    "↑ \(ByteFormat.menuBarSpeed(upBits, unit: unit))", tints.up)
     }
 
+    /// Draws each direction's text and colour together, whichever row it's in.
+    public static func attributed(_ readout: SpeedReadout, uploadFirst: Bool) -> NSAttributedString {
+        if uploadFirst {
+            return attributed(readout.up, readout.tints.up, readout.down, readout.tints.down)
+        }
+        return attributed(readout.down, readout.tints.down, readout.up, readout.tints.up)
+    }
+
     private static func attributed(_ top: String, _ topTint: NSColor,
                                    _ bottom: String, _ bottomTint: NSColor) -> NSAttributedString {
         let paragraph = MenuBarTitle.paragraphStyle()
@@ -137,12 +145,13 @@ public enum MenuBarTitle {
     /// draws each status item in its bar's appearance. On a light bar the
     /// colours are darkened to read (`MenuBarTints.onBar`); when the wallpaper
     /// changes, the next draw follows it.
-    public static func image(_ readout: SpeedReadout) -> NSImage {
-        let measured = attributed(readout.down, readout.tints.down, readout.up, readout.tints.up).size()
+    public static func image(_ readout: SpeedReadout, uploadFirst: Bool = false) -> NSImage {
+        let measured = attributed(readout, uploadFirst: uploadFirst).size()
         let size = NSSize(width: ceil(measured.width), height: menuBarHeight)
         let image = NSImage(size: size, flipped: false) { rect in
             let tints = readout.tints.onBar(dark: isDark(NSAppearance.currentDrawing()))
-            let text = attributed(readout.down, tints.down, readout.up, tints.up)
+            let text = attributed(SpeedReadout(down: readout.down, up: readout.up, tints: tints),
+                                  uploadFirst: uploadFirst)
             // Flipped-text-in-unflipped-context: the rect's origin is
             // bottom-left and the string fills it downward from the top, so
             // centring the rect vertically centres the glyphs.

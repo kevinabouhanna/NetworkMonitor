@@ -86,6 +86,64 @@ func runMenuBarColorsTests() {
             Check.expectEqual(redraws, 1)
         }
 
+        Check.test("the menu bar row order is saved separately from the colours and redraws immediately") {
+            let defaults = freshDefaults()
+            let colors = MenuBarColors(defaults: defaults)
+            colors.upload = hex("#FF9500")
+            let live = colors.live
+            let test = colors.test
+            var drawnOrders: [Bool] = []
+            colors.didChange = { [weak colors] in
+                if let colors { drawnOrders.append(colors.uploadFirst) }
+            }
+
+            Check.expectFalse(colors.uploadFirst)
+            colors.uploadFirst = true
+            Check.expectEqual(drawnOrders, [true])
+            Check.expectEqual(colors.live, live)
+            Check.expectEqual(colors.test, test)
+            let reopened = MenuBarColors(defaults: defaults)
+            Check.expectTrue(reopened.uploadFirst)
+            Check.expectEqual(reopened.live, live)
+
+            colors.uploadFirst = false
+            Check.expectEqual(drawnOrders, [true, false])
+            Check.expectFalse(MenuBarColors(defaults: defaults).uploadFirst)
+        }
+
+        Check.test("upload first moves each value, arrow and colour together at the same size") {
+            for unit in SpeedUnit.allCases {
+                let live = SpeedReadout(down: MenuBarTitle.downLine(128 * 1024, unit: unit),
+                                        up: MenuBarTitle.upLine(16 * 1024, unit: unit), tints: .live)
+                let test = SpeedReadout(down: "↓ \(ByteFormat.menuBarSpeed(75_000_000, unit: unit))",
+                                        up: "↑ \(ByteFormat.menuBarSpeed(6_000_000, unit: unit))",
+                                        tints: MenuBarTints.testChoices[0])
+                for readout in [live, test] {
+                    let reversed = MenuBarTitle.attributed(readout, uploadFirst: true)
+                    Check.expectEqual(reversed.string, readout.up + "\n" + readout.down)
+                    Check.expectTrue(reversed.attribute(.foregroundColor, at: 0, effectiveRange: nil)
+                                     as? NSColor == readout.tints.up)
+                    Check.expectTrue(reversed.attribute(.foregroundColor, at: readout.up.utf16.count + 1,
+                                                         effectiveRange: nil) as? NSColor == readout.tints.down)
+                    let normalSize = MenuBarTitle.image(readout).size
+                    Check.expectEqual(MenuBarTitle.image(readout, uploadFirst: true).size, normalSize)
+                }
+            }
+        }
+
+        Check.test("VoiceOver follows the menu bar choice and the Dock keeps its spoken order") {
+            let defaults = freshDefaults()
+            let colors = MenuBarColors(defaults: defaults)
+            let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("row-order-\(UUID()).json")
+            let model = MonitorViewModel(store: UsageStore(storeURL: url), menuBarColors: colors)
+            let normal = model.menuBarSpoken
+            Check.expectEqual(model.dockSpeedSpoken, normal)
+            colors.uploadFirst = true
+            let rate = ByteFormat.spokenSpeed(0, unit: model.speedTest.unit)
+            Check.expectEqual(model.menuBarSpoken, L("Upload %@, download %@", rate, rate))
+            Check.expectEqual(model.dockSpeedSpoken, normal)
+        }
+
         // The colour panel hands back colours in whatever space it likes.
         Check.test("a colour from any colour space is saved as sRGB") {
             let p3 = NSColor(displayP3Red: 1, green: 0, blue: 0, alpha: 1)

@@ -6,13 +6,13 @@ NetworkMonitor 能做的一切，以及在哪里找到它们。
 
 ## 菜单栏读数
 
-两行，始终可见：绿色的 <strong>↓ 下载</strong> 在上，浅灰色的 <strong>↑ 上传</strong> 在下，单位为 <strong>MB/s</strong> 或 <strong>Mbps</strong>（<strong>设置 › 速度显示单位</strong>）。Mbps 与宽带套餐的标称速度一致；MB/s 与流量总计一致。数据量始终以 MB 和 GB 显示，与流量套餐的计算方式相同。你可以在 <strong>设置 › 网速颜色</strong> 中选择其他颜色：六组现成的配色（绿色为默认，另有青绿色、蓝色、金色、粉色和紫色），每组在深色和浅色菜单栏上都清晰可读；也可以点按 <strong>自定义…</strong> 选择你自己的颜色。
+菜单栏始终显示两行。默认情况下，绿色的 <strong>↓ 下载</strong> 在上，浅灰色的 <strong>↑ 上传</strong> 在下，单位为 <strong>MB/s</strong> 或 <strong>Mbps</strong>（<strong>设置 › 速度显示单位</strong>）。Mbps 与宽带套餐的标称速度一致；MB/s 与流量总计一致。数据量始终以 MB 和 GB 显示，与流量套餐的计算方式相同。你可以在 <strong>设置 › 网速颜色</strong> 中选择其他颜色：六组现成的配色（绿色为默认，另有青绿色、蓝色、金色、粉色和紫色），每组在深色和浅色菜单栏上都清晰可读；也可以点按 <strong>自定义…</strong> 选择你自己的颜色。该设置区的 <strong>菜单栏第一行</strong> 选项可让你选择下载或上传在上方，显示网速测试时也适用。该选项在有菜单栏项目时显示；程序坞图标始终把下载放在上方。
 
 读数<strong>跟随菜单栏</strong>：在浅色菜单栏上（例如使用浅色墙纸时），每种颜色会以相同色调加深显示，以保持清晰可读；更换墙纸时会自动切换。在深色菜单栏上，颜色按所选的显示。
 
 读数<strong>宽度固定</strong>，所以数字变化时，菜单栏中它旁边的项目不会跳来跳去。它每秒最多更新两次，使用电池和低电量模式时更新得更少（请参阅[电池](accuracy-and-battery.md#电池)）。网速测试进行时，读数会以青色显示测试结果；如果你选的颜色接近青色，则改用另一组颜色，这样测试结果永远不会被误认为实时速度。
 
-VoiceOver 用文字读出读数，先读下载：<em>NetworkMonitor，下载 1.2 兆字节每秒，上传 30 千字节每秒</em>；显示测试结果时读作 <em>网速测试：下载 …</em>（#497）。
+VoiceOver 按屏幕上的顺序读出读数。默认会读成 <em>NetworkMonitor，下载 1.2 兆字节每秒，上传 30 千字节每秒</em>；显示测试结果时读作 <em>网速测试：下载 …</em>（#497）。
 
 - <strong>点按</strong>它可打开弹出窗口。
 - <strong>右键点按</strong>（或按住 Control 键点按）它，可使用 <strong>测试网速</strong>、上一次的结果、<strong>全部阻止</strong>（#198）、<strong>暂停广告拦截</strong>（1 小时、直到明天，或每当连接此网络时），暂停期间则为 <strong>继续广告拦截</strong>（#600）、<strong>流量历史…</strong>（⌘Y）、<strong>连接…</strong>（⌘K）、<strong>广告与跟踪器…</strong>（⌘B）、<strong>网络…</strong>、<strong>设置…</strong>（⌘,）、<strong>关于 NetworkMonitor</strong>、<strong>检查更新…</strong>、<strong>卸载 NetworkMonitor…</strong> 和 <strong>退出</strong>。
@@ -114,7 +114,7 @@ VoiceOver 用文字读出读数，先读下载：<em>NetworkMonitor，下载 1.2
 - <strong>更新</strong>（[如何更新](installing.md#更新)）：你的版本、上次检查的时间和 立即检查，<strong>自动检查更新</strong>、<strong>自动安装更新</strong> 和 <strong>获取测试版</strong>
 - <strong>速度显示单位</strong>：MB/s 或 Mbps
 - <strong>Wi-Fi 名称</strong>（打开之前显示）
-- <strong>网速颜色</strong>（菜单栏读数和程序坞图标的颜色）：六组现成的配色、用于自选下载和上传颜色的“自定义…”、网速测试的颜色
+- <strong>网速颜色</strong>（菜单栏读数和程序坞图标的颜色）：六组现成的配色、用于自选下载和上传颜色的“自定义…”、网速测试的颜色，以及 <strong>菜单栏第一行</strong>
 - <strong>弹出窗口中的累计值</strong>：统计开始于、采样、立即重置
 - <strong>各部分</strong>：每个部分的设置各有一行，与它的齿轮图标打开的页面相同
 
