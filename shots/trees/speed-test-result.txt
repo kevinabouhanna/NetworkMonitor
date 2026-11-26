@@ -1,5 +1,5 @@
-AXPopover 348x468
-  AXGroup (AXHostingView) h444
+AXPopover 348x492
+  AXGroup (AXHostingView) h464
     AXTabGroup description="Period" 180x28
       AXRadioButton (AXTabButton) description="Today" 12x16
       AXRadioButton (AXTabButton) description="Week" 12x16

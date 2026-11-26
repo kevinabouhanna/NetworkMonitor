@@ -35,11 +35,6 @@ AXWindow (AXStandardWindow) title="连接" 1300
       AXStaticText value="#时" h12
       AXScrollArea description="公司"
         data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
-      AXButton description="缩小" help="缩小" 12x12
-      AXButton description="放大" help="放大" 12x12
-      AXButton description="显示整个世界" help="显示整个世界" 12x12
-      data: AXUnknown
-      AXStaticText value="Fastly 和 Cloudflare：# ‹unit› 由附近的数据中心响应，因此未在地图上标出。" help="这些网络会从离你最近的数据中心响应每个地址，因此无法确定流量去了哪个国家或地区。" h40
       AXLink description="IP 地理位置数据由 DB-IP 提供" 136x12
       AXStaticText value="·" h16
       AXStaticText value="所有名称都在这台 Mac 上识别，不会在线查询。" h12

@@ -328,7 +328,8 @@ document.addEventListener('click', function (e) {
 </tr>
 </tbody>
 </table>
-<p><strong>应用内的启动守护进程</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>）。应用通过 <code>SMAppService</code> 注册它（<code>Contents/Library/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist</code>），macOS 会在“登录项”中的 NetworkMonitor 下列出它，你打开它后，launchd 会在应用第一次请求时启动它。它通过 XPC 响应，只响应由该团队（GRQKG7M8CL）签名的 NetworkMonitor，而应用也只与由该团队签名的辅助程序通信。每个请求都用这一个指令运行同一个二进制文件，所以每个指令的行为和在 <code>sudo</code> 下完全一样；它在空闲时退出，所以响应的总是更新后的应用所带的辅助程序。第一次启动时，它会：</p>
+<p>守护进程还会回答一个不属于指令、也不改变任何东西的问题：<code>udpUsage</code>，即每个 UDP 套接字在你自己的网络中传输了多少字节（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/753">#753</a>）。它同样不带参数。在应用询问期间，它运行 <code>/usr/sbin/tcpdump</code>，使用编译在程序中的过滤条件，只匹配两个私有地址之间的 UDP，并按套接字累加大小；地址和内容不会离开它，互联网流量不会到达它。它在最后一次询问的两分钟后停止，并且会在守护进程退出之前停止。</p>
+<p><strong>应用内的启动守护进程</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>）。应用通过 <code>SMAppService</code> 注册它（<code>Contents/Library/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist</code>），macOS 会在“登录项”中的 NetworkMonitor 下列出它，你打开它后，launchd 会在应用第一次请求时启动它。它通过 XPC 响应，只响应由该团队（GRQKG7M8CL）签名的 NetworkMonitor，而应用也只与由该团队签名的辅助程序通信。每个指令都用它自己运行同一个二进制文件，所以每个指令的行为和在 <code>sudo</code> 下完全一样；它在空闲时退出，所以响应的总是更新后的应用所带的辅助程序。应用中的程序一旦更换，<code>udpUsage</code> 的询问就不再推迟退出。第一次启动时，它会：</p>
 <ul>
 <li>删除旧的 sudoers 规则（如果有）；</li>
 <li>把自己复制到 <code>/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper</code>，并安装每小时运行的 <code>self-heal</code> 任务。把应用拖到废纸篓会连同守护进程一起带走，因为它的程序在应用里面，而 macOS 不会取消注册它，所以靠这份副本来恢复一切。这个任务也列在 NetworkMonitor 下（<code>AssociatedBundleIdentifiers</code>）。</li>
@@ -363,7 +364,7 @@ document.addEventListener('click', function (e) {
 <strong>厂商替换了 Android 网络共享功能的手机</strong> 可能不会表明自己是热点，还可能使用一个谁也猜不到的子网。为它打开 <strong>这是热点</strong>，只需一次。</li>
 </ul>
 
-    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/hotspot-mode.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/221b2691cd092261e896436213fbe6df6d04c845"><code>221b269</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/hotspot-mode.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/e4c30cb1e3dcd1fc0dc484cde2df78c08f42c9a4"><code>e4c30cb</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
   </main>
 </div>
 <script>

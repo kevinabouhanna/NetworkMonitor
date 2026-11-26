@@ -60,9 +60,11 @@ document.addEventListener('click', function (e) {
 <p>按重要程度排列：</p>
 <ul>
 <li>
-<strong>以 root 身份运行的辅助程序。</strong>在发布版本中，它是应用内的启动守护进程，只通过 XPC 响应由其团队签名的 NetworkMonitor；还包括它在 <code>/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper</code> 的副本、它每小时运行的自我修复任务，以及它在 <code>/Library/Application Support/NetworkMonitor/</code> 中的记录。没有 Developer ID 的构建版本则通过位于 <code>/etc/sudoers.d/networkmonitor</code> 的 sudoers 规则运行同一个二进制文件。范围内的问题包括：让它做出超出其固定指令的事情、从 NetworkMonitor 以外的任何程序访问它、改变这些指令的作用对象，或篡改它的记录。它本应如何工作，请参阅<a href="../../../zh/docs/hotspot-mode/#%E8%BE%85%E5%8A%A9%E7%A8%8B%E5%BA%8F">热点模式</a>。</li>
+<strong>以 root 身份运行的辅助程序。</strong>在发布版本中，它是应用内的启动守护进程，只通过 XPC 响应由其团队签名的 NetworkMonitor；还包括它在 <code>/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper</code> 的副本、它每小时运行的自我修复任务，以及它在 <code>/Library/Application Support/NetworkMonitor/</code> 中的记录。没有 Developer ID 的构建版本则通过位于 <code>/etc/sudoers.d/networkmonitor</code> 的 sudoers 规则运行同一个二进制文件。范围内的问题包括：让它做出超出其固定指令和 <code>udpUsage</code> 计数的事情、从 NetworkMonitor 以外的任何程序访问它、改变这些指令的作用对象、让它查看你自己网络之外的数据包或传递数据包大小以外的内容，或篡改它的记录。它本应如何工作，请参阅<a href="../../../zh/docs/hotspot-mode/#%E8%BE%85%E5%8A%A9%E7%A8%8B%E5%BA%8F">热点模式</a>。</li>
 <li>
 <strong>内容过滤器</strong>，即为每个连接命名并应用你的规则的系统扩展（<a href="../../../zh/docs/connections/#%E7%BD%91%E7%AB%99%E5%90%8D%E7%A7%B0">连接</a>）。范围内的问题包括：让它阻止或允许你的规则没有指定的内容、报告它不应报告的内容，或响应 NetworkMonitor 以外的任何程序。如果它停止运行，不应有任何连接被切断。</li>
+<li>
+<strong>增强型广告拦截</strong>，在你打开之前保持关闭：同一个系统扩展中的代理，以及它在你的 Mac 上生成的证书（<a href="../../../zh/docs/connections/#%E5%A2%9E%E5%BC%BA%E5%9E%8B%E5%B9%BF%E5%91%8A%E6%8B%A6%E6%88%AA">连接</a>）。范围内的问题包括：让它打开它永远不应打开的内容（银行、医疗、政府和支付网站、你设为“始终允许”的网站、拒绝该证书的应用）、使用该证书或把其密钥从系统钥匙串中取出、读取或保留超出移除广告所需的网页内容，或者在关闭之后仍有任何遗留。</li>
 <li>
 <strong>安装和移除它们</strong>：<code>helper-setup.sh</code>、<code>Scripts/install.sh</code>、<code>Scripts/uninstall.sh</code> 以及应用内的“卸载…”，包括它们遗留下来的任何内容。</li>
 <li>
@@ -77,6 +79,8 @@ document.addEventListener('click', function (e) {
 <ul>
 <li>
 <strong>你允许辅助程序后，它的指令无需密码即可运行</strong>：在发布版本中，通过“系统设置 › 通用 › 登录项与扩展”中的开关允许；在没有 Developer ID 的构建版本中，通过 sudoers 规则，仅限安装它的账户。每条指令都不接受参数，它涉及的每项设置、每个域名和主机都已编译在程序中。</li>
+<li>
+<strong>辅助程序会查看你自己网络中的 UDP 数据包头</strong>，仅在应用的流量无法以其他方式与互联网流量区分时（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/753">#753</a>）。它查看的内容已编译在程序中（<a href="../../../zh/docs/privacy/#%E5%AE%83%E4%BC%9A%E8%AF%BB%E5%8F%96%E4%BB%80%E4%B9%88">隐私</a>）。</li>
 <li>
 <strong>热点模式会编辑 <code>/etc/hosts</code></strong>，以便在你使用热点时阻止 Google、Canva 和 Figma 的更新服务器。离开热点时，它会恢复这个文件。</li>
 <li>
@@ -93,7 +97,7 @@ document.addEventListener('click', function (e) {
 <span class="pl-c"><span class="pl-c">#</span> accepted, source=Notarized Developer ID, origin=Developer ID Application: Kevin Abou Hanna (GRQKG7M8CL)</span></pre></div>
 <p>请只从 <a href="https://github.com/kevinabouhanna/NetworkMonitor/releases">Releases 页面</a>或<a href="https://kevinabouhanna.github.io/NetworkMonitor/" rel="nofollow">网站</a>（它链接到 Releases 页面）下载。</p>
 
-    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/security.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/221b2691cd092261e896436213fbe6df6d04c845"><code>221b269</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/security.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/e4c30cb1e3dcd1fc0dc484cde2df78c08f42c9a4"><code>e4c30cb</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
   </main>
 </div>
 <script>

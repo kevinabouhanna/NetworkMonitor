@@ -75,6 +75,7 @@ document.addEventListener('click', function (e) {
 <div class="markdown-heading"><h2 id="统计的是互联网流量不是你自己的网络" class="heading-element">统计的是互联网流量，不是你自己的网络</h2><a id="统计的是互联网流量不是你自己的网络" class="anchor" aria-label="Permalink: 统计的是互联网流量，不是你自己的网络" href="#统计的是互联网流量不是你自己的网络"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>将屏幕镜像到 Apple TV、用 Time Machine 备份到 NAS、从你自己的服务器播放 Plex：这些都经过你的 Wi-Fi，但不消耗互联网流量，因此不计算在内。仅通过路由器的隔空播放每小时就可能传输 4 到 13 GB，否则会淹没一整天的数据。</p>
 <p>每个连接的另一端都会被检查：私有地址（<code>10/8</code>、<code>172.16/12</code>、<code>192.168/16</code>、链路本地地址）属于你自己的网络；其他所有地址，以及任何无法读取的地址，都算作互联网。少算是应用最不能犯的错误，因此有歧义时一律算作互联网。 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/architecture.md#internet-not-your-own-network">架构</a>（英文）中有详细说明，包括为什么从不减去组播，以及为什么累计值被限制在各应用行之和与内核计数之间。</p>
+<p>有些 UDP 应用通过同一个套接字与多个对端通信，因此 <code>nettop</code> 可能不显示对端地址（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/753">#753</a>）。启用<a href="../../../zh/docs/hotspot-mode/#%E8%BE%85%E5%8A%A9%E7%A8%8B%E5%BA%8F">辅助程序</a>后，即使同一个套接字也访问互联网，NetworkMonitor 也会排除已确认留在你自己网络中的流量。无法分类的流量仍会计入，这类流量刚开始的片刻也会计入。</p>
 <div class="markdown-heading"><h2 id="经过代理或-vpn-的流量" class="heading-element">经过代理或 VPN 的流量</h2><a id="经过代理或-vpn-的流量" class="anchor" aria-label="Permalink: 经过代理或 VPN 的流量" href="#经过代理或-vpn-的流量"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>Clash Verge（Mihomo）、sing-box 等代理，无论是在 TUN 模式下，还是被设为系统代理，都会承载所有应用的流量，VPN 也是如此。这时 macOS 在互联网上只看到一个应用，也就是代理，并且只会显示它（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/356">#356</a>）。</p>
 <p>NetworkMonitor 能看出每个连接是哪个应用发进代理的（通过它的隧道，或它在你 Mac 上的端口），并把这些流量计入该应用。代理只保留它自己额外产生的流量：它自己的连接和开销。这时<strong>网络</strong>页面会显示 <em>经过 Clash Verge 的流量：计入各个应用</em>。你的累计值不会改变：它来自网络接口，每个字节只计算一次。</p>
@@ -148,7 +149,7 @@ document.addEventListener('click', function (e) {
 <p>这次修复还表明，在使用电池时关闭统计是本末倒置：它恰恰在最需要的地方关闭了按应用统计，也就是在手机热点上。有一次热点会话显示，网络接口上有 25.4 MB，而归属到应用的只有 1.1 MB。所以现在按应用统计始终运行，在任何网络上、使用电池时都是如此。</p>
 <p><a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/development.md#measuring-power">开发</a>（英文）中介绍了如何在不拔掉电源的情况下测量某个电源配置。</p>
 
-    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/accuracy-and-battery.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/221b2691cd092261e896436213fbe6df6d04c845"><code>221b269</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/accuracy-and-battery.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/e4c30cb1e3dcd1fc0dc484cde2df78c08f42c9a4"><code>e4c30cb</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
   </main>
 </div>
 <script>

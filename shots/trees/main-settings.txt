@@ -23,6 +23,19 @@ AXWindow (AXStandardWindow) title="Settings" 1300
               AXRadioButton (AXSegment) description="Menu bar" 80x24
               AXRadioButton (AXSegment) description="Dock" 80x24
               AXRadioButton (AXSegment) description="Both" 80x24
+          AXHeading description="Updates" 52x16
+          AXGroup h164
+            AXStaticText value="NetworkMonitor #" h16
+            AXStaticText value="Last checked: Yesterday at ‹time›" h16
+            AXButton description="Check Now" 92x24
+            AXStaticText value="Check for updates automatically" h16
+            AXCheckBox (AXToggle) description="Check for updates automatically" help="Once a day, NetworkMonitor asks GitHub whether there's a newer version. Never on a hotspot." 36x16
+            AXStaticText value="Install updates automatically" h16
+            AXCheckBox (AXToggle) description="Install updates automatically" help="A new version downloads in the background, and installs while NetworkMonitor's windows are closed and no speed test is running. NetworkMonitor restarts, which takes a few seconds. Never on a hotspot, and only if it's signed by NetworkMonitor. Needs Check for updates automatically." 36x16
+            AXStaticText value="Get beta versions" h16
+            AXCheckBox (AXToggle) description="Get beta versions" help="Beta versions come to you before everyone else, to try new things early. They may have problems. Switched off, you keep a beta until the next version comes out." 36x16
+          AXStaticText value="New versions, betas included, install by themselves while NetworkMonitor's windows are closed." h16
+          AXLink description="Report a problem with a beta" 152x16
           AXGroup h40
             AXStaticText value="Show speeds in" h16
             AXRadioGroup description="Show speeds in" help="In the menu bar or on the Dock icon, and in the speed test. Data you've used is always counted in MB and GB, the way data plans are sold." 116x24
@@ -55,15 +68,6 @@ AXWindow (AXStandardWindow) title="Settings" 1300
             data: AXStaticText
             AXStaticText value="Start the totals over" h16
             AXButton description="Reset Now" 88x24
-          AXGroup h116
-            AXStaticText value="Check for updates automatically" h16
-            AXCheckBox (AXSwitch) 36x16
-            AXStaticText value="Get beta versions" h16
-            AXCheckBox (AXSwitch) 36x16
-            AXStaticText value="Updates" h16
-            AXButton description="Check Now" 92x24
-          AXStaticText value="Once a day, NetworkMonitor asks GitHub whether there's a newer version, never on a hotspot. An update installs only when you say so, and only if it's signed by NetworkMonitor." h28
-          AXStaticText value="Beta versions come to you before everyone else, to try new things early. They may have problems. Switched off, you keep a beta until the next version comes out." h28
           AXHeading description="Sections" 56x16
           AXGroup h148
             AXButton description="Usage History" help="Open the settings for Usage History" 660x16

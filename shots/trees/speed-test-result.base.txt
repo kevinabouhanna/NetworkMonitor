@@ -10,3 +10,9 @@ AXPopover 348
     AXButton description="Connections, Today, #" help="Connections: each app talking to a server counts once · Today" h44
     AXButton description="Ads blocked, Today, #" help="Ads, trackers and malware sites blocked · Today" h44
     data: optional
+    AXTabGroup description="Group by" 124x24
+      AXRadioButton (AXTabButton) description="Apps" 12x16
+      AXRadioButton (AXTabButton) description="Networks" 12x16
+    AXStaticText value="# apps" h12
+    data: AXButton AXButton(AXDecrementArrow) AXButton(AXDecrementPage) AXButton(AXIncrementArrow) AXButton(AXIncrementPage) AXScrollArea AXScrollBar AXStaticText AXValueIndicator
+    AXButton description="Open Usage History" 296x28

@@ -70,7 +70,7 @@ open it, and drag <strong>NetworkMonitor</strong> into <strong>Applications</str
 open its window; everything starts from the readout. To have it in the Dock
 instead, or in both, choose in <strong>Settings › Show NetworkMonitor in</strong>. It
 registers itself to start at login, which you can turn off in <strong>Settings</strong>.</p>
-<p>The first time, a welcome window offers two things, both optional (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/134">#134</a>):</p>
+<p>The first time, a welcome window offers three things, all optional (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/134">#134</a>):</p>
 <ul>
 <li>
 <strong>See which websites your apps visit</strong>: a content filter that names the servers in
@@ -79,22 +79,37 @@ registers itself to start at login, which you can turn off in <strong>Settings</
 <strong>Know your Wi-Fi networks by name</strong>: macOS shares the name only with Location
 permission, and it's used for nothing else. Without it, networks are named like
 <em>Wi-Fi · 3f2a</em>.</li>
+<li>
+<strong>Install updates automatically</strong>: new versions install by themselves
+(<a href="#update">below</a>). Off, you're told about each one (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/710">#710</a>).</li>
 </ul>
-<p>Neither is asked for again on its own. Skip either, and it has a <strong>Turn On…</strong> where it's
-used: website names in Connections' settings, Wi-Fi names in Settings.</p>
+<p>None is asked for again on its own. Skip one, and it's where it's used: website names have a
+<strong>Turn On…</strong> in Connections' settings, Wi-Fi names one in Settings, and the update switch is
+in Settings.</p>
 <div class="markdown-heading"><h2 id="update" class="heading-element">Update</h2><a id="update" class="anchor" aria-label="Permalink: Update" href="#update"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
-<p>From 1.15 on, NetworkMonitor updates itself with Sparkle (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>). Once a day it asks
-GitHub whether there's a newer version, never on a hotspot, and offers it: what's new,
-and <strong>Install Update</strong> when you're ready. Found while the main window is open, it waits on a
-card above <strong>Settings</strong> in the sidebar instead: <strong>Install &amp; Restart</strong> downloads it and
-relaunches into it, <strong>What's New</strong> shows the release notes, and its ✕ puts it away until
-the next day's check. <strong>Check for Updates…</strong> in its menu asks at
-once, and <strong>Check for updates automatically</strong> in Settings switches the daily check off. An update installs only if its
-disk image is signed with the key built into the app.</p>
+<p>From 1.15 on, NetworkMonitor updates itself with Sparkle (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>). <strong>Settings › Updates</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/710">#710</a>)
+shows your version and when it last looked for a newer one, and a sentence under its switches
+says what they do as they are.</p>
+<p><strong>Check for updates automatically</strong>, on to begin with, asks GitHub once a day whether there's a
+newer version, never on a hotspot, and offers it: what's new, and <strong>Install Update</strong> when
+you're ready. Found while the main window is open, it waits on a card above <strong>Settings</strong> in
+the sidebar, and in Settings, instead: <strong>Install &amp; Restart</strong> downloads it and
+relaunches into it, <strong>What's New</strong> shows the release notes, and the card's ✕ puts it away
+until the next day's check. <strong>Check Now</strong>, or <strong>Check for Updates…</strong> in the menu, asks at once.</p>
+<p><strong>Install updates automatically</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/710">#710</a>), off to begin with, lets new versions install by
+themselves. One downloads in the background, and installs while NetworkMonitor's windows
+are closed and no speed test is running; NetworkMonitor restarts, which takes a few seconds. If
+its window is open, a card says the update is ready: close the window and it installs, or
+choose <strong>Restart Now</strong>. The next time you open the window, a card says which version
+installed. It needs the daily check, so it's dimmed while that's off. The update window's
+<strong>Automatically download and install updates in the future</strong> is the same choice.</p>
+<p>After restarting into an update, the window you had open comes back. An update installs only
+if its disk image is signed with the key built into the app.</p>
 <p><strong>Get beta versions</strong> in Settings (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/585">#585</a>), off by default, offers you new versions before
 everyone else gets them, to try new things early. A beta may have problems: <strong>Report a
 problem with a beta</strong>, under the switch, opens a new issue on GitHub. Switched off, you
-keep the beta you have until the next version comes out, which then comes as usual.</p>
+keep the beta you have until the next version comes out, which then comes as usual. With
+<strong>Install updates automatically</strong> on too, betas install by themselves as well.</p>
 <p>Before 1.15, or to do it by hand:</p>
 <ol>
 <li>Download the new <code>NetworkMonitor.dmg</code>.</li>
@@ -140,7 +155,7 @@ in the Background</strong>, for you to switch on (<a href="https://github.com/ke
 NetworkMonitor too. See <a href="../../docs/hotspot-mode/#the-helper">Hotspot mode</a> for exactly what it can
 do.</p>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/installing.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/221b2691cd092261e896436213fbe6df6d04c845"><code>221b269</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/installing.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/e4c30cb1e3dcd1fc0dc484cde2df78c08f42c9a4"><code>e4c30cb</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>

@@ -58,6 +58,14 @@ list. It sees which process moved how many bytes, and the address of the other e
 whether it was on the internet or on your own network, and which server it was. It
 never sees the contents of any traffic.</li>
 <li>
+<strong>UDP packet headers on your own network, only with
+<a href="../../docs/hotspot-mode/#the-helper">the helper</a> switched on</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/753">#753</a>). Some apps, such as remote
+desktops, use sockets that don't say where their traffic goes, so it would count as
+internet. While one moves data, the helper runs macOS's own <code>tcpdump</code> with a fixed filter
+that only lets through packets between two addresses on your own network; packets to or
+from the internet never reach it. It counts bytes per socket, tells the app those counts
+and nothing else, writes nothing to disk, and stops two minutes after the app last asked.</li>
+<li>
 <strong>The default gateway's hardware address</strong>, to tell one network from another (see
 <a href="../../docs/features/#a-total-per-connection">how it tells networks apart</a>). It comes from
 macOS's own network configuration, which needs no permission.</li>
@@ -115,8 +123,9 @@ lists work without it.</p>
 apps use, fetches the newest release's appcast from GitHub, a small file listing that
 version. GitHub sees your IP address and which version of NetworkMonitor asked. Never
 on a hotspot or metered connection, unless you choose <strong>Check for Updates…</strong>. An update
-downloads and installs only when you say so, and only if its disk image is signed with
-the key built into the app. Switch the daily check off with <strong>Check for updates
+downloads and installs only when you say so, or by itself with <strong>Install updates
+automatically</strong> on (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/710">#710</a>), which it isn't to begin with; either way, only if its disk image
+is signed with the key built into the app. Switch the daily check off with <strong>Check for updates
 automatically</strong> in Settings. With <strong>Get beta versions</strong> on (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/585">#585</a>), it fetches the beta
 appcast instead, from the same place on GitHub.</p>
 </li>
@@ -214,16 +223,18 @@ for the password again and deletes the certificate and its key. See
 which macOS lists under NetworkMonitor in System Settings › General › Login Items &amp;
 Extensions for you to switch on (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>), which macOS may confirm with your password or
 Touch ID. It answers only NetworkMonitor, checked by its
-developer's signature, and can do a fixed handful of things and nothing else; see
-<a href="../../docs/hotspot-mode/#the-helper">Hotspot mode</a>. Leave it off, and everything except the parts
-that need it keeps working. A build from source, without a Developer ID, asks for your
+developer's signature, and can do a fixed handful of things and nothing else: Hotspot
+mode's changes, and counting <a href="#what-it-reads">what stays on your own network</a> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/753">#753</a>); see
+<a href="../../docs/hotspot-mode/#the-helper">Hotspot mode</a>. One approval covers both. Leave it off, and
+everything except the parts that need it keeps working. A build from source, without a
+Developer ID, asks for your
 password instead.</li>
 </ul>
 <div class="markdown-heading"><h2 id="why-it-isnt-in-the-app-store" class="heading-element">Why it isn't in the App Store</h2><a id="why-it-isnt-in-the-app-store" class="anchor" aria-label="Permalink: Why it isn't in the App Store" href="#why-it-isnt-in-the-app-store"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>App Store apps must be sandboxed, and a sandboxed app can't run <code>nettop</code>, which is the
 only way macOS offers to see network use per app.</p>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/privacy.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/221b2691cd092261e896436213fbe6df6d04c845"><code>221b269</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/privacy.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/e4c30cb1e3dcd1fc0dc484cde2df78c08f42c9a4"><code>e4c30cb</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>

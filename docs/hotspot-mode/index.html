@@ -458,13 +458,20 @@ ask for anything else; adding a capability means shipping a new helper.</p>
 </tr>
 </tbody>
 </table>
+<p>The daemon also answers one question that isn't a verb and changes nothing: <code>udpUsage</code>,
+how many bytes each UDP socket moved on your own network (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/753">#753</a>). It has no arguments either.
+While the app asks, it runs <code>/usr/sbin/tcpdump</code> with a compiled-in filter for UDP between two
+private addresses, and adds up the sizes per socket; addresses, contents and internet traffic
+never leave it or reach it. It stops two minutes after the last question, and before the
+daemon quits. <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/architecture.md#udp-sockets-with-no-peer-address">Architecture</a> has how it's used.</p>
 <p><strong>A launch daemon inside the app</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>). The app registers it with <code>SMAppService</code>
 (<code>Contents/Library/LaunchDaemons/com.kevinabouhanna.NetworkMonitor.daemon.plist</code>), macOS
 lists it under NetworkMonitor in Login Items, and once you switch it on launchd starts it on
 the app's first request. It answers over XPC, only to NetworkMonitor signed by its team
-(GRQKG7M8CL), and the app only talks to the helper signed by that team. Each request runs
-the same binary with the one verb, so a verb behaves exactly as it did under <code>sudo</code>; it
-quits when idle, so an updated app's helper is the one that answers. On first start it:</p>
+(GRQKG7M8CL), and the app only talks to the helper signed by that team. Each verb runs
+the same binary with that one verb, so it behaves exactly as it did under <code>sudo</code>; the daemon
+quits when idle, so an updated app's helper is the one that answers. A <code>udpUsage</code> question
+doesn't put that off once the program in the app has changed. On first start it:</p>
 <ul>
 <li>removes the old sudoers rule, if there is one;</li>
 <li>copies itself to <code>/Library/PrivilegedHelperTools/com.kevinabouhanna.NetworkMonitor.helper</code>
@@ -551,7 +558,7 @@ NetworkMonitor's file, and keep updating.</li>
 may use a subnet nobody can guess. Switch on <strong>This is a hotspot</strong> for it, once.</li>
 </ul>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/hotspot-mode.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/221b2691cd092261e896436213fbe6df6d04c845"><code>221b269</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/hotspot-mode.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/e4c30cb1e3dcd1fc0dc484cde2df78c08f42c9a4"><code>e4c30cb</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>
