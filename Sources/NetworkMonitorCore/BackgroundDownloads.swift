@@ -196,12 +196,20 @@ struct BackgroundDownloads {
         return ended
     }
 
+    /// How far the log's start and close may sit on the wrong side of the
+    /// samples that saw the socket. The start is the close minus `Duration`,
+    /// which can begin a few tens of milliseconds after nettop first listed
+    /// the socket with its bytes (#785); nettop can see the last bytes a
+    /// moment before the close says they moved. A key reused inside it by
+    /// another app makes two owners, and then nothing moves.
+    static let clockSlack: TimeInterval = 0.25
+
     static func owner(for socket: Closed, in records: [CloseRecord]) -> String? {
         let candidates = Set(records.lazy.filter {
             $0.key == socket.key
                 && ($0.peer == nil || $0.peer == socket.peer)
-                && $0.start <= socket.firstSeen
-                && $0.end >= socket.lastActive - 0.25
+                && $0.start <= socket.firstSeen + clockSlack
+                && $0.end >= socket.lastActive - clockSlack
                 && $0.end <= socket.missingAt + 1
         }.map(\.owner))
         return candidates.count == 1 ? (candidates.first ?? nil) : nil
