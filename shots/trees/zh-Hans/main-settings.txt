@@ -23,6 +23,19 @@ AXWindow (AXStandardWindow) title="设置" 1300
               AXRadioButton (AXSegment) description="菜单栏" 64x24
               AXRadioButton (AXSegment) description="程序坞" 64x24
               AXRadioButton (AXSegment) description="两者" 64x24
+          AXHeading description="更新" 28x16
+          AXGroup h164
+            AXStaticText value="NetworkMonitor #" h16
+            AXStaticText value="上次检查：昨天 #" h16
+            AXButton description="立即检查" 76x24
+            AXStaticText value="自动检查更新" h16
+            AXCheckBox (AXToggle) description="自动检查更新" help="NetworkMonitor 每天向 GitHub 查询一次是否有新版本，使用热点时从不查询。" 36x16
+            AXStaticText value="自动安装更新" h16
+            AXCheckBox (AXToggle) description="自动安装更新" help="新版本会在后台下载，并在 NetworkMonitor 的窗口都已关闭、没有进行网速测试时安装。NetworkMonitor 会重新启动，需要几秒钟。使用热点时从不进行，而且只安装由 NetworkMonitor 签名的更新。需要打开“自动检查更新”。" 36x16
+            AXStaticText value="获取测试版" h16
+            AXCheckBox (AXToggle) description="获取测试版" help="测试版会先于其他人送到你这里，让你提前试用新功能。测试版可能有问题。关闭后，你会保留当前的测试版，直到下一个版本发布。" 36x16
+          AXStaticText value="新版本（包括测试版）会在 NetworkMonitor 的窗口都已关闭时自动安装。" h16
+          AXLink description="报告测试版的问题" 88x16
           AXGroup h40
             AXStaticText value="速度显示单位" h16
             AXRadioGroup description="速度显示单位" help="用于菜单栏或程序坞图标，以及网速测试。已用的流量始终以 MB 和 GB 计算，与流量套餐的计算方式相同。" 116x24
@@ -55,15 +68,6 @@ AXWindow (AXStandardWindow) title="设置" 1300
             data: AXStaticText
             AXStaticText value="重新开始累计" h16
             AXButton description="立即重置" 76x24
-          AXGroup h116
-            AXStaticText value="自动检查更新" h16
-            AXCheckBox (AXSwitch) 36x16
-            AXStaticText value="获取测试版" h16
-            AXCheckBox (AXSwitch) 36x16
-            AXStaticText value="更新" h16
-            AXButton description="立即检查" 76x24
-          AXStaticText value="NetworkMonitor 每天向 GitHub 查询一次是否有新版本，使用热点时从不查询。只有在你同意时才会安装更新，而且只安装由 NetworkMonitor 签名的更新。" h28
-          AXStaticText value="测试版会先于其他人送到你这里，让你提前试用新功能。测试版可能有问题。关闭后，你会保留当前的测试版，直到下一个版本发布。" h16
           AXHeading description="各部分" 40x16
           AXGroup h148
             AXButton description="流量历史" help="打开“流量历史”的设置" 660x16

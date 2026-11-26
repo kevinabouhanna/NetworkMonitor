@@ -53,6 +53,8 @@ document.addEventListener('click', function (e) {
 <li>
 <strong>每个进程和连接的字节数</strong>，来自 macOS 自带的 <code>nettop</code> 工具，用于应用列表。它能看到哪个进程传输了多少字节，以及另一端的地址：是在互联网上还是在你自己的网络中，以及是哪个服务器。它从不查看任何流量的内容。</li>
 <li>
+<strong>你自己网络中的 UDP 数据包头，仅在<a href="../../../zh/docs/hotspot-mode/#%E8%BE%85%E5%8A%A9%E7%A8%8B%E5%BA%8F">辅助程序</a>已打开时读取</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/753">#753</a>）。有些应用（例如远程桌面）使用的套接字不会说明流量去了哪里，因此这些流量会被算作互联网流量。当这样的套接字传输数据时，辅助程序会运行 macOS 自带的 <code>tcpdump</code>，并使用固定的过滤条件，只放行两端都在你自己网络中的数据包；发往或来自互联网的数据包根本不会到达它那里。它按套接字统计字节数，只把这些数字告诉应用，不向磁盘写入任何内容，并在应用最后一次询问的两分钟后停止。</li>
+<li>
 <strong>默认网关的硬件地址</strong>，用于区分不同的网络（请参阅<a href="../../../zh/docs/features/#%E6%AF%8F%E4%B8%AA%E8%BF%9E%E6%8E%A5%E7%9A%84%E6%80%BB%E8%AE%A1">它如何区分网络</a>）。它来自 macOS 自己的网络配置，不需要任何权限。</li>
 <li>
 <strong>Wi-Fi 网络的名称</strong>，用于在流量历史中显示网络名称，而不是 <em>Wi-Fi · 3f2a</em>。只有在获得定位服务权限后，macOS 才会提供这个名称，所以 NetworkMonitor 会请求这项权限。</li>
@@ -81,7 +83,7 @@ document.addEventListener('click', function (e) {
 <p><strong>每周一次，在你打开它们之后，广告、跟踪器和恶意软件列表</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/176">#176</a>），来自这个仓库的 <code>blocklists</code> 发布版本：一份已签名的清单和两个压缩的列表，约 0.6 MB。每个人下载的都是同一个文件，使用与国家或地区数据相同的密钥签名，使用热点时从不下载，并且只有当签名以及每个列表的大小和 SHA-256 都匹配时才会使用。在你打开列表之前一直是关闭的；打开后，可以在“广告与跟踪器”的设置中关闭 <strong>每周更新列表</strong>，停止下载。应用自带一份列表，所以即使不下载，列表也能正常工作。</p>
 </li>
 <li>
-<p><strong>每天一次，检查是否有新版本</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>）。Sparkle 是许多 Mac 应用使用的更新程序，它会从 GitHub 获取最新发布版本的 appcast，这是一个列出该版本的小文件。GitHub 能看到你的 IP 地址，以及发出请求的 NetworkMonitor 版本。使用热点或按流量计费的连接时从不检查，除非你选择 <strong>检查更新…</strong>。只有在你同意时，更新才会下载并安装，而且只有当它的磁盘映像使用应用内置的密钥签名时才会安装。在“设置”中关闭 <strong>自动检查更新</strong> 即可停止每日检查。打开 <strong>获取测试版</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/585">#585</a>）后，它改为从 GitHub 上的同一位置获取测试版的 appcast。</p>
+<p><strong>每天一次，检查是否有新版本</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>）。Sparkle 是许多 Mac 应用使用的更新程序，它会从 GitHub 获取最新发布版本的 appcast，这是一个列出该版本的小文件。GitHub 能看到你的 IP 地址，以及发出请求的 NetworkMonitor 版本。使用热点或按流量计费的连接时从不检查，除非你选择 <strong>检查更新…</strong>。更新只有在你同意时才会下载并安装，或者在你打开 <strong>自动安装更新</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/710">#710</a>，默认关闭）后自动进行；无论哪种方式，都只有当它的磁盘映像使用应用内置的密钥签名时才会安装。在“设置”中关闭 <strong>自动检查更新</strong> 即可停止每日检查。打开 <strong>获取测试版</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/585">#585</a>）后，它改为从 GitHub 上的同一位置获取测试版的 appcast。</p>
 </li>
 </ul>
 <p>没有分析，没有遥测，没有崩溃报告，也不需要账户。</p>
@@ -141,12 +143,12 @@ document.addEventListener('click', function (e) {
 <li>
 <strong>通常不需要其他权限。</strong>不需要本地网络、辅助功能或完全磁盘访问权限。</li>
 <li>
-<strong>辅助程序，仅需一次，并且只在你选择时。</strong>打开热点模式时会提供一个小型辅助程序，macOS 会在“系统设置 › 通用 › 登录项与扩展”中 NetworkMonitor 名下列出它，等你打开（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>），macOS 可能会要求你用密码或触控 ID 确认。它只响应 NetworkMonitor（通过开发者的签名验证），只能做固定的几件事，其他什么都做不了；请参阅<a href="../../../zh/docs/hotspot-mode/#%E8%BE%85%E5%8A%A9%E7%A8%8B%E5%BA%8F">热点模式</a>。不打开它，除了需要它的部分，其他一切照常工作。从源代码构建、没有 Developer ID 的版本则会改为要求输入密码。</li>
+<strong>辅助程序，仅需一次，并且只在你选择时。</strong>打开热点模式时会提供一个小型辅助程序，macOS 会在“系统设置 › 通用 › 登录项与扩展”中 NetworkMonitor 名下列出它，等你打开（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/131">#131</a>），macOS 可能会要求你用密码或触控 ID 确认。它只响应 NetworkMonitor（通过开发者的签名验证），只能做固定的几件事，其他什么都做不了；请参阅<a href="../../../zh/docs/hotspot-mode/#%E8%BE%85%E5%8A%A9%E7%A8%8B%E5%BA%8F">热点模式</a>。同一次批准也包括统计你自己网络中的 UDP 流量（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/753">#753</a>）。不打开它，除了需要它的部分，其他一切照常工作。从源代码构建、没有 Developer ID 的版本则会改为要求输入密码。</li>
 </ul>
 <div class="markdown-heading"><h2 id="为什么它不在-app-store-中" class="heading-element">为什么它不在 App Store 中</h2><a id="为什么它不在-app-store-中" class="anchor" aria-label="Permalink: 为什么它不在 App Store 中" href="#为什么它不在-app-store-中"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>App Store 中的应用必须在沙盒中运行，而沙盒中的应用无法运行 <code>nettop</code>，这是 macOS 提供的查看每个应用网络使用情况的唯一方式。</p>
 
-    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/privacy.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/221b2691cd092261e896436213fbe6df6d04c845"><code>221b269</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/privacy.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/e4c30cb1e3dcd1fc0dc484cde2df78c08f42c9a4"><code>e4c30cb</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
   </main>
 </div>
 <script>
