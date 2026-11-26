@@ -116,6 +116,28 @@ func runBackgroundDownloadsTests() {
             _ = tracker.update([.init(sockets: [a], source: nil)], slot: slot, now: midnight + 2)
             Check.expectTrue(tracker.update([], slot: nil, now: midnight + 3).isEmpty)
         }
+
+        Check.test("a socket across more hours than it may span stays whole under the daemon") {
+            var tracker = BackgroundDownloads()
+            let a = socket(51_000, counts: bytes)
+            for hour in 0...BackgroundDownloads.maxCharges {
+                _ = tracker.update([.init(sockets: [a], source: source)],
+                                   slot: UsageHistory.AppSlot(hour: Int64(hour), session: 10, generation: 0),
+                                   now: midnight + Double(hour))
+            }
+            Check.expectTrue(tracker.update([], slot: nil, now: midnight + 100).isEmpty,
+                             "none of it moves, rather than the first hours only")
+        }
+
+        Check.test("an app's own copy is found by bundle ID; nsurlsessiond itself never is") {
+            Check.expectNil(AppIdentityResolver.backgroundOwner(bundleID: "com.apple.nsurlsessiond"))
+            Check.expectNil(AppIdentityResolver.backgroundOwner(bundleID: "com.example.no-such-app-\(UUID().uuidString)"))
+            // A service with no app, by its running program and signature.
+            // launchd always runs, and is signed com.apple.xpc.launchd.
+            Check.expectEqual(AppIdentityResolver.runningProgram(signedAs: "com.apple.xpc.launchd"), "/sbin/launchd")
+            Check.expectNil(AppIdentityResolver.runningProgram(signedAs: "com.example.launchd"),
+                            "the right name with another signature")
+        }
     }
 
     Check.suite("Background URLSession — Usage History") {

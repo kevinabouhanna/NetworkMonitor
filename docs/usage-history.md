@@ -79,10 +79,13 @@ It starts the moment you install a version that has it (1.4.0 or later). Nothing
 before can be recovered: the old totals have no hours in them, and spreading a lump
 over a day would be inventing data.
 
-Background URLSession downloads can initially appear under `nsurlsessiond`.
-When a measured internet socket closes, History can use the system log to find
-its owner and move those bytes to the app in the original hour and network.
-Traffic whose owner cannot be matched stays under `nsurlsessiond`.
+**Downloads an app hands to macOS** to finish in the background (an update, a podcast, a
+photo library) are done by macOS for it, so at first they count under macOS's download
+service, `nsurlsessiond` (#767). Once such a download ends, Usage History looks up which
+app asked for it, in macOS's own log of that service, and moves its bytes to that app, in
+the hour and network they were used. What can't be matched for certain stays under
+`nsurlsessiond`. The move is Usage History's only: the popover's totals for today, and the
+servers in Connections, stay under the service.
 
 ## Sessions
 
