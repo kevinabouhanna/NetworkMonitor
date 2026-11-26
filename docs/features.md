@@ -66,9 +66,15 @@ There's no choice of neither: there'd be no way back to the app.
 - **Today | Week | Month**, at the top, sets the period for every figure under it: today,
   this week or this month so far, on every network, read from Usage History. The popover
   opens on the period you chose last.
+- **Live**, above the buttons, shows the download and upload speeds right now, in the
+  speed colors, with a small graph of the last minute (#802). Click it for the Live view,
+  where the popover opens.
 - **Four buttons**: **Data**, **Connections**, **Ads blocked** and **Network**, each with
   its figure. Click one to see its view underneath. The colours are the same everywhere in
   the app: data blue, connections teal, blocked red, hotspots orange.
+- **Live** graphs download and upload together over **1 min**, **5 min** or **15 min**,
+  lists the apps using the network now with their download and upload speeds, fastest
+  first, and has the [speed test](speed-test.md): the last result and **Test Speed**.
 - **Data** lists the **Apps** or the **Networks** that used it, biggest first, each with a
   bar for its share. The apps re-sort live as they overtake each other, and a dot marks
   apps moving data right now.
@@ -93,9 +99,11 @@ There's no choice of neither: there'd be no way back to the app.
   **Turn On Here** (#600). Under it, the **Sites** or the **Apps**, busiest first. A site
   opens into the apps that tried it, an app into the sites it tried. While ad blocking is
   off, it offers **Turn On**.
-- **Network** shows the connection the Mac is on, a **This is a hotspot** switch, on every
-  network because some phones aren't recognised, and the [speed test](speed-test.md): the
-  last result and **Test Speed**.
+- **Network** shows the connection the Mac is on, and a **This is a hotspot** switch, on
+  every network because some phones aren't recognised. While Live is hidden, the speed test
+  is here.
+- **Which views show, and the buttons' order**, are yours to choose in **Settings ›
+  Popover**.
 - **Open …**, at the bottom of each view, opens that section of the main window on the same
   period: **Open Usage History** (⌘Y), **Open Connections** (⌘K), **Open Ads and Trackers**
   (⌘B) or **Open Network**. The **four squares** beside the gear do the same, and the
@@ -211,6 +219,11 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 - **Show speeds in** MB/s or Mbps
 - **Wi-Fi names**, until they're on
 - **Speed colors** (the readout's and the Dock icon's): six ready-made pairs, Custom… for your own Download and Upload, the speed test's colours, and **Speed on top**
+- **Popover**: a tick to show or hide each of Live, Data, Connections, Ads blocked and
+  Network, and the buttons' order: drag a row, or use its ↑ and ↓. Live stays on top, one
+  view always shows, and so does Live or Network, which hold the speed test. The popover
+  opens on Live, or on the first view shown while Live is hidden. **Show All, in the
+  Original Order** puts them back (#802).
 - **Popover totals**: Counting since, Sampling, Reset Now
 - **Sections**: a row to each section's settings, the same pages its gear shows
 

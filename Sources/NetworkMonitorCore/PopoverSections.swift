@@ -2,11 +2,23 @@ import AppKit
 import FirewallPolicy
 import SwiftUI
 
-/// The popover's four buttons (#436): each shows its own view under them,
-/// without opening a window. Today, the apps, is where the popover opens.
+/// The popover's views: Live, the line above the buttons (#802), and the four
+/// buttons (#436), each showing its own view under them without opening a
+/// window. Which show, and the buttons' order, are `PopoverLayout`'s.
 public enum PopoverSection: String, CaseIterable, Identifiable {
-    case today, companies, blocked, connection
+    case live, today, companies, blocked, connection
     public var id: String { rawValue }
+
+    /// Its name, on its button and in Settings.
+    public var title: String {
+        switch self {
+        case .live:       return L("Live")
+        case .today:      return L("Data")
+        case .companies:  return L("Connections")
+        case .blocked:    return L("Ads blocked")
+        case .connection: return L("Network")
+        }
+    }
 }
 
 /// The popover's colours: the app's own (#436).
@@ -66,20 +78,32 @@ struct PopoverButtons: View {
     let blockedIsOn: Bool
     let connection: String
     let isHotspot: Bool
+    /// The buttons shown, in the order chosen in Settings (#802).
+    var order: [PopoverSection] = PopoverLayout.defaultOrder
 
     var body: some View {
         HStack(spacing: 2) {
-            button(.today, value: data, label: L("Data"), period: period, color: PopoverPalette.data,
-                   help: L("Data your apps used, on every network"))
-            button(.companies, value: connections, label: L("Connections"), period: period,
-                   color: PopoverPalette.companies,
-                   help: L("Connections: each app talking to a server counts once"))
-            button(.blocked, value: blocked, label: L("Ads blocked"), period: period,
-                   color: blockedIsOn ? PopoverPalette.blocked : .primary,
-                   help: L("Ads, trackers and malware sites blocked"))
-            button(.connection, value: connection, label: L("Network"), period: nil,
-                   color: isHotspot ? PopoverPalette.hotspot : .primary,
-                   help: L("What the Mac is connected to, and whether it's a hotspot"))
+            ForEach(order) { section in
+                switch section {
+                case .today:
+                    button(.today, value: data, label: L("Data"), period: period, color: PopoverPalette.data,
+                           help: L("Data your apps used, on every network"))
+                case .companies:
+                    button(.companies, value: connections, label: L("Connections"), period: period,
+                           color: PopoverPalette.companies,
+                           help: L("Connections: each app talking to a server counts once"))
+                case .blocked:
+                    button(.blocked, value: blocked, label: L("Ads blocked"), period: period,
+                           color: blockedIsOn ? PopoverPalette.blocked : .primary,
+                           help: L("Ads, trackers and malware sites blocked"))
+                case .connection:
+                    button(.connection, value: connection, label: L("Network"), period: nil,
+                           color: isHotspot ? PopoverPalette.hotspot : .primary,
+                           help: L("What the Mac is connected to, and whether it's a hotspot"))
+                case .live:
+                    EmptyView()
+                }
+            }
         }
     }
 
@@ -674,6 +698,8 @@ struct PopoverConnection: View {
     /// their list and the line under it, so this view is as tall as they
     /// are (#599).
     let height: CGFloat
+    /// The speed test is Live's (#802), and here only while Live is hidden.
+    var showsSpeedTest = true
     let onHotspotSettings: () -> Void
 
     var body: some View {
@@ -712,7 +738,7 @@ struct PopoverConnection: View {
                     .padding(12)
                     .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
                     .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.primary.opacity(0.08)))
-                    if SpeedTestRunner.isAvailable { speedRow }
+                    if showsSpeedTest && SpeedTestRunner.isAvailable { PopoverSpeedTestRow(speedTest: speedTest) }
                 }
                 Spacer(minLength: 0)
             }
@@ -723,36 +749,6 @@ struct PopoverConnection: View {
     }
 
     private var isHotspot: Bool { metering.verdict.isMetered }
-
-    /// The speed test, for this connection: the last result, and a button.
-    private var speedRow: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "gauge.with.dots.needle.67percent")
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-                .frame(width: 20)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(L("Speed test")).font(.system(size: 12, weight: .medium))
-                Text(lastResult).font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
-            }
-            .accessibilityElement(children: .combine)
-            Spacer(minLength: 8)
-            Button(speedTest.phase.isRunning ? L("Show") : L("Test Speed")) {
-                if speedTest.phase != .idle && !speedTest.isPresented { speedTest.present() } else { speedTest.run() }
-            }
-            .controlSize(.small)
-            .disabled(speedTest.phase.isRunning && speedTest.isPresented)
-        }
-        .padding(.horizontal, 2)
-    }
-
-    private var lastResult: String {
-        guard let result = speedTest.lastResult else { return L("Not tested yet") }
-        return L("↓ %@  ↑ %@ · %@", ByteFormat.speed(result.downloadBitsPerSecond, unit: speedTest.unit),
-                 ByteFormat.speed(result.uploadBitsPerSecond, unit: speedTest.unit),
-                 result.finishedAt.formatted(date: .omitted, time: .shortened))
-    }
 
     private var symbol: String {
         if isHotspot { return "personalhotspot" }
@@ -780,5 +776,40 @@ struct PopoverConnection: View {
         case .wifi, .hotspot: return L("Wi-Fi")
         default:             return status.medium ?? L("Other")
         }
+    }
+}
+
+/// The speed test, for this connection: the last result, and a button. In
+/// Live (#802), or in Network while Live is hidden.
+struct PopoverSpeedTestRow: View {
+    @ObservedObject var speedTest: SpeedTestController
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "gauge.with.dots.needle.67percent")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(L("Speed test")).font(.system(size: 12, weight: .medium))
+                Text(lastResult).font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 8)
+            Button(speedTest.phase.isRunning ? L("Show") : L("Test Speed")) {
+                if speedTest.phase != .idle && !speedTest.isPresented { speedTest.present() } else { speedTest.run() }
+            }
+            .controlSize(.small)
+            .disabled(speedTest.phase.isRunning && speedTest.isPresented)
+        }
+        .padding(.horizontal, 2)
+    }
+
+    private var lastResult: String {
+        guard let result = speedTest.lastResult else { return L("Not tested yet") }
+        return L("↓ %@  ↑ %@ · %@", ByteFormat.speed(result.downloadBitsPerSecond, unit: speedTest.unit),
+                 ByteFormat.speed(result.uploadBitsPerSecond, unit: speedTest.unit),
+                 result.finishedAt.formatted(date: .omitted, time: .shortened))
     }
 }

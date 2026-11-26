@@ -34,7 +34,9 @@ VoiceOver 按屏幕上的顺序读出读数。默认会读成 <em>NetworkMonitor
 ## 弹出窗口
 
 - 顶部的 <strong>今天 | 周 | 月</strong> 决定下面每个数字的统计周期：今天、本周或本月至今，涵盖所有网络，数据来自流量历史。弹出窗口会在你上次选择的统计周期上打开。
+- 按钮上方的 <strong>实时</strong> 以网速颜色显示现在的下载和上传网速，并附带一个最近 1 分钟的小图表（#802）。点按它可查看“实时”视图，弹出窗口也在这里打开。
 - <strong>四个按钮</strong>：<strong>数据</strong>、<strong>连接</strong>、<strong>已拦截</strong> 和 <strong>网络</strong>，每个都显示自己的数字。点按一个按钮，下面就会显示它的视图。这些颜色在整个应用中都一样：数据为蓝色，连接为青绿色，拦截为红色，热点为橙色。
+- <strong>实时</strong> 把下载和上传画在同一个图表中，可选 <strong>1 分钟</strong>、<strong>5 分钟</strong> 或 <strong>15 分钟</strong>；列出正在使用网络的应用及其下载和上传网速，最快的在前；并提供[网速测试](speed-test.md)：上一次的结果和 <strong>测试网速</strong>。
 - <strong>数据</strong> 列出用掉流量的 <strong>应用</strong> 或 <strong>网络</strong>，从多到少排列，每一项都有一个表示占比的条形。应用之间互相超过时，列表会实时重新排序；圆点表示此刻正在传输数据的应用。
   - <strong>辅助进程归入所属应用</strong>：Chrome 的十几个辅助进程合并为一行 *Google Chrome*；Safari、“邮件”或其他应用通过 macOS 的 WebKit 加载的网页，归该应用所有（#761）。
   - <strong>同一应用的多个副本合为一行</strong>：你已安装的应用，由其开发者签名的构建版本算作该应用；它的其他副本合为单独一行 *Home Control（其他副本）*。Xcode 模拟器里的 iPhone 或 iPad 应用无论重装多少次，都只有一行 *Home Control（模拟器）*。
@@ -42,7 +44,8 @@ VoiceOver 按屏幕上的顺序读出读数。默认会读成 <em>NetworkMonitor
   - <strong>系统</strong>：macOS 自己的守护进程合并为底部的一行。好奇的话可以展开它。
 - <strong>连接</strong> 按 <strong>公司</strong>、<strong>国家或地区</strong> 或 <strong>应用</strong> 对你的应用通信的对象分组。一个应用与一台服务器通信计为一次。公司或国家或地区可以展开为它的应用，应用可以展开为它的公司。
 - <strong>已拦截</strong> 最上面是一栏，说明广告拦截现在是否在拦截，并提供 <strong>暂停</strong>：<strong>1 小时</strong>、<strong>直到明天</strong> 或 <strong>每当连接</strong> *此网络* <strong>时</strong>，与窗口中相同。暂停期间，这一栏会显示暂停到什么时候，并提供 <strong>继续</strong>；在此网络上关闭时，提供 <strong>在此处打开</strong>（#600）。下面列出 <strong>网站</strong> 或 <strong>应用</strong>，次数最多的在前。网站可以展开为尝试访问它的应用，应用可以展开为它尝试访问的网站。广告拦截关闭时，这里会提供 <strong>打开</strong>。
-- <strong>网络</strong> 显示 Mac 正在使用的连接、一个 <strong>这是热点</strong> 开关（在每个网络上都有，因为有些手机无法被识别），以及[网速测试](speed-test.md)：上一次的结果和 <strong>测试网速</strong>。
+- <strong>网络</strong> 显示 Mac 正在使用的连接，以及一个 <strong>这是热点</strong> 开关（在每个网络上都有，因为有些手机无法被识别）。隐藏“实时”时，网速测试显示在这里。
+- <strong>显示哪些视图，以及按钮的顺序</strong>，都可以在 <strong>设置 › 弹出窗口</strong> 中选择。
 - 每个视图底部的 <strong>打开…</strong> 会在主窗口中打开对应的部分，统计周期保持不变：<strong>打开流量历史</strong>（⌘Y）、<strong>打开“连接”</strong>（⌘K）、<strong>打开广告与跟踪器</strong>（⌘B）或 <strong>打开“网络”</strong>。齿轮图标旁边的 <strong>四个方块</strong> 也一样，<strong>齿轮图标</strong> 则打开“设置”。
 - <strong>按钮下方的提示行</strong> 会说明需要注意的情况：
   - 你加入了热点，但 Mac 没有在使用它，ⓘ 中会说明如何切换；
@@ -115,6 +118,7 @@ VoiceOver 按屏幕上的顺序读出读数。默认会读成 <em>NetworkMonitor
 - <strong>速度显示单位</strong>：MB/s 或 Mbps
 - <strong>Wi-Fi 名称</strong>（打开之前显示）
 - <strong>网速颜色</strong>（菜单栏读数和程序坞图标的颜色）：六组现成的配色、用于自选下载和上传颜色的“自定义…”、网速测试的颜色，以及 <strong>上方的速度</strong>
+- <strong>弹出窗口</strong>：每个视图（实时、数据、连接、已拦截和网络）都有一个勾选框用于显示或隐藏，按钮的顺序可以拖移某一行或使用它的 ↑ 和 ↓ 来调整。“实时”始终在最上方，至少显示一个视图，并且“实时”和“网络”（网速测试所在的位置）至少显示一个。弹出窗口打开时显示“实时”；隐藏“实时”时，显示第一个已显示的视图。<strong>全部显示，并恢复原来的顺序</strong> 可以恢复原样（#802）。
 - <strong>弹出窗口中的累计值</strong>：统计开始于、采样、立即重置
 - <strong>各部分</strong>：每个部分的设置各有一行，与它的齿轮图标打开的页面相同
 

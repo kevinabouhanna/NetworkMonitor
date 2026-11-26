@@ -419,6 +419,7 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     let home = NetworkFingerprint(id: "design-home", kind: .wifi, gatewayMAC: "design-home",
                                   defaultLabel: "Home Wi-Fi", isExpensive: false, isConstrained: false)
     world.model.showConnectionForPictures(ConnectionStatus.make(network: home, verdict: .unmetered, name: "Home Wi-Fi"))
+    seedLive(world.model.live)
     for section in PopoverSection.allCases where wanted(prefix + "popover-\(section.rawValue)") {
         world.model.popoverSection = section
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))
@@ -858,4 +859,32 @@ if #available(macOS 14.0, *) {
 } else {
     FileHandle.standardError.write("needs macOS 14 or later, for ScreenCaptureKit's screenshots\n".data(using: .utf8)!)
     exit(1)
+}
+
+/// The Live line and view's pictures (#802): a quarter of an hour of speeds,
+/// with a download a minute ago, and the apps moving data now. The same every
+/// time, so a picture only changes when the view does.
+func seedLive(_ live: LiveSpeed) {
+    var seed: UInt64 = 7
+    func next() -> Double {
+        seed = seed &* 6364136223846793005 &+ 1442695040888963407
+        return Double(seed >> 33) / Double(1 << 31)
+    }
+    let mb = 1_048_576.0
+    for second in 0...900 {
+        let t = Double(second)
+        let download = second > 850 && second < 885 ? 4.2 + next() * 1.6 : 0
+        let upload = second > 700 && second < 760 ? 0.9 + next() * 0.6 : 0
+        live.record(down: (0.12 + next() * 0.35 + download) * mb, up: (0.03 + next() * 0.06 + upload) * mb, at: t)
+    }
+    let start = Date(timeIntervalSince1970: 1_800_000_000)
+    let apps: [(id: String, name: String, bundlePath: String?, bytesIn: Int64, bytesOut: Int64)] = [
+        ("com.apple.Safari", "Safari", "/Applications/Safari.app", 5_033_164, 98_304),
+        ("com.apple.Music", "Music", "/System/Applications/Music.app", 319_488, 4_096),
+        ("com.apple.Photos", "Photos", "/System/Applications/Photos.app", 215_040, 163_840),
+        ("com.apple.mail", "Mail", "/System/Applications/Mail.app", 38_912, 12_288),
+        ("com.apple.SoftwareUpdate", "Software Update", nil, 22_528, 1_024),
+    ]
+    live.recordApps(apps, at: start)
+    live.recordApps(apps, at: start + 1)
 }
