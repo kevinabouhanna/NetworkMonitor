@@ -21,7 +21,7 @@ AXWindow (AXStandardWindow) title="Ads and Trackers" 1300
       data: AXButton AXStaticText
       AXMenuButton title="Pause" help="Let ads through for a while, in every app" 56x16
       AXStaticText value="Today" h16
-      data: AXButton AXButton(AXDecrementArrow) AXButton(AXDecrementPage) AXButton(AXIncrementArrow) AXButton(AXIncrementPage) AXImage AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXScrollBar AXStaticText AXValueIndicator
+      data: AXButton AXImage AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXStaticText
       data: AXGroup AXUnknown
   AXToolbar 1300x52
     AXButton description="Sidebar" help="Hide Sidebar" 44x52
