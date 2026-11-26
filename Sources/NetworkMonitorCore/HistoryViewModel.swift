@@ -8,7 +8,8 @@ import UniformTypeIdentifiers
 /// Every change of period or filter asks `UsageHistory` for one new report,
 /// computed off the main thread. While the window shows a period that includes
 /// the present, the report is refreshed every 30 s, so the current hour fills
-/// in without the window being reopened.
+/// in without the window being reopened. A period that was current follows
+/// the calendar across its boundary.
 public final class HistoryViewModel: ObservableObject {
 
     public enum Tab: String, CaseIterable, Identifiable {
@@ -59,15 +60,23 @@ public final class HistoryViewModel: ObservableObject {
     private let monitor: MonitorViewModel
     private let calendar: Calendar
     private let defaults: UserDefaults
+    private let now: () -> Date
+    /// When the period was last selected or checked against the present.
+    private var periodReference: Date
     private var generation = 0
     private var refreshTimer: Timer?
+    private var dayChangeObservation: AnyCancellable?
 
-    public init(monitor: MonitorViewModel, calendar: Calendar = .current, defaults: UserDefaults = .standard) {
+    public init(monitor: MonitorViewModel, calendar: Calendar = .current, defaults: UserDefaults = .standard,
+                now: @escaping () -> Date = Date.init) {
         self.monitor = monitor
         self.calendar = calendar
         self.defaults = defaults
+        self.now = now
+        let present = now()
+        periodReference = present
         layout = defaults.string(forKey: Self.layoutKey).flatMap(ChartLayout.init) ?? .both
-        let period = HistoryPeriod(scale: .day, containing: Date(), calendar: calendar)
+        let period = HistoryPeriod(scale: .day, containing: present, calendar: calendar)
         self.period = period
         self.report = .empty(period, HistoryFilter(), calendar: calendar)
         self.retention = monitor.store.history?.retention ?? .forever
@@ -87,28 +96,47 @@ public final class HistoryViewModel: ObservableObject {
             hoveredBin = nil
             expandedApps.removeAll()
             openedBySearch.reset()
-            show(HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar),
+            show(HistoryPeriod(scale: period.scale, containing: now(), calendar: calendar),
                  filter: .opening(on: monitor.store.currentNetwork.kind))
         } else {
-            reload()
+            refreshVisiblePeriod(reopening: true)
         }
+        dayChangeObservation = NotificationCenter.default.publisher(for: .NSCalendarDayChanged)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.refreshVisiblePeriod() }
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            guard let self, self.period.contains(Date()) else { return }
-            self.reload()
+            self?.refreshVisiblePeriod()
         }
     }
 
     public func windowDidClose() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+        dayChangeObservation = nil
+    }
+
+    private func refreshVisiblePeriod(reopening: Bool = false) {
+        let present = now()
+        let previouslyChecked = periodReference
+        periodReference = present
+        let isCurrent = period.contains(present)
+
+        if !isCurrent && period.contains(previouslyChecked) {
+            show(HistoryPeriod(scale: period.scale, containing: present, calendar: calendar), filter: filter)
+        } else if reopening || isCurrent {
+            reload()
+        } else if !calendar.isDate(present, inSameDayAs: previouslyChecked) {
+            // An older period stays in place, but its relative title may change.
+            objectWillChange.send()
+        }
     }
 
     /// Today's total and how long history is kept, for Usage History's settings,
     /// whether or not the window is open.
     public func refreshToday() {
         retention = history?.retention ?? .forever
-        history?.loadReport(for: HistoryPeriod(scale: .day, containing: Date(), calendar: calendar),
+        history?.loadReport(for: HistoryPeriod(scale: .day, containing: now(), calendar: calendar),
                             filter: HistoryFilter()) { [weak self] report in
             self?.todayTotal = report.total
         }
@@ -122,24 +150,24 @@ public final class HistoryViewModel: ObservableObject {
             guard newValue != period.scale else { return }
             // Stay on the moment being looked at: the present if the current
             // period includes it, otherwise the start of the one on screen.
-            let now = Date()
-            let anchor = period.contains(now) ? now : period.start
+            let present = now()
+            let anchor = period.contains(present) ? present : period.start
             show(HistoryPeriod(scale: newValue, containing: anchor, calendar: calendar),
                  filter: filter)
         }
     }
 
-    public var title: String { period.title(now: Date(), calendar: calendar) }
+    public var title: String { period.title(now: now(), calendar: calendar) }
 
     /// The period of `scale` that holds now, as the popover's period chose
     /// (#449), so Open … shows the window on the numbers the popover showed.
     public func showPresent(_ scale: HistoryScale) {
-        show(HistoryPeriod(scale: scale, containing: Date(), calendar: calendar), filter: filter)
+        show(HistoryPeriod(scale: scale, containing: now(), calendar: calendar), filter: filter)
     }
 
-    public var isCurrent: Bool { period.contains(Date()) }
+    public var isCurrent: Bool { period.contains(now()) }
 
-    public var canStepForward: Bool { period.end <= Date() }
+    public var canStepForward: Bool { period.end <= now() }
 
     /// Back as far as the first hour on record, and no further.
     public var canStepBack: Bool {
@@ -152,8 +180,7 @@ public final class HistoryViewModel: ObservableObject {
     }
 
     public func goToPresent() {
-        show(HistoryPeriod(scale: period.scale, containing: Date(), calendar: calendar),
-             filter: filter)
+        showPresent(period.scale)
     }
 
     /// A click on a bar opens it: a week's day, a year's month.
@@ -315,7 +342,7 @@ public final class HistoryViewModel: ObservableObject {
             self.history?.retention = next
             self.reload()
         }
-        guard let cutoff = next.cutoff(now: Date(), calendar: calendar),
+        guard let cutoff = next.cutoff(now: now(), calendar: calendar),
               let since = report.recordingSince, since < cutoff
         else { return commit() }
 
@@ -383,7 +410,18 @@ public final class HistoryViewModel: ObservableObject {
     // MARK: Loading
 
     private func show(_ period: HistoryPeriod, filter: HistoryFilter) {
-        self.period = period
+        let present = now()
+        let periodChanged = self.period != period
+        if periodChanged || period.contains(present) {
+            periodReference = present
+        }
+        if periodChanged {
+            hoveredBin = nil
+            self.period = period
+            // Use the new period's bins while its report loads. Keep the
+            // recording start so the Back arrow still works during the read.
+            report = .empty(period, filter, calendar: calendar, recordingSince: report.recordingSince)
+        }
         self.filter = filter
         reload()
     }

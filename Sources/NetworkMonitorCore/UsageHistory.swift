@@ -173,12 +173,12 @@ public struct HistoryReport {
     public var peakBin: Int64 { bins.map(\.total).max() ?? 0 }
 
     static func empty(_ period: HistoryPeriod, _ filter: HistoryFilter,
-                      calendar: Calendar) -> HistoryReport {
+                      calendar: Calendar, recordingSince: Date? = nil) -> HistoryReport {
         HistoryReport(period: period, filter: filter,
                       bins: period.bins(calendar: calendar).map { Bin(interval: $0, byKind: [:]) },
                       byKind: [:], bytesIn: 0, bytesOut: 0, meteredBytes: 0,
                       apps: [], systemRows: [], systemTotal: 0,
-                      networks: [], sessions: [], recordingSince: nil)
+                      networks: [], sessions: [], recordingSince: recordingSince)
     }
 }
 
