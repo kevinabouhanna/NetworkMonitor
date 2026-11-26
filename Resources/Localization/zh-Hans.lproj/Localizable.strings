@@ -1084,3 +1084,33 @@
 "A new version downloads in the background, and installs while NetworkMonitor's windows are closed and no speed test is running. NetworkMonitor restarts, which takes a few seconds. Never on a hotspot, and only if it's signed by NetworkMonitor. Needs Check for updates automatically." = "新版本会在后台下载，并在 NetworkMonitor 的窗口都已关闭、没有进行网速测试时安装。NetworkMonitor 会重新启动，需要几秒钟。使用热点时从不进行，而且只安装由 NetworkMonitor 签名的更新。需要打开“自动检查更新”。";
 "Downloading version %@…" = "正在下载版本 %@…";
 "NetworkMonitor looks for newer versions again once this one has installed." = "这个版本安装后，NetworkMonitor 会再次查找新版本。";
+
+/* The popover's Live line and view, and Settings › General › Popover (#802). */
+"1 min" = "1 分钟";
+"5 min" = "5 分钟";
+"15 min" = "15 分钟";
+"The last minute" = "最近 1 分钟";
+"The last 5 minutes" = "最近 5 分钟";
+"The last 15 minutes" = "最近 15 分钟";
+"Live" = "实时";
+"The speeds right now, and which apps are using the network" = "现在的网速，以及哪些应用正在使用网络";
+"Live, no speeds yet" = "实时，还没有网速";
+"Live, download %@, upload %@" = "实时，下载 %@，上传 %@";
+"Graph" = "图表";
+"Graph of download and upload speeds, %@, up to %@" = "下载和上传网速图表，%@，最高 %@";
+"Using the network now" = "正在使用网络";
+"No app is using the network right now" = "现在没有应用在使用网络";
+"%@, download %@, upload %@" = "%@，下载 %@，上传 %@";
+"1 app now" = "现在 1 个应用";
+"%@ apps now" = "现在 %@ 个应用";
+"%@, %@ not shown" = "%@，%@ 个未显示";
+"Restore the Original Order" = "恢复原来的顺序";
+"One view always shows" = "至少显示一个视图";
+"Show %@ in the popover" = "在弹出窗口中显示“%@”";
+"Opens here" = "从这里打开";
+"Always on top" = "始终在最上方";
+"Move %@ up" = "将“%@”上移";
+"Move %@ down" = "将“%@”下移";
+"Drag to move" = "拖移以移动";
+"Popover" = "弹出窗口";
+"The popover opens on Live, or on the first view shown while Live is hidden. A hidden view keeps its window and its settings." = "弹出窗口打开时显示“实时”；隐藏“实时”时，显示第一个已显示的视图。隐藏的视图仍保留它的窗口和设置。";

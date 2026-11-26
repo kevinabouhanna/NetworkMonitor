@@ -123,9 +123,15 @@ public final class MonitorViewModel: ObservableObject {
     public func showConnectionForPictures(_ status: ConnectionStatus) { connection = status }
     #endif
 
-    /// Which of the popover's four buttons is chosen (#436). Not `@State`;
+    /// Which of the popover's views is shown (#436, #802). Not `@State`;
     /// see `SettingsPaneState`.
-    @Published public var popoverSection: PopoverSection = .today
+    @Published public var popoverSection: PopoverSection = .live
+    /// Which of the popover's views show, and the buttons' order, from
+    /// Settings (#802).
+    public private(set) lazy var popoverLayout = PopoverLayout(defaults: .standard)
+    /// The popover's Live line and view (#802): the menu bar's rates kept for
+    /// 15 minutes, and the apps moving data now.
+    public private(set) lazy var live = LiveSpeed(defaults: .standard)
     /// The popover's numbers, for the period and groupings last chosen
     /// there (#436, #449).
     public private(set) lazy var glance = TodayGlance(history: { [weak self] in self?.store.history },
@@ -590,6 +596,9 @@ public final class MonitorViewModel: ObservableObject {
             }
 
             self.store.recordInterface(bytesIn: delta.bytesIn, bytesOut: delta.bytesOut)
+            // Kept whether or not anyone is looking, so the graph is whole when
+            // the popover opens; drawn only while it is (#802).
+            self.live.record(down: down, up: up, at: now)
 
             // Accumulation never stops; only the *publishing* of it waits for
             // someone to be looking. `setPopoverOpen` calls `refreshHeader()`, so
@@ -672,6 +681,10 @@ public final class MonitorViewModel: ObservableObject {
             }
             let entries = summary.apps
             if live { for entry in entries { self.lastActivity[entry.identity.key] = now } }
+            if live {
+                self.live.recordApps(entries.map { ($0.identity.key, $0.identity.displayName, $0.identity.bundlePath,
+                                                    $0.bytesIn, $0.bytesOut) }, at: observedAt)
+            }
             if live, self.metering.isSuppressing {
                 for updater in summary.updaters {
                     self.metering.noteUpdaterTraffic(processName: updater.processName,
@@ -719,13 +732,17 @@ public final class MonitorViewModel: ObservableObject {
     /// in a second later.
     public func setPopoverOpen(_ open: Bool) {
         popoverIsOpen = open
+        live.isWatched = open
         expandedApps.removeAll()
         if open {
-            // Opens on Today, the apps (#436), or on Connection while a speed
-            // test is showing, which is where it runs.
-            // Only while it runs: a finished test waits on Network for its ✕
-            // without holding every later open there.
-            popoverSection = speedTest.isPresented && speedTest.phase.isRunning ? .connection : .today
+            // Opens on Live, or the first view shown while it's hidden (#802),
+            // or where the speed test is while one is showing, which is where
+            // it runs. Only while it runs: a finished test waits there for its
+            // ✕ without holding every later open there.
+            let layout = popoverLayout
+            let testing = speedTest.isPresented && speedTest.phase.isRunning
+                && layout.isShown(layout.speedTestSection)
+            popoverSection = testing ? layout.speedTestSection : layout.opening
             glance.popoverWillOpen()
             refreshHeader()
             rebuildRows(now: Date())

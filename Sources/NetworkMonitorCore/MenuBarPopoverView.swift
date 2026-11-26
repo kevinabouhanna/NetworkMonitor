@@ -19,6 +19,8 @@ public struct MenuBarPopoverView: View {
     /// Today's companies, for the Companies button and view (#436).
     @ObservedObject var glance: TodayGlance
     @ObservedObject var filter: FilterController
+    /// Which views show, and the buttons' order (#802).
+    @ObservedObject var layout: PopoverLayout
     var onSettings: () -> Void
     var onHistory: () -> Void
     var onConnections: () -> Void
@@ -35,6 +37,7 @@ public struct MenuBarPopoverView: View {
         self.firewall = model.firewall
         self.glance = model.glance
         self.filter = model.filter
+        self.layout = model.popoverLayout
         self.onSettings = onSettings
         self.onHistory = onHistory
         self.onConnections = onConnections
@@ -99,6 +102,8 @@ public struct MenuBarPopoverView: View {
             ZStack(alignment: .top) {
                 Group {
                     switch model.popoverSection {
+                    case .live:
+                        liveView
                     case .today:
                         today
                     case .companies:
@@ -184,11 +189,11 @@ public struct MenuBarPopoverView: View {
         }
     }
 
-    /// Connection: the network, the hotspot switch and the speed test, which
-    /// tests this connection and so runs here (#436). A test shown as a card
-    /// takes the view's place while it runs; the compact one sits above it.
+    /// Live (#802): the graph, the apps moving data now and the speed test,
+    /// which runs here. A test shown as a card takes the view's place while it
+    /// runs; the compact one sits above it.
     @ViewBuilder
-    private var connection: some View {
+    private var liveView: some View {
         if showsCard {
             SpeedTestCard(speedTest: speedTest, height: sectionHeight)
         } else {
@@ -197,11 +202,36 @@ public struct MenuBarPopoverView: View {
                     SpeedTestStrip(speedTest: speedTest)
                     Divider()
                 }
+                PopoverLiveView(live: model.live, colors: model.menuBarColors, speedTest: speedTest,
+                                listHeight: listHeight - (showsStrip ? PopoverMetrics.speedStripHeight + 1 : 0),
+                                icon: model.icon(forApp:name:bundlePath:), onHistory: onHistory)
+            }
+        }
+    }
+
+    /// The speed test shows in Live, or in Network while Live is hidden.
+    private var testsHere: Bool { layout.speedTestSection == model.popoverSection }
+
+    /// Connection: the network and the hotspot switch, and the speed test while
+    /// Live is hidden (#436, #802). A test shown as a card takes the view's
+    /// place while it runs; the compact one sits above it.
+    @ViewBuilder
+    private var connection: some View {
+        if showsCard && testsHere {
+            SpeedTestCard(speedTest: speedTest, height: sectionHeight)
+        } else {
+            let strip = showsStrip && testsHere
+            VStack(spacing: 0) {
+                if strip {
+                    SpeedTestStrip(speedTest: speedTest)
+                    Divider()
+                }
                 // As tall as the other views' grouping row, list and line,
                 // less the strip's share while it's shown.
                 PopoverConnection(metering: metering, speedTest: speedTest, status: model.connection,
                                   height: PopoverMetrics.groupingRowHeight + listHeight + 1
-                                      - (showsStrip ? PopoverMetrics.speedStripHeight + 1 : 0),
+                                      - (strip ? PopoverMetrics.speedStripHeight + 1 : 0),
+                                  showsSpeedTest: !layout.showsLive,
                                   onHotspotSettings: onHotspotSettings)
             }
         }
@@ -275,7 +305,7 @@ public struct MenuBarPopoverView: View {
     /// The window section for the view shown, from the button by the gear.
     private func openWindow() {
         switch model.popoverSection {
-        case .today:      onHistory()
+        case .live, .today: onHistory()
         case .companies:  onConnections()
         case .blocked:    onAds()
         case .connection: onHotspotSettings()
@@ -284,7 +314,7 @@ public struct MenuBarPopoverView: View {
 
     private var openWindowHelp: String {
         switch model.popoverSection {
-        case .today:      return L("Open Usage History (⌘Y)")
+        case .live, .today: return L("Open Usage History (⌘Y)")
         case .companies:  return L("Open Connections (⌘K)")
         case .blocked:    return L("Open Ads and Trackers (⌘B)")
         case .connection: return L("Open Network")
@@ -329,6 +359,12 @@ public struct MenuBarPopoverView: View {
             .padding(.trailing, 6)
             .padding(.top, 8)
             .padding(.bottom, 4)
+            if layout.showsLive {
+                PopoverLiveLine(live: model.live, colors: model.menuBarColors, unit: speedTest.unit,
+                                isSelected: model.popoverSection == .live) { show(.live) }
+                    .padding(.horizontal, PopoverMetrics.edge)
+                    .padding(.bottom, 2)
+            }
             PopoverButtons(selection: Binding(get: { model.popoverSection }, set: show),
                            period: glance.period,
                            data: dataTotal,
@@ -336,7 +372,8 @@ public struct MenuBarPopoverView: View {
                            blocked: blockedTotal,
                            blockedIsOn: !firewall.lists.isEmpty,
                            connection: PopoverConnection.word(model.connection, metering: metering),
-                           isHotspot: metering.verdict.isMetered)
+                           isHotspot: metering.verdict.isMetered,
+                           order: layout.buttons)
                 .padding(.horizontal, PopoverMetrics.edge)
             VStack(alignment: .leading, spacing: 2) {
                     if let standby = metering.standbyHotspot {

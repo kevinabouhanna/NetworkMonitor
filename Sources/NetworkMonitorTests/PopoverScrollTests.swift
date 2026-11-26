@@ -47,6 +47,8 @@ func runPopoverScrollTests() {
             defer { (glance.period, glance.dataGrouping) = saved }
             model.setPopoverOpen(true)
             defer { model.setPopoverOpen(false) }
+            // Data's list: the popover opens on Live (#802).
+            model.popoverSection = .today
             // The live rows, which the list shows until History has a report.
             Check.expectNil(glance.report, "the list would show History's rows, not these")
             guard let opened = model.rows.first(where: { !$0.children.isEmpty }) else {

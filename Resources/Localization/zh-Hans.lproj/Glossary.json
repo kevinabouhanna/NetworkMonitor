@@ -23,6 +23,7 @@
     { "en": "Network", "text": "网络", "note": "the section" },
     { "en": "Settings", "text": "设置", "everywhere": true },
     { "en": "Speed test", "text": "网速测试", "everywhere": true },
+    { "en": "Live", "text": "实时", "note": "the popover's line of the live speeds above its buttons, and its view: the graph, the apps using the network now and the speed test (#802)" },
     { "en": "About NetworkMonitor", "text": "关于 NetworkMonitor" },
 
     { "en": "Ad blocking", "text": "广告拦截", "everywhere": true, "note": "the feature. What it stops, it 拦截 (blocks); firewall rules 阻止 instead" },

@@ -7,7 +7,7 @@ English · [简体中文](zh-Hans/speed-test.md)
        alt="The popover’s Network view after a speed test, under Today, Week and Month and the four figures: a dial with the download speed in its centre, the download and upload speeds, the network, how much the test used and when, then ping, jitter, and ping while downloading and while uploading; Back and Test Again buttons.">
 </p>
 
-Click **Test Speed** in the popover's **Network** view, choose **Test Internet Speed** from
+Click **Test Speed** in the popover's **Live** view (in **Network** while Live is hidden), choose **Test Internet Speed** from
 the right-click menu, or click **Test Now** on the **Network** page of the main window. It
 tests the connection you're on. NetworkMonitor runs `networkQuality`, the speed
 test Apple ships with every Mac since Monterey, against Apple's nearest servers.
@@ -30,10 +30,10 @@ test Apple ships with every Mac since Monterey, against Apple's nearest servers.
 
 ## Where it shows
 
-- **Card** (the default) takes the place of the popover's Network view, with a dial and
+- **Card** (the default) takes the place of the popover's Live view, with a dial and
   every figure. **Back** leaves a running test running and brings the view back; **Show**
   beside the speed test then returns to it. **Stop** is what stops it.
-- **Compact** shows the test as two thin gauges above the Network view, with ping and
+- **Compact** shows the test as two thin gauges above the Live view, with ping and
   jitter beneath once it's done. The view stays in sight and gives up that much height,
   so the popover never grows.
 - **The Network page** runs it in place, with the same dial and figures as the card.

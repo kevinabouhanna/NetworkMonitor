@@ -29,6 +29,8 @@ struct GeneralSettingsPane: View {
     @ObservedObject var updates: UpdateController
     /// Menu bar, Dock or both (#69).
     @ObservedObject var placement: AppPlacementSetting
+    /// The popover's views and their order (#802).
+    @ObservedObject var popoverLayout: PopoverLayout
     /// Opens a section's settings in the main window (#436).
     let onOpenSection: (MainSection) -> Void
     /// Uninstall…, which the old About pane had.
@@ -43,6 +45,7 @@ struct GeneralSettingsPane: View {
         self.state = state
         self.updates = model.updates
         self.placement = AppPlacementSetting.shared
+        self.popoverLayout = model.popoverLayout
         self.onOpenSection = onOpenSection
         self.onUninstall = onUninstall
     }
@@ -183,6 +186,15 @@ struct GeneralSettingsPane: View {
                 }
             } header: {
                 Text(L("Speed colors"))
+            }
+
+            // What the popover shows, and the buttons' order (#802).
+            Section {
+                PopoverViewsList(layout: popoverLayout)
+            } header: {
+                Text(L("Popover"))
+            } footer: {
+                SettingsFootnote(L("The popover opens on Live, or on the first view shown while Live is hidden. A hidden view keeps its window and its settings."))
             }
 
             Section {
