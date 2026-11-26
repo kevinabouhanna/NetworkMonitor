@@ -106,8 +106,13 @@ public final class LiveSpeed: ObservableObject {
     /// The menu bar's rates, as each interface sample has them. A second
     /// sample within the same second takes the first's place, so the history
     /// holds one a second however fast the sampler runs.
-    public func record(down: Double, up: Double, at time: TimeInterval) {
+    public func record(down: Double, up: Double, at time: TimeInterval, now: Date = Date()) {
         if isWatched { objectWillChange.send() }
+        // No app sample for a while (nettop stopped, or only the last
+        // network's came in): the list no longer says what's moving now.
+        if !apps.isEmpty, lastAppSample.map({ now.timeIntervalSince($0) > Self.longestAppGap }) ?? true {
+            apps = []
+        }
         let sample = LiveSample(time: time, down: max(down, 0), up: max(up, 0))
         if let last = samples.last {
             if time < last.time {
@@ -143,6 +148,11 @@ public final class LiveSpeed: ObservableObject {
             .map { LiveApp(id: $0.id, name: $0.name, bundlePath: $0.bundlePath,
                            down: Double($0.bytesIn) / elapsed, up: Double($0.bytesOut) / elapsed) }
             .sorted { $0.total != $1.total ? $0.total > $1.total : $0.name < $1.name }
+    }
+
+    /// A sample whose apps aren't this network's: only its time counts.
+    public func skipAppSample(at date: Date) {
+        lastAppSample = date
     }
 
     /// The samples a span shows, ending at `now`.

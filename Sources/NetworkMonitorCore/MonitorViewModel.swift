@@ -684,6 +684,10 @@ public final class MonitorViewModel: ObservableObject {
             if live {
                 self.live.recordApps(entries.map { ($0.identity.key, $0.identity.displayName, $0.identity.bundlePath,
                                                     $0.bytesIn, $0.bytesOut) }, at: observedAt)
+            } else {
+                // Its bytes are the network just left's, but its time still
+                // starts the next live sample's interval.
+                self.live.skipAppSample(at: observedAt)
             }
             if live, self.metering.isSuppressing {
                 for updater in summary.updaters {
@@ -736,12 +740,18 @@ public final class MonitorViewModel: ObservableObject {
         expandedApps.removeAll()
         if open {
             // Opens on Live, or the first view shown while it's hidden (#802),
-            // or where the speed test is while one is showing, which is where
-            // it runs. Only while it runs: a finished test waits there for its
-            // ✕ without holding every later open there.
+            // or where the speed test is while one is asking or running, which
+            // is where it runs. A finished one is put away: Live is where the
+            // popover opens, and its card would stand in for the live speeds
+            // at every open. Its result stays on the speed test's row.
             let layout = popoverLayout
-            let testing = speedTest.isPresented && speedTest.phase.isRunning
-                && layout.isShown(layout.speedTestSection)
+            switch speedTest.phase {
+            case .finished, .failed:
+                if speedTest.isPresented { speedTest.hide() }
+            default:
+                break
+            }
+            let testing = speedTest.isPresented && speedTest.phase != .idle
             popoverSection = testing ? layout.speedTestSection : layout.opening
             glance.popoverWillOpen()
             refreshHeader()

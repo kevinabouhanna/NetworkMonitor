@@ -17,7 +17,7 @@ struct PopoverViewsList: View {
             }
             HStack {
                 Spacer()
-                Button(L("Restore the Original Order")) { layout.restore() }
+                Button(L("Show All, in the Original Order")) { layout.restore() }
                     .disabled(layout.isDefault)
             }
             .padding(.top, 8)
@@ -33,8 +33,7 @@ struct PopoverViewsList: View {
                 .toggleStyle(.checkbox)
                 // The last view shown stays: the popover would open on nothing.
                 .disabled(shown && !layout.canHide(section))
-                .help(shown && !layout.canHide(section)
-                      ? L("One view always shows") : L("Show %@ in the popover", section.title))
+                .help(layout.whyShown(section) ?? L("Show %@ in the popover", section.title))
             if section == layout.opening {
                 Text(L("Opens here"))
                     .font(.system(size: 11))

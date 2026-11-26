@@ -25,6 +25,8 @@ public final class PopoverLayout: ObservableObject {
         order = Self.sanitized(saved)
         var hidden = Set((defaults?.stringArray(forKey: Self.hiddenKey) ?? []).compactMap(PopoverSection.init))
         if hidden.count >= PopoverSection.allCases.count { hidden = [] }
+        // Live or Network holds the speed test: one of them shows.
+        if hidden.contains(.live) { hidden.remove(.connection) }
         self.hidden = hidden
     }
 
@@ -52,9 +54,22 @@ public final class PopoverLayout: ObservableObject {
     /// never out of reach in the popover.
     public var speedTestSection: PopoverSection { showsLive ? .live : .connection }
 
-    /// The last view shown can't be hidden.
+    /// The last view shown can't be hidden, nor the last of Live and Network,
+    /// which hold the speed test.
     public func canHide(_ section: PopoverSection) -> Bool {
-        isShown(section) && hidden.count < PopoverSection.allCases.count - 1
+        guard isShown(section), hidden.count < PopoverSection.allCases.count - 1 else { return false }
+        switch section {
+        case .live:       return isShown(.connection)
+        case .connection: return showsLive
+        default:          return true
+        }
+    }
+
+    /// Why a view can't be hidden, for its tick's tooltip.
+    public func whyShown(_ section: PopoverSection) -> String? {
+        guard isShown(section), !canHide(section) else { return nil }
+        if hidden.count >= PopoverSection.allCases.count - 1 { return L("One view always shows") }
+        return L("The speed test is in Live, or in Network while Live is hidden: one of them always shows")
     }
 
     public func setShown(_ section: PopoverSection, _ shown: Bool) {

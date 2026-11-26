@@ -1104,7 +1104,8 @@
 "1 app now" = "现在 1 个应用";
 "%@ apps now" = "现在 %@ 个应用";
 "%@, %@ not shown" = "%@，%@ 个未显示";
-"Restore the Original Order" = "恢复原来的顺序";
+"Show All, in the Original Order" = "全部显示，并恢复原来的顺序";
+"The speed test is in Live, or in Network while Live is hidden: one of them always shows" = "网速测试位于“实时”中；隐藏“实时”时位于“网络”中：两者至少显示一个";
 "One view always shows" = "至少显示一个视图";
 "Show %@ in the popover" = "在弹出窗口中显示“%@”";
 "Opens here" = "从这里打开";

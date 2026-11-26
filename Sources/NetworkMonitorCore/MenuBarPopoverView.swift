@@ -125,6 +125,11 @@ public struct MenuBarPopoverView: View {
             // view wider than the popover was centred in it, header and all.
             .frame(width: PopoverMetrics.width, height: sectionHeight, alignment: .topLeading)
         }
+        // A view hidden in Settings while it's shown (#802): to the one the
+        // popover opens on.
+        .onChange(of: layout.hidden) { hidden in
+            if hidden.contains(model.popoverSection) { model.popoverSection = layout.opening }
+        }
         .frame(width: PopoverMetrics.width, alignment: .leading)
     }
 
@@ -135,7 +140,8 @@ public struct MenuBarPopoverView: View {
         let rows = max(max(dataRowCount, networksRowCount),
                        PopoverCompanies.rows(glance),
                        PopoverBlocked.rows(glance, isOn: !firewall.lists.isEmpty))
-        return PopoverMetrics.sectionAreaHeight(rows: rows, speedCard: showsCard)
+        return PopoverMetrics.sectionAreaHeight(rows: rows,
+                                                speedCard: showsCard && layout.isShown(layout.speedTestSection))
     }
 
     /// The list's height in each view: the section's, less its grouping row,

@@ -46,6 +46,26 @@ func runLiveSpeedTests() {
             Check.expectTrue(live.apps.isEmpty, "a long gap says nothing about now")
         }
 
+        Check.test("the apps list empties when no app sample has come for a while") {
+            let live = LiveSpeed()
+            let start = Date(timeIntervalSince1970: 1_000_000)
+            live.recordApps([("safari", "Safari", nil, 1, 1)], at: start)
+            live.recordApps([("safari", "Safari", nil, 9_000, 1_000)], at: start + 1)
+            live.record(down: 1, up: 1, at: 10, now: start + 5)
+            Check.expectEqual(live.apps.count, 1)
+            live.record(down: 1, up: 1, at: 50, now: start + 60)
+            Check.expectTrue(live.apps.isEmpty, "a minute without an app sample")
+        }
+
+        Check.test("a skipped sample still starts the next one's interval") {
+            let live = LiveSpeed()
+            let start = Date(timeIntervalSince1970: 1_000_000)
+            live.recordApps([("safari", "Safari", nil, 1, 1)], at: start)
+            live.skipAppSample(at: start + 2)
+            live.recordApps([("safari", "Safari", nil, 4_000, 0)], at: start + 4)
+            Check.expectEqual(live.apps.first?.down, 2_000)
+        }
+
         Check.test("the graph's span is remembered") {
             let defaults = Check.defaults("live-span")
             let live = LiveSpeed(defaults: defaults)
@@ -108,6 +128,21 @@ func runLiveSpeedTests() {
             Check.expectEqual(PopoverSection.allCases.filter(layout.isShown), [.connection])
             Check.expectFalse(layout.canHide(.connection))
             Check.expectEqual(layout.opening, .connection)
+        }
+
+        Check.test("Live and Network can't both be hidden: one of them has the speed test") {
+            let layout = PopoverLayout(defaults: Check.defaults("layout-speed-test"))
+            layout.setShown(.live, false)
+            Check.expectFalse(layout.canHide(.connection))
+            layout.setShown(.connection, false)
+            Check.expectTrue(layout.isShown(.connection))
+            Check.expectNotNil(layout.whyShown(.connection))
+            layout.setShown(.live, true)
+            layout.setShown(.connection, false)
+            Check.expectFalse(layout.canHide(.live))
+            let defaults = Check.defaults("layout-speed-test-saved")
+            defaults.set(["live", "connection"], forKey: "popoverHidden")
+            Check.expectTrue(PopoverLayout(defaults: defaults).isShown(.connection), "a saved pair is mended")
         }
 
         Check.test("Live doesn't move, and a move stays among the four") {

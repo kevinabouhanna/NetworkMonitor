@@ -220,9 +220,10 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 - **Wi-Fi names**, until they're on
 - **Speed colors** (the readout's and the Dock icon's): six ready-made pairs, Custom… for your own Download and Upload, the speed test's colours, and **Speed on top**
 - **Popover**: a tick to show or hide each of Live, Data, Connections, Ads blocked and
-  Network, and the buttons' order: drag a row, or use its ↑ and ↓. Live stays on top, and
-  one view always shows. The popover opens on Live, or on the first view shown while Live is
-  hidden. **Restore the Original Order** puts them back (#802).
+  Network, and the buttons' order: drag a row, or use its ↑ and ↓. Live stays on top, one
+  view always shows, and so does Live or Network, which hold the speed test. The popover
+  opens on Live, or on the first view shown while Live is hidden. **Show All, in the
+  Original Order** puts them back (#802).
 - **Popover totals**: Counting since, Sampling, Reset Now
 - **Sections**: a row to each section's settings, the same pages its gear shows
 
