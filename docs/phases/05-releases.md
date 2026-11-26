@@ -7,6 +7,9 @@ builds, checks and releases the app stays in order.
 
 ## The plans
 
+- **Release 1.34.0 to everyone once the beta is good** (#778), Now: Usage History following
+  midnight (#770) and the menu bar's top row (#772), both first written by defragekb. A beta
+  first, then `v1.34.0` on its commit when Kevin says it's good.
 - **Keep the tooling and the plan in order** (#606), standing: tooling chores (the vendored
   kits, local CI, the release workflow, the pictures' VM image, the plan and the board kept in
   step) are its steps. First among them: CI fails a change that keeps the app busy while it's

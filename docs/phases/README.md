@@ -11,6 +11,7 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 |---|---|---|
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
+| 5.05 | #778 Release 1.34.0 to everyone once the beta is good | [Phase 5: Releases people check first](05-releases.md) |
 
 ## Next
 
