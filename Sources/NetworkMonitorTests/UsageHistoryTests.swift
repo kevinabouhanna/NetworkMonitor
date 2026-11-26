@@ -632,10 +632,9 @@ func runUsageHistoryTests() {
             Check.expectEqual(model.period.start, midnight)
             Check.expectEqual(model.report.apps.map(\.displayName), ["Mail"])
             Check.expectEqual(model.filter.kind, .wifi)
+            waitUntil { model.todayTotal == 200 }
 
             model.step(-1)
-            Check.expectEqual(model.report.period, model.period)
-            Check.expectEqual(model.report.total, 0, "old app rows stayed visible under the new title")
             waitUntil { model.report.total == 600 }
             Check.expectEqual(model.title, "Yesterday")
             Check.expectEqual(model.report.apps.map(\.displayName), ["Safari"])

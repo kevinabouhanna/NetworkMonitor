@@ -103,7 +103,10 @@ public final class HistoryViewModel: ObservableObject {
         }
         dayChangeObservation = NotificationCenter.default.publisher(for: .NSCalendarDayChanged)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.refreshVisiblePeriod() }
+            .sink { [weak self] _ in
+                self?.refreshVisiblePeriod()
+                self?.refreshToday()
+            }
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             self?.refreshVisiblePeriod()
@@ -123,7 +126,10 @@ public final class HistoryViewModel: ObservableObject {
         let isCurrent = period.contains(present)
 
         if !isCurrent && period.contains(previouslyChecked) {
-            show(HistoryPeriod(scale: period.scale, containing: present, calendar: calendar), filter: filter)
+            // The calendar moved it on: the old figures would read as the new
+            // period's, so they go while it loads.
+            show(HistoryPeriod(scale: period.scale, containing: present, calendar: calendar), filter: filter,
+                 clearing: true)
         } else if reopening || isCurrent {
             reload()
         } else if !calendar.isDate(present, inSameDayAs: previouslyChecked) {
@@ -409,7 +415,10 @@ public final class HistoryViewModel: ObservableObject {
 
     // MARK: Loading
 
-    private func show(_ period: HistoryPeriod, filter: HistoryFilter) {
+    /// A period someone chose keeps the last figures on screen until its own
+    /// arrive, a few milliseconds later, so stepping through doesn't flash
+    /// empty; one the calendar moved on to is `clearing`.
+    private func show(_ period: HistoryPeriod, filter: HistoryFilter, clearing: Bool = false) {
         let present = now()
         let periodChanged = self.period != period
         if periodChanged || period.contains(present) {
@@ -418,9 +427,11 @@ public final class HistoryViewModel: ObservableObject {
         if periodChanged {
             hoveredBin = nil
             self.period = period
-            // Use the new period's bins while its report loads. Keep the
-            // recording start so the Back arrow still works during the read.
-            report = .empty(period, filter, calendar: calendar, recordingSince: report.recordingSince)
+            if clearing {
+                // The new period's bins while its report loads. The recording
+                // start stays, so the Back arrow still works during the read.
+                report = .empty(period, filter, calendar: calendar, recordingSince: report.recordingSince)
+            }
         }
         self.filter = filter
         reload()
