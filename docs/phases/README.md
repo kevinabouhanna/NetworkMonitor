@@ -11,12 +11,14 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 |---|---|---|
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
-| 99 | #747 Release 1.33.0 to everyone once the beta is good | [Phase 5: Releases people check first](05-releases.md) |
 
 ## Next
 
 | Order | Plan | Phase |
 |---|---|---|
+| 5.62 | #770 Usage History stays on yesterday’s totals after midnight | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.63 | #767 Attribute shared nsurlsessiond traffic to its requesting app | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.64 | #772 Let me choose which speed goes on top in the menu bar | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.7 | #738 Research: does the app count a virtual machine's data, connections and ads? | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 6 | #257 A NetworkMonitor extension for Chrome: in-page ads, pop-ups and YouTube ads, with the app's lists and rules | [Phase 3: The Chrome extension](03-chrome-extension.md) |
 
