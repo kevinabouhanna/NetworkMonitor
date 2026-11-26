@@ -1,6 +1,6 @@
 # Phase 1: Everyday polish
 
-**Milestone:** Phase 1: Everyday polish · **Status:** Next
+**Milestone:** Phase 1: Everyday polish · **Status:** Now
 
 **Goal:** what people touch every day feels finished: the popover never jumps, the main
 window's three lists behave the same, and the VoiceOver and keyboard work of 1.29 is checked.
@@ -16,7 +16,7 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   Not by capturing internet packets (#749), which costs too much CPU and privacy: whether the
   content filter's own byte counts cover it is what's to find out.
 
-Done on 26 Nov 2026, on `main`, for the next release:
+Done on 26 Nov 2026, released in 1.34.0 the same day (#778):
 
 - Usage History left on **Today** moves on to the new day at midnight, and a period you chose
   stays (#770), reported and first written by defragekb (#771).

@@ -11,7 +11,7 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 |---|---|---|
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
-| 5.05 | #778 Release 1.34.0 to everyone once the beta is good | [Phase 5: Releases people check first](05-releases.md) |
+| 5.62 | #754 Safari Private Relay traffic is missing from per-app usage | [Phase 1: Everyday polish](01-everyday-polish.md) |
 
 ## Next
 
@@ -26,7 +26,6 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 |---|---|---|
 | 7 | #522 Improve onboarding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 8 | #582 Branding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
-| 9 | #754 Safari Private Relay traffic is missing from per-app usage | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 9 | #539 Short videos of features on their docs pages | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 10 | #458 Remake the launch video (brag.mp4) for the redesign, in English and Chinese | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 11 | #577 Launch NetworkMonitor publicly | [Phase 7: The launch](07-launch.md) |
