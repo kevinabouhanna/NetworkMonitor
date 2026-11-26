@@ -656,7 +656,10 @@ public final class AdsViewModel: ObservableObject {
     /// `reload` reads today's lists too; otherwise they're read on their own.
     private func followCalendar(reopening: Bool = false) {
         switch follower.check(period, reopening: reopening) {
-        case .moveOn(let next): show(next)
+        case .moveOn(let next):
+            // The Rules page reads its figures later: they go now.
+            rulesActivity.clear()
+            show(next)
         case .reload: reload()
         case .retitle:
             objectWillChange.send()

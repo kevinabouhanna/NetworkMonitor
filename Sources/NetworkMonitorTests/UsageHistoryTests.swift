@@ -756,12 +756,17 @@ func runUsageHistoryTests() {
 
             // What's on screen the moment the period moves on.
             var shownWhenMoved: Int64?
-            let moved = model.$period.dropFirst().sink { _ in shownWhenMoved = total() }
+            var loadingWhenMoved = false
+            let moved = model.$period.dropFirst().sink { _ in
+                shownWhenMoved = total()
+                loadingWhenMoved = !model.hasLoaded && model.rulesActivity.traffic.isEmpty
+            }
             defer { moved.cancel() }
             present = midnight
             NotificationCenter.default.post(name: .NSCalendarDayChanged, object: nil)
             waitUntil("the period moves on") { model.period.start == midnight }
             Check.expectEqual(shownWhenMoved, 0, "yesterday's servers stayed under the new day")
+            Check.expectTrue(loadingWhenMoved, "it says it's loading, not that the day is empty")
             waitUntil("the new day's servers") { total() == 200 }
             Check.expectEqual(model.title, "Today")
             Check.expectEqual(model.kind, .wifi)

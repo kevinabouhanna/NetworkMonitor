@@ -336,6 +336,8 @@ public final class ConnectionsViewModel: ObservableObject {
             connections = []
             appDetails = [:]
             bins = Self.timeline(for: period, hours: [], calendar: calendar)
+            hasLoaded = false
+            rulesActivity.clear()
             rebuild()
         }
         self.period = period

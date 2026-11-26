@@ -125,6 +125,14 @@ public final class RulesActivity: ObservableObject {
     private static var directory: ServerDirectory?
     private static var directoryOpened = false
 
+    /// Empties the figures while a period the calendar moved on to loads
+    /// (#776), so the last one's never show under its heading.
+    func clear() {
+        traffic = []
+        blocked = []
+        listBlocks = []
+    }
+
     /// Reads the period again, unless it's the one already read and
     /// `again` is false; the Rules lists ask again when their window
     /// reloads.
