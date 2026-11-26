@@ -96,18 +96,6 @@ public final class AppPlacementSetting: ObservableObject {
         didSet { save(dockIconInBoth, for: .both) }
     }
 
-    /// Whether upload is the first of the live rates on the Dock icon.
-    @Published public var dockUploadFirst: Bool {
-        didSet {
-            guard dockUploadFirst != oldValue else { return }
-            if dockUploadFirst {
-                defaults.set(true, forKey: "dockUploadFirst")
-            } else {
-                defaults.removeObject(forKey: "dockUploadFirst")
-            }
-        }
-    }
-
     /// What the Dock icon shows in the chosen mode: the choice Settings
     /// shows and changes. In Menu bar mode, the app's icon.
     public var dockIcon: DockIcon {
@@ -140,7 +128,6 @@ public final class AppPlacementSetting: ObservableObject {
         }
         dockIconInDock = stored(.dock)
         dockIconInBoth = stored(.both)
-        dockUploadFirst = defaults.bool(forKey: "dockUploadFirst")
     }
 
     private func save(_ icon: DockIcon, for mode: AppPlacement) {
@@ -158,6 +145,7 @@ public struct SpeedReadout: Equatable {
     public let down: String
     public let up: String
     public let tints: MenuBarTints
+    /// Upload on the upper line: **Speed on top** (#772), on the Dock icon.
     public let uploadFirst: Bool
 
     public init(down: String, up: String, tints: MenuBarTints, uploadFirst: Bool = false) {

@@ -892,11 +892,9 @@ public final class MonitorViewModel: ObservableObject {
                             tints: firewall.blocksEverything ? .blockingEverything : menuBarColors.live)
     }
 
-    /// VoiceOver reads the rates in the same order as their rows (#424).
+    /// The rates in words, in the order shown in the menu bar and on the
+    /// Dock icon (#424, #772): for VoiceOver, and the Dock menu's first line.
     public var menuBarSpoken: String { spokenReadout(uploadFirst: menuBarColors.uploadFirst) }
-
-    /// The Dock's menu follows the order drawn on its icon.
-    public func dockSpeedSpoken(uploadFirst: Bool = false) -> String { spokenReadout(uploadFirst: uploadFirst) }
 
     private func spokenReadout(uploadFirst: Bool) -> String {
         let unit = speedTest.unit

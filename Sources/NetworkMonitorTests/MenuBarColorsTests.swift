@@ -131,18 +131,16 @@ func runMenuBarColorsTests() {
             }
         }
 
-        Check.test("VoiceOver follows the menu bar choice and the Dock keeps its spoken order") {
+        Check.test("VoiceOver reads the rates in the order Speed on top sets") {
             let defaults = freshDefaults()
             let colors = MenuBarColors(defaults: defaults)
             let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("row-order-\(UUID()).json")
             let model = MonitorViewModel(store: UsageStore(storeURL: url), menuBarColors: colors)
             let normal = model.menuBarSpoken
-            Check.expectEqual(model.dockSpeedSpoken(), normal)
             colors.uploadFirst = true
             let rate = ByteFormat.spokenSpeed(0, unit: model.speedTest.unit)
             Check.expectEqual(model.menuBarSpoken, L("Upload %@, download %@", rate, rate))
-            Check.expectEqual(model.dockSpeedSpoken(), normal)
-            Check.expectEqual(model.dockSpeedSpoken(uploadFirst: true), L("Upload %@, download %@", rate, rate))
+            Check.expectTrue(model.menuBarSpoken != normal)
         }
 
         // The colour panel hands back colours in whatever space it likes.

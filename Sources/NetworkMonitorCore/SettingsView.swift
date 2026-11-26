@@ -91,17 +91,6 @@ struct GeneralSettingsPane: View {
                         .fixedSize()
                     }
                 }
-                if placement.drawsSpeedsOnDock {
-                    ExplainedRow(L("Dock top row"), L("Which live speed is on the upper line of the Dock's Speeds icon.")) {
-                        Picker(L("Dock top row"), selection: $placement.dockUploadFirst) {
-                            Text(L("Download")).tag(false)
-                            Text(L("Upload")).tag(true)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .fixedSize()
-                    }
-                }
             }
 
             if updates.isAvailable { updatesSection }
@@ -139,10 +128,12 @@ struct GeneralSettingsPane: View {
             // two never look alike; they're shown, not offered. Ready-made pairs
             // first (#688), your own behind Custom….
             Section {
-                if placement.placement.showsMenuBar {
-                    ExplainedRow(L("Menu bar top row"),
-                                 L("Which speed is on the upper line in the menu bar, live and during a speed test. Each keeps its arrow and color.")) {
-                        Picker(L("Menu bar top row"), selection: $colors.uploadFirst) {
+                // One order wherever the speeds show: the menu bar, and the
+                // Dock icon when it's the speeds (#772).
+                if placement.placement.showsMenuBar || placement.drawsSpeedsOnDock {
+                    ExplainedRow(L("Speed on top"),
+                                 L("Which speed is on the upper line, in the menu bar and on the Dock icon, live and during a speed test. Each keeps its arrow and color, and VoiceOver reads them in that order.")) {
+                        Picker(L("Speed on top"), selection: $colors.uploadFirst) {
                             Text(L("Download")).tag(false)
                             Text(L("Upload")).tag(true)
                         }

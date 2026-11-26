@@ -76,22 +76,6 @@ func runAppPlacementTests() {
                               "an unknown value falls back to the menu bar")
         }
 
-        Check.test("the Dock's top row is saved independently of the menu bar") {
-            let defaults = Check.defaults("dock-order")
-            let setting = AppPlacementSetting(defaults: defaults)
-            let colors = MenuBarColors(defaults: defaults)
-            Check.expectFalse(setting.dockUploadFirst)
-            colors.uploadFirst = true
-            Check.expectFalse(setting.dockUploadFirst)
-
-            colors.uploadFirst = false
-            setting.dockUploadFirst = true
-            Check.expectFalse(colors.uploadFirst)
-            Check.expectTrue(AppPlacementSetting(defaults: defaults).dockUploadFirst)
-            setting.dockUploadFirst = false
-            Check.expectNil(defaults.object(forKey: "dockUploadFirst"))
-        }
-
         // The widest figures there are, live and a speed test's, fit the
         // icon's squircle across and down at every tile size, never overlap,
         // sit on whole pixels, and stay big enough to read in the Dock (#523).
