@@ -7,17 +7,19 @@ builds, checks and releases the app stays in order.
 
 ## The plans
 
-- **Release 1.33.0 to everyone once the beta is good** (#747): beta 2 has the update settings
-  (#710), beta 3 everything merged since, beta 4 #763 too. Kevin asked on 25 Nov 2026 to release it all once the
-  pull requests were reviewed: after beta 3's checks in a VM.
 - **Keep the tooling and the plan in order** (#606), standing: tooling chores (the vendored
   kits, local CI, the release workflow, the pictures' VM image, the plan and the board kept in
   step) are its steps. First among them: CI fails a change that keeps the app busy while it's
   idle, since nothing caught beta 1's battery drain (#723); the window tests fail while the screen is locked, so
-  nothing can be pushed while Kevin is away (#626); then the two pictures the VM got wrong for
-  1.31.0 (#650). It stays open on purpose, so this phase stays open with it.
+  nothing can be pushed while Kevin is away (#626); then the pictures the VM gets wrong, for
+  1.31.0 and again for 1.33.0 (#650). It stays open on purpose, so this phase stays open with it.
 
-Done: **Update settings** (#710), 25 Nov 2026: an Updates section in Settings that says what
+Done: **Release 1.33.0 to everyone** (#747), 26 Nov 2026: four betas (the first never
+published, #751), then `v1.33.0` on beta 4's commit, after a signed copy in a VM updated itself
+from beta 2 to beta 3 and from beta 3 to beta 4 with its filter back on. Kevin asked on 25 Nov
+to review the open pull requests, merge what held, and release it all: the update settings,
+YouTube without its ads (#741), and defragekb's web views (#761) and own-network traffic (#753,
+#759, #763). **Update settings** (#710), 25 Nov 2026: an Updates section in Settings that says what
 happens, and Install updates automatically, off by default, there and in the welcome window,
 approved from a working prototype's pictures. **The tests never ask for a keychain password**
 (#739), the same day. **Release 1.32.0 to everyone** (#722), 25 Nov 2026: beta 3, with the popover's fixes

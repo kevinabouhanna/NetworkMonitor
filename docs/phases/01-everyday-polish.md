@@ -16,7 +16,7 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   Not by capturing internet packets (#749), which costs too much CPU and privacy: whether the
   content filter's own byte counts cover it is what's to find out.
 
-Done on 25 Nov 2026, on `main`, for 1.33.0 (#747):
+Done on 25 Nov 2026, released in 1.33.0 on 26 Nov (#747):
 
 - your own network's traffic on an unconnected UDP socket, as remote desktops use, no longer
   counts as internet (#753). Reported and first written by defragekb (#748), NetworkMonitor's
@@ -30,7 +30,7 @@ Done on 25 Nov 2026, on `main`, for 1.33.0 (#747):
   responsible process, asked by the app and by the content filter alike; checked on a signed
   build in a VM, with a rule on Safari and one on WebKit.
 - a late sample of a network keeps its own-network share on that network over an offline gap
-  (#763), reported and first written by defragekb (#764): in 1.33.0's beta 4.
+  (#763), reported and first written by defragekb (#764): in 1.33.0.
 
 Done on 25 Nov 2026, released in 1.32.0 (#722):
 
