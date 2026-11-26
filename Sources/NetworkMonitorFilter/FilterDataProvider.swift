@@ -42,6 +42,9 @@ final class FilterDataProvider: NEFilterDataProvider {
 
     /// What macOS counted for a flow the probe watches (#786).
     override func handle(_ report: NEFilterReport) {
+        // macOS reports some closes unasked (a lookup's, whose answer is
+        // read): only while the probe is on are they logged.
+        guard Firewall.shared.measuresFlowBytes else { return }
         FlowBytesProbe.handle(report)
     }
 
