@@ -7,8 +7,6 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
 
 ## The plans
 
-- **Connections and Ads move on to the new day at midnight too** (#776), Next: found while
-  reviewing #771. Both keep yesterday under **Today** until reopened; they follow Usage History.
 - **Background downloads count for the app that asked for them** (#767), Next: reported by
   defragekb (#768 reproduces it). macOS's `nsurlsessiond` downloads for many apps, so its bytes
   are System's today. The content filter can't tell which app asked (checked in a VM on 26 Nov
@@ -29,6 +27,8 @@ Done on 26 Nov 2026, on `main`, for the next release:
   stays (#770), reported and first written by defragekb (#771).
 - **Menu bar top row** in Settings › Speed colors puts download or upload on top (#772), asked
   for and first written by defragekb (#773); the Dock icon keeps download on top.
+- Connections and Ads and Trackers move on to the new day at midnight too (#776), found while
+  reviewing #771: the three windows share one piece that follows the calendar.
 
 Done on 25 Nov 2026, released in 1.33.0 on 26 Nov (#747):
 
