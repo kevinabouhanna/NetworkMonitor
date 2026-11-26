@@ -896,7 +896,7 @@ public final class MonitorViewModel: ObservableObject {
     public var menuBarSpoken: String { spokenReadout(uploadFirst: menuBarColors.uploadFirst) }
 
     /// The Dock's menu follows the order drawn on its icon.
-    public var dockSpeedSpoken: String { spokenReadout(uploadFirst: false) }
+    public func dockSpeedSpoken(uploadFirst: Bool = false) -> String { spokenReadout(uploadFirst: uploadFirst) }
 
     private func spokenReadout(uploadFirst: Bool) -> String {
         let unit = speedTest.unit

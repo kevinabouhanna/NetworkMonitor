@@ -80,11 +80,22 @@ struct GeneralSettingsPane: View {
                 // Dock icon all the time, in Dock or Both, each with its own.
                 if placement.placement.showsDock {
                     ExplainedRow(L("Dock icon"),
-                                 L("Speeds: the whole Dock icon is the live speeds, download over upload, in the speed colors. App icon: NetworkMonitor's own icon, with no speeds. Dock and Both each keep their own choice: Speeds to begin with in Dock, App icon in Both.")) {
+                                 L("Speeds: the whole Dock icon shows the live speeds in the speed colors. App icon: NetworkMonitor's own icon, with no speeds. Dock and Both each keep their own choice: Speeds to begin with in Dock, App icon in Both.")) {
                         Picker(L("Dock icon"), selection: $placement.dockIcon) {
                             ForEach(DockIcon.allCases) { icon in
                                 Text(icon.label).tag(icon)
                             }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                    }
+                }
+                if placement.drawsSpeedsOnDock {
+                    ExplainedRow(L("Dock top row"), L("Which live speed is on the upper line of the Dock's Speeds icon.")) {
+                        Picker(L("Dock top row"), selection: $placement.dockUploadFirst) {
+                            Text(L("Download")).tag(false)
+                            Text(L("Upload")).tag(true)
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
@@ -128,10 +139,9 @@ struct GeneralSettingsPane: View {
             // two never look alike; they're shown, not offered. Ready-made pairs
             // first (#688), your own behind Custom….
             Section {
-                // Only with a menu bar item: the Dock icon keeps its order.
                 if placement.placement.showsMenuBar {
                     ExplainedRow(L("Menu bar top row"),
-                                 L("Which speed is on the upper line in the menu bar, live and during a speed test. Each keeps its arrow and color. The Dock icon always shows download on top.")) {
+                                 L("Which speed is on the upper line in the menu bar, live and during a speed test. Each keeps its arrow and color.")) {
                         Picker(L("Menu bar top row"), selection: $colors.uploadFirst) {
                             Text(L("Download")).tag(false)
                             Text(L("Upload")).tag(true)

@@ -74,6 +74,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// What the Dock icon shows in Dock and Both modes (#523), as last applied.
     private var dockIcon = AppPlacementSetting.shared.dockIcon
     private var placementObserver: AnyCancellable?
+    private var dockUploadFirst = AppPlacementSetting.shared.dockUploadFirst
+    private var dockOrderObserver: AnyCancellable?
     /// The Dock icon that is the live speeds, with Dock icon: Speeds only.
     private var dockSpeedView: DockSpeedView?
     /// Redraws it when the Mac switches between light and dark.
@@ -774,7 +776,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         func key(_ equivalent: String) -> String { forDock ? "" : equivalent }
 
         if forDock, placement.drawsSpeedsOnDock(dockIcon) {
-            let item = NSMenuItem(title: model.dockSpeedSpoken, action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: model.dockSpeedSpoken(uploadFirst: dockShowsUploadFirst),
+                                  action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)
             menu.addItem(.separator())
@@ -1153,6 +1156,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             .dropFirst()
             .removeDuplicates { $0 == $1 }
             .sink { [weak self] placement, dockIcon in self?.apply(placement, dockIcon) }
+        dockOrderObserver = setting.$dockUploadFirst.dropFirst().removeDuplicates()
+            .sink { [weak self] uploadFirst in
+                guard let self else { return }
+                self.dockUploadFirst = uploadFirst
+                self.drawDockReadout()
+            }
         // The Dock icon's square follows light and dark.
         appearanceObserver = NSApp.observe(\.effectiveAppearance) { [weak self] _, _ in
             DispatchQueue.main.async { self?.redrawDockIcon() }
@@ -1198,13 +1207,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// menu bar's readout updates twice a second (plugged in).
     private static let dockRedrawInterval: TimeInterval = 1
 
+    private var dockShowsUploadFirst: Bool { dockUploadFirst && !model.speedTest.isShowingInMenuBar }
+
     /// The live speeds on the Dock icon, with Dock icon: Speeds: on the menu bar
     /// readout's own signal, so never more often than it, and only when the
     /// figures changed. While nobody can see the screen there's no signal, so
     /// nothing is drawn (`MonitorViewModel.setAttention`).
     private func drawDockReadout() {
         guard let view = dockSpeedView else { return }
-        let readout = model.readout
+        let uploadFirst = dockShowsUploadFirst
+        let rates = model.readout
+        let readout = SpeedReadout(down: rates.down, up: rates.up, tints: rates.tints,
+                                   uploadFirst: uploadFirst)
         guard readout != view.readout else { return }
         let wait = dockDrawnAt + Self.dockRedrawInterval - ProcessInfo.processInfo.systemUptime
         guard wait <= 0 else {

@@ -137,11 +137,12 @@ func runMenuBarColorsTests() {
             let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("row-order-\(UUID()).json")
             let model = MonitorViewModel(store: UsageStore(storeURL: url), menuBarColors: colors)
             let normal = model.menuBarSpoken
-            Check.expectEqual(model.dockSpeedSpoken, normal)
+            Check.expectEqual(model.dockSpeedSpoken(), normal)
             colors.uploadFirst = true
             let rate = ByteFormat.spokenSpeed(0, unit: model.speedTest.unit)
             Check.expectEqual(model.menuBarSpoken, L("Upload %@, download %@", rate, rate))
-            Check.expectEqual(model.dockSpeedSpoken, normal)
+            Check.expectEqual(model.dockSpeedSpoken(), normal)
+            Check.expectEqual(model.dockSpeedSpoken(uploadFirst: true), L("Upload %@, download %@", rate, rate))
         }
 
         // The colour panel hands back colours in whatever space it likes.

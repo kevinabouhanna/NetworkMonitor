@@ -96,6 +96,18 @@ public final class AppPlacementSetting: ObservableObject {
         didSet { save(dockIconInBoth, for: .both) }
     }
 
+    /// Whether upload is the first of the live rates on the Dock icon.
+    @Published public var dockUploadFirst: Bool {
+        didSet {
+            guard dockUploadFirst != oldValue else { return }
+            if dockUploadFirst {
+                defaults.set(true, forKey: "dockUploadFirst")
+            } else {
+                defaults.removeObject(forKey: "dockUploadFirst")
+            }
+        }
+    }
+
     /// What the Dock icon shows in the chosen mode: the choice Settings
     /// shows and changes. In Menu bar mode, the app's icon.
     public var dockIcon: DockIcon {
@@ -128,6 +140,7 @@ public final class AppPlacementSetting: ObservableObject {
         }
         dockIconInDock = stored(.dock)
         dockIconInBoth = stored(.both)
+        dockUploadFirst = defaults.bool(forKey: "dockUploadFirst")
     }
 
     private func save(_ icon: DockIcon, for mode: AppPlacement) {
@@ -145,11 +158,13 @@ public struct SpeedReadout: Equatable {
     public let down: String
     public let up: String
     public let tints: MenuBarTints
+    public let uploadFirst: Bool
 
-    public init(down: String, up: String, tints: MenuBarTints) {
+    public init(down: String, up: String, tints: MenuBarTints, uploadFirst: Bool = false) {
         self.down = down
         self.up = up
         self.tints = tints
+        self.uploadFirst = uploadFirst
     }
 }
 
@@ -237,10 +252,10 @@ public final class DockSpeedView: NSView {
         // A speed test's colours chosen for light, when on light (#672).
         let given = dark ? readout.tints : MenuBarTints(down: readout.tints.onLight?.first ?? readout.tints.down,
                                                         up: readout.tints.onLight?.last ?? readout.tints.up)
-        let tints = [given.down, given.up].map { MenuBarColors.readable($0, onDark: dark) }
-        for (index, (line, tint)) in zip(layout.lines, tints).enumerated() {
+        for line in layout.lines {
+            let tint = MenuBarColors.readable(line.isDownload ? given.down : given.up, onDark: dark)
             context.setFillColor(tint.cgColor)
-            context.addPath(Self.arrow(in: line.arrowFrame, pointingDown: index == 0))
+            context.addPath(Self.arrow(in: line.arrowFrame, pointingDown: line.isDownload))
             context.fillPath()
             NSAttributedString(string: line.figure, attributes: [.font: layout.figureFont, .foregroundColor: tint])
                 .draw(at: NSPoint(x: line.figureFrame.minX, y: line.figureFrame.minY + layout.figureFont.descender))
@@ -303,6 +318,7 @@ public final class DockSpeedView: NSView {
 
     /// One speed: its arrow, figure and unit, each in its own box.
     public struct Line {
+        public let isDownload: Bool
         public let figure: String
         public let unit: String
         public let arrowFrame: NSRect
@@ -351,20 +367,21 @@ public final class DockSpeedView: NSView {
         return NSFont(descriptor: descriptor, size: size) ?? base
     }
 
-    /// The figures as large as fit the squircle, across and down: download's
-    /// arrow and figure, its unit under the figure's right edge, then upload's,
-    /// the two centred as a block, every edge on a whole pixel.
+    /// The figures as large as fit the squircle, across and down. The two
+    /// rows are centred as a block, with every edge on a whole pixel.
     public static func layout(for readout: SpeedReadout, in bounds: NSRect,
                               pixelsPerPoint: CGFloat = 2) -> Layout {
         let box = squareRect(in: bounds).insetBy(dx: bounds.width * padding.width,
                                                  dy: bounds.height * padding.height)
-        let parts = [split(readout.down), split(readout.up)]
+        let download = (parts: split(readout.down), isDownload: true)
+        let upload = (parts: split(readout.up), isDownload: false)
+        let rows = readout.uploadFirst ? [upload, download] : [download, upload]
         func width(_ text: String, _ font: NSFont) -> CGFloat {
             NSAttributedString(string: text, attributes: [.font: font]).size().width
         }
         func snap(_ value: CGFloat) -> CGFloat { (value * pixelsPerPoint).rounded() / pixelsPerPoint }
         func rowWidth(_ font: NSFont) -> CGFloat {
-            let figures = ([template] + parts.map(\.figure)).map { width($0, font) }.max() ?? 0
+            let figures = ([template] + rows.map { $0.parts.figure }).map { width($0, font) }.max() ?? 0
             return font.capHeight * (arrowWidth + arrowGap) + figures
         }
         func blockHeight(_ font: NSFont, _ unitFont: NSFont) -> CGFloat {
@@ -386,7 +403,8 @@ public final class DockSpeedView: NSView {
         let left = snap(box.midX - rowFull / 2)
         let right = snap(left + rowFull)
         var top = box.midY + blockHeight(figureFont, unitFont) / 2
-        let lines = parts.map { part -> Line in
+        let lines = rows.map { row -> Line in
+            let part = row.parts
             let capTop = snap(top)
             let baseline = snap(top - cap)
             let arrowFrame = NSRect(x: left, y: baseline, width: snap(cap * arrowWidth), height: capTop - baseline)
@@ -397,7 +415,7 @@ public final class DockSpeedView: NSView {
             let unitWidth = width(part.unit, unitFont)
             let unitFrame = NSRect(x: snap(right - unitWidth), y: unitBaseline, width: unitWidth, height: unitCap)
             top -= cap * (1 + unitGap) + unitCap + cap * rowGap
-            return Line(figure: part.figure, unit: part.unit, arrowFrame: arrowFrame,
+            return Line(isDownload: row.isDownload, figure: part.figure, unit: part.unit, arrowFrame: arrowFrame,
                         figureFrame: figureFrame, unitFrame: unitFrame)
         }
         return Layout(figureFont: figureFont, unitFont: unitFont, lines: lines)

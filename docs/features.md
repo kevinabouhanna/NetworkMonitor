@@ -13,7 +13,7 @@ data plans are sold. Pick other colours under **Settings › Speed colors**: six
 pairs (Green, the default, Teal, Blue, Gold, Pink and Violet), each made to read on a dark
 and a light menu bar, or **Custom…** for your own. **Menu bar top row** in that
 section lets you put Download or Upload first, including when a speed test is shown. It
-appears while there's a menu bar item; the Dock icon always shows download on top.
+appears while there's a menu bar item.
 
 The readout **follows the menu bar**: on a light one, as over a light wallpaper, each colour is
 drawn darker in the same hue so it stays readable, and it switches by itself when the
@@ -43,12 +43,12 @@ at once.
 
 - **Menu bar**, the default: the readout above, and a Dock icon only while a window is open.
 - **Dock**: nothing in the menu bar. A **Dock icon** choice appears under it (#523):
-  - **Speeds**, Dock's default: the whole Dock icon is the live speeds, download over upload,
+  - **Speeds**, Dock's default: the whole Dock icon shows the live speeds, download over upload by default,
     drawn like the app's icon: its shape and lighting, near black in dark mode and near
     white in light, following the Mac as it switches. Each speed is the icon's arrow and
     its figure to three significant figures (12.3), as large as fits, with its unit under
     it, in the speed colors (on light, drawn darker so they read). It updates as the
-    readout would, at most once a second.
+    readout would, at most once a second. **Dock top row** chooses which live speed is on top.
   - **App icon**: NetworkMonitor's own icon, with no speeds.
 
   Click the icon for the main window, on the section it was last on. Its menu has what the

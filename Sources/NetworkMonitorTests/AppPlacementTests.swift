@@ -76,6 +76,22 @@ func runAppPlacementTests() {
                               "an unknown value falls back to the menu bar")
         }
 
+        Check.test("the Dock's top row is saved independently of the menu bar") {
+            let defaults = Check.defaults("dock-order")
+            let setting = AppPlacementSetting(defaults: defaults)
+            let colors = MenuBarColors(defaults: defaults)
+            Check.expectFalse(setting.dockUploadFirst)
+            colors.uploadFirst = true
+            Check.expectFalse(setting.dockUploadFirst)
+
+            colors.uploadFirst = false
+            setting.dockUploadFirst = true
+            Check.expectFalse(colors.uploadFirst)
+            Check.expectTrue(AppPlacementSetting(defaults: defaults).dockUploadFirst)
+            setting.dockUploadFirst = false
+            Check.expectNil(defaults.object(forKey: "dockUploadFirst"))
+        }
+
         // The widest figures there are, live and a speed test's, fit the
         // icon's squircle across and down at every tile size, never overlap,
         // sit on whole pixels, and stay big enough to read in the Dock (#523).
@@ -173,6 +189,19 @@ func runAppPlacementTests() {
                               MenuBarColors.hex(MenuBarTints.live.down))
             Check.expectEqual(MenuBarColors.hex(MenuBarColors.readable(MenuBarTints.live.up, onDark: true)),
                               MenuBarColors.hex(MenuBarTints.live.up))
+        }
+
+        Check.test("the Dock moves each live arrow and its figure together in the chosen order") {
+            let bounds = NSRect(x: 0, y: 0, width: 64, height: 64)
+            let normal = SpeedReadout(down: "↓ 128 KB/s", up: "↑ 16 MB/s", tints: .live)
+            let reversed = SpeedReadout(down: normal.down, up: normal.up, tints: normal.tints, uploadFirst: true)
+            let before = DockSpeedView.layout(for: normal, in: bounds)
+            let after = DockSpeedView.layout(for: reversed, in: bounds)
+            Check.expectEqual(before.lines.map(\.isDownload), [true, false])
+            Check.expectEqual(after.lines.map(\.isDownload), [false, true])
+            Check.expectEqual(after.lines.map(\.figure), Array(before.lines.map(\.figure).reversed()))
+            Check.expectEqual(after.lines.map(\.unit), Array(before.lines.map(\.unit).reversed()))
+            Check.expectEqual(after.lines.map(\.arrowFrame), before.lines.map(\.arrowFrame))
         }
 
         // The menu bar draws what the readout says, so the two never differ.
