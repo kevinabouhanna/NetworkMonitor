@@ -7,6 +7,13 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
 
 ## The plans
 
+- **Usage History moves on to the new day at midnight** (#770), Next: reported by defragekb, with
+  a fix (#771). It stays on yesterday's totals until reopened.
+- **Background downloads count for the app that asked for them** (#767), Next: reported by
+  defragekb (#768 reproduces it). macOS's `nsurlsessiond` downloads for many apps, so its bytes
+  are System's today.
+- **Choose which speed goes on top in the menu bar** (#772), Next: asked for by defragekb, with
+  a change (#773).
 - **Does the app count a virtual machine's data, connections and ads?** (#738), Next, research:
   Kevin asked what the menu bar and the main window show for what a VM does online. First signs
   (25 Nov 2026): the total probably has it, the app rows may not, and Connections and ad blocking
