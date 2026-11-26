@@ -88,8 +88,14 @@ struct BackgroundDownloads {
                   let duration = group(#"Duration: ([0-9]+(?:\.[0-9]+)?)s"#, in: message).flatMap(Double.init),
                   duration > 0, duration.isFinite else { return nil }
 
+            // The header names what was asked for: a "quic-connection" can
+            // end up on TCP (on macOS 27.2, a background download did). The
+            // Duration line says which handshake ran, so it decides.
+            let timing = lines.first { $0.contains("Duration: ") }.map(String.init) ?? ""
             let transport: BackgroundSocket.Transport
-            if header.contains(" quic-connection,") { transport = .quic }
+            if timing.contains("TCP @") { transport = .tcp }
+            else if timing.contains("QUIC @") { transport = .quic }
+            else if header.contains(" quic-connection,") { transport = .quic }
             else if header.contains(" tcp,") { transport = .tcp }
             else { return nil }
 

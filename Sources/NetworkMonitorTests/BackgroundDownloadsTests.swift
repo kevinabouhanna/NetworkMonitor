@@ -101,6 +101,23 @@ func runBackgroundDownloadsTests() {
                 report, close(51_000, owner: nil, at: midnight + 0.5)!]))
         }
 
+        Check.test("a QUIC request that ran over TCP is matched as TCP, as nettop shows it") {
+            // A background download's close on macOS 27.2, in a VM (#767).
+            let report = BackgroundDownloads.CloseRecord.parse(pid: 446, time: midnight, message: """
+                [C12 7D5BDA29-E36C-4B75-A3D3-3A8022E23DF1 Hostname#002fb5f0:443 quic-connection, traffic class: 100, bundle id: com.example.bgprobe, url hash: 312b88bc, attribution: developer] cancelled
+                	[C12.1.1.1 5A327167-A82A-492C-9018-C99FE984A7CD 192.168.64.4:55924<->IPv4#30eefcf3:443]
+                	Connected Path: satisfied (Path is satisfied), viable, interface: en0, ipv4, dns
+                	Privacy Stance: Not Eligible
+                	Duration: 14.357s, DNS @0.000s took 0.004s, TCP @0.004s took 0.087s,  took 0.071s
+                	bytes in/out: 15125855/2903, packets in/out: 2810/2559, rtt: 0.020s, retransmitted bytes: 0, out-of-order bytes: 504851
+                	ecn packets sent/acked/marked/lost: 34/32/0/0
+                """)
+            Check.expectEqual(report?.key.transport, .tcp)
+            Check.expectEqual(report?.key.localPort, 55924)
+            Check.expectEqual(report?.key.interface, "en0")
+            Check.expectEqual(report?.owner, "com.example.bgprobe")
+        }
+
         Check.test("IPv6 spelling and zone do not change the local address's identity") {
             let report = close(51_000, owner: "com.example.first", at: midnight + 0.5,
                                local: "[2001:0db8:0:0::1%en0]", peer: "IPv6#bead")
