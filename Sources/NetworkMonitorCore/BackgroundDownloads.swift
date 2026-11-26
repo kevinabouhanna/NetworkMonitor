@@ -196,12 +196,24 @@ struct BackgroundDownloads {
         return ended
     }
 
+    /// How long after the first sample that listed the socket the log's start
+    /// may be. The start is the close minus `Duration`, which can begin a few
+    /// tens of milliseconds after nettop already showed the socket with its
+    /// bytes (#785: 17 to 30 ms seen), so it's kept to a few times that. A
+    /// key reused inside it by another app is ambiguous when both closes are
+    /// in the log, and then nothing moves; with the daemon's own close
+    /// missing, the other one could match alone, which the narrow window
+    /// keeps rare.
+    static let startSlack: TimeInterval = 0.1
+    /// nettop can see the last bytes a moment before the close says they moved.
+    static let endSlack: TimeInterval = 0.25
+
     static func owner(for socket: Closed, in records: [CloseRecord]) -> String? {
         let candidates = Set(records.lazy.filter {
             $0.key == socket.key
                 && ($0.peer == nil || $0.peer == socket.peer)
-                && $0.start <= socket.firstSeen
-                && $0.end >= socket.lastActive - 0.25
+                && $0.start <= socket.firstSeen + startSlack
+                && $0.end >= socket.lastActive - endSlack
                 && $0.end <= socket.missingAt + 1
         }.map(\.owner))
         return candidates.count == 1 ? (candidates.first ?? nil) : nil

@@ -115,6 +115,53 @@ func runBackgroundDownloadsTests() {
             Check.expectEqual(ended.first.flatMap { BackgroundDownloads.owner(for: $0, in: records) }, "com.example.first")
         }
 
+        Check.test("a close whose start the log puts just after the first sample is still matched (#785)") {
+            // defragekb's fresh run on macOS 26.7.3: nettop listed the socket
+            // and its bytes, then the close came at +35.3 ms with Duration
+            // 0.018s, so the log's start is 17.3 ms after that sample.
+            var tracker = BackgroundDownloads()
+            let slot = UsageHistory.AppSlot(hour: 1, session: 10, generation: 0)
+            let a = socket(51_000, counts: bytes)
+            let b = socket(51_001, counts: bytes)
+            _ = tracker.update([.init(sockets: [a, b], source: source)], slot: slot, now: midnight)
+            let ended = tracker.update([], slot: nil, now: midnight + 1)
+            let records = [close(51_000, owner: "com.example.first", at: midnight + 0.0353, duration: 0.018)!,
+                           close(51_001, owner: "com.example.second", at: midnight + 0.2, duration: 0.19)!]
+            Check.expectEqual(ended.count, 2)
+            for socket in ended {
+                Check.expectEqual(BackgroundDownloads.owner(for: socket, in: records),
+                                  socket.key.localPort == 51_000 ? "com.example.first" : "com.example.second")
+            }
+            // The two earlier captures: +24.7 and +29.5 ms.
+            let first = ended.first { $0.key.localPort == 51_000 }
+            for delay in [0.0247, 0.0295] {
+                Check.expectEqual(first.flatMap {
+                    BackgroundDownloads.owner(for: $0, in: [
+                        close(51_000, owner: "com.example.late", at: midnight + delay + 0.1, duration: 0.1)!])
+                }, "com.example.late")
+            }
+        }
+
+        Check.test("a socket key reused by another app inside the slack leaves the bytes under the daemon (#785)") {
+            var tracker = BackgroundDownloads()
+            let slot = UsageHistory.AppSlot(hour: 1, session: 10, generation: 0)
+            _ = tracker.update([.init(sockets: [socket(51_000, counts: bytes)], source: source)], slot: slot, now: midnight)
+            let ended = tracker.update([], slot: nil, now: midnight + 1)
+            guard let socket = ended.first else { return Check.expectTrue(false, "no closed socket") }
+            // One app's connection ends just after the sample, and another's
+            // on the same addresses and ports starts 30 ms after it.
+            let earlier = close(51_000, owner: "com.example.earlier", at: midnight + 0.02, duration: 5)!
+            let later = close(51_000, owner: "com.example.later", at: midnight + 0.5, duration: 0.47)!
+            Check.expectNil(BackgroundDownloads.owner(for: socket, in: [earlier, later]))
+            Check.expectEqual(BackgroundDownloads.owner(for: socket, in: [later]), "com.example.later")
+            Check.expectEqual(BackgroundDownloads.owner(for: socket, in: [earlier]), "com.example.earlier")
+            // Past the slack, a later connection is a different socket.
+            Check.expectNil(BackgroundDownloads.owner(for: socket, in: [
+                close(51_000, owner: "com.example.later", at: midnight + 0.8, duration: 0.5)!]))
+            Check.expectNil(BackgroundDownloads.owner(for: socket, in: [
+                close(51_000, owner: "com.example.later", at: midnight + 0.5, duration: 0.35)!]))
+        }
+
         Check.test("a QUIC request that ran over TCP is matched as TCP, as nettop shows it") {
             // A background download's close on macOS 27.2, in a VM (#767).
             let report = BackgroundDownloads.CloseRecord.parse(pid: 446, time: midnight, message: """
