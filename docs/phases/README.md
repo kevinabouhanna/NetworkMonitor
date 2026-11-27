@@ -12,12 +12,16 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 5.06 | #794 Release 1.35.0: a beta first, with #754's switch | [Phase 5: Releases people check first](05-releases.md) |
+| 5.6 | #812 Live: no Today/Week/Month on it, one graph, and Live in the main window | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.61 | #809 Completed macOS upgrade stays under nsurlsessiond when the log names softwareupdated | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.62 | #799 Safari with Private Relay: measure it with the beta's switch, and decide | [Phase 1: Everyday polish](01-everyday-polish.md) |
 
 ## Next
 
 | Order | Plan | Phase |
 |---|---|---|
+| 5.65 | #807 Add Light, Dark and System appearance to the Dock Speeds icon | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.66 | #808 Add a refresh interval slider for live speeds | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.7 | #738 Research: does the app count a virtual machine's data, connections and ads? | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 6 | #257 A NetworkMonitor extension for Chrome: in-page ads, pop-ups and YouTube ads, with the app's lists and rules | [Phase 3: The Chrome extension](03-chrome-extension.md) |
 
