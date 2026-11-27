@@ -8,7 +8,7 @@ English · [简体中文](zh-Hans/speed-test.md)
 </p>
 
 Click **Test Speed** in the popover's **Live** view (in **Network** while Live is hidden), choose **Test Internet Speed** from
-the right-click menu, or click **Test Now** on the **Network** page of the main window. It
+the right-click menu, or click **Test Now** on the **Live** page of the main window (⌘L). It
 tests the connection you're on. NetworkMonitor runs `networkQuality`, the speed
 test Apple ships with every Mac since Monterey, against Apple's nearest servers.
 
@@ -61,7 +61,7 @@ A test uses real data, typically **50–500 MB**, more on a very fast line. So:
 ## How it's built
 
 **The engine** is `/usr/bin/networkQuality`. If a Mac doesn't have it, the speed test is
-left out of the popover, the Network page and the menu. Other engines were considered and turned
+left out of the popover, the Live page and the menu. Other engines were considered and turned
 down:
 
 | Option | Why not |

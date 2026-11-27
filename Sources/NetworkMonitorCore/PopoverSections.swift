@@ -65,7 +65,7 @@ extension PopoverMetrics {
 }
 
 /// The four buttons across the header: the number that matters, and what it
-/// is. The first three cover the period chosen above them (#449); Network is
+/// is. The first three cover the period chosen in their views (#449, #812); Network is
 /// about now.
 struct PopoverButtons: View {
     @Binding var selection: PopoverSection

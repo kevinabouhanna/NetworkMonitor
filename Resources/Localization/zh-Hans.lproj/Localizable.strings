@@ -1139,3 +1139,11 @@
 "Asks Cloudflare's 1.1.1.1 for the address websites see, once on each network you join, and never on a hotspot, a metered connection or in Low Data Mode. It learns that address, as every website does, and nothing else. The country and provider come from the data already in the app." = "向 Cloudflare 的 1.1.1.1 询问网站看到的地址，每加入一个网络询问一次，使用热点、按流量计费的连接或低数据模式时从不询问。它和每个网站一样只会知道这个地址，不会知道其他任何信息。国家或地区和网络服务商来自应用中已有的数据。";
 "Internet address" = "互联网地址";
 "This Mac's own address on the network is always shown: it's read from the Mac and sends nothing." = "这台 Mac 在网络上的地址始终显示：它从 Mac 本身读取，不会发送任何内容。";
+
+/* The main window's Live page, and the popover's ⊞ on Live (#812). */
+"Open Live (⌘L)" = "打开“实时”（⌘L）";
+"Download now" = "当前下载";
+"Upload now" = "当前上传";
+"Fastest in the graph" = "图表中的最快速度";
+"%@ ago" = "%@前";
+"Now" = "现在";

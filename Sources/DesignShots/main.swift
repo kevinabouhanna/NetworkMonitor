@@ -431,6 +431,21 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
         show(popover, appearance: appearance, settle: 0.8)
         save(popover, prefix + "popover-\(section.rawValue)", appearance: appearance)
     }
+    // Live and Data in another pair of speed colours (#812): the line's
+    // highlight and graphs follow the colours chosen, never a fixed green.
+    for (name, section) in [("popover-live-gold", PopoverSection.live), ("popover-today-gold", .today)]
+    where wanted(prefix + name) {
+        let colors = world.model.menuBarColors
+        let before = colors.live
+        if let gold = MenuBarColors.presets.first(where: { $0.id == "gold" }) { colors.choose(gold) }
+        world.model.popoverSection = section
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        popover.setContentSize(host.view.fittingSize)
+        show(popover, appearance: appearance, settle: 0.8)
+        save(popover, prefix + name, appearance: appearance)
+        colors.download = before.down
+        colors.upload = before.up
+    }
     // Companies and Ads blocked with their first row open (#436).
     let glance = world.model.glance
     for (section, id) in [(PopoverSection.companies, glance.groups.first?.item.id),
@@ -629,6 +644,9 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     world.ads.tab = .rules
     shoot("ads-rules", settle: 2)
     world.ads.tab = .overview
+    // Live, first in the sidebar (#812).
+    main.show(.live)
+    shoot("live", settle: 1.5)
     main.show(.network)
     shoot("network")
     main.show(.settings)

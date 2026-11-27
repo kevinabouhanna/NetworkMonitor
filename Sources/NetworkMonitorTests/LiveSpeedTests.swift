@@ -57,6 +57,32 @@ func runLiveSpeedTests() {
             Check.expectTrue(live.apps.isEmpty, "a minute without an app sample")
         }
 
+        Check.test("the window's list keeps an app that went quiet for a few seconds, at nothing (#812)") {
+            let live = LiveSpeed()
+            let start = Date(timeIntervalSince1970: 1_000_000)
+            live.recordApps([("safari", "Safari", nil, 1, 1), ("music", "Music", nil, 1, 1)], at: start)
+            live.recordApps([("safari", "Safari", nil, 9_000, 0), ("music", "Music", nil, 2_000, 0)], at: start + 1)
+            live.recordApps([("safari", "Safari", nil, 9_000, 0)], at: start + 2)
+            Check.expectEqual(live.apps.map(\.id), ["safari"])
+            Check.expectEqual(live.recentApps.map(\.id), ["safari", "music"])
+            Check.expectEqual(live.recentApps.last?.total, 0)
+            live.recordApps([("safari", "Safari", nil, 9_000, 0)], at: start + 1 + LiveSpeed.lingers + 1)
+            Check.expectEqual(live.recentApps.map(\.id), ["safari"], "gone once it has been quiet a while")
+            live.recordApps([], at: start + 120)
+            Check.expectTrue(live.recentApps.isEmpty, "a long gap clears it too")
+        }
+
+        Check.test("the window's Live page redraws the graph while it's shown (#812)") {
+            let model = MonitorViewModel()
+            model.setLiveShownInWindow(true)
+            Check.expectTrue(model.live.isWatched)
+            model.setPopoverOpen(true)
+            model.setPopoverOpen(false)
+            Check.expectTrue(model.live.isWatched, "closing the popover leaves the window's page watching")
+            model.setLiveShownInWindow(false)
+            Check.expectFalse(model.live.isWatched)
+        }
+
         Check.test("a skipped sample still starts the next one's interval") {
             let live = LiveSpeed()
             let start = Date(timeIntervalSince1970: 1_000_000)

@@ -87,7 +87,8 @@ public final class LiveSpeed: ObservableObject {
     @Published public var span: LiveSpan {
         didSet { defaults?.set(span.rawValue, forKey: Self.spanKey) }
     }
-    /// Set while the popover is open; a change is told then only.
+    /// Set while the popover or the window's Live page is open; a change is
+    /// told then only.
     public var isWatched = false {
         didSet { if isWatched && !oldValue { objectWillChange.send() } }
     }
@@ -95,6 +96,10 @@ public final class LiveSpeed: ObservableObject {
     static let spanKey = "popoverLiveSpan"
     private let defaults: UserDefaults?
     private var lastAppSample: Date?
+    /// When each app last moved data, and its last rates: what the window's
+    /// list keeps for a moment after it goes quiet.
+    private var lastMoving: [String: (app: LiveApp, at: Date)] = [:]
+    private var lastAppDate: Date?
 
     public init(defaults: UserDefaults? = nil) {
         self.defaults = defaults
@@ -110,8 +115,10 @@ public final class LiveSpeed: ObservableObject {
         if isWatched { objectWillChange.send() }
         // No app sample for a while (nettop stopped, or only the last
         // network's came in): the list no longer says what's moving now.
-        if !apps.isEmpty, lastAppSample.map({ now.timeIntervalSince($0) > Self.longestAppGap }) ?? true {
+        if !apps.isEmpty || !lastMoving.isEmpty,
+           lastAppSample.map({ now.timeIntervalSince($0) > Self.longestAppGap }) ?? true {
             apps = []
+            lastMoving = [:]
         }
         let sample = LiveSample(time: time, down: max(down, 0), up: max(up, 0))
         if let last = samples.last {
@@ -141,6 +148,7 @@ public final class LiveSpeed: ObservableObject {
         if isWatched { objectWillChange.send() }
         guard elapsed > 0, elapsed <= Self.longestAppGap else {
             apps = []
+            lastMoving = [:]
             return
         }
         apps = entries
@@ -148,6 +156,25 @@ public final class LiveSpeed: ObservableObject {
             .map { LiveApp(id: $0.id, name: $0.name, bundlePath: $0.bundlePath,
                            down: Double($0.bytesIn) / elapsed, up: Double($0.bytesOut) / elapsed) }
             .sorted { $0.total != $1.total ? $0.total > $1.total : $0.name < $1.name }
+        for app in apps { lastMoving[app.id] = (app, date) }
+        lastMoving = lastMoving.filter { date.timeIntervalSince($0.value.at) <= Self.lingers }
+        lastAppDate = date
+    }
+
+    /// How long the window's list keeps an app that has gone quiet (#812), at
+    /// nothing, so its rows don't come and go with every pause.
+    public static let lingers: TimeInterval = 5
+
+    /// The apps moving data now, then the ones that were a moment ago, at
+    /// nothing, for the main window's Live page (#812).
+    public var recentApps: [LiveApp] {
+        guard let now = lastAppDate, !apps.isEmpty || !lastMoving.isEmpty else { return apps }
+        let moving = Set(apps.map(\.id))
+        let quiet = lastMoving.values
+            .filter { !moving.contains($0.app.id) && now.timeIntervalSince($0.at) <= Self.lingers }
+            .map { LiveApp(id: $0.app.id, name: $0.app.name, bundlePath: $0.app.bundlePath, down: 0, up: 0) }
+            .sorted { $0.name < $1.name }
+        return apps + quiet
     }
 
     /// A sample whose apps aren't this network's: only its time counts.

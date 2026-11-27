@@ -2,21 +2,23 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// The main window's sections (#436), in the popover's order: Usage History
-/// (Today), Connections (Companies), Ads and Trackers (Ads blocked) and
-/// Network, which holds the connection, hotspots and the speed test.
+/// The main window's sections (#436), in the popover's order: Live (#812),
+/// the speeds now, the apps moving data and the speed test; Usage History
+/// (Data), Connections, Ads and Trackers (Ads blocked) and Network, which
+/// holds the connection and hotspots.
 /// Then Settings, pinned to the bottom of the sidebar: what applies to the
 /// whole app, and a way to each section's own settings.
 public enum MainSection: String, CaseIterable, Identifiable {
-    case history, connections, ads, network, settings
+    case live, history, connections, ads, network, settings
 
-    /// The four that show what happened, with settings of their own.
-    public static var features: [MainSection] { [.history, .connections, .ads, .network] }
+    /// The five that show what happens, with settings of their own.
+    public static var features: [MainSection] { [.live, .history, .connections, .ads, .network] }
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
+        case .live:        return L("Live")
         case .history:     return L("Usage History")
         case .connections: return L("Connections")
         case .ads:         return L("Ads and Trackers")
@@ -25,9 +27,12 @@ public enum MainSection: String, CaseIterable, Identifiable {
         }
     }
 
-    /// The section's colour, as its figure in the popover (#436).
+    /// The section's colour, as its figure in the popover (#436). Live's is
+    /// the download colour chosen in Settings › Speed colors, which the
+    /// sidebar passes in; this is the default's.
     var color: Color {
         switch self {
+        case .live:        return LiveTints.down(MenuBarTints.live)
         case .history:     return AppPalette.data
         case .connections: return AppPalette.connections
         case .ads:         return AppPalette.blocked
@@ -38,6 +43,7 @@ public enum MainSection: String, CaseIterable, Identifiable {
 
     public var symbol: String {
         switch self {
+        case .live:        return "waveform.path.ecg"
         case .history:     return "chart.bar.xaxis"
         case .connections: return "globe"
         case .ads:         return "shield.lefthalf.filled"
@@ -73,6 +79,11 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
     public let ads: AdsWindowController
     private let network: NSViewController
     private let networkToolbar = NSToolbar(identifier: "Main.network")
+    /// Live (#812): the speeds now, the apps and the speed test.
+    private let live: NSViewController
+    private let liveToolbar = NSToolbar(identifier: "Main.live")
+    /// Live's graph and apps redraw only while someone can see them.
+    private let onLiveShown: (Bool) -> Void
     private let generalToolbar = NSToolbar(identifier: "Main.general")
     private var general: NSViewController!
     /// Where a section's settings go back to: the section, or Settings when
@@ -111,6 +122,13 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                                                                     filter: model.filter).localizedRoot())
         networkHost.sizingOptions = []
         network = networkHost
+        let liveHost = NSHostingController(rootView: LivePageView(live: model.live, colors: model.menuBarColors,
+                                                                  speedTest: model.speedTest,
+                                                                  icon: model.icon(forApp:name:bundlePath:))
+            .localizedRoot())
+        liveHost.sizingOptions = []
+        live = liveHost
+        onLiveShown = { [weak model] in model?.setLiveShownInWindow($0) }
         let mainWindow = MainWindow(contentRect: NSRect(x: 0, y: 0, width: 1300, height: 800),
                                     styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                                     backing: .buffered, defer: false)
@@ -135,10 +153,16 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                                                blocklists: model.blocklists,
                                                listBlocks: model.listBlocks, onOpenAds: { go(.ads) },
                                                onShowRules: { go(.ads); adsModel.tab = .rules }))
+            case .live:
+                // How the popover shows the speed test, which runs in Live
+                // (#812).
+                view = AnyView(SpeedTestStylePane(speedTest: model.speedTest, addresses: model.addresses,
+                                                  part: .speedTest))
             case .network, .settings:
                 // Hotspots are on the Network page itself (#436): what's
-                // left to set is how the popover shows the speed test.
-                view = AnyView(SpeedTestStylePane(speedTest: model.speedTest, addresses: model.addresses))
+                // left to set is whether the internet address is looked up.
+                view = AnyView(SpeedTestStylePane(speedTest: model.speedTest, addresses: model.addresses,
+                                                  part: .address))
             }
             let host = NSHostingController(rootView: MainSettingsPage(content: view, width: width).localizedRoot())
             host.sizingOptions = []
@@ -158,6 +182,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         general = generalHost
 
         let sidebar = NSHostingController(rootView: MainSidebar(navigation: navigation, updates: model.updates,
+                                                                colors: model.menuBarColors,
                                                                 onSelect: { [weak self] in self?.show($0) })
             .localizedRoot())
         // The update card mustn't make the window taller (#710).
@@ -179,7 +204,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         window.toolbarStyle = .unified
         window.setFrameAutosaveName("Main")
 
-        for toolbar in [networkToolbar, settingsToolbar, generalToolbar] {
+        for toolbar in [liveToolbar, networkToolbar, settingsToolbar, generalToolbar] {
             toolbar.delegate = self
             toolbar.displayMode = .iconOnly
             toolbar.allowsUserCustomization = false
@@ -258,7 +283,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         case .history:     history.search.begin()
         case .connections: connections.search.begin()
         case .ads:         ads.search.begin()
-        case .network, .settings: break
+        case .live, .network, .settings: break
         }
     }
 
@@ -317,6 +342,9 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
     private func place(_ section: MainSection) {
         navigation.section = section
         switch section {
+        case .live:
+            container.show(live)
+            use(liveToolbar)
         case .history:
             container.show(history.content)
             use(history.toolbar)
@@ -366,6 +394,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         case .history:     history.windowDidShow(fresh: fresh)
         case .connections: connections.windowDidShow(fresh: fresh); updateVisibility()
         case .ads:         ads.windowDidShow(fresh: fresh)
+        case .live:        onLiveShown(true)
         case .network, .settings: break
         }
     }
@@ -375,6 +404,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         case .history:     history.windowWillClose()
         case .connections: connections.windowWillClose()
         case .ads:         ads.windowWillClose()
+        case .live:        onLiveShown(false)
         case .network, .settings, .none: break
         }
     }
@@ -384,7 +414,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         case .history:     historyModel.refreshToday()
         case .ads:         adsModel.reloadToday(); glance.refresh()
         case .connections: glance.refresh()
-        case .network, .settings: break
+        case .live, .network, .settings: break
         }
     }
 
@@ -402,7 +432,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
     @objc private func goBack() { closeSettings() }
     @objc private func openSettings() { showSettings() }
 
-    // MARK: NSToolbarDelegate (Network and the settings pages)
+    // MARK: NSToolbarDelegate (Live, Network and the settings pages)
 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         if toolbar === settingsToolbar { return Self.sidebarItems + [Self.backItem, .flexibleSpace] }
@@ -430,7 +460,8 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
             return item
         case SettingsGear.identifier:
             return SettingsGear.item(target: self, action: #selector(openSettings),
-                                     help: L("Settings for the speed test"))
+                                     help: toolbar === liveToolbar ? L("Settings for the speed test")
+                                                                   : L("%@ Settings", L("Network")))
         default:
             return nil
         }
@@ -505,6 +536,8 @@ final class MainContainerController: NSViewController {
 struct MainSidebar: View {
     @ObservedObject var navigation: MainNavigation
     @ObservedObject var updates: UpdateController
+    /// Live's icon is in the download colour chosen (#812).
+    @ObservedObject var colors: MenuBarColors
     let onSelect: (MainSection) -> Void
 
     /// Not `@State`; see `SettingsPaneState`. A property wrapper, not a macro.
@@ -587,7 +620,7 @@ struct MainSidebar: View {
             HStack(spacing: 9) {
                 Image(systemName: section.symbol)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(section.color)
+                    .foregroundStyle(section == .live ? LiveTints.down(colors) : section.color)
                     .frame(width: 20)
                     .accessibilityHidden(true)
                 Text(section.title)
@@ -715,6 +748,7 @@ enum MainMetrics {
     static func minWidth(_ section: MainSection, sidebar shown: Bool = true) -> CGFloat {
         let sidebar = shown ? sidebarWidth : 0
         switch section {
+        case .live:        return sidebar + LivePageMetrics.minWidth
         case .connections: return sidebar + ConnectionsMetrics.minWidth
         case .ads:         return sidebar + AdsMetrics.minWidth
         case .history:     return sidebar + HistoryMetrics.windowMinWidth
@@ -727,8 +761,8 @@ enum MainMetrics {
 // MARK: - Network
 
 /// Network (#436): the connection the Mac is on, a switch to say it's a
-/// hotspot (detection can miss a phone), what's paused on hotspots, and the
-/// speed test for this connection. Hotspots are here rather than behind the
+/// hotspot (detection can miss a phone) and what's paused on hotspots. The
+/// speed test moved to Live (#812). Hotspots are here rather than behind the
 /// gear: they're what this page is about. Read from the leading edge, as
 /// every section is.
 struct NetworkView: View {
@@ -786,18 +820,6 @@ struct NetworkView: View {
                 }
                 .settingsForm()
                 HotspotSettingsPane(metering: metering, state: state, filter: filter)
-                Form {
-                    if SpeedTestRunner.isAvailable {
-                        Section {
-                            SpeedTestPanel(speedTest: speedTest)
-                        } header: {
-                            Text(L("Speed test"))
-                        } footer: {
-                            SettingsFootnote(L("Runs macOS's built-in networkQuality, only when you start it: download first, then upload. Every run measures afresh, so it uses data each time — typically 50–500 MB, more on a very fast line. Speeds use the unit chosen in General."))
-                        }
-                    }
-                }
-                .settingsForm()
             }
             .padding(.vertical, 20)
             .frame(maxWidth: SettingsMetrics.paneWidth, alignment: .leading)
