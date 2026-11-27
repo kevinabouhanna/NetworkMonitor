@@ -12,13 +12,13 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   (25 Nov 2026): the total probably has it, the app rows may not, and Connections and ad blocking
   are unchecked. It's measured in a VM, then decided: the docs only, a row for it, or a fix. After
   the update settings (#710), before the Chrome extension (#257), which is weeks of work.
-- **Safari's downloads over Private Relay count for Safari in Usage History** (#817), Now: with
-  Relay on, nettop sees none of Safari's traffic (#754, reported by defragekb). The content
-  filter's received-byte counts fill the gap: per app and hour, only what it counted beyond
-  nettop, out of the bytes nobody claimed, so the total never changes. Downloads only, with the
-  filter on; sent bytes stay as they are. First defragekb's opt-in trial (#815) in a beta
-  (#818), then on by default once their signed run and the CPU cost bear it out, with the docs
-  saying what's left out.
+- **Safari's downloads over Private Relay count for everyone with the content filter on**
+  (#821), Now: with Relay on, nettop sees none of Safari's traffic (#754, reported by
+  defragekb). The content filter's received-byte counts fill the gap: per app and hour, only
+  what it counted beyond nettop, out of the bytes nobody claimed, so the total never changes.
+  Downloads only; sent bytes stay as they are. The trial is in 1.35.0 beta 5 behind a hidden
+  switch; it's on for everyone once defragekb's signed run and the CPU cost bear it out, with
+  the docs saying what's left out.
 - **A finished macOS upgrade counts for Software Update** (#809), Now, a bug reported by
   defragekb: 17.8 GB stayed under `nsurlsessiond` because the log names its client
   `softwareupdated`, not a bundle identifier, which the owner lookup of #767 doesn't read.
@@ -47,6 +47,8 @@ defragekb's ask for what they open iStat Menus to see):
   with the filter, and the CPU cost is too small to measure in short runs. Its sent bytes
   don't hold: macOS adds a buffer's free space, not what's in it, and reading every sent packet
   (#816) costs too much, so uploads stay as they are. The build is #817.
+- **The Private Relay download trial** (#817, #818): defragekb's #815, with review fixes, in
+  1.35.0 beta 5, off unless switched on by hand. Turning it on for everyone is #821.
 
 Done on 26 Nov 2026, released in 1.34.0 the same day (#778):
 
