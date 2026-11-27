@@ -70,7 +70,7 @@ struct ConnectionsSettingsPane: View {
                 SettingsFootnote(L("Everything is named on this Mac: nothing is looked up online. Once a month, NetworkMonitor downloads DB-IP's new data from GitHub, the same file for everyone, never on a hotspot. %@, CC BY 4.0.", GeoDataUpdater.credit))
             }
         }
-        .formStyle(.grouped)
+        .settingsForm()
     }
 
     private var statusTitle: String {

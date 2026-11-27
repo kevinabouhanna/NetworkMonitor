@@ -7,6 +7,13 @@ import SwiftUI
 /// ones that were a moment ago, and the speed test, which moved here from
 /// Network as it did in the popover. Its colours are the ones chosen in
 /// Settings › Speed colors.
+///
+/// Across the window's whole width (#825). With room, in two columns under
+/// the graph: the apps list fills the left and the window's height,
+/// scrolling inside itself, and the speed test has a column of its own on
+/// the right. Narrower, the test goes under the list, which keeps a fixed
+/// height of eight rows. Either way the test stays where it is however many
+/// apps come and go.
 struct LivePageView: View {
     @ObservedObject var live: LiveSpeed
     @ObservedObject var colors: MenuBarColors
@@ -14,32 +21,82 @@ struct LivePageView: View {
     let icon: (String, String, String?) -> NSImage
 
     var body: some View {
+        GeometryReader { proxy in
+            if LivePageMetrics.hasColumns(width: proxy.size.width) {
+                columns
+            } else {
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        top
+                        VStack(alignment: .leading, spacing: 0) {
+                            appsHeader
+                            ScrollView(.vertical) { appRows }
+                                .frame(height: LivePageMetrics.listHeight, alignment: .top)
+                        }
+                        if SpeedTestRunner.isAvailable { test(stacked: false) }
+                    }
+                    .padding(20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+
+    /// The list on the left, filling the height, and the test beside it.
+    private var columns: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            top
+            HStack(alignment: .top, spacing: 24) {
+                VStack(alignment: .leading, spacing: 0) {
+                    appsHeader
+                    ScrollView(.vertical) { appRows }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                if SpeedTestRunner.isAvailable {
+                    // Its own scroll, for a short window while a test runs.
+                    ScrollView(.vertical) { test(stacked: true) }
+                        .frame(width: LivePageMetrics.testColumnWidth)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                }
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// The figures, the span's switch and the graph, across the whole width.
+    @ViewBuilder
+    private var top: some View {
         let down = LiveTints.down(colors), up = LiveTints.up(colors)
         let now = live.latest?.time ?? 0
         let samples = live.samples(in: live.span, now: now)
         let peak = samples.map { max($0.down, $0.up) }.max() ?? 0
         let scale = LiveSpeed.scale(peak: peak, unit: speedTest.unit)
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(alignment: .top, spacing: 28) {
-                    figure("↓ " + rate(live.latest?.down), spoken: spoken(live.latest?.down),
-                           caption: L("Download now"), color: down)
-                    figure("↑ " + rate(live.latest?.up), spoken: spoken(live.latest?.up),
-                           caption: L("Upload now"), color: up)
-                    figure(rate(peak), spoken: spoken(peak), caption: L("Fastest in the graph"), color: .primary,
-                           size: 18)
-                    Spacer(minLength: 8)
-                    PopoverSwitch(name: L("Graph"), options: LiveSpan.allCases, selection: $live.span,
-                                  label: { $0.label })
-                }
-                graph(samples: samples, now: now, scale: scale, down: down, up: up)
-                apps(down: down, up: up)
-                if SpeedTestRunner.isAvailable { test }
-            }
-            .padding(20)
-            .frame(maxWidth: LivePageMetrics.maxWidth, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        let figures = Group {
+            figure("↓ " + rate(live.latest?.down), spoken: spoken(live.latest?.down),
+                   caption: L("Download now"), color: down)
+            figure("↑ " + rate(live.latest?.up), spoken: spoken(live.latest?.up),
+                   caption: L("Upload now"), color: up)
+            figure(rate(peak), spoken: spoken(peak), caption: L("Fastest in the graph"), color: .primary,
+                   size: 18)
         }
+        let span = PopoverSwitch(name: L("Graph"), options: LiveSpan.allCases, selection: $live.span,
+                                 label: { $0.label })
+        // The switch beside the figures while they fit whole; under them,
+        // at the graph's right, on a narrow window (#825).
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 28) {
+                figures.fixedSize()
+                Spacer(minLength: 8)
+                span
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 28) { figures }
+                HStack { Spacer(); span }
+            }
+        }
+        graph(samples: samples, now: now, scale: scale, down: down, up: up)
     }
 
     private func rate(_ bytesPerSecond: Double?) -> String {
@@ -106,22 +163,28 @@ struct LivePageView: View {
         .accessibilityLabel(L("Graph of download and upload speeds, %@, up to %@", live.span.phrase, scale.label))
     }
 
+    /// The list's header, which stays put while its rows scroll.
+    private var appsHeader: some View {
+        HStack(spacing: 0) {
+            Text(L("Using the network now"))
+            Text("  " + (live.apps.count == 1 ? L("1 app now") : L("%@ apps now", String(live.apps.count))))
+                .foregroundStyle(.tertiary)
+            Spacer(minLength: 8)
+            Text(L("Download")).frame(width: LivePageMetrics.rateWidth, alignment: .trailing)
+            Text(L("Upload")).frame(width: LivePageMetrics.rateWidth, alignment: .trailing)
+        }
+        .font(.system(size: 11.5))
+        .foregroundStyle(.secondary)
+        .padding(.bottom, 6)
+        .padding(.trailing, 4)
+        .accessibilityHidden(true)
+    }
+
     @ViewBuilder
-    private func apps(down: Color, up: Color) -> some View {
+    private var appRows: some View {
+        let down = LiveTints.down(colors), up = LiveTints.up(colors)
         let rows = live.recentApps
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 0) {
-                Text(L("Using the network now"))
-                Text("  " + (live.apps.count == 1 ? L("1 app now") : L("%@ apps now", String(live.apps.count))))
-                    .foregroundStyle(.tertiary)
-                Spacer(minLength: 8)
-                Text(L("Download")).frame(width: LivePageMetrics.rateWidth, alignment: .trailing)
-                Text(L("Upload")).frame(width: LivePageMetrics.rateWidth, alignment: .trailing)
-            }
-            .font(.system(size: 11.5))
-            .foregroundStyle(.secondary)
-            .padding(.bottom, 6)
-            .accessibilityHidden(true)
             if rows.isEmpty {
                 Text(L("No app is using the network right now"))
                     .font(.system(size: 12))
@@ -156,15 +219,17 @@ struct LivePageView: View {
                 }
             }
         }
+        // Clear of the scroll bar, when it shows.
+        .padding(.trailing, 4)
     }
 
-    /// The speed test, as it was on the Network page.
-    private var test: some View {
+    /// The speed test, as it was on the Network page; stacked in its column.
+    private func test(stacked: Bool) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("Speed test"))
                 .font(.system(size: 13, weight: .semibold))
                 .accessibilityAddTraits(.isHeader)
-            SpeedTestPanel(speedTest: speedTest)
+            SpeedTestPanel(speedTest: speedTest, stacked: stacked)
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -174,12 +239,23 @@ struct LivePageView: View {
     }
 }
 
-enum LivePageMetrics {
-    static let maxWidth: CGFloat = 900
+public enum LivePageMetrics {
     static let graphHeight: CGFloat = 200
     static let rowHeight: CGFloat = 30
     static let rateWidth: CGFloat = 110
     /// The narrowest Live's content reads well at: its three figures and
     /// the switch in a row.
     static let minWidth: CGFloat = 600
+    /// The speed test's column (#825): the running test's card, 320, and
+    /// the panel's padding.
+    public static let testColumnWidth: CGFloat = 344
+    /// The list's height when the test is under it: eight rows, each with
+    /// the line above it.
+    static let listHeight: CGFloat = 8 * (rowHeight + 1)
+    /// The page's content width from which the test has a column of its
+    /// own (#825): the list keeps room for a name and both rates beside it.
+    public static let columnsFrom: CGFloat = 900
+
+    /// Whether a page this wide (its padding included) has two columns.
+    public static func hasColumns(width: CGFloat) -> Bool { width - 40 >= columnsFrom }
 }
