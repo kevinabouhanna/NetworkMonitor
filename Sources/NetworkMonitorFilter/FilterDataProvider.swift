@@ -37,14 +37,17 @@ final class FilterDataProvider: NEFilterDataProvider {
     /// off.
     override func handleNewFlow(_ flow: NEFilterFlow) -> NEFilterNewFlowVerdict {
         let verdict = decide(flow)
-        // Off unless switched on by hand (#786).
+        // Off unless switched on by hand: the probe's log (#786), or the
+        // download trial (#799). Either asks for statistics.
         return FlowBytesProbe.observe(flow, verdict: verdict)
     }
 
-    /// What macOS counted for a flow the probe watches (#786).
+    /// What macOS counted for a flow the probe watches (#786), or one whose
+    /// downloads the trial credits (#799).
     override func handle(_ report: NEFilterReport) {
         // macOS reports some closes unasked (a lookup's, whose answer is
-        // read): only while the probe is on are they logged.
+        // read): they're logged only while the probe is on, and credited
+        // only for flows the trial watches.
         FlowBytesProbe.handle(report)
     }
 

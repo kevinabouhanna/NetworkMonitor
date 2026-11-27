@@ -505,20 +505,20 @@ public final class UsageHistory {
         return receipt
     }
 
-    /// A whole report window must belong to the current visit and hour.
-    /// The arriving delta may otherwise belong to either side of a boundary.
+    /// A whole report window must belong to the current visit and to one
+    /// hour: the hour it was in, which may be the last one by the time it's
+    /// recorded. A window across a boundary may belong to either side.
     func recordFilterDownloads(_ reports: [FilterDownload], now: Date) {
         guard !reports.isEmpty, let current = open, current.network.kind != .offline,
               now.timeIntervalSince(current.lastSeen) < Self.sessionGap else { return }
-        let slot = Slot(hour: hourStart(now), session: current.id)
         for report in reports {
+            let slot = Slot(hour: hourStart(report.from), session: current.id)
             guard report.bytes > 0, report.from < report.through, report.through <= now,
-                  report.from >= current.start, hourStart(report.from) == slot.hour else { continue }
+                  report.from >= current.start,
+                  hourStart(report.through.addingTimeInterval(-0.001)) == slot.hour else { continue }
             let identity = pending.identities[report.appKey] ?? AppIdentityResolver.identity(forKey: report.appKey)
             pending.filterDownloads[slot, default: [:]][identity.key, default: 0] += report.bytes
             if pending.identities[identity.key] == nil { pending.identities[identity.key] = identity }
-        }
-        if pending.filterDownloads[slot] != nil {
             pending.filterSessionStarts[slot.session] = current.start.timeIntervalSince1970
         }
     }
@@ -1701,36 +1701,6 @@ public final class UsageHistory {
                 bytes_in INTEGER NOT NULL,
                 PRIMARY KEY (hour, session_id, app_key)
             ) WITHOUT ROWID;
-            CREATE VIEW IF NOT EXISTS download_credit AS
-                WITH needs AS (
-                    SELECT f.hour, f.session_id, f.app_key,
-                           f.bytes_in - COALESCE(a.bytes_in, 0) AS need,
-                           t.iface_in - t.local_in - t.app_in AS spare
-                    FROM filter_downloads f
-                    JOIN sessions s ON s.id = f.session_id AND s.started_at = f.session_start
-                    JOIN traffic t USING (hour, session_id)
-                    LEFT JOIN app_traffic a USING (hour, session_id, app_key)
-                    WHERE f.bytes_in > COALESCE(a.bytes_in, 0) AND t.iface_in - t.local_in > t.app_in
-                ), allocated AS (
-                    SELECT hour, session_id, app_key,
-                           MIN(need, spare - COALESCE(SUM(need) OVER (
-                               PARTITION BY hour, session_id ORDER BY app_key
-                               ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-                           ), 0)) AS bytes_in
-                    FROM needs
-                )
-                SELECT hour, session_id, app_key, bytes_in FROM allocated WHERE bytes_in > 0;
-            CREATE VIEW IF NOT EXISTS history_app_traffic AS
-                SELECT a.hour, a.session_id, a.app_key,
-                       a.bytes_in + COALESCE(c.bytes_in, 0) AS bytes_in, a.bytes_out
-                FROM app_traffic a LEFT JOIN download_credit c USING (hour, session_id, app_key)
-                UNION ALL
-                SELECT c.hour, c.session_id, c.app_key, c.bytes_in, 0
-                FROM download_credit c
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM app_traffic a WHERE a.hour = c.hour
-                        AND a.session_id = c.session_id AND a.app_key = c.app_key
-                );
             -- Connections (#115). Each app and server pair is stored once, so the
             -- hourly rows carry a small number instead of an app's path.
             CREATE TABLE IF NOT EXISTS servers (
@@ -1805,6 +1775,7 @@ public final class UsageHistory {
             "SELECT COUNT(*) FROM pragma_table_info('server_traffic') WHERE name = 'blocked'")) == 0 {
             try database.execute("ALTER TABLE server_traffic ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0")
         }
+        try makeCreditViews(database)
         try renameTools(database)
         // Once: rows of copies of one app, stored apart before #663.
         // A fold that fails leaves the history as it was, to try again next
@@ -1873,6 +1844,17 @@ public final class UsageHistory {
             """).run(keys)
         try database.prepare("DELETE FROM app_traffic WHERE app_key = ?1").run([.text(old)])
 
+        // The filter's counts (#799), added together within one visit.
+        try database.prepare("""
+            INSERT INTO filter_downloads (hour, session_id, app_key, session_start, bytes_in)
+            SELECT hour, session_id, ?2, session_start, bytes_in FROM filter_downloads WHERE app_key = ?1
+            ON CONFLICT(hour, session_id, app_key) DO UPDATE SET
+                bytes_in = CASE WHEN session_start = excluded.session_start
+                               THEN bytes_in + excluded.bytes_in ELSE excluded.bytes_in END,
+                session_start = excluded.session_start
+            """).run(keys)
+        try database.prepare("DELETE FROM filter_downloads WHERE app_key = ?1").run([.text(old)])
+
         try database.prepare("""
             INSERT INTO list_blocks (hour, session_id, app_key, name, list, count)
             SELECT hour, session_id, ?2, name, list, count FROM list_blocks WHERE app_key = ?1
@@ -1923,6 +1905,63 @@ public final class UsageHistory {
     /// one exists (#385): Claude Code as "2.1.319". A program seen again is
     /// renamed as it's written, but one from an earlier version, or a program
     /// gone since, would keep the old name in its history.
+    /// #799's credit, worked out when Usage History is read, so a later
+    /// nettop sample can replace an earlier credit. Each view is made again
+    /// only when its definition here differs from the file's, so a fix
+    /// reaches every file and an ordinary open changes nothing.
+    static let creditViews: [(name: String, sql: String)] = [
+        ("download_credit", """
+            CREATE VIEW download_credit AS
+                WITH needs AS (
+                    SELECT f.hour, f.session_id, f.app_key,
+                           f.bytes_in - COALESCE(a.bytes_in, 0) AS need,
+                           t.iface_in - t.local_in - t.app_in AS spare
+                    FROM filter_downloads f
+                    JOIN sessions s ON s.id = f.session_id AND s.started_at = f.session_start
+                    JOIN traffic t USING (hour, session_id)
+                    LEFT JOIN app_traffic a USING (hour, session_id, app_key)
+                    WHERE f.bytes_in > COALESCE(a.bytes_in, 0) AND t.iface_in - t.local_in > t.app_in
+                ), allocated AS (
+                    SELECT hour, session_id, app_key,
+                           MIN(need, spare - COALESCE(SUM(need) OVER (
+                               PARTITION BY hour, session_id ORDER BY app_key
+                               ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+                           ), 0)) AS bytes_in
+                    FROM needs
+                )
+                SELECT hour, session_id, app_key, bytes_in FROM allocated WHERE bytes_in > 0
+            """),
+        ("history_app_traffic", """
+            CREATE VIEW history_app_traffic AS
+                SELECT a.hour, a.session_id, a.app_key,
+                       a.bytes_in + COALESCE(c.bytes_in, 0) AS bytes_in, a.bytes_out
+                FROM app_traffic a LEFT JOIN download_credit c USING (hour, session_id, app_key)
+                UNION ALL
+                SELECT c.hour, c.session_id, c.app_key, c.bytes_in, 0
+                FROM download_credit c
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM app_traffic a WHERE a.hour = c.hour
+                        AND a.session_id = c.session_id AND a.app_key = c.app_key
+                )
+            """),
+    ]
+
+    static func makeCreditViews(_ database: SQLiteDatabase) throws {
+        func stored(_ name: String) throws -> String? {
+            let query = try database.prepare("SELECT sql FROM sqlite_master WHERE type = 'view' AND name = ?1")
+            query.bind([.text(name)])
+            return try query.step() ? query.string(0) : nil
+        }
+        var stale = false
+        for view in creditViews where try stored(view.name) != view.sql { stale = true }
+        guard stale else { return }
+        // The one built on the other goes first, and comes back last.
+        try database.transaction {
+            for view in creditViews.reversed() { try database.execute("DROP VIEW IF EXISTS \(view.name)") }
+            for view in creditViews { try database.execute(view.sql) }
+        }
+    }
+
     static func renameTools(_ database: SQLiteDatabase) throws {
         let query = try database.prepare("SELECT key, name FROM apps WHERE bundle_path IS NULL")
         var renames: [(key: String, name: String)] = []

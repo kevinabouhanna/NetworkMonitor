@@ -19,7 +19,12 @@ enum FlowBytesProbe {
     }
 
     private static var watched: [UUID: Watch] = [:]
+    /// How long a flow stays watched without a report. One whose bytes are
+    /// credited (#799) keeps reporting while it's open and leaves at its
+    /// close, so it stays far longer: only a flow that was dropped, and so
+    /// never closes, outlives it.
     private static let keep: TimeInterval = 120
+    private static let keepCredited: TimeInterval = 30 * 60
     private static let limit = 4_096
     private static var full = false
     private static var nextPrune = Date.distantPast
@@ -37,7 +42,9 @@ enum FlowBytesProbe {
         lock.lock()
         if watched.count >= limit / 2, now >= nextPrune {
             nextPrune = now.addingTimeInterval(5)
-            watched = watched.filter { now.timeIntervalSince($0.value.through) < keep }
+            watched = watched.filter {
+                now.timeIntervalSince($0.value.through) < ($0.value.owner == nil ? keep : keepCredited)
+            }
         }
         guard watched.count < limit else {
             let first = !full

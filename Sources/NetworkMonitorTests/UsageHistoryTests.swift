@@ -108,6 +108,42 @@ func runUsageHistoryTests() {
             Check.expectEqual(history.report(for: period, filter: HistoryFilter(networkID: "B")).apps.first?.bytesIn, 500)
             Check.expectEqual(history.report(for: period).bytesIn, 3_000)
         }
+
+        // A report waits a nettop interval before it's recorded, so the last
+        // seconds of an hour arrive once the next has begun.
+        Check.test("a report recorded after the hour turns counts in its own hour") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            let hour = cal.dateInterval(of: .hour, for: reference)!.end
+            history.join(network("A"), label: "A", switched: false, now: hour - 10)
+            history.recordInterface(bytesIn: 1_000, bytesOut: 0, now: hour - 1)
+            history.recordInterface(bytesIn: 100, bytesOut: 0, now: hour + 2)
+            history.recordFilterDownloads([received(browser, 400, hour - 5, hour - 1)], now: hour + 3)
+            let period = day(hour, cal)
+            // In the hour after, only 100 bytes were left to credit.
+            Check.expectEqual(history.report(for: period, filter: HistoryFilter(appKey: browser.key)).bytesIn, 400)
+            Check.expectEqual(history.report(for: period).bytesIn, 1_100)
+        }
+
+        Check.test("a file with an older credit view gets the current one") {
+            let url = temporaryURL(); defer { remove(url) }
+            _ = UsageHistory(databaseURL: url, calendar: calendar())
+            let database = try? SQLiteDatabase(url: url)
+            Check.expectNotNil(database)
+            guard let database else { return }
+            try? database.execute("""
+                DROP VIEW history_app_traffic; DROP VIEW download_credit;
+                CREATE VIEW download_credit AS SELECT 0 AS hour, 0 AS session_id, '' AS app_key, 0 AS bytes_in;
+                CREATE VIEW history_app_traffic AS SELECT hour, session_id, app_key, bytes_in, bytes_out FROM app_traffic;
+                """)
+            Check.expectNotNil(try? UsageHistory.makeCreditViews(database))
+            for view in UsageHistory.creditViews {
+                let query = try? database.prepare("SELECT sql FROM sqlite_master WHERE name = ?1")
+                query?.bind([.text(view.name)])
+                Check.expectEqual((try? query?.step()) == true ? query?.string(0) : nil, view.sql)
+            }
+        }
     }
 
     Check.suite("UsageHistory — recording") {
