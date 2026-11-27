@@ -201,6 +201,8 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
         }
         self.driver = driver
         follow(updater)
+        // A check skipped on a hotspot before the app last quit (#810).
+        meteringDidChange(isMetered: isMetered())
         switch Self.launchArgument("checkForUpdatesNow") {
         case "YES":
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.checkForUpdates() }
@@ -430,8 +432,37 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
     /// Nothing of its own accord on a hotspot. Public for the tests.
     public func refuseOnHotspot(_ updateCheck: SPUUpdateCheck) throws {
         guard updateCheck == .updatesInBackground, isMetered() else { return }
+        refusedWhileMetered = true
         throw NSError(domain: "com.kevinabouhanna.NetworkMonitor", code: 1,
                       userInfo: [NSLocalizedDescriptionKey: L("On a metered connection: the check waits.")])
+    }
+
+    /// A check refused on a metered connection waits for one that isn't, not
+    /// for the next day's (#810): Sparkle puts its next check a day later.
+    /// Kept until GitHub has answered, across launches, so a check that
+    /// fails or never starts is tried again.
+    public private(set) var refusedWhileMetered: Bool {
+        get { defaults.bool(forKey: Self.skippedOnHotspotKey) }
+        set {
+            if newValue { defaults.set(true, forKey: Self.skippedOnHotspotKey) }
+            else { defaults.removeObject(forKey: Self.skippedOnHotspotKey) }
+        }
+    }
+    public static let skippedOnHotspotKey = "updatesSkippedOnHotspot"
+
+    /// What starts that check. Public for the tests; `nil` is Sparkle's, a
+    /// few seconds on, once the new connection has its addresses and routes.
+    public var checkInBackground: (() -> Void)?
+
+    /// The connection's verdict changed (#810), or the app started: off a
+    /// metered connection, the check refused on it goes ahead now.
+    public func meteringDidChange(isMetered metered: Bool) {
+        guard !metered, refusedWhileMetered, checksAutomatically else { return }
+        if let checkInBackground { return checkInBackground() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            guard let self, self.refusedWhileMetered, !self.isMetered() else { return }
+            self.checkWhenFree()
+        }
     }
 
     public func updater(_ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem,
@@ -451,6 +482,7 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
 
     /// Public for the tests.
     public func heardFromGitHub(now: Date = Date()) {
+        refusedWhileMetered = false
         lastChecked = now
         defaults.set(now, forKey: Self.lastCheckedKey)
     }

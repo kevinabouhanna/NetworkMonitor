@@ -648,7 +648,10 @@ to recognise local traffic, and since #111 the internet ones are kept too:
    (`Scripts/appcast.sh`, which refuses a key the app doesn't trust) and publishes both.
    `UpdateController` refuses a background check on a metered connection, and again before
    the download it would start (`shouldProceedWithUpdate`); a download already under way as
-   the Mac joins a hotspot isn't stopped. It uses Sparkle's gentle reminders, since the app
+   the Mac joins a hotspot isn't stopped. A check refused that way is remembered
+   (`updatesSkippedOnHotspot`, until GitHub answers, across launches) and goes ahead ten
+   seconds after the connection is no longer metered, or at launch off one (#810), rather
+   than a day later, when Sparkle would schedule the next one. It uses Sparkle's gentle reminders, since the app
    lives in the menu bar. **Install updates automatically** (#710) is Sparkle's own
    `automaticallyDownloadsUpdates`, never copied, so Settings, the welcome window and the tick
    box in Sparkle's window are one choice. Sparkle would install such an update when the app
