@@ -12,6 +12,8 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   (25 Nov 2026): the total probably has it, the app rows may not, and Connections and ad blocking
   are unchecked. It's measured in a VM, then decided: the docs only, a row for it, or a fix. After
   the update settings (#710), before the Chrome extension (#257), which is weeks of work.
+- **No "Live" caption under the popover's speeds** (#823), Now, Kevin's ask from beta 4: the
+  speeds say what they are, and the caption didn't line up with the graph beside them.
 - **Safari's downloads over Private Relay count for everyone with the content filter on**
   (#821), Now: with Relay on, nettop sees none of Safari's traffic (#754, reported by
   defragekb). The content filter's received-byte counts fill the gap: per app and hour, only
