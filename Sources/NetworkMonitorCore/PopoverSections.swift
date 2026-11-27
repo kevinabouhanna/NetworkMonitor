@@ -812,7 +812,11 @@ struct PopoverSpeedTestRow: View {
         .padding(.horizontal, 2)
     }
 
-    private var lastResult: String {
+    private var lastResult: String { Self.lastResult(speedTest) }
+
+    /// The last result on this connection, or that there's none: here and
+    /// in Live's speed test column (#825).
+    static func lastResult(_ speedTest: SpeedTestController) -> String {
         guard let result = speedTest.lastResult else { return L("Not tested yet") }
         return L("↓ %@  ↑ %@ · %@", ByteFormat.speed(result.downloadBitsPerSecond, unit: speedTest.unit),
                  ByteFormat.speed(result.uploadBitsPerSecond, unit: speedTest.unit),

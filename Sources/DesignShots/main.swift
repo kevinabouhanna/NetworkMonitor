@@ -647,6 +647,20 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
     // Live, first in the sidebar (#812).
     main.show(.live)
     shoot("live", settle: 1.5)
+    // Live, Network and Settings across a full screen and at their
+    // narrowest (#825).
+    let before825 = main.window.frame
+    main.window.setContentSize(NSSize(width: 1400, height: 880))
+    shoot("live-full", settle: 1.5)
+    main.show(.network)
+    shoot("network-full")
+    main.show(.settings)
+    shoot("settings-full")
+    main.window.setFrame(before825, display: false)
+    main.show(.live)
+    shootAtMinimum("live-min", settle: 1.5)
+    main.show(.settings)
+    shootAtMinimum("settings-min")
     main.show(.network)
     shoot("network")
     main.show(.settings)

@@ -72,10 +72,16 @@ a question for the overhaul, not a rule recorded here.
 
 ## Layout
 
-- **Settings:** one fixed width for every pane (`SettingsMetrics.paneWidth`, 720 pt) in
-  the system's grouped form style; the window's height follows the pane. Panes sit
-  behind a toolbar of labelled icons: General, Speed Test, History, Connections, Ads,
-  Hotspot, About.
+- **Settings:** every pane a grouped form across the main window's whole width, each row
+  edge to edge with its control at the right, as the other pages fill it (#825):
+  `WideGroupedFormStyle`, since macOS's own grouped style stops near 700 pt, centred
+  (before macOS 15 it's macOS's). `SettingsMetrics.paneWidth`, 720 pt, is the narrowest
+  it reads at.
+  General is under Settings in the sidebar, each section's own settings behind its gear.
+- **Live:** the figures and the graph across the width; under them, from 900 pt of
+  content, the apps list filling the left and the height, scrolling inside itself, and
+  the speed test in its own column on the right; narrower, the test under a list of
+  eight rows' fixed height. The test never moves as apps come and go (#825).
 - **Windows:** one column read top to bottom: scope controls, then the period's title and
   totals, then a timeline, then the list. The toolbar holds the window's view, the period
   (Day/Week/Month/Year), ‹ Today › and search.

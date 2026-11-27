@@ -527,7 +527,7 @@ struct HistorySettingsPane: View {
                 SettingsFootnote(L("Usage History never leaves this Mac. Clearing it can't be undone."))
             }
         }
-        .formStyle(.grouped)
+        .settingsForm()
     }
 }
 
