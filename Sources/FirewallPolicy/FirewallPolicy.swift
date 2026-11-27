@@ -243,12 +243,15 @@ public struct FirewallPolicy: Codable, Equatable {
     /// Log what macOS counts for each HTTPS flow (#786), for #754: a probe,
     /// switched on by hand with the app's `flowBytesProbe` default.
     public var measuresFlowBytes: Bool
+    /// Use received byte reports in Usage History's opt-in #799 trial.
+    public var creditsFilterDownloads: Bool
 
     public init(mode: FirewallMode = .anywhere, rules: [FirewallRule] = [], onHotspot: Bool = false,
                 pausesUpdates: Bool = false, lists: Set<BlocklistTopic> = [], blocksEverything: Bool = false,
                 network: String? = nil, adRules: [AdRule] = [], downloadedLists: [String] = [],
                 threatLists: Set<String> = [], lookupResolver: String? = nil,
-                enhancedBlocking: EnhancedBlocking = EnhancedBlocking(), measuresFlowBytes: Bool = false) {
+                enhancedBlocking: EnhancedBlocking = EnhancedBlocking(), measuresFlowBytes: Bool = false,
+                creditsFilterDownloads: Bool = false) {
         self.mode = mode
         self.rules = rules
         self.onHotspot = onHotspot
@@ -262,11 +265,12 @@ public struct FirewallPolicy: Codable, Equatable {
         self.lookupResolver = lookupResolver
         self.enhancedBlocking = enhancedBlocking
         self.measuresFlowBytes = measuresFlowBytes
+        self.creditsFilterDownloads = creditsFilterDownloads
     }
 
     private enum CodingKeys: String, CodingKey {
         case mode, rules, onHotspot, pausesUpdates, lists, blocksEverything, network, adRules, downloadedLists
-        case threatLists, lookupResolver, enhancedBlocking, measuresFlowBytes
+        case threatLists, lookupResolver, enhancedBlocking, measuresFlowBytes, creditsFilterDownloads
     }
 
     /// A policy saved before a field existed reads it as off, so a filter
@@ -286,6 +290,7 @@ public struct FirewallPolicy: Codable, Equatable {
         lookupResolver = try container.decodeIfPresent(String.self, forKey: .lookupResolver)
         enhancedBlocking = (try? container.decodeIfPresent(EnhancedBlocking.self, forKey: .enhancedBlocking)) ?? EnhancedBlocking()
         measuresFlowBytes = try container.decodeIfPresent(Bool.self, forKey: .measuresFlowBytes) ?? false
+        creditsFilterDownloads = try container.decodeIfPresent(Bool.self, forKey: .creditsFilterDownloads) ?? false
     }
 
     /// Anything to decide at all. Without it, the filter looks nothing up.

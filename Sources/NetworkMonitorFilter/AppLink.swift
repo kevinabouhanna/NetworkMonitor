@@ -16,6 +16,8 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
     private var listener: NSXPCListener?
     private var app: NSXPCConnection?
     private var pending: [FlowReport] = []
+    private var creditsDownloads = false
+    private var pendingDownloads: [FilterDownload] = []
     private var flushScheduled = false
 
     /// How long reports wait to travel together, and how many at most.
@@ -39,8 +41,12 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
                 if self?.app === connection { self?.app = nil }
             }
         }
+        queue.async {
+            self.creditsDownloads = false
+            self.pendingDownloads.removeAll(keepingCapacity: true)
+            self.app = connection
+        }
         connection.resume()
-        queue.async { self.app = connection }
         return true
     }
 
@@ -50,7 +56,13 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
 
     func applyPolicy(_ policy: Data) {
         guard let policy = FirewallPolicy.decode(policy) else { return }
+        let sender = NSXPCConnection.current()
         Firewall.shared.apply(policy)
+        queue.async {
+            guard let sender, self.app === sender else { return }
+            self.creditsDownloads = policy.creditsFilterDownloads
+            if !self.creditsDownloads { self.pendingDownloads.removeAll(keepingCapacity: true) }
+        }
     }
 
     // MARK: Ask Me (#129)
@@ -100,21 +112,38 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
         queue.async {
             guard self.app != nil else { return }
             self.pending.append(flow)
-            if self.pending.count >= Self.batchLimit {
-                self.flush()
-            } else if !self.flushScheduled {
-                self.flushScheduled = true
-                self.queue.asyncAfter(deadline: .now() + Self.batchDelay) { self.flush() }
-            }
+            self.scheduleFlush()
+        }
+    }
+
+    func report(_ download: FilterDownload) {
+        queue.async {
+            guard self.app != nil, self.creditsDownloads else { return }
+            self.pendingDownloads.append(download)
+            self.scheduleFlush()
         }
     }
 
     /// On `queue`.
+    private func scheduleFlush() {
+        if pending.count + pendingDownloads.count >= Self.batchLimit {
+            flush()
+        } else if !flushScheduled {
+            flushScheduled = true
+            queue.asyncAfter(deadline: .now() + Self.batchDelay) { self.flush() }
+        }
+    }
+
     private func flush() {
         flushScheduled = false
-        guard !pending.isEmpty, let app else { pending = []; return }
-        let batch = pending
+        let flows = pending
+        let downloads = pendingDownloads
         pending = []
-        (app.remoteObjectProxy as? FilterAppInterface)?.flowsSeen(FlowReport.encode(batch))
+        pendingDownloads = []
+        guard let remote = app?.remoteObjectProxy as? FilterAppInterface else { return }
+        if !flows.isEmpty { remote.flowsSeen(FlowReport.encode(flows)) }
+        if !downloads.isEmpty, let data = try? JSONEncoder().encode(downloads) {
+            remote.filterDownloads(data)
+        }
     }
 }

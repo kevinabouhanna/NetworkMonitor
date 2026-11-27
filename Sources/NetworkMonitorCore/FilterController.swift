@@ -53,6 +53,7 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
 
     /// Each batch the filter reports, on the main queue.
     public let flows = PassthroughSubject<[FlowReport], Never>()
+    let downloads = PassthroughSubject<[FilterDownload], Never>()
     /// Ask Me's questions (#129), and those nobody answered in time, on the
     /// main queue.
     public let questions = PassthroughSubject<FlowQuestion, Never>()
@@ -622,6 +623,14 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     private func disconnect() {
         connection?.invalidate()
         connection = nil
+    }
+
+    public func filterDownloads(_ reports: Data) {
+        guard let batch = try? JSONDecoder().decode([FilterDownload].self, from: reports) else { return }
+        DispatchQueue.main.async {
+            guard self.policy.creditsFilterDownloads, self.state == .on else { return }
+            self.downloads.send(batch)
+        }
     }
 
     public func flowsSeen(_ reports: Data) {

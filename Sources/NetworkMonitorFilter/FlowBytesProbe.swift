@@ -1,43 +1,51 @@
 import Darwin
 import FilterProtocol
+import FirewallPolicy
 import Foundation
 import NetworkExtension
 import os
 
-/// What macOS counts for each connection the filter lets through, written to
-/// the filter's log, and nothing else (#754, #786). Off unless the app's
-/// `flowBytesProbe` default is set by hand: it's there to find out whether
-/// these counts could give an app the bytes nettop leaves out, as with
-/// Safari over iCloud Private Relay, before anything is built on them.
-///
-/// With it on, HTTPS flows, and UDP ones whose peer isn't known yet, ask
-/// macOS for statistics every few seconds and at the close. Every later
-/// verdict for the flow (after its handshake, after Ask Me, after a
-/// handshake that never ends) asks again, since macOS stops the statistics
-/// otherwise. No verdict changes, no packet is read, and nothing reaches
-/// Usage History.
+/// Requests periodic receive counters through the same verdicts as the
+/// firewall. The diagnostic log and #799's accounting trial are opt-in.
 enum FlowBytesProbe {
     private static let log = Logger(subsystem: "com.kevinabouhanna.NetworkMonitor.Filter", category: "flow-bytes")
     /// The open lines' process paths are looked up here, off the verdict's way.
     private static let queue = DispatchQueue(label: "com.kevinabouhanna.NetworkMonitor.Filter.flow-bytes", qos: .utility) // untranslated: queue label
     private static let lock = NSLock()
-    /// Flows whose later verdicts ask for statistics again, by when they
-    /// opened. They're only needed until their verdict is final, which
-    /// comes within seconds, so entries past `keep` go: a flow that was
-    /// dropped never reports a close.
-    private static var watched: [UUID: Date] = [:]
+    private struct Watch {
+        let owner: String?
+        var through: Date
+        var bytes: Int64 = 0
+    }
+
+    private static var watched: [UUID: Watch] = [:]
+    /// How long a flow stays watched without a report. One whose bytes are
+    /// credited (#799) keeps reporting while it's open and leaves at its
+    /// close, so it stays far longer: only a flow that was dropped, and so
+    /// never closes, outlives it.
     private static let keep: TimeInterval = 120
+    private static let keepCredited: TimeInterval = 30 * 60
     private static let limit = 4_096
     private static var full = false
+    private static var nextPrune = Date.distantPast
 
     /// The new flow's verdict, asking for statistics too when the flow is
     /// one the probe watches.
     static func observe(_ flow: NEFilterFlow, verdict: NEFilterNewFlowVerdict) -> NEFilterNewFlowVerdict {
-        guard let socket = flow as? NEFilterSocketFlow, let kind = kind(of: socket),
+        let diagnostics = Firewall.shared.measuresFlowBytes
+        let accounting = Firewall.shared.creditsFilterDownloads
+        guard diagnostics || accounting, let socket = flow as? NEFilterSocketFlow, let kind = kind(of: socket),
               let observed = verdict.copy() as? NEFilterNewFlowVerdict else { return verdict }
+        let owner = accounting ? Firewall.shared.downloadOwner(of: flow) : nil
+        guard diagnostics || owner != nil else { return verdict }
         let now = Date()
         lock.lock()
-        if watched.count >= limit / 2 { watched = watched.filter { now.timeIntervalSince($0.value) < keep } }
+        if watched.count >= limit / 2, now >= nextPrune {
+            nextPrune = now.addingTimeInterval(5)
+            watched = watched.filter {
+                now.timeIntervalSince($0.value.through) < ($0.value.owner == nil ? keep : keepCredited)
+            }
+        }
         guard watched.count < limit else {
             let first = !full
             full = true
@@ -46,10 +54,11 @@ enum FlowBytesProbe {
             return verdict
         }
         full = false
-        watched[flow.identifier] = now
+        watched[flow.identifier] = Watch(owner: owner, through: now)
         lock.unlock()
         observed.shouldReport = true
         observed.statisticsReportFrequency = .low
+        guard diagnostics else { return observed }
         let id = flow.identifier.uuidString
         let app = FlowReport.pid(fromAuditToken: flow.sourceAppAuditToken)
         let process = FlowReport.pid(fromAuditToken: flow.sourceProcessAuditToken)
@@ -83,17 +92,42 @@ enum FlowBytesProbe {
     }
 
     static func handle(_ report: NEFilterReport) {
-        guard report.event == .statistics || report.event == .flowClosed, let flow = report.flow else { return }
+        let accounting = Firewall.shared.creditsFilterDownloads
+        let diagnostics = Firewall.shared.measuresFlowBytes
+        guard accounting || diagnostics, report.event == .statistics || report.event == .flowClosed,
+              let flow = report.flow else { return }
         let closed = report.event == .flowClosed
+        let now = Date()
+        lock.lock()
+        let previous = watched[flow.identifier]
         if closed {
-            lock.lock()
             watched.removeValue(forKey: flow.identifier)
-            lock.unlock()
+        } else if let previous, let count = Int64(exactly: report.bytesInboundCount),
+                  count >= previous.bytes, now >= previous.through {
+            watched[flow.identifier] = Watch(owner: previous.owner, through: now, bytes: count)
         }
-        log.notice("""
-            \(closed ? "close" : "statistics", privacy: .public) flow=\(flow.identifier.uuidString, privacy: .public) \
-            in=\(report.bytesInboundCount, privacy: .public) out=\(report.bytesOutboundCount, privacy: .public)
-            """)
+        lock.unlock()
+
+        if accounting, let previous, let owner = previous.owner,
+           let count = Int64(exactly: report.bytesInboundCount), count > previous.bytes, now >= previous.through,
+           report.action != .drop,
+           let peer = (flow as? NEFilterSocketFlow)?.remoteEndpoint as? NWHostEndpoint,
+           peer.port == "443", !FirewallPolicy.isLocal(peer.hostname) {
+            AppLink.shared.report(FilterDownload(appKey: owner, from: previous.through,
+                                                through: now, bytes: count - previous.bytes))
+        }
+        if diagnostics {
+            log.notice("""
+                \(closed ? "close" : "statistics", privacy: .public) flow=\(flow.identifier.uuidString, privacy: .public) \
+                in=\(report.bytesInboundCount, privacy: .public) out=\(report.bytesOutboundCount, privacy: .public)
+                """)
+        }
+    }
+
+    static func reset() {
+        lock.lock()
+        watched.removeAll()
+        lock.unlock()
     }
 
     private static func isWatched(_ flow: NEFilterFlow) -> Bool {

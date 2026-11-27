@@ -41,6 +41,22 @@ public enum FilterIdentity {
         """
 }
 
+/// Received bytes added between two cumulative filter reports. No peer or
+/// contents are needed for Usage History.
+public struct FilterDownload: Codable, Equatable, Sendable {
+    public let appKey: String
+    public let from: Date
+    public let through: Date
+    public let bytes: Int64
+
+    public init(appKey: String, from: Date, through: Date, bytes: Int64) {
+        self.appKey = appKey
+        self.from = from
+        self.through = through
+        self.bytes = bytes
+    }
+}
+
 /// One new connection, as the filter saw it open.
 public struct FlowReport: Codable, Equatable {
     /// The server's address, as `nettop` would print it.
@@ -151,6 +167,7 @@ public enum FlowAnswer: String, Codable {
 /// What the app offers the filter: somewhere to send what it saw, and to ask.
 @objc public protocol FilterAppInterface {
     func flowsSeen(_ reports: Data)
+    func filterDownloads(_ reports: Data)
     /// A `FlowQuestion`, as JSON.
     func ask(_ question: Data)
     /// Nobody answered in time, and the connections went ahead.

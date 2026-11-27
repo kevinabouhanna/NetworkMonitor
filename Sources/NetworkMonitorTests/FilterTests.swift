@@ -26,6 +26,15 @@ func runFilterTests() {
             Check.expectEqual(FirewallPolicy.decode(on.encoded()), on)
         }
 
+        Check.test("download accounting is opt-in and independent of diagnostic logging (#799)") {
+            let legacy = FirewallPolicy.decode(Data(#"{"mode":"anywhere","rules":[],"measuresFlowBytes":true}"#.utf8))
+            Check.expectEqual(legacy?.creditsFilterDownloads, false)
+            Check.expectEqual(legacy?.measuresFlowBytes, true)
+            let trial = FirewallPolicy(creditsFilterDownloads: true)
+            Check.expectEqual(FirewallPolicy.decode(trial.encoded()), trial)
+            Check.expectFalse(trial.measuresFlowBytes)
+        }
+
         // audit_token_t is eight 32-bit words; the process ID is the sixth.
         Check.test("reads the process ID from an audit token") {
             var words: [UInt32] = [1, 2, 3, 4, 5, 4242, 7, 8]
