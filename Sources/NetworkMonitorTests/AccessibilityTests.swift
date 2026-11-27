@@ -267,6 +267,47 @@ func runAccessibilityTests() {
             }
             main.show(.live)
             checkMain("Live")
+            // Live across the whole width, and the speed test where it is
+            // however many apps come and go (#825): in its own column at full
+            // screen, under a list of fixed height at the narrowest.
+            if code == Localization.source, SpeedTestRunner.isAvailable {
+                Check.test("Live fills the window and its speed test stays put as apps come and go") {
+                    let size = window.contentRect(forFrameRect: window.frame).size
+                    defer { window.setContentSize(size) }
+                    func testNow() -> CGRect? {
+                        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+                        return AccessibilityAudit.framesOwnWindow(titled: window.title)
+                            .first { $0.name == L("Test Now") }?.frame
+                    }
+                    func apps(_ count: Int) {
+                        let entries = (0..<count).map { (id: "app\($0)", name: "App \($0)", bundlePath: String?.none,
+                                                          bytesIn: Int64(1_000 * ($0 + 1)), bytesOut: Int64(100)) }
+                        let now = Date()
+                        model.live.recordApps(entries.map { ($0.id, $0.name, $0.bundlePath, 0, 0) }, at: now - 1)
+                        model.live.recordApps(entries, at: now)
+                    }
+                    for (width, columns) in [(CGFloat(1400), true), (window.contentMinSize.width, false)] {
+                        window.setContentSize(NSSize(width: width, height: 880))
+                        apps(2)
+                        guard let few = testNow() else {
+                            Check.expectTrue(false, "no Test Now at \(width) points wide")
+                            continue
+                        }
+                        apps(20)
+                        let many = testNow() ?? .zero
+                        Check.expectEqual(Double(many.minY), Double(few.minY), accuracy: 0.5)
+                        Check.expectEqual(Double(many.minX), Double(few.minX), accuracy: 0.5)
+                        if columns {
+                            // In the column at the right, not under a list
+                            // capped at 900 points.
+                            let column = window.frame.maxX - 20 - LivePageMetrics.testColumnWidth
+                            Check.expectTrue(few.minX > column - 10,
+                                             "Test Now starts at \(few.minX), the column at \(column)")
+                        }
+                    }
+                    model.live.recordApps([], at: Date() + 120)
+                }
+            }
             main.show(.network)
             checkMain("Network")
             main.show(.settings)
@@ -279,6 +320,26 @@ func runAccessibilityTests() {
                 for name in [L("Check Now"), L("Check for updates automatically"), L("Install updates automatically"),
                              L("Get beta versions")] {
                     Check.expectTrue(names.contains(name), "Settings has no \(name) in \(names)")
+                }
+            }
+            // Settings across the whole width (#825): a row's control at the
+            // window's right, not at 720 points.
+            if code == Localization.source {
+                Check.test("Settings fills the window's width") {
+                    let size = window.contentRect(forFrameRect: window.frame).size
+                    defer { window.setContentSize(size) }
+                    window.setContentSize(NSSize(width: 1400, height: 880))
+                    RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+                    let frames = AccessibilityAudit.framesOwnWindow(titled: window.title)
+                    // macOS's grouped form stops near 700 points, centred;
+                    // only from macOS 15 are the rows drawn edge to edge.
+                    guard #available(macOS 15.0, *) else { return }
+                    // A button, a switch and a menu alike.
+                    for name in [L("Check Now"), L("Start at login"), L("Language")] {
+                        let end = frames.filter { $0.name == name }.map(\.frame.maxX).max() ?? 0
+                        Check.expectTrue(end > window.frame.maxX - 60,
+                                         "\(name) ends at \(end), the window at \(window.frame.maxX)")
+                    }
                 }
             }
             // A new version waiting on its card in the sidebar, above Settings

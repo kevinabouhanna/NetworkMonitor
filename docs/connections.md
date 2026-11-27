@@ -70,8 +70,11 @@ In a narrow window, a row's bar shortens before its name does, here and in Usage
 and Ads and Trackers' Both (#534). A tag beside a name (*ALWAYS ALLOWED*, *ADS*, *METERED*)
 becomes its icon before the name is cut short; hover it, or ask VoiceOver, for its word.
 
-- **Countries are shaded by how much data went there**, on a logarithmic scale, so a
-  country with a few kilobytes still shows beside one with gigabytes.
+- **Countries are shaded by how much data went there**, in six steps a key in the corner
+  names: under 1 MB, 1–10 MB, 10–100 MB, 100 MB–1 GB, 1–10 GB, and 10 GB or more (#797).
+  A shade means the same amount whatever the period, and a country with a few kilobytes
+  still shows beside one with gigabytes. With **Blocked** shown, the steps count times
+  blocked, from under 10 to 100,000 or more.
 - **Hover a country** for a card with its top companies. **Click it** to narrow
   everything to it, and again to see everything.
 - **Narrow to a company, app or server**, and lines run from your country to where its
