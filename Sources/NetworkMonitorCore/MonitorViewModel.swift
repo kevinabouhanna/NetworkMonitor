@@ -284,7 +284,11 @@ public final class MonitorViewModel: ObservableObject {
         addresses.networkDidChange(network: store.currentNetwork.id)
         addressVerdict = metering.$verdict.removeDuplicates().dropFirst()
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.addresses.verdictDidChange() }
+            .sink { [weak self] verdict in
+                self?.addresses.verdictDidChange()
+                // A daily update check skipped on a hotspot goes ahead off it (#810).
+                self?.updates.meteringDidChange(isMetered: verdict.isMetered)
+            }
 
         // What the filter saw names the servers nettop only gives addresses for,
         // and what it blocked is counted beside them (#114).

@@ -430,8 +430,25 @@ public final class UpdateController: NSObject, ObservableObject, SPUUpdaterDeleg
     /// Nothing of its own accord on a hotspot. Public for the tests.
     public func refuseOnHotspot(_ updateCheck: SPUUpdateCheck) throws {
         guard updateCheck == .updatesInBackground, isMetered() else { return }
+        refusedWhileMetered = true
         throw NSError(domain: "com.kevinabouhanna.NetworkMonitor", code: 1,
                       userInfo: [NSLocalizedDescriptionKey: L("On a metered connection: the check waits.")])
+    }
+
+    /// A check refused on a metered connection waits for one that isn't, not
+    /// for the next day's (#810): Sparkle puts its next check a day later.
+    public private(set) var refusedWhileMetered = false
+
+    /// What starts that check. Public for the tests; `nil` is Sparkle's.
+    public var checkInBackground: (() -> Void)?
+
+    /// The connection's verdict changed (#810). Off a metered connection, the
+    /// check refused on it goes ahead now.
+    public func meteringDidChange(isMetered metered: Bool) {
+        guard !metered, refusedWhileMetered else { return }
+        refusedWhileMetered = false
+        guard checksAutomatically else { return }
+        if let checkInBackground { checkInBackground() } else { checkWhenFree() }
     }
 
     public func updater(_ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem,

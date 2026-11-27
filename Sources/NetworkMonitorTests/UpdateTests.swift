@@ -227,6 +227,37 @@ func runUpdateTests() {
             Check.expectFalse(refused(.updates), "Check Now goes ahead")
         }
 
+        Check.test("a check skipped on a hotspot goes ahead once off it (#810)") {
+            let updates = controller("updates-after-hotspot")
+            var checks = 0
+            updates.checkInBackground = { checks += 1 }
+            // Leaving a hotspot with nothing skipped checks nothing.
+            updates.meteringDidChange(isMetered: false)
+            Check.expectEqual(checks, 0)
+            updates.isMetered = { true }
+            _ = try? updates.refuseOnHotspot(.updatesInBackground)
+            Check.expectTrue(updates.refusedWhileMetered)
+            // Still metered (another hotspot): it waits.
+            updates.meteringDidChange(isMetered: true)
+            Check.expectEqual(checks, 0)
+            updates.isMetered = { false }
+            updates.meteringDidChange(isMetered: false)
+            Check.expectEqual(checks, 1)
+            Check.expectFalse(updates.refusedWhileMetered)
+            // Once only.
+            updates.meteringDidChange(isMetered: false)
+            Check.expectEqual(checks, 1)
+            // Check Now is never refused, so leaves nothing to ask later.
+            updates.isMetered = { true }
+            _ = try? updates.refuseOnHotspot(.updates)
+            Check.expectFalse(updates.refusedWhileMetered)
+            // With the daily check off, nothing goes ahead by itself.
+            _ = try? updates.refuseOnHotspot(.updatesInBackground)
+            updates.checksAutomatically = false
+            updates.meteringDidChange(isMetered: false)
+            Check.expectEqual(checks, 1)
+        }
+
         Check.test("says once that it installed by itself, until that's been seen") {
             withUpdater { make, _ in
                 let defaults = Check.defaults("updates-itself")
