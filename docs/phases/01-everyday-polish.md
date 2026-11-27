@@ -12,13 +12,13 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   (25 Nov 2026): the total probably has it, the app rows may not, and Connections and ad blocking
   are unchecked. It's measured in a VM, then decided: the docs only, a row for it, or a fix. After
   the update settings (#710), before the Chrome extension (#257), which is weeks of work.
-- **Safari with Private Relay: measure it with the beta's switch, and decide** (#799), Now,
-  research: Safari's Private Relay traffic has no row (#754, reported by defragekb). Not by
-  capturing internet packets (#749), which costs too much CPU and privacy, but from the content
-  filter's own byte counts. In a VM (25 Nov 2026) they hold for received bytes, QUIC included,
-  but not for QUIC's sent bytes. The switch for them is in 1.35.0 beta 1 (#786), off unless
-  set by hand. defragekb measures Private Relay and the cost on the Mac that has it. If that
-  holds, the first pass is downloads only, with the filter on, reconciled with nettop.
+- **Safari's downloads over Private Relay count for Safari in Usage History** (#817), Now: with
+  Relay on, nettop sees none of Safari's traffic (#754, reported by defragekb). The content
+  filter's received-byte counts fill the gap: per app and hour, only what it counted beyond
+  nettop, out of the bytes nobody claimed, so the total never changes. Downloads only, with the
+  filter on; sent bytes stay as they are. First defragekb's opt-in trial (#815) in a beta
+  (#818), then on by default once their signed run and the CPU cost bear it out, with the docs
+  saying what's left out.
 - **A finished macOS upgrade counts for Software Update** (#809), Now, a bug reported by
   defragekb: 17.8 GB stayed under `nsurlsessiond` because the log names its client
   `softwareupdated`, not a bundle identifier, which the owner lookup of #767 doesn't read.
@@ -41,6 +41,12 @@ defragekb's ask for what they open iStat Menus to see):
   and the gear, its small graph only while another view is open, in the speed colors chosen;
   and Live first in the main window's sidebar (⌘L), with the speed test moved there from
   Network. In 1.35.0 beta 4.
+- **Safari with Private Relay, measured and decided** (#799): defragekb's signed runs on 1.35.0
+  beta 1 showed the filter's received bytes hold over Relay (2,008,998 counted for a
+  2,000,000-byte download nettop didn't see; to the byte on the direct path), Relay stays on
+  with the filter, and the CPU cost is too small to measure in short runs. Its sent bytes
+  don't hold: macOS adds a buffer's free space, not what's in it, and reading every sent packet
+  (#816) costs too much, so uploads stay as they are. The build is #817.
 
 Done on 26 Nov 2026, released in 1.34.0 the same day (#778):
 
