@@ -157,6 +157,15 @@ final class Firewall {
     /// The probe of macOS's byte counts per flow (#786): off unless the app
     /// was told to by hand.
     var measuresFlowBytes: Bool { current.measuresFlowBytes }
+    var creditsFilterDownloads: Bool { current.creditsFilterDownloads }
+
+    func downloadOwner(of flow: NEFilterFlow) -> String? {
+        let owner = identity(of: flow)
+        guard !owner.isNetworkMonitor, let key = owner.primaryKey,
+              key.hasSuffix(".app") || AppKey.installedApp(ofCopiesKey: key) != nil
+        else { return nil }
+        return key
+    }
 
     /// A lookup's answer, as it came back to the Mac. Only its aliases are
     /// kept; the answer itself goes on unchanged.

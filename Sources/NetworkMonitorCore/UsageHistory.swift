@@ -1,3 +1,4 @@
+import FilterProtocol
 import FirewallPolicy
 import Foundation
 import os
@@ -504,6 +505,24 @@ public final class UsageHistory {
         return receipt
     }
 
+    /// A whole report window must belong to the current visit and hour.
+    /// The arriving delta may otherwise belong to either side of a boundary.
+    func recordFilterDownloads(_ reports: [FilterDownload], now: Date) {
+        guard !reports.isEmpty, let current = open, current.network.kind != .offline,
+              now.timeIntervalSince(current.lastSeen) < Self.sessionGap else { return }
+        let slot = Slot(hour: hourStart(now), session: current.id)
+        for report in reports {
+            guard report.bytes > 0, report.from < report.through, report.through <= now,
+                  report.from >= current.start, hourStart(report.from) == slot.hour else { continue }
+            let identity = pending.identities[report.appKey] ?? AppIdentityResolver.identity(forKey: report.appKey)
+            pending.filterDownloads[slot, default: [:]][identity.key, default: 0] += report.bytes
+            if pending.identities[identity.key] == nil { pending.identities[identity.key] = identity }
+        }
+        if pending.filterDownloads[slot] != nil {
+            pending.filterSessionStarts[slot.session] = current.start.timeIntervalSince1970
+        }
+    }
+
     /// A post-close correction affects Usage History only. The slot is the
     /// original receipt, even when the active network or day has moved on.
     func recordBackgroundOwner(_ owner: AppIdentity, charges: [BackgroundDownloads.Charge: ByteCounts]) {
@@ -708,6 +727,23 @@ public final class UsageHistory {
                     }
                 }
 
+                if !batch.filterDownloads.isEmpty {
+                    let downloads = try database.prepare("""
+                        INSERT INTO filter_downloads (hour, session_id, app_key, session_start, bytes_in)
+                        VALUES (?1, ?2, ?3, ?4, ?5)
+                        ON CONFLICT(hour, session_id, app_key) DO UPDATE SET
+                            bytes_in = CASE WHEN session_start = excluded.session_start
+                                           THEN bytes_in + excluded.bytes_in ELSE excluded.bytes_in END,
+                            session_start = excluded.session_start
+                        """)
+                    for (slot, apps) in batch.filterDownloads {
+                        guard let start = batch.filterSessionStarts[slot.session] else { continue }
+                        for (key, bytes) in apps {
+                            try downloads.run([.int(slot.hour), .int(slot.session), .text(key), .real(start), .int(bytes)])
+                        }
+                    }
+                }
+
                 if !batch.appMoves.isEmpty {
                     try moveAppTraffic(batch.appMoves, credit: appTraffic, in: database)
                 }
@@ -856,6 +892,7 @@ public final class UsageHistory {
                     let hour = Int64(cutoff.timeIntervalSince1970)
                     try database.prepare("DELETE FROM traffic WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM app_traffic WHERE hour < ?1").run([.int(hour)])
+                    try database.prepare("DELETE FROM filter_downloads WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM server_traffic WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM server_names WHERE hour < ?1").run([.int(hour)])
                     try database.prepare("DELETE FROM list_blocks WHERE hour < ?1").run([.int(hour)])
@@ -865,6 +902,7 @@ public final class UsageHistory {
                     try database.execute("""
                         DELETE FROM apps WHERE key NOT IN (SELECT DISTINCT app_key FROM app_traffic)
                           AND key NOT IN (SELECT DISTINCT app_key FROM list_blocks)
+                          AND key NOT IN (SELECT DISTINCT app_key FROM filter_downloads)
                         """)
                     try database.execute("""
                         DELETE FROM app_servers
@@ -900,7 +938,7 @@ public final class UsageHistory {
             do {
                 try database.transaction {
                     for table in ["list_blocks", "server_names", "server_traffic", "app_servers", "servers",
-                                  "app_traffic", "traffic", "updates", "sessions", "apps"] {
+                                  "filter_downloads", "app_traffic", "traffic", "updates", "sessions", "apps"] {
                         try database.execute("DELETE FROM \(table)")
                     }
                 }
@@ -1277,7 +1315,7 @@ public final class UsageHistory {
                 let (whereSQL, values) = conditions(filter, hourColumn: "a.hour", appTable: "a")
                 hourly = try database.prepare("""
                     SELECT a.hour, a.session_id, SUM(a.bytes_in), SUM(a.bytes_out)
-                    FROM app_traffic a
+                    FROM history_app_traffic a
                     JOIN apps p ON p.key = a.app_key
                     JOIN sessions s ON s.id = a.session_id
                     WHERE \(whereSQL)
@@ -1330,7 +1368,7 @@ public final class UsageHistory {
                 SELECT a.app_key, p.name, p.bundle_path, p.is_system,
                        p.parent_key, p.parent_name, p.parent_bundle_path,
                        SUM(a.bytes_in), SUM(a.bytes_out), s.kind
-                FROM app_traffic a
+                FROM history_app_traffic a
                 JOIN apps p ON p.key = a.app_key
                 JOIN sessions s ON s.id = a.session_id
                 WHERE \(appWhere)
@@ -1493,7 +1531,7 @@ public final class UsageHistory {
                 let apps = try database.prepare("""
                     SELECT a.hour, s.id, s.network_id, s.label, s.kind, s.metered, p.name,
                            a.bytes_in, a.bytes_out
-                    FROM app_traffic a
+                    FROM history_app_traffic a
                     JOIN apps p ON p.key = a.app_key
                     JOIN sessions s ON s.id = a.session_id
                     WHERE \(appWhere)
@@ -1533,10 +1571,15 @@ public final class UsageHistory {
                 let (whereSQL, values) = Self.conditions(filter, hourColumn: "t.hour", appTable: nil)
                 let totals = try database.prepare("""
                     SELECT t.hour, s.id, s.network_id, s.label, s.kind, s.metered,
-                           MIN(t.iface_in, MAX(t.iface_in - t.local_in, t.app_in)) - t.app_in,
+                           MIN(t.iface_in, MAX(t.iface_in - t.local_in, t.app_in)) - t.app_in -
+                             COALESCE(c.bytes_in, 0),
                            MIN(t.iface_out, MAX(t.iface_out - t.local_out, t.app_out)) - t.app_out
                     FROM traffic t
                     JOIN sessions s ON s.id = t.session_id
+                    LEFT JOIN (
+                        SELECT hour, session_id, SUM(bytes_in) AS bytes_in
+                        FROM download_credit GROUP BY hour, session_id
+                    ) c ON c.hour = t.hour AND c.session_id = t.session_id
                     WHERE \(whereSQL)
                     ORDER BY t.hour, s.id
                     """)
@@ -1648,6 +1691,46 @@ public final class UsageHistory {
                 bytes_out INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (hour, session_id, app_key)
             ) WITHOUT ROWID;
+            -- #799. Keep the two sources separate. Reconcile at read time so
+            -- a later nettop sample can replace an earlier credit.
+            CREATE TABLE IF NOT EXISTS filter_downloads (
+                hour INTEGER NOT NULL,
+                session_id INTEGER NOT NULL,
+                app_key TEXT NOT NULL,
+                session_start REAL NOT NULL,
+                bytes_in INTEGER NOT NULL,
+                PRIMARY KEY (hour, session_id, app_key)
+            ) WITHOUT ROWID;
+            CREATE VIEW IF NOT EXISTS download_credit AS
+                WITH needs AS (
+                    SELECT f.hour, f.session_id, f.app_key,
+                           f.bytes_in - COALESCE(a.bytes_in, 0) AS need,
+                           t.iface_in - t.local_in - t.app_in AS spare
+                    FROM filter_downloads f
+                    JOIN sessions s ON s.id = f.session_id AND s.started_at = f.session_start
+                    JOIN traffic t USING (hour, session_id)
+                    LEFT JOIN app_traffic a USING (hour, session_id, app_key)
+                    WHERE f.bytes_in > COALESCE(a.bytes_in, 0) AND t.iface_in - t.local_in > t.app_in
+                ), allocated AS (
+                    SELECT hour, session_id, app_key,
+                           MIN(need, spare - COALESCE(SUM(need) OVER (
+                               PARTITION BY hour, session_id ORDER BY app_key
+                               ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+                           ), 0)) AS bytes_in
+                    FROM needs
+                )
+                SELECT hour, session_id, app_key, bytes_in FROM allocated WHERE bytes_in > 0;
+            CREATE VIEW IF NOT EXISTS history_app_traffic AS
+                SELECT a.hour, a.session_id, a.app_key,
+                       a.bytes_in + COALESCE(c.bytes_in, 0) AS bytes_in, a.bytes_out
+                FROM app_traffic a LEFT JOIN download_credit c USING (hour, session_id, app_key)
+                UNION ALL
+                SELECT c.hour, c.session_id, c.app_key, c.bytes_in, 0
+                FROM download_credit c
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM app_traffic a WHERE a.hour = c.hour
+                        AND a.session_id = c.session_id AND a.app_key = c.app_key
+                );
             -- Connections (#115). Each app and server pair is stored once, so the
             -- hourly rows carry a small number instead of an app's path.
             CREATE TABLE IF NOT EXISTS servers (
@@ -1988,6 +2071,8 @@ public final class UsageHistory {
         var traffic: [Slot: Traffic] = [:]
         var apps: [Slot: [String: (bytesIn: Int64, bytesOut: Int64)]] = [:]
         var appMoves: [AppMove] = []
+        var filterDownloads: [Slot: [String: Int64]] = [:]
+        var filterSessionStarts: [Int64: Double] = [:]
         var servers: [Slot: [ServerKey: ByteCounts]] = [:]
         /// Connections the content filter blocked, counted.
         var blocked: [Slot: [ServerKey: Int64]] = [:]
@@ -2001,7 +2086,7 @@ public final class UsageHistory {
 
         var isEmpty: Bool {
             traffic.isEmpty && apps.isEmpty && servers.isEmpty && blocked.isEmpty && names.isEmpty && listBlocks.isEmpty
-                && identities.isEmpty && sessions.isEmpty && updates.isEmpty && appMoves.isEmpty
+                && identities.isEmpty && sessions.isEmpty && updates.isEmpty && appMoves.isEmpty && filterDownloads.isEmpty
         }
     }
 

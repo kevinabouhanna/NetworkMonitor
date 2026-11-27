@@ -28,6 +28,7 @@ final class FilterDataProvider: NEFilterDataProvider {
     }
 
     override func stopFilter(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
+        FlowBytesProbe.reset()
         completionHandler()
     }
 
@@ -37,14 +38,13 @@ final class FilterDataProvider: NEFilterDataProvider {
     override func handleNewFlow(_ flow: NEFilterFlow) -> NEFilterNewFlowVerdict {
         let verdict = decide(flow)
         // Off unless switched on by hand (#786).
-        return Firewall.shared.measuresFlowBytes ? FlowBytesProbe.observe(flow, verdict: verdict) : verdict
+        return FlowBytesProbe.observe(flow, verdict: verdict)
     }
 
     /// What macOS counted for a flow the probe watches (#786).
     override func handle(_ report: NEFilterReport) {
         // macOS reports some closes unasked (a lookup's, whose answer is
         // read): only while the probe is on are they logged.
-        guard Firewall.shared.measuresFlowBytes else { return }
         FlowBytesProbe.handle(report)
     }
 
@@ -110,7 +110,7 @@ final class FilterDataProvider: NEFilterDataProvider {
 
     override func handleOutboundDataComplete(for flow: NEFilterFlow) -> NEFilterDataVerdict {
         HandshakeWatch.shared.finished(flow)
-        return .allow()
+        return FlowBytesProbe.observe(flow, verdict: .allow())
     }
 
     override func handleInboundData(from flow: NEFilterFlow, readBytesStartOffset offset: Int,

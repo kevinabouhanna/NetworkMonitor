@@ -153,6 +153,8 @@ public final class MonitorViewModel: ObservableObject {
     /// Updating NetworkMonitor itself (#132).
     public let updates = UpdateController()
     private var firewallPolicy: AnyCancellable?
+    private var filterDownloads: AnyCancellable?
+    private var pendingFilterDownloads: [FilterDownload] = []
     private var enhancedProxyState: AnyCancellable?
     /// The menu bar's row order and colours, and the speed test's colours (#45).
     public let menuBarColors: MenuBarColors
@@ -314,6 +316,11 @@ public final class MonitorViewModel: ObservableObject {
                 return (AppIdentityResolver.identity(forKey: key), FirewallPolicy.serverAddress(flow.address))
             })
         }
+        filterDownloads = filter.downloads.sink { [weak self] batch in
+            guard let self, self.store.currentNetwork.kind != .offline else { return }
+            let remaining = 4_096 - self.pendingFilterDownloads.count
+            self.pendingFilterDownloads.append(contentsOf: batch.prefix(remaining))
+        }
         filter.resume()
         lookups.resume()
         // Enhanced ad blocking's proxy, configured while its switch is on
@@ -363,7 +370,8 @@ public final class MonitorViewModel: ObservableObject {
                                                     enhanced, adRules: adRules,
                                                     onForTesting: EnhancedBlockingProxy.isOnForTesting),
                                                   // By hand only, for #754 (#786).
-                                                  measuresFlowBytes: UserDefaults.standard.bool(forKey: "flowBytesProbe")))
+                                                  measuresFlowBytes: UserDefaults.standard.bool(forKey: "flowBytesProbe"),
+                                                  creditsFilterDownloads: UserDefaults.standard.bool(forKey: "relayDownloadAccounting")))
                 // Switched on with stale lists: fetch newer ones soon.
                 if !rulesAndLists.1.isEmpty {
                     self?.blocklists.checkSoon()
@@ -739,12 +747,27 @@ public final class MonitorViewModel: ObservableObject {
                                        backgroundDownloads: .init(samples: summary.backgroundDownloads, time: observedAt),
                                        now: now)
 
+            if live { self.reconcileFilterDownloads(nettopAt: observedAt, now: now) }
+
             // The rows are Data's: rebuilt only while Data is what's shown.
             if self.popoverIsOpen && self.popoverSection == .today {
                 self.rebuildRows(now: now)
                 self.glance.tick(now: now)
             }
         }
+    }
+
+    private func reconcileFilterDownloads(nettopAt: Date, now: Date) {
+        guard !pendingFilterDownloads.isEmpty else { return }
+        guard filter.state == .on, store.currentNetwork.kind != .offline else {
+            pendingFilterDownloads.removeAll()
+            return
+        }
+        // Wait for the following nettop interval before crediting its gap.
+        let through = nettopAt.addingTimeInterval(-Double(profile.nettopSampleInterval))
+        let ready = pendingFilterDownloads.filter { $0.through <= through }
+        pendingFilterDownloads.removeAll { $0.through <= through || $0.through > now }
+        store.history?.recordFilterDownloads(ready, now: now)
     }
 
     // MARK: Row building
@@ -811,6 +834,7 @@ public final class MonitorViewModel: ObservableObject {
         // everything it had from the old link.
         let previous = store.currentNetwork
         if fingerprint.id != previous.id || fingerprint.interfaceName != previous.interfaceName {
+            pendingFilterDownloads.removeAll()
             udpUsageQueue.async { [weak self] in self?.udpCredit.reset() }
         }
         sampleNetwork.moved(to: fingerprint)

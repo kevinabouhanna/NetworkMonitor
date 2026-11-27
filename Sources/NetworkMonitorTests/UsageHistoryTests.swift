@@ -1,6 +1,7 @@
 import Combine
+import FilterProtocol
 import Foundation
-import NetworkMonitorCore
+@testable import NetworkMonitorCore
 
 func runUsageHistoryTests() {
     func temporaryURL() -> URL {
@@ -39,6 +40,74 @@ func runUsageHistoryTests() {
 
     func day(_ date: Date, _ calendar: Calendar) -> HistoryPeriod {
         HistoryPeriod(scale: .day, containing: date, calendar: calendar)
+    }
+
+    Check.suite("UsageHistory — filter downloads") {
+        let browser = AppIdentityResolver.identity(forKey: "/Applications/HistoryTestBrowser.app")
+        let other = AppIdentityResolver.identity(forKey: "/Applications/HistoryTestOther.app")
+        func received(_ identity: AppIdentity, _ bytes: Int64, _ from: Date, _ through: Date) -> FilterDownload {
+            FilterDownload(appKey: identity.key, from: from, through: through, bytes: bytes)
+        }
+
+        Check.test("a later nettop report replaces credit and leaves the interface total unchanged") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            history.join(network("A"), label: "A", switched: false, now: reference)
+            history.recordInterface(bytesIn: 1_400, bytesOut: 20, now: reference)
+            history.recordApps([(browser, 200, 10), (other, 250, 0)], localBytesIn: 100, now: reference)
+            history.recordFilterDownloads([received(browser, 900, reference, reference + 1)], now: reference + 2)
+            let period = day(reference, cal)
+            let filter = HistoryFilter(appKey: browser.key)
+            Check.expectEqual(history.report(for: period, filter: filter).bytesIn, 900)
+            Check.expectEqual(history.report(for: period, filter: filter).bytesOut, 10)
+            Check.expectTrue(history.exportCSV(for: period).contains("Not attributed to an app,150,10,"))
+            history.recordApps([(browser, 700, 0)], now: reference + 3)
+            Check.expectEqual(history.report(for: period, filter: filter).bytesIn, 900)
+            Check.expectEqual(history.report(for: period).bytesIn, 1_300)
+            Check.expectTrue(history.exportCSV(for: period).contains("Not attributed to an app,150,10,"))
+            history.recordApps([(browser, 100, 0)], now: reference + 4)
+            Check.expectEqual(history.report(for: period, filter: filter).bytesIn, 1_000)
+            Check.expectEqual(history.report(for: period).bytesIn, 1_300)
+        }
+
+        Check.test("all credits share the unattributed download budget") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            history.join(network("A"), label: "A", switched: false, now: reference)
+            history.recordInterface(bytesIn: 1_000, bytesOut: 20, now: reference)
+            history.recordApps([], localBytesIn: 300, now: reference)
+            history.recordFilterDownloads([received(other, 800, reference, reference + 1),
+                                           received(browser, 500, reference, reference + 1)], now: reference + 2)
+            let period = day(reference, cal)
+            let report = history.report(for: period)
+            Check.expectEqual(report.bytesIn, 700)
+            Check.expectEqual(report.apps.map { $0.bytesIn }.reduce(0, +), 700)
+            Check.expectEqual(report.apps.map { $0.bytesOut }.reduce(0, +), 0)
+            Check.expectEqual(report.bytesOut, 20)
+            Check.expectTrue(history.exportCSV(for: period).contains("Not attributed to an app,0,20,"))
+        }
+
+        Check.test("only a report from the current hour and visit earns credit") {
+            let url = temporaryURL(); defer { remove(url) }
+            let cal = calendar()
+            let history = UsageHistory(databaseURL: url, calendar: cal)
+            let hour = cal.dateInterval(of: .hour, for: reference)!.end
+            history.join(network("A"), label: "A", switched: false, now: hour - 10)
+            history.recordInterface(bytesIn: 1_000, bytesOut: 0, now: hour - 4)
+            history.recordFilterDownloads([received(browser, 100, hour - 4, hour - 3)], now: hour - 2)
+            history.recordInterface(bytesIn: 1_000, bytesOut: 0, now: hour + 1)
+            history.recordFilterDownloads([received(browser, 700, hour - 2, hour + 1)], now: hour + 2)
+            history.join(network("B"), label: "B", switched: true, now: hour + 3)
+            history.recordInterface(bytesIn: 1_000, bytesOut: 0, now: hour + 4)
+            history.recordFilterDownloads([received(browser, 600, hour + 1, hour + 3),
+                                           received(browser, 500, hour + 4, hour + 5)], now: hour + 6)
+            let period = day(hour, cal)
+            Check.expectEqual(history.report(for: period, filter: HistoryFilter(networkID: "A")).apps.first?.bytesIn, 100)
+            Check.expectEqual(history.report(for: period, filter: HistoryFilter(networkID: "B")).apps.first?.bytesIn, 500)
+            Check.expectEqual(history.report(for: period).bytesIn, 3_000)
+        }
     }
 
     Check.suite("UsageHistory — recording") {
