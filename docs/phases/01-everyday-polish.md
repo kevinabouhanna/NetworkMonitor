@@ -12,10 +12,6 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   (25 Nov 2026): the total probably has it, the app rows may not, and Connections and ad blocking
   are unchecked. It's measured in a VM, then decided: the docs only, a row for it, or a fix. After
   the update settings (#710), before the Chrome extension (#257), which is weeks of work.
-- **Live and Settings use the window's full width, and the speed test stays put** (#825), Now,
-  Kevin's ask from the 1.35.0 betas: both pages are capped and pinned left, and Live's speed
-  test moves up and down as apps come and go in the list above it. A design artifact first,
-  with a recommended layout and another option.
 - **The menu bar stays shown while the popover is open** (#795), Now, a bug Kevin found with
   the menu bar on auto-hide: macOS holds the bar for its own menus, but not for an
   `NSPopover`, so the popover is left under an empty strip.
@@ -31,6 +27,10 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   `softwareupdated`, not a bundle identifier, which the owner lookup of #767 doesn't read.
 - **Light, Dark or System for the Dock's speeds** (#807), Next, asked for by defragekb: the
   Dock icon's look chosen apart from the Mac's, remembered across launches.
+- **Settings' switches change with ← and →, as the toolbar's do** (#830), Next, found while
+  building #807: the keyboard tour reaches each one, named, but its arrow keys don't change
+  the choice. Checked with real keys in a VM first, then fixed or the tour taught, and held
+  with a test for every Settings switch.
 - **One refresh interval for the live speeds** (#808), Next, asked for by defragekb: Auto, or
   1–5 seconds, averaged over the interval, so the menu bar and the Dock agree.
 - **The Connections map's shades tell nearby amounts apart** (#797), Next, Kevin's ask: today's
@@ -68,6 +68,10 @@ defragekb's ask for what they open iStat Menus to see):
 - **No "Live" caption under the popover's speeds** (#823), Kevin's ask from beta 4: the speeds
   say what they are, and the caption didn't line up with the graph beside them. In 1.35.0
   beta 6.
+- **Live and Settings fill the window** (#825), as Kevin picked in its design artifact: Live's
+  apps fill the left and scroll by themselves, the speed test has its own column on the right
+  (under a list of eight rows on a narrow window), and Settings, Network and each section's
+  settings run edge to edge. In 1.35.0 beta 7.
 
 Done on 26 Nov 2026, released in 1.34.0 the same day (#778):
 

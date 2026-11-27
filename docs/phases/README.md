@@ -12,19 +12,19 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 5.06 | #794 Release 1.35.0: a beta first, with #754's switch | [Phase 5: Releases people check first](05-releases.md) |
-| 5.607 | #825 Live and Settings use the window's full width, and the speed test stays put | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.6 | #807 Add Light, Dark and System appearance to the Dock Speeds icon | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.61 | #809 Completed macOS upgrade stays under nsurlsessiond when the log names softwareupdated | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.62 | #821 Safari's downloads over Private Relay count for everyone with the content filter on | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.625 | #795 The menu bar stays shown while the popover is open, with auto-hide on | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.63 | #797 The Connections map's shades tell nearby amounts apart | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.64 | #798 Connections: no chart in List, a Map or Chart switch in Both and Map, and filters that are easy to clear | [Phase 1: Everyday polish](01-everyday-polish.md) |
 
 ## Next
 
 | Order | Plan | Phase |
 |---|---|---|
-| 5.65 | #807 Add Light, Dark and System appearance to the Dock Speeds icon | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.66 | #808 Add a refresh interval slider for live speeds | [Phase 1: Everyday polish](01-everyday-polish.md) |
-| 5.67 | #797 The Connections map's shades tell nearby amounts apart | [Phase 1: Everyday polish](01-everyday-polish.md) |
-| 5.68 | #798 Connections: no chart in List, a Map or Chart switch in Both and Map, and filters that are easy to clear | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.69 | #830 Settings' switches: check ← and → change their choice, as the toolbar's do | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.7 | #738 Research: does the app count a virtual machine's data, connections and ads? | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 6 | #257 A NetworkMonitor extension for Chrome: in-page ads, pop-ups and YouTube ads, with the app's lists and rules | [Phase 3: The Chrome extension](03-chrome-extension.md) |
 
