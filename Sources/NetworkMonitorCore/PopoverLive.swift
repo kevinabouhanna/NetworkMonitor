@@ -69,19 +69,15 @@ struct PopoverLiveLine: View {
         let down = LiveTints.down(colors), up = LiveTints.up(colors)
         Button(action: action) {
             HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 1) {
-                    HStack(spacing: 10) {
-                        Text("↓ " + rate(live.latest?.down)).foregroundStyle(down)
-                        Text("↑ " + rate(live.latest?.up)).foregroundStyle(up)
-                    }
-                    .font(.system(size: 14, weight: .semibold))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    Text(L("Live"))
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
+                // No caption: the speeds say what they are (Kevin, #823).
+                HStack(spacing: 10) {
+                    Text("↓ " + rate(live.latest?.down)).foregroundStyle(down)
+                    Text("↑ " + rate(live.latest?.up)).foregroundStyle(up)
                 }
+                .font(.system(size: 14, weight: .semibold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 Spacer(minLength: 4)
                 // A preview of the last minute while another view is open:
                 // with Live open, its own graph is right below (#812).

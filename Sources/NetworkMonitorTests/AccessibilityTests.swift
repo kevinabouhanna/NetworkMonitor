@@ -424,6 +424,17 @@ func runAccessibilityTests() {
                 model.popoverSection = section
                 check(popover, "The popover › \(section.rawValue)\(language)")
             }
+            // The Live line has no caption on screen (#823), so its spoken
+            // name is what says it's Live: "Live, download …, upload …".
+            Check.test("the popover's Live line is named Live without a caption (#823)\(language)") {
+                popover.placeOutOfSight()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                let liveName = LiveSpeed.spoken(model.live.latest, unit: model.speedTest.unit)
+                let order = AccessibilityAudit.readingOrderOwnWindow(titled: popover.title)
+                Check.expectTrue(order.contains { $0.hasPrefix("AXButton: \(liveName)") },
+                                 "the Live line isn't named \(liveName): \(order.prefix(6))")
+                popover.orderOut(nil)
+            }
             // Each view's other groupings, over a week (#449).
             let glance = model.glance
             let saved = (glance.period, glance.dataGrouping, glance.connectionsGrouping, glance.adsGrouping)
