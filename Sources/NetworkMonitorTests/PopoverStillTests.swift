@@ -151,7 +151,8 @@ private func expectStill(_ style: NSScroller.Style) {
     /// The header's controls, and where each is in the popover.
     func header() -> [(name: String, frame: CGRect)] {
         let origin = CGPoint(x: window.frame.minX, y: NSScreen.screens[0].frame.maxY - window.frame.maxY)
-        let wanted = [L("Period"), L("Data"), L("Connections"), L("Ads blocked"), L("Network"), L("Settings")]
+        // The period is in the views it changes (#812), so not up here.
+        let wanted = [L("Data"), L("Connections"), L("Ads blocked"), L("Network"), L("Settings")]
         let elements = AccessibilityAudit.framesOwnWindow(titled: window.title)
         var found: [(name: String, frame: CGRect)] = []
         for name in wanted {
@@ -168,7 +169,7 @@ private func expectStill(_ style: NSScroller.Style) {
     func check(_ view: String) {
         RunLoop.main.run(until: Date() + 0.7)
         let now = header()
-        Check.expectEqual(now.map(\.name).count, 6, "\(view): the header's controls found: \(now.map(\.name))")
+        Check.expectEqual(now.map(\.name).count, 5, "\(view): the header's controls found: \(now.map(\.name))")
         if first.isEmpty { first = now }
         for (was, is_) in zip(first, now) {
             let moved = max(abs(was.frame.minX - is_.frame.minX), abs(was.frame.minY - is_.frame.minY),

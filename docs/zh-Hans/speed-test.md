@@ -7,7 +7,7 @@
        alt="网速测试完成后弹出窗口中的“网络”视图，上方是“今天”、“周”、“月”和四个数字：中央显示下载速度的表盘，下载和上传速度、网络、测试用了多少流量以及测试时间，然后是延迟、抖动、下载时的延迟和上传时的延迟；“返回”和“再测一次”按钮。">
 </p>
 
-点按弹出窗口“实时”视图中的 <strong>测试网速</strong>（隐藏“实时”时在“网络”视图中），从右键菜单中选择 <strong>测试网速</strong>，或者点按主窗口 <strong>网络</strong> 页面上的 <strong>立即测试</strong>。它测试的是你正在使用的连接。NetworkMonitor 会运行 `networkQuality`，这是 Apple 自 Monterey 起随每台 Mac 附带的网速测试工具，测试对象是离你最近的 Apple 服务器。
+点按弹出窗口“实时”视图中的 <strong>测试网速</strong>（隐藏“实时”时在“网络”视图中），从右键菜单中选择 <strong>测试网速</strong>，或者点按主窗口 <strong>实时</strong> 页面（⌘L）上的 <strong>立即测试</strong>。它测试的是你正在使用的连接。NetworkMonitor 会运行 `networkQuality`，这是 Apple 自 Monterey 起随每台 Mac 附带的网速测试工具，测试对象是离你最近的 Apple 服务器。
 
 ## 测试结果
 
@@ -36,7 +36,7 @@
 
 ## 实现方式
 
-<strong>测试引擎</strong>是 `/usr/bin/networkQuality`。如果 Mac 上没有它，弹出窗口、“网络”页面和菜单中都不会出现网速测试。我们也考虑过其他引擎，但都没有采用：
+<strong>测试引擎</strong>是 `/usr/bin/networkQuality`。如果 Mac 上没有它，弹出窗口、“实时”页面和菜单中都不会出现网速测试。我们也考虑过其他引擎，但都没有采用：
 
 | 选项 | 不采用的原因 |
 |---|---|

@@ -755,12 +755,20 @@ public final class MonitorViewModel: ObservableObject {
 
     /// Called when the popover opens, and once per nettop sample while open.
     ///
+    /// Whether the main window's Live page is on screen (#812): Live's graph
+    /// and apps redraw then too.
+    private var liveIsShownInWindow = false
+    public func setLiveShownInWindow(_ shown: Bool) {
+        liveIsShownInWindow = shown
+        live.isWatched = popoverIsOpen || shown
+    }
+
     /// Visibility no longer starts or stops anything — tracking is continuous, so
     /// the rows are already complete when the popover appears rather than filling
     /// in a second later.
     public func setPopoverOpen(_ open: Bool) {
         popoverIsOpen = open
-        live.isWatched = open
+        live.isWatched = open || liveIsShownInWindow
         // A new lease can change this Mac's address without a new network.
         if open { addresses.read() }
         expandedApps.removeAll()

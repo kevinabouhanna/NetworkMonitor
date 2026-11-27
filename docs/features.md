@@ -54,7 +54,7 @@ at once.
   Click the icon for the main window, on the section it was last on. Its menu has what the
   readout's right-click menu has, the Dock's own Quit included; with Speeds it starts with
   the speeds in words, which is how VoiceOver reads them there. There's no popover in this
-  mode: a speed test that needs your OK on a hotspot asks on the **Network** page.
+  mode: a speed test that needs your OK on a hotspot asks on the **Live** page.
 - **Both**: the readout in the menu bar, and a Dock icon all the time. The same **Dock
   icon** choice appears under it, with **App icon** to begin with, so the Dock icon is the
   app's until you choose **Speeds**. Dock and Both each keep their own choice.
@@ -63,15 +63,16 @@ There's no choice of neither: there'd be no way back to the app.
 
 ## The popover
 
-- **Today | Week | Month**, at the top, sets the period for every figure under it: today,
-  this week or this month so far, on every network, read from Usage History. The popover
-  opens on the period you chose last.
-- **Live**, above the buttons, shows the download and upload speeds right now, in the
-  speed colors, with a small graph of the last minute (#802). Click it for the Live view,
-  where the popover opens.
+- **Live**, at the top beside the four squares and the gear, shows the download and upload
+  speeds right now, in your speed colors, with a small graph of the last minute while
+  another view is open (#802, #812). Click it for the Live view, where the popover opens.
 - **Four buttons**: **Data**, **Connections**, **Ads blocked** and **Network**, each with
   its figure. Click one to see its view underneath. The colours are the same everywhere in
   the app: data blue, connections teal, blocked red, hotspots orange.
+- **Today | Week | Month**, at the top of Data, Connections and Ads blocked, sets their
+  period: today, this week or this month so far, on every network, read from Usage History.
+  It sets what their buttons count too, and the popover opens on the period you chose last.
+  Live and Network are about now, so they don't have it (#812).
 - **Live** graphs download and upload together over **1 min**, **5 min** or **15 min**,
   lists the apps using the network now with their download and upload speeds, fastest
   first, and has the [speed test](speed-test.md): the last result and **Test Speed**.
@@ -110,8 +111,8 @@ There's no choice of neither: there'd be no way back to the app.
   Popover**.
 - **Open …**, at the bottom of each view, opens that section of the main window on the same
   period: **Open Usage History** (⌘Y), **Open Connections** (⌘K), **Open Ads and Trackers**
-  (⌘B) or **Open Network**. The **four squares** beside the gear do the same, and the
-  **gear** opens Settings.
+  (⌘B) or **Open Network**. The **four squares** beside the gear do the same, and open the
+  **Live** page (⌘L) from Live. The **gear** opens Settings.
 - **Lines under the buttons** say what needs saying:
   - a hotspot you've joined that the Mac isn't using, with how to switch behind an ⓘ;
   - on a hotspot with [Hotspot mode](hotspot-mode.md) on, an update that downloaded anyway;
@@ -189,8 +190,8 @@ puts the connection in Low Data Mode, and tells you which apps it can't stop. Se
 
 ## The main window
 
-One window with a sidebar: **Usage History**, **Connections**, **Ads and Trackers** and
-**Network**, in the popover's order, with **Settings** pinned at the bottom. Hide the sidebar
+One window with a sidebar: **Live**, **Usage History**, **Connections**, **Ads and Trackers**
+and **Network**, in the popover's order, with **Settings** pinned at the bottom. Hide the sidebar
 with its button or **View › Hide Sidebar** (⌃⌘S). When a new version is out, a card above
 **Settings** offers it, or says it's about to install, or that it did
 ([Update](installing.md#update)).
@@ -200,15 +201,16 @@ Ads and Trackers, **List, Both or Map** in Connections (#524); Both is always th
 the left and the chart or the map on the right (#534). It has the period (**Day,
 Week, Month, Year**) in the middle, then
 **‹ Today ›**, a search button that opens into a field (⌘F), and a **gear**. The gear shows
-that section's own settings in place, with a back button. Network is about now, so it has
-only the gear.
+that section's own settings in place, with a back button. Live and Network are about now,
+so Network has only the gear, and Live its graph's **1 min | 5 min | 15 min** on the page.
 
 | Section | What's in it | Behind its gear |
 |---|---|---|
+| **Live** | The download and upload speeds now, and the fastest in the graph · a graph of both over 1, 5 or 15 minutes · every app using the network now, with its speeds · the speed test (#812) | Show the test in the popover as Card or Compact |
 | **Usage History** | The period's use by network type, then its apps, networks or sessions · Export CSV… | Keep history for · Clear History… |
 | **Connections** | Who your apps talked to, on a list and a map, or what was blocked · Rules: every rule you've made, with what each did | Website names, Turn On… while they're off · Let apps connect · Your rules: Show Rules…, Import… and Export… · Encrypt lookups · Opens with List, Both or Map · Where the names come from, and Update them monthly |
 | **Ads and Trackers** | Overview: the period, a chart, sites or apps · Log: each connection as the filter decides it · Rules: your own, with what each did | Block ads and trackers · Update the lists weekly · Your rules: Show Rules…, Import… and Export… · Lists |
-| **Network** | The connection you're on · This is a hotspot, and what it's detected as Right now · Traffic through a proxy or VPN, counted for each app ([how](accuracy-and-battery.md#through-a-proxy-or-a-vpn)) · Stop apps updating on hotspots, what's paused and what can't be paused · the speed test | Show the test in the popover as Card or Compact |
+| **Network** | The connection you're on · This is a hotspot, and what it's detected as Right now · Traffic through a proxy or VPN, counted for each app ([how](accuracy-and-battery.md#through-a-proxy-or-a-vpn)) · Stop apps updating on hotspots, what's paused and what can't be paused | Look up the internet address |
 
 ## Settings
 

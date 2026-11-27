@@ -7,6 +7,7 @@ import SwiftUI
 enum LiveTints {
     static func down(_ colors: MenuBarColors) -> Color { tint(colors.live.down) }
     static func up(_ colors: MenuBarColors) -> Color { tint(colors.live.up) }
+    static func down(_ tints: MenuBarTints) -> Color { tint(tints.down) }
 
     private static func tint(_ color: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
@@ -28,6 +29,30 @@ extension PopoverMetrics {
     public static let liveRowHeight: CGFloat = 24
     /// The width of a rate's column.
     static let liveRateWidth: CGFloat = 66
+    /// The Live line's graph of the last minute, beside ⊞ and ⚙ (#812).
+    static let liveSparkWidth: CGFloat = 60
+    /// Today / Week / Month, at the top of Data, Connections and Ads blocked
+    /// (#812): its small switch (22) with 8 above.
+    public static let periodRowHeight: CGFloat = 30
+}
+
+/// Today / Week / Month (#812), at the top of the views it changes: Data,
+/// Connections and Ads blocked, as Live has 1 · 5 · 15 min at the top of its
+/// own. It also sets what their buttons count.
+struct PopoverPeriodRow: View {
+    @Binding var period: PopoverPeriod
+
+    var body: some View {
+        HStack(spacing: 8) {
+            PopoverSwitch(name: L("Period"), options: PopoverPeriod.allCases, selection: $period,
+                          label: { $0.label }, size: .small)
+                .help(L("What Data, Connections and Ads blocked count: today, this week or this month so far, on every network"))
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, PopoverMetrics.edge)
+        .padding(.top, 8)
+        .frame(height: PopoverMetrics.periodRowHeight, alignment: .bottom)
+    }
 }
 
 /// The line above the popover's buttons (#802): the speeds now and a small
@@ -49,7 +74,7 @@ struct PopoverLiveLine: View {
                         Text("↓ " + rate(live.latest?.down)).foregroundStyle(down)
                         Text("↑ " + rate(live.latest?.up)).foregroundStyle(up)
                     }
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
@@ -58,10 +83,15 @@ struct PopoverLiveLine: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 4)
-                LiveGraph(samples: live.samples(in: .oneMinute, now: now), span: .oneMinute, now: now,
-                          top: top, down: down, up: up, lineWidth: 1.2)
-                    .frame(width: 84, height: 24)
-                    .accessibilityHidden(true)
+                // A preview of the last minute while another view is open:
+                // with Live open, its own graph is right below (#812).
+                if !isSelected {
+                    LiveGraph(samples: live.samples(in: .oneMinute, now: now), span: .oneMinute, now: now,
+                              top: top, down: down, up: up, lineWidth: 1.2)
+                        .frame(width: PopoverMetrics.liveSparkWidth, height: 24)
+                        .accessibilityHidden(true)
+                        .transition(.opacity)
+                }
             }
             .padding(.horizontal, 5)
             .padding(.vertical, 5)
@@ -164,7 +194,8 @@ struct PopoverLiveView: View {
     /// The list's height in the other views: what Live's graph and apps share.
     let listHeight: CGFloat
     let icon: (String, String, String?) -> NSImage
-    let onHistory: () -> Void
+    /// The window's Live page (#812), where ⊞ goes too.
+    let onOpen: () -> Void
 
     var body: some View {
         let down = LiveTints.down(colors), up = LiveTints.up(colors)
@@ -196,7 +227,7 @@ struct PopoverLiveView: View {
                         .padding(.horizontal, 12)
                         .frame(height: PopoverMetrics.openRowHeight)
                 } else {
-                    PopoverOpenRow(title: L("Open Usage History"), shortcut: "⌘Y", action: onHistory)
+                    PopoverOpenRow(title: L("Open Live"), shortcut: "⌘L", action: onOpen)
                 }
             }
         }

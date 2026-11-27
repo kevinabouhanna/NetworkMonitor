@@ -174,6 +174,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                 if let tab = (arguments["tab"] as? String).flatMap(AdsViewModel.Tab.init) { main.ads.select(tab) }
                 showAds()
             }
+        case "live":        showLive()
         case "history":     showHistory()
         case "network":     showNetwork()
         case "about":       showAbout()
@@ -193,8 +194,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             if pane == "hotspot" {
                 showNetwork()
             } else if pane == "speedTest" || pane == "speed-test" {
-                // How the popover shows the test: Network's settings.
-                showSectionSettings(.network, from: nil)
+                // How the popover shows the test: Live's settings (#812).
+                showSectionSettings(.live, from: nil)
             } else if let section = MainSection(rawValue: pane ?? ""), section != .settings {
                 showSectionSettings(section, from: nil)
             } else {
@@ -333,7 +334,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                 self.adsModel.showPresent(self.model.glance.period.scale)
                 self.showAds()
             },
-            onHotspotSettings: { [weak self] in self?.showNetwork() })
+            onHotspotSettings: { [weak self] in self?.showNetwork() },
+            onLive: { [weak self] in self?.showLive() })
         let host = NSHostingController(rootView: root.localizedRoot())
         // Keeps `preferredContentSize` in step with what SwiftUI lays out.
         //
@@ -967,8 +969,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         speedTest.run()
         guard case .confirming = speedTest.phase, !popover.isShown else { return }
         // In Dock mode the question is asked where the test also is, on
-        // Network's page (#69).
-        if placement.showsMenuBar { togglePopover() } else { showNetwork() }
+        // Live's page (#69, #812).
+        if placement.showsMenuBar { togglePopover() } else { showLive() }
     }
 
     // MARK: Uninstall
@@ -1024,6 +1026,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// the popover, Usage History… in the right-click menu, its row in
     /// Settings, and ⌘Y while a window is open.
     @objc private func showHistory() { show(section: .history) }
+
+    /// Live, in the main window (#812): from ⊞ on the popover's Live, and ⌘L
+    /// while a window is open.
+    @objc private func showLive() { show(section: .live) }
 
     /// Connections, in the main window: from Open Connections in the popover,
     /// Connections… in the right-click menu, and ⌘K while a window is open.
@@ -1324,6 +1330,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         windowMenu.addItem(withTitle: L("Minimize"),
                            action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowMenu.addItem(.separator())
+        windowMenu.addItem(withTitle: L("Live"),
+                           action: #selector(showLive), keyEquivalent: "l").target = self
         windowMenu.addItem(withTitle: L("Usage History"),
                            action: #selector(showHistory), keyEquivalent: "y").target = self
         windowMenu.addItem(withTitle: L("Connections"),

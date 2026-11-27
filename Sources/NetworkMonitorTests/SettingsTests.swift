@@ -6,12 +6,13 @@ import SwiftUI
 func runSettingsTests() {
     Check.suite("Settings — in the main window") {
 
-        // One window (#436): the four sections in the popover's order, and
-        // Settings at the bottom of the sidebar, in place of a Settings window.
-        Check.test("the sidebar runs the four sections, then Settings") {
+        // One window (#436): the sections in the popover's order, Live first
+        // (#812), and Settings at the bottom of the sidebar, in place of a
+        // Settings window.
+        Check.test("the sidebar runs Live and the four sections, then Settings") {
             Check.expectEqual(MainSection.allCases.map(\.rawValue),
-                              ["history", "connections", "ads", "network", "settings"])
-            Check.expectEqual(MainSection.features, [.history, .connections, .ads, .network])
+                              ["live", "history", "connections", "ads", "network", "settings"])
+            Check.expectEqual(MainSection.features, [.live, .history, .connections, .ads, .network])
         }
 
         // A missing symbol draws an empty sidebar row, silently.

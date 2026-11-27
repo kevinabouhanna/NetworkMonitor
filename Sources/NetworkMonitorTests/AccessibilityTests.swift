@@ -229,6 +229,8 @@ func runAccessibilityTests() {
                 Check.expectTrue(names.contains(L("Show")) && names.contains { chart.contains($0) },
                                  "Both doesn't have the list's Show and the chart: \(names)")
             }
+            main.show(.live)
+            checkMain("Live")
             main.show(.network)
             checkMain("Network")
             main.show(.settings)
@@ -344,9 +346,9 @@ func runAccessibilityTests() {
             }
             model.firewall.enhancedBlocking = enhancedBefore
             model.enhanced.preview(.off)
-            // The speed test's styles are in Network's settings (#436).
-            if code == Localization.source { Check.test("Network's settings read each speed test style's picture as one button") {
-                main.show(.network)
+            // The speed test's styles are in Live's settings (#436, #812).
+            if code == Localization.source { Check.test("Live's settings read each speed test style's picture as one button") {
+                main.show(.live)
                 main.showSettings()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.6))
                 let outline = outlineNow()

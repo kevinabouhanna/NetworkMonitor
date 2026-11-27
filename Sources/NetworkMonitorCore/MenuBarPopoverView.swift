@@ -26,10 +26,14 @@ public struct MenuBarPopoverView: View {
     var onConnections: () -> Void
     var onAds: () -> Void
     var onHotspotSettings: () -> Void
+    /// The main window's Live page (#812), from ⊞ while Live is shown.
+    var onLive: () -> Void
 
     public init(model: MonitorViewModel, onSettings: @escaping () -> Void,
                 onHistory: @escaping () -> Void, onConnections: @escaping () -> Void,
-                onAds: @escaping () -> Void = {}, onHotspotSettings: @escaping () -> Void = {}) {
+                onAds: @escaping () -> Void = {}, onHotspotSettings: @escaping () -> Void = {},
+                onLive: @escaping () -> Void = {}) {
+        self.onLive = onLive
         self.model = model
         self.speedTest = model.speedTest
         self.metering = model.metering
@@ -107,12 +111,19 @@ public struct MenuBarPopoverView: View {
                     case .today:
                         today
                     case .companies:
-                        PopoverCompanies(glance: glance, listHeight: listHeight,
-                                         icon: model.icon(forApp:name:bundlePath:), onOpen: onConnections)
+                        VStack(spacing: 0) {
+                            PopoverPeriodRow(period: $glance.period)
+                            PopoverCompanies(glance: glance, listHeight: listHeight,
+                                             icon: model.icon(forApp:name:bundlePath:), onOpen: onConnections)
+                        }
                     case .blocked:
-                        PopoverBlocked(glance: glance, firewall: firewall, filter: filter, network: model.currentNetwork,
-                                       listHeight: listHeight, icon: model.icon(forApp:name:bundlePath:),
-                                       onTurnOn: turnOnAdBlocking, onOpen: onAds)
+                        VStack(spacing: 0) {
+                            PopoverPeriodRow(period: $glance.period)
+                            PopoverBlocked(glance: glance, firewall: firewall, filter: filter,
+                                           network: model.currentNetwork, listHeight: listHeight,
+                                           icon: model.icon(forApp:name:bundlePath:),
+                                           onTurnOn: turnOnAdBlocking, onOpen: onAds)
+                        }
                     case .connection:
                         connection
                     }
@@ -140,13 +151,18 @@ public struct MenuBarPopoverView: View {
         let rows = max(max(dataRowCount, networksRowCount),
                        PopoverCompanies.rows(glance),
                        PopoverBlocked.rows(glance, isOn: !firewall.lists.isEmpty))
-        return PopoverMetrics.sectionAreaHeight(rows: rows,
-                                                speedCard: showsCard && layout.isShown(layout.speedTestSection))
+        // And the period's row, which Data, Connections and Ads blocked have
+        // at their top (#812); Live and Network have its height for their own.
+        return PopoverMetrics.periodRowHeight
+            + PopoverMetrics.sectionAreaHeight(rows: rows,
+                                               speedCard: showsCard && layout.isShown(layout.speedTestSection))
     }
 
-    /// The list's height in each view: the section's, less its grouping row,
-    /// the line and the Open row.
-    private var listHeight: CGFloat { sectionHeight - PopoverMetrics.sectionChrome }
+    /// The list's height in Data, Connections and Ads blocked: the section's,
+    /// less the period's row, the grouping row, the line and the Open row.
+    private var listHeight: CGFloat {
+        sectionHeight - PopoverMetrics.periodRowHeight - PopoverMetrics.sectionChrome
+    }
 
     // MARK: Data
 
@@ -172,6 +188,7 @@ public struct MenuBarPopoverView: View {
     /// Data: the apps or the networks, and the way to Usage History (#436, #449).
     private var today: some View {
         VStack(alignment: .leading, spacing: 0) {
+            PopoverPeriodRow(period: $glance.period)
             PopoverGroupingRow(options: PopoverDataGrouping.allCases, selection: $glance.dataGrouping,
                                label: { $0.label }, count: dataCount)
             // Overlapping while they cross (#436): stacked, the popover
@@ -209,8 +226,9 @@ public struct MenuBarPopoverView: View {
                     Divider()
                 }
                 PopoverLiveView(live: model.live, colors: model.menuBarColors, speedTest: speedTest,
-                                listHeight: listHeight - (showsStrip ? PopoverMetrics.speedStripHeight + 1 : 0),
-                                icon: model.icon(forApp:name:bundlePath:), onHistory: onHistory)
+                                listHeight: listHeight + PopoverMetrics.periodRowHeight
+                                    - (showsStrip ? PopoverMetrics.speedStripHeight + 1 : 0),
+                                icon: model.icon(forApp:name:bundlePath:), onOpen: onLive)
             }
         }
     }
@@ -235,7 +253,8 @@ public struct MenuBarPopoverView: View {
                 // As tall as the other views' grouping row, list and line,
                 // less the strip's share while it's shown.
                 PopoverConnection(metering: metering, speedTest: speedTest, status: model.connection,
-                                  height: PopoverMetrics.groupingRowHeight + listHeight + 1
+                                  height: PopoverMetrics.periodRowHeight + PopoverMetrics.groupingRowHeight
+                                      + listHeight + 1
                                       - (strip ? PopoverMetrics.speedStripHeight + 1 : 0),
                                   showsSpeedTest: !layout.showsLive,
                                   addresses: model.addresses, tunnel: model.tunnelCarrierName,
@@ -312,7 +331,8 @@ public struct MenuBarPopoverView: View {
     /// The window section for the view shown, from the button by the gear.
     private func openWindow() {
         switch model.popoverSection {
-        case .live, .today: onHistory()
+        case .live:       onLive()
+        case .today:      onHistory()
         case .companies:  onConnections()
         case .blocked:    onAds()
         case .connection: onHotspotSettings()
@@ -321,23 +341,26 @@ public struct MenuBarPopoverView: View {
 
     private var openWindowHelp: String {
         switch model.popoverSection {
-        case .live, .today: return L("Open Usage History (⌘Y)")
+        case .live:       return L("Open Live (⌘L)")
+        case .today:      return L("Open Usage History (⌘Y)")
         case .companies:  return L("Open Connections (⌘K)")
         case .blocked:    return L("Open Ads and Trackers (⌘B)")
         case .connection: return L("Open Network")
         }
     }
 
-    /// The period, with Settings' gear beside it; the four buttons; then
-    /// anything that needs saying (#436, #449). One combined total: live
-    /// download/upload rates are already in the menu bar.
+    /// The Live line, with ⊞ and Settings' gear beside it; the four buttons;
+    /// then anything that needs saying (#436, #449, #812). The period is in
+    /// the views it changes, not up here over Live and Network.
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                PopoverSwitch(name: L("Period"), options: PopoverPeriod.allCases, selection: $glance.period,
-                              label: { $0.label })
-                    .help(L("What Data, Connections and Ads blocked count: today, this week or this month so far, on every network"))
-                Spacer(minLength: 0)
+                if layout.showsLive {
+                    PopoverLiveLine(live: model.live, colors: model.menuBarColors, unit: speedTest.unit,
+                                    isSelected: model.popoverSection == .live) { show(.live) }
+                } else {
+                    Spacer(minLength: 0)
+                }
                 Button(action: openWindow) {
                     Image(systemName: "square.grid.2x2")
                         .font(.system(size: 13))
@@ -365,13 +388,7 @@ public struct MenuBarPopoverView: View {
             .padding(.leading, PopoverMetrics.edge)
             .padding(.trailing, 6)
             .padding(.top, 8)
-            .padding(.bottom, 4)
-            if layout.showsLive {
-                PopoverLiveLine(live: model.live, colors: model.menuBarColors, unit: speedTest.unit,
-                                isSelected: model.popoverSection == .live) { show(.live) }
-                    .padding(.horizontal, PopoverMetrics.edge)
-                    .padding(.bottom, 2)
-            }
+            .padding(.bottom, 2)
             PopoverButtons(selection: Binding(get: { model.popoverSection }, set: show),
                            period: glance.period,
                            data: dataTotal,

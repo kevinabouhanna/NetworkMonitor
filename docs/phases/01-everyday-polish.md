@@ -19,10 +19,6 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   but not for QUIC's sent bytes. The switch for them is in 1.35.0 beta 1 (#786), off unless
   set by hand. defragekb measures Private Relay and the cost on the Mac that has it. If that
   holds, the first pass is downloads only, with the filter on, reconciled with nettop.
-- **Live, finished: no Today / Week / Month on it, one graph, and Live in the main window**
-  (#812), Now: Kevin, trying 1.35.0 beta 3, found the period switch doing nothing on Live, two
-  graphs of the same speeds at once, and no Live in the window. A design artifact with the
-  options comes first; it's built before 1.35.0 leaves beta.
 - **A finished macOS upgrade counts for Software Update** (#809), Now, a bug reported by
   defragekb: 17.8 GB stayed under `nsurlsessiond` because the log names its client
   `softwareupdated`, not a bundle identifier, which the owner lookup of #767 doesn't read.
@@ -40,6 +36,11 @@ defragekb's ask for what they open iStat Menus to see):
 - **Settings › Popover** shows or hides each view and orders the four buttons (#802).
 - **Network** shows this Mac's address and, once you turn it on, the internet address with its
   country and provider: the first thing the app asks an outside service, so it asks first (#803).
+- **Live, finished** (#812), from Kevin trying beta 3, as he chose in its design artifact:
+  Today / Week / Month moved into Data, Connections and Ads blocked; the Live line beside ⊞
+  and the gear, its small graph only while another view is open, in the speed colors chosen;
+  and Live first in the main window's sidebar (⌘L), with the speed test moved there from
+  Network. In 1.35.0 beta 4.
 
 Done on 26 Nov 2026, released in 1.34.0 the same day (#778):
 
