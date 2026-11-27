@@ -425,14 +425,23 @@ func runAccessibilityTests() {
                 check(popover, "The popover › \(section.rawValue)\(language)")
             }
             // The Live line has no caption on screen (#823), so its spoken
-            // name is what says it's Live: "Live, download …, upload …".
+            // name is all that says it's Live: "Live, download …, upload …".
+            // This guards that name only: the button's label hides its
+            // texts from Accessibility, so a caption can't be seen from here.
+            // The speeds change as it reads, so only the words before them
+            // are compared.
             Check.test("the popover's Live line is named Live without a caption (#823)\(language)") {
+                guard model.popoverLayout.showsLive else {
+                    Check.expectTrue(false, "the popover's layout hides Live, so its line can't be checked")
+                    return
+                }
                 popover.placeOutOfSight()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-                let liveName = LiveSpeed.spoken(model.live.latest, unit: model.speedTest.unit)
+                let names = [L("Live, no speeds yet"),
+                             L("Live, download %@, upload %@", "\u{1}", "\u{1}").components(separatedBy: "\u{1}")[0]]
                 let order = AccessibilityAudit.readingOrderOwnWindow(titled: popover.title)
-                Check.expectTrue(order.contains { $0.hasPrefix("AXButton: \(liveName)") },
-                                 "the Live line isn't named \(liveName): \(order.prefix(6))")
+                Check.expectTrue(order.contains { item in names.contains { item.hasPrefix("AXButton: \($0)") } },
+                                 "the Live line isn't named \(names): \(order.prefix(6))")
                 popover.orderOut(nil)
             }
             // Each view's other groupings, over a week (#449).
