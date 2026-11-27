@@ -443,7 +443,7 @@ struct SpeedTestStylePane: View {
             // Off until you turn it on, here or with Show in the popover (#803).
             Section {
                 ExplainedRow(L("Look up the internet address"),
-                             L("Asks Cloudflare's 1.1.1.1 for the address websites see, once on each network you join, and never on a hotspot or in Low Data Mode. It learns that address, as every website does, and nothing else. The country and provider come from the data already in the app.")) {
+                             L("Asks Cloudflare's 1.1.1.1 for the address websites see, once on each network you join, and never on a hotspot, a metered connection or in Low Data Mode. It learns that address, as every website does, and nothing else. The country and provider come from the data already in the app.")) {
                     Toggle(L("Look up the internet address"), isOn: $addresses.isEnabled)
                         .toggleStyle(.switch)
                         .labelsHidden()

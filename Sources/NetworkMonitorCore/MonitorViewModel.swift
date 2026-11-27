@@ -135,6 +135,7 @@ public final class MonitorViewModel: ObservableObject {
     /// This Mac's address and, once allowed, the internet address, for the
     /// popover's Network view (#803). Never asked for on a hotspot, a metered
     /// connection or in Low Data Mode, as the country data isn't fetched there.
+    private var addressVerdict: AnyCancellable?
     public private(set) lazy var addresses = InternetAddress(
         sources: .live(mayAsk: { [weak self] in
             guard let self else { return false }
@@ -280,7 +281,10 @@ public final class MonitorViewModel: ObservableObject {
         // replays any journal left by the previous run before deciding.
         metering.start()
         // After the verdict, which says whether this network may be asked.
-        addresses.networkDidChange()
+        addresses.networkDidChange(network: store.currentNetwork.id)
+        addressVerdict = metering.$verdict.removeDuplicates().dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.addresses.verdictDidChange() }
 
         // What the filter saw names the servers nettop only gives addresses for,
         // and what it blocked is counted beside them (#114).
@@ -375,7 +379,10 @@ public final class MonitorViewModel: ObservableObject {
             return network.id != NetworkFingerprint.offline.id && !network.isConstrained
                 && !self.metering.verdict.isMetered
         }
-        geoData.onUpdate = { [weak self] directory, month in self?.filter.applyGeoData(at: directory, month: month) }
+        geoData.onUpdate = { [weak self] directory, month in
+            self?.filter.applyGeoData(at: directory, month: month)
+            PlaceTables.shared.invalidate()
+        }
         if let month = GeoData.month(in: GeoDataUpdater.downloadedDirectory), month == geoData.month {
             filter.applyGeoData(at: GeoDataUpdater.downloadedDirectory, month: month)
         }
@@ -833,7 +840,7 @@ public final class MonitorViewModel: ObservableObject {
         refreshHeader()
         if popoverIsOpen { rebuildRows(now: Date()) }
         // After the verdict too: a hotspot is never asked (#803).
-        addresses.networkDidChange()
+        addresses.networkDidChange(network: store.currentNetwork.id)
     }
 
     public func refreshHeader() {

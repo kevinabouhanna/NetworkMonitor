@@ -8,6 +8,7 @@ func runInternetAddressTests() {
     /// it was asked.
     final class World {
         var addresses = ["192.168.1.20"]
+        var own: String?
         var mayAsk = true
         var answer: String? = "fl=1\nh=one.one.one.one\nip=203.0.113.42\nts=1\nloc=DE\n"
         var asked = 0
@@ -16,6 +17,7 @@ func runInternetAddressTests() {
         func sources() -> InternetAddress.Sources {
             InternetAddress.Sources(
                 addresses: { self.addresses },
+                ownPublicAddress: { self.own },
                 mayAsk: { self.mayAsk },
                 fetch: { url, done in
                     self.asked += 1
@@ -31,13 +33,13 @@ func runInternetAddressTests() {
         }
     }
 
-    func settle() { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+    func settle() { RunLoop.main.run(until: Date().addingTimeInterval(0.15)) }
 
     Check.suite("Network — the Mac's addresses (#803)") {
         Check.test("this Mac's address shows, and nothing is asked while the lookup is off") {
             let world = World()
             let addresses = InternetAddress(sources: world.sources(), defaults: Check.defaults("address-off"))
-            addresses.networkDidChange()
+            addresses.networkDidChange(network: "home")
             settle()
             Check.expectEqual(addresses.local, "192.168.1.20")
             Check.expectEqual(addresses.state, .notAsked)
@@ -48,7 +50,7 @@ func runInternetAddressTests() {
             let world = World()
             let defaults = Check.defaults("address-show")
             let addresses = InternetAddress(sources: world.sources(), defaults: defaults)
-            addresses.networkDidChange()
+            addresses.networkDidChange(network: "home")
             addresses.show()
             settle()
             Check.expectTrue(addresses.isEnabled)
@@ -63,12 +65,16 @@ func runInternetAddressTests() {
         Check.test("asked once per network, and again on the next") {
             let world = World()
             let addresses = InternetAddress(sources: world.sources(), defaults: Check.defaults("address-per-network"))
+            addresses.networkDidChange(network: "home")
             addresses.isEnabled = true
             settle()
             addresses.read()
             settle()
             Check.expectEqual(world.asked, 1, "reading the Mac's address asks nobody")
-            addresses.networkDidChange()
+            addresses.networkDidChange(network: "home")
+            settle()
+            Check.expectEqual(world.asked, 1, "back on the same network after a blip: not again")
+            addresses.networkDidChange(network: "office")
             settle()
             Check.expectEqual(world.asked, 2)
         }
@@ -78,7 +84,7 @@ func runInternetAddressTests() {
             world.mayAsk = false
             let addresses = InternetAddress(sources: world.sources(), defaults: Check.defaults("address-hotspot"))
             addresses.isEnabled = true
-            addresses.networkDidChange()
+            addresses.networkDidChange(network: "home")
             settle()
             Check.expectEqual(world.asked, 0)
             Check.expectEqual(addresses.state, .notHere)
@@ -90,7 +96,7 @@ func runInternetAddressTests() {
             addresses.isEnabled = true
             settle()
             addresses.isEnabled = false
-            addresses.networkDidChange()
+            addresses.networkDidChange(network: "home")
             settle()
             Check.expectEqual(world.asked, 1)
             Check.expectEqual(addresses.state, .notAsked)
@@ -98,13 +104,71 @@ func runInternetAddressTests() {
 
         Check.test("a Mac that holds its public address needs nobody to tell it") {
             let world = World()
-            world.addresses = ["198.51.100.7"]
+            world.addresses = ["198.51.100.7", "2a02:810d::1"]
+            world.own = "198.51.100.7"
             let addresses = InternetAddress(sources: world.sources(), defaults: Check.defaults("address-public"))
-            addresses.networkDidChange()
+            addresses.networkDidChange(network: "home")
             settle()
             Check.expectEqual(world.asked, 0)
             Check.expectEqual(addresses.state, .found(.init(address: "198.51.100.7", country: "DE",
                                                             provider: "Deutsche Telekom", isTheMacs: true)))
+        }
+
+        Check.test("an IPv6 address of the Mac's own is never taken for what websites see") {
+            let world = World()
+            world.addresses = ["192.168.1.20", "2a02:810d::1"]
+            let addresses = InternetAddress(sources: world.sources(), defaults: Check.defaults("address-v6"))
+            addresses.isEnabled = true
+            addresses.networkDidChange(network: "home")
+            settle()
+            Check.expectEqual(world.asked, 1)
+            Check.expectEqual(addresses.state, .found(.init(address: "203.0.113.42", country: "DE",
+                                                            provider: "Deutsche Telekom", isTheMacs: false)))
+        }
+
+        Check.test("switched off and on again on the same network, it asks again") {
+            let world = World()
+            let addresses = InternetAddress(sources: world.sources(), defaults: Check.defaults("address-off-on"))
+            addresses.networkDidChange(network: "home")
+            addresses.isEnabled = true
+            settle()
+            addresses.isEnabled = false
+            addresses.isEnabled = true
+            settle()
+            Check.expectEqual(world.asked, 2)
+            Check.expectEqual(addresses.state, .found(.init(address: "203.0.113.42", country: "DE",
+                                                            provider: "Deutsche Telekom", isTheMacs: false)))
+        }
+
+        Check.test("a network no longer taken for a hotspot is asked at once") {
+            let world = World()
+            world.mayAsk = false
+            let addresses = InternetAddress(sources: world.sources(), defaults: Check.defaults("address-verdict"))
+            addresses.isEnabled = true
+            addresses.networkDidChange(network: "phone")
+            settle()
+            Check.expectEqual(addresses.state, .notHere)
+            world.mayAsk = true
+            addresses.verdictDidChange()
+            settle()
+            Check.expectEqual(world.asked, 1)
+            world.mayAsk = false
+            addresses.verdictDidChange()
+            Check.expectEqual(addresses.state, .notHere, "marked a hotspot: the answer goes")
+        }
+
+        Check.test("a new public address of the Mac's own shows when it's read again") {
+            let world = World()
+            world.own = "198.51.100.7"
+            let addresses = InternetAddress(sources: world.sources(), defaults: Check.defaults("address-lease"))
+            addresses.networkDidChange(network: "office")
+            settle()
+            world.own = "203.0.113.42"
+            addresses.read()
+            settle()
+            Check.expectEqual(addresses.state, .found(.init(address: "203.0.113.42", country: "DE",
+                                                            provider: "Deutsche Telekom", isTheMacs: true)))
+            Check.expectEqual(world.asked, 0)
         }
 
         Check.test("an answer that isn't an address is a failure, and Try Again asks again") {

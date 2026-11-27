@@ -65,7 +65,7 @@ struct PopoverAddresses: View {
                 Button(L("Try Again")) { addresses.show() }.controlSize(.mini)
             }
         case .notHere:
-            Text(L("Not asked on a hotspot or in Low Data Mode"))
+            Text(L("Not asked on a hotspot, a metered connection or in Low Data Mode"))
                 .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
         case .notAsked:
             HStack {
