@@ -413,6 +413,8 @@ private struct ColorSwatch: View {
 /// How the popover shows the speed test, in Network's settings (#436).
 struct SpeedTestStylePane: View {
     @ObservedObject var speedTest: SpeedTestController
+    /// The internet address in the popover's Network view (#803).
+    @ObservedObject var addresses: InternetAddress
 
     var body: some View {
         Form {
@@ -436,6 +438,20 @@ struct SpeedTestStylePane: View {
                 Text(L("Speed test"))
             } footer: {
                 SettingsFootnote(speedTest.style.summary)
+            }
+
+            // Off until you turn it on, here or with Show in the popover (#803).
+            Section {
+                ExplainedRow(L("Look up the internet address"),
+                             L("Asks Cloudflare's 1.1.1.1 for the address websites see, once on each network you join, and never on a hotspot or in Low Data Mode. It learns that address, as every website does, and nothing else. The country and provider come from the data already in the app.")) {
+                    Toggle(L("Look up the internet address"), isOn: $addresses.isEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+            } header: {
+                Text(L("Internet address"))
+            } footer: {
+                SettingsFootnote(L("This Mac's own address on the network is always shown: it's read from the Mac and sends nothing."))
             }
         }
         .settingsForm()

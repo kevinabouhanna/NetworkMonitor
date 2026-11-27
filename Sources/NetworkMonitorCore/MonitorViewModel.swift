@@ -132,6 +132,17 @@ public final class MonitorViewModel: ObservableObject {
     /// The popover's Live line and view (#802): the menu bar's rates kept for
     /// 15 minutes, and the apps moving data now.
     public private(set) lazy var live = LiveSpeed(defaults: .standard)
+    /// This Mac's address and, once allowed, the internet address, for the
+    /// popover's Network view (#803). Never asked for on a hotspot, a metered
+    /// connection or in Low Data Mode, as the country data isn't fetched there.
+    public private(set) lazy var addresses = InternetAddress(
+        sources: .live(mayAsk: { [weak self] in
+            guard let self else { return false }
+            let network = self.store.currentNetwork
+            return network.id != NetworkFingerprint.offline.id && !network.isConstrained
+                && !self.metering.verdict.isMetered
+        }),
+        defaults: .standard)
     /// The popover's numbers, for the period and groupings last chosen
     /// there (#436, #449).
     public private(set) lazy var glance = TodayGlance(history: { [weak self] in self?.store.history },
@@ -268,6 +279,8 @@ public final class MonitorViewModel: ObservableObject {
         // the connection actually in use rather than `.offline`. `start()`
         // replays any journal left by the previous run before deciding.
         metering.start()
+        // After the verdict, which says whether this network may be asked.
+        addresses.networkDidChange()
 
         // What the filter saw names the servers nettop only gives addresses for,
         // and what it blocked is counted beside them (#114).
@@ -737,6 +750,8 @@ public final class MonitorViewModel: ObservableObject {
     public func setPopoverOpen(_ open: Bool) {
         popoverIsOpen = open
         live.isWatched = open
+        // A new lease can change this Mac's address without a new network.
+        if open { addresses.read() }
         expandedApps.removeAll()
         if open {
             // Opens on Live, or the first view shown while it's hidden (#802),
@@ -817,6 +832,8 @@ public final class MonitorViewModel: ObservableObject {
         // the popover next opened.
         refreshHeader()
         if popoverIsOpen { rebuildRows(now: Date()) }
+        // After the verdict too: a hotspot is never asked (#803).
+        addresses.networkDidChange()
     }
 
     public func refreshHeader() {

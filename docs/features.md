@@ -99,9 +99,13 @@ There's no choice of neither: there'd be no way back to the app.
   **Turn On Here** (#600). Under it, the **Sites** or the **Apps**, busiest first. A site
   opens into the apps that tried it, an app into the sites it tried. While ad blocking is
   off, it offers **Turn On**.
-- **Network** shows the connection the Mac is on, and a **This is a hotspot** switch, on
-  every network because some phones aren't recognised. While Live is hidden, the speed test
-  is here.
+- **Network** shows the connection the Mac is on; its addresses: **This Mac** on the
+  network, and **Internet**, the address websites see, with where it is (country and
+  provider), each with a copy button (#803); and a **This is a hotspot** switch, on every
+  network because some phones aren't recognised. While Live is hidden, the speed test is
+  here. The internet address is asked of an outside service, so it's off until you click
+  **Show** and say yes, or turn on **Look up the internet address** in Network's settings
+  ([privacy](privacy.md#what-it-sends)).
 - **Which views show, and the buttons' order**, are yours to choose in **Settings ›
   Popover**.
 - **Open …**, at the bottom of each view, opens that section of the main window on the same

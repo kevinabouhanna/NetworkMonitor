@@ -238,6 +238,7 @@ public struct MenuBarPopoverView: View {
                                   height: PopoverMetrics.groupingRowHeight + listHeight + 1
                                       - (strip ? PopoverMetrics.speedStripHeight + 1 : 0),
                                   showsSpeedTest: !layout.showsLive,
+                                  addresses: model.addresses, tunnel: model.tunnelCarrierName,
                                   onHotspotSettings: onHotspotSettings)
             }
         }

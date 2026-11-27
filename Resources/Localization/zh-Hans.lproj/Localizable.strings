@@ -1115,3 +1115,27 @@
 "Drag to move" = "拖移以移动";
 "Popover" = "弹出窗口";
 "The popover opens on Live, or on the first view shown while Live is hidden. A hidden view keeps its window and its settings." = "弹出窗口打开时显示“实时”；隐藏“实时”时，显示第一个已显示的视图。隐藏的视图仍保留它的窗口和设置。";
+
+/* The Mac's addresses in the popover's Network view, and Look up the internet address in Network's settings (#803). */
+"This Mac" = "这台 Mac";
+"This Mac's address on the network it's on" = "这台 Mac 在当前网络上的地址";
+"Copy this Mac's address" = "拷贝这台 Mac 的地址";
+"No address" = "没有地址";
+"Internet" = "互联网";
+"The address websites see" = "网站看到的地址";
+"Location" = "位置";
+"Where the internet address is, from the country data already in the app" = "互联网地址所在的位置，来自应用中已有的国家或地区数据";
+"Through %@: websites see its address, not this network's." = "通过 %@：网站看到的是它的地址，而不是这个网络的地址。";
+"Copy the internet address" = "拷贝互联网地址";
+"Asking…" = "正在询问…";
+"Couldn't find out" = "无法获取";
+"Not asked on a hotspot or in Low Data Mode" = "使用热点或低数据模式时不会询问";
+"Show the address websites see" = "显示网站看到的地址";
+"Show the internet address" = "显示互联网地址";
+"Only an outside service can tell the address websites see. Ask Cloudflare's 1.1.1.1 now, and again when you change networks? It learns that address and nothing else." = "只有外部服务才能告诉你网站看到的地址。现在询问 Cloudflare 的 1.1.1.1，并在你切换网络时再次询问？它只会知道这个地址，不会知道其他任何信息。";
+"Not Now" = "以后再说";
+"Ask" = "询问";
+"Look up the internet address" = "查询互联网地址";
+"Asks Cloudflare's 1.1.1.1 for the address websites see, once on each network you join, and never on a hotspot or in Low Data Mode. It learns that address, as every website does, and nothing else. The country and provider come from the data already in the app." = "向 Cloudflare 的 1.1.1.1 询问网站看到的地址，每加入一个网络询问一次，使用热点或低数据模式时从不询问。它和每个网站一样只会知道这个地址，不会知道其他任何信息。国家或地区和网络服务商来自应用中已有的数据。";
+"Internet address" = "互联网地址";
+"This Mac's own address on the network is always shown: it's read from the Mac and sends nothing." = "这台 Mac 在网络上的地址始终显示：它从 Mac 本身读取，不会发送任何内容。";
