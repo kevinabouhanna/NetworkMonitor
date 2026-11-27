@@ -243,10 +243,14 @@ func runUpdateTests() {
             updates.isMetered = { false }
             updates.meteringDidChange(isMetered: false)
             Check.expectEqual(checks, 1)
-            Check.expectFalse(updates.refusedWhileMetered)
-            // Once only.
+            // Kept until GitHub answers: a check that failed is tried again.
+            Check.expectTrue(updates.refusedWhileMetered)
             updates.meteringDidChange(isMetered: false)
-            Check.expectEqual(checks, 1)
+            Check.expectEqual(checks, 2)
+            updates.heardFromGitHub()
+            Check.expectFalse(updates.refusedWhileMetered)
+            updates.meteringDidChange(isMetered: false)
+            Check.expectEqual(checks, 2)
             // Check Now is never refused, so leaves nothing to ask later.
             updates.isMetered = { true }
             _ = try? updates.refuseOnHotspot(.updates)
@@ -255,6 +259,19 @@ func runUpdateTests() {
             _ = try? updates.refuseOnHotspot(.updatesInBackground)
             updates.checksAutomatically = false
             updates.meteringDidChange(isMetered: false)
+            Check.expectEqual(checks, 2)
+        }
+
+        Check.test("a check skipped on a hotspot is remembered across launches (#810)") {
+            let defaults = Check.defaults("updates-after-hotspot-relaunch")
+            let before = UpdateController(defaults: defaults)
+            before.isMetered = { true }
+            _ = try? before.refuseOnHotspot(.updatesInBackground)
+            let after = UpdateController(defaults: defaults)
+            Check.expectTrue(after.refusedWhileMetered)
+            var checks = 0
+            after.checkInBackground = { checks += 1 }
+            after.meteringDidChange(isMetered: false)
             Check.expectEqual(checks, 1)
         }
 
