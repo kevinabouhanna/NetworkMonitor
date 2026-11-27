@@ -13,7 +13,6 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 5.06 | #794 Release 1.35.0: a beta first, with #754's switch | [Phase 5: Releases people check first](05-releases.md) |
 | 5.62 | #799 Safari with Private Relay: measure it with the beta's switch, and decide | [Phase 1: Everyday polish](01-everyday-polish.md) |
-| 5.65 | #792 The popover: a Speed view first, the views in the order you choose, and the IP address in Network | [Phase 1: Everyday polish](01-everyday-polish.md) |
 
 ## Next
 
