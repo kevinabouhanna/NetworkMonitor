@@ -29,6 +29,9 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
 - **A finished macOS upgrade counts for Software Update** (#809), Now, a bug reported by
   defragekb: 17.8 GB stayed under `nsurlsessiond` because the log names its client
   `softwareupdated`, not a bundle identifier, which the owner lookup of #767 doesn't read.
+- **Settings' switches change with ← and →, as the toolbar's do** (#830), found while
+  adding #807's Appearance: in the keyboard tour they take Tab but not the arrow keys. Checked
+  with real keys in a VM first, then fixed or the tour taught, with a test for every switch.
 - **Light, Dark or System for the Dock's speeds** (#807), Next, asked for by defragekb: the
   Dock icon's look chosen apart from the Mac's, remembered across launches.
 - **One refresh interval for the live speeds** (#808), Next, asked for by defragekb: Auto, or
