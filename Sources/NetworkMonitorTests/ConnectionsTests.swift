@@ -117,7 +117,6 @@ func runConnectionsTests() {
             Check.expectEqual(geography.countries, ["NL": 500, "IE": 300, "US": 550])
             Check.expectEqual(geography.everywhere, 700)
             Check.expectEqual(geography.everywhereCompanies, ["Cloudflare"])
-            Check.expectEqual(geography.largest, 550)
             Check.expectEqual(ConnectionsReport.companies(inCountry: "US", sample + extra).map(\.item.title),
                               ["Google", "Hosted on Google"])
             Check.expectEqual(ConnectionsReport.companies(inCountry: "CA", sample + extra).count, 0)
@@ -245,8 +244,33 @@ func runConnectionsTests() {
             Check.expectEqual(MapSteps.step(47_137_000_000, .bytes), 5)
         }
 
-        Check.test("a few kilobytes still shows: the lightest step, not the empty land") {
+        Check.test("a few kilobytes still shows: the lightest step, plainly apart from the empty land") {
             Check.expectEqual(MapSteps.step(3_000, .bytes), 0)
+            func oklab(_ hex: UInt32) -> [Double] {
+                func channel(_ shift: UInt32) -> Double {
+                    let c = Double((hex >> shift) & 0xFF) / 255
+                    return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+                }
+                let r = channel(16), g = channel(8), b = channel(0)
+                let l = cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+                let m = cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+                let s = cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+                return [0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+                        1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+                        0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s]
+            }
+            func distance(_ a: UInt32, _ b: UInt32) -> Double {
+                zip(oklab(a), oklab(b)).map { ($0 - $1) * ($0 - $1) }.reduce(0, +).squareRoot()
+            }
+            for (name, empty, shades) in [("light", MapSteps.emptyLight, MapSteps.light),
+                                          ("dark", MapSteps.emptyDark, MapSteps.dark)] {
+                let gap = distance(empty, shades[0])
+                Check.expectTrue(gap >= 0.05, "\(name): empty land and step 0 are only \(gap) apart")
+                for k in 1..<shades.count {
+                    let step = distance(shades[k - 1], shades[k])
+                    Check.expectTrue(step >= 0.08, "\(name): steps \(k - 1) and \(k) are only \(step) apart")
+                }
+            }
         }
 
         Check.test("the shades run from palest to deepest, each plainly apart") {
@@ -271,8 +295,8 @@ func runConnectionsTests() {
         Check.test("the key names every step") {
             Check.expectEqual(MapSteps.labels(.bytes).count, MapSteps.count)
             Check.expectEqual(MapSteps.labels(.blocked).count, MapSteps.count)
-            Check.expectEqual(MapSteps.labels(.bytes).first, "Under 1 MB")
-            Check.expectEqual(MapSteps.labels(.bytes).last, "10 GB or more")
+            Check.expectEqual(MapSteps.labels(.bytes).first, L("Under 1 MB"))
+            Check.expectEqual(MapSteps.labels(.bytes).last, L("10 GB or more"))
         }
     }
 

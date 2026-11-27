@@ -98,9 +98,9 @@ struct ConnectionsMap: View {
                 let centre = frame.point(shape.label)
                 let dot = Path(ellipseIn: CGRect(x: centre.x - 3.5, y: centre.y - 3.5, width: 7, height: 7))
                 context.fill(dot, with: .color(Self.fill(bytes, measure)))
-                // Ringed in the deepest shade, so the lightest step still
-                // shows over the sea.
-                context.stroke(dot, with: .color(MapSteps.color(MapSteps.count - 1).opacity(0.6)), lineWidth: 1)
+                // A thin neutral ring, so the lightest step still shows over
+                // the sea without the ring reading as an amount.
+                context.stroke(dot, with: .color(Color.primary.opacity(0.3)), lineWidth: 0.75)
             }
             for code in [picked, state.hovered].compactMap({ $0 }) {
                 guard let shape = shapes.byCode[code] else { continue }
@@ -143,7 +143,7 @@ struct ConnectionsMap: View {
     /// amount in every period, and a country with a few kilobytes still shows
     /// beside one with gigabytes. Nothing at all: the land's own grey.
     static func fill(_ value: Int64, _ measure: ServerMeasure) -> Color {
-        guard let step = MapSteps.step(value, measure) else { return Color.secondary.opacity(0.18) }
+        guard let step = MapSteps.step(value, measure) else { return MapSteps.empty }
         return MapSteps.color(step)
     }
 
@@ -195,7 +195,9 @@ struct ConnectionsMap: View {
                         .help(L("These networks answer each address from whichever of their data centres is nearest, so no one country is where it went."))
                 }
                 Spacer()
+                // Clicks and hover go through it to the map, as the cards'.
                 MapKey(measure: model.measure)
+                    .allowsHitTesting(false)
             }
         }
         .padding(8)
@@ -341,7 +343,8 @@ private struct MapKey: View {
         .padding(6)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(L("Map key, from lightest to deepest: %@", labels.joined(separator: ", ")))
+        .accessibilityLabel(L("Map key, from lightest to deepest: %@",
+                              labels.dropFirst().reduce(labels[0]) { L("%@, %@", $0, $1) }))
     }
 }
 

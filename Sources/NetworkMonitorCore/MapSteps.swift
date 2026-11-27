@@ -44,7 +44,15 @@ public enum MapSteps {
     public static let light: [UInt32] = [0xD4F0F4, 0xAFD5DB, 0x8BBBC2, 0x66A0AB, 0x408793, 0x066E7D]
     public static let dark: [UInt32] = [0x12434C, 0x20606B, 0x2F7E8B, 0x3E9DAC, 0x4EBECF, 0x5FE0F2]
 
+    /// Land nothing went to: a grey set apart from the lightest step, so a
+    /// country with a few kilobytes still shows beside its empty neighbours
+    /// (at least 0.05 apart in OKLab; the steps are about 0.09 apart). The
+    /// review of #829 found the old 18% grey all but matched step 0.
+    public static let emptyLight: UInt32 = 0xDADADA
+    public static let emptyDark: UInt32 = 0x383838
+
     private static let colors: [Color] = (0..<count).map { AppPalette.dynamic(light: light[$0], dark: dark[$0]) }
+    static let empty = AppPalette.dynamic(light: emptyLight, dark: emptyDark)
 
     static func color(_ step: Int) -> Color { colors[min(max(step, 0), count - 1)] }
 }
