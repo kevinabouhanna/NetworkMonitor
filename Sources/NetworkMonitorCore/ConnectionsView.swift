@@ -7,9 +7,10 @@ import SwiftUI
 /// talk to.
 ///
 /// One column, read top to bottom like History: what it's grouped by and which
-/// period, what it's narrowed to, how much, when, and then who. The list
-/// doubles as the filter: a row inside a group narrows the window to it, and
-/// its chip undoes that.
+/// period, what it's narrowed to, how much, and then who, with the map or the
+/// chart of when beside it (#798). The list doubles as the filter: a row's
+/// Filter narrows the window to it, and the line saying "Showing only …"
+/// undoes that.
 public struct ConnectionsView: View {
     @ObservedObject var model: ConnectionsViewModel
     @ObservedObject var firewall: FirewallRules
@@ -28,19 +29,21 @@ public struct ConnectionsView: View {
                     WebsiteNamesOffer(filter: model.filter) { model.offersWebsiteNames = false }
                 }
                 scopeBar
+                band
                 if model.showsRules {
                     // Your rules (#592), in place of what was recorded.
                     ConnectionsRulesView(model: model)
                 } else {
                     header
-                    ConnectionsTimeline(model: model)
+                    // List is only the list, as in the other sections; Both
+                    // and Map show the map or the chart (#798).
                     switch shownLayout(width: geometry.size.width) {
                     case .list:
                         list
                     case .map:
-                        ConnectionsMap(model: model)
+                        pane
                     case .both:
-                        SideBySide { list } detail: { ConnectionsMap(model: model) }
+                        SideBySide { list } detail: { pane }
                     }
                     Divider()
                     footer
@@ -104,26 +107,6 @@ public struct ConnectionsView: View {
                                }, size: .small,
                                help: L("What your apps sent and received, the connections that were blocked, or your rules"))
             }
-            if model.showsRules {
-                if !query.isEmpty {
-                    Divider().frame(height: 16)
-                    FilterChip(label: L("“%@”", query), onClear: { model.search = "" })
-                }
-            } else if model.spanTitle != nil || !model.chips.isEmpty || !query.isEmpty {
-                Divider().frame(height: 16)
-                HStack(spacing: 6) {
-                    // The toolbar's search, as a filter like the others (#436).
-                    if !query.isEmpty {
-                        FilterChip(label: L("“%@”", query), onClear: { model.search = "" })
-                    }
-                    if let span = model.spanTitle {
-                        FilterChip(label: span, onClear: model.clearSpan)
-                    }
-                    ForEach(model.chips) { item in
-                        FilterChip(label: item.title, onClear: { model.clear(item.dimension) })
-                    }
-                }
-            }
             Spacer(minLength: 12)
             // All, Wi-Fi and Hotspot say what they are; no label needed.
             GlassSegmented(name: L("Networks"), options: [nil, .wifi, .hotspot],
@@ -135,6 +118,50 @@ public struct ConnectionsView: View {
     }
 
     private var query: String { model.search.trimmingCharacters(in: .whitespaces) }
+
+    /// What the list is narrowed to, in words, with Show everything (#798).
+    /// Rules are narrowed only by the search.
+    @ViewBuilder private var band: some View {
+        let filters = bandFilters
+        if !filters.isEmpty {
+            FilterBand(filters: filters, onShowEverything: model.showEverything)
+        }
+    }
+
+    private var bandFilters: [FilterBand.Filter] {
+        var filters: [FilterBand.Filter] = []
+        if !query.isEmpty {
+            filters.append(.search(query) { model.search = "" })
+        }
+        guard !model.showsRules else { return filters }
+        if let span = model.spanTitle {
+            filters.append(FilterBand.Filter(id: "span", label: span, onClear: model.clearSpan))
+        }
+        for item in model.chips {
+            filters.append(FilterBand.Filter(id: item.dimension.rawValue, label: item.title,
+                                             onClear: { model.clear(item.dimension) }))
+        }
+        return filters
+    }
+
+    // MARK: Map or chart
+
+    /// The map, or the chart of the period in its place (#798), with the
+    /// switch between them in the top-left corner, opposite the map's zoom
+    /// buttons: beside what it changes, so the toolbar keeps its width.
+    private var pane: some View {
+        ZStack(alignment: .topLeading) {
+            switch model.pane {
+            case .map:   ConnectionsMap(model: model)
+            case .chart: ConnectionsChart(model: model)
+            }
+            GlassSegmented(name: L("Map or chart"), options: ConnectionsViewModel.Pane.allCases,
+                           selection: Binding(get: { model.pane }, set: { model.pane = $0 }),
+                           label: { $0.label }, size: .small,
+                           help: L("Show where your apps' traffic went, or when"))
+                .padding(8)
+        }
+    }
 
     // MARK: Header
 
@@ -265,7 +292,7 @@ public struct ConnectionsView: View {
 
     private var emptyDetail: String {
         if !model.hasLoaded { return "" }
-        if !model.search.isEmpty || !model.chips.isEmpty { return L("Clear the search or a chip to see more.") }
+        if !model.search.isEmpty || !model.chips.isEmpty { return L("Choose Show everything to see more.") }
         if model.measure == .blocked {
             return L("Right-click a company, app, country or server under Traffic to block it.")
         }
@@ -734,22 +761,56 @@ private struct ConnectionsRow: View {
     }
 }
 
-/// The period's traffic to servers, one bar per hour, day or month. Drag
-/// across it, or click a bar, to narrow the list to that span.
-private struct ConnectionsTimeline: View {
+/// The period's traffic to servers, one bar per hour, day or month, in the
+/// map's place when Chart is chosen (#798). Drag across it, or click a bar,
+/// to narrow the list to that span; it stays narrowed in List, where the
+/// line under the switches says so.
+private struct ConnectionsChart: View {
     @ObservedObject var model: ConnectionsViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            GeometryReader { geometry in
-                let bins = model.bins
-                let largest = max(bins.map(\.bytes).max() ?? 0, 1)
-                let width = geometry.size.width / CGFloat(max(bins.count, 1))
+        let bins = model.bins
+        let largest = max(bins.map(\.bytes).max() ?? 0, 1)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(L("Click a bar, or drag across bars, to show only that time."))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .top, spacing: 6) {
+                VStack(spacing: 3) {
+                    bars(bins, largest: largest)
+                    axis(bins)
+                }
+                // No figures over an empty chart: "1 B" would be made up.
+                if bins.contains(where: { $0.bytes > 0 }) { scale(largest) }
+            }
+        }
+        .padding(.top, 40)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .splitCard()
+    }
+
+    private func bars(_ bins: [ConnectionsViewModel.Bin], largest: Int64) -> some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width / CGFloat(max(bins.count, 1))
+            ZStack(alignment: .bottomLeading) {
+                // Lines at the top, the middle and the bottom, as the
+                // figures on the right name them.
+                VStack(spacing: 0) {
+                    ForEach(0..<2, id: \.self) { _ in
+                        Rectangle().fill(Color.secondary.opacity(0.15)).frame(height: 1)
+                        Spacer(minLength: 0)
+                    }
+                    Rectangle().fill(Color.secondary.opacity(0.3)).frame(height: 1)
+                }
                 HStack(alignment: .bottom, spacing: 0) {
                     ForEach(Array(bins.enumerated()), id: \.element.id) { index, bin in
                         RoundedRectangle(cornerRadius: 2)
                             .fill(color(for: index))
-                            .frame(width: max(width - 2, 1),
+                            .frame(width: max(min(width - 2, 24), 1),
                                    height: bin.bytes > 0
                                        ? max(2, geometry.size.height * CGFloat(Double(bin.bytes) / Double(largest)))
                                        : 1)
@@ -758,26 +819,25 @@ private struct ConnectionsTimeline: View {
                                     model.format(bin.bytes)))
                     }
                 }
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            let first = index(at: value.startLocation.x, width: width, count: bins.count)
-                            let last = index(at: value.location.x, width: width, count: bins.count)
-                            model.dragging = min(first, last)...max(first, last)
-                        }
-                        .onEnded { _ in
-                            if let picked = model.dragging { model.pick(picked) }
-                            model.dragging = nil
-                        })
             }
-            .frame(height: ConnectionsMetrics.timelineHeight)
-            axis
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        let first = index(at: value.startLocation.x, width: width, count: bins.count)
+                        let last = index(at: value.location.x, width: width, count: bins.count)
+                        model.dragging = min(first, last)...max(first, last)
+                    }
+                    .onEnded { _ in
+                        if let picked = model.dragging { model.pick(picked) }
+                        model.dragging = nil
+                    })
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(L("Chart of the period, bar by bar. Click a bar, or drag across bars, to show only that time."))
     }
 
-    private var axis: some View {
-        let bins = model.bins
+    private func axis(_ bins: [ConnectionsViewModel.Bin]) -> some View {
         let marks = bins.isEmpty ? [] : Array(Set([0, bins.count / 2, bins.count - 1])).sorted()
         return HStack {
             ForEach(marks, id: \.self) { index in
@@ -787,6 +847,24 @@ private struct ConnectionsTimeline: View {
         }
         .font(.system(size: 9))
         .foregroundStyle(.secondary)
+        .frame(height: 12)
+    }
+
+    /// The top line's figure and the middle's, beside the bars.
+    private func scale(_ largest: Int64) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(model.format(largest))
+            Spacer(minLength: 0)
+            Text(model.format(largest / 2))
+            Spacer(minLength: 0)
+            Text(model.format(0))
+            Spacer().frame(height: 15)
+        }
+        .font(.system(size: 9))
+        .monospacedDigit()
+        .foregroundStyle(.secondary)
+        .frame(width: 58, alignment: .leading)
+        .offset(y: -6)
     }
 
     private func index(at x: CGFloat, width: CGFloat, count: Int) -> Int {
@@ -814,7 +892,6 @@ enum ConnectionsMetrics {
     static let rowFixed: CGFloat = 16 + 14 + 18 + 5 * 8 + 12 + 76
     /// An indented row's indent and its gap.
     static let rowIndent: CGFloat = 22 + 8
-    static let timelineHeight: CGFloat = 54
     /// Below this, Both shows the list alone.
     static let bothMinWidth: CGFloat = 900
 }

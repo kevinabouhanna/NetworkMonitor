@@ -23,6 +23,7 @@ public struct HistoryView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: ScopeMetrics.below) {
             scopeBar
+            band
             heading
             // The toolbar's View (#524): the list on the left and the chart
             // on the right, the chart's legend under it, as Connections has
@@ -83,10 +84,6 @@ public struct HistoryView: View {
                                    help: L("Apps, networks or each visit to a network. A row narrows the window to it."))
                 }
             }
-            if hasChips {
-                if model.layout.showsList { Divider().frame(height: 16) }
-                HStack(spacing: 6) { chips }
-            }
             Spacer(minLength: 12)
             // Wi-Fi and Hotspot, the two kinds asked for in #70. Ethernet and
             // Other stay under All, and on the Networks list.
@@ -96,11 +93,6 @@ public struct HistoryView: View {
                            help: L("Every connection, Wi-Fi only, or hotspots only"))
         }
         .frame(height: ScopeMetrics.height)
-    }
-
-    private var hasChips: Bool {
-        model.filteredAppName != nil || model.filteredNetworkName != nil || model.filter.sessionID != nil
-            || !query.isEmpty
     }
 
     /// ⌘← and ⌘→ step through periods, as in Connections. The toolbar's arrows
@@ -134,28 +126,37 @@ public struct HistoryView: View {
 
     // MARK: Filters
 
-    /// What History is narrowed to, as chips at the end of the lists' row,
-    /// beside the row that was clicked to add one (#192).
+    /// What History is narrowed to, in words, with Show everything (#798),
+    /// as Connections and Ads and Trackers say theirs.
     @ViewBuilder
-    private var chips: some View {
-        // The toolbar's search, as a filter like the others (#436).
+    private var band: some View {
+        let filters = bandFilters
+        if !filters.isEmpty {
+            FilterBand(filters: filters, onShowEverything: model.showEverything)
+        }
+    }
+
+    private var bandFilters: [FilterBand.Filter] {
+        var filters: [FilterBand.Filter] = []
         if !query.isEmpty {
-            FilterChip(label: L("“%@”", query), onClear: { model.search = "" })
+            filters.append(.search(query) { model.search = "" })
         }
         if let name = model.filteredAppName {
-            FilterChip(label: name, onClear: model.clearApp)
+            filters.append(FilterBand.Filter(id: "app", label: name, onClear: model.clearApp))
         }
         if let name = model.filteredNetworkName {
-            FilterChip(label: name, onClear: model.clearNetwork)
+            filters.append(FilterBand.Filter(id: "network", label: name, onClear: model.clearNetwork))
         }
         if let session = model.filteredSession {
-            FilterChip(label: model.networkName(session.networkID,
-                                                defaultLabel: session.defaultLabel)
-                           + " · " + HistoryFormat.sessionSpan(session),
-                       onClear: model.clearSession)
+            filters.append(FilterBand.Filter(
+                id: "session",
+                label: model.networkName(session.networkID, defaultLabel: session.defaultLabel)
+                    + " · " + HistoryFormat.sessionSpan(session),
+                onClear: model.clearSession))
         } else if model.filter.sessionID != nil {
-            FilterChip(label: L("Session"), onClear: model.clearSession)
+            filters.append(FilterBand.Filter(id: "session", label: L("Session"), onClear: model.clearSession))
         }
+        return filters
     }
 
     // MARK: Heading
@@ -986,34 +987,6 @@ private struct KindBadge: View {
                 Image(systemName: HistoryPalette.symbol(for: kind))
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(.white))
-    }
-}
-
-struct FilterChip: View {
-    let label: String
-    let onClear: () -> Void
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Text(label)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Button(action: onClear) {
-                Image(systemName: "xmark.circle.fill")
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help(L("Show everything again"))
-            // What it does, not its symbol (#536).
-            .accessibilityLabel(L("Show everything again"))
-        }
-        .font(.system(size: 11))
-        .padding(.leading, 8)
-        .padding(.trailing, 5)
-        .padding(.vertical, 3)
-        .background(Color.accentColor.opacity(0.15), in: Capsule())
-        // Its own width: a flexible frame would centre the chip in a gap.
-        .fixedSize()
     }
 }
 

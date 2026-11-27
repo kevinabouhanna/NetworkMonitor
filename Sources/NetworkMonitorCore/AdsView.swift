@@ -17,6 +17,9 @@ struct AdsView: View {
             scopeBar
                 .padding(.horizontal, ScopeMetrics.inset)
                 .padding(.top, ScopeMetrics.top)
+            band
+                .padding(.horizontal, ScopeMetrics.inset)
+                .padding(.top, ScopeMetrics.below)
             if model.tab != .overview { Spacer().frame(height: ScopeMetrics.below) }
             page
         }
@@ -46,21 +49,6 @@ struct AdsView: View {
                                label: { $0 == .rules ? L("Rules (%@)", String(model.ruleCount)) : $0.label },
                                size: .small,
                                help: L("What was blocked, every connection as it's decided, and your rules"))
-            }
-            // The toolbar's search, as a filter like the others (#436).
-            let query = model.logSearch.trimmingCharacters(in: .whitespaces)
-            if !query.isEmpty {
-                FilterChip(label: L("“%@”", query), onClear: { model.logSearch = "" })
-            }
-            // The bar clicked and the row chosen (#536), as Connections and
-            // Usage History show theirs.
-            if model.tab == .overview {
-                if let span = model.spanTitle {
-                    FilterChip(label: span, onClear: model.clearSpan)
-                }
-                if let selection = model.selection {
-                    FilterChip(label: selection.title, onClear: model.clearSelection)
-                }
             }
             if model.tab == .log {
                 Divider().frame(height: 16)
@@ -1238,5 +1226,35 @@ struct AdsListsView: View {
     private func blocked(_ count: Int64) -> some View {
         Text(count > 0 ? L("%@ blocked today", count.formatted()) : "")
             .font(.system(size: 12)).monospacedDigit().foregroundStyle(.secondary)
+    }
+}
+
+extension AdsView {
+    /// What the page is narrowed to, in words, with Show everything (#798):
+    /// the search, and on Overview the bar clicked and the row chosen (#536),
+    /// as Connections and Usage History say theirs.
+    @ViewBuilder var band: some View {
+        let filters = bandFilters
+        if !filters.isEmpty {
+            FilterBand(filters: filters, onShowEverything: model.showEverything)
+        }
+    }
+
+    private var bandFilters: [FilterBand.Filter] {
+        var filters: [FilterBand.Filter] = []
+        let query = model.logSearch.trimmingCharacters(in: .whitespaces)
+        if !query.isEmpty {
+            filters.append(.search(query) { model.logSearch = "" })
+        }
+        if model.tab == .overview {
+            if let span = model.spanTitle {
+                filters.append(FilterBand.Filter(id: "span", label: span, onClear: model.clearSpan))
+            }
+            if let selection = model.selection {
+                filters.append(FilterBand.Filter(id: "selection", label: selection.title,
+                                                 onClear: model.clearSelection))
+            }
+        }
+        return filters
     }
 }

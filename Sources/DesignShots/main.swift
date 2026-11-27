@@ -540,6 +540,13 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
         world.connections.layout = layout
         shoot("connections-\(layout.rawValue)", settle: 1.5)
     }
+    // The chart in the map's place, in Both and Map (#798).
+    world.connections.pane = .chart
+    for layout in [ConnectionsViewModel.Layout.both, .map] {
+        world.connections.layout = layout
+        shoot("connections-\(layout.rawValue)-chart", settle: 1.5)
+    }
+    world.connections.pane = .map
     // Both at the window's least, beside Usage History's and Ads and
     // Trackers', which share its split (#534).
     world.connections.layout = .both
