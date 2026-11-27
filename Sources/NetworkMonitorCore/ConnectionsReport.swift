@@ -154,7 +154,6 @@ public struct ConnectionsGeography: Equatable {
     /// Those networks, biggest first: "Cloudflare", "Fastly".
     public var everywhereCompanies: [String] = []
 
-    public var largest: Int64 { countries.values.max() ?? 0 }
 }
 
 /// Groups named connections into the window's list. No AppKit and no storage,
