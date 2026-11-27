@@ -92,6 +92,24 @@ public final class ConnectionsViewModel: ObservableObject {
     @Published public var layout: Layout {
         didSet { defaults.set(layout.rawValue, forKey: Self.layoutKey) }
     }
+
+    /// What Both and Map show beside the list (#798): the map, or the
+    /// traffic over the period as a chart. List shows neither.
+    public enum Pane: String, CaseIterable, Identifiable {
+        case map, chart
+        public var id: String { rawValue }
+        public var label: String {
+            switch self {
+            case .map:   return L("Map")
+            case .chart: return L("Chart")
+            }
+        }
+    }
+
+    /// The map by default, and whatever was chosen last after that.
+    @Published public var pane: Pane {
+        didSet { defaults.set(pane.rawValue, forKey: Self.paneKey) }
+    }
     /// What the map shades, for the same narrowing as the list.
     @Published public private(set) var geography = ConnectionsGeography()
     /// Countries a server answered from in the last `liveWindow`, while the
@@ -193,6 +211,7 @@ public final class ConnectionsViewModel: ObservableObject {
     /// How many items a section shows before "Show all".
     public static let sectionPreview = 8
     public static let layoutKey = "connectionsLayout"
+    public static let paneKey = "connectionsPane"
     public static let websiteNamesOfferClosedKey = "websiteNamesOfferClosed"
     /// How long a country stays lit on the map after its last packet.
     public static let liveWindow: TimeInterval = 30
@@ -228,6 +247,7 @@ public final class ConnectionsViewModel: ObservableObject {
         follower = PeriodFollower(calendar: calendar, now: now)
         self.homeSources = homeSources
         layout = defaults.string(forKey: Self.layoutKey).flatMap(Layout.init) ?? .both
+        pane = defaults.string(forKey: Self.paneKey).flatMap(Pane.init) ?? .map
         offersWebsiteNames = !defaults.bool(forKey: Self.websiteNamesOfferClosedKey)
         period = HistoryPeriod(scale: .day, containing: now(), calendar: calendar)
         geoSubscription = monitor.geoData.$month.dropFirst().removeDuplicates().sink { [weak self] _ in
@@ -357,6 +377,8 @@ public final class ConnectionsViewModel: ObservableObject {
     /// Narrows to the bins picked on the timeline. Picking the one bin already
     /// picked shows the whole period again.
     public func pick(_ bins: ClosedRange<Int>) {
+        // Before the bars load there's nothing to pick (#833 review).
+        guard bins.upperBound < self.bins.count else { return }
         span = (span == bins && bins.count == 1) ? nil : bins
         reload()
     }
@@ -422,6 +444,24 @@ public final class ConnectionsViewModel: ObservableObject {
     /// Whether there's a choice for Escape to let go of. Only then does it
     /// take Escape, so Escape still closes search the rest of the time.
     public var canGoBack: Bool { span != nil || !selected.isEmpty }
+
+    /// Show everything (#798): lets go of the search, the span and every
+    /// item narrowed to, at once.
+    public func showEverything() {
+        let hadSpan = span != nil, hadSearch = !search.isEmpty
+        span = nil
+        selected.removeAll()
+        showingAll.removeAll()
+        // Clearing the search rebuilds by itself; a span needs the record read again.
+        search = ""
+        if hadSpan { reload() } else if !hadSearch { rebuild() }
+    }
+
+    /// Whether anything narrows the list: what the band under the switches
+    /// shows (#798).
+    public var isNarrowed: Bool {
+        span != nil || !selected.isEmpty || !search.trimmingCharacters(in: .whitespaces).isEmpty
+    }
 
     /// A click on the row, its ▸, or → and ←: the person's from then on.
     public func setExpanded(_ groupID: String, _ open: Bool) {

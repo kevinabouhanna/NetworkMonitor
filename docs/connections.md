@@ -30,15 +30,19 @@ networks it covers. Then the period's name, its total, and the counts.
   list of the main window (#593): a company, app or country, or a row inside one. It
   shows its word when you point at the row. Filtering Teams inside Microsoft reads
   *Microsoft › Teams*. A row filtered to is highlighted and its button reads
-  **Filtered ✕**; click that, its chip's ✕, or press Escape (the last chip first) to undo
-  its part. Filtering opens and closes nothing: the list stays as you left it.
+  **Filtered ✕**. Filtering opens and closes nothing: the list stays as you left it.
+- **What the list is narrowed to is said in words** (#798): a line under the switches reads
+  *Showing only Mon, 16 Nov · Microsoft · Teams*. Each part has its own ✕, **Show
+  everything** at the end lets go of them all, and Escape lets go of one at a time, from
+  the end. The search shows there too, and stays until you clear it. Usage History and Ads and Trackers have the same
+  line.
 - **The keyboard** (#546): Tab reaches the list as one stop, or click a row. ↑ and ↓ move
   from row to row, marked with a ring; → opens a group, ← closes it or goes back up to the
   group a row is in; Space does what a click on the row does, and Return what its Filter
   button does.
-- **Drag across the timeline**, or click a bar, to see one part of the day: what your
-  apps contacted in the hour after a call, say. Click the same bar again, or the chip's
-  ✕, for the whole period.
+- **Drag across the chart**, or click a bar, to see one part of the day: what your
+  apps contacted in the hour after a call, say. Click the same bar again, or its ✕ in the
+  *Showing only* line, for the whole period.
 - **Search**, the magnifying glass in the toolbar, finds a company, a network's
   registered name, an app, a country or an address. A group found by something inside it
   opens to show it, and closes again when the search is cleared.
@@ -54,7 +58,13 @@ networks it covers. Then the period's name, its total, and the counts.
 
 Connections shows the list, the map, or both side by side (**List | Both | Map**). Both is
 the default, and whichever you choose is remembered. Too narrow for both, it shows
-the list until you widen the window.
+the list until you widen the window. List is only the list, as in the other sections.
+
+In Both and Map, **Map | Chart** in the top-left corner shows the map or, in its place, a
+chart of the period's traffic, one bar per hour, day or month (#798). Hover a bar for its
+figure; click one, or drag across several, to narrow the list to that time. The map is the
+default, and whichever you choose is remembered. A time picked on the chart stays picked in
+List, where the *Showing only* line says so.
 
 In a narrow window, a row's bar shortens before its name does, here and in Usage History's
 and Ads and Trackers' Both (#534). A tag beside a name (*ALWAYS ALLOWED*, *ADS*, *METERED*)
@@ -163,7 +173,7 @@ anything:
   site covers every name under it.
 - The period and All, Wi-Fi or Hotspot still apply, since they set what each rule did; the
   toolbar's search finds a rule by what it's about, its app or its network. Group by, the
-  timeline and the map are for Traffic and Blocked, so they hide.
+  chart and the map are for Traffic and Blocked, so they hide.
 - Under the list, Ads and Trackers' own rules are a click away, as Connections' are from
   there.
 
@@ -314,8 +324,9 @@ and the toolbar's search (⌘F) covers both.
   the window. Whichever you choose is remembered, and it's hidden on Log with the period.
 - **A chart** of blocks over the period, by hour, day or month, drawn and read as Usage
   History's (#536). Hover a bar for its time and count. Click one to narrow the list and
-  the total to that hour or day, as a timeline bar does in Connections: its chip above the
-  list, a click on the bar again, or Escape shows the whole period again.
+  the total to that hour or day, as a bar of Connections' chart does: its ✕ in the
+  *Showing only* line above the list, **Show everything**, a click on the bar again, or
+  Escape shows the whole period again.
 - **Sites or Apps**, at the end of the row under the toolbar, where Connections and Usage
   History have All, Wi-Fi or Hotspot: **Sites**, by the part of the name a person would
   call the site (`doubleclick.net`), with the names under it that were blocked; or
@@ -328,8 +339,8 @@ and the toolbar's search (⌘F) covers both.
     main window (#593): the list keeps just that row, the total is its own, and the chart
     shows its share of each bar, the bar's own colour under the rest, with the hovered
     bar's count for it. On a row inside one, it shows only that site in that app. Its
-    button then reads **Filtered ✕**; that, its chip, or Escape (after a picked bar's)
-    lets it go.
+    button then reads **Filtered ✕**; that, its ✕ in the *Showing only* line, **Show
+    everything**, or Escape (after a picked bar's) lets it go.
   - **Right-click** a row, as in the Log: block or always allow its site, in every app or
     only its app, stop filtering its app, remove a rule you made about it, or copy its
     name.

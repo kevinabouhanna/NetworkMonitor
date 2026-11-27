@@ -831,6 +831,13 @@ public final class AdsViewModel: ObservableObject {
 
     public var canGoBack: Bool { spanStart != nil || selection != nil }
 
+    /// Show everything (#798): the search, the bar and the row, at once.
+    public func showEverything() {
+        logSearch = ""
+        clearSpan()
+        clearSelection()
+    }
+
     public func expansionKey(_ id: String) -> String { grouping.rawValue + ":" + id }
 
     public func isExpanded(_ id: String) -> Bool { expanded.contains(expansionKey(id)) }

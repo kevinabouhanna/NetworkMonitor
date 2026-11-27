@@ -135,6 +135,42 @@ func runAccessibilityTests() {
                     Check.expectTrue(names.contains(name), "the main window has no \(name) in \(names)")
                 }
             }
+            // List is only the list; Both and Map have Map | Chart (#798), and
+            // Chart is the period's chart in the map's place.
+            let chartName = L("Chart of the period, bar by bar. Click a bar, or drag across bars, to show only that time.")
+            let savedLayout = connections.layout
+            connections.layout = .list
+            Check.test("Connections › List shows no chart and no Map | Chart\(language)") {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                let names = namesNow()
+                Check.expectFalse(names.contains(L("Map or chart")), "List has the Map or chart switch")
+                Check.expectFalse(names.contains(chartName), "List has a chart")
+            }
+            for layout in [ConnectionsViewModel.Layout.both, .map] {
+                connections.layout = layout
+                connections.pane = .chart
+                checkMain("Connections › \(layout.label) › Chart")
+                Check.test("Connections › \(layout.label) has Map | Chart, and Chart in the map's place\(language)") {
+                    RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                    let names = namesNow()
+                    Check.expectTrue(names.contains(L("Map or chart")), "no Map or chart switch in \(names)")
+                    Check.expectTrue(names.contains(chartName), "no chart in \(names)")
+                }
+                connections.pane = .map
+            }
+            connections.layout = savedLayout
+            // What the list is narrowed to, in words (#798): each part's ✕
+            // says what it removes, and Show everything is named.
+            connections.search = "zz"
+            checkMain("Connections, narrowed")
+            Check.test("Connections' Showing only line names its ✕ and Show everything\(language)") {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                let names = namesNow()
+                for name in [L("Remove %@", L("“%@”", "zz")), L("Show everything")] {
+                    Check.expectTrue(names.contains(name), "no \(name) in \(names)")
+                }
+            }
+            connections.search = ""
             // AppKit's own buttons, named by the app (#621): read in the
             // language shown.
             Check.test("The sidebar's button and the search's glass read in the language shown\(language)") {
