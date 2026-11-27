@@ -231,6 +231,17 @@ public final class HistoryViewModel: ObservableObject {
     /// take Escape, so Escape still closes search the rest of the time.
     public var canGoBack: Bool { filter.sessionID != nil || filter.networkID != nil || filter.appKey != nil }
 
+    /// Show everything (#798): the search, the app, the network and the
+    /// visit, at once. Wi-Fi or Hotspot stays: it's a switch, not a filter.
+    public func showEverything() {
+        search = ""
+        var next = filter
+        next.appKey = nil
+        next.networkID = nil
+        next.sessionID = nil
+        show(period, filter: next)
+    }
+
     /// The name a chip shows for the app filter. Looked up in the report, which
     /// holds the app whenever the filter does.
     public var filteredAppName: String? {

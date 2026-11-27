@@ -169,6 +169,44 @@ func runListBehaviourTests() {
             Check.expectTrue(model.expanded.contains(google.id), "switching grouping closed it")
         }
 
+        Check.test("Show everything lets go of the search and every item at once (#798)") {
+            reset()
+            guard let group = model.groups.first(where: { $0.item.title == "Microsoft" }),
+                  let teams = group.sections.first(where: { $0.dimension == .app })?.items.first else {
+                return Check.expectTrue(false, "no Teams under Microsoft")
+            }
+            model.narrow(to: teams, in: group.item)
+            model.search = "Tea"
+            Check.expectTrue(model.isNarrowed)
+            model.showEverything()
+            Check.expectEqual(model.chips.count, 0)
+            Check.expectEqual(model.search, "")
+            Check.expectFalse(model.isNarrowed)
+            Check.expectEqual(model.groups.count, 2, "the list isn't whole again")
+        }
+
+        Check.test("a click on the chart before its bars load picks nothing (#833)") {
+            reset()
+            if model.bins.isEmpty {
+                model.pick(0...0)
+                Check.expectFalse(model.canGoBack, "an unseen span took Escape")
+            } else {
+                model.pick(model.bins.count...model.bins.count)
+                Check.expectFalse(model.canGoBack, "a span past the bars took Escape")
+            }
+        }
+
+        Check.test("Map or Chart is the map at first, and remembered after that (#798)") {
+            defaults.removeObject(forKey: ConnectionsViewModel.paneKey)
+            Check.expectEqual(ConnectionsViewModel(monitor: monitor, defaults: defaults).pane, .map)
+            reset()
+            model.pane = .chart
+            Check.expectEqual(ConnectionsViewModel(monitor: monitor, defaults: defaults).pane, .chart,
+                              "Chart wasn't remembered")
+            model.pane = .map
+            Check.expectEqual(ConnectionsViewModel(monitor: monitor, defaults: defaults).pane, .map)
+        }
+
         // "e" is in Teams' and Chrome's names, and only in what's inside
         // Safari (Google, the United States).
         Check.test("search opens a group found by what's inside it, and closes it once cleared") {
@@ -218,6 +256,18 @@ func runListBehaviourTests() {
             model.setExpanded("/System/Applications/Utilities/Terminal.app", false)
         }
 
+        Check.test("Show everything lets go of the search, the app, the network and the visit (#798)") {
+            model.toggleApp("/Applications/Safari.app")
+            model.toggleNetwork("home")
+            model.search = "Saf"
+            model.showEverything()
+            Check.expectNil(model.filter.appKey)
+            Check.expectNil(model.filter.networkID)
+            Check.expectNil(model.filter.sessionID)
+            Check.expectEqual(model.search, "")
+            Check.expectFalse(model.canGoBack)
+        }
+
         Check.test("System opens and closes, by hand") {
             model.setExpanded(HistoryViewModel.systemID, true)
             Check.expectTrue(model.systemExpanded)
@@ -251,6 +301,15 @@ func runListBehaviourTests() {
             Check.expectFalse(model.isExpanded("bing.com"), "filtering opened it")
             model.goBack()
             Check.expectNil(model.selection, "Escape didn't let go")
+        }
+
+        Check.test("Show everything lets go of the search and the row (#798)") {
+            model.select(AdsViewModel.Selection(grouping: model.grouping, parent: "bing.com", title: "bing.com"))
+            model.logSearch = "bing"
+            model.showEverything()
+            Check.expectNil(model.selection)
+            Check.expectEqual(model.logSearch, "")
+            Check.expectFalse(model.canGoBack)
         }
     }
 }

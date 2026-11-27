@@ -262,6 +262,8 @@ func runKeyboardTests() {
             (.ads, L("View"), "AXRadioGroup", { adsModel.layout.label }),
             (.ads, L("Group by"), "AXTabGroup", { adsModel.grouping.label }),
             (.connections, L("View"), "AXRadioGroup", { connections.layout.label }),
+            // Map | Chart in the pane's corner (#798).
+            (.connections, L("Map or chart"), "AXTabGroup", { connections.pane.label }),
             (.history, L("Period"), "AXRadioGroup", { historyModel.scale.label }),
         ]
         for control in switches {

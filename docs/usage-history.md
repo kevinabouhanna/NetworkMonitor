@@ -41,9 +41,10 @@ History in the main window's sidebar.
 - **Filter**, the funnel at the end of each row, shows only that app, network or session,
   as in every list of the main window (#593). It shows its word when you point at the
   row. The row is highlighted, its button reads **Filtered ✕**, and the chart and totals
-  follow. Click **Filtered ✕**, its chip at the end of the lists' row (#192), or press
-  Escape to undo. Filters combine, with each other and with the switch; Escape lets go of
-  the last one first.
+  follow. Click **Filtered ✕**, or its ✕ in the line under the switches that reads
+  *Showing only …* (#798), or press Escape to undo; **Show everything** at the end of that
+  line lets go of them all. Filters combine, with each other and with the switch; Escape
+  lets go of the last one first.
 - **Click an app with parts**, or its arrow, to open and close it; filtering opens and
   closes nothing. **System** is macOS's own processes under one heading rather than an
   app, so it opens and has no Filter.
@@ -52,7 +53,7 @@ History in the main window's sidebar.
   goes back up; Space does what a click on the row does, and Return what its Filter
   button does.
 - **Search** (⌘F), the magnifying glass in the toolbar, finds apps and networks, and
-  shows as a chip like the other filters. An app found by one of its parts opens to show
+  shows in the *Showing only* line like the other filters. An app found by one of its parts opens to show
   it, and closes again when the search is cleared.
 - **Name a network** by right-clicking it under Networks and choosing **Rename…**. The name is used in History
   and in exports, for every past visit too.

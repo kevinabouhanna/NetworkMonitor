@@ -165,7 +165,7 @@ network or every hotspot at once; export it as CSV. See [Usage History](usage-hi
 
 Which companies your apps send data to, from which apps, in which countries, and to which
 servers: grouped by company, app or country, narrowed by clicking, searched, read hour by
-hour on a timeline, and shaded on a world map that pulses to where your apps reach right now. Nothing is looked up
+hour on a chart, and shaded on a world map that pulses to where your apps reach right now. Nothing is looked up
 online. Block a company, app, country, site or server, or have it ask the first time an app
 connects; **Rules**, beside Traffic and Blocked, lists every rule with what it did. See
 [Connections](connections.md).

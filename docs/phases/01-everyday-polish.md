@@ -35,19 +35,6 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   with a test for every Settings switch.
 - **One refresh interval for the live speeds** (#808), Next, asked for by defragekb: Auto, or
   1–5 seconds, averaged over the interval, so the menu bar and the Dock agree.
-- **Connections: no chart in List, a Map or Chart switch, filters easy to clear** (#798), Now,
-  Kevin's ask: List becomes only the list, as in the other windows; Both and Map can show the
-  traffic over time in the map's place, with the switch in the pane's corner; and, from testing
-  with real users, a line that says "Showing only …" with **Show everything** replaces the
-  filter chips, in Connections, Ads and Trackers and Usage History alike (chosen in the design
-  artifact, 27 Nov 2026).
-
-Done on 27 Nov 2026, on `main`, for the next 1.35.0 beta:
-
-- **Live and Settings use the window's full width, and the speed test stays put** (#825, #831):
-  Live's speed test has its own column, and Settings fills the window.
-- **The Connections map's shades tell nearby amounts apart** (#797, #829): six fixed steps with
-  a key, under 1 MB up to 10 GB or more, as Kevin chose in the design artifact.
 
 Done on 27 Nov 2026, in 1.35.0 beta 2 (#792, as Kevin chose in its design artifact, from
 defragekb's ask for what they open iStat Menus to see):
@@ -74,6 +61,15 @@ defragekb's ask for what they open iStat Menus to see):
 - **No "Live" caption under the popover's speeds** (#823), Kevin's ask from beta 4: the speeds
   say what they are, and the caption didn't line up with the graph beside them. In 1.35.0
   beta 6.
+- **Live and Settings fill the window** (#825), as Kevin picked in its design artifact: Live's
+  apps fill the left and scroll by themselves, the speed test has its own column on the right
+  (under a list of eight rows on a narrow window), and Settings, Network and each section's
+  settings run edge to edge. In 1.35.0 beta 7.
+- **The Connections map's shades tell nearby amounts apart** (#797), as Kevin chose in its design
+  artifact: six fixed steps with a key, under 1 MB up to 10 GB or more. In 1.35.0 beta 7.
+- **Connections: no chart in List, Map | Chart in the corner, and "Showing only"** (#798), as
+  Kevin chose in its design artifact, with **Show everything** in place of the filter chips in
+  Connections, Ads and Trackers and Usage History alike. In 1.35.0 beta 7.
 
 Done on 26 Nov 2026, released in 1.34.0 the same day (#778):
 
