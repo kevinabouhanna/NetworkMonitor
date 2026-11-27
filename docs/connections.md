@@ -33,8 +33,8 @@ networks it covers. Then the period's name, its total, and the counts.
   **Filtered ✕**. Filtering opens and closes nothing: the list stays as you left it.
 - **What the list is narrowed to is said in words** (#798): a line under the switches reads
   *Showing only Mon, 16 Nov · Microsoft · Teams*. Each part has its own ✕, **Show
-  everything** at the end lets go of them all, and Escape lets go of one at a time, the
-  last first. The search shows there too. Usage History and Ads and Trackers have the same
+  everything** at the end lets go of them all, and Escape lets go of one at a time, from
+  the end. The search shows there too, and stays until you clear it. Usage History and Ads and Trackers have the same
   line.
 - **The keyboard** (#546): Tab reaches the list as one stop, or click a row. ↑ and ↓ move
   from row to row, marked with a ring; → opens a group, ← closes it or goes back up to the

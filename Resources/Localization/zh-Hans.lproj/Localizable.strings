@@ -1153,7 +1153,7 @@
 "Map or chart" = "地图或图表";
 "Remove %@" = "移除 %@";
 "Show everything" = "显示全部";
-"Show everything again. Escape lets go of one at a time." = "重新显示全部。按 Esc 键则一次移除一个。";
 "Show where your apps' traffic went, or when" = "显示应用的流量去了哪里，或在什么时候";
 "Showing only" = "只显示";
 "Stop showing only %@" = "不再只显示 %@";
+"Show everything again. Escape lets go of one at a time, from the end; the search stays until it's cleared." = "重新显示全部。按 Esc 键则从末尾开始一次移除一个；搜索在清除之前会一直保留。";

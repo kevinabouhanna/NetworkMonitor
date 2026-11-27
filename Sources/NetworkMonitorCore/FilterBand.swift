@@ -64,7 +64,7 @@ struct FilterBand: View {
             }
             .buttonStyle(.plain)
             .fixedSize()
-            .help(L("Show everything again. Escape lets go of one at a time."))
+            .help(L("Show everything again. Escape lets go of one at a time, from the end; the search stays until it's cleared."))
         }
         .font(.system(size: 12))
         .padding(.leading, 10)

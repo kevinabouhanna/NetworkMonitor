@@ -124,22 +124,26 @@ public struct ConnectionsView: View {
     @ViewBuilder private var band: some View {
         let filters = bandFilters
         if !filters.isEmpty {
-            FilterBand(filters: filters, onShowEverything: model.showEverything)
+            // Only what it shows: on Rules, the search, not Traffic's
+            // narrowing out of sight (#833 review).
+            FilterBand(filters: filters, onShowEverything: model.showsRules ? { model.search = "" } : model.showEverything)
         }
     }
 
+    /// In the order Escape lets go of them from the end: the items, then
+    /// the time picked on the chart. The search stays until it's cleared.
     private var bandFilters: [FilterBand.Filter] {
         var filters: [FilterBand.Filter] = []
         if !query.isEmpty {
             filters.append(.search(query) { model.search = "" })
         }
         guard !model.showsRules else { return filters }
-        if let span = model.spanTitle {
-            filters.append(FilterBand.Filter(id: "span", label: span, onClear: model.clearSpan))
-        }
         for item in model.chips {
             filters.append(FilterBand.Filter(id: item.dimension.rawValue, label: item.title,
                                              onClear: { model.clear(item.dimension) }))
+        }
+        if let span = model.spanTitle {
+            filters.append(FilterBand.Filter(id: "span", label: span, onClear: model.clearSpan))
         }
         return filters
     }
@@ -292,7 +296,7 @@ public struct ConnectionsView: View {
 
     private var emptyDetail: String {
         if !model.hasLoaded { return "" }
-        if !model.search.isEmpty || !model.chips.isEmpty { return L("Choose Show everything to see more.") }
+        if !query.isEmpty || !model.chips.isEmpty { return L("Choose Show everything to see more.") }
         if model.measure == .blocked {
             return L("Right-click a company, app, country or server under Traffic to block it.")
         }
@@ -817,6 +821,13 @@ private struct ConnectionsChart: View {
                             .frame(width: width, height: geometry.size.height, alignment: .bottom)
                             .help(L("%@: %@", HistoryFormat.binTitle(bin.interval, scale: model.scale),
                                     model.format(bin.bytes)))
+                            // Each bar read, and picked, with VoiceOver as a
+                            // click picks it (#833 review).
+                            .accessibilityElement()
+                            .accessibilityLabel(L("%@: %@", HistoryFormat.binTitle(bin.interval, scale: model.scale),
+                                                  model.format(bin.bytes)))
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityAction { model.pick(index...index) }
                     }
                 }
             }
@@ -833,7 +844,7 @@ private struct ConnectionsChart: View {
                         model.dragging = nil
                     })
         }
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(L("Chart of the period, bar by bar. Click a bar, or drag across bars, to show only that time."))
     }
 

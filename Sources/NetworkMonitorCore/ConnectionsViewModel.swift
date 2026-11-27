@@ -377,6 +377,8 @@ public final class ConnectionsViewModel: ObservableObject {
     /// Narrows to the bins picked on the timeline. Picking the one bin already
     /// picked shows the whole period again.
     public func pick(_ bins: ClosedRange<Int>) {
+        // Before the bars load there's nothing to pick (#833 review).
+        guard bins.upperBound < self.bins.count else { return }
         span = (span == bins && bins.count == 1) ? nil : bins
         reload()
     }
@@ -446,12 +448,13 @@ public final class ConnectionsViewModel: ObservableObject {
     /// Show everything (#798): lets go of the search, the span and every
     /// item narrowed to, at once.
     public func showEverything() {
-        let hadSpan = span != nil
+        let hadSpan = span != nil, hadSearch = !search.isEmpty
         span = nil
         selected.removeAll()
         showingAll.removeAll()
+        // Clearing the search rebuilds by itself; a span needs the record read again.
         search = ""
-        if hadSpan { reload() } else { rebuild() }
+        if hadSpan { reload() } else if !hadSearch { rebuild() }
     }
 
     /// Whether anything narrows the list: what the band under the switches

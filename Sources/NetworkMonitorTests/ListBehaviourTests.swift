@@ -185,6 +185,17 @@ func runListBehaviourTests() {
             Check.expectEqual(model.groups.count, 2, "the list isn't whole again")
         }
 
+        Check.test("a click on the chart before its bars load picks nothing (#833)") {
+            reset()
+            if model.bins.isEmpty {
+                model.pick(0...0)
+                Check.expectFalse(model.canGoBack, "an unseen span took Escape")
+            } else {
+                model.pick(model.bins.count...model.bins.count)
+                Check.expectFalse(model.canGoBack, "a span past the bars took Escape")
+            }
+        }
+
         Check.test("Map or Chart is the map at first, and remembered after that (#798)") {
             defaults.removeObject(forKey: ConnectionsViewModel.paneKey)
             Check.expectEqual(ConnectionsViewModel(monitor: monitor, defaults: defaults).pane, .map)

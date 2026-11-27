@@ -1236,7 +1236,10 @@ extension AdsView {
     @ViewBuilder var band: some View {
         let filters = bandFilters
         if !filters.isEmpty {
-            FilterBand(filters: filters, onShowEverything: model.showEverything)
+            // Only what it shows: off Overview, the search, not Overview's
+            // bar and row out of sight (#833 review).
+            FilterBand(filters: filters,
+                       onShowEverything: model.tab == .overview ? model.showEverything : { model.logSearch = "" })
         }
     }
 
@@ -1246,13 +1249,15 @@ extension AdsView {
         if !query.isEmpty {
             filters.append(.search(query) { model.logSearch = "" })
         }
+        // In the order Escape lets go of them from the end: the row, then
+        // the bar.
         if model.tab == .overview {
-            if let span = model.spanTitle {
-                filters.append(FilterBand.Filter(id: "span", label: span, onClear: model.clearSpan))
-            }
             if let selection = model.selection {
                 filters.append(FilterBand.Filter(id: "selection", label: selection.title,
                                                  onClear: model.clearSelection))
+            }
+            if let span = model.spanTitle {
+                filters.append(FilterBand.Filter(id: "span", label: span, onClear: model.clearSpan))
             }
         }
         return filters
