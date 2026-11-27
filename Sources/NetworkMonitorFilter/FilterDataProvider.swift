@@ -28,6 +28,7 @@ final class FilterDataProvider: NEFilterDataProvider {
     }
 
     override func stopFilter(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
+        OutboundFlowProbe.reset()
         completionHandler()
     }
 
@@ -42,6 +43,7 @@ final class FilterDataProvider: NEFilterDataProvider {
 
     /// What macOS counted for a flow the probe watches (#786).
     override func handle(_ report: NEFilterReport) {
+        if report.event == .flowClosed, let flow = report.flow { OutboundFlowProbe.complete(flow) }
         // macOS reports some closes unasked (a lookup's, whose answer is
         // read): only while the probe is on are they logged.
         guard Firewall.shared.measuresFlowBytes else { return }
@@ -49,8 +51,10 @@ final class FilterDataProvider: NEFilterDataProvider {
     }
 
     private func decide(_ flow: NEFilterFlow) -> NEFilterNewFlowVerdict {
-        guard let socket = flow as? NEFilterSocketFlow,
-              let remote = socket.remoteEndpoint as? NWHostEndpoint else { return .allow() }
+        guard let socket = flow as? NEFilterSocketFlow else { return .allow() }
+        guard let remote = socket.remoteEndpoint as? NWHostEndpoint else {
+            return OutboundFlowProbe.newFlow(socket, allowed: .allow())
+        }
         let port = Int(remote.port) ?? 0
         let pid = FlowReport.pid(fromAuditToken: flow.sourceAppAuditToken)
         // Its own encrypted lookups (#291), which nothing may stand in the way of.
@@ -79,7 +83,7 @@ final class FilterDataProvider: NEFilterDataProvider {
             return .filterDataVerdict(withFilterInbound: true, peekInboundBytes: Self.answerPeek,
                                       filterOutbound: false, peekOutboundBytes: 0)
         }
-        return decision.verdict
+        return decision.allows ? OutboundFlowProbe.newFlow(socket, allowed: decision.verdict) : decision.verdict
     }
 
     /// Plain DNS, over UDP or TCP (#321): the kinds whose answers can be read.
@@ -98,7 +102,7 @@ final class FilterDataProvider: NEFilterDataProvider {
         return String(cString: buffer) == "/usr/sbin/mDNSResponder"
     }
 
-    // Data is asked for only by `HandshakeWatch`, and only outbound (#196).
+    // The name reader gets first use of outbound data (#196).
 
     override func handleOutboundData(from flow: NEFilterFlow, readBytesStartOffset offset: Int,
                                      readBytes: Data) -> NEFilterDataVerdict {
@@ -110,6 +114,7 @@ final class FilterDataProvider: NEFilterDataProvider {
 
     override func handleOutboundDataComplete(for flow: NEFilterFlow) -> NEFilterDataVerdict {
         HandshakeWatch.shared.finished(flow)
+        OutboundFlowProbe.complete(flow)
         return .allow()
     }
 

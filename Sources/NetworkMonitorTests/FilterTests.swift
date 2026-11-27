@@ -26,6 +26,38 @@ func runFilterTests() {
             Check.expectEqual(FirewallPolicy.decode(on.encoded()), on)
         }
 
+        Check.test("the outbound probe is independent of Apple's byte reports") {
+            let old = Data(#"{"mode":"anywhere","rules":[],"onHotspot":false,"measuresFlowBytes":true}"#.utf8)
+            Check.expectFalse(FirewallPolicy().measuresOutboundFlowBytes)
+            Check.expectEqual(FirewallPolicy.decode(old)?.measuresOutboundFlowBytes, false)
+            Check.expectEqual(FirewallPolicy.decode(old)?.measuresFlowBytes, true)
+
+            let outboundOnly = FirewallPolicy(measuresOutboundFlowBytes: true)
+            Check.expectFalse(outboundOnly.measuresFlowBytes)
+            Check.expectEqual(FirewallPolicy.decode(outboundOnly.encoded()), outboundOnly)
+        }
+
+        Check.test("the outbound probe counts each byte once across overlapping callbacks") {
+            var count = OutboundByteCount()
+            Check.expectEqual(count.advance(offset: 0, count: 128), 128)
+            Check.expectEqual(count.advance(offset: 128, count: 1_024), 1_024)
+            Check.expectEqual(count.advance(offset: 512, count: 1_024), 384)
+            Check.expectEqual(count.advance(offset: 0, count: 1_536), 0)
+            Check.expectEqual(count.bytes, 1_536)
+        }
+
+        Check.test("a gap, invalid range or overflow does not advance the outbound probe") {
+            var count = OutboundByteCount()
+            Check.expectEqual(count.advance(offset: 32, count: 128), nil)
+            Check.expectEqual(count.advance(offset: 0, count: 128), 128)
+            Check.expectEqual(count.advance(offset: 129, count: 128), nil)
+            Check.expectEqual(count.advance(offset: -1, count: 128), nil)
+            Check.expectEqual(count.advance(offset: 0, count: -1), nil)
+            Check.expectEqual(count.advance(offset: 128, count: Int.max), nil)
+            Check.expectEqual(count.advance(offset: 128, count: 0), 0)
+            Check.expectEqual(count.bytes, 128)
+        }
+
         // audit_token_t is eight 32-bit words; the process ID is the sixth.
         Check.test("reads the process ID from an audit token") {
             var words: [UInt32] = [1, 2, 3, 4, 5, 4242, 7, 8]

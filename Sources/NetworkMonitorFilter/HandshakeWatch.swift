@@ -76,7 +76,7 @@ final class HandshakeWatch {
         lock.lock()
         guard var watch = watches[flow.identifier] else {
             lock.unlock()
-            return .allow()
+            return OutboundFlowProbe.pass(flow, offset: offset, count: bytes.count)
         }
         let step = watch.reader.read(at: offset, bytes)
         switch step {
@@ -90,7 +90,8 @@ final class HandshakeWatch {
             watches.removeValue(forKey: flow.identifier)
             lock.unlock()
             if watch.decision.asks, let asked = ask(flow, watch, name: name) { return asked }
-            return conclude(watch.report, decision: watch.decision, name: name) ? .allow() : .drop()
+            guard conclude(watch.report, decision: watch.decision, name: name) else { return .drop() }
+            return OutboundFlowProbe.afterHandshake(flow, offset: offset, count: bytes.count)
         }
     }
 

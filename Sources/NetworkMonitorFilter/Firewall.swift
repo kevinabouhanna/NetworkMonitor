@@ -157,6 +157,7 @@ final class Firewall {
     /// The probe of macOS's byte counts per flow (#786): off unless the app
     /// was told to by hand.
     var measuresFlowBytes: Bool { current.measuresFlowBytes }
+    var measuresOutboundFlowBytes: Bool { current.measuresOutboundFlowBytes }
 
     /// A lookup's answer, as it came back to the Mac. Only its aliases are
     /// kept; the answer itself goes on unchanged.

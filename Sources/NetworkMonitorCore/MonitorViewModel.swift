@@ -363,7 +363,9 @@ public final class MonitorViewModel: ObservableObject {
                                                     enhanced, adRules: adRules,
                                                     onForTesting: EnhancedBlockingProxy.isOnForTesting),
                                                   // By hand only, for #754 (#786).
-                                                  measuresFlowBytes: UserDefaults.standard.bool(forKey: "flowBytesProbe")))
+                                                  measuresFlowBytes: UserDefaults.standard.bool(forKey: "flowBytesProbe"),
+                                                  measuresOutboundFlowBytes: UserDefaults.standard.bool(
+                                                    forKey: "flowOutboundBytesProbe")))
                 // Switched on with stale lists: fetch newer ones soon.
                 if !rulesAndLists.1.isEmpty {
                     self?.blocklists.checkSoon()
