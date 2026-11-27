@@ -65,10 +65,13 @@ through without asking. What's particular to NetworkMonitor:
   - Do the release in a worktree too: `EnterWorktree` `release-X.Y.Z` for the
     release notes' pull request; once the tag is pushed, `git switch --detach
     vX.Y.Z` there, install, and clean up as above.
-  - Update the installed app: `make install` from the tag when the signing
-    keys are on this Mac (`~/.config/networkmonitor-signing/`); otherwise
-    through Sparkle, once the release is published, so the installed app
-    updates itself to the notarized build.
+  - Update the installed app, a beta's too, as soon as it's published:
+    `make install` from the tag when the signing keys are on this Mac
+    (`~/.config/networkmonitor-signing/`); otherwise
+    `Scripts/install-release.sh vX.Y.Z` (#826), which installs the release's
+    own notarized DMG in the lane. Never leave it to Sparkle: it checks once a
+    day, and Kevin wants to try what was just shipped (Kevin, 27 Nov 2026:
+    "update the app from my end so that I can check what you did").
   - Bring the website (`gh-pages` branch) up to date:
     - the docs pages: `make docs-site SITE=<site worktree>` from the tag, so they
       describe the version people can download (#334)
