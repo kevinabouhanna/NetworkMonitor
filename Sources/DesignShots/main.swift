@@ -420,6 +420,10 @@ func capture(_ world: World, prefix: String, appearance: NSAppearance.Name) {
                                   defaultLabel: "Home Wi-Fi", isExpensive: false, isConstrained: false)
     world.model.showConnectionForPictures(ConnectionStatus.make(network: home, verdict: .unmetered, name: "Home Wi-Fi"))
     seedLive(world.model.live)
+    // Documentation addresses, never this Mac's (#803).
+    world.model.addresses.showForPictures(
+        local: "192.168.1.20",
+        state: .found(.init(address: "203.0.113.42", country: "DE", provider: "Deutsche Telekom", isTheMacs: false)))
     for section in PopoverSection.allCases where wanted(prefix + "popover-\(section.rawValue)") {
         world.model.popoverSection = section
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))

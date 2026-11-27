@@ -45,7 +45,7 @@ send traffic.
 
 ## What it sends
 
-Four things, and nothing else:
+Five things, and nothing else:
 
 - **The speed test, when you start it.** It runs `networkQuality`, the tool Apple ships
   with every Mac, against Apple's own test servers.
@@ -78,6 +78,16 @@ Four things, and nothing else:
   is signed with the key built into the app. Switch the daily check off with **Check for updates
   automatically** in Settings. With **Get beta versions** on (#585), it fetches the beta
   appcast instead, from the same place on GitHub.
+
+- **Your internet address, only once you've turned it on** (#803): **Show** in the popover's
+  Network view, after it says what it asks and of whom, or **Look up the internet address**
+  in Network's settings. Behind a router, only an outside service can tell the address
+  websites see, so the app asks Cloudflare's trace at `one.one.one.one` (1.1.1.1): no
+  account, no key, no cookies. Cloudflare learns that address, as every website does, and
+  that this Mac asked; nothing else. Once on each network you join, never on a hotspot, a
+  metered connection or in Low Data Mode, and the answer is kept in memory only. Its country
+  and provider come from the country data already in the app. Off to begin with. This Mac's
+  own address on the network is read from the Mac and sends nothing.
 
 There is no analytics, no telemetry, no crash reporting and no account.
 

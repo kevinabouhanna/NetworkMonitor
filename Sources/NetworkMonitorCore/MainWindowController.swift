@@ -138,7 +138,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
             case .network, .settings:
                 // Hotspots are on the Network page itself (#436): what's
                 // left to set is how the popover shows the speed test.
-                view = AnyView(SpeedTestStylePane(speedTest: model.speedTest))
+                view = AnyView(SpeedTestStylePane(speedTest: model.speedTest, addresses: model.addresses))
             }
             let host = NSHostingController(rootView: MainSettingsPage(content: view, width: width).localizedRoot())
             host.sizingOptions = []

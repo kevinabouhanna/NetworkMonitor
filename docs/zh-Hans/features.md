@@ -44,7 +44,7 @@ VoiceOver 按屏幕上的顺序读出读数。默认会读成 <em>NetworkMonitor
   - <strong>系统</strong>：macOS 自己的守护进程合并为底部的一行。好奇的话可以展开它。
 - <strong>连接</strong> 按 <strong>公司</strong>、<strong>国家或地区</strong> 或 <strong>应用</strong> 对你的应用通信的对象分组。一个应用与一台服务器通信计为一次。公司或国家或地区可以展开为它的应用，应用可以展开为它的公司。
 - <strong>已拦截</strong> 最上面是一栏，说明广告拦截现在是否在拦截，并提供 <strong>暂停</strong>：<strong>1 小时</strong>、<strong>直到明天</strong> 或 <strong>每当连接</strong> *此网络* <strong>时</strong>，与窗口中相同。暂停期间，这一栏会显示暂停到什么时候，并提供 <strong>继续</strong>；在此网络上关闭时，提供 <strong>在此处打开</strong>（#600）。下面列出 <strong>网站</strong> 或 <strong>应用</strong>，次数最多的在前。网站可以展开为尝试访问它的应用，应用可以展开为它尝试访问的网站。广告拦截关闭时，这里会提供 <strong>打开</strong>。
-- <strong>网络</strong> 显示 Mac 正在使用的连接，以及一个 <strong>这是热点</strong> 开关（在每个网络上都有，因为有些手机无法被识别）。隐藏“实时”时，网速测试显示在这里。
+- <strong>网络</strong> 显示 Mac 正在使用的连接；它的地址：网络上的 <strong>这台 Mac</strong>，以及网站看到的 <strong>互联网</strong> 地址和它所在的位置（国家或地区和网络服务商），每个地址都有拷贝按钮（#803）；以及一个 <strong>这是热点</strong> 开关（在每个网络上都有，因为有些手机无法被识别）。隐藏“实时”时，网速测试显示在这里。互联网地址需要询问外部服务，所以在你点按 <strong>显示</strong> 并同意，或在“网络”的设置中打开 <strong>查询互联网地址</strong> 之前一直是关闭的（[隐私](privacy.md#它会发送什么)）。
 - <strong>显示哪些视图，以及按钮的顺序</strong>，都可以在 <strong>设置 › 弹出窗口</strong> 中选择。
 - 每个视图底部的 <strong>打开…</strong> 会在主窗口中打开对应的部分，统计周期保持不变：<strong>打开流量历史</strong>（⌘Y）、<strong>打开“连接”</strong>（⌘K）、<strong>打开广告与跟踪器</strong>（⌘B）或 <strong>打开“网络”</strong>。齿轮图标旁边的 <strong>四个方块</strong> 也一样，<strong>齿轮图标</strong> 则打开“设置”。
 - <strong>按钮下方的提示行</strong> 会说明需要注意的情况：

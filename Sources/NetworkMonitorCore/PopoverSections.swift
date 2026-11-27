@@ -700,6 +700,9 @@ struct PopoverConnection: View {
     let height: CGFloat
     /// The speed test is Live's (#802), and here only while Live is hidden.
     var showsSpeedTest = true
+    /// The Mac's addresses (#803), and the VPN or proxy they go through.
+    var addresses: InternetAddress?
+    var tunnel: String?
     let onHotspotSettings: () -> Void
 
     var body: some View {
@@ -720,6 +723,9 @@ struct PopoverConnection: View {
                             .font(.system(size: 11)).foregroundStyle(.secondary)
                     }
                     .accessibilityElement(children: .combine)
+                }
+                if status.kind != .offline, let addresses {
+                    PopoverAddresses(addresses: addresses, tunnel: tunnel)
                 }
                 if status.kind != .offline {
                     HStack(alignment: .center, spacing: 10) {
