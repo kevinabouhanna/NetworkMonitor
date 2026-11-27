@@ -29,8 +29,14 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
 - **A finished macOS upgrade counts for Software Update** (#809), Now, a bug reported by
   defragekb: 17.8 GB stayed under `nsurlsessiond` because the log names its client
   `softwareupdated`, not a bundle identifier, which the owner lookup of #767 doesn't read.
-- **Light, Dark or System for the Dock's speeds** (#807), Next, asked for by defragekb: the
-  Dock icon's look chosen apart from the Mac's, remembered across launches.
+- **Light, Dark or System for the Dock's speeds** (#807), Now, asked for by defragekb: the
+  Dock icon's look chosen apart from the Mac's, remembered across launches. Kevin chose in its
+  design artifact (27 Nov 2026): an **Appearance** switch, System · Light · Dark, under Dock
+  icon while it's Speeds, one choice for Dock and Both.
+- **Settings' switches change with ← and →, as the toolbar's do** (#830), Next, found while
+  building #807: the keyboard tour reaches each one, named, but its arrow keys don't change
+  the choice. Checked with real keys in a VM first, then fixed or the tour taught, and held
+  with a test for every Settings switch.
 - **One refresh interval for the live speeds** (#808), Next, asked for by defragekb: Auto, or
   1–5 seconds, averaged over the interval, so the menu bar and the Dock agree.
 - **The Connections map's shades tell nearby amounts apart** (#797), Next, Kevin's ask: today's

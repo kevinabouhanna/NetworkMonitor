@@ -62,6 +62,68 @@ func runAppPlacementTests() {
                               "an unknown value falls back to the default")
         }
 
+        // How the Dock icon looks with Speeds (#807): System to begin with,
+        // one choice for Dock and Both, kept across launches.
+        Check.test("the Dock icon's appearance: System by default, shared by Dock and Both, and kept") {
+            let defaults = Check.defaults("app-placement")
+
+            let setting = AppPlacementSetting(defaults: defaults)
+            Check.expectEqual(setting.dockAppearance, .system)
+            Check.expectEqual(DockAppearance.allCases, [.system, .light, .dark], "System · Light · Dark")
+            setting.placement = .dock
+            setting.dockAppearance = .dark
+            setting.placement = .both
+            Check.expectEqual(setting.dockAppearance, .dark, "Both has the choice made in Dock")
+            Check.expectEqual(AppPlacementSetting(defaults: defaults).dockAppearance, .dark, "not kept")
+            setting.dockAppearance = .light
+            Check.expectEqual(AppPlacementSetting(defaults: defaults).dockAppearance, .light, "not kept")
+            setting.dockAppearance = .system
+            Check.expectNil(defaults.object(forKey: AppPlacementSetting.dockAppearanceKey),
+                            "the default isn't saved, so a future default reaches everyone")
+            defaults.set("purple", forKey: AppPlacementSetting.dockAppearanceKey)
+            Check.expectEqual(AppPlacementSetting(defaults: defaults).dockAppearance, .system,
+                              "an unknown value falls back to System")
+        }
+
+        // Light and Dark hold whatever the Mac is set to; System follows it.
+        // A change marks the icon to be drawn again with the figures it has,
+        // so it shows at once even when they haven't moved (both zero).
+        Check.test("the Dock icon is drawn light or dark as Appearance says, at once") {
+            let readout = SpeedReadout(down: "↓ 0 KB/s", up: "↑ 0 KB/s", tints: .live)
+            let view = DockSpeedView(frame: NSRect(x: 0, y: 0, width: 128, height: 128))
+            view.readout = readout
+            // In a window, never shown, as the Dock's tile holds it: a view
+            // in none isn't marked to be drawn. The window's appearance
+            // stands in for the Mac's, which reaches the view through it.
+            let window = NSWindow(contentRect: view.frame, styleMask: [.borderless], backing: .buffered, defer: true)
+            window.contentView = view
+            // The square's colour above the figures, as drawn.
+            func drawnBrightness() -> CGFloat {
+                guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return -1 }
+                view.cacheDisplay(in: view.bounds, to: rep)
+                let color = rep.colorAt(x: rep.pixelsWide / 2, y: rep.pixelsHigh * 15 / 100)?.usingColorSpace(.sRGB)
+                return color?.brightnessComponent ?? -1
+            }
+            for macIsDark in [false, true] {
+                window.appearance = NSAppearance(named: macIsDark ? .darkAqua : .aqua)
+                for choice in DockAppearance.allCases {
+                    view.dockAppearance = choice
+                    let dark = choice.drawsDark(macIsDark: macIsDark)
+                    let mac = macIsDark ? "a dark Mac" : "a light Mac"
+                    Check.expectEqual(view.isDark, dark, "\(choice.rawValue) on \(mac)")
+                    let brightness = drawnBrightness()
+                    Check.expectTrue(dark ? brightness < 0.3 : brightness > 0.85,
+                                     "\(choice.rawValue) on \(mac) drawn at brightness \(brightness)")
+                }
+            }
+            // As drawn, with nothing waiting (a window never shown doesn't
+            // clear it by drawing).
+            view.needsDisplay = false
+            view.dockAppearance = .light
+            Check.expectEqual(view.readout, readout)
+            Check.expectTrue(view.needsDisplay, "a change of Appearance waits for the figures to change")
+        }
+
         Check.test("the menu bar by default, and the choice kept") {
             let defaults = Check.defaults("app-placement")
 
