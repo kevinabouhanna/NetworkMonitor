@@ -228,7 +228,7 @@ public struct MenuBarPopoverView: View {
                 PopoverLiveView(live: model.live, colors: model.menuBarColors, speedTest: speedTest,
                                 listHeight: listHeight + PopoverMetrics.periodRowHeight
                                     - (showsStrip ? PopoverMetrics.speedStripHeight + 1 : 0),
-                                icon: model.icon(forApp:name:bundlePath:), onHistory: onHistory)
+                                icon: model.icon(forApp:name:bundlePath:), onOpen: onLive)
             }
         }
     }

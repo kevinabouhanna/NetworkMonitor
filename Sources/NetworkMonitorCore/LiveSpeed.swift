@@ -120,6 +120,11 @@ public final class LiveSpeed: ObservableObject {
             apps = []
             lastMoving = [:]
         }
+        // An app quiet for longer than it lingers goes, even while nettop's
+        // samples have paused (#812).
+        if !lastMoving.isEmpty {
+            lastMoving = lastMoving.filter { now.timeIntervalSince($0.value.at) <= Self.lingers }
+        }
         let sample = LiveSample(time: time, down: max(down, 0), up: max(up, 0))
         if let last = samples.last {
             if time < last.time {

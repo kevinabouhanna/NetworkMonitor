@@ -157,12 +157,12 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                 // How the popover shows the speed test, which runs in Live
                 // (#812).
                 view = AnyView(SpeedTestStylePane(speedTest: model.speedTest, addresses: model.addresses,
-                                                  part: .speedTest))
+                                                  layout: model.popoverLayout, part: .speedTest))
             case .network, .settings:
                 // Hotspots are on the Network page itself (#436): what's
                 // left to set is whether the internet address is looked up.
                 view = AnyView(SpeedTestStylePane(speedTest: model.speedTest, addresses: model.addresses,
-                                                  part: .address))
+                                                  layout: model.popoverLayout, part: .address))
             }
             let host = NSHostingController(rootView: MainSettingsPage(content: view, width: width).localizedRoot())
             host.sizingOptions = []
@@ -224,10 +224,13 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         place(navigation.section)
     }
 
-    /// Connections' map pulses only while someone can see it (#182).
+    /// Connections' map pulses only while someone can see it (#182), and
+    /// Live redraws only while its page is on screen (#812): not behind its
+    /// settings, minimized, hidden or covered.
     private func updateVisibility() {
-        guard openSection == .connections else { return }
-        connectionsModel.windowIsVisible = window.occlusionState.contains(.visible)
+        let visible = window.occlusionState.contains(.visible)
+        if openSection == .connections { connectionsModel.windowIsVisible = visible }
+        onLiveShown(openSection == .live && !navigation.showsSettings && visible)
     }
 
     /// No bigger than the screen it's on, and on it (#436): the first size is
@@ -295,6 +298,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         backTarget = nil
         place(section)
         if window.isVisible { open(section) }
+        updateVisibility()
     }
 
     /// The window was shown: the section on screen starts reading.
@@ -315,6 +319,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         if settingsPages[section] == nil { settingsPages[section] = makeSettingsPage(section) }
         guard let page = settingsPages[section] else { return }
         navigation.showsSettings = true
+        updateVisibility()
         container.show(page)
         use(settingsToolbar)
         nameWindow()
@@ -329,6 +334,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         navigation.showsSettings = false
         place(target)
         if window.isVisible { open(target) }
+        updateVisibility()
     }
 
     /// Opens straight on a section's settings, going back to `origin`: the
@@ -394,7 +400,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         case .history:     history.windowDidShow(fresh: fresh)
         case .connections: connections.windowDidShow(fresh: fresh); updateVisibility()
         case .ads:         ads.windowDidShow(fresh: fresh)
-        case .live:        onLiveShown(true)
+        case .live:        updateVisibility()
         case .network, .settings: break
         }
     }

@@ -22,9 +22,12 @@ struct LivePageView: View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(alignment: .top, spacing: 28) {
-                    figure("↓ " + rate(live.latest?.down), caption: L("Download now"), color: down)
-                    figure("↑ " + rate(live.latest?.up), caption: L("Upload now"), color: up)
-                    figure(rate(peak), caption: L("Fastest in the graph"), color: .primary, size: 18)
+                    figure("↓ " + rate(live.latest?.down), spoken: spoken(live.latest?.down),
+                           caption: L("Download now"), color: down)
+                    figure("↑ " + rate(live.latest?.up), spoken: spoken(live.latest?.up),
+                           caption: L("Upload now"), color: up)
+                    figure(rate(peak), spoken: spoken(peak), caption: L("Fastest in the graph"), color: .primary,
+                           size: 18)
                     Spacer(minLength: 8)
                     PopoverSwitch(name: L("Graph"), options: LiveSpan.allCases, selection: $live.span,
                                   label: { $0.label })
@@ -44,20 +47,29 @@ struct LivePageView: View {
         return ByteFormat.speed(bytesPerSecond * 8, unit: speedTest.unit)
     }
 
-    private func figure(_ value: String, caption: String, color: Color, size: CGFloat = 26) -> some View {
+    /// As VoiceOver reads a speed: "12.3 megabits per second".
+    private func spoken(_ bytesPerSecond: Double?) -> String {
+        guard let bytesPerSecond else { return "–" }
+        return ByteFormat.spokenSpeed(bytesPerSecond * 8, unit: speedTest.unit)
+    }
+
+    private func figure(_ value: String, spoken: String, caption: String, color: Color,
+                        size: CGFloat = 26) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
                 .font(.system(size: size, weight: .bold))
                 .monospacedDigit()
                 .foregroundStyle(color)
                 .lineLimit(1)
+                // A fast line's figures in the narrowest window.
+                .minimumScaleFactor(0.6)
             Text(caption)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
         }
         .frame(minHeight: 50, alignment: .bottomLeading)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(L("%@, %@", caption, value))
+        .accessibilityLabel(L("%@, %@", caption, spoken))
     }
 
     private func graph(samples: [LiveSample], now: TimeInterval, scale: (top: Double, label: String),

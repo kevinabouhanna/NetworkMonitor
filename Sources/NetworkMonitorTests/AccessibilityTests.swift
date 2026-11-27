@@ -229,6 +229,8 @@ func runAccessibilityTests() {
                 Check.expectTrue(names.contains(L("Show")) && names.contains { chart.contains($0) },
                                  "Both doesn't have the list's Show and the chart: \(names)")
             }
+            main.show(.live)
+            checkMain("Live")
             main.show(.network)
             checkMain("Network")
             main.show(.settings)

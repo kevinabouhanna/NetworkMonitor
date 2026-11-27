@@ -194,7 +194,8 @@ struct PopoverLiveView: View {
     /// The list's height in the other views: what Live's graph and apps share.
     let listHeight: CGFloat
     let icon: (String, String, String?) -> NSImage
-    let onHistory: () -> Void
+    /// The window's Live page (#812), where ⊞ goes too.
+    let onOpen: () -> Void
 
     var body: some View {
         let down = LiveTints.down(colors), up = LiveTints.up(colors)
@@ -226,7 +227,7 @@ struct PopoverLiveView: View {
                         .padding(.horizontal, 12)
                         .frame(height: PopoverMetrics.openRowHeight)
                 } else {
-                    PopoverOpenRow(title: L("Open Usage History"), shortcut: "⌘Y", action: onHistory)
+                    PopoverOpenRow(title: L("Open Live"), shortcut: "⌘L", action: onOpen)
                 }
             }
         }

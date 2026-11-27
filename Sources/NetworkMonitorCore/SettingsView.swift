@@ -415,14 +415,19 @@ struct SpeedTestStylePane: View {
     @ObservedObject var speedTest: SpeedTestController
     /// The internet address in the popover's Network view (#803).
     @ObservedObject var addresses: InternetAddress
+    /// While Live is hidden in the popover, the test runs in Network, so
+    /// Network's settings have its style too.
+    @ObservedObject var layout: PopoverLayout
     /// Live's settings are the speed test's, Network's the internet
     /// address's (#812).
     enum Part { case speedTest, address, both }
     var part: Part = .both
 
+    private var showsTest: Bool { part != .address || !layout.showsLive }
+
     var body: some View {
         Form {
-            if part != .address {
+            if showsTest {
             Section {
                 // Each choice is a picture of the popover showing it, so there's
                 // no running a test to see what a style looks like (#398).
