@@ -72,9 +72,7 @@ struct AdsSettingsPane: View {
                         }
                     }
             }
-            .formStyle(.grouped)
-            .scrollDisabled(true)
-            .fixedSize(horizontal: false, vertical: true)
+            .settingsForm()
 
             do {
                 // Which lists block: they scroll inside a fixed height, so

@@ -8,9 +8,9 @@ import SwiftUI
 // Quit is deliberately not here. It is a menu bar app, and the menu bar is where
 // a Mac user looks to quit one — it stays on the status item's right-click menu.
 
-/// The width a settings page is read at in the main window (#436), from
-/// the leading edge: between the 648 pt the forms had and the 768 pt the
-/// History pane had (#61).
+/// The narrowest a settings page reads well at in the main window (#436):
+/// between the 648 pt the forms had and the 768 pt the History pane had
+/// (#61). Wider than this, the page fills the window (#825).
 enum SettingsMetrics {
     static let paneWidth: CGFloat = 720
     /// The lists and your rules in Ads and Trackers' settings (#436): they scroll inside
@@ -475,10 +475,48 @@ struct SpeedTestStylePane: View {
 /// the popover's card shows.
 struct SpeedTestPanel: View {
     @ObservedObject var speedTest: SpeedTestController
+    /// One thing under another, for Live's narrow column (#825): its words,
+    /// then Test Now, then the last result.
+    var stacked = false
 
     var body: some View {
         VStack(spacing: 10) {
             switch speedTest.phase {
+            case .idle where stacked:
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "gauge.with.dots.needle.67percent")
+                            .font(.system(size: 26))
+                            .foregroundStyle(SpeedTestPalette.download)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L("Test your internet speed")).font(.system(size: 13, weight: .semibold))
+                            Text(L("Download, upload, ping and jitter, measured now."))
+                                .font(.system(size: 11)).foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    Button(L("Test Now")) { speedTest.run() }
+                        .keyboardShortcut(.defaultAction)
+                    Text(PopoverSpeedTestRow.lastResult(speedTest))
+                        .font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 4)
+            case .confirming(let estimate) where stacked:
+                VStack(alignment: .leading, spacing: 10) {
+                    Label {
+                        Text(SpeedTestPalette.meteredNote(estimate))
+                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: "antenna.radiowaves.left.and.right").foregroundStyle(.orange)
+                    }
+                    HStack {
+                        Spacer()
+                        Button(L("Cancel")) { speedTest.dismiss() }
+                        Button(L("Run Anyway")) { speedTest.confirm() }.keyboardShortcut(.defaultAction)
+                    }
+                }
             case .idle:
                 HStack(spacing: 12) {
                     Image(systemName: "gauge.with.dots.needle.67percent")
@@ -1112,15 +1150,24 @@ struct SettingsFootnote: View {
 }
 
 extension View {
-    /// The grouped form every pane uses, at the shared width, as tall as its
-    /// content so the window can size itself to the pane.
+    /// The grouped form every pane uses, across the window's whole width as
+    /// the other pages are (#825), as tall as its content so the window can
+    /// size itself to the pane. macOS's own grouped form keeps its rows to a
+    /// readable width of about 700 points and centres them, whatever width
+    /// it's given; from macOS 15 the sections are drawn here instead, edge to
+    /// edge. Before 15 it's macOS's, centred.
+    @ViewBuilder
     func settingsForm() -> some View {
-        formStyle(.grouped)
-            .scrollDisabled(true)
-            // Up to the pane's width, not exactly it: a scroll bar shown always
-            // takes its width from here when the pane scrolls.
-            .frame(maxWidth: SettingsMetrics.paneWidth)
-            .fixedSize(horizontal: false, vertical: true)
+        if #available(macOS 15.0, *) {
+            formStyle(WideGroupedFormStyle())
+                .frame(maxWidth: .infinity)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            formStyle(.grouped)
+                .scrollDisabled(true)
+                .frame(maxWidth: .infinity)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     /// Lets a disclosure group's label open and close it from anywhere on the
@@ -1129,6 +1176,90 @@ extension View {
         frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .onTapGesture { withAnimation { isExpanded.wrappedValue.toggle() } }
+    }
+}
+
+/// macOS's grouped form, section by section, across all the width it's
+/// given (#825): each section's header, its rows in a rounded box with a
+/// line between them, each row's name at the left and its control at the
+/// right, and the footnote under it. A row lights up under the pointer, to
+/// carry the eye across a wide window.
+@available(macOS 15.0, *)
+struct WideGroupedFormStyle: FormStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            ForEach(sections: configuration.content) { section in
+                VStack(alignment: .leading, spacing: 6) {
+                    section.header
+                        .font(.system(size: 13, weight: .semibold))
+                        .padding(.horizontal, 10)
+                        .accessibilityAddTraits(.isHeader)
+                    VStack(spacing: 0) {
+                        // By each row's own identity, so a row shown or
+                        // hidden above (Custom's colours) leaves the rest theirs.
+                        ForEach(section.content) { row in
+                            if row.id != section.content.first?.id { Divider().padding(.horizontal, 10) }
+                            WideFormRow { row }
+                        }
+                    }
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.primary.opacity(0.035)))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.06)))
+                    section.footer
+                        .padding(.horizontal, 10)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .labeledContentStyle(WideFormRowStyle())
+    }
+}
+
+/// A row's name at the left, its control or value at the right, as a
+/// grouped form sets them. Toggles and pickers lay themselves out through
+/// it too.
+@available(macOS 15.0, *)
+struct WideFormRowStyle: LabeledContentStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            // A second text in the name is its subtitle, under it, as a
+            // grouped form sets it ("Not checked yet" under NetworkMonitor).
+            VStack(alignment: .leading, spacing: 2) {
+                Group(subviews: configuration.label) { parts in
+                    ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
+                        if index == 0 {
+                            part
+                        } else {
+                            part.font(.system(size: 11)).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            Spacer(minLength: 12)
+            configuration.content
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+}
+
+/// One row of `WideGroupedFormStyle`, lit under the pointer.
+private struct WideFormRow<Content: View>: View {
+    @ViewBuilder let content: Content
+    /// Not `@State`; see `SettingsPaneState`.
+    @StateObject private var hover = RowInfoState()
+
+    var body: some View {
+        content
+            .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.primary.opacity(hover.isHovering ? 0.04 : 0))
+                .padding(.horizontal, 3))
+            .onHover { hover.isHovering = $0 }
     }
 }
 

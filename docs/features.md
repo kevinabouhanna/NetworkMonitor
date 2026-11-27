@@ -204,6 +204,13 @@ Week, Month, Year**) in the middle, then
 that section's own settings in place, with a back button. Live and Network are about now,
 so Network has only the gear, and Live its graph's **1 min | 5 min | 15 min** on the page.
 
+Every section uses the window's whole width (#825). On a wide window, Live puts the apps
+under the graph on the left, filling the window's height and scrolling inside themselves,
+and the speed test in a column of its own on the right, with your last result. On a
+narrower window the test is under the apps, whose list keeps the height of eight rows, so
+the test stays in the same place however many apps come and go. Settings and Network run
+each row from edge to edge, its control at the right.
+
 | Section | What's in it | Behind its gear |
 |---|---|---|
 | **Live** | The download and upload speeds now, and the fastest in the graph · a graph of both over 1, 5 or 15 minutes · every app using the network now, with its speeds · the speed test (#812) | Show the test in the popover as Card or Compact |

@@ -136,7 +136,6 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         // Each section's settings, behind its gear and Settings' rows.
         var go: (MainSection) -> Void = { _ in }
         makeSettingsPage = { section in
-            let width = SettingsMetrics.paneWidth
             let view: AnyView
             switch section {
             case .history:
@@ -164,7 +163,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
                 view = AnyView(SpeedTestStylePane(speedTest: model.speedTest, addresses: model.addresses,
                                                   layout: model.popoverLayout, part: .address))
             }
-            let host = NSHostingController(rootView: MainSettingsPage(content: view, width: width).localizedRoot())
+            let host = NSHostingController(rootView: MainSettingsPage(content: view).localizedRoot())
             host.sizingOptions = []
             return host
         }
@@ -177,7 +176,7 @@ public final class MainWindowController: NSObject, NSToolbarDelegate {
         let generalHost = NSHostingController(rootView: MainSettingsPage(
             content: AnyView(GeneralSettingsPane(model: model, state: state, onOpenSection: { [weak self] section in
                 self?.showSettings(for: section, from: .settings)
-            }, onUninstall: { [weak self] in self?.onUninstall() })), width: SettingsMetrics.paneWidth).localizedRoot())
+            }, onUninstall: { [weak self] in self?.onUninstall() }))).localizedRoot())
         generalHost.sizingOptions = []
         general = generalHost
 
@@ -724,17 +723,14 @@ private struct SidebarSelection: View {
     }
 }
 
-/// A section's settings in the main window, from the leading edge as every
-/// section's content is (#436), up to a readable width, scrolling when it's
-/// taller.
+/// A section's settings in the main window (#436), across the window's whole
+/// width as the other pages are (#825), scrolling when it's taller.
 struct MainSettingsPage: View {
     let content: AnyView
-    let width: CGFloat
 
     var body: some View {
         ScrollView(.vertical) {
             content
-                .frame(maxWidth: width, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 8)
         }
@@ -769,8 +765,8 @@ enum MainMetrics {
 /// Network (#436): the connection the Mac is on, a switch to say it's a
 /// hotspot (detection can miss a phone) and what's paused on hotspots. The
 /// speed test moved to Live (#812). Hotspots are here rather than behind the
-/// gear: they're what this page is about. Read from the leading edge, as
-/// every section is.
+/// gear: they're what this page is about. Across the window's whole width,
+/// as Settings is (#825).
 struct NetworkView: View {
     @ObservedObject var model: MonitorViewModel
     @ObservedObject var metering: MeteringController
@@ -828,7 +824,7 @@ struct NetworkView: View {
                 HotspotSettingsPane(metering: metering, state: state, filter: filter)
             }
             .padding(.vertical, 20)
-            .frame(maxWidth: SettingsMetrics.paneWidth, alignment: .leading)
+            // The window's whole width, as Settings (#825).
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
