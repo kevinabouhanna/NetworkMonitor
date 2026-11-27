@@ -58,6 +58,39 @@ public enum DockIcon: String, CaseIterable, Identifiable {
     }
 }
 
+/// How the Dock icon looks while it shows the speeds (#807): **Settings ›
+/// General › Appearance**, there only while **Dock icon** is **Speeds**. One
+/// choice for Dock and Both: it's how the icon looks, not what it shows.
+public enum DockAppearance: String, CaseIterable, Identifiable {
+    /// Follows the Mac's appearance, and changes when it does. The default,
+    /// and how the icon always was.
+    case system
+    /// Light whatever the Mac is set to.
+    case light
+    /// Dark whatever the Mac is set to.
+    case dark
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .system: return L("System")
+        case .light:  return L("Light")
+        case .dark:   return L("Dark")
+        }
+    }
+
+    /// The appearance the icon is drawn in: none of its own with System, so
+    /// it takes the app's, which follows the Mac's.
+    public var appearance: NSAppearance? {
+        switch self {
+        case .system: return nil
+        case .light:  return NSAppearance(named: .aqua)
+        case .dark:   return NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
 /// The choice, kept in the app's defaults. A launch argument
 /// (`-showIn dock`) overrides it for one run, without saving anything, for a
 /// check of a development build.
@@ -117,6 +150,21 @@ public final class AppPlacementSetting: ObservableObject {
         }
     }
 
+    public static let dockAppearanceKey = "dockAppearance"
+
+    /// How the Dock icon looks while it shows the speeds (#807), in Dock and
+    /// Both alike. Saved only while it differs from System, the default.
+    @Published public var dockAppearance: DockAppearance {
+        didSet {
+            guard dockAppearance != oldValue else { return }
+            if dockAppearance == .system {
+                defaults.removeObject(forKey: Self.dockAppearanceKey)
+            } else {
+                defaults.set(dockAppearance.rawValue, forKey: Self.dockAppearanceKey)
+            }
+        }
+    }
+
     /// The speeds on the Dock icon, as the two choices make it.
     public var drawsSpeedsOnDock: Bool { placement.drawsSpeedsOnDock(dockIcon) }
 
@@ -128,6 +176,7 @@ public final class AppPlacementSetting: ObservableObject {
         }
         dockIconInDock = stored(.dock)
         dockIconInBoth = stored(.both)
+        dockAppearance = defaults.string(forKey: Self.dockAppearanceKey).flatMap(DockAppearance.init) ?? .system
     }
 
     private func save(_ icon: DockIcon, for mode: AppPlacement) {
@@ -161,7 +210,7 @@ public struct SpeedReadout: Equatable {
 /// The Dock icon with **Dock icon: Speeds**, in Dock or Both mode (#523): the whole
 /// icon is the readout, drawn like the app's own icon: its squircle and
 /// lighting, near black in dark mode and near white in light, following the
-/// Mac's appearance. Each speed is an arrow like the icon's and its figure,
+/// Mac's appearance or kept light or dark by **Appearance** (#807). Each speed is an arrow like the icon's and its figure,
 /// as large as fits, with its unit under it.
 ///
 /// The Dock gets one 256 px picture of the tile (128 pt at 2x, however it's
@@ -203,9 +252,20 @@ public final class DockSpeedView: NSView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// Whether to draw for dark: the view's own appearance, which follows the
-    /// app's, which follows the Mac's.
-    var isDark: Bool { effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua }
+    /// Whether to draw for dark: the view's own appearance, set by
+    /// **Appearance** to Light or Dark (#807), or with System none of its
+    /// own, so the app's, which follows the Mac's.
+    public var isDark: Bool { effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua }
+
+    /// **Appearance** (#807): the icon kept light or dark, or following the
+    /// Mac. Marked to be drawn again with the figures it has, even when
+    /// they're unchanged (both speeds zero), so the Dock shows it at once.
+    public var dockAppearance: DockAppearance = .system {
+        didSet {
+            appearance = dockAppearance.appearance
+            needsDisplay = true
+        }
+    }
 
     public override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }

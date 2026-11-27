@@ -25,27 +25,16 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
 - **A finished macOS upgrade counts for Software Update** (#809), Now, a bug reported by
   defragekb: 17.8 GB stayed under `nsurlsessiond` because the log names its client
   `softwareupdated`, not a bundle identifier, which the owner lookup of #767 doesn't read.
-- **Settings' switches change with ← and →, as the toolbar's do** (#830), found while
-  adding #807's Appearance: in the keyboard tour they take Tab but not the arrow keys. Checked
-  with real keys in a VM first, then fixed or the tour taught, with a test for every switch.
-- **Light, Dark or System for the Dock's speeds** (#807), Next, asked for by defragekb: the
-  Dock icon's look chosen apart from the Mac's, remembered across launches.
+- **Light, Dark or System for the Dock's speeds** (#807), Now, asked for by defragekb: the
+  Dock icon's look chosen apart from the Mac's, remembered across launches. Kevin chose in its
+  design artifact (27 Nov 2026): an **Appearance** switch, System · Light · Dark, under Dock
+  icon while it's Speeds, one choice for Dock and Both.
 - **Settings' switches change with ← and →, as the toolbar's do** (#830), Next, found while
   building #807: the keyboard tour reaches each one, named, but its arrow keys don't change
   the choice. Checked with real keys in a VM first, then fixed or the tour taught, and held
   with a test for every Settings switch.
 - **One refresh interval for the live speeds** (#808), Next, asked for by defragekb: Auto, or
   1–5 seconds, averaged over the interval, so the menu bar and the Dock agree.
-- **The Connections map's shades tell nearby amounts apart** (#797), Now, Kevin's ask: today's
-  scale is a log measured from one byte, so Russia's 55.4 MB and the United States' 43.9 GB
-  came out at 0.73 and 0.92 of the color, alike to the eye. Kevin chose six fixed steps with a
-  key in the design artifact (27 Nov 2026): under 1 MB up to 10 GB or more.
-- **Connections: no chart in List, a Map or Chart switch, filters easy to clear** (#798), Now,
-  Kevin's ask: List becomes only the list, as in the other windows; Both and Map can show the
-  traffic over time in the map's place, with the switch in the pane's corner; and, from testing
-  with real users, a line that says "Showing only …" with **Show everything** replaces the
-  filter chips, in Connections, Ads and Trackers and Usage History alike (chosen in the design
-  artifact, 27 Nov 2026).
 
 Done on 27 Nov 2026, in 1.35.0 beta 2 (#792, as Kevin chose in its design artifact, from
 defragekb's ask for what they open iStat Menus to see):
@@ -76,6 +65,11 @@ defragekb's ask for what they open iStat Menus to see):
   apps fill the left and scroll by themselves, the speed test has its own column on the right
   (under a list of eight rows on a narrow window), and Settings, Network and each section's
   settings run edge to edge. In 1.35.0 beta 7.
+- **The Connections map's shades tell nearby amounts apart** (#797), as Kevin chose in its design
+  artifact: six fixed steps with a key, under 1 MB up to 10 GB or more. In 1.35.0 beta 7.
+- **Connections: no chart in List, Map | Chart in the corner, and "Showing only"** (#798), as
+  Kevin chose in its design artifact, with **Show everything** in place of the filter chips in
+  Connections, Ads and Trackers and Usage History alike. In 1.35.0 beta 7.
 
 Done on 26 Nov 2026, released in 1.34.0 the same day (#778):
 

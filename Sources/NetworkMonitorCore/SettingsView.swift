@@ -94,6 +94,21 @@ struct GeneralSettingsPane: View {
                         .fixedSize()
                     }
                 }
+                // How that icon looks (#807): only while it shows the speeds,
+                // one choice for Dock and Both.
+                if placement.drawsSpeedsOnDock {
+                    ExplainedRow(L("Appearance"),
+                                 L("System: the Dock icon follows your Mac's appearance, and changes when it does. Light or Dark: it stays that way whatever the Mac is set to. One choice for Dock and Both.")) {
+                        Picker(L("Appearance"), selection: $placement.dockAppearance) {
+                            ForEach(DockAppearance.allCases) { appearance in
+                                Text(appearance.label).tag(appearance)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                    }
+                }
             }
 
             if updates.isAvailable { updatesSection }

@@ -45,7 +45,10 @@ at once.
 - **Dock**: nothing in the menu bar. A **Dock icon** choice appears under it (#523):
   - **Speeds**, Dock's default: the whole Dock icon shows the live speeds, download over upload by default,
     drawn like the app's icon: its shape and lighting, near black in dark mode and near
-    white in light, following the Mac as it switches. Each speed is the icon's arrow and
+    white in light. Under it, **Appearance** chooses which (#807): **System**, the default,
+    follows the Mac as it switches; **Light** or **Dark** keeps it that way whatever the
+    Mac is set to. It changes at once, even with both speeds at zero, and Dock and Both
+    share it. Each speed is the icon's arrow and
     its figure to three significant figures (12.3), as large as fits, with its unit under
     it, in the speed colors (on light, drawn darker so they read). It updates as the
     readout would, at most once a second, in the order **Speed on top** sets.
@@ -227,7 +230,7 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 
 - **Language**: the Mac's, or one chosen for the app
 - **Start at login**
-- **Show NetworkMonitor in** the Menu bar, the Dock or Both, and with the Dock or Both, **Dock icon**: Speeds or App icon
+- **Show NetworkMonitor in** the Menu bar, the Dock or Both, and with the Dock or Both, **Dock icon**: Speeds or App icon, and with Speeds, its **Appearance**: System, Light or Dark
 - **Updates** ([how it updates](installing.md#update)): your version, when it last checked and Check Now, **Check for updates automatically**, **Install updates automatically** and **Get beta versions**
 - **Show speeds in** MB/s or Mbps
 - **Wi-Fi names**, until they're on

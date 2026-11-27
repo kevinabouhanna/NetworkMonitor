@@ -126,6 +126,41 @@ func runKeyboardTests() {
             }
         }
 
+        // Settings with Dock and Speeds (#523, #807): Dock icon and its
+        // Appearance reached, Appearance one stop, and VoiceOver hears its
+        // choice. (← and → here don't change Settings' switches, Show
+        // NetworkMonitor in's included, as the toolbar's do: #830.)
+        Check.test("the main window › settings with the Dock's speeds: every control reached, Appearance one stop") {
+            let setting = AppPlacementSetting.shared
+            let before = (setting.placement, setting.dockIconInDock, setting.dockAppearance)
+            defer {
+                setting.placement = before.0
+                setting.dockIconInDock = before.1
+                setting.dockAppearance = before.2
+            }
+            setting.placement = .dock
+            setting.dockIconInDock = .speeds
+            setting.dockAppearance = .system
+            main.show(.settings)
+            settle(0.8)
+            expectNoProblems(window, "settings, Dock with Speeds")
+            let stops = KeyboardTour.walk(window).stops
+            let matching = stops.indices.filter { stops[$0].name == L("Appearance") }
+            guard matching.count == 1, let index = matching.first else {
+                Check.expectTrue(false, "not one Appearance stop among \(stops)")
+                return
+            }
+            window.makeFirstResponder(nil)
+            for _ in 0...index { KeyboardTour.press(.tab, in: window, settle: 0.05) }
+            let focused = KeyboardTour.focused(in: window)
+            Check.expectEqual(focused?.role, "AXRadioGroup", "Appearance isn't one switch")
+            Check.expectEqual(focused?.value, DockAppearance.system.label, "VoiceOver doesn't hear the choice")
+            setting.dockAppearance = .dark
+            settle(0.3)
+            Check.expectEqual(KeyboardTour.focused(in: window)?.value, DockAppearance.dark.label,
+                              "VoiceOver doesn't hear the new choice")
+        }
+
         // Rules (#592), with rules in them: each rule's menu, Show and −
         // are stops of their own, named after the rule, and the bar above
         // and the line below are reached.

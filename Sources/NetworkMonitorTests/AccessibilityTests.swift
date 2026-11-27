@@ -397,8 +397,26 @@ func runAccessibilityTests() {
             }
             // With Dock chosen, and so its Dock icon choice showing (#523).
             let placement = AppPlacementSetting.shared.placement
+            let iconInDock = AppPlacementSetting.shared.dockIconInDock
             AppPlacementSetting.shared.placement = .dock
+            AppPlacementSetting.shared.dockIconInDock = .speeds
             checkMain("Settings, with Dock chosen")
+            // Its Appearance (#807): only while the Dock icon is the speeds.
+            if code == Localization.source { Check.test("Appearance is there only while the Dock icon is Speeds") {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                func choices(_ outline: [String]) -> [String] {
+                    outline.filter { line in
+                        DockAppearance.allCases.contains { line.hasPrefix("AXRadioButton name=\($0.label) ") }
+                    }
+                }
+                let shown = outlineNow()
+                Check.expectEqual(choices(shown).count, 3, "no System · Light · Dark with Speeds: \(shown)")
+                AppPlacementSetting.shared.dockIconInDock = .appIcon
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+                Check.expectEqual(choices(outlineNow()), [], "an Appearance choice with App icon")
+                AppPlacementSetting.shared.dockIconInDock = .speeds
+                RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+            } }
             if code == Localization.source { Check.test("Dock icon is there only while Dock or Both is chosen") {
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
                 // Its two choices, as the segments the outline lists.
@@ -416,6 +434,7 @@ func runAccessibilityTests() {
                 Check.expectEqual(choices(outlineNow()), [], "a Dock icon choice with Menu bar chosen")
             } }
             AppPlacementSetting.shared.placement = placement
+            AppPlacementSetting.shared.dockIconInDock = iconInDock
             for section in MainSection.features {
                 main.show(section)
                 main.showSettings()

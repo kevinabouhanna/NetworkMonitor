@@ -16,7 +16,6 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | 5.61 | #809 Completed macOS upgrade stays under nsurlsessiond when the log names softwareupdated | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.62 | #821 Safari's downloads over Private Relay count for everyone with the content filter on | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.625 | #795 The menu bar stays shown while the popover is open, with auto-hide on | [Phase 1: Everyday polish](01-everyday-polish.md) |
-| 5.64 | #798 Connections: no chart in List, a Map or Chart switch in Both and Map, and filters that are easy to clear | [Phase 1: Everyday polish](01-everyday-polish.md) |
 
 ## Next
 

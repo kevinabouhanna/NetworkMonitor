@@ -78,6 +78,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private var dockSpeedView: DockSpeedView?
     /// Redraws it when the Mac switches between light and dark.
     private var appearanceObserver: NSKeyValueObservation?
+    /// Redraws it when **Appearance** changes (#807).
+    private var dockAppearanceObserver: AnyCancellable?
     /// Redraws the menu bar readout when the bar behind it turns light or
     /// dark, as the wallpaper changes (#672).
     private var barAppearanceObserver: NSKeyValueObservation?
@@ -1163,6 +1165,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         appearanceObserver = NSApp.observe(\.effectiveAppearance) { [weak self] _, _ in
             DispatchQueue.main.async { self?.redrawDockIcon() }
         }
+        // Or is kept light or dark (#807): drawn again at once, with the
+        // figures it has, even when they haven't changed (both speeds zero).
+        dockAppearanceObserver = setting.$dockAppearance
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] appearance in
+                self?.dockSpeedView?.dockAppearance = appearance
+                self?.redrawDockIcon()
+            }
     }
 
     /// The status item shows or hides, rather than being removed, so it comes
@@ -1179,6 +1190,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if placement.drawsSpeedsOnDock(dockIcon) {
             if dockSpeedView == nil {
                 let view = DockSpeedView(frame: NSRect(origin: .zero, size: tile.size))
+                view.dockAppearance = AppPlacementSetting.shared.dockAppearance
                 tile.contentView = view
                 dockSpeedView = view
             }
@@ -1192,7 +1204,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     }
 
     /// The Dock icon drawn again with the figures it has, for a switch
-    /// between light and dark.
+    /// between light and dark, the Mac's or **Appearance**'s (#807).
     private func redrawDockIcon() {
         guard let view = dockSpeedView else { return }
         view.needsDisplay = true
