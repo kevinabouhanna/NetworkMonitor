@@ -12,9 +12,10 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 5.06 | #794 Release 1.35.0: a beta first, with #754's switch | [Phase 5: Releases people check first](05-releases.md) |
-| 5.605 | #823 Popover: no "Live" caption under the speeds | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.607 | #825 Live and Settings use the window's full width, and the speed test stays put | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.61 | #809 Completed macOS upgrade stays under nsurlsessiond when the log names softwareupdated | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.62 | #821 Safari's downloads over Private Relay count for everyone with the content filter on | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.625 | #795 The menu bar stays shown while the popover is open, with auto-hide on | [Phase 1: Everyday polish](01-everyday-polish.md) |
 
 ## Next
 
@@ -22,6 +23,8 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 |---|---|---|
 | 5.65 | #807 Add Light, Dark and System appearance to the Dock Speeds icon | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.66 | #808 Add a refresh interval slider for live speeds | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.67 | #797 The Connections map's shades tell nearby amounts apart | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.68 | #798 Connections: no chart in List, a Map or Chart switch in Both and Map, and filters that are easy to clear | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.7 | #738 Research: does the app count a virtual machine's data, connections and ads? | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 6 | #257 A NetworkMonitor extension for Chrome: in-page ads, pop-ups and YouTube ads, with the app's lists and rules | [Phase 3: The Chrome extension](03-chrome-extension.md) |
 
@@ -33,10 +36,12 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | 8 | #582 Branding | [Phase 6: First run, name and logo](06-first-run-and-brand.md) |
 | 9 | #539 Short videos of features on their docs pages | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 10 | #458 Remake the launch video (brag.mp4) for the redesign, in English and Chinese | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
+| 10.5 | #755 A roadmap for users in the README and on the website, written from the plan | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 11 | #577 Launch NetworkMonitor publicly | [Phase 7: The launch](07-launch.md) |
 | 12 | #108 Idea: widgets for today's data and speed | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 | 13 | #77 Idea: a networkmonitor command for Terminal | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 | 14 | #308 Idea: ask an AI about what the network is doing | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
+| 15 | #820 Research: NetworkMonitor on the router, with ad blocking for the whole network | [Phase 8: Your data outside the app](08-data-outside-the-app.md) |
 
 ## Done
 

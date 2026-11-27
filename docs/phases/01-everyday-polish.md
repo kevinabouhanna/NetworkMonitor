@@ -12,8 +12,13 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   (25 Nov 2026): the total probably has it, the app rows may not, and Connections and ad blocking
   are unchecked. It's measured in a VM, then decided: the docs only, a row for it, or a fix. After
   the update settings (#710), before the Chrome extension (#257), which is weeks of work.
-- **No "Live" caption under the popover's speeds** (#823), Now, Kevin's ask from beta 4: the
-  speeds say what they are, and the caption didn't line up with the graph beside them.
+- **Live and Settings use the window's full width, and the speed test stays put** (#825), Now,
+  Kevin's ask from the 1.35.0 betas: both pages are capped and pinned left, and Live's speed
+  test moves up and down as apps come and go in the list above it. A design artifact first,
+  with a recommended layout and another option.
+- **The menu bar stays shown while the popover is open** (#795), Now, a bug Kevin found with
+  the menu bar on auto-hide: macOS holds the bar for its own menus, but not for an
+  `NSPopover`, so the popover is left under an empty strip.
 - **Safari's downloads over Private Relay count for everyone with the content filter on**
   (#821), Now: with Relay on, nettop sees none of Safari's traffic (#754, reported by
   defragekb). The content filter's received-byte counts fill the gap: per app and hour, only
@@ -28,6 +33,15 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   Dock icon's look chosen apart from the Mac's, remembered across launches.
 - **One refresh interval for the live speeds** (#808), Next, asked for by defragekb: Auto, or
   1–5 seconds, averaged over the interval, so the menu bar and the Dock agree.
+- **The Connections map's shades tell nearby amounts apart** (#797), Next, Kevin's ask: today's
+  scale is a log measured from one byte, so Russia's 55.4 MB and the United States' 43.9 GB
+  came out at 0.73 and 0.92 of the color, alike to the eye. A design artifact compares a log
+  over the range that's there, a scale by rank, a square root and a few steps with a key.
+- **Connections: no chart in List, a Map or Chart switch, filters easy to clear** (#798), Next,
+  Kevin's ask: List becomes only the list, as in the other windows; Both and Map can show the
+  traffic over time in the map's place; and, from testing with real users, clearing a filter is
+  made obvious, in Connections, Ads and Trackers and Usage History alike. A design artifact
+  first.
 
 Done on 27 Nov 2026, in 1.35.0 beta 2 (#792, as Kevin chose in its design artifact, from
 defragekb's ask for what they open iStat Menus to see):
@@ -51,6 +65,9 @@ defragekb's ask for what they open iStat Menus to see):
   (#816) costs too much, so uploads stay as they are. The build is #817.
 - **The Private Relay download trial** (#817, #818): defragekb's #815, with review fixes, in
   1.35.0 beta 5, off unless switched on by hand. Turning it on for everyone is #821.
+- **No "Live" caption under the popover's speeds** (#823), Kevin's ask from beta 4: the speeds
+  say what they are, and the caption didn't line up with the graph beside them. In 1.35.0
+  beta 6.
 
 Done on 26 Nov 2026, released in 1.34.0 the same day (#778):
 

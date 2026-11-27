@@ -15,6 +15,10 @@ the app as it is today, and the app links into its docs.
   so Kevin says when.
 - **The launch video, remade** (#458), Later: the website's animated video (`brag.mp4`) and
   its poster, still from before the redesign.
+- **A roadmap for users in the README and on the website** (#755), Later, Kevin's ask: a few
+  high-level lines of what's coming (Now, Next, Later, no dates), written from the plan by a
+  script and published only in a pull request Kevin approves. The script is product-kit's (in
+  its Inbox as a gap, 27 Nov 2026); NetworkMonitor is its first user.
 
 The videos come after the new name and logo (#582, phase 6): made before, they'd be made
 twice (#644).
