@@ -222,6 +222,60 @@ func runConnectionsTests() {
         }
     }
 
+    Check.suite("Connections — the map's six steps (#797)") {
+
+        Check.test("each amount gets its step, at every step's edges") {
+            let mb: Int64 = 1_048_576
+            let gb: Int64 = 1_073_741_824
+            let cases: [(Int64, Int?)] = [
+                (0, nil), (1, 0), (mb - 1, 0), (mb, 1), (10 * mb - 1, 1), (10 * mb, 2),
+                (100 * mb - 1, 2), (100 * mb, 3), (gb - 1, 3), (gb, 4), (10 * gb - 1, 4), (10 * gb, 5),
+                (Int64.max, 5),
+            ]
+            for (bytes, step) in cases {
+                Check.expectEqual(MapSteps.step(bytes, .bytes), step, "\(bytes) bytes")
+            }
+            Check.expectEqual(MapSteps.step(9, .blocked), 0)
+            Check.expectEqual(MapSteps.step(10, .blocked), 1)
+            Check.expectEqual(MapSteps.step(100_000, .blocked), 5)
+        }
+
+        Check.test("Russia's 55.4 MB and the United States' 43.9 GB are three steps apart") {
+            Check.expectEqual(MapSteps.step(58_090_000, .bytes), 2)
+            Check.expectEqual(MapSteps.step(47_137_000_000, .bytes), 5)
+        }
+
+        Check.test("a few kilobytes still shows: the lightest step, not the empty land") {
+            Check.expectEqual(MapSteps.step(3_000, .bytes), 0)
+        }
+
+        Check.test("the shades run from palest to deepest, each plainly apart") {
+            func luminance(_ hex: UInt32) -> Double {
+                func channel(_ shift: UInt32) -> Double {
+                    let c = Double((hex >> shift) & 0xFF) / 255
+                    return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+                }
+                return 0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0)
+            }
+            for (name, shades, deeper) in [("light", MapSteps.light, -1.0), ("dark", MapSteps.dark, 1.0)] {
+                Check.expectEqual(shades.count, MapSteps.count, name)
+                for k in 1..<shades.count {
+                    let a = luminance(shades[k - 1]), b = luminance(shades[k])
+                    let ratio = (max(a, b) + 0.05) / (min(a, b) + 0.05)
+                    Check.expectTrue((b - a) * deeper > 0, "\(name): step \(k) is deeper than \(k - 1)")
+                    Check.expectTrue(ratio >= 1.2, "\(name): steps \(k - 1) and \(k) differ by \(ratio)")
+                }
+            }
+        }
+
+        Check.test("the key names every step") {
+            Check.expectEqual(MapSteps.labels(.bytes).count, MapSteps.count)
+            Check.expectEqual(MapSteps.labels(.blocked).count, MapSteps.count)
+            Check.expectEqual(MapSteps.labels(.bytes).first, "Under 1 MB")
+            Check.expectEqual(MapSteps.labels(.bytes).last, "10 GB or more")
+        }
+    }
+
     Check.suite("Connections — the map's pulses (#182)") {
 
         Check.test("live whenever a map someone can see shows traffic now, and only then") {

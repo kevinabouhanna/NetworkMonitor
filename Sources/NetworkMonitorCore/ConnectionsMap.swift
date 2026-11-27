@@ -80,14 +80,14 @@ struct ConnectionsMap: View {
         Canvas { context, _ in
             guard let shapes = WorldShapes.shared else { return }
             let geography = model.geography
-            let largest = geography.largest
+            let measure = model.measure
             let picked = model.selected[.country]?.key
             let transform = frame.transform
             let border = Color(nsColor: .windowBackgroundColor)
 
             for shape in shapes.countries where !shape.isDot {
                 let path = shape.path.applying(transform)
-                context.fill(path, with: .color(Self.fill(geography.countries[shape.code] ?? 0, of: largest)))
+                context.fill(path, with: .color(Self.fill(geography.countries[shape.code] ?? 0, measure)))
                 context.stroke(path, with: .color(border), lineWidth: 0.5)
             }
             // Countries too small to see at this zoom, and those drawn inside
@@ -97,8 +97,10 @@ struct ConnectionsMap: View {
                       shape.isDot || shape.extent * frame.scale < 4 else { continue }
                 let centre = frame.point(shape.label)
                 let dot = Path(ellipseIn: CGRect(x: centre.x - 3.5, y: centre.y - 3.5, width: 7, height: 7))
-                context.fill(dot, with: .color(Self.fill(bytes, of: largest, minimum: 0.55)))
-                context.stroke(dot, with: .color(border), lineWidth: 1)
+                context.fill(dot, with: .color(Self.fill(bytes, measure)))
+                // Ringed in the deepest shade, so the lightest step still
+                // shows over the sea.
+                context.stroke(dot, with: .color(MapSteps.color(MapSteps.count - 1).opacity(0.6)), lineWidth: 1)
             }
             for code in [picked, state.hovered].compactMap({ $0 }) {
                 guard let shape = shapes.byCode[code] else { continue }
@@ -137,12 +139,12 @@ struct ConnectionsMap: View {
         .allowsHitTesting(false)
     }
 
-    /// Accent, deeper the more data went there, on a logarithmic scale: a
-    /// country with a few kilobytes still shows beside one with gigabytes.
-    static func fill(_ bytes: Int64, of largest: Int64, minimum: Double = 0.22) -> Color {
-        guard bytes > 0, largest > 0 else { return Color.secondary.opacity(0.18) }
-        let share = log(1 + Double(bytes)) / log(1 + Double(largest))
-        return AppPalette.connections.opacity(minimum + (0.92 - minimum) * share)
+    /// The step's shade (#797): six fixed steps, so a shade means the same
+    /// amount in every period, and a country with a few kilobytes still shows
+    /// beside one with gigabytes. Nothing at all: the land's own grey.
+    static func fill(_ value: Int64, _ measure: ServerMeasure) -> Color {
+        guard let step = MapSteps.step(value, measure) else { return Color.secondary.opacity(0.18) }
+        return MapSteps.color(step)
     }
 
     /// A curve that bows away from the straight line, like a flight path.
@@ -193,6 +195,7 @@ struct ConnectionsMap: View {
                         .help(L("These networks answer each address from whichever of their data centres is nearest, so no one country is where it went."))
                 }
                 Spacer()
+                MapKey(measure: model.measure)
             }
         }
         .padding(8)
@@ -312,6 +315,33 @@ struct ConnectionsMap: View {
                       let item = model.countryItem(code) else { return }
                 model.narrow(to: item)
             }
+    }
+}
+
+/// What each shade means (#797): the six steps, deepest at the top.
+private struct MapKey: View {
+    let measure: ServerMeasure
+
+    var body: some View {
+        let labels = MapSteps.labels(measure)
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(labels.enumerated().reversed()), id: \.offset) { step, label in
+                HStack(spacing: 5) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(MapSteps.color(step))
+                        .frame(width: 14, height: 9)
+                    Text(label)
+                        .font(.system(size: 10))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                }
+            }
+        }
+        .padding(6)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(L("Map key, from lightest to deepest: %@", labels.joined(separator: ", ")))
     }
 }
 

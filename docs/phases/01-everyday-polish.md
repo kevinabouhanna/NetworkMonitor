@@ -33,15 +33,16 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   Dock icon's look chosen apart from the Mac's, remembered across launches.
 - **One refresh interval for the live speeds** (#808), Next, asked for by defragekb: Auto, or
   1–5 seconds, averaged over the interval, so the menu bar and the Dock agree.
-- **The Connections map's shades tell nearby amounts apart** (#797), Next, Kevin's ask: today's
+- **The Connections map's shades tell nearby amounts apart** (#797), Now, Kevin's ask: today's
   scale is a log measured from one byte, so Russia's 55.4 MB and the United States' 43.9 GB
-  came out at 0.73 and 0.92 of the color, alike to the eye. A design artifact compares a log
-  over the range that's there, a scale by rank, a square root and a few steps with a key.
-- **Connections: no chart in List, a Map or Chart switch, filters easy to clear** (#798), Next,
+  came out at 0.73 and 0.92 of the color, alike to the eye. Kevin chose six fixed steps with a
+  key in the design artifact (27 Nov 2026): under 1 MB up to 10 GB or more.
+- **Connections: no chart in List, a Map or Chart switch, filters easy to clear** (#798), Now,
   Kevin's ask: List becomes only the list, as in the other windows; Both and Map can show the
-  traffic over time in the map's place; and, from testing with real users, clearing a filter is
-  made obvious, in Connections, Ads and Trackers and Usage History alike. A design artifact
-  first.
+  traffic over time in the map's place, with the switch in the pane's corner; and, from testing
+  with real users, a line that says "Showing only …" with **Show everything** replaces the
+  filter chips, in Connections, Ads and Trackers and Usage History alike (chosen in the design
+  artifact, 27 Nov 2026).
 
 Done on 27 Nov 2026, in 1.35.0 beta 2 (#792, as Kevin chose in its design artifact, from
 defragekb's ask for what they open iStat Menus to see):
