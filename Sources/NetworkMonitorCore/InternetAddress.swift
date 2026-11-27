@@ -119,7 +119,8 @@ public final class InternetAddress: ObservableObject {
             network = id
             generation += 1
             askedHere = false
-            if case .found(let answer) = state, !answer.isTheMacs { state = .notAsked }
+            // Whatever was asked, or is being asked, was about the last one.
+            if case .found(let answer) = state, answer.isTheMacs {} else { state = .notAsked }
         }
         read()
         settle()

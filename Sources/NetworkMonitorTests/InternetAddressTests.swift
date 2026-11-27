@@ -118,8 +118,8 @@ func runInternetAddressTests() {
             let world = World()
             world.addresses = ["192.168.1.20", "2a02:810d::1"]
             let addresses = InternetAddress(sources: world.sources(), defaults: Check.defaults("address-v6"))
-            addresses.isEnabled = true
             addresses.networkDidChange(network: "home")
+            addresses.isEnabled = true
             settle()
             Check.expectEqual(world.asked, 1)
             Check.expectEqual(addresses.state, .found(.init(address: "203.0.113.42", country: "DE",
@@ -155,6 +155,23 @@ func runInternetAddressTests() {
             world.mayAsk = false
             addresses.verdictDidChange()
             Check.expectEqual(addresses.state, .notHere, "marked a hotspot: the answer goes")
+        }
+
+        Check.test("a network change while asking starts over on the new one") {
+            let world = World()
+            var pending: ((String?) -> Void)?
+            var sources = world.sources()
+            sources.fetch = { _, done in world.asked += 1; pending = done }
+            let addresses = InternetAddress(sources: sources, defaults: Check.defaults("address-moving"))
+            addresses.networkDidChange(network: "home")
+            addresses.isEnabled = true
+            Check.expectEqual(addresses.state, .asking)
+            addresses.networkDidChange(network: "office")
+            Check.expectEqual(world.asked, 2, "asked again about the new network")
+            pending?("ip=203.0.113.42")
+            settle()
+            Check.expectEqual(addresses.state, .found(.init(address: "203.0.113.42", country: "DE",
+                                                            provider: "Deutsche Telekom", isTheMacs: false)))
         }
 
         Check.test("a new public address of the Mac's own shows when it's read again") {
