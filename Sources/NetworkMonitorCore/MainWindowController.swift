@@ -723,11 +723,8 @@ private struct SidebarSelection: View {
     }
 }
 
-/// A section's settings in the main window, from the leading edge as every
-/// section's content is (#436), up to a readable width, scrolling when it's
-/// taller.
-/// A settings page across the window's whole width, as the other pages are
-/// (#825): each row runs edge to edge with its control at the right.
+/// A section's settings in the main window (#436), across the window's whole
+/// width as the other pages are (#825), scrolling when it's taller.
 struct MainSettingsPage: View {
     let content: AnyView
 

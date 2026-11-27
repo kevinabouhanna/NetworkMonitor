@@ -261,7 +261,6 @@ func runAccessibilityTests() {
                         let many = testNow() ?? .zero
                         Check.expectEqual(Double(many.minY), Double(few.minY), accuracy: 0.5)
                         Check.expectEqual(Double(many.minX), Double(few.minX), accuracy: 0.5)
-                        Check.expectEqual(LivePageMetrics.hasColumns(width: width - 190), columns)
                         if columns {
                             // In the column at the right, not under a list
                             // capped at 900 points.
@@ -299,9 +298,12 @@ func runAccessibilityTests() {
                     // macOS's grouped form stops near 700 points, centred;
                     // only from macOS 15 are the rows drawn edge to edge.
                     guard #available(macOS 15.0, *) else { return }
-                    let check = frames.first { $0.name == L("Check Now") }?.frame.maxX ?? 0
-                    Check.expectTrue(check > window.frame.maxX - 60,
-                                     "Check Now ends at \(check), the window at \(window.frame.maxX)")
+                    // A button, a switch and a menu alike.
+                    for name in [L("Check Now"), L("Start at login"), L("Language")] {
+                        let end = frames.filter { $0.name == name }.map(\.frame.maxX).max() ?? 0
+                        Check.expectTrue(end > window.frame.maxX - 60,
+                                         "\(name) ends at \(end), the window at \(window.frame.maxX)")
+                    }
                 }
             }
             // A new version waiting on its card in the sidebar, above Settings

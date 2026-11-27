@@ -1195,8 +1195,10 @@ struct WideGroupedFormStyle: FormStyle {
                         .padding(.horizontal, 10)
                         .accessibilityAddTraits(.isHeader)
                     VStack(spacing: 0) {
-                        ForEach(Array(section.content.enumerated()), id: \.offset) { index, row in
-                            if index > 0 { Divider().padding(.horizontal, 10) }
+                        // By each row's own identity, so a row shown or
+                        // hidden above (Custom's colours) leaves the rest theirs.
+                        ForEach(section.content) { row in
+                            if row.id != section.content.first?.id { Divider().padding(.horizontal, 10) }
                             WideFormRow { row }
                         }
                     }
