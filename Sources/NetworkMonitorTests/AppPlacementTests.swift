@@ -108,7 +108,12 @@ func runAppPlacementTests() {
                 window.appearance = NSAppearance(named: macIsDark ? .darkAqua : .aqua)
                 for choice in DockAppearance.allCases {
                     view.dockAppearance = choice
-                    let dark = choice.drawsDark(macIsDark: macIsDark)
+                    let dark: Bool
+                    switch choice {
+                    case .system: dark = macIsDark
+                    case .light:  dark = false
+                    case .dark:   dark = true
+                    }
                     let mac = macIsDark ? "a dark Mac" : "a light Mac"
                     Check.expectEqual(view.isDark, dark, "\(choice.rawValue) on \(mac)")
                     let brightness = drawnBrightness()

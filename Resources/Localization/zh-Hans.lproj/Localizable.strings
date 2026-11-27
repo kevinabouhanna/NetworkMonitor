@@ -634,8 +634,8 @@
 "Speeds" = "网速";
 "App icon" = "应用图标";
 "Appearance" = "外观";
-"System: the Dock icon follows your Mac's appearance, and changes when it does. Light or Dark: it stays that way whatever the Mac is set to. One choice for Dock and Both." = "跟随系统：程序坞图标跟随 Mac 的外观，Mac 切换时它也随之切换。浅色或深色：无论 Mac 设为哪种外观，它都保持不变。程序坞和两者共用这一个选择。";
-"System" = "跟随系统";
+"System: the Dock icon follows your Mac's appearance, and changes when it does. Light or Dark: it stays that way whatever the Mac is set to. One choice for Dock and Both." = "系统：程序坞图标跟随 Mac 的外观，Mac 切换时它也随之切换。浅色或深色：无论 Mac 设为哪种外观，它都保持不变。程序坞和两者共用这一个选择。";
+"System" = "系统";
 "Light" = "浅色";
 "Dark" = "深色";
 "Download" = "下载";

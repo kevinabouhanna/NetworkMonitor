@@ -89,15 +89,6 @@ public enum DockAppearance: String, CaseIterable, Identifiable {
         case .dark:   return NSAppearance(named: .darkAqua)
         }
     }
-
-    /// Whether the icon is drawn dark, on a Mac in dark or in light.
-    public func drawsDark(macIsDark: Bool) -> Bool {
-        switch self {
-        case .system: return macIsDark
-        case .light:  return false
-        case .dark:   return true
-        }
-    }
 }
 
 /// The choice, kept in the app's defaults. A launch argument
