@@ -21,7 +21,11 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
   what it counted beyond nettop, out of the bytes nobody claimed, so the total never changes.
   Downloads only; sent bytes stay as they are. The trial is in 1.35.0 beta 5 behind a hidden
   switch; it's on for everyone once defragekb's signed run and the CPU cost bear it out, with
-  the docs saying what's left out.
+  the docs saying what's left out. Found on 28 Nov 2026 with the diagnostics of #837 and #843
+  (1.35.1 betas 1 and 2): under Relay, WebKit's QUIC flows report the unspecified peer `::`
+  with the site's name, so the local-address check refused them. defragekb's #841 counts such
+  a named placeholder (outbound UDP/443, a public name) and still refuses a real LAN peer; it's
+  in 1.35.1 beta 3 for their Relay, direct and LAN runs.
 - **A finished macOS upgrade counts for Software Update** (#809), Now, a bug reported by
   defragekb: 17.8 GB stayed under `nsurlsessiond` because the log names its client
   `softwareupdated`, not a bundle identifier, which the owner lookup of #767 doesn't read.
