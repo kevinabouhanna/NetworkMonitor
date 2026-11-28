@@ -2,6 +2,7 @@ import Darwin
 import FilterProtocol
 import FirewallPolicy
 import Foundation
+import Network
 import NetworkExtension
 import os
 
@@ -129,6 +130,24 @@ enum FlowBytesProbe {
         } else if accounting && diagnostics, previous == nil, report.bytesInboundCount > 0 {
             log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) reason=not-watched")
         }
+        if accounting && diagnostics, report.bytesInboundCount > 0,
+           let socket = flow as? NEFilterSocketFlow {
+            let local = (socket.localEndpoint as? NWHostEndpoint)?.hostname
+            let peer = (socket.remoteEndpoint as? NWHostEndpoint)?.hostname
+            let localKind = addressKind(local)
+            let peerKind = addressKind(peer)
+            let modernLocal: String
+            let modernPeer: String
+            if #available(macOS 15.0, *) {
+                modernLocal = modernAddressKind(socket.localFlowEndpoint)
+                modernPeer = modernAddressKind(socket.remoteFlowEndpoint)
+            } else {
+                modernLocal = "unavailable"
+                modernPeer = "unavailable"
+            }
+            let name = socket.remoteHostname?.isEmpty == false ? "named" : "unnamed"
+            log.notice("download-address flow=\(flow.identifier.uuidString, privacy: .public) closed=\(closed, privacy: .public) local=\(localKind, privacy: .public) modernLocal=\(modernLocal, privacy: .public) peer=\(peerKind, privacy: .public) modernPeer=\(modernPeer, privacy: .public) name=\(name, privacy: .public)")
+        }
         if diagnostics {
             log.notice("""
                 \(closed ? "close" : "statistics", privacy: .public) flow=\(flow.identifier.uuidString, privacy: .public) \
@@ -164,6 +183,24 @@ enum FlowBytesProbe {
         return DownloadPeer(address: peer.hostname, port: peer.port,
                             hostname: placeholder ? socket.remoteHostname : nil, outboundUDP: placeholder,
                             namedPlaceholderAtOpen: namedPlaceholderAtOpen)
+    }
+
+    private static func addressKind(_ address: String?) -> String {
+        guard let address else { return "missing" }
+        if address == "0.0.0.0" { return "ipv4-zero" }
+        if address == "::" { return "ipv6-zero" }
+        return FirewallPolicy.localKind(address) ?? "public"
+    }
+
+    @available(macOS 15.0, *)
+    private static func modernAddressKind(_ endpoint: Network.NWEndpoint?) -> String {
+        guard let endpoint else { return "missing" }
+        guard case .hostPort(let host, _) = endpoint else { return "non-address" }
+        switch host {
+        case .ipv4(let address): return addressKind(String(describing: address))
+        case .ipv6(let address): return addressKind(String(describing: address))
+        default: return "non-address"
+        }
     }
 
     private static func path(of pid: Int32) -> String {
