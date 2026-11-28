@@ -626,9 +626,16 @@ public final class FilterController: NSObject, ObservableObject, OSSystemExtensi
     }
 
     public func filterDownloads(_ reports: Data) {
-        guard let batch = try? JSONDecoder().decode([FilterDownload].self, from: reports) else { return }
+        guard let batch = try? JSONDecoder().decode([FilterDownload].self, from: reports) else {
+            if UserDefaults.standard.bool(forKey: "flowBytesProbe") { Self.log.notice("download-xpc decode-failed") }
+            return
+        }
         DispatchQueue.main.async {
-            guard self.policy.creditsFilterDownloads, self.state == .on else { return }
+            let accepted = self.policy.creditsFilterDownloads && self.state == .on
+            if UserDefaults.standard.bool(forKey: "flowBytesProbe") {
+                Self.log.notice("download-xpc received count=\(batch.count, privacy: .public) accepted=\(accepted, privacy: .public)")
+            }
+            guard accepted else { return }
             self.downloads.send(batch)
         }
     }

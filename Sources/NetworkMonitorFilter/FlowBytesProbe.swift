@@ -8,7 +8,7 @@ import os
 /// Requests periodic receive counters through the same verdicts as the
 /// firewall. The diagnostic log and #799's accounting trial are opt-in.
 enum FlowBytesProbe {
-    private static let log = Logger(subsystem: "com.kevinabouhanna.NetworkMonitor.Filter", category: "flow-bytes")
+    static let log = Logger(subsystem: "com.kevinabouhanna.NetworkMonitor.Filter", category: "flow-bytes")
     /// The open lines' process paths are looked up here, off the verdict's way.
     private static let queue = DispatchQueue(label: "com.kevinabouhanna.NetworkMonitor.Filter.flow-bytes", qos: .utility) // untranslated: queue label
     private static let lock = NSLock()
@@ -108,6 +108,16 @@ enum FlowBytesProbe {
         }
         lock.unlock()
 
+        if accounting && diagnostics, report.bytesInboundCount > 0 {
+            if previous == nil {
+                log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) reason=not-watched")
+            } else if let previous, let count = Int64(exactly: report.bytesInboundCount), count > previous.bytes {
+                let peer = (flow as? NEFilterSocketFlow)?.remoteEndpoint as? NWHostEndpoint
+                let endpoint = peer.map { $0.port != "443" ? "other-port" : (FirewallPolicy.isLocal($0.hostname) ? "local" : "external-443") } ?? "missing"
+                let owner = previous.owner == nil ? "missing" : "resolved"
+                log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) delta=\(count - previous.bytes, privacy: .public) owner=\(owner, privacy: .public) endpoint=\(endpoint, privacy: .public) drop=\(report.action == .drop, privacy: .public) clockValid=\(now >= previous.through, privacy: .public)")
+            }
+        }
         if accounting, let previous, let owner = previous.owner,
            let count = Int64(exactly: report.bytesInboundCount), count > previous.bytes, now >= previous.through,
            report.action != .drop,
