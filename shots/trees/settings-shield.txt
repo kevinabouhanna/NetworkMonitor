@@ -2,7 +2,8 @@ AXWindow (AXStandardWindow) title="Ads and Trackers Settings" 1300
   AXSplitGroup 1300
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXGroup description="Sections" h136
+        AXGroup description="Sections" h168
+          AXButton description="Live" 172x32
           AXButton description="Usage History" 172x32
           AXButton description="Connections" 172x32
           AXButton description="Ads and Trackers" 172x32
@@ -11,26 +12,21 @@ AXWindow (AXStandardWindow) title="Ads and Trackers Settings" 1300
     AXSplitter value="#" h748
     AXGroup (AXHostingView)
       AXScrollArea
-        AXScrollArea h372
-          AXGroup h52
-            AXStaticText value="# blocked today, Ads, trackers and malware sites stopped in every app" h32
-            AXButton description="Open Ads and Trackers…" help="Also ⌘B" 176x24
-          AXGroup h72
-            AXStaticText value="Block ads and trackers" h16
-            AXCheckBox (AXToggle) description="Block ads and trackers" help="Connections to sites on these lists are blocked in every app, after your own rules: Always Allow on a site in Connections lets it through. Allowing an app or a company lets it connect, and its ads are still blocked. Ads served from a site's own servers, like YouTube's, can't be told apart from the site, so they aren't blocked." 36x16
-            AXStaticText value="Update the lists weekly" h16
-            AXCheckBox (AXToggle) description="Update the lists weekly" help="Once a week, NetworkMonitor downloads the lists from GitHub, the same signed file for everyone, never on a hotspot." 36x16
-          AXStaticText value="Lists from # ‹month› # StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC#)." h16
-          AXGroup h36
-            AXStaticText value="Enhanced ad blocking" h16
-            AXCheckBox (AXToggle) description="Enhanced ad blocking" help="NetworkMonitor opens your browsers' secure connections on this Mac, removes the ads inside their pages, and passes them on. Nothing leaves your Mac. It needs a certificate it makes for this Mac only: its key never leaves the Mac, and both are removed when you switch this off. Banking, health, government and payment sites, and sites you Always Allow, are never opened. How: a transparent proxy and a root certificate made on this Mac (HTTPS filtering)." 36x16
-          AXStaticText value="Also removes ads inside pages and videos, in Safari and other browsers. Off until you switch it on." h16
-          AXGroup h52
-            AXStaticText value="Your rules" h16
-            AXStaticText value="# rules" h16
-            AXButton description="Show Rules…" help="Your rules, in Ads and Trackers, with what each did" 104x24
-            AXButton description="Import…" help="Bring rules over from uBlock Origin, AdGuard, or a list of rules" 76x24
-            AXButton description="Export…" help="Save your rules in the format uBlock Origin and AdGuard read" 76x24
+        AXStaticText value="# blocked today, Ads, trackers and malware sites stopped in every app" h32
+        AXButton description="Open Ads and Trackers…" help="Also ⌘B" 176x24
+        AXStaticText value="Block ads and trackers" h16
+        AXCheckBox (AXToggle) description="Block ads and trackers" help="Connections to sites on these lists are blocked in every app, after your own rules: Always Allow on a site in Connections lets it through. Allowing an app or a company lets it connect, and its ads are still blocked. Ads served from a site's own servers, like YouTube's, can't be told apart from the site, so they aren't blocked." 56x24
+        AXStaticText value="Update the lists weekly" h16
+        AXCheckBox (AXToggle) description="Update the lists weekly" help="Once a week, NetworkMonitor downloads the lists from GitHub, the same signed file for everyone, never on a hotspot." 56x24
+        AXStaticText value="Lists from # ‹month› # StevenBlack's hosts (MIT) and URLhaus by malware-filter (CC#)." h16
+        AXStaticText value="Enhanced ad blocking" h16
+        AXCheckBox (AXToggle) description="Enhanced ad blocking" help="NetworkMonitor opens your browsers' secure connections on this Mac, removes the ads inside their pages, and passes them on. Nothing leaves your Mac. It needs a certificate it makes for this Mac only: its key never leaves the Mac, and both are removed when you switch this off. Banking, health, government and payment sites, and sites you Always Allow, are never opened. How: a transparent proxy and a root certificate made on this Mac (HTTPS filtering)." 56x24
+        AXStaticText value="Also removes ads inside pages and videos, in Safari and other browsers. Off until you switch it on." h16
+        AXStaticText value="Your rules" h16
+        AXButton description="Show Rules…" help="Your rules, in Ads and Trackers, with what each did" 104x24
+        AXButton description="Import…" help="Bring rules over from uBlock Origin, AdGuard, or a list of rules" 76x24
+        AXButton description="Export…" help="Save your rules in the format uBlock Origin and AdGuard read" 76x24
+        AXStaticText value="# rules" h16
         AXHeading description="Lists" 32x16
         AXScrollArea
           data: AXButton AXCheckBox(AXToggle) AXStaticText

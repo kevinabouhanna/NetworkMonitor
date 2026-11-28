@@ -2,7 +2,8 @@ AXWindow (AXStandardWindow) title="Usage History" 1300
   AXSplitGroup 1300
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXGroup description="Sections" h136
+        AXGroup description="Sections" h168
+          AXButton description="Live" 172x32
           AXButton description="Usage History" 172x32
           AXButton description="Connections" 172x32
           AXButton description="Ads and Trackers" 172x32

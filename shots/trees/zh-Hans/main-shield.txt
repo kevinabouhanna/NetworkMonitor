@@ -2,7 +2,8 @@ AXWindow (AXStandardWindow) title="广告与跟踪器" 1300
   AXSplitGroup 1300
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXGroup description="各部分" h136
+        AXGroup description="各部分" h168
+          AXButton description="实时" 172x32
           AXButton description="流量历史" 172x32
           AXButton description="连接" 172x32
           AXButton description="广告与跟踪器" 172x32
@@ -21,7 +22,7 @@ AXWindow (AXStandardWindow) title="广告与跟踪器" 1300
       data: AXButton AXStaticText
       AXMenuButton title="暂停" help="在所有应用中暂时放行广告" 44x16
       AXStaticText value="今天" h16
-      data: AXButton AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXStaticText
+      data: AXButton AXButton(AXDecrementArrow) AXButton(AXDecrementPage) AXButton(AXIncrementArrow) AXButton(AXIncrementPage) AXImage AXOpaqueProviderGroup(AXOpaqueProviderList) AXScrollArea AXScrollBar AXStaticText AXValueIndicator
       data: AXGroup AXUnknown
   AXToolbar 1300x52
     AXButton description="边栏" help="隐藏边栏" 44x52

@@ -67,7 +67,7 @@ document.addEventListener('click', function (e) {
 </ul>
 <p><code>nettop</code> 以 <code>-n</code> 参数运行，所以它从不查询主机名。查询主机名本身就会产生流量。</p>
 <div class="markdown-heading"><h2 id="它会发送什么" class="heading-element">它会发送什么</h2><a id="它会发送什么" class="anchor" aria-label="Permalink: 它会发送什么" href="#它会发送什么"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
-<p>只有以下四项，没有别的：</p>
+<p>只有以下五项，没有别的：</p>
 <ul>
 <li>
 <p><strong>网速测试，在你开始测试时。</strong>它运行 <code>networkQuality</code>，这是 Apple 随每台 Mac 提供的工具，连接的是 Apple 自己的测试服务器。</p>
@@ -86,6 +86,9 @@ document.addEventListener('click', function (e) {
 </li>
 <li>
 <p><strong>每天一次，检查是否有新版本</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/132">#132</a>）。Sparkle 是许多 Mac 应用使用的更新程序，它会从 GitHub 获取最新发布版本的 appcast，这是一个列出该版本的小文件。GitHub 能看到你的 IP 地址，以及发出请求的 NetworkMonitor 版本。使用热点或按流量计费的连接时从不检查，除非你选择 <strong>检查更新…</strong>。更新只有在你同意时才会下载并安装，或者在你打开 <strong>自动安装更新</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/710">#710</a>，默认关闭）后自动进行；无论哪种方式，都只有当它的磁盘映像使用应用内置的密钥签名时才会安装。在“设置”中关闭 <strong>自动检查更新</strong> 即可停止每日检查。打开 <strong>获取测试版</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/585">#585</a>）后，它改为从 GitHub 上的同一位置获取测试版的 appcast。</p>
+</li>
+<li>
+<p><strong>你的互联网地址，只在你打开之后</strong>（<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/803">#803</a>）：在弹出窗口的“网络”视图中点按 <strong>显示</strong>（它会先说明询问什么、向谁询问），或在“网络”的设置中打开 <strong>查询互联网地址</strong>。在路由器后面，只有外部服务才能告诉你网站看到的地址，所以应用会询问 Cloudflare 位于 <code>one.one.one.one</code>（1.1.1.1）的 trace：不需要账户、密钥，也不使用 Cookie。Cloudflare 和每个网站一样会知道这个地址，以及这台 Mac 询问过；仅此而已。每加入一个网络询问一次，使用热点、按流量计费的连接或低数据模式时从不询问，答案只保存在内存中。它的国家或地区和网络服务商来自应用中已有的国家或地区数据。默认关闭。这台 Mac 在网络上的地址从 Mac 本身读取，不会发送任何内容。</p>
 </li>
 </ul>
 <p>没有分析，没有遥测，没有崩溃报告，也不需要账户。</p>
@@ -150,7 +153,7 @@ document.addEventListener('click', function (e) {
 <div class="markdown-heading"><h2 id="为什么它不在-app-store-中" class="heading-element">为什么它不在 App Store 中</h2><a id="为什么它不在-app-store-中" class="anchor" aria-label="Permalink: 为什么它不在 App Store 中" href="#为什么它不在-app-store-中"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>App Store 中的应用必须在沙盒中运行，而沙盒中的应用无法运行 <code>nettop</code>，这是 macOS 提供的查看每个应用网络使用情况的唯一方式。</p>
 
-    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/privacy.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/05b2124a1b7042f56a354e5f445c415e91cbd33f"><code>05b2124</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/privacy.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/af4b0c8f0deb0ea98676ff01c97a06b101f129b2"><code>af4b0c8</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
   </main>
 </div>
 <script>

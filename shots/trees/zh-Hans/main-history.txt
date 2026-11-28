@@ -2,7 +2,8 @@ AXWindow (AXStandardWindow) title="流量历史" 1300
   AXSplitGroup 1300
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXGroup description="各部分" h136
+        AXGroup description="各部分" h168
+          AXButton description="实时" 172x32
           AXButton description="流量历史" 172x32
           AXButton description="连接" 172x32
           AXButton description="广告与跟踪器" 172x32

@@ -126,13 +126,11 @@
         },
         {
           "match": "data-row=\"apps\"",
-          "element": "AXDisclosureTriangle:Paused on a hotspot",
-          "parent": true
+          "element": "AXDisclosureTriangle:Paused on a hotspot"
         },
         {
           "match": "data-row=\"uncovered\"",
-          "element": "AXDisclosureTriangle:Can't be paused",
-          "parent": true
+          "element": "AXDisclosureTriangle:Can't be paused"
         }
       ],
       "data": [
@@ -141,12 +139,8 @@
         },
         {
           "from": "AXStaticText:Right now",
-          "until": "end",
+          "until": "AXHeading:Hotspots",
           "optional": true
-        },
-        {
-          "from": "AXHeading:This network",
-          "skip": 2
         },
         {
           "from": "AXStaticText:Any app's updater is stopped",
@@ -182,12 +176,8 @@
         },
         {
           "from": "AXStaticText:Right now",
-          "until": "end",
+          "until": "AXHeading:Hotspots",
           "optional": true
-        },
-        {
-          "from": "AXHeading:This network",
-          "skip": 2
         },
         {
           "from": "AXStaticText:Any app's updater is stopped",
@@ -223,12 +213,8 @@
         },
         {
           "from": "AXStaticText:Right now",
-          "until": "end",
+          "until": "AXHeading:Hotspots",
           "optional": true
-        },
-        {
-          "from": "AXHeading:This network",
-          "skip": 2
         },
         {
           "from": "AXStaticText:Any app's updater is stopped",
@@ -324,7 +310,7 @@
         "-open",
         "settings",
         "-pane",
-        "speedTest"
+        "network"
       ],
       "window": "Network Settings"
     },
@@ -378,6 +364,7 @@
       ],
       "window": "AXPopover",
       "click": [
+        "AXButton:Data",
         "AXScrollArea>AXButton"
       ],
       "data": [
@@ -413,6 +400,9 @@
           "until": "AXTabGroup:Group by",
           "optional": true
         }
+      ],
+      "click": [
+        "AXButton:Data"
       ]
     },
     {
@@ -428,7 +418,6 @@
       ],
       "window": "AXPopover",
       "click": [
-        "AXButton:Network",
         "AXButton:Test Speed"
       ],
       "waitFor": {

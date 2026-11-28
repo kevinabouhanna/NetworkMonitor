@@ -7,7 +7,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>网速测试 — NetworkMonitor 文档</title>
-<meta name="description" content="点按弹出窗口“网络”视图中的 测试网速，从右键菜单中选择 测试网速，或者点按主窗口 网络 页面上的 立即测试。它测试的是你正在使用的连接。NetworkMonitor 会运行 networkQuality，这是 Apple 自 Monterey 起随每台 Mac 附带的网速测试工具，测试对象是离你最近的…">
+<meta name="description" content="点按弹出窗口“实时”视图中的 测试网速（隐藏“实时”时在“网络”视图中），从右键菜单中选择 测试网速，或者点按主窗口 实时 页面（⌘L）上的 立即测试。它测试的是你正在使用的连接。NetworkMonitor 会运行 networkQuality，这是 Apple 自 Monterey 起随每台 Mac…">
 <link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/speed-test/">
 <link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/speed-test/">
 <link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/speed-test/">
@@ -46,9 +46,9 @@ document.addEventListener('click', function (e) {
   <main class="page" id="content">
 <div class="markdown-heading"><h1 id="网速测试" class="heading-element">网速测试</h1><a id="网速测试" class="anchor" aria-label="Permalink: 网速测试" href="#网速测试"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p align="center">
-  <a target="_blank" rel="noopener noreferrer nofollow" href="https://raw.githubusercontent.com/kevinabouhanna/NetworkMonitor/05b2124a1b7042f56a354e5f445c415e91cbd33f/Resources/README/zh-Hans/speed-test.png"><img src="https://raw.githubusercontent.com/kevinabouhanna/NetworkMonitor/05b2124a1b7042f56a354e5f445c415e91cbd33f/Resources/README/zh-Hans/speed-test.png" width="320" alt="网速测试完成后弹出窗口中的“网络”视图，上方是“今天”、“周”、“月”和四个数字：中央显示下载速度的表盘，下载和上传速度、网络、测试用了多少流量以及测试时间，然后是延迟、抖动、下载时的延迟和上传时的延迟；“返回”和“再测一次”按钮。" style="max-width: 100%;"></a>
+  <a target="_blank" rel="noopener noreferrer nofollow" href="https://raw.githubusercontent.com/kevinabouhanna/NetworkMonitor/af4b0c8f0deb0ea98676ff01c97a06b101f129b2/Resources/README/zh-Hans/speed-test.png"><img src="https://raw.githubusercontent.com/kevinabouhanna/NetworkMonitor/af4b0c8f0deb0ea98676ff01c97a06b101f129b2/Resources/README/zh-Hans/speed-test.png" width="320" alt="网速测试完成后弹出窗口中的“网络”视图，上方是“今天”、“周”、“月”和四个数字：中央显示下载速度的表盘，下载和上传速度、网络、测试用了多少流量以及测试时间，然后是延迟、抖动、下载时的延迟和上传时的延迟；“返回”和“再测一次”按钮。" style="max-width: 100%;"></a>
 </p>
-<p>点按弹出窗口“网络”视图中的 <strong>测试网速</strong>，从右键菜单中选择 <strong>测试网速</strong>，或者点按主窗口 <strong>网络</strong> 页面上的 <strong>立即测试</strong>。它测试的是你正在使用的连接。NetworkMonitor 会运行 <code>networkQuality</code>，这是 Apple 自 Monterey 起随每台 Mac 附带的网速测试工具，测试对象是离你最近的 Apple 服务器。</p>
+<p>点按弹出窗口“实时”视图中的 <strong>测试网速</strong>（隐藏“实时”时在“网络”视图中），从右键菜单中选择 <strong>测试网速</strong>，或者点按主窗口 <strong>实时</strong> 页面（⌘L）上的 <strong>立即测试</strong>。它测试的是你正在使用的连接。NetworkMonitor 会运行 <code>networkQuality</code>，这是 Apple 自 Monterey 起随每台 Mac 附带的网速测试工具，测试对象是离你最近的 Apple 服务器。</p>
 <div class="markdown-heading"><h2 id="测试结果" class="heading-element">测试结果</h2><a id="测试结果" class="anchor" aria-label="Permalink: 测试结果" href="#测试结果"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <ul>
 <li>
@@ -65,9 +65,9 @@ document.addEventListener('click', function (e) {
 <div class="markdown-heading"><h2 id="显示位置" class="heading-element">显示位置</h2><a id="显示位置" class="anchor" aria-label="Permalink: 显示位置" href="#显示位置"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <ul>
 <li>
-<strong>卡片</strong>（默认）会取代弹出窗口“网络”视图的位置，显示一个表盘和所有数值。<strong>返回</strong> 会让正在进行的测试继续进行，并重新显示该视图；之后点按网速测试旁的 <strong>显示</strong> 即可回到测试。<strong>停止</strong> 才会停止测试。</li>
+<strong>卡片</strong>（默认）会取代弹出窗口“实时”视图的位置，显示一个表盘和所有数值。<strong>返回</strong> 会让正在进行的测试继续进行，并重新显示该视图；之后点按网速测试旁的 <strong>显示</strong> 即可回到测试。<strong>停止</strong> 才会停止测试。</li>
 <li>
-<strong>紧凑</strong> 会把测试显示为“网络”视图上方的两个细长仪表，测试完成后在下方显示延迟和抖动。该视图始终可见，只是让出相应的高度，因此弹出窗口不会变大。</li>
+<strong>紧凑</strong> 会把测试显示为“实时”视图上方的两个细长仪表，测试完成后在下方显示延迟和抖动。该视图始终可见，只是让出相应的高度，因此弹出窗口不会变大。</li>
 <li>
 <strong>“网络”页面</strong> 会在原处运行测试，显示与卡片相同的表盘和数值。</li>
 <li>
@@ -84,7 +84,7 @@ document.addEventListener('click', function (e) {
 <strong>测试中途切换网络会结束测试</strong>；跨越两个网络的测试哪个网络都测不准。上一次的结果也会被清除，因为它描述的是你离开的那个网络。</li>
 </ul>
 <div class="markdown-heading"><h2 id="实现方式" class="heading-element">实现方式</h2><a id="实现方式" class="anchor" aria-label="Permalink: 实现方式" href="#实现方式"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
-<p><strong>测试引擎</strong>是 <code>/usr/bin/networkQuality</code>。如果 Mac 上没有它，弹出窗口、“网络”页面和菜单中都不会出现网速测试。我们也考虑过其他引擎，但都没有采用：</p>
+<p><strong>测试引擎</strong>是 <code>/usr/bin/networkQuality</code>。如果 Mac 上没有它，弹出窗口、“实时”页面和菜单中都不会出现网速测试。我们也考虑过其他引擎，但都没有采用：</p>
 <table>
 <thead>
 <tr>
@@ -140,7 +140,7 @@ document.addEventListener('click', function (e) {
 <p><strong>偏好设置：</strong> <code>speedTestUnit</code>（<code>bits</code> 或 <code>bytes</code>，默认为 bytes；以网速测试命名，因为这个设置最早出现在网速测试中，保留这个名称是为了让以前的选择继续有效）和 <code>speedTestStyle</code>（<code>card</code> 或 <code>compact</code>）。</p>
 <p><strong>测试</strong>（<code>SpeedTestTests.swift</code>）从不消耗流量。解析器和解码器使用从真实工具捕获的输出进行测试。运行器和控制器使用一个替代的 <code>networkQuality</code> 脚本进行测试，它会输出同类内容、写入 JSON，还可以让它失败、让它的延迟测试过程失败，或者让它运行得很慢。开发时请尽量少运行真实测试：每次都会消耗真实的流量。</p>
 
-    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/speed-test.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/05b2124a1b7042f56a354e5f445c415e91cbd33f"><code>05b2124</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
+    <p class="page-source">本页来自 <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/zh-Hans/speed-test.md">GitHub 上的文档</a>，版本 <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/af4b0c8f0deb0ea98676ff01c97a06b101f129b2"><code>af4b0c8</code></a>。想提出修改，请<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">提交问题</a>。</p>
   </main>
 </div>
 <script>

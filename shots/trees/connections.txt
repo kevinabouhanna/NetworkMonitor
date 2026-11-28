@@ -2,7 +2,8 @@ AXWindow (AXStandardWindow) title="Connections" 1300
   AXSplitGroup 1300
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXGroup description="Sections" h136
+        AXGroup description="Sections" h168
+          AXButton description="Live" 172x32
           AXButton description="Usage History" 172x32
           AXButton description="Connections" 172x32
           AXButton description="Ads and Trackers" 172x32
@@ -29,17 +30,17 @@ AXWindow (AXStandardWindow) title="Connections" 1300
       AXStaticText value="to and from servers" h16
       AXStaticText value="·" h16
       AXStaticText value="# companies · # countries · # apps · # servers" h16
-      data: AXUnknown
-      AXStaticText value="‹time›" h12
-      AXStaticText value="‹time›" h12
-      AXStaticText value="‹time›" h12
       AXScrollArea description="Companies"
         data: AXButton AXImage AXOpaqueProviderGroup(AXOpaqueProviderList) AXStaticText
+      AXTabGroup description="Map or chart" 104x24
+        AXRadioButton (AXTabButton) description="Map" 12x16
+        AXRadioButton (AXTabButton) description="Chart" 12x16
       AXButton description="Zoom out" help="Zoom out" 12x12
       AXButton description="Zoom in" help="Zoom in" 12x12
       AXButton description="The whole world" help="The whole world" 12x12
       data: AXUnknown
       AXStaticText value="Fastly and Cloudflare: # ‹unit› answered from nearby data centres, so not placed on the map." help="These networks answer each address from whichever of their data centres is nearest, so no one country is where it went." h40
+      data: AXUnknown
       AXLink description="IP geolocation by DB-IP" 116x12
       AXStaticText value="·" h16
       AXStaticText value="Everything is named on this Mac: nothing is looked up online." h12

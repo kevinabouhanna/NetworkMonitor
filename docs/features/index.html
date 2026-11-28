@@ -89,7 +89,10 @@ at once.</p>
 <li>
 <strong>Speeds</strong>, Dock's default: the whole Dock icon shows the live speeds, download over upload by default,
 drawn like the app's icon: its shape and lighting, near black in dark mode and near
-white in light, following the Mac as it switches. Each speed is the icon's arrow and
+white in light. Under it, <strong>Appearance</strong> chooses which (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/807">#807</a>): <strong>System</strong>, the default,
+follows the Mac as it switches; <strong>Light</strong> or <strong>Dark</strong> keeps it that way whatever the
+Mac is set to. It changes at once, even with both speeds at zero, and Dock and Both
+share it. Each speed is the icon's arrow and
 its figure to three significant figures (12.3), as large as fits, with its unit under
 it, in the speed colors (on light, drawn darker so they read). It updates as the
 readout would, at most once a second, in the order <strong>Speed on top</strong> sets.</li>
@@ -99,7 +102,7 @@ readout would, at most once a second, in the order <strong>Speed on top</strong>
 <p>Click the icon for the main window, on the section it was last on. Its menu has what the
 readout's right-click menu has, the Dock's own Quit included; with Speeds it starts with
 the speeds in words, which is how VoiceOver reads them there. There's no popover in this
-mode: a speed test that needs your OK on a hotspot asks on the <strong>Network</strong> page.</p>
+mode: a speed test that needs your OK on a hotspot asks on the <strong>Live</strong> page.</p>
 </li>
 <li>
 <p><strong>Both</strong>: the readout in the menu bar, and a Dock icon all the time. The same <strong>Dock
@@ -111,13 +114,22 @@ app's until you choose <strong>Speeds</strong>. Dock and Both each keep their ow
 <div class="markdown-heading"><h2 id="the-popover" class="heading-element">The popover</h2><a id="the-popover" class="anchor" aria-label="Permalink: The popover" href="#the-popover"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <ul>
 <li>
-<strong>Today | Week | Month</strong>, at the top, sets the period for every figure under it: today,
-this week or this month so far, on every network, read from Usage History. The popover
-opens on the period you chose last.</li>
+<strong>Live</strong>, at the top beside the four squares and the gear, shows the download and upload
+speeds right now, in your speed colors, with a small graph of the last minute while
+another view is open (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/802">#802</a>, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/812">#812</a>). Click it for the Live view, where the popover opens.</li>
 <li>
 <strong>Four buttons</strong>: <strong>Data</strong>, <strong>Connections</strong>, <strong>Ads blocked</strong> and <strong>Network</strong>, each with
 its figure. Click one to see its view underneath. The colours are the same everywhere in
 the app: data blue, connections teal, blocked red, hotspots orange.</li>
+<li>
+<strong>Today | Week | Month</strong>, at the top of Data, Connections and Ads blocked, sets their
+period: today, this week or this month so far, on every network, read from Usage History.
+It sets what their buttons count too, and the popover opens on the period you chose last.
+Live and Network are about now, so they don't have it (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/812">#812</a>).</li>
+<li>
+<strong>Live</strong> graphs download and upload together over <strong>1 min</strong>, <strong>5 min</strong> or <strong>15 min</strong>,
+lists the apps using the network now with their download and upload speeds, fastest
+first, and has the <a href="../../docs/speed-test/">speed test</a>: the last result and <strong>Test Speed</strong>.</li>
 <li>
 <strong>Data</strong> lists the <strong>Apps</strong> or the <strong>Networks</strong> that used it, biggest first, each with a
 bar for its share. The apps re-sort live as they overtake each other, and a dot marks
@@ -153,14 +165,21 @@ it's paused the bar says until when, with <strong>Resume</strong>; while it's of
 opens into the apps that tried it, an app into the sites it tried. While ad blocking is
 off, it offers <strong>Turn On</strong>.</li>
 <li>
-<strong>Network</strong> shows the connection the Mac is on, a <strong>This is a hotspot</strong> switch, on every
-network because some phones aren't recognised, and the <a href="../../docs/speed-test/">speed test</a>: the
-last result and <strong>Test Speed</strong>.</li>
+<strong>Network</strong> shows the connection the Mac is on; its addresses: <strong>This Mac</strong> on the
+network, and <strong>Internet</strong>, the address websites see, with where it is (country and
+provider), each with a copy button (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/803">#803</a>); and a <strong>This is a hotspot</strong> switch, on every
+network because some phones aren't recognised. While Live is hidden, the speed test is
+here. The internet address is asked of an outside service, so it's off until you click
+<strong>Show</strong> and say yes, or turn on <strong>Look up the internet address</strong> in Network's settings
+(<a href="../../docs/privacy/#what-it-sends">privacy</a>).</li>
+<li>
+<strong>Which views show, and the buttons' order</strong>, are yours to choose in <strong>Settings ›
+Popover</strong>.</li>
 <li>
 <strong>Open …</strong>, at the bottom of each view, opens that section of the main window on the same
 period: <strong>Open Usage History</strong> (⌘Y), <strong>Open Connections</strong> (⌘K), <strong>Open Ads and Trackers</strong>
-(⌘B) or <strong>Open Network</strong>. The <strong>four squares</strong> beside the gear do the same, and the
-<strong>gear</strong> opens Settings.</li>
+(⌘B) or <strong>Open Network</strong>. The <strong>four squares</strong> beside the gear do the same, and open the
+<strong>Live</strong> page (⌘L) from Live. The <strong>gear</strong> opens Settings.</li>
 <li>
 <strong>Lines under the buttons</strong> say what needs saying:
 <ul>
@@ -212,7 +231,7 @@ network or every hotspot at once; export it as CSV. See <a href="../../docs/usag
 <div class="markdown-heading"><h2 id="connections" class="heading-element">Connections</h2><a id="connections" class="anchor" aria-label="Permalink: Connections" href="#connections"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>Which companies your apps send data to, from which apps, in which countries, and to which
 servers: grouped by company, app or country, narrowed by clicking, searched, read hour by
-hour on a timeline, and shaded on a world map that pulses to where your apps reach right now. Nothing is looked up
+hour on a chart, and shaded on a world map that pulses to where your apps reach right now. Nothing is looked up
 online. Block a company, app, country, site or server, or have it ask the first time an app
 connects; <strong>Rules</strong>, beside Traffic and Blocked, lists every rule with what it did. See
 <a href="../../docs/connections/">Connections</a>.</p>
@@ -232,8 +251,8 @@ line, the result names it. On a hotspot it asks first. See <a href="../../docs/s
 puts the connection in Low Data Mode, and tells you which apps it can't stop. See
 <a href="../../docs/hotspot-mode/">Hotspot mode</a>.</p>
 <div class="markdown-heading"><h2 id="the-main-window" class="heading-element">The main window</h2><a id="the-main-window" class="anchor" aria-label="Permalink: The main window" href="#the-main-window"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
-<p>One window with a sidebar: <strong>Usage History</strong>, <strong>Connections</strong>, <strong>Ads and Trackers</strong> and
-<strong>Network</strong>, in the popover's order, with <strong>Settings</strong> pinned at the bottom. Hide the sidebar
+<p>One window with a sidebar: <strong>Live</strong>, <strong>Usage History</strong>, <strong>Connections</strong>, <strong>Ads and Trackers</strong>
+and <strong>Network</strong>, in the popover's order, with <strong>Settings</strong> pinned at the bottom. Hide the sidebar
 with its button or <strong>View › Hide Sidebar</strong> (⌃⌘S). When a new version is out, a card above
 <strong>Settings</strong> offers it, or says it's about to install, or that it did
 (<a href="../../docs/installing/#update">Update</a>).</p>
@@ -242,8 +261,14 @@ Ads and Trackers, <strong>List, Both or Map</strong> in Connections (<a href="ht
 the left and the chart or the map on the right (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/534">#534</a>). It has the period (<strong>Day,
 Week, Month, Year</strong>) in the middle, then
 <strong>‹ Today ›</strong>, a search button that opens into a field (⌘F), and a <strong>gear</strong>. The gear shows
-that section's own settings in place, with a back button. Network is about now, so it has
-only the gear.</p>
+that section's own settings in place, with a back button. Live and Network are about now,
+so Network has only the gear, and Live its graph's <strong>1 min | 5 min | 15 min</strong> on the page.</p>
+<p>Every section uses the window's whole width (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/825">#825</a>). On a wide window, Live puts the apps
+under the graph on the left, filling the window's height and scrolling inside themselves,
+and the speed test in a column of its own on the right, with your last result. On a
+narrower window the test is under the apps, whose list keeps the height of eight rows, so
+the test stays in the same place however many apps come and go. Settings and Network run
+each row from edge to edge, its control at the right.</p>
 <table>
 <thead>
 <tr>
@@ -253,6 +278,11 @@ only the gear.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><strong>Live</strong></td>
+<td>The download and upload speeds now, and the fastest in the graph · a graph of both over 1, 5 or 15 minutes · every app using the network now, with its speeds · the speed test (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/812">#812</a>)</td>
+<td>Show the test in the popover as Card or Compact</td>
+</tr>
 <tr>
 <td><strong>Usage History</strong></td>
 <td>The period's use by network type, then its apps, networks or sessions · Export CSV…</td>
@@ -270,8 +300,8 @@ only the gear.</p>
 </tr>
 <tr>
 <td><strong>Network</strong></td>
-<td>The connection you're on · This is a hotspot, and what it's detected as Right now · Traffic through a proxy or VPN, counted for each app (<a href="../../docs/accuracy-and-battery/#through-a-proxy-or-a-vpn">how</a>) · Stop apps updating on hotspots, what's paused and what can't be paused · the speed test</td>
-<td>Show the test in the popover as Card or Compact</td>
+<td>The connection you're on · This is a hotspot, and what it's detected as Right now · Traffic through a proxy or VPN, counted for each app (<a href="../../docs/accuracy-and-battery/#through-a-proxy-or-a-vpn">how</a>) · Stop apps updating on hotspots, what's paused and what can't be paused</td>
+<td>Look up the internet address</td>
 </tr>
 </tbody>
 </table>
@@ -284,7 +314,7 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 <strong>Language</strong>: the Mac's, or one chosen for the app</li>
 <li><strong>Start at login</strong></li>
 <li>
-<strong>Show NetworkMonitor in</strong> the Menu bar, the Dock or Both, and with the Dock or Both, <strong>Dock icon</strong>: Speeds or App icon</li>
+<strong>Show NetworkMonitor in</strong> the Menu bar, the Dock or Both, and with the Dock or Both, <strong>Dock icon</strong>: Speeds or App icon, and with Speeds, its <strong>Appearance</strong>: System, Light or Dark</li>
 <li>
 <strong>Updates</strong> (<a href="../../docs/installing/#update">how it updates</a>): your version, when it last checked and Check Now, <strong>Check for updates automatically</strong>, <strong>Install updates automatically</strong> and <strong>Get beta versions</strong>
 </li>
@@ -295,6 +325,12 @@ What a row means is behind an ⓘ beside it, which appears when you point at the
 <li>
 <strong>Speed colors</strong> (the readout's and the Dock icon's): six ready-made pairs, Custom… for your own Download and Upload, the speed test's colours, and <strong>Speed on top</strong>
 </li>
+<li>
+<strong>Popover</strong>: a tick to show or hide each of Live, Data, Connections, Ads blocked and
+Network, and the buttons' order: drag a row, or use its ↑ and ↓. Live stays on top, one
+view always shows, and so does Live or Network, which hold the speed test. The popover
+opens on Live, or on the first view shown while Live is hidden. <strong>Show All, in the
+Original Order</strong> puts them back (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/802">#802</a>).</li>
 <li>
 <strong>Popover totals</strong>: Counting since, Sampling, Reset Now</li>
 <li>
@@ -320,7 +356,7 @@ login, and turning that off doesn't quit the running app.</li>
 hides, and the main window stays in front.</li>
 </ul>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/features.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/05b2124a1b7042f56a354e5f445c415e91cbd33f"><code>05b2124</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/features.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/af4b0c8f0deb0ea98676ff01c97a06b101f129b2"><code>af4b0c8</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>

@@ -2,7 +2,8 @@ AXWindow (AXStandardWindow) title="Network Settings" 1300x800
   AXSplitGroup 1300x800
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXGroup description="Sections" h136
+        AXGroup description="Sections" h168
+          AXButton description="Live" 172x32
           AXButton description="Usage History" 172x32
           AXButton description="Connections" 172x32
           AXButton description="Ads and Trackers" 172x32
@@ -11,13 +12,10 @@ AXWindow (AXStandardWindow) title="Network Settings" 1300x800
     AXSplitter value="#" h748
     AXGroup (AXHostingView) h748
       AXScrollArea h748
-        AXScrollArea h416
-          AXHeading description="Speed test" 68x16
-          AXGroup h328
-            AXStaticText value="Show the test in the popover as" h16
-            AXButton description="Card" help="A card with a dial and every figure, in place of your apps." 200x272
-            AXButton description="Compact" help="Two lines above your apps, which stay in view." 200x272
-          AXStaticText value="A card with a dial and every figure, in place of your apps." h16
+        AXHeading description="Internet address" 104x16
+        AXStaticText value="Look up the internet address" h16
+        AXCheckBox (AXToggle) description="Look up the internet address" help="Asks Cloudflare's # for the address websites see, once on each network you join, and never on a hotspot, a metered connection or in Low Data Mode. It learns that address, as every website does, and nothing else. The country and provider come from the data already in the app." 56x24
+        AXStaticText value="This Mac's own address on the network is always shown: it's read from the Mac and sends nothing." h16
   AXToolbar 1300x52
     AXButton description="Sidebar" help="Hide Sidebar" 44x52
     AXButton description="Network" help="Back to Network" 44x52
