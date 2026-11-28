@@ -14,6 +14,7 @@ enum FlowBytesProbe {
     private static let lock = NSLock()
     private struct Watch {
         let owner: String?
+        let namedPlaceholderAtOpen: Bool
         var through: Date
         var bytes: Int64 = 0
     }
@@ -38,6 +39,8 @@ enum FlowBytesProbe {
               let observed = verdict.copy() as? NEFilterNewFlowVerdict else { return verdict }
         let owner = accounting ? Firewall.shared.downloadOwner(of: flow) : nil
         guard diagnostics || owner != nil else { return verdict }
+        let namedPlaceholder = owner != nil && (socket.remoteEndpoint as? NWHostEndpoint)?.hostname == "::"
+            && downloadPeer(of: socket) == .namedPlaceholder
         let now = Date()
         lock.lock()
         if watched.count >= limit / 2, now >= nextPrune {
@@ -54,7 +57,7 @@ enum FlowBytesProbe {
             return verdict
         }
         full = false
-        watched[flow.identifier] = Watch(owner: owner, through: now)
+        watched[flow.identifier] = Watch(owner: owner, namedPlaceholderAtOpen: namedPlaceholder, through: now)
         lock.unlock()
         observed.shouldReport = true
         observed.statisticsReportFrequency = .low
@@ -102,29 +105,29 @@ enum FlowBytesProbe {
         let previous = watched[flow.identifier]
         if closed {
             watched.removeValue(forKey: flow.identifier)
-        } else if let previous, let count = Int64(exactly: report.bytesInboundCount),
-                  count >= previous.bytes, now >= previous.through {
-            watched[flow.identifier] = Watch(owner: previous.owner, through: now, bytes: count)
+        } else if var current = previous, let count = Int64(exactly: report.bytesInboundCount),
+                  count >= current.bytes, now >= current.through {
+            current.through = now
+            current.bytes = count
+            watched[flow.identifier] = current
         }
         lock.unlock()
 
-        if accounting && diagnostics, report.bytesInboundCount > 0 {
-            if previous == nil {
-                log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) reason=not-watched")
-            } else if let previous, let count = Int64(exactly: report.bytesInboundCount), count > previous.bytes {
-                let peer = (flow as? NEFilterSocketFlow)?.remoteEndpoint as? NWHostEndpoint
-                let endpoint = peer.map { $0.port != "443" ? "other-port" : (FirewallPolicy.isLocal($0.hostname) ? "local" : "external-443") } ?? "missing"
+        if accounting, let previous, let count = Int64(exactly: report.bytesInboundCount), count > previous.bytes {
+            let endpoint = downloadPeer(of: flow, namedPlaceholderAtOpen: previous.namedPlaceholderAtOpen)
+            let clockValid = now >= previous.through
+            let dropped = report.action == .drop
+            let delta = count - previous.bytes
+            if diagnostics {
                 let owner = previous.owner == nil ? "missing" : "resolved"
-                log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) delta=\(count - previous.bytes, privacy: .public) owner=\(owner, privacy: .public) endpoint=\(endpoint, privacy: .public) drop=\(report.action == .drop, privacy: .public) clockValid=\(now >= previous.through, privacy: .public)")
+                log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) delta=\(delta, privacy: .public) owner=\(owner, privacy: .public) endpoint=\(endpoint.rawValue, privacy: .public) drop=\(dropped, privacy: .public) clockValid=\(clockValid, privacy: .public)")
             }
-        }
-        if accounting, let previous, let owner = previous.owner,
-           let count = Int64(exactly: report.bytesInboundCount), count > previous.bytes, now >= previous.through,
-           report.action != .drop,
-           let peer = (flow as? NEFilterSocketFlow)?.remoteEndpoint as? NWHostEndpoint,
-           peer.port == "443", !FirewallPolicy.isLocal(peer.hostname) {
-            AppLink.shared.report(FilterDownload(appKey: owner, from: previous.through,
-                                                through: now, bytes: count - previous.bytes))
+            if let owner = previous.owner, clockValid, !dropped, endpoint.isEligible {
+                AppLink.shared.report(FilterDownload(appKey: owner, from: previous.through,
+                                                    through: now, bytes: delta))
+            }
+        } else if accounting && diagnostics, previous == nil, report.bytesInboundCount > 0 {
+            log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) reason=not-watched")
         }
         if diagnostics {
             log.notice("""
@@ -152,6 +155,15 @@ enum FlowBytesProbe {
         guard udp || socket.socketType == SOCK_STREAM else { return nil }
         guard let remote = socket.remoteEndpoint as? NWHostEndpoint else { return udp ? "udp, no peer" : nil }
         return remote.port == "443" ? (udp ? "udp 443" : "tcp 443") : nil
+    }
+
+    private static func downloadPeer(of flow: NEFilterFlow, namedPlaceholderAtOpen: Bool = false) -> DownloadPeer {
+        guard let socket = flow as? NEFilterSocketFlow,
+              let peer = socket.remoteEndpoint as? NWHostEndpoint else { return .missing }
+        let placeholder = peer.hostname == "::" && socket.socketType == SOCK_DGRAM && socket.direction == .outbound
+        return DownloadPeer(address: peer.hostname, port: peer.port,
+                            hostname: placeholder ? socket.remoteHostname : nil, outboundUDP: placeholder,
+                            namedPlaceholderAtOpen: namedPlaceholderAtOpen)
     }
 
     private static func path(of pid: Int32) -> String {

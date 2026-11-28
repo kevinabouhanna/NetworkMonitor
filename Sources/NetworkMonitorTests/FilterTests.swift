@@ -35,6 +35,40 @@ func runFilterTests() {
             Check.expectFalse(trial.measuresFlowBytes)
         }
 
+        Check.test("a named outbound UDP/443 placeholder can carry a download (#821)") {
+            Check.expectEqual(DownloadPeer(address: "::", port: "443", hostname: "speed.cloudflare.com",
+                                           outboundUDP: true), .namedPlaceholder)
+            Check.expectTrue(DownloadPeer(address: "::", port: "443", hostname: "WWW.Example.CO.UK.",
+                                          outboundUDP: true).isEligible)
+            Check.expectTrue(DownloadPeer(address: "1.1.1.1", port: "443", hostname: nil,
+                                          outboundUDP: false).isEligible)
+        }
+
+        Check.test("LAN, missing peers and unrelated placeholder flows are excluded (#821)") {
+            for address in ["192.168.0.5", "10.0.0.2", "127.0.0.1", "::1", "fd00::1", "fe80::1%en0", "0.0.0.0"] {
+                Check.expectEqual(DownloadPeer(address: address, port: "443", hostname: "device.example.com",
+                                               outboundUDP: true, namedPlaceholderAtOpen: true), .local, address)
+            }
+            for name in [nil, "", "localhost", "printer.local", "router.home.arpa", "a.invalid",
+                         "intranet.corp", "a.onion", "1.2.3.4", "host..com", "host-.com", "com"] {
+                Check.expectFalse(DownloadPeer(address: "::", port: "443", hostname: name,
+                                               outboundUDP: true).isEligible, name ?? "no name")
+            }
+            Check.expectFalse(DownloadPeer(address: "::", port: "443", hostname: "example.com",
+                                           outboundUDP: false).isEligible)
+            Check.expectFalse(DownloadPeer(address: "::", port: "53", hostname: "example.com",
+                                           outboundUDP: true, namedPlaceholderAtOpen: true).isEligible)
+            Check.expectFalse(DownloadPeer(address: nil, port: nil, hostname: "example.com",
+                                           outboundUDP: true, namedPlaceholderAtOpen: true).isEligible)
+        }
+
+        Check.test("a report omitting its name can use evidence from the same opening flow (#821)") {
+            Check.expectTrue(DownloadPeer(address: "::", port: "443", hostname: nil,
+                                          outboundUDP: true, namedPlaceholderAtOpen: true).isEligible)
+            Check.expectFalse(DownloadPeer(address: "::", port: "443", hostname: "router.home.arpa",
+                                           outboundUDP: true, namedPlaceholderAtOpen: true).isEligible)
+        }
+
         // audit_token_t is eight 32-bit words; the process ID is the sixth.
         Check.test("reads the process ID from an audit token") {
             var words: [UInt32] = [1, 2, 3, 4, 5, 4242, 7, 8]
