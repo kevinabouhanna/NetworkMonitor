@@ -13,6 +13,8 @@ public enum DownloadPeer: String {
 
     public init(address: String?, port: String?, hostname: String?, outboundUDP: Bool,
                 namedPlaceholderAtOpen: Bool = false) {
+        // macOS may give an empty name rather than none: the same as none.
+        let hostname = hostname.flatMap { $0.isEmpty ? nil : $0 }
         guard let address, let port else { self = .missing; return }
         guard port == "443" else { self = .otherPort; return }
         guard FirewallPolicy.isLocal(address) else { self = .external; return }

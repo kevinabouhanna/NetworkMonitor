@@ -65,6 +65,11 @@ func runFilterTests() {
         Check.test("a report omitting its name can use evidence from the same opening flow (#821)") {
             Check.expectTrue(DownloadPeer(address: "::", port: "443", hostname: nil,
                                           outboundUDP: true, namedPlaceholderAtOpen: true).isEligible)
+            // An empty name is no name: the name seen at opening still holds.
+            Check.expectTrue(DownloadPeer(address: "::", port: "443", hostname: "",
+                                          outboundUDP: true, namedPlaceholderAtOpen: true).isEligible)
+            Check.expectFalse(DownloadPeer(address: "::", port: "443", hostname: "",
+                                           outboundUDP: true).isEligible)
             Check.expectFalse(DownloadPeer(address: "::", port: "443", hostname: "router.home.arpa",
                                            outboundUDP: true, namedPlaceholderAtOpen: true).isEligible)
         }

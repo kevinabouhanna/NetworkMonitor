@@ -40,8 +40,7 @@ enum FlowBytesProbe {
               let observed = verdict.copy() as? NEFilterNewFlowVerdict else { return verdict }
         let owner = accounting ? Firewall.shared.downloadOwner(of: flow) : nil
         guard diagnostics || owner != nil else { return verdict }
-        let namedPlaceholder = owner != nil && (socket.remoteEndpoint as? NWHostEndpoint)?.hostname == "::"
-            && downloadPeer(of: socket) == .namedPlaceholder
+        let namedPlaceholder = owner != nil && downloadPeer(of: socket) == .namedPlaceholder
         let now = Date()
         lock.lock()
         if watched.count >= limit / 2, now >= nextPrune {
@@ -121,7 +120,18 @@ enum FlowBytesProbe {
             let delta = count - previous.bytes
             if diagnostics {
                 let owner = previous.owner == nil ? "missing" : "resolved"
-                log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) delta=\(delta, privacy: .public) owner=\(owner, privacy: .public) endpoint=\(endpoint.rawValue, privacy: .public) drop=\(dropped, privacy: .public) clockValid=\(clockValid, privacy: .public)")
+                // The address's kind, never the address, on the same line as
+                // the decision it explains (#821).
+                let socket = flow as? NEFilterSocketFlow
+                let peerKind = addressKind((socket?.remoteEndpoint as? NWHostEndpoint)?.hostname)
+                let localKind = addressKind((socket?.localEndpoint as? NWHostEndpoint)?.hostname)
+                var modernPeer = "unavailable", modernLocal = "unavailable"
+                if #available(macOS 15.0, *), let socket {
+                    modernPeer = modernAddressKind(socket.remoteFlowEndpoint)
+                    modernLocal = modernAddressKind(socket.localFlowEndpoint)
+                }
+                let name = socket?.remoteHostname?.isEmpty == false ? "named" : "unnamed"
+                log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) delta=\(delta, privacy: .public) owner=\(owner, privacy: .public) endpoint=\(endpoint.rawValue, privacy: .public) peer=\(peerKind, privacy: .public) modernPeer=\(modernPeer, privacy: .public) local=\(localKind, privacy: .public) modernLocal=\(modernLocal, privacy: .public) name=\(name, privacy: .public) closed=\(closed, privacy: .public) drop=\(dropped, privacy: .public) clockValid=\(clockValid, privacy: .public)")
             }
             if let owner = previous.owner, clockValid, !dropped, endpoint.isEligible {
                 AppLink.shared.report(FilterDownload(appKey: owner, from: previous.through,
@@ -129,24 +139,6 @@ enum FlowBytesProbe {
             }
         } else if accounting && diagnostics, previous == nil, report.bytesInboundCount > 0 {
             log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) reason=not-watched")
-        }
-        if accounting && diagnostics, report.bytesInboundCount > 0,
-           let socket = flow as? NEFilterSocketFlow {
-            let local = (socket.localEndpoint as? NWHostEndpoint)?.hostname
-            let peer = (socket.remoteEndpoint as? NWHostEndpoint)?.hostname
-            let localKind = addressKind(local)
-            let peerKind = addressKind(peer)
-            let modernLocal: String
-            let modernPeer: String
-            if #available(macOS 15.0, *) {
-                modernLocal = modernAddressKind(socket.localFlowEndpoint)
-                modernPeer = modernAddressKind(socket.remoteFlowEndpoint)
-            } else {
-                modernLocal = "unavailable"
-                modernPeer = "unavailable"
-            }
-            let name = socket.remoteHostname?.isEmpty == false ? "named" : "unnamed"
-            log.notice("download-address flow=\(flow.identifier.uuidString, privacy: .public) closed=\(closed, privacy: .public) local=\(localKind, privacy: .public) modernLocal=\(modernLocal, privacy: .public) peer=\(peerKind, privacy: .public) modernPeer=\(modernPeer, privacy: .public) name=\(name, privacy: .public)")
         }
         if diagnostics {
             log.notice("""
