@@ -125,7 +125,7 @@ enum FlowBytesProbe {
                     FirewallPolicy.localKind($0.hostname) ?? "public"
                 } ?? "missing"
                 let owner = previous.owner == nil ? "missing" : "resolved"
-                log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) delta=\(count - previous.bytes, privacy: .public) owner=\(owner, privacy: .public) endpoint=\(endpoint, privacy: .public) host=\(name, privacy: .public) own=\(local, privacy: .public) drop=\(report.action == .drop, privacy: .public) clockValid=\(now >= previous.through, privacy: .public)")
+                log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) delta=\(count - previous.bytes, privacy: .public) owner=\(owner, privacy: .public) endpoint=\(endpoint, privacy: .public) name=\(name, privacy: .public) local=\(local, privacy: .public) drop=\(report.action == .drop, privacy: .public) clockValid=\(now >= previous.through, privacy: .public)")
             }
         }
         if accounting, let previous, let owner = previous.owner,
