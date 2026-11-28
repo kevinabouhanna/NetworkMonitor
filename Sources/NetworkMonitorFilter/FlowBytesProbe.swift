@@ -112,10 +112,20 @@ enum FlowBytesProbe {
             if previous == nil {
                 log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) reason=not-watched")
             } else if let previous, let count = Int64(exactly: report.bytesInboundCount), count > previous.bytes {
-                let peer = (flow as? NEFilterSocketFlow)?.remoteEndpoint as? NWHostEndpoint
-                let endpoint = peer.map { $0.port != "443" ? "other-port" : (FirewallPolicy.isLocal($0.hostname) ? "local" : "external-443") } ?? "missing"
+                let socket = flow as? NEFilterSocketFlow
+                let peer = socket?.remoteEndpoint as? NWHostEndpoint
+                // Which local range, never the address (#821): under Private
+                // Relay, WebKit's UDP flows report a local peer.
+                let endpoint = peer.map { peer in
+                    peer.port != "443" ? "other-port"
+                        : FirewallPolicy.localKind(peer.hostname).map { "local-" + $0 } ?? "external-443"
+                } ?? "missing"
+                let name = (socket?.remoteHostname?.isEmpty == false) ? "named" : "unnamed"
+                let local = (socket?.localEndpoint as? NWHostEndpoint).map {
+                    FirewallPolicy.localKind($0.hostname) ?? "public"
+                } ?? "missing"
                 let owner = previous.owner == nil ? "missing" : "resolved"
-                log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) delta=\(count - previous.bytes, privacy: .public) owner=\(owner, privacy: .public) endpoint=\(endpoint, privacy: .public) drop=\(report.action == .drop, privacy: .public) clockValid=\(now >= previous.through, privacy: .public)")
+                log.notice("download flow=\(flow.identifier.uuidString, privacy: .public) delta=\(count - previous.bytes, privacy: .public) owner=\(owner, privacy: .public) endpoint=\(endpoint, privacy: .public) name=\(name, privacy: .public) local=\(local, privacy: .public) drop=\(report.action == .drop, privacy: .public) clockValid=\(now >= previous.through, privacy: .public)")
             }
         }
         if accounting, let previous, let owner = previous.owner,

@@ -124,6 +124,20 @@ func runFirewallTests() {
             for internet in ["8.8.8.8", "172.32.0.1", "157.240.1.35", "2a03:2880:f12f:83:face:b00c:0:25de",
                              "::ffff:8.8.8.8", "not an address"] {
                 Check.expectFalse(FirewallPolicy.isLocal(internet), internet)
+                Check.expectEqual(FirewallPolicy.localKind(internet), nil, internet)
+            }
+        }
+
+        Check.test("a local address's range, for the Relay diagnostic (#821)") {
+            let kinds = ["0.0.0.0": "unspecified", "::": "unspecified", "127.0.0.1": "loopback", "::1": "loopback",
+                         "10.0.0.5": "private", "172.16.4.1": "private", "192.168.1.1": "private",
+                         "169.254.3.3": "link-local", "fe80::1c98:eeba:57c2:d2da%en0": "link-local",
+                         "fd12:3456::1": "unique-local", "224.0.0.251": "multicast", "ff02::fb": "multicast",
+                         "::ffff:192.168.1.10": "private", "240.0.0.1": "reserved", "255.255.255.255": "broadcast"]
+            for (address, kind) in kinds {
+                Check.expectEqual(FirewallPolicy.localKind(address), kind, address)
+                // The same ranges as isLocal, named.
+                Check.expectTrue(FirewallPolicy.isLocal(address), address)
             }
         }
 

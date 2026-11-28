@@ -461,31 +461,38 @@ public struct FirewallPolicy: Codable, Equatable {
 
     /// Loopback, the local network, link-local and multicast: never the
     /// internet, so never a company's or a country's.
-    public static func isLocal(_ address: String) -> Bool {
+    public static func isLocal(_ address: String) -> Bool { localKind(address) != nil }
+
+    /// Which local range an address is in, the one list `isLocal` reads, and
+    /// named for a diagnostic that mustn't log the address itself (#821):
+    /// nil when it isn't local.
+    public static func localKind(_ address: String) -> String? {
         let address = address.split(separator: "%").first.map(String.init) ?? address
         var v4 = in_addr()
         if inet_pton(AF_INET, address, &v4) == 1 {
             let b = withUnsafeBytes(of: v4.s_addr) { Array($0) }
-            return b[0] == 127 || b[0] == 10 || b[0] == 0
-                || (b[0] == 172 && (16...31).contains(b[1]))
-                || (b[0] == 192 && b[1] == 168)
-                || (b[0] == 169 && b[1] == 254)
-                || b[0] >= 224
+            if b[0] == 0 { return "unspecified" }
+            if b[0] == 127 { return "loopback" }
+            if b[0] == 10 || (b[0] == 172 && (16...31).contains(b[1])) || (b[0] == 192 && b[1] == 168) {
+                return "private"
+            }
+            if b[0] == 169 && b[1] == 254 { return "link-local" }
+            if (224...239).contains(b[0]) { return "multicast" }
+            if b[0] >= 240 { return b == [255, 255, 255, 255] ? "broadcast" : "reserved" }
+            return nil
         }
         var v6 = in6_addr()
         if inet_pton(AF_INET6, address, &v6) == 1 {
             let b = withUnsafeBytes(of: v6) { Array($0) }
-            if b[0..<15].allSatisfy({ $0 == 0 }) { return true }               // :: and ::1
-            if b[0] == 0xfe && (b[1] & 0xc0) == 0x80 { return true }           // fe80::/10
-            if (b[0] & 0xfe) == 0xfc { return true }                           // fc00::/7
-            if b[0] == 0xff { return true }                                    // ff00::/8
-            // An IPv4 address carried in IPv6 (::ffff:a.b.c.d) is judged as itself.
+            if b[0..<15].allSatisfy({ $0 == 0 }) { return b[15] == 0 ? "unspecified" : "loopback" }
+            if b[0] == 0xfe && (b[1] & 0xc0) == 0x80 { return "link-local" }
+            if (b[0] & 0xfe) == 0xfc { return "unique-local" }
+            if b[0] == 0xff { return "multicast" }
             if b[0..<10].allSatisfy({ $0 == 0 }) && b[10] == 0xff && b[11] == 0xff {
-                return isLocal("\(b[12]).\(b[13]).\(b[14]).\(b[15])")
+                return localKind("\(b[12]).\(b[13]).\(b[14]).\(b[15])")
             }
-            return false
         }
-        return false
+        return nil
     }
 
     /// An address as Connections keys a server: an IPv4 address carried in
