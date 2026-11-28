@@ -12,10 +12,10 @@ order is the **Order** field on the [project board](https://github.com/users/kev
 | 3 | #606 Keep the tooling and the plan in order | [Phase 5: Releases people check first](05-releases.md) |
 | 5 | #230 Each ⓘ links to its page in the docs | [Phase 4: Pictures, videos and docs](04-pictures-and-docs.md) |
 | 5.06 | #794 Release 1.35.0: a beta first, with #754's switch | [Phase 5: Releases people check first](05-releases.md) |
-| 5.6 | #807 Add Light, Dark and System appearance to the Dock Speeds icon | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.61 | #809 Completed macOS upgrade stays under nsurlsessiond when the log names softwareupdated | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.62 | #821 Safari's downloads over Private Relay count for everyone with the content filter on | [Phase 1: Everyday polish](01-everyday-polish.md) |
 | 5.625 | #795 The menu bar stays shown while the popover is open, with auto-hide on | [Phase 1: Everyday polish](01-everyday-polish.md) |
+| 5.63 | #838 Possible duplicate traffic accounting when using Shadowrocket VPN | [Phase 1: Everyday polish](01-everyday-polish.md) |
 
 ## Next
 
