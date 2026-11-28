@@ -15,8 +15,15 @@ AXWindow (AXStandardWindow) title="网络" 1300
         data: AXStaticText
         AXHeading description="此网络" 40x16
         AXStaticText value="这是热点" h16
-        data: AXCheckBox(AXToggle)
+        AXCheckBox (AXToggle) description="这是热点" help="连接此网络时，暂停应用更新和 iCloud 下载。NetworkMonitor 能自动识别 iPhone 的热点，但有些手机看起来像普通 Wi-Fi，或通过 USB 连接时像以太网：遇到这些手机时请打开此开关。此设置会为此网络记住。" 56x24
         data: optional
+        AXHeading description="热点" 28x16
+        AXStaticText value="停止热点下的应用更新" h16
+        AXCheckBox (AXSwitch) 56x24
+        AXStaticText value="还会让热点进入低数据模式，这样 iCloud 和其他后台下载会等到你断开热点后再进行。" h16
+        AXDisclosureTriangle description="使用热点时暂停（#）" h16
+        AXStaticText value="通过查看这台 Mac 上的应用内部找到。它们只在你使用热点时暂停，断开后会恢复。" h16
+        data: AXDisclosureTriangle AXStaticText
   AXToolbar 1300x52
     AXButton description="边栏" help="隐藏边栏" 44x52
     AXButton description="设置" help="网络设置" 40x52
