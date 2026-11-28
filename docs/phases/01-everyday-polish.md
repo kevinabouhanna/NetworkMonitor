@@ -25,10 +25,11 @@ window's three lists behave the same, and the VoiceOver and keyboard work of 1.2
 - **A finished macOS upgrade counts for Software Update** (#809), Now, a bug reported by
   defragekb: 17.8 GB stayed under `nsurlsessiond` because the log names its client
   `softwareupdated`, not a bundle identifier, which the owner lookup of #767 doesn't read.
-- **Light, Dark or System for the Dock's speeds** (#807), Now, asked for by defragekb: the
-  Dock icon's look chosen apart from the Mac's, remembered across launches. Kevin chose in its
-  design artifact (27 Nov 2026): an **Appearance** switch, System · Light · Dark, under Dock
-  icon while it's Speeds, one choice for Dock and Both.
+- **Traffic through Shadowrocket counted twice** (#838), Now, a bug reported by Starlight0721:
+  with Shadowrocket's VPN on, an app's traffic (Codex, 1.7 GB) also shows under Shadowrocket
+  (1.8 GB). They suspect Shadowrocket isn't among the known proxies of #356 and #589, and that
+  the tunnel's deduction only looks at one sampling interval. Reproduced first, in a VM with a
+  stand-in proxy if Shadowrocket can't run there, then fixed, keeping the day's total right.
 - **Settings' switches change with ← and →, as the toolbar's do** (#830), Next, found while
   building #807: the keyboard tour reaches each one, named, but its arrow keys don't change
   the choice. Checked with real keys in a VM first, then fixed or the tour taught, and held
@@ -70,6 +71,11 @@ defragekb's ask for what they open iStat Menus to see):
 - **Connections: no chart in List, Map | Chart in the corner, and "Showing only"** (#798), as
   Kevin chose in its design artifact, with **Show everything** in place of the filter chips in
   Connections, Ads and Trackers and Usage History alike. In 1.35.0 beta 7.
+- **Light, Dark or System for the Dock's speeds** (#807), asked for by defragekb, as Kevin chose
+  in its design artifact: an **Appearance** switch, System · Light · Dark, under Dock icon
+  while it's Speeds, one choice for Dock and Both. In 1.35.0 beta 8.
+
+All of these were released in 1.35.0 on 28 Nov 2026, once Kevin approved beta 8.
 
 Done on 26 Nov 2026, released in 1.34.0 the same day (#778):
 
