@@ -1,6 +1,7 @@
 import FilterProtocol
 import FirewallPolicy
 import Foundation
+import os
 
 /// The filter's side of its connection to the app: listens on the Mach
 /// service, accepts only NetworkMonitor signed by its team, and sends it what
@@ -118,7 +119,15 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
 
     func report(_ download: FilterDownload) {
         queue.async {
-            guard self.app != nil, self.creditsDownloads else { return }
+            guard self.app != nil, self.creditsDownloads else {
+                if Firewall.shared.measuresFlowBytes {
+                    FlowBytesProbe.log.notice("download-xpc queue-rejected bytes=\(download.bytes, privacy: .public) connected=\(self.app != nil, privacy: .public) enabled=\(self.creditsDownloads, privacy: .public)")
+                }
+                return
+            }
+            if Firewall.shared.measuresFlowBytes {
+                FlowBytesProbe.log.notice("download-xpc queued bytes=\(download.bytes, privacy: .public)")
+            }
             self.pendingDownloads.append(download)
             self.scheduleFlush()
         }
@@ -140,10 +149,21 @@ final class AppLink: NSObject, NSXPCListenerDelegate, FilterExtensionInterface {
         let downloads = pendingDownloads
         pending = []
         pendingDownloads = []
-        guard let remote = app?.remoteObjectProxy as? FilterAppInterface else { return }
+        guard let remote = app?.remoteObjectProxy as? FilterAppInterface else {
+            if !downloads.isEmpty && Firewall.shared.measuresFlowBytes {
+                FlowBytesProbe.log.notice("download-xpc disconnected count=\(downloads.count, privacy: .public)")
+            }
+            return
+        }
         if !flows.isEmpty { remote.flowsSeen(FlowReport.encode(flows)) }
-        if !downloads.isEmpty, let data = try? JSONEncoder().encode(downloads) {
+        guard !downloads.isEmpty else { return }
+        if let data = try? JSONEncoder().encode(downloads) {
+            if Firewall.shared.measuresFlowBytes {
+                FlowBytesProbe.log.notice("download-xpc sent count=\(downloads.count, privacy: .public)")
+            }
             remote.filterDownloads(data)
+        } else if Firewall.shared.measuresFlowBytes {
+            FlowBytesProbe.log.notice("download-xpc encode-failed count=\(downloads.count, privacy: .public)")
         }
     }
 }

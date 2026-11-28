@@ -4,6 +4,7 @@ import FilterProtocol
 import FirewallPolicy
 import ServerDirectory
 import Foundation
+import os
 
 /// Drives the menu bar title and the popover.
 ///
@@ -321,8 +322,13 @@ public final class MonitorViewModel: ObservableObject {
             })
         }
         filterDownloads = filter.downloads.sink { [weak self] batch in
-            guard let self, self.store.currentNetwork.kind != .offline else { return }
+            guard let self else { return }
+            let online = self.store.currentNetwork.kind != .offline
             let remaining = 4_096 - self.pendingFilterDownloads.count
+            if UserDefaults.standard.bool(forKey: "flowBytesProbe") {
+                FilterController.log.notice("download-history queue count=\(batch.count, privacy: .public) online=\(online, privacy: .public) capacity=\(remaining, privacy: .public)")
+            }
+            guard online else { return }
             self.pendingFilterDownloads.append(contentsOf: batch.prefix(remaining))
         }
         filter.resume()
@@ -764,13 +770,20 @@ public final class MonitorViewModel: ObservableObject {
     private func reconcileFilterDownloads(nettopAt: Date, now: Date) {
         guard !pendingFilterDownloads.isEmpty else { return }
         guard filter.state == .on, store.currentNetwork.kind != .offline else {
+            if UserDefaults.standard.bool(forKey: "flowBytesProbe") {
+                FilterController.log.notice("download-history reset count=\(self.pendingFilterDownloads.count, privacy: .public)")
+            }
             pendingFilterDownloads.removeAll()
             return
         }
         // Wait for the following nettop interval before crediting its gap.
         let through = nettopAt.addingTimeInterval(-Double(profile.nettopSampleInterval))
         let ready = pendingFilterDownloads.filter { $0.through <= through }
+        let before = pendingFilterDownloads.count
         pendingFilterDownloads.removeAll { $0.through <= through || $0.through > now }
+        if UserDefaults.standard.bool(forKey: "flowBytesProbe"), before != pendingFilterDownloads.count {
+            FilterController.log.notice("download-history reconcile ready=\(ready.count, privacy: .public) discarded=\(before - self.pendingFilterDownloads.count - ready.count, privacy: .public) available=\(self.store.history != nil, privacy: .public)")
+        }
         store.history?.recordFilterDownloads(ready, now: now)
     }
 
@@ -846,6 +859,9 @@ public final class MonitorViewModel: ObservableObject {
         // everything it had from the old link.
         let previous = store.currentNetwork
         if fingerprint.id != previous.id || fingerprint.interfaceName != previous.interfaceName {
+            if !pendingFilterDownloads.isEmpty && UserDefaults.standard.bool(forKey: "flowBytesProbe") {
+                FilterController.log.notice("download-history network-changed count=\(self.pendingFilterDownloads.count, privacy: .public)")
+            }
             pendingFilterDownloads.removeAll()
             udpUsageQueue.async { [weak self] in self?.udpCredit.reset() }
         }

@@ -509,13 +509,22 @@ public final class UsageHistory {
     /// hour: the hour it was in, which may be the last one by the time it's
     /// recorded. A window across a boundary may belong to either side.
     func recordFilterDownloads(_ reports: [FilterDownload], now: Date) {
-        guard !reports.isEmpty, let current = open, current.network.kind != .offline,
-              now.timeIntervalSince(current.lastSeen) < Self.sessionGap else { return }
+        guard !reports.isEmpty else { return }
+        let diagnostics = UserDefaults.standard.bool(forKey: "flowBytesProbe")
+        guard let current = open, current.network.kind != .offline,
+              now.timeIntervalSince(current.lastSeen) < Self.sessionGap else {
+            if diagnostics { FilterController.log.notice("download-history no-active-visit count=\(reports.count, privacy: .public)") }
+            return
+        }
         for report in reports {
             let slot = Slot(hour: hourStart(report.from), session: current.id)
-            guard report.bytes > 0, report.from < report.through, report.through <= now,
-                  report.from >= current.start,
-                  hourStart(report.through.addingTimeInterval(-0.001)) == slot.hour else { continue }
+            let validWindow = report.bytes > 0 && report.from < report.through && report.through <= now
+            let inVisit = report.from >= current.start
+            let inHour = validWindow && inVisit && hourStart(report.through.addingTimeInterval(-0.001)) == slot.hour
+            if diagnostics {
+                FilterController.log.notice("download-history record bytes=\(report.bytes, privacy: .public) validWindow=\(validWindow, privacy: .public) inVisit=\(inVisit, privacy: .public) inHour=\(inHour, privacy: .public)")
+            }
+            guard validWindow, inVisit, inHour else { continue }
             let identity = pending.identities[report.appKey] ?? AppIdentityResolver.identity(forKey: report.appKey)
             pending.filterDownloads[slot, default: [:]][identity.key, default: 0] += report.bytes
             if pending.identities[identity.key] == nil { pending.identities[identity.key] = identity }
@@ -791,6 +800,10 @@ public final class UsageHistory {
             // will refuse the next, and holding the batch would grow without
             // bound. The popover's own totals are unaffected.
             NSLog("NetworkMonitor: history write failed: \(error)")
+        }
+
+        if !batch.filterDownloads.isEmpty && UserDefaults.standard.bool(forKey: "flowBytesProbe") {
+            FilterController.log.notice("download-history transaction committed=\(wroteUsage, privacy: .public) slots=\(batch.filterDownloads.count, privacy: .public)")
         }
 
         // Servers in a transaction of their own: whatever goes wrong with them
