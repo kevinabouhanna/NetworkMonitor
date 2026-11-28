@@ -4,7 +4,7 @@ English · [简体中文](zh-Hans/speed-test.md)
 
 <p align="center">
   <img src="../Resources/README/speed-test.png" width="320"
-       alt="The popover’s Network view after a speed test, under Today, Week and Month and the four figures: a dial with the download speed in its centre, the download and upload speeds, the network, how much the test used and when, then ping, jitter, and ping while downloading and while uploading; Back and Test Again buttons.">
+       alt="The popover’s Live view after a speed test, under the Live line, highlighted in green, and the four figures: a dial with the download speed in its centre, the download and upload speeds, the network, how much the test used and when, then ping, jitter, and ping while downloading and while uploading; Back and Test Again buttons.">
 </p>
 
 Click **Test Speed** in the popover's **Live** view (in **Network** while Live is hidden), choose **Test Internet Speed** from
