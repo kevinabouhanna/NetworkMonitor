@@ -2,7 +2,8 @@ AXWindow (AXStandardWindow) title="网络设置" 1300x800
   AXSplitGroup 1300x800
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXGroup description="各部分" h136
+        AXGroup description="各部分" h168
+          AXButton description="实时" 172x32
           AXButton description="流量历史" 172x32
           AXButton description="连接" 172x32
           AXButton description="广告与跟踪器" 172x32
@@ -11,13 +12,10 @@ AXWindow (AXStandardWindow) title="网络设置" 1300x800
     AXSplitter value="#" h748
     AXGroup (AXHostingView) h748
       AXScrollArea h748
-        AXScrollArea h416
-          AXHeading description="网速测试" 52x16
-          AXGroup h328
-            AXStaticText value="在弹出窗口中显示测试的样式" h16
-            AXButton description="卡片" help="一张带仪表盘和所有数值的卡片，显示在应用列表的位置。" 200x272
-            AXButton description="紧凑" help="在应用列表上方显示两行，应用列表仍然可见。" 200x272
-          AXStaticText value="一张带仪表盘和所有数值的卡片，显示在应用列表的位置。" h16
+        AXHeading description="互联网地址" 64x16
+        AXStaticText value="查询互联网地址" h16
+        AXCheckBox (AXToggle) description="查询互联网地址" help="向 Cloudflare 的 # 询问网站看到的地址，每加入一个网络询问一次，使用热点、按流量计费的连接或低数据模式时从不询问。它和每个网站一样只会知道这个地址，不会知道其他任何信息。国家或地区和网络服务商来自应用中已有的数据。" 56x24
+        AXStaticText value="这台 Mac 在网络上的地址始终显示：它从 Mac 本身读取，不会发送任何内容。" h16
   AXToolbar 1300x52
     AXButton description="边栏" help="隐藏边栏" 44x52
     AXButton description="网络" help="返回网络" 44x52

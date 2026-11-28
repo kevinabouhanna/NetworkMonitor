@@ -1,9 +1,6 @@
 AXPopover 348
   AXGroup (AXHostingView)
-    AXTabGroup description="Period" 180x28
-      AXRadioButton (AXTabButton) description="Today" 12x16
-      AXRadioButton (AXTabButton) description="Week" 12x16
-      AXRadioButton (AXTabButton) description="Month" 12x16
+    AXButton description="Live, download # kilobytes per second, upload # kilobytes per second" help="The speeds right now, and which apps are using the network" h40
     AXButton description="Open Usage History (⌘Y)" identifier="square.grid.#x#" help="Open Usage History (⌘Y)" 28x28
     AXButton description="Settings" identifier="gearshape" help="Settings (⌘,)" 28x28
     AXButton description="Data, Today, # ‹unit›" help="Data your apps used, on every network · Today" h44

@@ -2,7 +2,8 @@ AXWindow (AXStandardWindow) title="流量历史设置" 1300x800
   AXSplitGroup 1300x800
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXGroup description="各部分" h136
+        AXGroup description="各部分" h168
+          AXButton description="实时" 172x32
           AXButton description="流量历史" 172x32
           AXButton description="连接" 172x32
           AXButton description="广告与跟踪器" 172x32
@@ -11,16 +12,13 @@ AXWindow (AXStandardWindow) title="流量历史设置" 1300x800
     AXSplitter value="#" h748
     AXGroup (AXHostingView) h748
       AXScrollArea h748
-        AXScrollArea h208
-          AXGroup h52
-            AXStaticText value="今天已用 # ‹unit›、每小时的数据都按应用和网络保存在这台 Mac 上" h32
-            AXButton description="打开流量历史…" help="也可按 ⌘Y" 112x24
-          AXGroup h80
-            AXStaticText value="历史记录保留" h16
-            AXPopUpButton description="历史记录保留" 72x24
-            AXStaticText value="清除历史记录" h16
-            AXButton description="清除历史记录…" 112x24
-          AXStaticText value="流量历史不会离开这台 Mac。清除后无法撤销。" h16
+        AXStaticText value="今天已用 # ‹unit›、每小时的数据都按应用和网络保存在这台 Mac 上" h32
+        AXButton description="打开流量历史…" help="也可按 ⌘Y" 112x24
+        AXStaticText value="历史记录保留" h16
+        AXPopUpButton description="历史记录保留" 84x24
+        AXStaticText value="清除历史记录" h16
+        AXButton description="清除历史记录…" 112x24
+        AXStaticText value="流量历史不会离开这台 Mac。清除后无法撤销。" h16
   AXToolbar 1300x52
     AXButton description="边栏" help="隐藏边栏" 44x52
     AXButton description="流量历史" help="返回流量历史" 44x52

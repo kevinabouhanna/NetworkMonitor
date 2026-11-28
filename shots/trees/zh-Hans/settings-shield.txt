@@ -2,7 +2,8 @@ AXWindow (AXStandardWindow) title="广告与跟踪器设置" 1300
   AXSplitGroup 1300
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXGroup description="各部分" h136
+        AXGroup description="各部分" h168
+          AXButton description="实时" 172x32
           AXButton description="流量历史" 172x32
           AXButton description="连接" 172x32
           AXButton description="广告与跟踪器" 172x32
@@ -11,26 +12,21 @@ AXWindow (AXStandardWindow) title="广告与跟踪器设置" 1300
     AXSplitter value="#" h748
     AXGroup (AXHostingView)
       AXScrollArea
-        AXScrollArea h372
-          AXGroup h52
-            AXStaticText value="今天已拦截 # 次、在所有应用中拦截广告、跟踪器和恶意软件网站" h32
-            AXButton description="打开广告与跟踪器…" help="也可按 ⌘B" 140x24
-          AXGroup h72
-            AXStaticText value="拦截广告和跟踪器" h16
-            AXCheckBox (AXToggle) description="拦截广告和跟踪器" help="在所有应用中，连接这些列表上网站的连接都会被拦截，但你自己的规则优先：在“连接”中对某个网站设为“始终允许”就会放行它。允许某个应用或公司后，它可以连接，但它的广告仍会被拦截。由网站自己的服务器提供的广告（例如 YouTube 的广告）无法与网站本身区分开，因此不会被拦截。" 36x16
-            AXStaticText value="每周更新列表" h16
-            AXCheckBox (AXToggle) description="每周更新列表" help="NetworkMonitor 每周从 GitHub 下载一次列表，每个人下载的都是同一个已签名的文件，在热点上从不下载。" 36x16
-          AXStaticText value="列表更新于 #年#月#日：StevenBlack 的 hosts（MIT）和 malware-filter 的 URLhaus（CC#）。" h16
-          AXGroup h36
-            AXStaticText value="增强型广告拦截" h16
-            AXCheckBox (AXToggle) description="增强型广告拦截" help="NetworkMonitor 在这台 Mac 上打开浏览器的安全连接，移除网页里的广告，再把它们传下去。没有任何内容离开你的 Mac。它需要一个仅为这台 Mac 生成的证书：其密钥永远不会离开这台 Mac，关闭此功能时两者都会被移除。银行、医疗、政府和支付网站，以及你设为“始终允许”的网站，永远不会被打开。原理：透明代理和在这台 Mac 上生成的根证书（HTTPS 过滤）。" 36x16
-          AXStaticText value="还会移除 Safari 和其他浏览器中网页和视频里的广告。在你打开之前保持关闭。" h16
-          AXGroup h52
-            AXStaticText value="你的规则" h16
-            AXStaticText value="# 条规则" h16
-            AXButton description="显示规则…" help="你的规则，在“广告与跟踪器”中，以及每条做了什么" 88x24
-            AXButton description="导入…" help="从 uBlock Origin、AdGuard 或规则列表导入规则" 60x24
-            AXButton description="导出…" help="以 uBlock Origin 和 AdGuard 能读取的格式存储你的规则" 60x24
+        AXStaticText value="今天已拦截 # 次、在所有应用中拦截广告、跟踪器和恶意软件网站" h32
+        AXButton description="打开广告与跟踪器…" help="也可按 ⌘B" 140x24
+        AXStaticText value="拦截广告和跟踪器" h16
+        AXCheckBox (AXToggle) description="拦截广告和跟踪器" help="在所有应用中，连接这些列表上网站的连接都会被拦截，但你自己的规则优先：在“连接”中对某个网站设为“始终允许”就会放行它。允许某个应用或公司后，它可以连接，但它的广告仍会被拦截。由网站自己的服务器提供的广告（例如 YouTube 的广告）无法与网站本身区分开，因此不会被拦截。" 56x24
+        AXStaticText value="每周更新列表" h16
+        AXCheckBox (AXToggle) description="每周更新列表" help="NetworkMonitor 每周从 GitHub 下载一次列表，每个人下载的都是同一个已签名的文件，在热点上从不下载。" 56x24
+        AXStaticText value="列表更新于 #年#月#日：StevenBlack 的 hosts（MIT）和 malware-filter 的 URLhaus（CC#）。" h16
+        AXStaticText value="增强型广告拦截" h16
+        AXCheckBox (AXToggle) description="增强型广告拦截" help="NetworkMonitor 在这台 Mac 上打开浏览器的安全连接，移除网页里的广告，再把它们传下去。没有任何内容离开你的 Mac。它需要一个仅为这台 Mac 生成的证书：其密钥永远不会离开这台 Mac，关闭此功能时两者都会被移除。银行、医疗、政府和支付网站，以及你设为“始终允许”的网站，永远不会被打开。原理：透明代理和在这台 Mac 上生成的根证书（HTTPS 过滤）。" 56x24
+        AXStaticText value="还会移除 Safari 和其他浏览器中网页和视频里的广告。在你打开之前保持关闭。" h16
+        AXStaticText value="你的规则" h16
+        AXButton description="显示规则…" help="你的规则，在“广告与跟踪器”中，以及每条做了什么" 88x24
+        AXButton description="导入…" help="从 uBlock Origin、AdGuard 或规则列表导入规则" 60x24
+        AXButton description="导出…" help="以 uBlock Origin 和 AdGuard 能读取的格式存储你的规则" 60x24
+        AXStaticText value="# 条规则" h16
         AXHeading description="列表" 28x16
         AXScrollArea
           data: AXButton AXCheckBox(AXToggle) AXStaticText

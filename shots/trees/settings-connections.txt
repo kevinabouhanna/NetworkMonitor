@@ -2,7 +2,8 @@ AXWindow (AXStandardWindow) title="Connections Settings" 1300x800
   AXSplitGroup 1300x800
     AXGroup (AXHostingView) h800
       AXScrollArea h700
-        AXGroup description="Sections" h136
+        AXGroup description="Sections" h168
+          AXButton description="Live" 172x32
           AXButton description="Usage History" 172x32
           AXButton description="Connections" 172x32
           AXButton description="Ads and Trackers" 172x32
@@ -11,44 +12,38 @@ AXWindow (AXStandardWindow) title="Connections Settings" 1300x800
     AXSplitter value="#" h748
     AXGroup (AXHostingView) h748
       AXScrollArea h748
-        AXScrollArea h664
-          AXGroup h52
-            AXStaticText value="# companies today, Which companies, countries and servers your apps talk to, on a list and a world map" h32
-            AXButton description="Open Connections…" help="Also ⌘K, and Companies in the popover" 148x24
-          AXHeading description="Blocking" 56x16
-          AXGroup h92
-            AXStaticText value="Let apps connect" h16
-            AXRadioGroup description="Let apps connect" 416x24
-              AXRadioButton (AXSegment) description="Anywhere" 140x24
-              AXRadioButton (AXSegment) description="Ask Me" 140x24
-              AXRadioButton (AXSegment) description="Only Where I Allow" 140x24
-            AXStaticText value="Your rules" h16
-            AXStaticText value="# rules" h16
-            AXButton description="Show Rules…" help="Your rules, in Connections, with what each did" 104x24
-            AXButton description="Import…" 76x24
-            AXButton description="Export…" 76x24
-          AXStaticText value="Everything connects except what you block. A rule applies from an app's next connection: one already open carries on until it closes." h28
-          AXHeading description="Lookups" 52x16
-          AXGroup h76
-            AXStaticText value="Encrypt lookups" h16
-            AXCheckBox (AXToggle) description="Encrypt lookups" help="Before an app connects to a site, your Mac looks its name up. Those lookups normally travel unencrypted, so your internet provider and anyone on the Wi-Fi can read every name. Switched on, NetworkMonitor sends each lookup encrypted to the resolver you pick, over DNS over HTTPS, and gives the answer back unchanged. Names only your network knows, like the router's, still go to it. If the resolver doesn't answer, lookups go to your network as before, so names keep working. Apps that encrypt their own lookups, like Chrome with Secure DNS, aren't affected." 36x16
-            AXStaticText value="Sent to" h16
-            AXPopUpButton description="Sent to" help="# Keeps no record of your address, and deletes its logs within a day." 112x24
-          AXStaticText value="Off: lookups go to your network's DNS server unencrypted, as on any Mac." h16
-          AXGroup h40
-            AXStaticText value="Opens with" h16
-            AXRadioGroup description="Opens with" 156x24
-              AXRadioButton (AXSegment) description="List" 52x24
-              AXRadioButton (AXSegment) description="Both" 52x24
-              AXRadioButton (AXSegment) description="Map" 52x24
-          AXGroup h112
-            AXStaticText value="Countries and networks" h16
-            AXStaticText value="DB-IP Lite, ‹month› #" h16
-            AXStaticText value="Update them monthly" h16
-            AXCheckBox (AXSwitch) 36x16
-            AXStaticText value="Kept" h16
-            AXStaticText value="As long as Usage History" h16
-          AXStaticText value="Everything is named on this Mac: nothing is looked up online. Once a month, NetworkMonitor downloads DB-IP's new data from GitHub, the same file for everyone, never on a hotspot. IP geolocation by DB-IP, CC BY #" h28
+        AXStaticText value="# companies today, Which companies, countries and servers your apps talk to, on a list and a world map" h32
+        AXButton description="Open Connections…" help="Also ⌘K, and Companies in the popover" 148x24
+        AXHeading description="Blocking" 56x16
+        AXStaticText value="Let apps connect" h16
+        AXRadioGroup description="Let apps connect" 416x24
+          AXRadioButton (AXSegment) description="Anywhere" 140x24
+          AXRadioButton (AXSegment) description="Ask Me" 140x24
+          AXRadioButton (AXSegment) description="Only Where I Allow" 140x24
+        AXStaticText value="Your rules" h16
+        AXButton description="Show Rules…" help="Your rules, in Connections, with what each did" 104x24
+        AXButton description="Import…" 76x24
+        AXButton description="Export…" 76x24
+        AXStaticText value="# rules" h16
+        AXStaticText value="Everything connects except what you block. A rule applies from an app's next connection: one already open carries on until it closes." h16
+        AXHeading description="Lookups" 52x16
+        AXStaticText value="Encrypt lookups" h16
+        AXCheckBox (AXToggle) description="Encrypt lookups" help="Before an app connects to a site, your Mac looks its name up. Those lookups normally travel unencrypted, so your internet provider and anyone on the Wi-Fi can read every name. Switched on, NetworkMonitor sends each lookup encrypted to the resolver you pick, over DNS over HTTPS, and gives the answer back unchanged. Names only your network knows, like the router's, still go to it. If the resolver doesn't answer, lookups go to your network as before, so names keep working. Apps that encrypt their own lookups, like Chrome with Secure DNS, aren't affected." 56x24
+        AXStaticText value="Sent to" h16
+        AXPopUpButton description="Sent to" help="# Keeps no record of your address, and deletes its logs within a day." 112x24
+        AXStaticText value="Off: lookups go to your network's DNS server unencrypted, as on any Mac." h16
+        AXStaticText value="Opens with" h16
+        AXRadioGroup description="Opens with" 156x24
+          AXRadioButton (AXSegment) description="List" 52x24
+          AXRadioButton (AXSegment) description="Both" 52x24
+          AXRadioButton (AXSegment) description="Map" 52x24
+        AXStaticText value="Countries and networks" h16
+        AXStaticText value="DB-IP Lite, ‹month› #" h16
+        AXStaticText value="Update them monthly" h16
+        AXCheckBox (AXSwitch) 56x24
+        AXStaticText value="Kept" h16
+        AXStaticText value="As long as Usage History" h16
+        AXStaticText value="Everything is named on this Mac: nothing is looked up online. Once a month, NetworkMonitor downloads DB-IP's new data from GitHub, the same file for everyone, never on a hotspot. IP geolocation by DB-IP, CC BY #" h28
   AXToolbar 1300x52
     AXButton description="Sidebar" help="Hide Sidebar" 44x52
     AXButton description="Connections" help="Back to Connections" 44x52

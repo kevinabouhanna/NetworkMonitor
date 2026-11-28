@@ -73,17 +73,22 @@ whichever grouping you switch to and back.</li>
 list of the main window (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/593">#593</a>): a company, app or country, or a row inside one. It
 shows its word when you point at the row. Filtering Teams inside Microsoft reads
 <em>Microsoft › Teams</em>. A row filtered to is highlighted and its button reads
-<strong>Filtered ✕</strong>; click that, its chip's ✕, or press Escape (the last chip first) to undo
-its part. Filtering opens and closes nothing: the list stays as you left it.</li>
+<strong>Filtered ✕</strong>. Filtering opens and closes nothing: the list stays as you left it.</li>
+<li>
+<strong>What the list is narrowed to is said in words</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/798">#798</a>): a line under the switches reads
+<em>Showing only Mon, 16 Nov · Microsoft · Teams</em>. Each part has its own ✕, <strong>Show
+everything</strong> at the end lets go of them all, and Escape lets go of one at a time, from
+the end. The search shows there too, and stays until you clear it. Usage History and Ads and Trackers have the same
+line.</li>
 <li>
 <strong>The keyboard</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/546">#546</a>): Tab reaches the list as one stop, or click a row. ↑ and ↓ move
 from row to row, marked with a ring; → opens a group, ← closes it or goes back up to the
 group a row is in; Space does what a click on the row does, and Return what its Filter
 button does.</li>
 <li>
-<strong>Drag across the timeline</strong>, or click a bar, to see one part of the day: what your
-apps contacted in the hour after a call, say. Click the same bar again, or the chip's
-✕, for the whole period.</li>
+<strong>Drag across the chart</strong>, or click a bar, to see one part of the day: what your
+apps contacted in the hour after a call, say. Click the same bar again, or its ✕ in the
+<em>Showing only</em> line, for the whole period.</li>
 <li>
 <strong>Search</strong>, the magnifying glass in the toolbar, finds a company, a network's
 registered name, an app, a country or an address. A group found by something inside it
@@ -101,14 +106,22 @@ talking to Amazon.</li>
 <div class="markdown-heading"><h2 id="the-map" class="heading-element">The map</h2><a id="the-map" class="anchor" aria-label="Permalink: The map" href="#the-map"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>Connections shows the list, the map, or both side by side (<strong>List | Both | Map</strong>). Both is
 the default, and whichever you choose is remembered. Too narrow for both, it shows
-the list until you widen the window.</p>
+the list until you widen the window. List is only the list, as in the other sections.</p>
+<p>In Both and Map, <strong>Map | Chart</strong> in the top-left corner shows the map or, in its place, a
+chart of the period's traffic, one bar per hour, day or month (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/798">#798</a>). Hover a bar for its
+figure; click one, or drag across several, to narrow the list to that time. The map is the
+default, and whichever you choose is remembered. A time picked on the chart stays picked in
+List, where the <em>Showing only</em> line says so.</p>
 <p>In a narrow window, a row's bar shortens before its name does, here and in Usage History's
 and Ads and Trackers' Both (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/534">#534</a>). A tag beside a name (<em>ALWAYS ALLOWED</em>, <em>ADS</em>, <em>METERED</em>)
 becomes its icon before the name is cut short; hover it, or ask VoiceOver, for its word.</p>
 <ul>
 <li>
-<strong>Countries are shaded by how much data went there</strong>, on a logarithmic scale, so a
-country with a few kilobytes still shows beside one with gigabytes.</li>
+<strong>Countries are shaded by how much data went there</strong>, in six steps a key in the corner
+names: under 1 MB, 1–10 MB, 10–100 MB, 100 MB–1 GB, 1–10 GB, and 10 GB or more (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/797">#797</a>).
+A shade means the same amount whatever the period, and a country with a few kilobytes
+still shows beside one with gigabytes. With <strong>Blocked</strong> shown, the steps count times
+blocked, from under 10 to 100,000 or more.</li>
 <li>
 <strong>Hover a country</strong> for a card with its top companies. <strong>Click it</strong> to narrow
 everything to it, and again to see everything.</li>
@@ -227,7 +240,7 @@ site covers every name under it.</p>
 <li>
 <p>The period and All, Wi-Fi or Hotspot still apply, since they set what each rule did; the
 toolbar's search finds a rule by what it's about, its app or its network. Group by, the
-timeline and the map are for Traffic and Blocked, so they hide.</p>
+chart and the map are for Traffic and Blocked, so they hide.</p>
 </li>
 <li>
 <p>Under the list, Ads and Trackers' own rules are a click away, as Connections' are from
@@ -440,8 +453,9 @@ the window. Whichever you choose is remembered, and it's hidden on Log with the 
 <li>
 <strong>A chart</strong> of blocks over the period, by hour, day or month, drawn and read as Usage
 History's (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/536">#536</a>). Hover a bar for its time and count. Click one to narrow the list and
-the total to that hour or day, as a timeline bar does in Connections: its chip above the
-list, a click on the bar again, or Escape shows the whole period again.</li>
+the total to that hour or day, as a bar of Connections' chart does: its ✕ in the
+<em>Showing only</em> line above the list, <strong>Show everything</strong>, a click on the bar again, or
+Escape shows the whole period again.</li>
 <li>
 <strong>Sites or Apps</strong>, at the end of the row under the toolbar, where Connections and Usage
 History have All, Wi-Fi or Hotspot: <strong>Sites</strong>, by the part of the name a person would
@@ -458,8 +472,8 @@ first eight, then <strong>Show all</strong>. Search opens a row found by what's 
 main window (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/593">#593</a>): the list keeps just that row, the total is its own, and the chart
 shows its share of each bar, the bar's own colour under the rest, with the hovered
 bar's count for it. On a row inside one, it shows only that site in that app. Its
-button then reads <strong>Filtered ✕</strong>; that, its chip, or Escape (after a picked bar's)
-lets it go.</li>
+button then reads <strong>Filtered ✕</strong>; that, its ✕ in the <em>Showing only</em> line, <strong>Show
+everything</strong>, or Escape (after a picked bar's) lets it go.</li>
 <li>
 <strong>Right-click</strong> a row, as in the Log: block or always allow its site, in every app or
 only its app, stop filtering its app, remove a rule you made about it, or copy its
@@ -701,7 +715,7 @@ touched.</li>
 CPU. The record is kept as long as Usage History (<strong>Keep history for</strong> in Usage History's
 settings) and cleared with it. The data that names servers adds about 5.5 MB to the download.</p>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/connections.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/05b2124a1b7042f56a354e5f445c415e91cbd33f"><code>05b2124</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/connections.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/af4b0c8f0deb0ea98676ff01c97a06b101f129b2"><code>af4b0c8</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>

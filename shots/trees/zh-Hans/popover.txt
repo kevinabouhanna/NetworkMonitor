@@ -1,18 +1,9 @@
 AXPopover 348
   AXGroup (AXHostingView)
-    AXTabGroup description="统计周期" 172x28
-      AXRadioButton (AXTabButton) description="今天" 12x16
-      AXRadioButton (AXTabButton) description="周" 12x16
-      AXRadioButton (AXTabButton) description="月" 12x16
-    AXButton description="打开流量历史（⌘Y）" identifier="square.grid.#x#" help="打开流量历史（⌘Y）" 28x28
+    AXButton description="实时，下载 # 千字节每秒，上传 # 千字节每秒" help="现在的网速，以及哪些应用正在使用网络" h40
+    AXButton description="打开“实时”（⌘L）" identifier="square.grid.#x#" help="打开“实时”（⌘L）" 28x28
     AXButton description="设置" identifier="gearshape" help="设置（⌘,）" 28x28
     AXButton description="数据，今天，# ‹unit›" help="你的应用在所有网络上使用的数据量 · 今天" h44
     AXButton description="连接，今天，#" help="连接：一个应用与一台服务器通信计为一次 · 今天" h44
     AXButton description="已拦截，今天，#" help="已拦截的广告、跟踪器和恶意网站 · 今天" h44
     data: optional
-    AXTabGroup description="分组方式" 100x24
-      AXRadioButton (AXTabButton) description="应用" 12x16
-      AXRadioButton (AXTabButton) description="网络" 12x16
-    AXStaticText value="# 个应用" h12
-    data: AXButton AXButton(AXDecrementArrow) AXButton(AXDecrementPage) AXButton(AXIncrementArrow) AXButton(AXIncrementPage) AXScrollArea AXScrollBar AXStaticText AXValueIndicator
-    AXButton description="打开流量历史" 296x28

@@ -1,10 +1,7 @@
-AXPopover 348x468
-  AXGroup (AXHostingView) h444
-    AXTabGroup description="Period" 180x28
-      AXRadioButton (AXTabButton) description="Today" 12x16
-      AXRadioButton (AXTabButton) description="Week" 12x16
-      AXRadioButton (AXTabButton) description="Month" 12x16
-    AXButton description="Open Network" identifier="square.grid.#x#" help="Open Network" 28x28
+AXPopover 348x532
+  AXGroup (AXHostingView) h504
+    AXButton description="Live, download # kilobytes per second, upload # kilobytes per second" help="The speeds right now, and which apps are using the network" h40
+    AXButton description="Open Live (⌘L)" identifier="square.grid.#x#" help="Open Live (⌘L)" 28x28
     AXButton description="Settings" identifier="gearshape" help="Settings (⌘,)" 28x28
     AXButton description="Data, Today, # ‹unit›" help="Data your apps used, on every network · Today" h44
     AXButton description="Connections, Today, #" help="Connections: each app talking to a server counts once · Today" h44
@@ -15,7 +12,7 @@ AXPopover 348x468
     AXStaticText value="#" h40
     AXStaticText value="#" h12
     AXStaticText value="#" h12
-    AXStaticText value="MB/s down" h12
+    AXStaticText value="KB/s down" h12
     AXStaticText value="Download" h12
     AXStaticText value="# ‹unit›" h16
     AXStaticText value="Upload" h12
@@ -29,5 +26,6 @@ AXPopover 348x468
     AXStaticText value="Ping while uploading" help="Ping measured while the test fills the line. A big rise over the quiet-line ping means calls and games lag whenever something downloads or uploads." h12
     AXStaticText value="# ms" help="Ping measured while the test fills the line. A big rise over the quiet-line ping means calls and games lag whenever something downloads or uploads." h16
     AXStaticText value="# ms" help="Ping measured while the test fills the line. A big rise over the quiet-line ping means calls and games lag whenever something downloads or uploads." h16
+    AXStaticText value="ValidUpdater, nsurlsessiond and # more used # ‹unit› during the test — figures may read low" h28
     AXButton description="Back" 48x20
     AXButton description="Test Again" 76x20

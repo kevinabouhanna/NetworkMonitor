@@ -324,7 +324,7 @@
         "-open",
         "settings",
         "-pane",
-        "speedTest"
+        "network"
       ],
       "window": "Network Settings"
     },
@@ -378,6 +378,7 @@
       ],
       "window": "AXPopover",
       "click": [
+        "AXButton:Data",
         "AXScrollArea>AXButton"
       ],
       "data": [
@@ -413,6 +414,9 @@
           "until": "AXTabGroup:Group by",
           "optional": true
         }
+      ],
+      "click": [
+        "AXButton:Data"
       ]
     },
     {
@@ -428,7 +432,6 @@
       ],
       "window": "AXPopover",
       "click": [
-        "AXButton:Network",
         "AXButton:Test Speed"
       ],
       "waitFor": {

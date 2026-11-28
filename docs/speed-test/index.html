@@ -7,7 +7,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Speed test — NetworkMonitor docs</title>
-<meta name="description" content="Click Test Speed in the popover&#x27;s Network view, choose Test Internet Speed from the right-click menu, or click Test Now on the Network page of the main…">
+<meta name="description" content="Click Test Speed in the popover&#x27;s Live view (in Network while Live is hidden), choose Test Internet Speed from the right-click menu, or click Test Now on…">
 <link rel="canonical" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/speed-test/">
 <link rel="alternate" hreflang="en" href="https://kevinabouhanna.github.io/NetworkMonitor/docs/speed-test/">
 <link rel="alternate" hreflang="zh-Hans" href="https://kevinabouhanna.github.io/NetworkMonitor/zh/docs/speed-test/">
@@ -46,10 +46,10 @@ document.addEventListener('click', function (e) {
   <main class="page" id="content">
 <div class="markdown-heading"><h1 id="speed-test" class="heading-element">Speed test</h1><a id="speed-test" class="anchor" aria-label="Permalink: Speed test" href="#speed-test"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p align="center">
-  <a target="_blank" rel="noopener noreferrer nofollow" href="https://raw.githubusercontent.com/kevinabouhanna/NetworkMonitor/05b2124a1b7042f56a354e5f445c415e91cbd33f/Resources/README/speed-test.png"><img src="https://raw.githubusercontent.com/kevinabouhanna/NetworkMonitor/05b2124a1b7042f56a354e5f445c415e91cbd33f/Resources/README/speed-test.png" width="320" alt="The popover’s Network view after a speed test, under Today, Week and Month and the four figures: a dial with the download speed in its centre, the download and upload speeds, the network, how much the test used and when, then ping, jitter, and ping while downloading and while uploading; Back and Test Again buttons." style="max-width: 100%;"></a>
+  <a target="_blank" rel="noopener noreferrer nofollow" href="https://raw.githubusercontent.com/kevinabouhanna/NetworkMonitor/af4b0c8f0deb0ea98676ff01c97a06b101f129b2/Resources/README/speed-test.png"><img src="https://raw.githubusercontent.com/kevinabouhanna/NetworkMonitor/af4b0c8f0deb0ea98676ff01c97a06b101f129b2/Resources/README/speed-test.png" width="320" alt="The popover’s Network view after a speed test, under Today, Week and Month and the four figures: a dial with the download speed in its centre, the download and upload speeds, the network, how much the test used and when, then ping, jitter, and ping while downloading and while uploading; Back and Test Again buttons." style="max-width: 100%;"></a>
 </p>
-<p>Click <strong>Test Speed</strong> in the popover's <strong>Network</strong> view, choose <strong>Test Internet Speed</strong> from
-the right-click menu, or click <strong>Test Now</strong> on the <strong>Network</strong> page of the main window. It
+<p>Click <strong>Test Speed</strong> in the popover's <strong>Live</strong> view (in <strong>Network</strong> while Live is hidden), choose <strong>Test Internet Speed</strong> from
+the right-click menu, or click <strong>Test Now</strong> on the <strong>Live</strong> page of the main window (⌘L). It
 tests the connection you're on. NetworkMonitor runs <code>networkQuality</code>, the speed
 test Apple ships with every Mac since Monterey, against Apple's nearest servers.</p>
 <div class="markdown-heading"><h2 id="what-you-get" class="heading-element">What you get</h2><a id="what-you-get" class="anchor" aria-label="Permalink: What you get" href="#what-you-get"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
@@ -76,11 +76,11 @@ in</strong>). Mbps matches how your line is sold; MB/s matches the data totals.<
 <div class="markdown-heading"><h2 id="where-it-shows" class="heading-element">Where it shows</h2><a id="where-it-shows" class="anchor" aria-label="Permalink: Where it shows" href="#where-it-shows"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <ul>
 <li>
-<strong>Card</strong> (the default) takes the place of the popover's Network view, with a dial and
+<strong>Card</strong> (the default) takes the place of the popover's Live view, with a dial and
 every figure. <strong>Back</strong> leaves a running test running and brings the view back; <strong>Show</strong>
 beside the speed test then returns to it. <strong>Stop</strong> is what stops it.</li>
 <li>
-<strong>Compact</strong> shows the test as two thin gauges above the Network view, with ping and
+<strong>Compact</strong> shows the test as two thin gauges above the Live view, with ping and
 jitter beneath once it's done. The view stays in sight and gives up that much height,
 so the popover never grows.</li>
 <li>
@@ -109,7 +109,7 @@ neither. The last result is forgotten too, since it described the network you le
 </ul>
 <div class="markdown-heading"><h2 id="how-its-built" class="heading-element">How it's built</h2><a id="how-its-built" class="anchor" aria-label="Permalink: How it's built" href="#how-its-built"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p><strong>The engine</strong> is <code>/usr/bin/networkQuality</code>. If a Mac doesn't have it, the speed test is
-left out of the popover, the Network page and the menu. Other engines were considered and turned
+left out of the popover, the Live page and the menu. Other engines were considered and turned
 down:</p>
 <table>
 <thead>
@@ -194,7 +194,7 @@ output captured from the real tool. The runner and controller run against a stan
 told to fail, fail its ping pass or run slowly. Run the real thing sparingly while
 developing: each run costs real data.</p>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/speed-test.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/05b2124a1b7042f56a354e5f445c415e91cbd33f"><code>05b2124</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/speed-test.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/af4b0c8f0deb0ea98676ff01c97a06b101f129b2"><code>af4b0c8</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>

@@ -93,7 +93,7 @@ then your Mac's Region setting.</li>
 <p><code>nettop</code> runs with <code>-n</code>, so it never looks up host names. Looking them up would itself
 send traffic.</p>
 <div class="markdown-heading"><h2 id="what-it-sends" class="heading-element">What it sends</h2><a id="what-it-sends" class="anchor" aria-label="Permalink: What it sends" href="#what-it-sends"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
-<p>Four things, and nothing else:</p>
+<p>Five things, and nothing else:</p>
 <ul>
 <li>
 <p><strong>The speed test, when you start it.</strong> It runs <code>networkQuality</code>, the tool Apple ships
@@ -133,6 +133,17 @@ automatically</strong> on (<a href="https://github.com/kevinabouhanna/NetworkMon
 is signed with the key built into the app. Switch the daily check off with <strong>Check for updates
 automatically</strong> in Settings. With <strong>Get beta versions</strong> on (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/585">#585</a>), it fetches the beta
 appcast instead, from the same place on GitHub.</p>
+</li>
+<li>
+<p><strong>Your internet address, only once you've turned it on</strong> (<a href="https://github.com/kevinabouhanna/NetworkMonitor/issues/803">#803</a>): <strong>Show</strong> in the popover's
+Network view, after it says what it asks and of whom, or <strong>Look up the internet address</strong>
+in Network's settings. Behind a router, only an outside service can tell the address
+websites see, so the app asks Cloudflare's trace at <code>one.one.one.one</code> (1.1.1.1): no
+account, no key, no cookies. Cloudflare learns that address, as every website does, and
+that this Mac asked; nothing else. Once on each network you join, never on a hotspot, a
+metered connection or in Low Data Mode, and the answer is kept in memory only. Its country
+and provider come from the country data already in the app. Off to begin with. This Mac's
+own address on the network is read from the Mac and sends nothing.</p>
 </li>
 </ul>
 <p>There is no analytics, no telemetry, no crash reporting and no account.</p>
@@ -239,7 +250,7 @@ password instead.</li>
 <p>App Store apps must be sandboxed, and a sandboxed app can't run <code>nettop</code>, which is the
 only way macOS offers to see network use per app.</p>
 
-    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/privacy.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/05b2124a1b7042f56a354e5f445c415e91cbd33f"><code>05b2124</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
+    <p class="page-source">This page is <a href="https://github.com/kevinabouhanna/NetworkMonitor/blob/main/docs/privacy.md">docs on GitHub</a>, as of <a href="https://github.com/kevinabouhanna/NetworkMonitor/commit/af4b0c8f0deb0ea98676ff01c97a06b101f129b2"><code>af4b0c8</code></a>. To suggest a change, <a href="https://github.com/kevinabouhanna/NetworkMonitor/issues">open an issue</a>.</p>
   </main>
 </div>
 <script>
